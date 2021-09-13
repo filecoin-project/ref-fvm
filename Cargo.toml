@@ -1,0 +1,13 @@
+[package]
+name = "fvm-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cid = { version = "0.7.0", default-features = false, features = ["std"] }
+
+[profile.release]
+lto = true
