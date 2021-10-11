@@ -1,10 +1,10 @@
 [package]
-name = "fvm-runtime-sdk"
+name = "fvm_sdk"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["lib"]
 
 [dependencies]
 cid = { version = "0.7.0", default-features = false, features = ["std"] }
