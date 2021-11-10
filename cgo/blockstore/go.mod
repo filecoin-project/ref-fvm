@@ -1,4 +1,4 @@
-module github.com/fvm-runtime-experiment/cgo/blockstore
+module github.com/filecoin-project/fvm/cgo/blockstore
 
 go 1.17
 

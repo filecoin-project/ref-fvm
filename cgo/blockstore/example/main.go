@@ -10,23 +10,16 @@ package main
 */
 import "C"
 import (
-	"context"
-	"fmt"
-
-	cgobs "github.com/filecoin-project/fvm-runtime-experiment/cgo/blockstore"
+	cgobs "github.com/filecoin-project/fvm/cgo/blockstore"
 	"github.com/filecoin-project/lotus/blockstore"
 )
 
-func main() {
-	bs := blockstore.NewMemory()
+func write_blocks(bs blockstore.Blockstore, count int) {
 	store := cgobs.Register(bs)
-	res := C.write_a_block(C.int32_t(store))
-	fmt.Println("result: ", res)
-	keys, err := bs.AllKeysChan(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	for c := range keys {
-		fmt.Println("cid: ", c)
-	}
+	_ = C.write_blocks(C.int32_t(store), C.int32_t(count))
+}
+
+func read_blocks(bs blockstore.Blockstore, count int) {
+	store := cgobs.Register(bs)
+	_ = C.read_blocks(C.int32_t(store), C.int32_t(count))
 }
