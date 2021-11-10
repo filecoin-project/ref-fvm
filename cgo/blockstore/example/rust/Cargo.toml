@@ -1,13 +1,14 @@
 [package]
-name = "fvm"
+name = "cgobs-example"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["lib"]
+crate-type = ["staticlib"]
 
 [dependencies]
-wasmer = "2.0.0"
-blockstore = { path = "../lib/blockstore" }
+cgobs = { path = "../../rust" }
+cid = "0.7.0"
+

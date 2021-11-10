@@ -20,6 +20,7 @@
 
 // TODO: new package?
 #[link(wasm_import_module = "ipld")]
+#[allow(improper_ctypes)]
 extern "C" {
     /// Gets the current root.
     ///
