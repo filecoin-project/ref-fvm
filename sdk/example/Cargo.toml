@@ -9,5 +9,5 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-cid = "0.7.0"
+cid = { version = "0.7.0", default-features = false }
 fvm_sdk = { path = ".." }
