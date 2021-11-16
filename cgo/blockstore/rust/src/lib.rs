@@ -2,7 +2,7 @@ use cid::Cid;
 use std::ptr;
 
 use core::fmt;
-use core2::{error, io};
+use core2::error;
 
 use blockstore;
 
@@ -29,27 +29,6 @@ impl Blockstore {
     }
 }
 
-pub struct BlockReader {
-    cid: Cid,
-    reader: io::Cursor<Vec<u8>>,
-    length: usize,
-}
-
-impl io::Read for BlockReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.reader.read(buf)
-    }
-}
-
-impl blockstore::BlockReader for BlockReader {
-    fn size(&self) -> usize {
-        self.length
-    }
-    fn cid(&self) -> &Cid {
-        &self.cid
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -65,7 +44,6 @@ impl error::Error for Error {}
 // datastore.
 impl blockstore::Blockstore for Blockstore {
     type Error = Error;
-    type Block = BlockReader;
 
     fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
         let k_bytes = k.to_bytes();
@@ -86,7 +64,7 @@ impl blockstore::Blockstore for Blockstore {
         }
     }
 
-    fn get(&self, k: &Cid) -> Result<Option<Self::Block>, Self::Error> {
+    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         let k_bytes = k.to_bytes();
         unsafe {
             let mut buf: *mut u8 = ptr::null_mut();
@@ -98,11 +76,7 @@ impl blockstore::Blockstore for Blockstore {
                 &mut buf,
                 &mut size,
             ) {
-                0 => Ok(Some(BlockReader {
-                    cid: *k,
-                    reader: io::Cursor::new(Vec::from_raw_parts(buf, size as usize, size as usize)),
-                    length: size as usize,
-                })),
+                0 => Ok(Some(Vec::from_raw_parts(buf, size as usize, size as usize))),
                 r @ 1.. => panic!("invalid return value from has: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 ERR_NOT_FOUND => Err(Error::NotFound),

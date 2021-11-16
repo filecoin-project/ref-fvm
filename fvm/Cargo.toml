@@ -11,3 +11,4 @@ crate-type = ["lib"]
 [dependencies]
 wasmer = "2.0.0"
 blockstore = { path = "../lib/blockstore" }
+cid = "0.7.0"
