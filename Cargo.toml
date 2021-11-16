@@ -1,5 +1,16 @@
 [workspace]
-members = ["fvm", "fvm/example", "sdk", "sdk/example", "lib/*", "cgo/*/rust"]
+members = [
+    "fvm",
+    "fvm/example",
+    "sdk",
+    "sdk/example",
+    "lib/*",
+    "cgo/*/rust",
+    "actor",
+    "vm",
+    "vm/actor_interface",
+    "vm/address",
+]
 
 [patch.crates-io]
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
