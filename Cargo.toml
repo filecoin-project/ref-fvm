@@ -1,9 +1,8 @@
 [workspace]
 members = [
     "fvm",
-    "fvm/example",
     "sdk",
-    "sdk/example",
+    "types",
     "lib/*",
     "cgo/*/rust",
     "cgo/*/example/rust",
@@ -11,6 +10,22 @@ members = [
     "vm",
     "vm/actor_interface",
     "vm/address",
+    "examples/*"
+]
+default-members = [
+    "fvm",
+    "sdk",
+    "types",
+    "lib/*",
+    "cgo/*/rust",
+    "cgo/*/example/rust",
+    "actor",
+    "vm",
+    "vm/actor_interface",
+    "vm/address",
+    # don't build the examples by default, as they require a specific target and profile.
+    # build them with cargo make examples
+    # "examples/*"
 ]
 
 [patch.crates-io]

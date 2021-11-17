@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 cid = { version = "0.7.0", default-features = false }
-fvm_sdk = { path = ".." }
+fvm_sdk = { path = "../../sdk" }

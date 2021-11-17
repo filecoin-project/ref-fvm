@@ -8,9 +8,9 @@ edition = "2018"
 address = { package = "forest_address", version = "0.3" }
 actor = { package = "actor_interface", path = "../actor_interface" }
 message = { package = "forest_message", default_features = false, version = "0.7", features = ["blst"] }
-runtime = { package = "forest_runtime", version = "0.2" }
+runtime = { package = "forest_runtime", path = "../runtime" }
 blocks = { package = "forest_blocks", path = "../../blockchain/blocks" }
-clock = { package = "fil_clock", path = "../../node/clock" }
+clock = { package = "fil_clock" }
 vm = { package = "forest_vm", version = "0.3.1" }
 ipld_blockstore = "0.1"
 num-bigint = { path = "../../utils/bigint", package = "forest_bigint" }
@@ -32,5 +32,5 @@ state_migration = { path = "../state_migration" }
 
 [dev-dependencies]
 ipld_hamt = "1.0"
-interpreter = { path = "../interpreter/" }
+interpreter = { path = "../interpreter" }
 
