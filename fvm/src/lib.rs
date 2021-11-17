@@ -1,5 +1,6 @@
 use anyhow;
 use cid::{self, Cid};
+use std::cell::RefCell;
 use wasmtime::{self, Caller, Engine, Linker, Trap};
 
 mod runtime;
@@ -23,30 +24,65 @@ fn encoded_cid_size(k: &Cid) -> u32 {
         cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
     }
 }
+struct Context<'a, R> {
+    pub caller: Caller<'a, R>,
+    memory: Option<wasmtime::Memory>,
+}
 
-fn get_root(mut caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
-    let root = *caller.data().root();
+impl<'a, R> std::ops::Deref for Context<'a, R> {
+    type Target = Caller<'a, R>;
+    fn deref(&self) -> &Self::Target {
+        &self.caller
+    }
+}
+
+impl<'a, R> std::ops::DerefMut for Context<'a, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.caller
+    }
+}
+
+impl<'a, R> Context<'a, R> {
+    fn new(caller: Caller<'a, R>) -> Self {
+        Context {
+            caller,
+            memory: None,
+        }
+    }
+
+    fn load_memory_mut(&mut self) -> Result<&mut [u8], Trap> {
+        // TODO: looking up the memory could be slow. Ideally, we'd do it once when instantiating
+        // the contract instead of on every syscall.
+        Ok(match &mut self.memory {
+            Some(memory) => memory,
+            mem => mem.insert(
+                self.caller
+                    .get_export("memory")
+                    .and_then(|m| m.into_memory())
+                    .ok_or_else(|| Trap::new("failed to lookup actor memory"))?,
+            ),
+        }
+        .data_mut(&mut self.caller))
+    }
+
+    fn try_slice_mut(&mut self, offset: u32, len: u32) -> Result<&mut [u8], Trap> {
+        self.load_memory_mut()?
+            .get_mut(offset as usize..)
+            .and_then(|data| data.get_mut(..len as usize))
+            .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
+    }
+}
+
+fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
+    let mut ctx = Context::new(caller);
+
+    let root = *ctx.data().root();
     let size = encoded_cid_size(&root);
     if cid == 0 || size > cid_max_len {
         return Ok(size);
     }
 
-    // TODO: could be slow? Ideally we'd memoize this somehow.
-    let memory = caller
-        .get_export("memory")
-        .and_then(|m| m.into_memory())
-        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?;
-
-    let mut out_slice = memory
-        .data_mut(&mut caller)
-        .get_mut(cid as usize..)
-        .and_then(|data| data.get_mut(..cid_max_len as usize))
-        .ok_or_else(|| {
-            Trap::new(format!(
-                "cid buffer {} (length {}) out of bounds",
-                cid, cid_max_len
-            ))
-        })?;
+    let mut out_slice = ctx.try_slice_mut(cid, cid_max_len)?;
 
     root.write_bytes(&mut out_slice)
         .map_err(|err| Trap::new(err.to_string()))?;
