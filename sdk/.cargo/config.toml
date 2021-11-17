@@ -1,4 +1,4 @@
 
 [build]
-rustflags = ["-C", "target-feature=+multivalue", "-C", "link-args=--import-memory"]
+rustflags = ["-C", "target-feature=+multivalue"]
 target = "wasm32-unknown-unknown"

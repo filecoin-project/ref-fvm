@@ -9,6 +9,7 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
-wasmer = "2.0.0"
+anyhow = "1.0.45"
 blockstore = { path = "../lib/blockstore" }
 cid = "0.7.0"
+wasmtime = "0.31.0"

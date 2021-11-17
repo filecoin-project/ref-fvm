@@ -1,62 +1,64 @@
-use std::sync::{Arc, Mutex, MutexGuard};
-
-use wasmer::{Function, ImportObject, Store, WasmerEnv};
+use anyhow;
+use cid::{self, Cid};
+use wasmtime::{self, Caller, Engine, Linker, Trap};
 
 mod runtime;
 
-use runtime::Runtime;
+pub use runtime::{Config, DefaultRuntime, Runtime};
 
-#[derive(WasmerEnv)]
-struct Env<R>
-where
-    R: Send,
-{
-    runtime: Arc<Mutex<R>>,
-    // TODO: needs access to the store.
+// Computes the encoded size of a varint.
+// TODO: move this to the varint crate.
+fn uvarint_size(num: u64) -> u32 {
+    let bits = u64::BITS - num.leading_zeros();
+    (bits / 7 + (bits % 7 > 0) as u32).min(1) as u32
 }
 
-impl<R> Clone for Env<R>
-where
-    R: Send,
-{
-    fn clone(&self) -> Self {
-        Env {
-            runtime: self.runtime.clone(),
-        }
+/// Returns the size cid would be, once encoded.
+// TODO: move this to the cid/multihash crates.
+fn encoded_cid_size(k: &Cid) -> u32 {
+    let mh = k.hash();
+    let mh_size = uvarint_size(mh.code()) + uvarint_size(mh.size() as u64) + mh.size() as u32;
+    match k.version() {
+        cid::Version::V0 => mh_size,
+        cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
     }
 }
 
-impl<R> Env<R>
-where
-    R: Send,
-{
-    fn lock(&self) -> MutexGuard<R> {
-        self.runtime.lock().expect("lock poisoned")
+fn get_root(mut caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
+    let root = *caller.data().root();
+    let size = encoded_cid_size(&root);
+    if cid == 0 || size > cid_max_len {
+        return Ok(size);
     }
+
+    // TODO: could be slow? Ideally we'd memoize this somehow.
+    let memory = caller
+        .get_export("memory")
+        .and_then(|m| m.into_memory())
+        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?;
+
+    let mut out_slice = memory
+        .data_mut(&mut caller)
+        .get_mut(cid as usize..)
+        .and_then(|data| data.get_mut(..cid_max_len as usize))
+        .ok_or_else(|| {
+            Trap::new(format!(
+                "cid buffer {} (length {}) out of bounds",
+                cid, cid_max_len
+            ))
+        })?;
+
+    root.write_bytes(&mut out_slice)
+        .map_err(|err| Trap::new(err.to_string()))?;
+
+    Ok(size)
 }
 
-// TODO: this really needs an env. BUT, in order to get that to work, we need to handle some lifetime problems...
-fn get_root<R>(env: &Env<R>, _cid: i32, _cid_max_len: i32) -> i32
+pub fn environment<R>(engine: &Engine) -> anyhow::Result<Linker<R>>
 where
-    R: Send + Runtime,
+    R: Runtime + 'static, // TODO: get rid of the static, if possible.
 {
-    //let env = env.lock();
-    //env.root()
-    panic!("still working on this")
-}
-
-// TODO: consider reusing this object if it's a bottleneck.
-pub fn environment<R>(rt: Arc<Mutex<R>>, store: &Store) -> ImportObject
-where
-    R: Runtime + Send + 'static,
-{
-    let env = Env { runtime: rt };
-    //let max_memory = env.lock().config().max_pages;
-
-    let get_root_function = Function::new_native_with_env(store, env, get_root);
-    wasmer::imports! {
-        "ipld" => {
-            "get_root" => get_root_function,
-        }
-    }
+    let mut linker = Linker::new(engine);
+    linker.func_wrap("ipld", "get_root", get_root)?;
+    Ok(linker)
 }
