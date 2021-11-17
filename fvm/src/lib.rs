@@ -1,6 +1,5 @@
 use anyhow;
 use cid::{self, Cid};
-use std::cell::RefCell;
 use wasmtime::{self, Caller, Engine, Linker, Trap};
 
 mod runtime;
@@ -71,6 +70,15 @@ impl<'a, R> Context<'a, R> {
             .and_then(|data| data.get_mut(..len as usize))
             .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
     }
+
+    fn read_cid(&mut self, offset: u32) -> Result<Cid, Trap> {
+        let mut memory = &*self
+            .load_memory_mut()?
+            .get_mut(offset as usize..)
+            .ok_or_else(|| Trap::new(format!("buffer {} out of bounds", offset)))?;
+        Cid::read_bytes(&mut memory)
+            .map_err(|err| Trap::new(format!("failed to parse CID: {}", err)))
+    }
 }
 
 fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
@@ -90,11 +98,20 @@ fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Res
     Ok(size)
 }
 
+fn set_root(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<(), Trap> {
+    let mut ctx = Context::new(caller);
+    let cid = ctx.read_cid(cid)?;
+    ctx.data_mut().set_root(cid);
+    // TODO: make sure the new root is reachable.
+    Ok(())
+}
+
 pub fn environment<R>(engine: &Engine) -> anyhow::Result<Linker<R>>
 where
     R: Runtime + 'static, // TODO: get rid of the static, if possible.
 {
     let mut linker = Linker::new(engine);
     linker.func_wrap("ipld", "get_root", get_root)?;
+    linker.func_wrap("ipld", "set_root", set_root)?;
     Ok(linker)
 }
