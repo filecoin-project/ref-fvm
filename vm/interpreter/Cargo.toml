@@ -10,7 +10,7 @@ actor = { package = "actor_interface", path = "../actor_interface" }
 message = { package = "forest_message", default_features = false, version = "0.7", features = ["blst"] }
 runtime = { package = "forest_runtime", path = "../runtime" }
 blocks = { package = "forest_blocks", path = "../../blockchain/blocks" }
-clock = { package = "fil_clock" }
+clock = { package = "fil_clock", version = "0.1" }
 vm = { package = "forest_vm", version = "0.3.1" }
 ipld_blockstore = "0.1"
 num-bigint = { path = "../../utils/bigint", package = "forest_bigint" }

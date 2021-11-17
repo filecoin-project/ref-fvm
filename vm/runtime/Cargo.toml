@@ -18,7 +18,7 @@ forest_encoding = "0.2.1"
 commcid = { path = "../../utils/commcid", version = "0.1.1" }
 filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false }
 base64 = "0.13"
-fil_types = { features = ["proofs"], version = "0.2" }
+fil_types = { features = ["proofs"], version = "0.2", path = "../../types" }
 log = "0.4.8"
 
 [dev-dependencies]

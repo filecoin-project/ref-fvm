@@ -3,7 +3,13 @@
 
 use encoding::{from_slice, to_vec};
 use forest_blocks::*;
-use test_utils::construct_ticket;
+use crypto::VRFProof;
+
+/// Returns a Ticket to be used for testing
+pub fn construct_ticket() -> Ticket {
+    let vrf_result = VRFProof::new(base64::decode("lmRJLzDpuVA7cUELHTguK9SFf+IVOaySG8t/0IbVeHHm3VwxzSNhi1JStix7REw6Apu6rcJQV1aBBkd39gQGxP8Abzj8YXH+RdSD5RV50OJHi35f3ixR0uhkY6+G08vV").unwrap());
+    Ticket::new(vrf_result)
+}
 
 // From Lotus
 const TICKET: [u8; 99] = [
