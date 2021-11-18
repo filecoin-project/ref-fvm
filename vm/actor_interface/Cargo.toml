@@ -15,7 +15,7 @@ actorv4 = { package = "forest_actor", version = "3.0" }
 actorv5 = { package = "forest_actor", path = "../../actor" }
 
 libp2p = { version = "0.40.0-rc.1", default-features = false }
-fil_types = { version = "0.2", path = "../../types" }
+fil_types = { version = "0.2" }
 vm = { package = "forest_vm", path = "../../vm", version = "0.3.1" }
 ipld_blockstore = "0.1"
 address = { package = "forest_address", version = "0.3" }
