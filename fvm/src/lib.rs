@@ -31,7 +31,7 @@ where
     F: ContextFeatures + ?Sized,
 {
     pub caller: Caller<'a, R>,
-    memory: <F::Memory as typestate::Select<wasmtime::Memory, ()>>::Type,
+    memory: typestate::ConstOption<F::Memory, wasmtime::Memory>,
 }
 
 impl<'a, R, F> std::ops::Deref for Context<'a, R, F>
@@ -54,22 +54,32 @@ where
 }
 
 trait ContextFeatures {
-    type Memory: typestate::Select<wasmtime::Memory, ()>;
+    type Memory: typestate::TypeOption<wasmtime::Memory>;
 }
 
 impl<'a, R> Context<'a, R, dyn ContextFeatures<Memory = typestate::False>> {
     fn new(caller: Caller<'a, R>) -> Self {
-        Context { caller, memory: () }
+        Context {
+            caller,
+            memory: typestate::ConstOption::none(),
+        }
     }
 }
 
 impl<'a, R, F> Context<'a, R, F>
 where
-    F: ContextFeatures<Memory = typestate::False> + ?Sized,
+    F: ContextFeatures + ?Sized,
 {
     fn with_memory(
         mut self,
     ) -> Result<Context<'a, R, dyn ContextFeatures<Memory = typestate::True>>, Trap> {
+        // This check is known at compile time and should get optimized out.
+        if let Some(memory) = self.memory.into_option() {
+            return Ok(Context {
+                caller: self.caller,
+                memory: typestate::ConstOption::some(memory),
+            });
+        }
         let mem = self
             .caller
             .get_export("memory")
@@ -78,7 +88,7 @@ where
 
         Ok(Context {
             caller: self.caller,
-            memory: mem,
+            memory: typestate::ConstOption::some(mem),
         })
     }
 }
