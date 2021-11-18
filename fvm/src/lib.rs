@@ -24,34 +24,121 @@ fn encoded_cid_size(k: &Cid) -> u32 {
     }
 }
 
-fn get_root(mut caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
-    let root = *caller.data().root();
+mod typestate;
+
+struct Context<'a, R, F = dyn ContextFeatures<Memory = typestate::False>>
+where
+    F: ContextFeatures + ?Sized,
+{
+    pub caller: Caller<'a, R>,
+    memory: <F::Memory as typestate::Select<wasmtime::Memory, ()>>::Type,
+}
+
+impl<'a, R, F> std::ops::Deref for Context<'a, R, F>
+where
+    F: ContextFeatures + ?Sized,
+{
+    type Target = Caller<'a, R>;
+    fn deref(&self) -> &Self::Target {
+        &self.caller
+    }
+}
+
+impl<'a, R, F> std::ops::DerefMut for Context<'a, R, F>
+where
+    F: ContextFeatures + ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.caller
+    }
+}
+
+trait ContextFeatures {
+    type Memory: typestate::Select<wasmtime::Memory, ()>;
+}
+
+impl<'a, R> Context<'a, R, dyn ContextFeatures<Memory = typestate::False>> {
+    fn new(caller: Caller<'a, R>) -> Self {
+        Context { caller, memory: () }
+    }
+}
+
+impl<'a, R, F> Context<'a, R, F>
+where
+    F: ContextFeatures<Memory = typestate::False> + ?Sized,
+{
+    fn with_memory(
+        mut self,
+    ) -> Result<Context<'a, R, dyn ContextFeatures<Memory = typestate::True>>, Trap> {
+        let mem = self
+            .caller
+            .get_export("memory")
+            .and_then(|m| m.into_memory())
+            .ok_or_else(|| Trap::new("failed to lookup actor memory"))?;
+
+        Ok(Context {
+            caller: self.caller,
+            memory: mem,
+        })
+    }
+}
+
+impl<'a, R, F> Context<'a, R, F>
+where
+    F: ContextFeatures<Memory = typestate::True> + ?Sized,
+{
+    fn try_slice_mut(&mut self, offset: u32, len: u32) -> Result<&mut [u8], Trap> {
+        self.memory
+            .data_mut(&mut self.caller)
+            .get_mut(offset as usize..)
+            .and_then(|data| data.get_mut(..len as usize))
+            .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
+    }
+
+    fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8], Trap> {
+        self.memory
+            .data(&self.caller)
+            .get(offset as usize..)
+            .and_then(|data| data.get(..len as usize))
+            .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
+    }
+
+    // TODO: this shouldn't require a mutable self.
+    // But loading the memory requires that, specically for "get_export".
+    fn read_cid(&self, offset: u32) -> Result<Cid, Trap> {
+        let memory = self
+            .memory
+            .data(&self.caller)
+            .get(offset as usize..)
+            .ok_or_else(|| Trap::new(format!("buffer {} out of bounds", offset)))?;
+        Cid::read_bytes(&*memory).map_err(|err| Trap::new(format!("failed to parse CID: {}", err)))
+    }
+}
+
+fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
+    let ctx = Context::new(caller);
+
+    let root = *ctx.data().root();
     let size = encoded_cid_size(&root);
     if cid == 0 || size > cid_max_len {
         return Ok(size);
     }
 
-    // TODO: could be slow? Ideally we'd memoize this somehow.
-    let memory = caller
-        .get_export("memory")
-        .and_then(|m| m.into_memory())
-        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?;
-
-    let mut out_slice = memory
-        .data_mut(&mut caller)
-        .get_mut(cid as usize..)
-        .and_then(|data| data.get_mut(..cid_max_len as usize))
-        .ok_or_else(|| {
-            Trap::new(format!(
-                "cid buffer {} (length {}) out of bounds",
-                cid, cid_max_len
-            ))
-        })?;
+    let mut ctx = ctx.with_memory()?;
+    let mut out_slice = ctx.try_slice_mut(cid, cid_max_len)?;
 
     root.write_bytes(&mut out_slice)
         .map_err(|err| Trap::new(err.to_string()))?;
 
     Ok(size)
+}
+
+fn set_root(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<(), Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    let cid = ctx.read_cid(cid)?;
+    ctx.data_mut().set_root(cid);
+    // TODO: make sure the new root is reachable.
+    Ok(())
 }
 
 pub fn environment<R>(engine: &Engine) -> anyhow::Result<Linker<R>>
@@ -60,5 +147,6 @@ where
 {
     let mut linker = Linker::new(engine);
     linker.func_wrap("ipld", "get_root", get_root)?;
+    linker.func_wrap("ipld", "set_root", set_root)?;
     Ok(linker)
 }
