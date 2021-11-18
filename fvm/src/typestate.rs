@@ -1,14 +1,24 @@
+// Ideally we'd use const generics here, but rust isn't quite ready for that.
+
+/// True is a type-level true used in conditionals.
 pub struct True;
+
+/// False is a type-level false used in conditionals.
 pub struct False;
 
-pub trait MaybeType<T> {
+/// Select selects between A/B as follows:
+///
+/// ```ignore
+/// let value: <True as Select<i32, bool>>::Type = 1;
+/// ```
+pub trait Select<A, B> {
     type Type;
 }
 
-impl<T> MaybeType<T> for True {
-    type Type = T;
+impl<A, B> Select<A, B> for True {
+    type Type = A;
 }
 
-impl<T> MaybeType<T> for False {
-    type Type = ();
+impl<A, B> Select<A, B> for False {
+    type Type = B;
 }

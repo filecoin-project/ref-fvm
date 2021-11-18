@@ -31,7 +31,7 @@ where
     F: ContextFeatures + ?Sized,
 {
     pub caller: Caller<'a, R>,
-    memory: <F::Memory as typestate::MaybeType<wasmtime::Memory>>::Type,
+    memory: <F::Memory as typestate::Select<wasmtime::Memory, ()>>::Type,
 }
 
 impl<'a, R, F> std::ops::Deref for Context<'a, R, F>
@@ -54,7 +54,7 @@ where
 }
 
 trait ContextFeatures {
-    type Memory: typestate::MaybeType<wasmtime::Memory>;
+    type Memory: typestate::Select<wasmtime::Memory, ()>;
 }
 
 impl<'a, R> Context<'a, R, dyn ContextFeatures<Memory = typestate::False>> {
@@ -65,7 +65,7 @@ impl<'a, R> Context<'a, R, dyn ContextFeatures<Memory = typestate::False>> {
 
 impl<'a, R, F> Context<'a, R, F>
 where
-    F: ContextFeatures + ?Sized,
+    F: ContextFeatures<Memory = typestate::False> + ?Sized,
 {
     fn with_memory(
         mut self,
