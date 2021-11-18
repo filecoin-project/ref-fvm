@@ -1,0 +1,47 @@
+version: '2.1'
+
+orbs:
+  rust: circleci/rust@1.6.0
+
+jobs:
+  build:
+    executor:
+      name: rust/default
+    parameters:
+      cache_version:
+        default: v1
+        description: Cache version to use - increment this to build a fresh cache.
+        type: string
+      version:
+        default: stable
+        description: Version of Rust executor to utilize.
+        type: string
+    steps:
+      - checkout
+      - rust/install:
+          version: nightly
+      - run:
+          # we don't check the lockfile in; this is needed for cache restoration/saving
+          name: generate lockfile
+          command: |
+            cargo generate-lockfile
+      - restore_cache:
+          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+      - run:
+          name: install wasm32 target
+          command: |
+            rustup target add wasm32-unknown-unknown
+      - run:
+          name: build
+          command: |
+            make
+      - save_cache:
+          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+
+workflows:
+  main:
+    jobs:
+      - build
+
