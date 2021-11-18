@@ -24,8 +24,9 @@
 extern "C" {
     /// Gets the current root.
     ///
-    /// Returns the size of the CID (even if the entire CID doesn't fit). A "null" cid can be passed
-    /// to get only the CID's size.
+    /// If the CID doesn't fit in the specified maximum length, this function returns the required
+    /// size and does not update the cid buffer. If the passed cid buffer is null, this method only
+    /// returns the size.
     pub fn get_root(cid: *mut u8, cid_max_len: u32) -> u32;
 
     /// Sets the root CID. The new root must be in the reachable set.

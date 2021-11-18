@@ -6,5 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
+cid = "0.7.0"
 fvm = { path = "../../fvm" }
-wasmer = "2.0.0"
+multihash = "0.15.0"
+wasmtime = "0.31.0"

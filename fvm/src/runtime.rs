@@ -20,6 +20,12 @@ pub struct DefaultRuntime<B> {
     config: Config,
 }
 
+impl<B> DefaultRuntime<B> {
+    pub fn new(config: Config, bs: B, root: Cid) -> Self {
+        Self { config, bs, root }
+    }
+}
+
 impl<B> Runtime for DefaultRuntime<B>
 where
     B: Blockstore,
