@@ -1,6 +1,11 @@
-build:
-	cp "../../target/wasm32-unknown-unknown/actor/fvm_example_actor.wasm" .
+CARGO_TARGET_DIR ?= ../../target
+
+build-actor:
+	$(MAKE) -C ../actor build
+	cp "$(CARGO_TARGET_DIR)/wasm32-unknown-unknown/actor/fvm_example_actor.wasm" .
+
+build: build-actor
 	cargo build
 
-decompile: build
-	wasm2wat -o fvm_example_actor.wat fvm_example_actor.wasm
+run: build-actor
+	cargo run
