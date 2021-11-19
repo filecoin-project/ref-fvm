@@ -24,9 +24,8 @@
 extern "C" {
     /// Gets the current root.
     ///
-    /// If the CID doesn't fit in the specified maximum length, this function returns the required
-    /// size and does not update the cid buffer. If the passed cid buffer is null, this method only
-    /// returns the size.
+    /// If the CID doesn't fit in the specified maximum length (and/or the length is 0), this
+    /// function returns the required size and does not update the cid buffer.
     pub fn get_root(cid: *mut u8, cid_max_len: u32) -> u32;
 
     /// Sets the root CID. The new root must be in the reachable set.
@@ -46,15 +45,16 @@ extern "C" {
 
     /// Reads the identified block into obuf, starting at offset, reading _at most_ len bytes.
     /// Returns the number of bytes read.
-    pub fn read(id: u32, obuf: *mut u8, offset: u32, max_len: u32) -> u32;
+    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> u32;
 
     /// Returns the codec and size of the specified block.
     pub fn stat(id: u32) -> (u64, u32);
 
+    // TODO: CID versions?
+
     /// Computes the given block's CID, returning the actual size of the CID.
     ///
-    /// Returns the size of the CID (even if the entire CID doesn't fit). A "null" cid can be passed
-    /// to compute only the CID's size.
+    /// If the CID is longer than cid_max_len, no data is written and the actual size is returned.
     ///
     /// The returned CID is added to the reachable set.
     pub fn cid(id: u32, hash_fun: u64, hash_len: u32, cid: *mut u8, cid_max_len: u32) -> u32;

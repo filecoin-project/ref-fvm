@@ -9,5 +9,4 @@ edition = "2018"
 cid = "0.7.0"
 multihash = "0.15.0"
 blockstore = { path = "../../../lib/blockstore" }
-core2 = "0.3.2"
 unsigned-varint = "0.7.1"

@@ -85,7 +85,7 @@ pub fn load_block(cid: Cid) -> Vec<u8> {
             .expect("CID encoding should not fail");
         let (id, _, size) = crate::sys::ipld::open(cid_buf.as_mut_ptr());
         let mut block = Vec::with_capacity(size as usize);
-        let bytes_read = crate::sys::ipld::read(id, block.as_mut_ptr(), 0, size);
+        let bytes_read = crate::sys::ipld::read(id, 0, block.as_mut_ptr(), size);
         assert!(bytes_read == size, "read an unexpected number of bytes");
         block.set_len(size as usize);
         block
