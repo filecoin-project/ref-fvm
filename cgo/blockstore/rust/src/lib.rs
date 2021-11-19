@@ -1,8 +1,8 @@
 use cid::Cid;
 use std::ptr;
 
-use core::fmt;
-use core2::error;
+use std::error;
+use std::fmt;
 
 use blockstore;
 

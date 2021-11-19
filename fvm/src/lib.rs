@@ -6,6 +6,12 @@ mod runtime;
 
 pub use runtime::{Config, DefaultRuntime, Runtime};
 
+impl From<runtime::Error> for Trap {
+    fn from(e: runtime::Error) -> Trap {
+        Trap::new(e.to_string())
+    }
+}
+
 // Computes the encoded size of a varint.
 // TODO: move this to the varint crate.
 fn uvarint_size(num: u64) -> u32 {
@@ -103,9 +109,25 @@ where
             .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
     }
 
-    // TODO: this shouldn't require a mutable self.
-    // But loading the memory requires that, specically for "get_export".
+    // Ew. Let's consider just returning a memory + runtime as separate objects so we don't need to
+    // do this.
+    fn try_slice_and_runtime(
+        &mut self,
+        offset: u32,
+        len: u32,
+    ) -> Result<(&mut [u8], &mut R), Trap> {
+        let (data, rt) = self.memory.data_and_store_mut(&mut self.caller);
+        let slice = data
+            .get_mut(offset as usize..)
+            .and_then(|data| data.get_mut(..len as usize))
+            .ok_or_else(|| {
+                Trap::new(format!("buffer {} (length {}) out of bounds", offset, len))
+            })?;
+        Ok((slice, rt))
+    }
+
     fn read_cid(&self, offset: u32) -> Result<Cid, Trap> {
+        // TODO: max CID length
         let memory = self
             .memory
             .data(&self.caller)
@@ -115,17 +137,17 @@ where
     }
 }
 
-fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Result<u32, Trap> {
+fn get_root(caller: Caller<'_, impl Runtime>, cid_off: u32, cid_len: u32) -> Result<u32, Trap> {
     let ctx = Context::new(caller);
 
     let root = *ctx.data().root();
     let size = encoded_cid_size(&root);
-    if cid == 0 || size > cid_max_len {
+    if size > cid_len {
         return Ok(size);
     }
 
     let mut ctx = ctx.with_memory()?;
-    let mut out_slice = ctx.try_slice_mut(cid, cid_max_len)?;
+    let mut out_slice = ctx.try_slice_mut(cid_off, cid_len)?;
 
     root.write_bytes(&mut out_slice)
         .map_err(|err| Trap::new(err.to_string()))?;
@@ -136,9 +158,69 @@ fn get_root(caller: Caller<'_, impl Runtime>, cid: u32, cid_max_len: u32) -> Res
 fn set_root(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid)?;
-    ctx.data_mut().set_root(cid);
-    // TODO: make sure the new root is reachable.
+    ctx.data_mut().set_root(cid)?;
     Ok(())
+}
+
+fn ipld_open(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<u32, Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    let cid = ctx.read_cid(cid)?;
+    Ok(ctx.data_mut().block_open(&cid)?)
+}
+
+fn ipld_create(
+    caller: Caller<'_, impl Runtime>,
+    codec: u64,
+    data_off: u32,
+    data_len: u32,
+) -> Result<u32, Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    let (data, rt) = ctx.try_slice_and_runtime(data_off, data_len)?;
+    Ok(rt.block_create(codec, data)?)
+}
+
+fn ipld_cid(
+    caller: Caller<'_, impl Runtime>,
+    id: u32,
+    hash_fun: u64,
+    hash_len: u32,
+    cid_off: u32,
+    cid_len: u32,
+) -> Result<u32, Trap> {
+    let mut ctx = Context::new(caller);
+    let cid = ctx.data_mut().block_cid(id, hash_fun, hash_len)?;
+
+    let size = encoded_cid_size(&cid);
+    if size > cid_len {
+        return Ok(size);
+    }
+
+    let mut ctx = ctx.with_memory()?;
+    let mut out_slice = ctx.try_slice_mut(cid_off, cid_len)?;
+
+    cid.write_bytes(&mut out_slice)
+        .map_err(|err| Trap::new(err.to_string()))?;
+    Ok(size)
+}
+
+fn ipld_read(
+    caller: Caller<'_, impl Runtime>,
+    id: u32,
+    offset: u32,
+    obuf_off: u32,
+    obuf_len: u32,
+) -> Result<u32, Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    let (data, rt) = ctx.try_slice_and_runtime(obuf_off, obuf_len)?;
+    Ok(rt.block_read(id, offset, data)?)
+}
+
+fn ipld_stat(caller: Caller<'_, impl Runtime>, id: u32) -> Result<(u64, u32), Trap> {
+    let ctx = Context::new(caller);
+    Ok(ctx
+        .data()
+        .block_stat(id)
+        .map(|stat| (stat.codec, stat.size))?)
 }
 
 pub fn environment<R>(engine: &Engine) -> anyhow::Result<Linker<R>>
@@ -148,5 +230,10 @@ where
     let mut linker = Linker::new(engine);
     linker.func_wrap("ipld", "get_root", get_root)?;
     linker.func_wrap("ipld", "set_root", set_root)?;
+    linker.func_wrap("ipld", "open", ipld_open)?;
+    linker.func_wrap("ipld", "create", ipld_create)?;
+    linker.func_wrap("ipld", "read", ipld_read)?;
+    linker.func_wrap("ipld", "stat", ipld_stat)?;
+    linker.func_wrap("ipld", "cid", ipld_cid)?;
     Ok(linker)
 }

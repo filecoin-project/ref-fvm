@@ -9,7 +9,9 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = "1.0.45"
+anyhow = "1.0.47"
 blockstore = { path = "../lib/blockstore" }
 cid = "0.7.0"
+multihash = "0.15.0"
+thiserror = "1.0.30"
 wasmtime = "0.31.0"

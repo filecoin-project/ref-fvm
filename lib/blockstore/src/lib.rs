@@ -3,7 +3,7 @@ use cid::Cid;
 // TODO: be generic over size without going insane.
 // TODO: maybe have a block _reader_?
 pub trait Blockstore {
-    type Error;
+    type Error: std::error::Error + 'static;
 
     fn has(&self, k: &Cid) -> Result<bool, Self::Error>;
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error>;
