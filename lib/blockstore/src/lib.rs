@@ -3,6 +3,7 @@ use cid::Cid;
 mod memory;
 pub use memory::MemoryBlockstore;
 
+#[cfg(feature = "cgo")]
 pub mod cgo;
 
 /// An IPLD blockstore suitable for injection into the FVM.

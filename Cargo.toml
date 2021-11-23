@@ -9,10 +9,10 @@ members = [
     "vm/actor_interface",
     "vm/address",
     "examples/*",
-    "examples/blockstore/user",
+    "examples/blockstore-cgo/user",
 ]
 exclude = [
-    "examples/blockstore"
+    "examples/blockstore-cgo"
 ]
 
 default-members = [

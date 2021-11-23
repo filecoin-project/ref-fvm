@@ -1,0 +1,11 @@
+[package]
+name = "cgobs-example"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+blockstore = { version = "0.1.0", path = "../../../lib/blockstore", features = ["cgo"] }
+cid = "0.7.0"

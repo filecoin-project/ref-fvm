@@ -28,9 +28,10 @@ jobs:
       - restore_cache:
           key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
       - run:
-          name: install wasm32 target
+          name: install wasm32 target and cbindgen
           command: |
             rustup target add wasm32-unknown-unknown
+            cargo install --force cbindgen
       - run:
           name: build
           command: |
