@@ -1,12 +1,24 @@
+extern "C" {
+    pub fn cgobs_get(
+        store: i32,
+        k: *const u8,
+        k_len: i32,
+        block: *mut *mut u8,
+        size: *mut i32,
+    ) -> i32;
+    pub fn cgobs_put(store: i32, k: *const u8, k_len: i32, block: *const u8, block_len: i32)
+                     -> i32;
+    pub fn cgobs_delete(store: i32, k: *const u8, k_len: i32) -> i32;
+    pub fn cgobs_has(store: i32, k: *const u8, k_len: i32) -> i32;
+}
+
 use cid::Cid;
 use std::ptr;
 
 use std::error;
 use std::fmt;
 
-use blockstore;
-
-pub mod sys;
+use super::Blockstore;
 
 const ERR_NO_STORE: i32 = -1;
 const ERR_NOT_FOUND: i32 = -2;
@@ -18,14 +30,14 @@ pub enum Error {
     Other,
 }
 
-pub struct Blockstore {
+pub struct CgoBlockstore {
     handle: i32,
 }
 
-impl Blockstore {
+impl CgoBlockstore {
     /// Construct a new blockstore from a handle.
-    pub unsafe fn new(handle: i32) -> Blockstore {
-        Blockstore { handle }
+    pub unsafe fn new(handle: i32) -> CgoBlockstore {
+        CgoBlockstore { handle }
     }
 }
 
@@ -42,13 +54,13 @@ impl error::Error for Error {}
 
 // TODO: Implement a trait. Unfortunately, the chainsafe one is a bit tangled with the concept of a
 // datastore.
-impl blockstore::Blockstore for Blockstore {
+impl Blockstore for CgoBlockstore {
     type Error = Error;
 
     fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
         let k_bytes = k.to_bytes();
         unsafe {
-            match sys::cgobs_has(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
+            match cgobs_has(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
                 // We shouldn't get an "error not found" here, but there's no reason to be strict
                 // about it.
                 0 | ERR_NOT_FOUND => Ok(false),
@@ -69,7 +81,7 @@ impl blockstore::Blockstore for Blockstore {
         unsafe {
             let mut buf: *mut u8 = ptr::null_mut();
             let mut size: i32 = 0;
-            match sys::cgobs_get(
+            match cgobs_get(
                 self.handle,
                 k_bytes.as_ptr(),
                 k_bytes.len() as i32,
@@ -88,7 +100,7 @@ impl blockstore::Blockstore for Blockstore {
     fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Error> {
         let k_bytes = k.to_bytes();
         unsafe {
-            match sys::cgobs_put(
+            match cgobs_put(
                 self.handle,
                 k_bytes.as_ptr(),
                 k_bytes.len() as i32,
@@ -108,7 +120,7 @@ impl blockstore::Blockstore for Blockstore {
     fn delete(&self, k: &Cid) -> Result<(), Error> {
         let k_bytes = k.to_bytes();
         unsafe {
-            match sys::cgobs_delete(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
+            match cgobs_delete(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
                 0 => Ok(()),
                 r @ 1.. => panic!("invalid return value from has: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),

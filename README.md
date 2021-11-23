@@ -7,7 +7,7 @@
 ```
  /
  |__ actor
- |    | # built-in actors forked from ChainSafe/forest, ported to the FVM
+ |      # built-in actors forked from ChainSafe/forest, ported to the FVM
  |      # using the FVM SDK, and compiled to WASM bytecode. Each actor produces
  |      # a separate WASM bundle.
  |
@@ -16,22 +16,21 @@
  |      # may get pruned and/or refactored.
  |
  |__ cgo/blockstore
- |    | # adapter to inject external blockstores owned by Go code into the FVM.
- |    |
- |    |_ rust
- |    |    # FFI contract to be satisfied by injector.
+ |    | # shim to inject an external blockstore owned by Go code into the FVM.
  |    |
  |    |_ *.go
  |    |    # Go side of the adapter (adapter to make a Go blockstore fulfill the FFI contract).
  |    |
  |    |_ example
- |    |    # A full example injecting a blockstore from Go, and writing and reading to it from Rust.
+ |         # A full example injecting a blockstore from Go, and writing and reading to it from Rust.
  |
  |__ fvm
  |     # the reference implementation of the FVM.
  |
  |__ lib/blockstore
- |     # the blockstore trait as required by the FVM + implementations.
+ |     # the blockstore trait as required by the FVM + implementations,
+       # including the Cgo implementation which expects a linked and initialized
+       # cgo/blockstore library. 
  |
  |__ sdk
  |     # library imported by actors written in Rust targeting the FVM.
