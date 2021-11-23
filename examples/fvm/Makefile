@@ -8,4 +8,4 @@ build: build-actor
 	cargo build
 
 run: build-actor
-	cargo run
+	RUST_BACKTRACE=1 cargo run
