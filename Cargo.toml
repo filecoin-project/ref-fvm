@@ -4,21 +4,22 @@ members = [
     "sdk",
     "types",
     "lib/*",
-    "cgo/*/rust",
-    "cgo/*/example/rust",
     "actor",
     "vm",
     "vm/actor_interface",
     "vm/address",
-    "examples/*"
+    "examples/*",
+    "examples/blockstore/user",
 ]
+exclude = [
+    "examples/blockstore"
+]
+
 default-members = [
     "fvm",
     "sdk",
     "types",
     "lib/*",
-    "cgo/*/rust",
-    "cgo/*/example/rust",
     "actor",
     "vm",
     "vm/actor_interface",

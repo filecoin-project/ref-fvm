@@ -1,12 +1,13 @@
-package main
+package owner
 
 // unresolved-symbols: https://github.com/golang/go/issues/14985
 // Otherwise, rust can't find our exported functions.
 
 /*
 #include <stdint.h>
-#include "./libcgobs_example.h"
-#cgo LDFLAGS: -L. -lcgobs_example -lm -ldl -Wl,-unresolved-symbols=ignore-all
+#include "../libcgobs_example.h"
+#cgo darwin LDFLAGS: -L.. -lcgobs_example -lm -ldl -Wl,-undefined -Wl,dynamic_lookup
+#cgo !darwin LDFLAGS: -L.. -lcgobs_example -lm -ldl -Wl,-unresolved-symbols=ignore-all
 */
 import "C"
 import (

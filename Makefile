@@ -7,7 +7,7 @@ build:
 	cargo build
 .PHONY: build
 
-examples: example-actor example-fvm
+examples: example-actor example-fvm example-blockstore
 .PHONY: examples
 
 example-actor:
@@ -17,3 +17,7 @@ example-actor:
 example-fvm: example-actor
 	$(MAKE) -C ./examples/fvm build
 .PHONY: example-fvm
+
+example-blockstore:
+	$(MAKE) -C ./examples/blockstore
+.PHONY: example-blockstore
