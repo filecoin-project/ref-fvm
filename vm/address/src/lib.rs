@@ -35,6 +35,9 @@ pub const SECP_PUB_LEN: usize = 65;
 /// BLS public key length used for validation of BLS addresses.
 pub const BLS_PUB_LEN: usize = 48;
 
+pub const BLS_ZERO_ADDRESS_STRING: &str =
+    "f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a";
+
 /// Length of the checksum hash for string encodings.
 pub const CHECKSUM_HASH_LEN: usize = 4;
 
@@ -117,6 +120,23 @@ impl Address {
             network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
             payload: Payload::BLS(key.into()),
         })
+    }
+
+    pub fn is_bls_zero_address(&self) -> Result<bool, Error> {
+        // XXX: deserializes every time... not great but there's really not a non-janky way to do this in rust.
+        // https://github.com/reem/rust-lazy ? or a static mut ?
+        // idk what people's preferences are, this is not used often so it's ok for now
+        let bls_zero_addr = Address::from_str(BLS_ZERO_ADDRESS_STRING)?;
+        if let Payload::BLS(bls_zero_bytes) = bls_zero_addr.payload {
+            if let Payload::BLS(some_bytes) = self.payload {
+                return Ok(some_bytes == bls_zero_bytes);
+            }
+        } else {
+            return Err(Error::InternalError(
+                "failed to deserialize BLS_ZERO_ADDRESS_STRING into BLS address".into(),
+            ));
+        }
+        return Ok(false);
     }
 
     /// Returns protocol for Address

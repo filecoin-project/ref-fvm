@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use crypto::VRFProof;
 use encoding::{from_slice, to_vec};
 use forest_blocks::*;
-use crypto::VRFProof;
 
 /// Returns a Ticket to be used for testing
 pub fn construct_ticket() -> Ticket {
