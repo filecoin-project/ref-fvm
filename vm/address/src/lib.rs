@@ -35,8 +35,16 @@ pub const SECP_PUB_LEN: usize = 65;
 /// BLS public key length used for validation of BLS addresses.
 pub const BLS_PUB_LEN: usize = 48;
 
-pub const BLS_ZERO_ADDRESS_STRING: &str =
-    "f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a";
+lazy_static::lazy_static! {
+    static ref BLS_ZERO_ADDR_BYTES: BLSPublicKey = {
+        let bz_addr = Address::from_str("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
+        if let Ok(Address {payload: Payload::BLS(pubkey), ..}) = bz_addr {
+            pubkey
+        } else {
+            panic!("failed to parse BLS address from provided BLS_ZERO_ADDR string")
+        }
+    };
+}
 
 /// Length of the checksum hash for string encodings.
 pub const CHECKSUM_HASH_LEN: usize = 4;
@@ -122,21 +130,11 @@ impl Address {
         })
     }
 
-    pub fn is_bls_zero_address(&self) -> Result<bool, Error> {
-        // XXX: deserializes every time... not great but there's really not a non-janky way to do this in rust.
-        // https://github.com/reem/rust-lazy ? or a static mut ?
-        // idk what people's preferences are, this is not used often so it's ok for now
-        let bls_zero_addr = Address::from_str(BLS_ZERO_ADDRESS_STRING)?;
-        if let Payload::BLS(bls_zero_bytes) = bls_zero_addr.payload {
-            if let Payload::BLS(some_bytes) = self.payload {
-                return Ok(some_bytes == bls_zero_bytes);
-            }
-        } else {
-            return Err(Error::InternalError(
-                "failed to deserialize BLS_ZERO_ADDRESS_STRING into BLS address".into(),
-            ));
+    pub fn is_bls_zero_address(&self) -> bool {
+        if let Payload::BLS(payload_bytes) = self.payload {
+            return payload_bytes == *BLS_ZERO_ADDR_BYTES;
         }
-        return Ok(false);
+        return false;
     }
 
     /// Returns protocol for Address
