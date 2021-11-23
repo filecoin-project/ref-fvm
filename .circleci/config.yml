@@ -2,6 +2,7 @@ version: '2.1'
 
 orbs:
   rust: circleci/rust@1.6.0
+  go: circleci/go@1.7.0
 
 jobs:
   build:
@@ -27,6 +28,8 @@ jobs:
             cargo generate-lockfile
       - restore_cache:
           key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+      - go/install:
+          version: 1.17.3
       - run:
           name: install wasm32 target and cbindgen
           command: |
