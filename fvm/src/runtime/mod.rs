@@ -74,6 +74,17 @@ pub trait IpldRuntime {
     // TODO: add a way to _flush_ new blocks.
 }
 
-pub trait Runtime: IpldRuntime {
+type MethodId = u64;
+type ActorID = u64;
+
+pub trait InvocationRuntime {
+    fn method_number(&self) -> MethodId;
+    fn method_params(&self) -> BlockId;
+    fn caller(&self) -> ActorID;
+    fn receiver(&self) -> ActorID;
+    fn value_received(&self) -> u128;
+}
+
+pub trait Runtime: IpldRuntime + InvocationRuntime {
     fn config(&self) -> &Config;
 }

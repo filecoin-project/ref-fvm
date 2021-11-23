@@ -18,6 +18,10 @@
 // Q: Do we really need `stat`?
 // A: No, we don't. We can punt on that if we want to.
 
+// TODO: Implement this!
+/// The ID of the "unit" block (or void for C programmers).
+pub const UNIT: u32 = 0;
+
 // TODO: new package?
 #[link(wasm_import_module = "ipld")]
 #[allow(improper_ctypes)]

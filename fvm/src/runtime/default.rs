@@ -183,3 +183,31 @@ where
         &self.config
     }
 }
+impl<B> InvocationRuntime for DefaultRuntime<B>
+where
+    B: Blockstore,
+{
+    fn method_number(&self) -> MethodId {
+        // TODO
+        0
+    }
+
+    fn method_params(&self) -> BlockId {
+        // TODO
+        0
+    }
+
+    fn caller(&self) -> ActorID {
+        // TODO
+        1
+    }
+
+    fn receiver(&self) -> ActorID {
+        // TODO
+        0
+    }
+
+    fn value_received(&self) -> u128 {
+        0
+    }
+}
