@@ -5,18 +5,9 @@ orbs:
   go: circleci/go@1.7.0
 
 jobs:
-  build:
+  cargo_fetch:
     executor:
       name: rust/default
-    parameters:
-      cache_version:
-        default: v1
-        description: Cache version to use - increment this to build a fresh cache.
-        type: string
-      version:
-        default: stable
-        description: Version of Rust executor to utilize.
-        type: string
     steps:
       - checkout
       - rust/install:
@@ -26,36 +17,90 @@ jobs:
           name: generate lockfile
           command: |
             cargo generate-lockfile
-      - restore_cache:
-          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+      - restore_rustup_cache
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - Cargo.lock
+      - run: cargo fetch 
+      - save_rustup_cache
+
+  build:
+    executor:
+      name: rust/default
+    steps:
+      - checkout
+      - attach_workspace:
+          at: "."
+      - restore_rustup_cache
       - go/install:
           version: 1.17.3
-      - run:
-          name: install openssl
-          command: |
-            sudo apt-get update -y
-            sudo apt install -y pkg-config openssl libssl-dev
       - run:
           name: install wasm32 target and cbindgen
           command: |
             rustup target add wasm32-unknown-unknown
             cargo install --force cbindgen
-      - rust/clippy:
-          with_cache: false
-      - rust/format:
-          nightly-toolchain: true
-          with_cache: false
       - run:
           name: build
           command: |
             make
+
+  clippy:
+    executor:
+      name: rust/default
+    steps: 
+      - checkout
+      - attach_workspace:
+          at: "."
+      - restore_rustup_cache
+      - rust/clippy:
+          with_cache: false
+
+  rustfmt:
+    executor:
+      name: rust/default
+    steps: 
+      - checkout
+      - attach_workspace:
+          at: "."
+      - restore_rustup_cache
+      - rust/format:
+          nightly-toolchain: true
+          with_cache: false
+
+commands:
+  save_rustup_cache:
+    steps:
+      # if they exists delete old versions, for some reason cp fails otherwise
+      - run: rm -rf /tmp/.rustup /tmp/.cargo || true
+      # Move things from the home directory to `/tmp` first, so that it can be
+      # restored on executors that have a different home directory.
+      - run: cp -R ~/.cargo ~/.rustup /tmp/
       - save_cache:
-          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+          name: "Save rustup cache"
+          key: cargo-v1-{{ checksum "rust-toolchain" }}-{{ checksum "Cargo.toml" }}-{{ checksum "Cargo.lock" }}
           paths:
-            - ~/.cargo
+            - /tmp/.cargo
+            - /tmp/.rustup
+  restore_rustup_cache:
+    steps:
+      - restore_cache:
+          name: "Restore rustup cache"
+          key: cargo-v1-{{ checksum "rust-toolchain" }}-{{ checksum "Cargo.toml" }}-{{ checksum "Cargo.lock" }}
+      # Cache might not be created yet, hence ignore if the move fails
+      - run: cp -R /tmp/.cargo /tmp/.rustup ~/ || true  
+
 
 workflows:
   main:
     jobs:
-      - build
-
+      - cargo_fetch
+      - rustfmt:
+          requires:
+            - cargo_fetch
+      - clippy:
+          requires:
+            - cargo_fetch
+      - build:
+          requires:
+            - cargo_fetch
