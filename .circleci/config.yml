@@ -44,8 +44,45 @@ jobs:
           paths:
             - ~/.cargo
 
+  lint_and_format:
+    executor:
+      name: rust/default
+      parameters:
+        cache_version:
+          default: v1
+          description: Cache version to use - increment this to build a fresh cache.
+          type: string
+        version:
+          default: stable
+          description: Version of Rust executor to utilize.
+          type: string
+    steps:
+      - checkout
+      - rust/install:
+          version: nightly
+      - run:
+          # we don't check the lockfile in; this is needed for cache restoration/saving
+          name: generate lockfile
+          command: |
+            cargo generate-lockfile
+      - restore_cache:
+          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+      - go/install:
+          version: 1.17.3
+      - rust/clippy:
+          cache_version: parameters.cache_version
+      - rust/format:
+          nightly-toolchain: Yes
+          cache_version: parameters.cache_version
+      # gofmt/golint one day?
+      - save_cache:
+          key: cargo-<<parameters.cache_version>>-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+
 workflows:
   main:
     jobs:
       - build
+      - lint_and_format
 
