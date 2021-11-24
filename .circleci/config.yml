@@ -41,10 +41,10 @@ jobs:
             rustup target add wasm32-unknown-unknown
             cargo install --force cbindgen
       - rust/clippy:
-          cache_version: parameters.cache_version
+          with_cache: false
       - rust/format:
-          nightly-toolchain: Yes
-          cache_version: parameters.cache_version
+          nightly-toolchain: true
+          with_cache: false
       - run:
           name: build
           command: |
