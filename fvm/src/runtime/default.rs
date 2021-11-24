@@ -24,6 +24,7 @@ struct Block {
     data: Rc<[u8]>,
 }
 
+#[allow(dead_code)]
 enum BlockState {
     Open { id: u32, dirty: bool },
     Reachable,

@@ -21,4 +21,3 @@ pub trait Blockstore {
     fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error>;
     fn delete(&self, k: &Cid) -> Result<(), Self::Error>;
 }
-
