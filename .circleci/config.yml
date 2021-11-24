@@ -35,7 +35,6 @@ jobs:
       - restore_rustup_cache
       - go/install:
           version: 1.17.3
-      - install_openssl
       - run:
           name: install wasm32 target and cbindgen
           command: |
@@ -54,7 +53,6 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
-      - install_openssl
       - rust/clippy:
           with_cache: false
 
@@ -71,14 +69,6 @@ jobs:
           with_cache: false
 
 commands:
-  install_openssl
-    steps:
-      - run:
-          name: Install openssl
-          command: |
-            sudo apt-get update -y
-            sudo apt install -y pkg-config openssl libssl-dev
-
   save_rustup_cache:
     steps:
       # if they exists delete old versions, for some reason cp fails otherwise
