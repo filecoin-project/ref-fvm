@@ -131,10 +131,10 @@ impl Address {
     }
 
     pub fn is_bls_zero_address(&self) -> bool {
-        if let Payload::BLS(payload_bytes) = self.payload {
-            return payload_bytes == *BLS_ZERO_ADDR_BYTES;
+        match self.payload {
+            Payload::BLS(payload_bytes) => payload_bytes == *BLS_ZERO_ADDR_BYTES,
+            _ => false,
         }
-        return false;
     }
 
     /// Returns protocol for Address

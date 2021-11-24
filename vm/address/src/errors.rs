@@ -32,8 +32,6 @@ pub enum Error {
     NonIDAddress,
     #[error("Invalid address ID payload")]
     InvalidAddressIDPayload(Vec<u8>),
-    #[error("Internal error: {0}")]
-    InternalError(String),
 }
 
 impl From<num::ParseIntError> for Error {
