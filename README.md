@@ -2,6 +2,8 @@
 
 > Specs at: https://github.com/filecoin-project/fvm-project
 
+The current MSRV is 1.58 (nightly), a working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
+
 ## Code layout
 
 ```
