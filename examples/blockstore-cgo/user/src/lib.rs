@@ -1,5 +1,5 @@
-use blockstore::Blockstore as _;
 use blockstore::cgo::CgoBlockstore;
+use blockstore::Blockstore as _;
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 

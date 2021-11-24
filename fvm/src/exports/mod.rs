@@ -1,4 +1,4 @@
-use anyhow;
+//use anyhow;
 use wasmtime::{self, Engine, Linker, Trap};
 
 use crate::{Error, Runtime};

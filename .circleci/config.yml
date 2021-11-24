@@ -31,10 +31,20 @@ jobs:
       - go/install:
           version: 1.17.3
       - run:
+          name: install openssl
+          command: |
+            sudo apt-get update -y
+            sudo apt install -y pkg-config openssl libssl-dev
+      - run:
           name: install wasm32 target and cbindgen
           command: |
             rustup target add wasm32-unknown-unknown
             cargo install --force cbindgen
+      - rust/clippy:
+          with_cache: false
+      - rust/format:
+          nightly-toolchain: true
+          with_cache: false
       - run:
           name: build
           command: |

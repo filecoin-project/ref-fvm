@@ -72,6 +72,7 @@ where
             .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
     }
 
+    #[allow(dead_code)]
     pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8], Trap> {
         self.memory
             .data(&self.caller)
