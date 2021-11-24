@@ -76,6 +76,8 @@ jobs:
 commands:
   save_rustup_cache:
     steps:
+      # if they exists delete old versions, for some reason cp fails otherwise
+      - run: rm -rf /tmp/.rustup /tmp/.cargo || true
       # Move things from the home directory to `/tmp` first, so that it can be
       # restored on executors that have a different home directory.
       - run: cp -R ~/.cargo ~/.rustup /tmp/
