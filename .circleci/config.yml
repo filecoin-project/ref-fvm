@@ -53,10 +53,13 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
+      - run:
+          name: wasmbuild
+          command: |
+            make examples
       - rust/clippy:
           with_cache: false
-          flags: |
-            --all --all-targets --all-features
+
   rustfmt:
     executor:
       name: rust/default
