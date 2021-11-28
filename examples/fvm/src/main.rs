@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
     bs.put(&root_cid, root_block)?;
     let runtime = fvm::DefaultRuntime::new(config, bs, root_cid);
-    let mut linker = fvm::environment(&mut engine)?;
+    let linker = fvm::environment(&engine)?;
     let mut store = Store::new(&engine, runtime);
 
     let instance = linker.instantiate(&mut store, &module)?;

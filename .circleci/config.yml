@@ -66,6 +66,8 @@ jobs:
             make examples
       - rust/clippy:
           with_cache: false
+          flags: |
+            --all --all-targets --all-features
 
   rustfmt:
     executor:
