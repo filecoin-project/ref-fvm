@@ -9,7 +9,7 @@ pub extern "C" fn write_blocks(store: i32, count: i32) -> i32 {
     let block = b"thing";
     let key = Cid::new_v1(0x55, Code::Sha2_256.digest(block));
     for _ in 0..count {
-        if let Err(_) = bs.put(&key, block) {
+        if bs.put(&key, block).is_err() {
             return 1;
         }
     }
