@@ -55,7 +55,8 @@ jobs:
       - restore_rustup_cache
       - rust/clippy:
           with_cache: false
-
+          flags: |
+            --all --all-targets --all-features
   rustfmt:
     executor:
       name: rust/default
