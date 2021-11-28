@@ -23,11 +23,6 @@ jobs:
           paths:
             - Cargo.lock
       - run: cargo fetch 
-      - run:
-          name: install wasm32 target and cbindgen
-          command: |
-            rustup target add wasm32-unknown-unknown
-            cargo install --force cbindgen
       - save_rustup_cache
 
   build:
@@ -41,6 +36,11 @@ jobs:
       - go/install:
           version: 1.17.3
       - run:
+          name: install wasm32 target and cbindgen
+          command: |
+            rustup target add wasm32-unknown-unknown
+            cargo install --force cbindgen
+      - run:
           name: build
           command: |
             make
@@ -53,6 +53,11 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
+      - run:
+          name: install wasm32 target and cbindgen
+          command: |
+            rustup target add wasm32-unknown-unknown
+            cargo install --force cbindgen
       - run:
           name: wasmbuild
           command: |
