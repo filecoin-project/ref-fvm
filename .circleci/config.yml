@@ -53,6 +53,8 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
+      - go/install:
+          version: 1.17.3
       - run:
           name: install wasm32 target and cbindgen
           command: |
