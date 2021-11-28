@@ -5,7 +5,8 @@ use cid::Cid;
 use fvm::{self, InvocationRuntime};
 use multihash::{Code as MhCode, MultihashDigest};
 use std::convert::TryInto;
-use wasmtime::{Config, Engine, Global, GlobalType, Module, Mutability, Store, Val, ValType};
+//use wasmtime::{Config, Engine, Global, GlobalType, Module, Mutability, Store, Val, ValType};
+use wasmtime::{Config, Engine, Module, Store};
 
 mod metadata;
 

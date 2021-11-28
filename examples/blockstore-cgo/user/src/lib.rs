@@ -5,7 +5,7 @@ use cid::Cid;
 
 #[no_mangle]
 pub extern "C" fn write_blocks(store: i32, count: i32) -> i32 {
-    let bs = unsafe { CgoBlockstore::new(store) };
+    let bs = CgoBlockstore::new(store);
     let block = b"thing";
     let key = Cid::new_v1(0x55, Code::Sha2_256.digest(block));
     for _ in 0..count {
@@ -18,7 +18,7 @@ pub extern "C" fn write_blocks(store: i32, count: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn read_blocks(store: i32, count: i32) -> i32 {
-    let bs = unsafe { CgoBlockstore::new(store) };
+    let bs = CgoBlockstore::new(store);
     let block = b"thing";
     let key = Cid::new_v1(0x55, Code::Sha2_256.digest(block));
     for _ in 0..count {
