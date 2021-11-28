@@ -12,7 +12,7 @@ mod metadata;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_wasm = include_bytes!("../fvm_example_actor.wasm");
-    let mut engine = Engine::new(&Config::default())?;
+    let engine = Engine::new(&Config::default())?;
     let module = Module::new(&engine, module_wasm)?;
     let config = fvm::Config { max_pages: 10 };
     let bs = MemoryBlockstore::default();

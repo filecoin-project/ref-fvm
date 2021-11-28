@@ -469,7 +469,7 @@ where
         self.charge_gas(self.price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
+            actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor");
         }
 
         let addr_id = self
@@ -495,7 +495,7 @@ where
             **actor::system::ADDRESS,
             addr_id,
             account::Method::Constructor as u64,
-            TokenAmount::from(0),
+            TokenAmount::from(0 as u32),
             p,
         )
         .map_err(|e| e.wrap("failed to invoke account constructor"))?;
