@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Cid;
 use crate::encoding::repr::*;
 use crate::encoding::tuple::*;
+use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 /// Specifies the version of the state tree

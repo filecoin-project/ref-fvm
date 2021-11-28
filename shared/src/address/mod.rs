@@ -10,10 +10,10 @@ pub use self::network::Network;
 pub use self::payload::{BLSPublicKey, Payload};
 pub use self::protocol::Protocol;
 
+use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
-use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use once_cell::sync::OnceCell;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
@@ -446,8 +446,8 @@ pub mod json {
     #[cfg(feature = "json")]
     pub mod vec {
         use super::*;
-        use crate::json::{AddressJson, AddressJsonRef};
         use crate::encoding::GoVecVisitor;
+        use crate::json::{AddressJson, AddressJsonRef};
         use serde::ser::SerializeSeq;
 
         /// Wrapper for serializing and deserializing a Cid vector from JSON.

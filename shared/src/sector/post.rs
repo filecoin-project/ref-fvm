@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::ActorID;
+use crate::encoding::{serde_bytes, tuple::*};
 use crate::randomness::Randomness;
 use crate::sector::{RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-use crate::encoding::{serde_bytes, tuple::*};
+use crate::ActorID;
 use cid::Cid;
 
 /// Randomness type used for generating PoSt proof randomness.
@@ -145,7 +145,8 @@ pub mod json {
         where
             D: Deserializer<'de>,
         {
-            deserializer.deserialize_any(crate::vec::GoVecVisitor::<PoStProof, PoStProofJson>::new())
+            deserializer
+                .deserialize_any(crate::vec::GoVecVisitor::<PoStProof, PoStProofJson>::new())
         }
     }
 }

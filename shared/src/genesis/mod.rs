@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::SectorSize;
+use crate::address;
+use crate::econ;
 use address::{json as addr_json, Address};
 use chrono::Utc;
 use num_bigint::bigint_ser::json as bigint_json;
 use serde::{Deserialize, Serialize};
-use crate::econ;
-use crate::address;
 
 /// Different account variants. This is used with genesis utils to define the possible
 /// genesis allocated actors.

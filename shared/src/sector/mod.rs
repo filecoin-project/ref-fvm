@@ -9,8 +9,8 @@ pub use self::post::*;
 pub use self::registered_proof::*;
 pub use self::seal::*;
 
-use crate::ActorID;
 use crate::encoding::{repr::*, tuple::*};
+use crate::ActorID;
 use num_bigint::BigInt;
 use num_derive::FromPrimitive;
 use std::fmt;

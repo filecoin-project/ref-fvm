@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::SectorSize;
-use crate::version::NetworkVersion;
 use crate::clock;
+use crate::version::NetworkVersion;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "proofs")]

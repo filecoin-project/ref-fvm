@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 pub mod address;
-pub mod encoding;
-pub mod deal;
+pub mod bigint;
+pub mod clock;
+pub mod crypto;
 pub mod deadlines;
+pub mod deal;
+pub mod econ;
+pub mod encoding;
 pub mod piece;
 pub mod randomness;
 pub mod sector;
 pub mod state;
 pub mod version;
-pub mod econ;
-pub mod bigint;
-pub mod clock;
-pub mod crypto;
 
 #[cfg(feature = "json")]
 pub mod genesis;

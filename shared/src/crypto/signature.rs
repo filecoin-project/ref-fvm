@@ -1,16 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::address::{Address, Protocol, Error as AddressError};
+use crate::address::{Address, Error as AddressError, Protocol};
+use crate::encoding::{blake2b_256, de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
 use bls_signatures::{
     verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
 };
-use crate::encoding::{blake2b_256, de, repr::*, ser, serde_bytes, Error as EncodingError, Cbor};
+use libsecp256k1::Error as SecpError;
 use libsecp256k1::{recover, Message, RecoveryId, Signature as EcsdaSignature};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::borrow::Cow;
-use libsecp256k1::Error as SecpError;
 use std::error;
 use thiserror::Error;
 
@@ -45,8 +45,8 @@ impl Cbor for Signature {}
 
 impl ser::Serialize for Signature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: ser::Serializer,
+    where
+        S: ser::Serializer,
     {
         let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
         // Insert signature type byte
@@ -59,8 +59,8 @@ impl ser::Serialize for Signature {
 
 impl<'de> de::Deserialize<'de> for Signature {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: de::Deserializer<'de>,
+    where
+        D: de::Deserializer<'de>,
     {
         let bytes: Cow<'de, [u8]> = serde_bytes::Deserialize::deserialize(deserializer)?;
         if bytes.is_empty() {
@@ -293,19 +293,19 @@ pub mod json {
     }
 
     pub fn serialize<S>(m: &Signature, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         JsonHelper {
             sig_type: m.sig_type,
             bytes: base64::encode(&m.bytes),
         }
-            .serialize(serializer)
+        .serialize(serializer)
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Signature, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         let JsonHelper { sig_type, bytes } = Deserialize::deserialize(deserializer)?;
         Ok(Signature {
@@ -319,8 +319,8 @@ pub mod json {
         use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
         pub fn serialize<S>(v: &Option<Signature>, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
+        where
+            S: Serializer,
         {
             v.as_ref()
                 .map(|s| SignatureJsonRef(s))
@@ -328,8 +328,8 @@ pub mod json {
         }
 
         pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Signature>, D::Error>
-            where
-                D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
         {
             let s: Option<SignatureJson> = Deserialize::deserialize(deserializer)?;
             Ok(s.map(|v| v.0))
@@ -352,8 +352,8 @@ pub mod json {
         pub struct SignatureTypeJson(#[serde(with = "self")] pub SignatureType);
 
         pub fn serialize<S>(m: &SignatureType, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
+        where
+            S: Serializer,
         {
             let json = match m {
                 SignatureType::BLS => JsonHelperEnum::Bls,
@@ -363,8 +363,8 @@ pub mod json {
         }
 
         pub fn deserialize<'de, D>(deserializer: D) -> Result<SignatureType, D::Error>
-            where
-                D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
         {
             let json_enum: JsonHelperEnum = Deserialize::deserialize(deserializer)?;
 
