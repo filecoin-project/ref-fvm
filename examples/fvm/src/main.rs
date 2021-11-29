@@ -5,13 +5,14 @@ use cid::Cid;
 use fvm::{self, InvocationRuntime};
 use multihash::{Code as MhCode, MultihashDigest};
 use std::convert::TryInto;
-use wasmtime::{Config, Engine, Global, GlobalType, Module, Mutability, Store, Val, ValType};
+//use wasmtime::{Config, Engine, Global, GlobalType, Module, Mutability, Store, Val, ValType};
+use wasmtime::{Config, Engine, Module, Store};
 
 mod metadata;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_wasm = include_bytes!("../fvm_example_actor.wasm");
-    let mut engine = Engine::new(&Config::default())?;
+    let engine = Engine::new(&Config::default())?;
     let module = Module::new(&engine, module_wasm)?;
     let config = fvm::Config { max_pages: 10 };
     let bs = MemoryBlockstore::default();
@@ -19,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
     bs.put(&root_cid, root_block)?;
     let runtime = fvm::DefaultRuntime::new(config, bs, root_cid);
-    let mut linker = fvm::environment(&mut engine)?;
+    let linker = fvm::environment(&engine)?;
     let mut store = Store::new(&engine, runtime);
 
     let instance = linker.instantiate(&mut store, &module)?;

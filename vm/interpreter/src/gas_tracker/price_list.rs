@@ -264,6 +264,7 @@ pub struct PriceList {
     /// Compute gas charge multiplier
     // * This multiplier is not currently applied to anything, but is matching lotus.
     // * If the possible values are non 1 or if Lotus adds, we should change also.
+    #[allow(dead_code)]
     pub(crate) compute_gas_multiplier: i64,
     /// Storage gas charge multiplier
     pub(crate) storage_gas_multiplier: i64,
@@ -335,6 +336,7 @@ pub struct PriceList {
 
     pub(crate) compute_unsealed_sector_cid_base: i64,
     pub(crate) verify_seal_base: i64,
+    #[allow(dead_code)]
     pub(crate) verify_aggregate_seal_base: i64,
     pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, i64>,
     pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
