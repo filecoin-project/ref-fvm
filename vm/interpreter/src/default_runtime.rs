@@ -495,7 +495,7 @@ where
             **actor::system::ADDRESS,
             addr_id,
             account::Method::Constructor as u64,
-            TokenAmount::from(0 as u32),
+            TokenAmount::from(0_u32),
             p,
         )
         .map_err(|e| e.wrap("failed to invoke account constructor"))?;
