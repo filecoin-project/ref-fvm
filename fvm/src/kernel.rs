@@ -8,6 +8,8 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
+pub trait Kernel: ActorOps + BlocksOps + InvocationOps {}
+
 pub type BlockId = u32;
 
 pub struct BlockStat {
@@ -87,12 +89,10 @@ pub trait ActorOps {
 type MethodId = u64;
 type ActorID = u64;
 
-pub trait ActorRuntime: ActorOps + BlocksOps + InvocationOps {}
-
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
-pub struct Plumbing<B: Blockstore> {
+pub struct DefaultKernel<B: Blockstore> {
     /// Tracks the state of blocks that have been brought in scope of
     /// an execution.
     block_state: HashMap<Cid, BlockState>,
@@ -104,7 +104,7 @@ pub struct Plumbing<B: Blockstore> {
     root: Cid,
 }
 
-impl<B> Plumbing<B> {
+impl<B> DefaultKernel<B> {
     pub fn new(bs: B, root: Cid) -> Self {
         Self {
             root,
@@ -114,9 +114,9 @@ impl<B> Plumbing<B> {
     }
 }
 
-impl<B> Plumbing<B> where B: Blockstore {}
+impl<B> DefaultKernel<B> where B: Blockstore {}
 
-impl<B> ActorOps for Plumbing<B>
+impl<B> ActorOps for DefaultKernel<B>
 where
     B: Blockstore,
 {
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<B> StateOps for Plumbing<B>
+impl<B> StateOps for DefaultKernel<B>
 where
     B: Blockstore,
 {
@@ -210,7 +210,7 @@ where
     }
 }
 
-impl<B> InvocationOps for Plumbing<B>
+impl<B> InvocationOps for DefaultKernel<B>
 where
     B: Blockstore,
 {
