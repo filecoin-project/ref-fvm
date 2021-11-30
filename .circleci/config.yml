@@ -53,8 +53,21 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
+      - go/install:
+          version: 1.17.3
+      - run:
+          name: install wasm32 target and cbindgen
+          command: |
+            rustup target add wasm32-unknown-unknown
+            cargo install --force cbindgen
+      - run:
+          name: wasmbuild
+          command: |
+            make examples
       - rust/clippy:
           with_cache: false
+          flags: |
+            --all --all-targets --all-features
 
   rustfmt:
     executor:
