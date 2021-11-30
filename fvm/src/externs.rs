@@ -8,20 +8,17 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::econ::TokenAmount;
 use std::error::Error;
 
-pub trait NodeInvoker<B: Blockstore>:
-    Rand + CircSupplyCalc + Blockstore + LookbackStateGetter<B>
-{
-}
+pub trait Externs<B: Blockstore>: Rand + CircSupplyCalc + B + LookbackStateGetter<B> {}
 
 /// Allows generation of the current circulating supply
 /// given some context.
+///
+/// NOTE: (@raulk) this was adapted from Forest to not require a blockstore,
+/// but rather a state root CID. The goal is to trap out via an extern to the
+/// node, where this calculation will be implemented natively.
 pub trait CircSupplyCalc {
     /// Retrieves total circulating supply on the network.
-    fn get_supply<B: Blockstore>(
-        &self,
-        height: ChainEpoch,
-        state_tree: &StateTree<B>,
-    ) -> anyhow::Result<TokenAmount>;
+    fn get_supply(&self, height: ChainEpoch, state_root: Cid) -> anyhow::Result<TokenAmount>;
 }
 
 /// Trait to allow VM to retrieve state at an old epoch.
@@ -65,6 +62,8 @@ pub trait Rand {
     ) -> anyhow::Result<[u8; 32]>;
 }
 
-struct CgoNodeInvoker {
+/// TODO this will be the externs implementation that delegates to a Go node
+/// (e.g. Lotus) via Cgo to resolve externs.
+struct CgoExterns {
     // TODO implement
 }
