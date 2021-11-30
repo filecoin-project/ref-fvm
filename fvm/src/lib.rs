@@ -2,14 +2,15 @@ pub use runtime::{Config, DefaultRuntime, Error, InvocationRuntime, IpldRuntime,
 
 mod adt;
 mod blocks;
+mod exit_code;
+mod externs;
 mod invocation;
+mod kernel;
 mod machine;
-mod node;
-mod plumbing;
+mod message;
+mod receipt;
 mod state_tree;
 mod syscalls;
-
-pub use syscalls::environment;
 
 #[derive(Copy, Clone)]
 pub struct Config {
@@ -19,5 +20,5 @@ pub struct Config {
     /// can expand to.
     pub max_pages: usize,
     /// Wasmtime engine configuration.
-    pub engine: WasmtimeConfig,
+    pub engine: wasmtime::Config,
 }
