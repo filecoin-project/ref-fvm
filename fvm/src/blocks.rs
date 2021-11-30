@@ -1,4 +1,4 @@
-use crate::plumbing::{BlockError, BlockId};
+use crate::kernel::{BlockError, BlockId};
 use blockstore::Blockstore;
 use cid::Cid;
 use std::convert::TryInto;
