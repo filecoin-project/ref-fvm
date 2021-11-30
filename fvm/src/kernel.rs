@@ -75,8 +75,9 @@ pub trait BlockOps {
     // TODO: add a way to _flush_ new blocks.
 }
 
-///
-pub trait ActorOps {
+/// Actor state access and manipulation. Depends on BlockOps to read and write
+/// blocks in the state tree.
+pub trait ActorOps: BlockOps {
     /// Get the state root.
     fn root(&self) -> &Cid;
 
@@ -133,7 +134,7 @@ where
     }
 }
 
-impl<B> StateOps for DefaultKernel<B>
+impl<B> BlockOps for DefaultKernel<B>
 where
     B: Blockstore,
 {
