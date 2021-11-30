@@ -15,3 +15,5 @@ cid = "0.7.0"
 multihash = "0.15.0"
 thiserror = "1.0.30"
 wasmtime = "0.31.0"
+fvm_shared = { path = "../shared" }
+ipld_hamt = { path = "../ipld/hamt"}
