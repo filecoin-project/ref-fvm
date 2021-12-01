@@ -1,6 +1,7 @@
 //! This module is the higher-level plumbing to which calls
 
 use super::*;
+use crate::externs::Externs;
 use anyhow::Result;
 use blockstore::Blockstore;
 use cid::Cid;
@@ -8,7 +9,14 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
-pub trait Kernel: ActorOps + BlocksOps + InvocationOps {}
+/// TODO likely don't need the Blockstore type parameter since the
+/// blockstore will be accessed through the externs.
+pub trait Kernel<B, E>: ActorOps + BlocksOps + InvocationOps
+where
+    B: Blockstore,
+    E: Externs<B>,
+{
+}
 
 pub type BlockId = u32;
 

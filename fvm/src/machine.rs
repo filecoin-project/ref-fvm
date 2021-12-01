@@ -19,7 +19,11 @@ use crate::receipt::Receipt;
 use crate::syscalls::bind_syscalls;
 
 /// The core of the FVM.
-pub struct Machine<'a, B: Blockstore, E: Externs<B>, K: Kernel> {
+pub struct Machine<'a, B, E, K> where
+    B: Blockstore,
+    E: Externs<B>,
+    K: Kernel<B, E>
+{
     config: Config,
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
@@ -87,7 +91,7 @@ pub enum ApplyKind {
 impl<'a, B, E, K> Machine<'a, B, E, K> where
     B: Blockstore,
     E: Externs<B>,
-    K: Kernel,
+    K: Kernel<B, E>,
 {
     // TODO add all constructor arguments.
     pub fn new(
