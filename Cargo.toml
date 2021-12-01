@@ -3,6 +3,7 @@ members = [
     "fvm",
     "sdk",
     "types",
+    "shared",
     "lib/*",
     "actor",
     "vm",
@@ -19,6 +20,7 @@ default-members = [
     "fvm",
     "sdk",
     "types",
+    "shared",
     "lib/*",
     "actor",
     "vm",
@@ -45,6 +47,7 @@ commcid = { path = "./utils/commcid" }
 forest_vm = { path = "./vm" }
 forest_runtime = { path = "./vm/runtime" }
 forest_message = { path = "./vm/message" }
+fvm_shared = { path = "./shared" }
 
 [profile.actor]
 inherits = "release"
