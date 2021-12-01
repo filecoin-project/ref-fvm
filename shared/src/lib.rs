@@ -15,9 +15,6 @@ pub mod sector;
 pub mod state;
 pub mod version;
 
-#[cfg(feature = "json")]
-pub mod genesis;
-
 use address::Address;
 use clock::ChainEpoch;
 use num_bigint::BigInt;

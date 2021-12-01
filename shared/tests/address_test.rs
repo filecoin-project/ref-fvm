@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::encoding::{from_slice, Cbor};
 use data_encoding::{DecodeError, DecodeKind};
-use forest_address::{
+use fvm_shared::address::{
     checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };
+use fvm_shared::encoding::{from_slice, Cbor};
 use std::str::FromStr;
 
 #[test]
@@ -45,8 +45,8 @@ fn generate_validate_checksum() {
     let other_data = [1, 4, 3, 6, 7, 1, 2];
     let cksm = checksum(&data);
     assert_eq!(cksm.len(), 4);
-    assert_eq!(validate_checksum(&data, cksm.clone()), true);
-    assert_eq!(validate_checksum(&other_data, cksm), false);
+    assert!(validate_checksum(&data, cksm.clone()));
+    assert!(!validate_checksum(&other_data, cksm));
 }
 
 struct AddressTestVec<'a> {

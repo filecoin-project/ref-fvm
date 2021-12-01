@@ -35,3 +35,6 @@ json = ["base64"]
 blst = ["bls-signatures/blst"]
 pairing = ["bls-signatures/pairing"]
 
+[dev-dependencies]
+rand = "0.7.3"
+rand_chacha = "0.2.2"
