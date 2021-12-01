@@ -597,6 +597,7 @@ impl Actor {
                         );
                         continue;
                     }
+                    st.miner_count -= 1
                 }
 
                 st.claims = claims.flush().map_err(|e| {
