@@ -42,7 +42,7 @@ pub(super) fn deal_provider_collateral_bounds(
     network_raw_power: &StoragePower,
     baseline_power: &StoragePower,
     network_circulating_supply: &TokenAmount,
-) -> (TokenAmount, &'static TokenAmount) {
+) -> (TokenAmount, TokenAmount) {
     // minimumProviderCollateral = ProviderCollateralSupplyTarget * normalizedCirculatingSupply
     // normalizedCirculatingSupply = networkCirculatingSupply * dealPowerShare
     // dealPowerShare = dealRawPower / max(BaselinePower(t), NetworkRawPower(t), dealRawPower)
@@ -53,14 +53,14 @@ pub(super) fn deal_provider_collateral_bounds(
 
     let num: TokenAmount = power_share_num * lock_target_num;
     let denom: TokenAmount = power_share_denom * PROV_COLLATERAL_PERCENT_SUPPLY_DENOM;
-    ((num.div_floor(&denom)), &TOTAL_FILECOIN)
+    ((num.div_floor(&denom)), TOTAL_FILECOIN.clone())
 }
 
 pub(super) fn deal_client_collateral_bounds(
     _: PaddedPieceSize,
     _: ChainEpoch,
-) -> (TokenAmount, &'static TokenAmount) {
-    (TokenAmount::zero(), &TOTAL_FILECOIN) // PARAM_FINISH
+) -> (TokenAmount, TokenAmount) {
+    (TokenAmount::zero(), TOTAL_FILECOIN.clone()) // PARAM_FINISH
 }
 
 /// Penalty to provider deal collateral if the deadline expires before sector commitment.
