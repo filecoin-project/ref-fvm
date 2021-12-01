@@ -4,6 +4,7 @@ mod adt;
 mod blocks;
 mod exit_code;
 mod externs;
+mod gas;
 mod invocation;
 mod kernel;
 mod machine;

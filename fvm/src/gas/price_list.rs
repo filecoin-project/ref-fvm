@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::GasCharge;
+use crate::message::{MethodNum, METHOD_SEND};
 use ahash::AHashMap;
 use clock::ChainEpoch;
 use crypto::SignatureType;
 use fil_types::{
     AggregateSealVerifyProofAndInfos, PieceInfo, RegisteredPoStProof, RegisteredSealProof,
     SealVerifyInfo, WindowPoStVerifyInfo,
+};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::piece::PieceInfo;
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use networks::UPGRADE_CALICO_HEIGHT;
 use num_traits::Zero;
