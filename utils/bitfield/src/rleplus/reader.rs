@@ -89,8 +89,13 @@ impl<'a> BitReader<'a> {
             // if the most significant bit is a 0, we've
             // reached the end of the varint
             if byte & 0x80 == 0 {
-                return Ok(len);
-            }
+                if i == 0 || byte != 0 {
+                    // only the first byte can be zero in a varint
+                    return Ok(len);
+                }
+                // not minimally encoded
+                break;    
+                        }
         }
 
         Err("Invalid varint")
