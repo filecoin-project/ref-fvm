@@ -456,7 +456,7 @@ impl Actor {
             let mut verified_clients =
                 make_map_with_root_and_bitwidth(&st.verified_clients, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load verifiers")
+                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
                 })?;
             let verifiers = make_map_with_root_and_bitwidth::<_, BigIntDe>(
                 &st.verifiers,
@@ -464,7 +464,7 @@ impl Actor {
                 HAMT_BIT_WIDTH,
             )
             .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verifiers")
             })?;
 
             // validate we are NOT attempting to do this for a verifier
