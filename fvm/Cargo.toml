@@ -10,6 +10,7 @@ crate-type = ["lib"]
 anyhow = "1.0.47"
 thiserror = "1.0.30"
 blockstore = { path = "../lib/blockstore" }
+num-traits = "0.2"
 num-derive = "0.3.3"
 cid = "0.7.0"
 multihash = "0.15.0"
