@@ -1,30 +1,21 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
-use crate::state_tree::StateTree;
 use blockstore::Blockstore;
-use cid::Cid;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::econ::TokenAmount;
-use std::error::Error;
+use fvm_shared::{
+    clock::ChainEpoch, consensus::ConsensusFault, crypto::randomness::DomainSeparationTag,
+};
 
-pub trait Externs<B: Blockstore>: Rand + CircSupplyCalc + B + LookbackStateGetter<B> {}
+pub trait Externs: Rand + Consensus + Blockstore {}
 
-/// Allows generation of the current circulating supply
-/// given some context.
-///
-/// NOTE: (@raulk) this was adapted from Forest to not require a blockstore,
-/// but rather a state root CID. The goal is to trap out via an extern to the
-/// node, where this calculation will be implemented natively.
-pub trait CircSupplyCalc {
-    /// Retrieves total circulating supply on the network.
-    fn get_supply(&self, height: ChainEpoch, state_root: Cid) -> anyhow::Result<TokenAmount>;
-}
-
-/// Trait to allow VM to retrieve state at an old epoch.
-pub trait LookbackStateGetter<'db, B> {
-    /// Returns a state tree from the given epoch.
-    fn state_lookback(&self, epoch: ChainEpoch) -> anyhow::Result<StateTree<'db, B>>;
+/// Consensus related methods.
+pub trait Consensus {
+    /// Verify a consensus fault.
+    fn verify_consensus_fault(
+        &self,
+        h1: &[u8],
+        h2: &[u8],
+        extra: &[u8],
+    ) -> anyhow::Result<ConsensusFault>;
 }
 
 /// Randomness provider trait
