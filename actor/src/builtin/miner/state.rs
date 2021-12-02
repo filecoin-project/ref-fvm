@@ -1249,7 +1249,7 @@ impl MinerInfo {
 
         let window_post_partition_sectors = window_post_proof_type
             .window_post_partitions_sector()
-            .map_err(|e| actor_error!(ErrIllegalArgument, "invalid sector size: {}", e))?;
+            .map_err(|e| actor_error!(ErrIllegalArgument, "invalid partition sectors: {}", e))?;
 
         Ok(Self {
             owner,
