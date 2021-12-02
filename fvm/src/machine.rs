@@ -29,13 +29,11 @@ use wasmtime::{Engine, Instance, Linker, Store};
 /// * K => Kernel.
 pub struct Machine<'a, B, E, K> {
     config: Config,
+    /// The context for the execution.
+    context: MachineContext,
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
     engine: Engine,
-    /// The epoch at which the Machine runs.
-    epoch: ChainEpoch,
-    /// The base fee that's in effect when the Machine runs.
-    base_fee: BigInt,
     /// Blockstore to use for this machine instance.
     blockstore: B,
     /// Boundary A calls are handled through externs. These are calls from the
@@ -60,6 +58,112 @@ pub struct Machine<'a, B, E, K> {
     /// TODO I don't think we need to store this in the state; it can probably
     /// be a stack variable in execute_message.
     call_stack: CallStack<'a, B>,
+}
+
+impl<'a, B, E, K> Machine<'a, B, E, K>
+where
+    B: Blockstore,
+    E: Externs,
+    K: Kernel<B, E>,
+{
+    pub fn new(
+        config: Config,
+        context: MachineContext,
+        blockstore: B,
+        externs: E,
+        kernel: K,
+    ) -> Machine<'a, B, E, K> {
+        let mut engine = Engine::new(&config.engine)?;
+        let mut linker = Linker::new(&engine);
+        bind_syscalls(linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
+
+        // Initialize the WASM engine.
+        // TODO initialize the engine
+        // TODO instantiate state tree with root and blockstore.
+        // TODO load the gas_list for this epoch, and give it to the kernel.
+        // TODO instantiate the Kernel template.
+
+        Machine {
+            config,
+            context,
+            engine,
+            externs,
+            blockstore,
+            kernel,
+            state_tree: StateTree::new_from_root(store, &state_root)?,
+            commit_buffer: Default::default(), // @stebalien TBD
+            verifier: Default::default(),
+            call_stack: Default::default(), // TODO implement constructor.
+        }
+    }
+
+    pub fn engine(&self) -> &Engine {
+        &self.engine
+    }
+
+    pub fn config(&self) -> Config {
+        self.config
+    }
+
+    /// This is the entrypoint to execute a message.
+    pub fn execute_message(self, msg: Message, kind: ApplyKind) -> anyhow::Result<ApplyRet> {
+        // TODO sanity check on message, copied from Forest, needs adaptation.
+        msg.check()?;
+
+        // TODO I don't like having price lists _inside_ the FVM, but passing
+        //  these across the boundary is also a no-go.
+        let pl = price_list_by_epoch(self.epoch());
+        let ser_msg = msg.marshal_cbor().map_err(|e| e.to_string())?;
+        let msg_gas_cost = pl.on_chain_message(ser_msg.len());
+        let cost_total = msg_gas_cost.total();
+
+        // Verify the cost of the message is not over the message gas limit.
+        // TODO handle errors properly
+        if cost_total > msg.gas_limit {
+            return Ok(ApplyRet {
+                msg_receipt: MessageReceipt {
+                    return_data: Serialized::default(),
+                    exit_code: ExitCode::SysErrOutOfGas,
+                    gas_used: 0,
+                },
+                act_error: Some(actor_error!(SysErrOutOfGas;
+                    "Out of gas ({} > {})", cost_total, msg.gas_limit())),
+                penalty: &self.base_fee * cost_total,
+                miner_tip: BigInt::zero(),
+            });
+        }
+
+        // TODO instantiate a CallStack and make it run.
+        // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
+        // TODO pull the receipt from the CallStack and return it.
+        Ok(Default::default())
+    }
+}
+
+/// Apply message return data.
+#[derive(Clone, Debug)]
+pub struct ApplyRet {
+    /// Message receipt for the transaction. This data is stored on chain.
+    pub msg_receipt: Receipt,
+    /// Actor error from the transaction, if one exists.
+    pub act_error: Option<ActorError>,
+    /// Gas penalty from transaction, if any.
+    pub penalty: BigInt,
+    /// Tip given to miner from message.
+    pub miner_tip: BigInt,
+}
+
+/// TODO fix error system; actor errors should be transparent to the VM.
+/// The error type that gets returned by actor method calls.
+#[derive(Error, Debug, Clone, PartialEq)]
+#[error("ActorError(fatal: {fatal}, exit_code: {exit_code:?}, msg: {msg})")]
+pub struct ActorError {
+    /// Is this a fatal error.
+    fatal: bool,
+    /// The exit code for this invocation, must not be `0`.
+    exit_code: ExitCode,
+    /// Message for debugging purposes,
+    msg: String,
 }
 
 pub struct CallStack<'a, B: Blockstore> {
@@ -92,86 +196,39 @@ pub enum ApplyKind {
     Implicit,
 }
 
-impl<'a, B, E, K> Machine<'a, B, E, K>
-where
-    B: Blockstore,
-    E: Externs,
-    K: Kernel<B, E>,
-{
-    // TODO add all constructor arguments.
-    pub fn new(
-        config: Config,
-        epoch: ChainEpoch,
-        base_fee: TokenAmount,
-        blockstore: B,
-        externs: E,
-        kernel: K,
-        state_root: Cid,
-    ) -> Machine<'a, B, E, K> {
-        let mut engine = Engine::new(&config.engine)?;
-        let mut linker = Linker::new(&engine);
-        bind_syscalls(linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
+/// Execution context supplied to the machine. All fields are private.
+/// Epoch and base fee cannot be mutated. The state_root corresponds to the
+/// initial state root, and gets updated internally with every message execution.
+struct MachineContext {
+    /// The epoch at which the Machine runs.
+    epoch: ChainEpoch,
+    /// The base fee that's in effect when the Machine runs.
+    base_fee: BigInt,
+    state_root: Cid,
+}
 
-        // Initialize the WASM engine.
-        // TODO initialize the engine
-        // TODO instantiate state tree with root and blockstore.
-        // TODO load the gas_list for this epoch, and give it to the kernel.
-        // TODO instantiate the Kernel template.
-
-        Machine {
-            config,
+impl MachineContext {
+    fn new(epoch: ChainEpoch, base_fee: TokenAmount, state_root: Cid) -> MachineContext {
+        MachineContext {
             epoch,
             base_fee,
-            engine,
-            externs,
-            blockstore,
-            kernel,
-            state_tree: StateTree::new_from_root(store, &state_root)?,
-            commit_buffer: Default::default(), // @stebalien TBD
-            verifier: Default::default(),
-            call_stack: Default::default(), // TODO implement constructor.
+            state_root,
         }
     }
 
-    pub fn engine(&self) -> &Engine {
-        &self.engine
+    pub fn epoch(self) -> ChainEpoch {
+        self.epoch
     }
 
-    pub fn config(&self) -> Config {
-        self.config
+    pub fn base_fee(self) -> TokenAmount {
+        self.base_fee
     }
 
-    /// This is the main entrypoint from the node into the VM. The node
-    /// requests the VM to apply the provided message.
-    pub fn execute_message(self, msg: Message, kind: ApplyKind) -> thiserror::Result<(Receipt)> {
-        // TODO sanity check on message, copied from Forest, needs adaptation.
-        check_message(msg.message())?;
+    pub fn state_root(self) -> Cid {
+        self.state_root
+    }
 
-        // TODO I don't like having price lists _inside_ the FVM, but passing
-        //  these across the boundary is also a no-go.
-        let pl = price_list_by_epoch(self.epoch());
-        let ser_msg = msg.marshal_cbor().map_err(|e| e.to_string())?;
-        let msg_gas_cost = pl.on_chain_message(ser_msg.len());
-        let cost_total = msg_gas_cost.total();
-
-        // Verify the cost of the message is not over the message gas limit.
-        // TODO handle errors properly
-        if cost_total > msg.gas_limit() {
-            return Ok(ApplyRet {
-                msg_receipt: MessageReceipt {
-                    return_data: Serialized::default(),
-                    exit_code: ExitCode::SysErrOutOfGas,
-                    gas_used: 0,
-                },
-                act_error: Some(actor_error!(SysErrOutOfGas;
-                    "Out of gas ({} > {})", cost_total, msg.gas_limit())),
-                penalty: &self.base_fee * cost_total,
-                miner_tip: BigInt::zero(),
-            });
-        }
-
-        // TODO instantiate a CallStack and make it run.
-        // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
-        // TODO pull the receipt from the CallStack and return it.
+    fn set_state_root(&mut self, state_root: Cid) {
+        self.state_root = state_root
     }
 }

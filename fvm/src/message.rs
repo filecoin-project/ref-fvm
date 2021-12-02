@@ -89,6 +89,18 @@ impl Message {
         // Safe to unwrap here, unsigned message cannot fail to serialize.
         self.cid().unwrap().to_bytes()
     }
+
+    /// Does some basic checks on the Message to see if the fields are valid.
+    pub fn check(self: &Message) -> Result<(), &'static str> {
+        if msg.gas_limit() == 0 {
+            return Err("Message has no gas limit set");
+        }
+        if msg.gas_limit() < 0 {
+            return Err("Message has negative gas limit");
+        }
+
+        Ok(())
+    }
 }
 
 impl Serialize for Message {
