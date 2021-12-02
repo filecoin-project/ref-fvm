@@ -125,7 +125,7 @@ impl BitField {
         let mut total_len: u64 = 0;
 
         while let Some(len) = reader.read_len()? {
-                       let (new_total_len, ovf) = total_len.overflowing_add(len as u64);
+            let (new_total_len, ovf) = total_len.overflowing_add(len as u64);
             if ovf {
                return Err("RLE+ overflow");
             }
