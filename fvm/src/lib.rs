@@ -1,4 +1,4 @@
-pub use runtime::{Config, DefaultRuntime, Error, InvocationRuntime, IpldRuntime, Runtime};
+pub use kernel::{BlockError, DefaultKernel, Kernel};
 
 mod adt;
 mod blocks;

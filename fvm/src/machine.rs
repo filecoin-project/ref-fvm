@@ -1,28 +1,29 @@
 use super::Config;
+use crate::exit_code::ExitCode;
+use crate::externs::{Externs, Rand};
+use crate::gas::price_list_by_epoch;
 use crate::invocation::InvocationContainer;
-use crate::externs::{CircSupplyCalc, Externs, LookbackStateGetter, Rand};
+use crate::kernel::{DefaultKernel, Kernel};
+use crate::message::Message;
+use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
+use crate::syscalls::bind_syscalls;
 use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::Cbor;
 use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;
 use wasmtime::{Engine, Instance, Linker, Store};
-use fvm_shared::encoding::Cbor;
-use crate::exit_code::ExitCode;
-use crate::gas::price_list_by_epoch;
-use crate::kernel::{DefaultKernel, Kernel};
-use crate::message::Message;
-use crate::receipt::Receipt;
-use crate::syscalls::bind_syscalls;
 
 /// The core of the FVM.
-pub struct Machine<'a, B, E, K> where
+pub struct Machine<'a, B, E, K>
+where
     B: Blockstore,
     E: Externs<B>,
-    K: Kernel<B, E>
+    K: Kernel<B, E>,
 {
     config: Config,
     /// The wasmtime engine is created on construction of the Machine, and
@@ -69,11 +70,9 @@ pub struct CallStack<'a, B: Blockstore> {
     /// A state tree stacked on top of the Machine state tree, tracking state
     /// changes performed by actors throughout a call stack.
     state_tree: StateTree<'a, B>,
-
-    /// TODO figure out what else needs to be here.
+    // TODO figure out what else needs to be here.
 }
 
-#[derive(Default)]
 impl CallStack<B> {
     fn call_next(&self, msg: Message) -> thiserror::Result {
         // TODO TBD signature is not complete.
@@ -88,7 +87,8 @@ pub enum ApplyKind {
     Implicit,
 }
 
-impl<'a, B, E, K> Machine<'a, B, E, K> where
+impl<'a, B, E, K> Machine<'a, B, E, K>
+where
     B: Blockstore,
     E: Externs<B>,
     K: Kernel<B, E>,
@@ -120,7 +120,7 @@ impl<'a, B, E, K> Machine<'a, B, E, K> where
             state_tree: StateTree::new_from_root(store, &state_root)?,
             commit_buffer: Default::default(), // @stebalien TBD
             verifier: Default::default(),
-            kernel: Default::default(), // TODO implement constructor.
+            kernel: Default::default(),     // TODO implement constructor.
             call_stack: Default::default(), // TODO implement constructor.
         }
     }

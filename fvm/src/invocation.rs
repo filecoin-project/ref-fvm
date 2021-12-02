@@ -32,9 +32,8 @@ pub struct InvocationContainer<'a> {
     /// available to the actor.
     /// TODO If this is necessary; could just return the CID of the result block.
     return_stack: VecDeque<ReturnEntry>,
-
-    /// TODO gas charger should not be wired here. At this point in time, we are
-    /// charging gas explicitly on syscalls.
+    ///// TODO gas charger should not be wired here. At this point in time, we are
+    ///// charging gas explicitly on syscalls.
     // gas_charger: PhantomData<()>,
 }
 

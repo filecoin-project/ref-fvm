@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::adt::Map;
-use actor::{init, ActorVersion, Map};
-use address::{Address, Protocol};
-use async_std::{channel::bounded, task};
 use blockstore::Blockstore;
-use cid::multihash::Blake2b256;
-use cid::{Cid, Code::Blake2b256};
-use futures::{AsyncRead, AsyncWrite};
+use cid::multihash;
+use cid::Cid;
 use fvm_shared::address::{Address, Protocol};
-use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
@@ -185,7 +180,9 @@ where
             StateTreeVersion::V1
             | StateTreeVersion::V2
             | StateTreeVersion::V3
-            | StateTreeVersion::V4 => Some(store.put(&StateInfo0::default(), Blake2b256)?),
+            | StateTreeVersion::V4 => {
+                Some(store.put(&StateInfo0::default(), multihash::Code::Blake2b256.into())?)
+            }
         };
 
         let hamt = Map::new(store, ActorVersion::from(version));

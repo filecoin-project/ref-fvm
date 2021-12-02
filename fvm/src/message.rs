@@ -1,12 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::de::{Deserialize, DeserializeOwned, Deserializer};
-use fvm_shared::encoding::ser::{Error, Ok, Serialize, Serializer};
+use fvm_shared::encoding::ser::{Error, Serialize, Serializer};
 use fvm_shared::encoding::{de, from_slice, ser, to_vec, Cbor};
 use std::ops::Deref;
 
