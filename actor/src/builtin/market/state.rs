@@ -533,7 +533,7 @@ where
         )
         .map_err(|e| {
             e.downcast_default(
-                ExitCode::ErrIllegalArgument,
+                ExitCode::ErrIllegalState,
                 "failed unlocking deal provider balance",
             )
         })?;
@@ -545,7 +545,7 @@ where
         )
         .map_err(|e| {
             e.downcast_default(
-                ExitCode::ErrIllegalArgument,
+                ExitCode::ErrIllegalState,
                 "failed unlocking deal client balance",
             )
         })?;
