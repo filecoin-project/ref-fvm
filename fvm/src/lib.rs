@@ -1,7 +1,6 @@
-pub use kernel::{BlockError, DefaultKernel, Kernel};
+pub use r#mod::{BlockError, DefaultKernel, Kernel};
 
 mod adt;
-mod blocks;
 mod exit_code;
 mod externs;
 mod gas;

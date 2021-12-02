@@ -1,5 +1,7 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
+mod cgo;
+
 use blockstore::Blockstore;
 use fvm_shared::{
     clock::ChainEpoch, consensus::ConsensusFault, crypto::randomness::DomainSeparationTag,
@@ -51,10 +53,4 @@ pub trait Rand {
         round: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]>;
-}
-
-/// TODO this will be the externs implementation that delegates to a Go node
-/// (e.g. Lotus) via Cgo to resolve externs.
-struct CgoExterns {
-    // TODO implement
 }

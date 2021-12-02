@@ -1,10 +1,12 @@
 use super::Config;
 use crate::exit_code::ExitCode;
-use crate::externs::{Externs, Rand};
+use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
 use crate::invocation::InvocationContainer;
-use crate::kernel::{DefaultKernel, Kernel};
+use crate::kernel::Kernel;
 use crate::message::Message;
+use crate::r#mod::{DefaultKernel, Kernel};
+use crate::r#mod::{Externs, Rand};
 use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 use crate::syscalls::bind_syscalls;
@@ -14,17 +16,18 @@ use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::Cbor;
+use num_traits::Zero;
 use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;
 use wasmtime::{Engine, Instance, Linker, Store};
 
 /// The core of the FVM.
-pub struct Machine<'a, B, E, K>
-where
-    B: Blockstore,
-    E: Externs<B>,
-    K: Kernel<B, E>,
-{
+///
+/// ## Generic types
+/// * B => Blockstore.
+/// * E => Externs.
+/// * K => Kernel.
+pub struct Machine<'a, B, E, K> {
     config: Config,
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
@@ -33,6 +36,8 @@ where
     epoch: ChainEpoch,
     /// The base fee that's in effect when the Machine runs.
     base_fee: BigInt,
+    /// Blockstore to use for this machine instance.
+    blockstore: B,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
     externs: E,
@@ -90,7 +95,7 @@ pub enum ApplyKind {
 impl<'a, B, E, K> Machine<'a, B, E, K>
 where
     B: Blockstore,
-    E: Externs<B>,
+    E: Externs,
     K: Kernel<B, E>,
 {
     // TODO add all constructor arguments.
@@ -100,12 +105,14 @@ where
         base_fee: TokenAmount,
         blockstore: B,
         externs: E,
+        kernel: K,
         state_root: Cid,
     ) -> Machine<'a, B, E, K> {
         let mut engine = Engine::new(&config.engine)?;
         let mut linker = Linker::new(&engine);
         bind_syscalls(linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
 
+        // Initialize the WASM engine.
         // TODO initialize the engine
         // TODO instantiate state tree with root and blockstore.
         // TODO load the gas_list for this epoch, and give it to the kernel.
@@ -117,10 +124,11 @@ where
             base_fee,
             engine,
             externs,
+            blockstore,
+            kernel,
             state_tree: StateTree::new_from_root(store, &state_root)?,
             commit_buffer: Default::default(), // @stebalien TBD
             verifier: Default::default(),
-            kernel: Default::default(),     // TODO implement constructor.
             call_stack: Default::default(), // TODO implement constructor.
         }
     }
