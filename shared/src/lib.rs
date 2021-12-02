@@ -4,6 +4,7 @@
 pub mod address;
 pub mod bigint;
 pub mod clock;
+pub mod consensus;
 pub mod crypto;
 pub mod deadlines;
 pub mod deal;
