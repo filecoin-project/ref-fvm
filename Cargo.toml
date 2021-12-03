@@ -2,7 +2,6 @@
 members = [
     "fvm",
     "sdk",
-    "types",
     "shared",
     "lib/*",
     "actor",
@@ -16,7 +15,6 @@ exclude = [
 default-members = [
     "fvm",
     "sdk",
-    "types",
     "shared",
     "lib/*",
     "actor",
