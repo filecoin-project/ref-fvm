@@ -18,8 +18,9 @@ pub struct BlockStat {
 
 #[derive(Clone)]
 pub struct Block {
-    codec: u64,
-    data: Rc<[u8]>,
+    // TODO rm pub, provide accessors and constructor instead?
+    pub(crate) codec: u64,
+    pub(crate) data: Rc<[u8]>,
 }
 
 impl Block {
@@ -62,16 +63,13 @@ pub enum BlockError {
     Internal(#[source] Box<dyn std::error::Error>),
 }
 
-impl<B> BlockRegistry<B> {
-    fn new() -> Self {
+impl BlockRegistry {
+    pub(crate) fn new() -> Self {
         Self { blocks: Vec::new() }
     }
 }
 
-impl<B> BlockRegistry<B>
-where
-    B: Blockstore,
-{
+impl<B> BlockRegistry {
     /// Adds a new block to the registry, and returns a handle to refer to it.
     pub fn put(&mut self, block: Block) -> Result<BlockId, BlockError> {
         // TODO: limit the code types we allow.
