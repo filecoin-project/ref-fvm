@@ -19,7 +19,7 @@ macro_rules! account_tests {
                 let (addr, exit_code) = $value;
 
                 let mut rt = MockRuntime {
-                    receiver: Address::new_id(100),
+                    receiver: fvm_shared::address::Address::new_id(100),
                     caller: SYSTEM_ACTOR_ADDR.clone(),
                     caller_type: SYSTEM_ACTOR_CODE_ID.clone(),
                     ..Default::default()
@@ -62,11 +62,11 @@ macro_rules! account_tests {
 
 account_tests! {
     happy_construct_secp256k1_address: (
-        Address::new_secp256k1(&[2; address::SECP_PUB_LEN]).unwrap(),
+        Address::new_secp256k1(&[2; fvm_shared::address::SECP_PUB_LEN]).unwrap(),
         ExitCode::Ok
     ),
     happy_construct_bls_address: (
-        Address::new_bls(&[1; address::BLS_PUB_LEN]).unwrap(),
+        Address::new_bls(&[1; fvm_shared::address::BLS_PUB_LEN]).unwrap(),
         ExitCode::Ok
     ),
     fail_construct_id_address: (

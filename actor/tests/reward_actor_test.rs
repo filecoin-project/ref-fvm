@@ -21,7 +21,7 @@ use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{METHOD_CONSTRUCTOR, METHOD_SEND};
 
@@ -409,7 +409,7 @@ fn this_epoch_reward(rt: &mut MockRuntime) -> ThisEpochRewardReturn {
             &RawBytes::default(),
         )
         .unwrap();
-    let resp: ThisEpochRewardReturn = RawBytes::deserialize(&RawBytes_result).unwrap();
+    let resp: ThisEpochRewardReturn = RawBytes::deserialize(&serialized_result).unwrap();
     rt.verify();
     resp
 }

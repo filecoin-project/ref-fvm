@@ -7,12 +7,12 @@ use std::error::Error as StdError;
 
 use cid::{Cid, Code::Blake2b256};
 use db::MemoryDB;
+use forest_actor::runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
 use ipld_blockstore::BlockStore;
 
 use fvm_shared::actor_error;
-use fvm_shared::address::Address;
+use fvm_shared::address::{Address, Protocol};
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
@@ -485,7 +485,7 @@ impl Runtime<MemoryDB> for MockRuntime {
 
     fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
         self.require_in_call();
-        if address.protocol() == address::Protocol::ID {
+        if address.protocol() == Protocol::ID {
             return Ok(Some(*address));
         }
 

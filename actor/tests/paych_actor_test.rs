@@ -8,7 +8,6 @@ use cid::Cid;
 use derive_builder::Builder;
 
 use common::*;
-use crypto::Signature;
 use forest_actor::{
     paych::{
         ConstructorParams, LaneState, Merge, Method, ModVerifyParams, PaymentVerifyParams,
@@ -21,6 +20,7 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::Signature;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::METHOD_CONSTRUCTOR;

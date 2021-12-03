@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use common::*;
+use forest_actor::runtime::Runtime;
 use forest_actor::{
     make_empty_map,
     market::{Method, State, WithdrawBalanceParams, PROPOSALS_AMT_BITWIDTH, STATES_AMT_BITWIDTH},

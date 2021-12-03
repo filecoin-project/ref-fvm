@@ -27,7 +27,7 @@ pub use self::util::*;
 pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
 
 mod builtin;
-mod runtime;
+pub mod runtime;
 pub mod util;
 
 /// Map type to be used within actors. The underlying type is a hamt.
