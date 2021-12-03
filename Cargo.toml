@@ -39,8 +39,6 @@ forest_hash_utils = { path = "./utils/hash_utils" }
 forest_json_utils = { path = "./utils/json_utils" }
 commcid = { path = "./utils/commcid" }
 forest_vm = { path = "./vm" }
-forest_runtime = { path = "./vm/runtime" }
-forest_message = { path = "./vm/message" }
 fvm_shared = { path = "./shared" }
 
 [profile.actor]

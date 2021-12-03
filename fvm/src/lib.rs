@@ -1,5 +1,4 @@
 mod adt;
-mod exit_code;
 mod externs;
 mod gas;
 mod invocation;

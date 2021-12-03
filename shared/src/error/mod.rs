@@ -1,8 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::encoding::repr::*;
 use num_derive::FromPrimitive;
+
+use crate::encoding::repr::*;
+
+mod actor_error;
+
+pub use actor_error::*;
 
 /// ExitCode defines the exit code from the VM execution.
 #[repr(u64)]

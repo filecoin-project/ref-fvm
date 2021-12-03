@@ -4,12 +4,6 @@
 use super::deal::DealProposal;
 use crate::network::EPOCHS_IN_DAY;
 use crate::DealWeight;
-use clock::ChainEpoch;
-use fil_types::{PaddedPieceSize, StoragePower, TOTAL_FILECOIN};
-use num_bigint::Integer;
-use num_traits::Zero;
-use std::cmp::max;
-use vm::TokenAmount;
 
 /// DealUpdatesInterval is the number of blocks between payouts for deals
 pub const DEAL_UPDATES_INTERVAL: i64 = EPOCHS_IN_DAY;

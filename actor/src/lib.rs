@@ -8,18 +8,16 @@ extern crate lazy_static;
 extern crate serde;
 
 mod builtin;
+mod runtime;
 pub mod util;
 
 pub use self::builtin::*;
 pub use self::util::*;
 pub use ipld_amt;
 pub use ipld_hamt;
-pub use vm::{
-    actor_error, ActorError, ActorState, DealID, ExitCode, MethodNum, Serialized, TokenAmount,
-};
 
+use builtin::HAMT_BIT_WIDTH;
 use cid::Cid;
-use fil_types::HAMT_BIT_WIDTH;
 use ipld_blockstore::BlockStore;
 use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
 use num_bigint::BigInt;

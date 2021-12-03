@@ -10,31 +10,30 @@ pub use self::deal::*;
 use self::policy::*;
 pub use self::state::*;
 pub use self::types::*;
+use crate::runtime::Runtime;
 use crate::{
     power, request_miner_control_addrs, reward,
     verifreg::{Method as VerifregMethod, RestoreBytesParams, UseBytesParams},
-    ActorDowncast, DealID, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
+    ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
     VERIFIED_REGISTRY_ACTOR_ADDR,
 };
-use address::Address;
 use ahash::AHashMap;
-use cid::Prefix;
-use clock::{ChainEpoch, EPOCH_UNDEFINED};
-use encoding::{to_vec, Cbor};
-use fil_types::deadlines::QuantSpec;
-use fil_types::{PieceInfo, StoragePower};
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::clock::EPOCH_UNDEFINED;
+use fvm_shared::deal::DealID;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::error::ExitCode;
+use fvm_shared::piece::PieceInfo;
 use ipld_blockstore::BlockStore;
-use num_bigint::BigInt;
 use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-use runtime::{ActorCode, Runtime};
 use std::collections::HashSet;
 use std::error::Error as StdError;
-use vm::{
-    actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-    METHOD_SEND,
-};
 
 // * Updated to specs-actors commit: e195950ba98adb8ce362030356bf4a3809b7ec77 (v2.3.2)
 
@@ -187,7 +186,7 @@ impl Actor {
         rt.send(
             recipient,
             METHOD_SEND,
-            Serialized::default(),
+            RawBytes::default(),
             amount_extracted,
         )?;
         Ok(())
@@ -362,7 +361,7 @@ impl Actor {
                 rt.send(
                     *VERIFIED_REGISTRY_ACTOR_ADDR,
                     VerifregMethod::UseBytes as u64,
-                    Serialized::serialize(&UseBytesParams {
+                    RawBytes::serialize(&UseBytesParams {
                         address: deal.proposal.client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),
                     })?,
@@ -998,7 +997,7 @@ impl Actor {
             let res = rt.send(
                 *VERIFIED_REGISTRY_ACTOR_ADDR,
                 VerifregMethod::RestoreBytes as u64,
-                Serialized::serialize(RestoreBytesParams {
+                RawBytes::serialize(RestoreBytesParams {
                     address: d.client,
                     deal_size: BigInt::from(d.piece_size.0),
                 })?,
@@ -1021,7 +1020,7 @@ impl Actor {
             rt.send(
                 *BURNT_FUNDS_ACTOR_ADDR,
                 METHOD_SEND,
-                Serialized::default(),
+                RawBytes::default(),
                 amount_slashed,
             )?;
         }
@@ -1308,7 +1307,7 @@ where
     let rwret = rt.send(
         *REWARD_ACTOR_ADDR,
         reward::Method::ThisEpochReward as u64,
-        Serialized::default(),
+        RawBytes::default(),
         0.into(),
     )?;
     let ret: reward::ThisEpochRewardReturn = rwret.deserialize()?;
@@ -1327,7 +1326,7 @@ where
     let rwret = rt.send(
         *STORAGE_POWER_ACTOR_ADDR,
         power::Method::CurrentTotalPower as u64,
-        Serialized::default(),
+        RawBytes::default(),
         0.into(),
     )?;
     let ret: power::CurrentTotalPowerReturn = rwret.deserialize()?;
@@ -1338,8 +1337,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -1347,39 +1346,39 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::AddBalance) => {
                 Self::add_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::WithdrawBalance) => {
                 Self::withdraw_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::PublishStorageDeals) => {
                 let res = Self::publish_storage_deals(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::VerifyDealsForActivation) => {
                 let res = Self::verify_deals_for_activation(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::ActivateDeals) => {
                 Self::activate_deals(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::OnMinerSectorsTerminate) => {
                 Self::on_miner_sectors_terminate(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ComputeDataCommitment) => {
                 let res = Self::compute_data_commitment(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::CronTick) => {
                 Self::cron_tick(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
         }

@@ -1,7 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::{multihash::MultihashDigest, Cid, Code::Identity, RAW};
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
 
 pub const SYSTEM_ACTOR_CODE_ID_NAME: &str = "fil/4/system";
 pub const INIT_ACTOR_CODE_ID_NAME: &str = "fil/4/init";
@@ -15,6 +16,9 @@ pub const MULTISIG_ACTOR_CODE_ID_NAME: &str = "fil/4/multisig";
 pub const REWARD_ACTOR_CODE_ID_NAME: &str = "fil/4/reward";
 pub const VERIFREG_ACTOR_CODE_ID_NAME: &str = "fil/4/verifiedregistry";
 pub const CHAOS_ACTOR_CODE_ID_NAME: &str = "fil/4/chaos";
+
+// TODO: This shouldn't be defined here.
+const IPLD_RAW: u64 = 0x55;
 
 lazy_static! {
     pub static ref SYSTEM_ACTOR_CODE_ID: Cid = make_builtin(b"fil/5/system");
@@ -36,7 +40,7 @@ lazy_static! {
 }
 
 fn make_builtin(bz: &[u8]) -> Cid {
-    Cid::new_v1(RAW, Identity.digest(bz))
+    Cid::new_v1(IPLD_RAW, Code::Identity.digest(bz))
 }
 
 /// Returns true if the code `Cid` belongs to a builtin actor.

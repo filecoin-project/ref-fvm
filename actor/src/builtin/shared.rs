@@ -7,7 +7,9 @@ use ipld_blockstore::BlockStore;
 use num_traits::Zero;
 use runtime::Runtime;
 use std::error::Error as StdError;
-use vm::{ActorError, Serialized, TokenAmount, METHOD_SEND};
+use vm::{ActorError, Serialized, METHOD_SEND};
+
+pub const HAMT_BIT_WIDTH: u32 = 5;
 
 pub(crate) fn request_miner_control_addrs<BS, RT>(
     rt: &mut RT,
