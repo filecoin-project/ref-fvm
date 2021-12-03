@@ -28,7 +28,6 @@ ahash = "0.6"
 cid = { package = "forest_cid", path = "../ipld/cid", version = "0.3" }
 base64 = "0.13"
 log = "0.4.8"
-commcid = { path = "../utils/commcid", version = "0.1.1" }
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 ## TODO shouldn't be depending on proofs API from WASM actor code; usages of this module should probably be behind syscalls
 filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false }

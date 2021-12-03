@@ -24,7 +24,7 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 # TODO remove fork in future (allowing non utf8 strings to be cbor deserialized)
 serde_cbor = { package = "cs_serde_cbor", version = "0.12", features = ["tags"], optional = true }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12", optional = true }
-forest_json_utils = { path = "../../utils/json_utils", optional = true, version = "0.1" }
+forest_json_utils = { optional = true, version = "0.1" }
 generic-array = "0.14.4"
 
 [dev-dependencies]

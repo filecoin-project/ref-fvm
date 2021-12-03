@@ -8,11 +8,11 @@ use std::error::Error as StdError;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 
-use commcid::data_commitment_v1_to_cid;
 use filecoin_proofs_api as proofs;
 use filecoin_proofs_api::seal::compute_comm_d;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::commcid::data_commitment_v1_to_cid;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
