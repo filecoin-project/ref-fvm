@@ -1,16 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
-use crate::{network::*, DealWeight};
-use clock::ChainEpoch;
-use fil_types::{
-    NetworkVersion, RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize,
-    StoragePower,
-};
-use num_bigint::{BigInt, Integer};
 use std::cmp;
-use vm::TokenAmount;
+
+use fvm_shared::bigint::{BigInt, Integer};
+use fvm_shared::clock::{ChainEpoch, EPOCH_DURATION_SECONDS};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::sector::{
+    RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize, StoragePower,
+};
+use fvm_shared::version::NetworkVersion;
+
+use crate::{network::*, DealWeight, EXPECTED_LEADERS_PER_EPOCH};
+
+use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
 
 /// Maximum amount of sectors that can be aggregated.
 pub const MAX_AGGREGATED_SECTORS: usize = 819;

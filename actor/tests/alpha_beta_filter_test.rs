@@ -1,14 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use clock::ChainEpoch;
+use num_traits::sign::Signed;
+
 use fil_types::StoragePower;
 use forest_actor::math::{poly_parse, PRECISION};
 use forest_actor::smooth::extrapolated_cum_sum_of_ratio as ecsor;
 use forest_actor::smooth::*;
 use forest_actor::EPOCHS_IN_DAY;
-use num_bigint::{BigInt, Integer};
-use num_traits::sign::Signed;
+use fvm_shared::bigint::{BigInt, Integer};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::sector::StoragePower;
 
 const ERR_BOUND: u64 = 350;
 

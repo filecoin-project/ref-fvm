@@ -1,10 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::alpha_beta_filter::*;
+use fvm_shared::bigint::{BigInt, Integer};
+use fvm_shared::clock::ChainEpoch;
+
 use crate::math::{poly_parse, poly_val, PRECISION};
-use clock::ChainEpoch;
-use num_bigint::{BigInt, Integer};
+
+use super::alpha_beta_filter::*;
 
 lazy_static! {
     pub static ref NUM: Vec<BigInt> = poly_parse(&[

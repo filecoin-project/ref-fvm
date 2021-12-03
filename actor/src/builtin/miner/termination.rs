@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use bitfield::BitField;
-use clock::ChainEpoch;
 use std::{collections::HashMap, ops::AddAssign};
+
+use bitfield::BitField;
+
+use fvm_shared::clock::ChainEpoch;
 
 #[derive(Default)]
 pub struct TerminationResult {

@@ -1,14 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
-
-use address::Address;
 use common::*;
 use forest_actor::{
     account::State, ACCOUNT_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use vm::{ExitCode, Serialized};
+use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+
+mod common;
 
 macro_rules! account_tests {
     ($($name:ident: $value:expr,)*) => {
@@ -30,7 +31,7 @@ macro_rules! account_tests {
                     .call(
                         &*ACCOUNT_ACTOR_CODE_ID,
                         1,
-                        &Serialized::serialize(addr).unwrap(),
+                        &RawBytes::serialize(addr).unwrap(),
                     )
                     .unwrap();
 
@@ -40,7 +41,7 @@ macro_rules! account_tests {
                     rt.expect_validate_caller_any();
 
                     let pk: Address = rt
-                        .call(&*ACCOUNT_ACTOR_CODE_ID, 2, &Serialized::default())
+                        .call(&*ACCOUNT_ACTOR_CODE_ID, 2, &RawBytes::default())
                         .unwrap()
                         .deserialize()
                         .unwrap();
@@ -49,7 +50,7 @@ macro_rules! account_tests {
                     let res = rt.call(
                         &*ACCOUNT_ACTOR_CODE_ID,
                         1,
-                        &Serialized::serialize(addr).unwrap(),
+                        &RawBytes::serialize(addr).unwrap(),
                     ).map_err(|e| e.exit_code());
                     assert_eq!(res, Err(exit_code))
                 }

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::{Cid, Version};
+
 use fvm_shared::{
     address::Address,
     bigint::bigint_ser,
     clock::ChainEpoch,
     crypto::signature::Signature,
     econ::TokenAmount,
-    encoding::{tuple::*, Cbor},
+    encoding::{Cbor, tuple::*},
     piece::PaddedPieceSize,
 };
 

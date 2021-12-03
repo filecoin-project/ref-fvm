@@ -1,16 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::deal::{ClientDealProposal, DealProposal, DealState};
-use crate::DealWeight;
-use address::Address;
 use cid::Cid;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use fil_types::RegisteredSealProof;
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deal::DealID;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::sector::RegisteredSealProof;
 use ipld_amt::Amt;
-use num_bigint::bigint_ser;
-use vm::{DealID, TokenAmount};
+
+use crate::DealWeight;
+
+use super::deal::{ClientDealProposal, DealProposal, DealState};
 
 pub const PROPOSALS_AMT_BITWIDTH: usize = 5;
 pub const STATES_AMT_BITWIDTH: usize = 6;

@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
-use fil_types::HAMT_BIT_WIDTH;
 use forest_actor::Multimap;
+use fvm_shared::address::Address;
+use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
 
 #[test]

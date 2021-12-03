@@ -1,15 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::SYSTEM_ACTOR_ADDR;
-
-use encoding::Cbor;
 use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use runtime::{ActorCode, Runtime};
 use serde::{Deserialize, Serialize};
-use vm::{actor_error, ActorError, ExitCode, MethodNum, Serialized, METHOD_CONSTRUCTOR};
+
+use fvm_shared::encoding::{Cbor, RawBytes};
+use fvm_shared::error::ActorError;
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
+
+use crate::runtime::{ActorCode, Runtime};
+use crate::SYSTEM_ACTOR_ADDR;
 
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 
@@ -46,8 +48,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        _params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        _params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -55,7 +57,7 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
         }

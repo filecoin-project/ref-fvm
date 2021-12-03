@@ -1,28 +1,31 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{
-    power_for_sectors, select_sectors, validate_partition_contains_sectors, BitFieldQueue,
-    ExpirationQueue, ExpirationSet, SectorOnChainInfo, Sectors, TerminationResult,
-};
-use crate::{actor_error, ActorDowncast};
-use bitfield::{BitField, UnvalidatedBitField, Validate};
-use cid::Cid;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use fil_types::{
-    deadlines::{QuantSpec, NO_QUANTIZATION},
-    SectorSize, StoragePower,
-};
-use ipld_amt::Amt;
-use ipld_blockstore::BlockStore;
-use num_bigint::bigint_ser;
-use num_traits::{Signed, Zero};
 use std::{
     error::Error as StdError,
     ops::{self, Neg},
 };
-use vm::{ActorError, ExitCode, TokenAmount};
+
+use bitfield::{BitField, UnvalidatedBitField, Validate};
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+use num_traits::{Signed, Zero};
+
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::error::ExitCode;
+use fvm_shared::sector::{SectorSize, StoragePower};
+use ipld_amt::Amt;
+
+use crate::ActorDowncast;
+use crate::miner::{NO_QUANTIZATION, QuantSpec};
+
+use super::{
+    BitFieldQueue, ExpirationQueue, ExpirationSet, power_for_sectors,
+    SectorOnChainInfo, Sectors, select_sectors, TerminationResult, validate_partition_contains_sectors,
+};
 
 // Bitwidth of AMTs determined empirically from mutation patterns and projections of mainnet data.
 const PARTITION_EXPIRATION_AMT_BITWIDTH: usize = 4;

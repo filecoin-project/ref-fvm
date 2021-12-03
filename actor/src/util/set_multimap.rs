@@ -1,15 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::Set;
-use crate::{make_empty_map, make_map_with_root, parse_uint_key, u64_key, DealID, Map};
-use cid::Cid;
-use clock::ChainEpoch;
-use fil_types::HAMT_BIT_WIDTH;
-use ipld_blockstore::BlockStore;
-use ipld_hamt::Error;
 use std::borrow::Borrow;
 use std::error::Error as StdError;
+
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deal::DealID;
+use fvm_shared::HAMT_BIT_WIDTH;
+use ipld_hamt::Error;
+
+use crate::{make_empty_map, make_map_with_root, parse_uint_key, u64_key, DealID, Map};
+
+use super::Set;
 
 /// SetMultimap is a hamt with values that are also a hamt but are of the set variant.
 /// This allows hash sets to be indexable by an address.

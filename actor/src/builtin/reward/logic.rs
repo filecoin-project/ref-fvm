@@ -1,13 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::expneg::expneg;
-use crate::math::PRECISION;
-use clock::ChainEpoch;
-use fil_types::{StoragePower, FILECOIN_PRECISION};
-use num_bigint::{BigInt, Integer};
 use std::str::FromStr;
-use vm::TokenAmount;
+
+use fvm_shared::bigint::{BigInt, Integer};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::FILECOIN_PRECISION;
+
+use crate::math::PRECISION;
+
+use super::expneg::expneg;
 
 lazy_static! {
     /// Floor(e^(ln[1 + 200%] / epochsInYear) * 2^128

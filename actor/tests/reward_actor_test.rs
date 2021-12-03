@@ -4,10 +4,8 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod common;
+use num_traits::FromPrimitive;
 
-use address::Address;
-use clock::ChainEpoch;
 use common::*;
 use fil_types::StoragePower;
 use forest_actor::{
@@ -19,9 +17,16 @@ use forest_actor::{
     BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, REWARD_ACTOR_CODE_ID,
     STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use num_bigint::bigint_ser::BigIntSer;
-use num_traits::FromPrimitive;
-use vm::{ActorError, ExitCode, Serialized, TokenAmount, METHOD_CONSTRUCTOR, METHOD_SEND};
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser::BigIntSer;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::{METHOD_CONSTRUCTOR, METHOD_SEND};
+
+mod common;
 
 lazy_static! {
     static ref EPOCH_ZERO_REWARD: TokenAmount =
@@ -31,6 +36,7 @@ lazy_static! {
 
 mod construction_tests {
     use super::*;
+
     #[test]
     fn construct_with_zero_power() {
         let start_realized_power = StoragePower::from(0);
@@ -77,6 +83,11 @@ mod construction_tests {
 }
 
 mod test_award_block_reward {
+    use fvm_shared::encoding::RawBytes;
+    use fvm_shared::error::ExitCode;
+    use fvm_shared::sector::StoragePower;
+    use fvm_shared::METHOD_SEND;
+
     use super::*;
 
     #[test]
@@ -175,17 +186,17 @@ mod test_award_block_reward {
         rt.expect_send(
             *WINNER,
             MinerMethod::ApplyRewards as u64,
-            Serialized::serialize(BigIntSer(&expected_reward)).unwrap(),
+            RawBytes::serialize(BigIntSer(&expected_reward)).unwrap(),
             expected_reward,
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::Ok,
         );
         rt.expect_send(
             *BURNT_FUNDS_ACTOR_ADDR,
             METHOD_SEND,
-            Serialized::default(),
+            RawBytes::default(),
             penalty.clone(),
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::Ok,
         );
 
@@ -199,7 +210,7 @@ mod test_award_block_reward {
             .call(
                 &*REWARD_ACTOR_CODE_ID,
                 Method::AwardBlockReward as u64,
-                &Serialized::serialize(params).unwrap()
+                &RawBytes::serialize(params).unwrap()
             )
             .is_ok());
         rt.verify();
@@ -251,17 +262,17 @@ mod test_award_block_reward {
         rt.expect_send(
             *WINNER,
             MinerMethod::ApplyRewards as u64,
-            Serialized::serialize(BigIntSer(&expected_reward)).unwrap(),
+            RawBytes::serialize(BigIntSer(&expected_reward)).unwrap(),
             expected_reward.clone(),
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::ErrForbidden,
         );
         rt.expect_send(
             *BURNT_FUNDS_ACTOR_ADDR,
             METHOD_SEND,
-            Serialized::default(),
+            RawBytes::default(),
             expected_reward,
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::Ok,
         );
 
@@ -276,7 +287,7 @@ mod test_award_block_reward {
             .call(
                 &*REWARD_ACTOR_CODE_ID,
                 Method::AwardBlockReward as u64,
-                &Serialized::serialize(params).unwrap()
+                &RawBytes::serialize(params).unwrap()
             )
             .is_ok());
 
@@ -329,11 +340,11 @@ fn construct_and_verify(curr_power: &StoragePower) -> MockRuntime {
         .call(
             &*REWARD_ACTOR_CODE_ID,
             METHOD_CONSTRUCTOR,
-            &Serialized::serialize(BigIntSer(curr_power)).unwrap(),
+            &RawBytes::serialize(BigIntSer(curr_power)).unwrap(),
         )
         .unwrap();
 
-    assert_eq!(Serialized::default(), ret);
+    assert_eq!(RawBytes::default(), ret);
     rt.verify();
     rt
 }
@@ -345,19 +356,19 @@ fn award_block_reward(
     gas_reward: TokenAmount,
     win_count: i64,
     expected_payment: TokenAmount,
-) -> Result<Serialized, ActorError> {
+) -> Result<RawBytes, ActorError> {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     let miner_penalty = &penalty * PENALTY_MULTIPLIER;
     rt.expect_send(
         miner,
         MinerMethod::ApplyRewards as u64,
-        Serialized::serialize(&ApplyRewardParams {
+        RawBytes::serialize(&ApplyRewardParams {
             reward: expected_payment.clone(),
             penalty: miner_penalty,
         })
         .unwrap(),
         expected_payment.clone(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -365,14 +376,14 @@ fn award_block_reward(
         rt.expect_send(
             *BURNT_FUNDS_ACTOR_ADDR,
             METHOD_SEND,
-            Serialized::default(),
+            RawBytes::default(),
             expected_payment,
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::Ok,
         );
     }
 
-    let params = Serialized::serialize(AwardBlockRewardParams {
+    let params = RawBytes::serialize(AwardBlockRewardParams {
         miner,
         penalty,
         gas_reward,
@@ -396,10 +407,10 @@ fn this_epoch_reward(rt: &mut MockRuntime) -> ThisEpochRewardReturn {
         .call(
             &*REWARD_ACTOR_CODE_ID,
             Method::ThisEpochReward as u64,
-            &Serialized::default(),
+            &RawBytes::default(),
         )
         .unwrap();
-    let resp: ThisEpochRewardReturn = Serialized::deserialize(&serialized_result).unwrap();
+    let resp: ThisEpochRewardReturn = RawBytes::deserialize(&RawBytes_result).unwrap();
     rt.verify();
     resp
 }
@@ -408,7 +419,7 @@ fn update_network_kpi(rt: &mut MockRuntime, curr_raw_power: &StoragePower) {
     rt.set_caller(*POWER_ACTOR_CODE_ID, *STORAGE_POWER_ACTOR_ADDR);
     rt.expect_validate_caller_addr(vec![*STORAGE_POWER_ACTOR_ADDR]);
 
-    let params = &Serialized::serialize(BigIntSer(&curr_raw_power)).unwrap();
+    let params = &RawBytes::serialize(BigIntSer(&curr_raw_power)).unwrap();
     assert!(rt
         .call(
             &*REWARD_ACTOR_CODE_ID,

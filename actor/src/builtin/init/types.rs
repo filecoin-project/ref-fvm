@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
 use cid::Cid;
-use encoding::{tuple::*, Cbor};
-use vm::Serialized;
+
+use fvm_shared::address::Address;
+use fvm_shared::encoding::{tuple::*, Cbor, RawBytes};
 
 /// Init actor Constructor parameters
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -16,7 +16,7 @@ pub struct ConstructorParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct ExecParams {
     pub code_cid: Cid,
-    pub constructor_params: Serialized,
+    pub constructor_params: RawBytes,
 }
 
 /// Init actor Exec Return value

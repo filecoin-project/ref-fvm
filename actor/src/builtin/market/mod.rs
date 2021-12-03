@@ -1,16 +1,30 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod deal;
-mod policy;
-mod state;
-mod types;
+use std::collections::HashSet;
+use std::error::Error as StdError;
+use std::path::Prefix;
 
-pub use self::deal::*;
-use self::policy::*;
-pub use self::state::*;
-pub use self::types::*;
-use crate::runtime::Runtime;
+use ahash::AHashMap;
+use ipld_blockstore::BlockStore;
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::clock::EPOCH_UNDEFINED;
+use fvm_shared::deal::DealID;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{Cbor, RawBytes};
+use fvm_shared::error::ActorError;
+use fvm_shared::error::ExitCode;
+use fvm_shared::piece::PieceInfo;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::{actor_error, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+
+use crate::miner::QuantSpec;
+use crate::runtime::{ActorCode, Runtime};
 use crate::{
     power, request_miner_control_addrs, reward,
     verifreg::{Method as VerifregMethod, RestoreBytesParams, UseBytesParams},
@@ -18,22 +32,16 @@ use crate::{
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
     VERIFIED_REGISTRY_ACTOR_ADDR,
 };
-use ahash::AHashMap;
-use fvm_shared::actor_error;
-use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::clock::EPOCH_UNDEFINED;
-use fvm_shared::deal::DealID;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use ipld_blockstore::BlockStore;
-use num_derive::FromPrimitive;
-use std::collections::HashSet;
-use std::error::Error as StdError;
+
+pub use self::deal::*;
+use self::policy::*;
+pub use self::state::*;
+pub use self::types::*;
+
+mod deal;
+mod policy;
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: e195950ba98adb8ce362030356bf4a3809b7ec77 (v2.3.2)
 

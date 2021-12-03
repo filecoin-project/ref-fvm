@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::multihash::{Code, MultihashDigest};
-use cid::Cid;
+use cid::{Cid, Code};
 
 pub const SYSTEM_ACTOR_CODE_ID_NAME: &str = "fil/4/system";
 pub const INIT_ACTOR_CODE_ID_NAME: &str = "fil/4/init";

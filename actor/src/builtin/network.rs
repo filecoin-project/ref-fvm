@@ -3,7 +3,8 @@
 
 pub use clock::EPOCH_DURATION_SECONDS;
 pub use fil_types::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
-use num_bigint::BigInt;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::clock::EPOCH_DURATION_SECONDS;
 
 pub const SECONDS_IN_HOUR: i64 = 3600;
 pub const SECONDS_IN_DAY: i64 = 86400;

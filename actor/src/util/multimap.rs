@@ -1,13 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, BytesKey, Map};
-use cid::Cid;
-use ipld_amt::Amt;
-use ipld_blockstore::BlockStore;
-use ipld_hamt::Error;
-use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error as StdError;
+
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+use serde::{de::DeserializeOwned, Serialize};
+
+use ipld_amt::Amt;
+use ipld_hamt::Error;
+
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, BytesKey, Map};
 
 /// Multimap stores multiple values per key in a Hamt of Amts.
 /// The order of insertion of values for each key is retained.

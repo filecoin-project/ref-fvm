@@ -3,27 +3,32 @@
 
 #[macro_use]
 extern crate lazy_static;
-
 // workaround for a compiler bug, see https://github.com/rust-lang/rust/issues/55779
 extern crate serde;
+
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+use serde::{de::DeserializeOwned, Serialize};
+use unsigned_varint::decode::Error as UVarintError;
+
+use crate::runtime::{ActorCode, Runtime};
+use builtin::HAMT_BIT_WIDTH;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::MethodNum;
+pub use ipld_amt;
+pub use ipld_hamt;
+use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
+
+pub use self::builtin::*;
+pub use self::util::*;
+
+pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
 
 mod builtin;
 mod runtime;
 pub mod util;
-
-pub use self::builtin::*;
-pub use self::util::*;
-pub use ipld_amt;
-pub use ipld_hamt;
-
-use builtin::HAMT_BIT_WIDTH;
-use cid::Cid;
-use ipld_blockstore::BlockStore;
-use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
-use num_bigint::BigInt;
-use runtime::{ActorCode, Runtime};
-use serde::{de::DeserializeOwned, Serialize};
-use unsigned_varint::decode::Error as UVarintError;
 
 /// Map type to be used within actors. The underlying type is a hamt.
 pub type Map<'bs, BS, V> = Hamt<'bs, BS, V, BytesKey>;
@@ -83,8 +88,8 @@ pub fn invoke_code<RT, BS>(
     code: &Cid,
     rt: &mut RT,
     method_num: MethodNum,
-    params: &Serialized,
-) -> Option<Result<Serialized, ActorError>>
+    params: &RawBytes,
+) -> Option<Result<RawBytes, ActorError>>
 where
     BS: BlockStore,
     RT: Runtime<BS>,

@@ -1,14 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::BytesKey;
-use address::Address;
-use clock::ChainEpoch;
-use encoding::{serde_bytes, tuple::*};
 use integer_encoding::VarInt;
-use num_bigint::bigint_ser;
 use serde::{Deserialize, Serialize};
-use vm::{ExitCode, MethodNum, Serialized, TokenAmount};
+
+use encoding::{serde_bytes, tuple::*};
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+use fvm_shared::MethodNum;
+
+use crate::BytesKey;
 
 /// SignersMax is the maximum number of signers allowed in a multisig. If more
 /// are required, please use a combining tree of multisigs.
@@ -32,7 +37,7 @@ pub struct Transaction {
     #[serde(with = "bigint_ser")]
     pub value: TokenAmount,
     pub method: MethodNum,
-    pub params: Serialized,
+    pub params: RawBytes,
 
     pub approved: Vec<Address>,
 }
@@ -50,7 +55,7 @@ pub struct ProposalHashData<'a> {
     #[serde(with = "bigint_ser")]
     pub value: &'a TokenAmount,
     pub method: &'a MethodNum,
-    pub params: &'a Serialized,
+    pub params: &'a RawBytes,
 }
 
 /// Constructor parameters for multisig actor.
@@ -70,7 +75,7 @@ pub struct ProposeParams {
     #[serde(with = "bigint_ser")]
     pub value: TokenAmount,
     pub method: MethodNum,
-    pub params: Serialized,
+    pub params: RawBytes,
 }
 
 /// Propose method call return.
@@ -85,7 +90,7 @@ pub struct ProposeReturn {
     pub code: ExitCode,
     /// Ret is the return value of the transaction, if Applied is false this field should
     /// be ignored.
-    pub ret: Serialized,
+    pub ret: RawBytes,
 }
 
 /// Parameters for approve and cancel multisig functions.
@@ -108,7 +113,7 @@ pub struct ApproveReturn {
     pub code: ExitCode,
     /// Ret is the return value of the transaction, if Applied is false this field should
     /// be ignored.
-    pub ret: Serialized,
+    pub ret: RawBytes,
 }
 
 /// Add signer params.

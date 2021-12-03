@@ -1,19 +1,24 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{power_for_sector, PowerPair, SectorOnChainInfo};
-use crate::ActorDowncast;
+use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
+
 use bitfield::BitField;
 use cid::Cid;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use fil_types::{deadlines::QuantSpec, SectorNumber, SectorSize};
-use ipld_amt::{Amt, Error as AmtError, ValueMut};
 use ipld_blockstore::BlockStore;
-use num_bigint::bigint_ser;
 use num_traits::{Signed, Zero};
-use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
-use vm::TokenAmount;
+
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::sector::{SectorNumber, SectorSize};
+use ipld_amt::{Amt, Error as AmtError, ValueMut};
+
+use crate::miner::QuantSpec;
+use crate::ActorDowncast;
+
+use super::{power_for_sector, PowerPair, SectorOnChainInfo};
 
 /// An internal limit on the cardinality of a bitfield in a queue entry.
 /// This must be at least large enough to support the maximum number of sectors in a partition.

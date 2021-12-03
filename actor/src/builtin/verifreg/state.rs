@@ -3,11 +3,12 @@
 
 use std::error::Error as StdError;
 
-use address::Address;
 use cid::Cid;
-use encoding::{tuple::*, Cbor};
-use fil_types::HAMT_BIT_WIDTH;
 use ipld_blockstore::BlockStore;
+
+use fvm_shared::address::Address;
+use fvm_shared::encoding::{Cbor, tuple::*};
+use fvm_shared::HAMT_BIT_WIDTH;
 
 use crate::make_empty_map;
 

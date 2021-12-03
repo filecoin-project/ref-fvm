@@ -1,28 +1,34 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-pub(crate) mod expneg;
-mod logic;
-mod state;
-mod types;
+use ipld_blockstore::BlockStore;
+use log::{error, warn};
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed};
+
+use fvm_shared::bigint::Sign;
+use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+
+use crate::network::EXPECTED_LEADERS_PER_EPOCH;
+use crate::runtime::{ActorCode, Runtime};
+use crate::{
+    miner, BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,
+    SYSTEM_ACTOR_ADDR,
+};
 
 pub use self::logic::*;
 pub use self::state::{Reward, State, VestingFunction};
 pub use self::types::*;
-use crate::network::EXPECTED_LEADERS_PER_EPOCH;
-use crate::{miner, BURNT_FUNDS_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR};
-use fil_types::StoragePower;
-use ipld_blockstore::BlockStore;
-use log::{error, warn};
-use num_bigint::Sign;
-use num_bigint::{bigint_ser::BigIntDe, Integer};
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed};
-use runtime::{ActorCode, Runtime};
-use vm::{
-    actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-    METHOD_SEND,
-};
+
+pub(crate) mod expneg;
+mod logic;
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: 999e57a151cc7ada020ca2844b651499ab8c0dec (v3.0.1)
 
@@ -164,7 +170,7 @@ impl Actor {
         let res = rt.send(
             miner_addr,
             miner::Method::ApplyRewards as u64,
-            Serialized::serialize(&reward_params)?,
+            RawBytes::serialize(&reward_params)?,
             total_reward.clone(),
         );
         if let Err(e) = res {
@@ -176,7 +182,7 @@ impl Actor {
             let res = rt.send(
                 *BURNT_FUNDS_ACTOR_ADDR,
                 METHOD_SEND,
-                Serialized::default(),
+                RawBytes::default(),
                 total_reward,
             );
             if let Err(e) = res {
@@ -242,8 +248,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -252,20 +258,20 @@ impl ActorCode for Actor {
             Some(Method::Constructor) => {
                 let param: Option<BigIntDe> = rt.deserialize_params(params)?;
                 Self::constructor(rt, param.map(|v| v.0))?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::AwardBlockReward) => {
                 Self::award_block_reward(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ThisEpochReward) => {
                 let res = Self::this_epoch_reward(rt)?;
-                Ok(Serialized::serialize(&res)?)
+                Ok(RawBytes::serialize(&res)?)
             }
             Some(Method::UpdateNetworkKPI) => {
                 let param: Option<BigIntDe> = rt.deserialize_params(params)?;
                 Self::update_network_kpi(rt, param.map(|v| v.0))?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
         }

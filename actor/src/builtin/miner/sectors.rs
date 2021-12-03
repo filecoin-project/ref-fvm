@@ -1,16 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::SectorOnChainInfo;
-use crate::{actor_error, ActorDowncast, ActorError, ExitCode};
+use std::collections::HashSet;
+use std::error::Error as StdError;
+
 use ahash::AHashSet;
 use bitfield::BitField;
 use cid::Cid;
-use fil_types::{SectorNumber, MAX_SECTOR_NUMBER};
-use ipld_amt::{Amt, Error as AmtError};
+use fvm_shared::error::ExitCode;
+use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
 use ipld_blockstore::BlockStore;
-use std::collections::HashSet;
-use std::error::Error as StdError;
+
+use ipld_amt::{Amt, Error as AmtError};
+
+use crate::{ActorDowncast, ActorError};
+
+use super::SectorOnChainInfo;
 
 pub struct Sectors<'db, BS> {
     pub amt: Amt<'db, SectorOnChainInfo, BS>,

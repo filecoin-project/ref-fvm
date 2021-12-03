@@ -1,14 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::logic::*;
-use crate::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};
-use clock::{ChainEpoch, EPOCH_UNDEFINED};
+use num_derive::FromPrimitive;
+
 use encoding::{repr::*, tuple::*, Cbor};
 use fil_types::{Spacetime, StoragePower};
-use num_bigint::{bigint_ser, Integer};
-use num_derive::FromPrimitive;
-use vm::TokenAmount;
+use fvm_shared::bigint::{bigint_ser, Integer};
+use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::Cbor;
+use fvm_shared::sector::{Spacetime, StoragePower};
+
+use crate::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};
+
+use super::logic::*;
 
 lazy_static! {
     /// 36.266260308195979333 FIL

@@ -1,20 +1,26 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{cmp, collections::HashMap, collections::HashSet, error::Error as StdError};
+
+use bitfield::BitField;
+use cid::{Cid, Code::Blake2b256};
+use ipld_blockstore::BlockStore;
+use num_traits::{Signed, Zero};
+
+use crate::ActorDowncast;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::sector::{PoStProof, SectorSize};
+use ipld_amt::Amt;
+
+use super::QuantSpec;
 use super::{
     BitFieldQueue, ExpirationSet, Partition, PartitionSectorMap, PoStPartition, PowerPair,
     SectorOnChainInfo, Sectors, TerminationResult, WPOST_PERIOD_DEADLINES,
 };
-use crate::{actor_error, ActorDowncast, ActorError, ExitCode, TokenAmount};
-use bitfield::BitField;
-use cid::{Cid, Code::Blake2b256};
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use fil_types::{deadlines::QuantSpec, PoStProof, SectorSize};
-use ipld_amt::Amt;
-use ipld_blockstore::BlockStore;
-use num_traits::{Signed, Zero};
-use std::{cmp, collections::HashMap, collections::HashSet, error::Error as StdError};
 
 // Bitwidth of AMTs determined empirically from mutation patterns and projections of mainnet data.
 const DEADLINE_PARTITIONS_AMT_BITWIDTH: usize = 3; // Usually a small array

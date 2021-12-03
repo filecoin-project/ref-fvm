@@ -1,10 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use encoding::Cbor;
 use serde::de::{self, Deserializer};
 use serde::ser::{self, Serializer};
 use serde::{Deserialize, Serialize};
+
+use fvm_shared::encoding::Cbor;
 
 pub struct UnmarshallableCBOR;
 
@@ -34,26 +35,27 @@ impl Cbor for UnmarshallableCBOR {}
 
 #[cfg(test)]
 mod tests {
+    use fvm_shared::encoding::RawBytes;
 
     use super::*;
-    use vm::Serialized;
+
     #[test]
     fn serialize_test() {
         let mut v: Vec<UnmarshallableCBOR> = vec![];
 
         // Should pass becuase vec is empty
-        assert!(Serialized::serialize(&v).is_ok());
+        assert!(RawBytes::serialize(&v).is_ok());
 
         v.push(UnmarshallableCBOR);
 
         // Should fail becuase vec is no longer empty
-        assert!(Serialized::serialize(v).is_err());
+        assert!(RawBytes::serialize(v).is_err());
 
         let mut v: Vec<Option<UnmarshallableCBOR>> = vec![];
 
         v.push(Some(UnmarshallableCBOR));
 
         // SHould only fail if a actual instance of UnmarshallableCBOR is used
-        assert!(Serialized::serialize(v).is_err());
+        assert!(RawBytes::serialize(v).is_err());
     }
 }

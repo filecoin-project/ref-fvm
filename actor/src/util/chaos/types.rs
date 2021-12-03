@@ -1,13 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::state::State;
-use address::Address;
 use cid::Cid;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use num_bigint::bigint_ser;
-use vm::{ExitCode, Serialized, TokenAmount};
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+
+use super::state::State;
 
 /// CreateActorArgs are the arguments to CreateActor.
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -31,13 +35,13 @@ pub struct SendArgs {
     pub value: TokenAmount,
     #[serde(rename = "MethodNum")]
     pub method: u64,
-    pub params: Serialized,
+    pub params: RawBytes,
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 // SendReturn is the return values for the Send method.
 pub struct SendReturn {
-    pub return_value: Serialized,
+    pub return_value: RawBytes,
     pub code: ExitCode,
 }
 

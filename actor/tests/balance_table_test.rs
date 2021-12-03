@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
 use forest_actor::BalanceTable;
-use vm::TokenAmount;
+use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
 
 // Ported test from specs-actors
 #[test]

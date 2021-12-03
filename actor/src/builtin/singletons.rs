@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
 use fil_types::ActorID;
+use fvm_shared::address::Address;
+use fvm_shared::ActorID;
 
 lazy_static! {
     pub static ref SYSTEM_ACTOR_ADDR: Address         = Address::new_id(0);
