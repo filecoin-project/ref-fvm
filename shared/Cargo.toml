@@ -25,7 +25,7 @@ data-encoding-macro = "0.1.12"
 once_cell = "1.7.2"
 lazy_static = "1.4.0"
 log = "0.4.8"
-cid = { package = "forest_cid", features = ["cbor"], version = "0.3" }
+cid = { version = "0.7.0", features = ["serde-codec"] }
 libsecp256k1 = "0.6"
 bls-signatures = { version = "0.9", default-features = false }
 ## TODO maybe shared shouldn't be depending on filecoin proofs.

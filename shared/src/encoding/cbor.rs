@@ -3,11 +3,14 @@
 
 use std::ops::Deref;
 
-use cid::{Cid, Code::Blake2b256};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::errors::Error;
-use super::{de::DeserializeOwned, from_slice, to_vec};
+use crate::encoding::{from_slice, to_vec, CodecProtocol};
+use cid::{multihash, Cid};
+
+// TODO find something to reference.
+const DAG_CBOR: u64 = 0x71;
 
 /// Cbor utility functions for serializable objects
 pub trait Cbor: Serialize + DeserializeOwned {
@@ -24,7 +27,18 @@ pub trait Cbor: Serialize + DeserializeOwned {
     /// Returns the content identifier of the raw block of data
     /// Default is Blake2b256 hash
     fn cid(&self) -> Result<Cid, Error> {
-        Ok(cid::new_from_cbor(&self.marshal_cbor()?, Blake2b256))
+        use multihash::MultihashDigest;
+        let mh = multihash::Code::Blake2b256;
+        const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
+        let data = &self.marshal_cbor()?;
+        let hash = mh.digest(data);
+        if u32::from(hash.size()) < DIGEST_SIZE {
+            return Err(Error {
+                description: "Invalid multihash length".into(),
+                protocol: CodecProtocol::Cbor, // TODO this is not accurate, and not convinced about this Error type.
+            });
+        }
+        Ok(Cid::new_v1(DAG_CBOR, hash.truncate(DIGEST_SIZE as u8)))
     }
 }
 
