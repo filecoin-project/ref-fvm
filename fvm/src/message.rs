@@ -23,23 +23,15 @@ pub const METHOD_CONSTRUCTOR: MethodNum = 1;
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[derive(PartialEq, Clone, Debug, Hash, Eq, Builder)]
 pub struct Message {
-    #[builder(default)]
     pub version: i64,
     pub from: Address,
     pub to: Address,
-    #[builder(default)]
     pub sequence: u64,
-    #[builder(default)]
     pub value: TokenAmount,
-    #[builder(default)]
     pub method_num: MethodNum,
-    #[builder(default)]
     pub params: RawBytes,
-    #[builder(default)]
     pub gas_limit: i64,
-    #[builder(default)]
     pub gas_fee_cap: TokenAmount,
-    #[builder(default)]
     pub gas_premium: TokenAmount,
 }
 
@@ -53,10 +45,11 @@ impl Message {
 
     /// Does some basic checks on the Message to see if the fields are valid.
     pub fn check(self: &Message) -> Result<(), &'static str> {
-        if msg.gas_limit() == 0 {
+        // TODO convert to match.
+        if self.gas_limit() == 0 {
             return Err("Message has no gas limit set");
         }
-        if msg.gas_limit() < 0 {
+        if self.gas_limit() < 0 {
             return Err("Message has negative gas limit");
         }
 
