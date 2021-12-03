@@ -9,6 +9,7 @@ use cid::{Cid, Code::Blake2b256};
 use db::MemoryDB;
 use ipld_blockstore::BlockStore;
 
+use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -20,7 +21,9 @@ use fvm_shared::encoding::{blake2b_256, Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo};
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MethodNum;
 
@@ -793,7 +796,7 @@ impl Syscalls for MockRuntime {
     }
     fn verify_aggregate_seals(
         &self,
-        _aggregate: &fil_types::AggregateSealVerifyProofAndInfos,
+        _aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Box<dyn StdError>> {
         // TODO: Implement this if we need it. Currently don't have a need.
         todo!()

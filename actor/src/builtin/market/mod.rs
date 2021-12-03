@@ -3,7 +3,6 @@
 
 use std::collections::HashSet;
 use std::error::Error as StdError;
-use std::path::Prefix;
 
 use ahash::AHashMap;
 use ipld_blockstore::BlockStore;
@@ -16,7 +15,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::clock::EPOCH_UNDEFINED;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, RawBytes};
+use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -1182,7 +1181,7 @@ where
 
     // * we are skipping the check for if Cid is defined, but this shouldn't be possible
 
-    if Prefix::from(proposal.piece_cid) != PIECE_CID_PREFIX {
+    if !is_piece_cid(&proposal.piece_cid) {
         return Err(actor_error!(
             ErrIllegalArgument,
             "proposal PieceCID undefined"

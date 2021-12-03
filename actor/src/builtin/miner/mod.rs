@@ -3,12 +3,10 @@
 
 use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error as StdError;
-use std::path::Prefix;
 use std::{iter, ops::Neg};
 
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use cid::multihash::Code;
 use cid::{Cid, Code};
 use ipld_blockstore::BlockStore;
 use log::{error, info, warn};
@@ -1156,7 +1154,7 @@ impl Actor {
             }
             // Skip checking if CID is defined because it cannot be so in Rust
 
-            if Prefix::from(precommit.sealed_cid) != SEALED_CID_PREFIX {
+            if !is_sealed_sector(&precommit.sealed_cid) {
                 return Err(actor_error!(
                     ErrIllegalArgument,
                     "sealed CID had wrong prefix"

@@ -3,7 +3,6 @@
 
 use num_traits::sign::Signed;
 
-use fil_types::StoragePower;
 use forest_actor::math::{poly_parse, PRECISION};
 use forest_actor::smooth::extrapolated_cum_sum_of_ratio as ecsor;
 use forest_actor::smooth::*;

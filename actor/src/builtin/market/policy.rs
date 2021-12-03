@@ -10,9 +10,10 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PaddedPieceSize;
 use fvm_shared::sector::StoragePower;
+use fvm_shared::TOTAL_FILECOIN;
 
-use crate::DealWeight;
 use crate::network::EPOCHS_IN_DAY;
+use crate::DealWeight;
 
 use super::deal::DealProposal;
 

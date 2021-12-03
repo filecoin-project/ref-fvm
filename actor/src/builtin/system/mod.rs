@@ -6,6 +6,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use fvm_shared::actor_error;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};

@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use cid::{Cid, Version};
 use std::cmp;
 
 use fvm_shared::bigint::{BigInt, Integer};
@@ -94,12 +95,13 @@ pub const NEW_SECTORS_PER_PERIOD_MAX: usize = 128 << 10;
 pub const CHAIN_FINALITY: ChainEpoch = 900;
 
 /// Prefix for sealed sector CIDs (CommR).
-pub const SEALED_CID_PREFIX: cid::Prefix = cid::Prefix {
-    version: cid::Version::V1,
-    codec: cid::FIL_COMMITMENT_SEALED,
-    mh_type: cid::POSEIDON_BLS12_381_A1_FC1,
-    mh_len: 32,
-};
+pub fn is_sealed_sector(c: &Cid) -> bool {
+    // TODO: Move FIL_COMMITMENT etc, into a better place
+    c.version() == Version::V1
+        && c.codec() == cid::FIL_COMMITMENT_SEALED
+        && c.hash().code() == cid::POSEIDON_BLS12_381_A1_FC1
+        && c.hash().size() == 32
+}
 
 /// List of proof types which can be used when creating new miner actors
 pub fn can_pre_commit_seal_proof(proof: RegisteredSealProof) -> bool {

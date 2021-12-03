@@ -9,20 +9,22 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 
 use commcid::data_commitment_v1_to_cid;
-use filecoin_proofs_api::self as proofs;
+use filecoin_proofs_api as proofs;
 use filecoin_proofs_api::seal::compute_comm_d;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, Cbor, de, RawBytes};
+use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::MethodNum;
-use fvm_shared::piece::{PaddedPieceSize, PieceInfo, zero_piece_commitment};
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
 use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo};
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
 use fvm_shared::version::NetworkVersion;
+use fvm_shared::MethodNum;
 
 pub use self::actor_code::*;
 
@@ -238,7 +240,7 @@ pub trait Syscalls {
     }
     fn verify_aggregate_seals(
         &self,
-        aggregate: &fil_types::AggregateSealVerifyProofAndInfos,
+        aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Box<dyn StdError>>;
 }
 

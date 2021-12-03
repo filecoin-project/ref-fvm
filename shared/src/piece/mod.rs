@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 #[cfg(feature = "proofs")]
-mod zero;
+pub mod zero;
 
 #[cfg(feature = "proofs")]
 pub use zero::zero_piece_commitment;
@@ -79,7 +79,7 @@ impl TryFrom<&PieceInfo> for filecoin_proofs_api::PieceInfo {
 
     fn try_from(p: &PieceInfo) -> Result<Self, Self::Error> {
         Ok(Self {
-            commitment: commcid::cid_to_piece_commitment_v1(&p.cid)?,
+            commitment: crate::commcid::cid_to_piece_commitment_v1(&p.cid)?,
             size: p.size.unpadded().into(),
         })
     }

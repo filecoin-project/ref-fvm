@@ -7,7 +7,6 @@ extern crate lazy_static;
 use num_traits::FromPrimitive;
 
 use common::*;
-use fil_types::StoragePower;
 use forest_actor::{
     miner::{ApplyRewardParams, Method as MinerMethod},
     reward::{

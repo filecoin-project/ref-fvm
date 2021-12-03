@@ -9,6 +9,7 @@ use integer_encoding::VarInt;
 use ipld_blockstore::BlockStore;
 use num_traits::Signed;
 
+use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{bigint_ser, BigInt};
 use fvm_shared::clock::ChainEpoch;

@@ -3,12 +3,10 @@
 
 use num_derive::FromPrimitive;
 
-use encoding::{repr::*, tuple::*, Cbor};
-use fil_types::{Spacetime, StoragePower};
 use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::Cbor;
+use fvm_shared::encoding::{repr::*, tuple::*, Cbor};
 use fvm_shared::sector::{Spacetime, StoragePower};
 
 use crate::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};

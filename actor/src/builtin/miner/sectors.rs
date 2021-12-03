@@ -7,6 +7,7 @@ use std::error::Error as StdError;
 use ahash::AHashSet;
 use bitfield::BitField;
 use cid::Cid;
+use fvm_shared::actor_error;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
 use ipld_blockstore::BlockStore;

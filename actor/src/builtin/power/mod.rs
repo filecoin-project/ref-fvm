@@ -8,6 +8,7 @@ use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
+use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::econ::TokenAmount;

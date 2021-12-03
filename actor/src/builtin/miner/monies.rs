@@ -9,6 +9,7 @@ use fvm_shared::bigint::{num_integer::div_floor, BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sector::StoragePower;
+use fvm_shared::FILECOIN_PRECISION;
 
 use crate::{
     math::PRECISION,

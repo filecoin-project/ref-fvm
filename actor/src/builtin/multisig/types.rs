@@ -4,12 +4,12 @@
 use integer_encoding::VarInt;
 use serde::{Deserialize, Serialize};
 
-use encoding::{serde_bytes, tuple::*};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
+use fvm_shared::encoding::{serde_bytes, tuple::*};
 use fvm_shared::error::ExitCode;
 use fvm_shared::MethodNum;
 

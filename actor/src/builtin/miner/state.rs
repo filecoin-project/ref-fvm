@@ -16,7 +16,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize};
-use fvm_shared::{actor_error, ActorError, ExitCode, TokenAmount, HAMT_BIT_WIDTH};
+use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
 use ipld_amt::{Amt, Error as AmtError};
 use ipld_hamt::Error as HamtError;
 

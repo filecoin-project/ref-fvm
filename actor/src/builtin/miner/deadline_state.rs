@@ -9,6 +9,7 @@ use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
 use crate::ActorDowncast;
+use fvm_shared::actor_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;

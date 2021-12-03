@@ -9,7 +9,7 @@ use fvm_shared::{
     clock::ChainEpoch,
     crypto::signature::Signature,
     econ::TokenAmount,
-    encoding::{Cbor, tuple::*},
+    encoding::{tuple::*, Cbor},
     piece::PaddedPieceSize,
 };
 

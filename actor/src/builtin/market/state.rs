@@ -7,20 +7,21 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
+use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::Cbor;
 use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
 
-use crate::{ActorDowncast, BalanceTable, DealID, make_empty_map, Set, SetMultimap};
+use crate::{make_empty_map, ActorDowncast, BalanceTable, Set, SetMultimap};
 
-use super::{DEAL_UPDATES_INTERVAL, DealProposal, DealState, policy::*, types::*};
+use super::{policy::*, types::*, DealProposal, DealState, DEAL_UPDATES_INTERVAL};
 
 /// Market actor state
 #[derive(Default, Serialize_tuple, Deserialize_tuple)]

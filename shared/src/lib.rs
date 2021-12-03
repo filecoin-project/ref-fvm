@@ -4,18 +4,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-
-
 use num_bigint::BigInt;
-
 
 use address::Address;
 use clock::ChainEpoch;
 
-
 pub mod address;
 pub mod bigint;
 pub mod clock;
+pub mod commcid;
 pub mod consensus;
 pub mod crypto;
 pub mod deal;

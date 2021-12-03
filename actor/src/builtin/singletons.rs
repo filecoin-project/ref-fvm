@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fil_types::ActorID;
 use fvm_shared::address::Address;
 use fvm_shared::ActorID;
 

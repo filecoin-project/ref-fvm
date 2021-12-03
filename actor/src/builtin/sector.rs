@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fil_types::{RegisteredPoStProof, StoragePower};
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
 
 /// Returns the minimum storage power required for each seal proof types.

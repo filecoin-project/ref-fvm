@@ -3,7 +3,6 @@
 
 use num_traits::FromPrimitive;
 
-use fil_types::StoragePower;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::encoding::tuple::*;

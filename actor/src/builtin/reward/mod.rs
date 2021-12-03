@@ -6,6 +6,7 @@ use log::{error, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
+use fvm_shared::actor_error;
 use fvm_shared::bigint::Sign;
 use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
 use fvm_shared::econ::TokenAmount;
@@ -14,7 +15,6 @@ use fvm_shared::error::ActorError;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use crate::network::EXPECTED_LEADERS_PER_EPOCH;
 use crate::runtime::{ActorCode, Runtime};
 use crate::{
     miner, BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,

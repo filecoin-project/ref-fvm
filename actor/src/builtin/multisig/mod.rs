@@ -8,9 +8,10 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use encoding::to_vec;
+use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Sign;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
