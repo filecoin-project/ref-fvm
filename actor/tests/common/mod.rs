@@ -1,22 +1,31 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
-use cid::{Cid, Code::Blake2b256};
-use clock::ChainEpoch;
-use crypto::{DomainSeparationTag, Signature};
-use db::MemoryDB;
-use encoding::{blake2b_256, de::DeserializeOwned, Cbor};
-use fil_types::{
-    NetworkVersion, PieceInfo, Randomness, RegisteredSealProof, SealVerifyInfo,
-    WindowPoStVerifyInfo,
-};
-use ipld_blockstore::BlockStore;
-use runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error as StdError;
-use vm::{actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount};
+
+use cid::{Cid, Code::Blake2b256};
+use db::MemoryDB;
+use ipld_blockstore::BlockStore;
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::de::DeserializeOwned;
+use fvm_shared::encoding::{blake2b_256, Cbor, RawBytes};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::piece::PieceInfo;
+use fvm_shared::randomness::Randomness;
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
+use fvm_shared::version::NetworkVersion;
+use fvm_shared::MethodNum;
 
 pub struct MockRuntime {
     pub epoch: ChainEpoch,
@@ -101,11 +110,11 @@ pub struct ExpectCreateActor {
 pub struct ExpectedMessage {
     pub to: Address,
     pub method: MethodNum,
-    pub params: Serialized,
+    pub params: RawBytes,
     pub value: TokenAmount,
 
     // returns from applying expectedMessage
-    pub send_return: Serialized,
+    pub send_return: RawBytes,
     pub exit_code: ExitCode,
 }
 
@@ -233,8 +242,8 @@ impl MockRuntime {
         &mut self,
         to_code: &Cid,
         method_num: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError> {
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError> {
         self.in_call = true;
         let prev_state = self.state;
         let res = forest_actor::invoke_code(to_code, self, method_num, params)
@@ -311,9 +320,9 @@ impl MockRuntime {
         &mut self,
         to: Address,
         method: MethodNum,
-        params: Serialized,
+        params: RawBytes,
         value: TokenAmount,
-        send_return: Serialized,
+        send_return: RawBytes,
         exit_code: ExitCode,
     ) {
         self.expect_sends.push_back(ExpectedMessage {
@@ -413,8 +422,9 @@ impl Runtime<MemoryDB> for MockRuntime {
             self.expect_validate_caller_addr.is_some(),
             "unexpected validate caller addrs"
         );
-        assert!(
-            &addrs == self.expect_validate_caller_addr.as_ref().unwrap(),
+        assert_eq!(
+            &addrs,
+            self.expect_validate_caller_addr.as_ref().unwrap(),
             "unexpected validate caller addrs {:?}, expected {:?}",
             addrs,
             self.expect_validate_caller_addr
@@ -445,8 +455,9 @@ impl Runtime<MemoryDB> for MockRuntime {
             self.expect_validate_caller_type.is_some(),
             "unexpected validate caller code"
         );
-        assert!(
-            &types == self.expect_validate_caller_type.as_ref().unwrap(),
+        assert_eq!(
+            &types,
+            self.expect_validate_caller_type.as_ref().unwrap(),
             "unexpected validate caller code {:?}, expected {:?}",
             types,
             self.expect_validate_caller_type
@@ -545,9 +556,9 @@ impl Runtime<MemoryDB> for MockRuntime {
         &mut self,
         to: Address,
         method: MethodNum,
-        params: Serialized,
+        params: RawBytes,
         value: TokenAmount,
-    ) -> Result<Serialized, ActorError> {
+    ) -> Result<RawBytes, ActorError> {
         self.require_in_call();
         if self.in_transaction {
             return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
@@ -785,7 +796,7 @@ impl Syscalls for MockRuntime {
     }
     fn verify_aggregate_seals(
         &self,
-        _aggregate: &fil_types::AggregateSealVerifyProofAndInfos,
+        _aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Box<dyn StdError>> {
         // TODO: Implement this if we need it. Currently don't have a need.
         todo!()

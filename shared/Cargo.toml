@@ -28,9 +28,12 @@ log = "0.4.8"
 cid = { package = "forest_cid", features = ["cbor"], version = "0.3" }
 libsecp256k1 = "0.6"
 bls-signatures = { version = "0.9", default-features = false }
+## TODO maybe shared shouldn't be depending on filecoin proofs.
+filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false, optional = true }
 
 [features]
-default = ["blst"]
+default = ["blst", "proofs", "filecoin-proofs-api"]
+proofs = []
 json = ["base64"]
 blst = ["bls-signatures/blst"]
 pairing = ["bls-signatures/pairing"]

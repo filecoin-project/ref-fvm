@@ -1,23 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use log::{error, info, warn};
+use std::collections::{hash_map::Entry, HashMap};
+use std::error::Error as StdError;
+use std::{iter, ops::Neg};
 
-mod bitfield_queue;
-mod deadline_assignment;
-mod deadline_info;
-mod deadline_state;
-mod deadlines;
-mod expiration_queue;
-mod monies;
-mod partition_state;
-mod policy;
-mod sector_map;
-mod sectors;
-mod state;
-mod termination;
-mod types;
-mod vesting_state;
+use bitfield::{BitField, UnvalidatedBitField, Validate};
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use cid::{Cid, Code};
+use ipld_blockstore::BlockStore;
+use log::{error, info, warn};
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
 
 pub use bitfield_queue::*;
 pub use deadline_assignment::*;
@@ -25,6 +19,27 @@ pub use deadline_info::*;
 pub use deadline_state::*;
 pub use deadlines::*;
 pub use expiration_queue::*;
+use fvm_shared::bigint::bigint_ser::BigIntSer;
+use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
+use fvm_shared::encoding::{BytesDe, Cbor};
+use fvm_shared::{
+    actor_error,
+    address::{Address, Payload, Protocol},
+    bigint::BigInt,
+    clock::ChainEpoch,
+    crypto::randomness::*,
+    deal::DealID,
+    econ::TokenAmount,
+    encoding::RawBytes,
+    error::*,
+    randomness::*,
+    sector::*,
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
+// The following errors are particular cases of illegal state.
+// They're not expected to ever happen, but if they do, distinguished codes can help us
+// diagnose the problem.
+use fvm_shared::error::ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
 pub use monies::*;
 pub use partition_state::*;
 pub use policy::*;
@@ -35,6 +50,7 @@ pub use termination::*;
 pub use types::*;
 pub use vesting_state::*;
 
+use crate::runtime::ActorCode;
 use crate::{
     account::Method as AccountMethod,
     market::{self, ActivateDealsParams, ComputeDataCommitmentReturn, SectorDataSpec, SectorDeals},
@@ -59,37 +75,25 @@ use crate::{
     reward::ThisEpochRewardReturn,
     ActorDowncast,
 };
-use bitfield::{BitField, UnvalidatedBitField, Validate};
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use cid::multihash::Code;
-use cid::Cid;
-use fvm_shared::{
-    actor_error,
-    address::{Address, Payload, Protocol},
-    bigint::BigInt,
-    clock::ChainEpoch,
-    crypto::randomness::*,
-    deal::DealID,
-    econ::TokenAmount,
-    encoding::RawBytes,
-    error::*,
-    randomness::*,
-    sector::*,
-};
-use ipld_blockstore::BlockStore;
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-use std::collections::{hash_map::Entry, HashMap};
-use std::error::Error as StdError;
-use std::{iter, ops::Neg};
+
+mod bitfield_queue;
+mod deadline_assignment;
+mod deadline_info;
+mod deadline_state;
+mod deadlines;
+mod expiration_queue;
+mod monies;
+mod partition_state;
+mod policy;
+mod sector_map;
+mod sectors;
+mod state;
+mod termination;
+mod types;
+mod vesting_state;
 
 // The first 1000 actor-specific codes are left open for user error, i.e. things that might
 // actually happen without programming error in the actor code.
-
-// The following errors are particular cases of illegal state.
-// They're not expected to ever happen, but if they do, distinguished codes can help us
-// diagnose the problem.
-use fvm_shared::error::ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
 
 // * Updated to specs-actors commit: 17d3c602059e5c48407fb3c34343da87e6ea6586 (v0.9.12)
 
@@ -1150,7 +1154,7 @@ impl Actor {
             }
             // Skip checking if CID is defined because it cannot be so in Rust
 
-            if Prefix::from(precommit.sealed_cid) != SEALED_CID_PREFIX {
+            if !is_sealed_sector(&precommit.sealed_cid) {
                 return Err(actor_error!(
                     ErrIllegalArgument,
                     "sealed CID had wrong prefix"

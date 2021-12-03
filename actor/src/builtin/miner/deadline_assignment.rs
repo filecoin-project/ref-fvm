@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{Deadline, SectorOnChainInfo};
 use std::{cmp::Ordering, collections::BinaryHeap};
+
+use super::{Deadline, SectorOnChainInfo};
 
 fn div_rounding_up(dividend: u64, divisor: u64) -> u64 {
     dividend / divisor + u64::from(dividend % divisor > 0)

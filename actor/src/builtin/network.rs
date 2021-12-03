@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-pub use clock::EPOCH_DURATION_SECONDS;
-pub use fil_types::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
-use num_bigint::BigInt;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::clock::EPOCH_DURATION_SECONDS;
+pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
 
 pub const SECONDS_IN_HOUR: i64 = 3600;
 pub const SECONDS_IN_DAY: i64 = 86400;

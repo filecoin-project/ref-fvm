@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
-use address::Address;
+use std::collections::HashMap;
+use std::error::Error as StdError;
+
 use cid::Cid;
-use clock::ChainEpoch;
+use derive_builder::Builder;
+
 use common::*;
 use crypto::Signature;
-use derive_builder::Builder;
 use forest_actor::{
     paych::{
         ConstructorParams, LaneState, Merge, Method, ModVerifyParams, PaymentVerifyParams,
@@ -16,11 +17,16 @@ use forest_actor::{
     ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_ADDR, INIT_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID,
     PAYCH_ACTOR_CODE_ID,
 };
+use fvm_shared::address::Address;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+use fvm_shared::METHOD_CONSTRUCTOR;
 use ipld_amt::Amt;
-use num_bigint::BigInt;
-use std::collections::HashMap;
-use std::error::Error as StdError;
-use vm::{ExitCode, Serialized, TokenAmount, METHOD_CONSTRUCTOR, METHOD_SEND};
+
+mod common;
 
 const PAYCH_ID: u64 = 100;
 const PAYER_ID: u64 = 102;
@@ -35,11 +41,11 @@ struct LaneParams {
     nonce: u64,
 }
 
-fn call(rt: &mut MockRuntime, method_num: u64, ser: &Serialized) -> Serialized {
+fn call(rt: &mut MockRuntime, method_num: u64, ser: &RawBytes) -> RawBytes {
     rt.call(&*PAYCH_ACTOR_CODE_ID, method_num, ser).unwrap()
 }
 
-fn expect_error(rt: &mut MockRuntime, method_num: u64, ser: &Serialized, exp: ExitCode) {
+fn expect_error(rt: &mut MockRuntime, method_num: u64, ser: &RawBytes, exp: ExitCode) {
     let err = rt.call(&*PAYCH_ACTOR_CODE_ID, method_num, ser).unwrap_err();
     assert_eq!(exp, err.exit_code());
 }
@@ -59,8 +65,10 @@ fn get_lane_state(rt: &MockRuntime, cid: &Cid, lane: usize) -> LaneState {
 }
 
 mod paych_constructor {
+    use fvm_shared::METHOD_CONSTRUCTOR;
 
     use super::*;
+
     const TEST_PAYCH_ADDR: u64 = 100;
     const TEST_PAYER_ADDR: u64 = 101;
     const TEST_CALLER_ADDR: u64 = 102;
@@ -101,7 +109,7 @@ mod paych_constructor {
         expect_error(
             &mut rt,
             METHOD_CONSTRUCTOR,
-            &Serialized::serialize(params).unwrap(),
+            &RawBytes::serialize(params).unwrap(),
             ExitCode::ErrIllegalArgument,
         );
     }
@@ -149,7 +157,7 @@ mod paych_constructor {
             expect_error(
                 &mut rt,
                 METHOD_CONSTRUCTOR,
-                &Serialized::serialize(params).unwrap(),
+                &RawBytes::serialize(params).unwrap(),
                 test_case.expected_exit_code,
             );
         }
@@ -157,7 +165,10 @@ mod paych_constructor {
 }
 
 mod create_lane_tests {
+    use fvm_shared::crypto::signature::Signature;
+
     use super::*;
+
     const TEST_INIT_ACTOR_ADDR: u64 = 100;
     const PAYCH_ADDR: u64 = 101;
     const PAYER_ADDR: u64 = 102;
@@ -319,7 +330,7 @@ mod create_lane_tests {
                 call(
                     &mut rt,
                     Method::UpdateChannelState as u64,
-                    &Serialized::serialize(ucp).unwrap(),
+                    &RawBytes::serialize(ucp).unwrap(),
                 );
 
                 let st: PState = rt.get_state().unwrap();
@@ -333,7 +344,7 @@ mod create_lane_tests {
                 expect_error(
                     &mut rt,
                     Method::UpdateChannelState as u64,
-                    &Serialized::serialize(ucp).unwrap(),
+                    &RawBytes::serialize(ucp).unwrap(),
                     test_case.exp_exit_code,
                 );
                 verify_initial_state(&mut rt, payer_addr, payee_addr);
@@ -369,7 +380,7 @@ mod update_channel_state_redeem {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
         );
 
         rt.verify();
@@ -415,7 +426,7 @@ mod update_channel_state_redeem {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
         );
 
         rt.verify();
@@ -453,7 +464,7 @@ mod merge_tests {
         expect_error(
             rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
             exp_exit_code,
         );
         rt.verify();
@@ -485,7 +496,7 @@ mod merge_tests {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
         );
         rt.verify();
         let exp_merge_to = LaneState {
@@ -605,6 +616,7 @@ mod merge_tests {
 
 mod update_channel_state_extra {
     use super::*;
+
     const OTHER_ADDR: u64 = 104;
 
     fn construct_runtime(exit_code: ExitCode) -> (MockRuntime, SignedVoucher) {
@@ -618,7 +630,7 @@ mod update_channel_state_extra {
         sv.extra = Some(ModVerifyParams {
             actor: other_addr,
             method: Method::UpdateChannelState as u64,
-            data: Serialized::serialize(fake_params).unwrap(),
+            data: RawBytes::serialize(fake_params).unwrap(),
         });
         rt.expect_verify_signature(ExpectedVerifySig {
             sig: sv.clone().signature.unwrap(),
@@ -627,16 +639,16 @@ mod update_channel_state_extra {
             result: Ok(()),
         });
         let exp_send_params = PaymentVerifyParams {
-            extra: Serialized::serialize(fake_params.to_vec()).unwrap(),
+            extra: RawBytes::serialize(fake_params.to_vec()).unwrap(),
             proof: vec![],
         };
 
         rt.expect_send(
             other_addr,
             Method::UpdateChannelState as u64,
-            Serialized::serialize(exp_send_params).unwrap(),
+            RawBytes::serialize(exp_send_params).unwrap(),
             TokenAmount::from(0u8),
-            Serialized::default(),
+            RawBytes::default(),
             exit_code,
         );
         (rt, sv)
@@ -648,7 +660,7 @@ mod update_channel_state_extra {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
         );
         rt.verify();
     }
@@ -660,7 +672,7 @@ mod update_channel_state_extra {
         expect_error(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
+            &RawBytes::serialize(UpdateChannelStateParams::from(sv)).unwrap(),
             ExitCode::ErrPlaceholder,
         );
         rt.verify();
@@ -674,7 +686,7 @@ fn update_channel_settling() {
     let state: PState = rt.get_state().unwrap();
     rt.expect_validate_caller_addr(vec![state.from, state.to]);
     rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
-    call(&mut rt, Method::Settle as u64, &Serialized::default());
+    call(&mut rt, Method::Settle as u64, &RawBytes::default());
 
     let exp_settling_at = SETTLE_DELAY + 10;
     let state: PState = rt.get_state().unwrap();
@@ -722,7 +734,7 @@ fn update_channel_settling() {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(&ucp).unwrap(),
+            &RawBytes::serialize(&ucp).unwrap(),
         );
         let new_state: PState = rt.get_state().unwrap();
         assert_eq!(tc.exp_settling_at, new_state.settling_at);
@@ -733,6 +745,7 @@ fn update_channel_settling() {
 
 mod secret_preimage {
     use super::*;
+
     #[test]
     fn succeed_correct_secret() {
         let (mut rt, sv) = require_create_cannel_with_lanes(1);
@@ -751,7 +764,7 @@ mod secret_preimage {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(ucp).unwrap(),
+            &RawBytes::serialize(ucp).unwrap(),
         );
 
         rt.verify();
@@ -781,7 +794,7 @@ mod secret_preimage {
         expect_error(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(ucp).unwrap(),
+            &RawBytes::serialize(ucp).unwrap(),
             ExitCode::ErrIllegalArgument,
         );
 
@@ -791,6 +804,7 @@ mod secret_preimage {
 
 mod actor_settle {
     use super::*;
+
     const EP: i64 = 10;
     #[test]
     fn adjust_settling_at() {
@@ -800,7 +814,7 @@ mod actor_settle {
         rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
         rt.expect_validate_caller_addr(vec![state.from, state.to]);
 
-        call(&mut rt, Method::Settle as u64, &Serialized::default());
+        call(&mut rt, Method::Settle as u64, &RawBytes::default());
 
         let exp_settling_at = EP + SETTLE_DELAY;
         state = rt.get_state().unwrap();
@@ -815,13 +829,13 @@ mod actor_settle {
         let state: PState = rt.get_state().unwrap();
         rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
         rt.expect_validate_caller_addr(vec![state.from, state.to]);
-        call(&mut rt, Method::Settle as u64, &Serialized::default());
+        call(&mut rt, Method::Settle as u64, &RawBytes::default());
 
         rt.expect_validate_caller_addr(vec![state.from, state.to]);
         expect_error(
             &mut rt,
             Method::Settle as u64,
-            &Serialized::default(),
+            &RawBytes::default(),
             ExitCode::ErrIllegalState,
         );
     }
@@ -845,7 +859,7 @@ mod actor_settle {
         call(
             &mut rt,
             Method::UpdateChannelState as u64,
-            &Serialized::serialize(&ucp).unwrap(),
+            &RawBytes::serialize(&ucp).unwrap(),
         );
 
         state = rt.get_state().unwrap();
@@ -855,7 +869,7 @@ mod actor_settle {
         // Settle.
         rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
         rt.expect_validate_caller_addr(vec![state.from, state.to]);
-        call(&mut rt, Method::Settle as u64, &Serialized::default());
+        call(&mut rt, Method::Settle as u64, &RawBytes::default());
 
         state = rt.get_state().unwrap();
         assert_eq!(state.settling_at, ucp.sv.min_settle_height);
@@ -863,6 +877,8 @@ mod actor_settle {
 }
 
 mod actor_collect {
+    use fvm_shared::METHOD_SEND;
+
     use super::*;
 
     #[test]
@@ -898,7 +914,7 @@ mod actor_collect {
         rt.expect_validate_caller_addr(vec![st.from, st.to]);
         rt.expect_delete_actor(st.from);
         let res = call(&mut rt, Method::Collect as u64, &Default::default());
-        assert_eq!(res, Serialized::default());
+        assert_eq!(res, RawBytes::default());
     }
 
     #[test]
@@ -932,7 +948,7 @@ mod actor_collect {
             if !tc.dont_settle {
                 rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
                 rt.expect_validate_caller_addr(vec![state.from, state.to]);
-                call(&mut rt, Method::Settle as u64, &Serialized::default());
+                call(&mut rt, Method::Settle as u64, &RawBytes::default());
                 state = rt.get_state().unwrap();
                 assert_eq!(state.settling_at, SETTLE_DELAY + rt.epoch);
             }
@@ -954,7 +970,7 @@ mod actor_collect {
             expect_error(
                 &mut rt,
                 Method::Collect as u64,
-                &Serialized::default(),
+                &RawBytes::default(),
                 tc.exp_collect_exit,
             );
         }
@@ -1030,7 +1046,7 @@ fn require_add_new_lane(rt: &mut MockRuntime, param: LaneParams) -> SignedVouche
     call(
         rt,
         Method::UpdateChannelState as u64,
-        &Serialized::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
+        &RawBytes::serialize(UpdateChannelStateParams::from(sv.clone())).unwrap(),
     );
     rt.verify();
     sv.nonce += 1;
@@ -1046,7 +1062,7 @@ fn construct_and_verify(rt: &mut MockRuntime, sender: Address, receiver: Address
     call(
         rt,
         METHOD_CONSTRUCTOR,
-        &Serialized::serialize(&params).unwrap(),
+        &RawBytes::serialize(&params).unwrap(),
     );
     rt.verify();
     verify_initial_state(rt, sender, receiver);

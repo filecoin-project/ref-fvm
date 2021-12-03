@@ -1,27 +1,34 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod actor_code;
-
-pub use self::actor_code::*;
-
-use address::Address;
-use cid::Cid;
-use clock::ChainEpoch;
-use commcid::data_commitment_v1_to_cid;
-use crypto::{DomainSeparationTag, Signature};
-use fil_types::{
-    zero_piece_commitment, NetworkVersion, PaddedPieceSize, PieceInfo, Randomness,
-    RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
-};
-use filecoin_proofs_api::seal::compute_comm_d;
-use filecoin_proofs_api::{self as proofs};
-use forest_encoding::{blake2b_256, de, Cbor};
-use ipld_blockstore::BlockStore;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
-use vm::{ActorError, ExitCode, MethodNum, Serialized, TokenAmount};
+
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+
+use commcid::data_commitment_v1_to_cid;
+use filecoin_proofs_api as proofs;
+use filecoin_proofs_api::seal::compute_comm_d;
+use fvm_shared::address::Address;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
+use fvm_shared::randomness::Randomness;
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
+use fvm_shared::version::NetworkVersion;
+use fvm_shared::MethodNum;
+
+pub use self::actor_code::*;
+
+mod actor_code;
 
 /// Runtime is the VM's internal runtime object.
 /// this is everything that is accessible to actors, beyond parameters.
@@ -109,9 +116,9 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
         &mut self,
         to: Address,
         method: MethodNum,
-        params: Serialized,
+        params: RawBytes,
         value: TokenAmount,
-    ) -> Result<Serialized, ActorError>;
+    ) -> Result<RawBytes, ActorError>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
@@ -146,7 +153,7 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
     /// parameters before version 7
     fn deserialize_params<O: de::DeserializeOwned>(
         &self,
-        params: &Serialized,
+        params: &RawBytes,
     ) -> Result<O, ActorError> {
         params.deserialize().map_err(|e| {
             if self.network_version() < NetworkVersion::V7 {
@@ -233,7 +240,7 @@ pub trait Syscalls {
     }
     fn verify_aggregate_seals(
         &self,
-        aggregate: &fil_types::AggregateSealVerifyProofAndInfos,
+        aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Box<dyn StdError>>;
 }
 

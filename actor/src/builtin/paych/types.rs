@@ -1,14 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::Merge;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::{bigint_ser, BigInt};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::encoding::{error::Error, serde_bytes, to_vec, tuple::*, RawBytes};
+use fvm_shared::MethodNum;
+
 use crate::network::EPOCHS_IN_HOUR;
-use address::Address;
-use clock::ChainEpoch;
-use crypto::Signature;
-use encoding::{error::Error, serde_bytes, to_vec, tuple::*};
-use num_bigint::{bigint_ser, BigInt};
-use vm::{MethodNum, Serialized};
+
+use super::Merge;
 
 /// Maximum number of lanes in a channel
 pub const MAX_LANE: i64 = std::i64::MAX;
@@ -101,13 +103,13 @@ impl SignedVoucher {
 pub struct ModVerifyParams {
     pub actor: Address,
     pub method: MethodNum,
-    pub data: Serialized,
+    pub data: RawBytes,
 }
 
 /// Payment Verification parameters
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct PaymentVerifyParams {
-    pub extra: Serialized,
+    pub extra: RawBytes,
     #[serde(with = "serde_bytes")]
     pub proof: Vec<u8>,
 }

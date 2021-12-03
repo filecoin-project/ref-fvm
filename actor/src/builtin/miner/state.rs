@@ -1,30 +1,34 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{cmp, error::Error as StdError};
+use std::{collections::HashMap, ops::Neg};
+
+use bitfield::BitField;
+use cid::{Cid, Code::Blake2b256};
+use ipld_blockstore::BlockStore;
+use num_traits::{Signed, Zero};
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize};
+use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
+use ipld_amt::{Amt, Error as AmtError};
+use ipld_hamt::Error as HamtError;
+
+use crate::miner::{DeadlineInfo, QuantSpec};
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
+
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,
     new_deadline_info_from_offset_and_epoch, policy::*, quant_spec_for_deadline, types::*,
     BitFieldQueue, Deadline, DeadlineSectorMap, Deadlines, PowerPair, Sectors, TerminationResult,
     VestingFunds,
 };
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
-use address::Address;
-use bitfield::BitField;
-use cid::{Cid, Code::Blake2b256};
-use clock::{ChainEpoch, EPOCH_UNDEFINED};
-use encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
-use fil_types::{
-    deadlines::{DeadlineInfo, QuantSpec},
-    RegisteredPoStProof, SectorNumber, SectorSize, HAMT_BIT_WIDTH,
-};
-use ipld_amt::{Amt, Error as AmtError};
-use ipld_blockstore::BlockStore;
-use ipld_hamt::Error as HamtError;
-use num_bigint::bigint_ser;
-use num_traits::{Signed, Zero};
-use std::{cmp, error::Error as StdError};
-use std::{collections::HashMap, ops::Neg};
-use vm::{actor_error, ActorError, ExitCode, TokenAmount};
 
 const PRECOMMIT_EXPIRY_AMT_BITWIDTH: usize = 6;
 const SECTORS_AMT_BITWIDTH: usize = 5;

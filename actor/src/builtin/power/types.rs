@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, RawBytes};
+use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
+
 use crate::smooth::FilterEstimate;
-use address::Address;
-use clock::ChainEpoch;
-use encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
-use fil_types::{RegisteredPoStProof, StoragePower};
-use num_bigint::bigint_ser;
-use vm::{Serialized, TokenAmount};
 
 pub type SectorTermination = i64;
 
@@ -52,7 +53,7 @@ pub struct UpdateClaimedPowerParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct EnrollCronEventParams {
     pub event_epoch: ChainEpoch,
-    pub payload: Serialized,
+    pub payload: RawBytes,
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]

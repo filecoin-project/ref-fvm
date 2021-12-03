@@ -1,9 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::Runtime;
 use ipld_blockstore::BlockStore;
-use vm::{ActorError, MethodNum, Serialized};
+
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::MethodNum;
+
+use crate::Runtime;
 
 /// Interface for invoking methods on an Actor
 pub trait ActorCode {
@@ -12,8 +16,8 @@ pub trait ActorCode {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>;

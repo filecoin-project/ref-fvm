@@ -1,12 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
+use std::collections::HashMap;
 
-use address::Address;
-use clock::EPOCH_UNDEFINED;
 use common::*;
-use fil_types::HAMT_BIT_WIDTH;
 use forest_actor::{
     make_empty_map,
     market::{Method, State, WithdrawBalanceParams, PROPOSALS_AMT_BITWIDTH, STATES_AMT_BITWIDTH},
@@ -16,11 +13,16 @@ use forest_actor::{
     MARKET_ACTOR_CODE_ID, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, STORAGE_MARKET_ACTOR_ADDR,
     SYSTEM_ACTOR_ADDR,
 };
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser::BigIntDe;
+use fvm_shared::clock::EPOCH_UNDEFINED;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR, METHOD_SEND};
 use ipld_amt::Amt;
-use num_bigint::bigint_ser::BigIntDe;
-use runtime::Runtime;
-use std::collections::HashMap;
-use vm::{ActorError, ExitCode, Serialized, TokenAmount, METHOD_CONSTRUCTOR, METHOD_SEND};
+
+mod common;
 
 const OWNER_ID: u64 = 101;
 const PROVIDER_ID: u64 = 102;
@@ -67,11 +69,11 @@ fn simple_construction() {
     rt.expect_validate_caller_addr(vec![SYSTEM_ACTOR_ADDR.clone()]);
 
     assert_eq!(
-        Serialized::default(),
+        RawBytes::default(),
         rt.call(
             &*MARKET_ACTOR_CODE_ID,
             METHOD_CONSTRUCTOR,
-            &Serialized::default(),
+            &RawBytes::default(),
         )
         .unwrap()
     );
@@ -132,7 +134,7 @@ fn add_provider_escrow_funds() {
                 .call(
                     &MARKET_ACTOR_CODE_ID.clone(),
                     Method::AddBalance as u64,
-                    &Serialized::serialize(provider_addr.clone()).unwrap(),
+                    &RawBytes::serialize(provider_addr.clone()).unwrap(),
                 )
                 .is_ok());
             rt.verify();
@@ -165,7 +167,7 @@ fn account_actor_check() {
         rt.call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::AddBalance as u64,
-            &Serialized::serialize(provider_addr).unwrap(),
+            &RawBytes::serialize(provider_addr).unwrap(),
         )
         .unwrap_err()
         .exit_code()
@@ -197,7 +199,7 @@ fn add_non_provider_funds() {
                 .call(
                     &MARKET_ACTOR_CODE_ID.clone(),
                     Method::AddBalance as u64,
-                    &Serialized::serialize(caller_addr.clone()).unwrap(),
+                    &RawBytes::serialize(caller_addr.clone()).unwrap(),
                 )
                 .is_ok());
 
@@ -239,9 +241,9 @@ fn withdraw_provider_to_owner() {
     rt.expect_send(
         owner_addr.clone(),
         METHOD_SEND,
-        Serialized::default(),
+        RawBytes::default(),
         withdraw_amount.clone(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -254,7 +256,7 @@ fn withdraw_provider_to_owner() {
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::WithdrawBalance as u64,
-            &Serialized::serialize(params).unwrap(),
+            &RawBytes::serialize(params).unwrap(),
         )
         .is_ok());
 
@@ -290,9 +292,9 @@ fn withdraw_non_provider() {
     rt.expect_send(
         client_addr.clone(),
         METHOD_SEND,
-        Serialized::default(),
+        RawBytes::default(),
         withdraw_amount.clone(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -305,7 +307,7 @@ fn withdraw_non_provider() {
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::WithdrawBalance as u64,
-            &Serialized::serialize(params).unwrap(),
+            &RawBytes::serialize(params).unwrap(),
         )
         .is_ok());
 
@@ -338,9 +340,9 @@ fn client_withdraw_more_than_available() {
     rt.expect_send(
         client_addr.clone(),
         METHOD_SEND,
-        Serialized::default(),
+        RawBytes::default(),
         amount.clone(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -353,7 +355,7 @@ fn client_withdraw_more_than_available() {
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::WithdrawBalance as u64,
-            &Serialized::serialize(params).unwrap(),
+            &RawBytes::serialize(params).unwrap(),
         )
         .is_ok());
 
@@ -393,9 +395,9 @@ fn worker_withdraw_more_than_available() {
     rt.expect_send(
         owner_addr.clone(),
         METHOD_SEND,
-        Serialized::default(),
+        RawBytes::default(),
         amount.clone(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -408,7 +410,7 @@ fn worker_withdraw_more_than_available() {
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::WithdrawBalance as u64,
-            &Serialized::serialize(params).unwrap(),
+            &RawBytes::serialize(params).unwrap(),
         )
         .is_ok());
 
@@ -437,9 +439,9 @@ fn expect_provider_control_address(
     rt.expect_send(
         provider.clone(),
         MinerMethod::ControlAddresses as u64,
-        Serialized::default(),
+        RawBytes::default(),
         TokenAmount::from(0u8),
-        Serialized::serialize(return_value).unwrap(),
+        RawBytes::serialize(return_value).unwrap(),
         ExitCode::Ok,
     );
 }
@@ -460,7 +462,7 @@ fn add_provider_funds(
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::AddBalance as u64,
-            &Serialized::serialize(provider.clone()).unwrap(),
+            &RawBytes::serialize(provider.clone()).unwrap(),
         )
         .is_ok());
 
@@ -483,7 +485,7 @@ fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmoun
         .call(
             &MARKET_ACTOR_CODE_ID.clone(),
             Method::AddBalance as u64,
-            &Serialized::serialize(addr.clone()).unwrap(),
+            &RawBytes::serialize(addr.clone()).unwrap(),
         )
         .is_ok());
 
@@ -495,11 +497,11 @@ fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmoun
 fn construct_and_verify(rt: &mut MockRuntime) {
     rt.expect_validate_caller_addr(vec![SYSTEM_ACTOR_ADDR.clone()]);
     assert_eq!(
-        Serialized::default(),
+        RawBytes::default(),
         rt.call(
             &*MARKET_ACTOR_CODE_ID,
             METHOD_CONSTRUCTOR,
-            &Serialized::default(),
+            &RawBytes::default(),
         )
         .unwrap()
     );

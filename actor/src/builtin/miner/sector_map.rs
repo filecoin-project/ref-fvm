@@ -1,10 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::WPOST_PERIOD_DEADLINES;
+use std::collections::HashMap;
+
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use super::WPOST_PERIOD_DEADLINES;
 
 /// Maps deadlines to partition maps.
 #[derive(Default)]

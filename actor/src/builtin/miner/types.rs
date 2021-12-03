@@ -1,15 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::DealWeight;
-use address::Address;
 use bitfield::UnvalidatedBitField;
 use cid::Cid;
-use clock::ChainEpoch;
-use encoding::{serde_bytes, tuple::*, BytesDe};
-use fil_types::{PoStProof, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-use num_bigint::bigint_ser;
-use vm::{DealID, TokenAmount};
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deal::DealID;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe};
+use fvm_shared::randomness::Randomness;
+use fvm_shared::sector::{PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+
+use crate::DealWeight;
 
 pub type CronEvent = i64;
 pub const CRON_EVENT_WORKER_KEY_CHANGE: CronEvent = 0;

@@ -1,24 +1,31 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{CONSENSUS_MINER_MIN_MINERS, CRON_QUEUE_AMT_BITWIDTH, CRON_QUEUE_HAMT_BITWIDTH};
+use std::error::Error as StdError;
+use std::ops::Neg;
+
+use cid::Cid;
+use integer_encoding::VarInt;
+use ipld_blockstore::BlockStore;
+use num_traits::Signed;
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::{bigint_ser, BigInt};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{tuple::*, Cbor, RawBytes};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
+use fvm_shared::HAMT_BIT_WIDTH;
+
 use crate::{
     consensus_miner_min_power, make_empty_map, make_map_with_root, make_map_with_root_and_bitwidth,
     smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA},
     ActorDowncast, BytesKey, Map, Multimap,
 };
-use address::Address;
-use cid::Cid;
-use clock::ChainEpoch;
-use encoding::{tuple::*, Cbor};
-use fil_types::{RegisteredPoStProof, StoragePower, HAMT_BIT_WIDTH};
-use integer_encoding::VarInt;
-use ipld_blockstore::BlockStore;
-use num_bigint::{bigint_ser, BigInt};
-use num_traits::Signed;
-use std::error::Error as StdError;
-use std::ops::Neg;
-use vm::{actor_error, ActorError, ExitCode, Serialized, TokenAmount};
+
+use super::{CONSENSUS_MINER_MIN_MINERS, CRON_QUEUE_AMT_BITWIDTH, CRON_QUEUE_HAMT_BITWIDTH};
 
 lazy_static! {
     /// genesis power in bytes = 750,000 GiB
@@ -399,15 +406,16 @@ pub struct Claim {
 #[derive(Clone, Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct CronEvent {
     pub miner_addr: Address,
-    pub callback_payload: Serialized,
+    pub callback_payload: RawBytes,
 }
 
 impl Cbor for CronEvent {}
 
 #[cfg(test)]
 mod test {
+    use fvm_shared::clock::ChainEpoch;
+
     use super::*;
-    use clock::ChainEpoch;
 
     #[test]
     fn epoch_key_test() {

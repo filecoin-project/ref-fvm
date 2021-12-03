@@ -1,26 +1,29 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod state;
-mod types;
+use ipld_blockstore::BlockStore;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+use ipld_amt::Amt;
+
+use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
+// TODO rename to actor exit code to be used ambiguously (requires new releases)
+use crate::runtime::{ActorCode, Runtime};
 
 pub use self::state::{LaneState, Merge, State};
 pub use self::types::*;
-use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
-use address::Address;
-use ipld_amt::Amt;
-use ipld_blockstore::BlockStore;
-use num_bigint::{BigInt, Sign};
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-use runtime::{ActorCode, Runtime};
-use vm::{
-    actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-    METHOD_SEND,
-};
 
-// TODO rename to actor exit code to be used ambiguously (requires new releases)
-use vm::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: f47f461b0588e9f0c20c999f6f129c85d669a7aa (v3.0.2)
 
@@ -180,7 +183,7 @@ impl Actor {
             rt.send(
                 extra.actor,
                 extra.method,
-                Serialized::serialize(&extra.data)?,
+                RawBytes::serialize(&extra.data)?,
                 TokenAmount::from(0u8),
             )
             .map_err(|e| e.wrap("spend voucher verification failed"))?;
@@ -319,7 +322,7 @@ impl Actor {
         }
 
         // send ToSend to `to`
-        rt.send(st.to, METHOD_SEND, Serialized::default(), st.to_send)
+        rt.send(st.to, METHOD_SEND, RawBytes::default(), st.to_send)
             .map_err(|e| e.wrap("Failed to send funds to `to` address"))?;
 
         // the remaining balance will be returned to "From" upon deletion.
@@ -353,8 +356,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -362,19 +365,19 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::UpdateChannelState) => {
                 Self::update_channel_state(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::Settle) => {
                 Self::settle(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::Collect) => {
                 Self::collect(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             _ => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
         }

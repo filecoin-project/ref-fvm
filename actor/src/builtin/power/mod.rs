@@ -1,32 +1,37 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod policy;
-mod state;
-mod types;
+use ahash::AHashSet;
+use indexmap::IndexMap;
+use ipld_blockstore::BlockStore;
+use log::{debug, error};
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed};
 
-pub use self::policy::*;
-pub use self::state::*;
-pub use self::types::*;
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::sector::SealVerifyInfo;
+use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+
 use crate::miner::MinerConstructorParams;
+use crate::runtime::{ActorCode, Runtime};
 use crate::{
     init, miner, ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 use crate::{make_map_with_root_and_bitwidth, reward::Method as RewardMethod};
-use address::Address;
-use ahash::AHashSet;
-use fil_types::{SealVerifyInfo, HAMT_BIT_WIDTH};
-use indexmap::IndexMap;
-use ipld_blockstore::BlockStore;
-use log::{debug, error};
-use num_bigint::bigint_ser::{BigIntDe, BigIntSer};
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed};
-use runtime::{ActorCode, Runtime};
-use vm::{
-    actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-};
+
+pub use self::policy::*;
+pub use self::state::*;
+pub use self::types::*;
+
+mod policy;
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: 999e57a151cc7ada020ca2844b651499ab8c0dec (v3.0.1)
 
@@ -83,7 +88,7 @@ impl Actor {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
         let value = rt.message().value_received().clone();
 
-        let constructor_params = Serialized::serialize(MinerConstructorParams {
+        let constructor_params = RawBytes::serialize(MinerConstructorParams {
             owner: params.owner,
             worker: params.worker,
             window_post_proof_type: params.window_post_proof_type,
@@ -99,7 +104,7 @@ impl Actor {
             .send(
                 *INIT_ACTOR_ADDR,
                 init::Method::Exec as u64,
-                Serialized::serialize(init::ExecParams {
+                RawBytes::serialize(init::ExecParams {
                     code_cid: *MINER_ACTOR_CODE_ID,
                     constructor_params,
                 })?,
@@ -256,7 +261,7 @@ impl Actor {
             // Can assume delta is one since cron is invoked every epoch.
             st.update_smoothed_estimate(1);
 
-            Ok(Serialized::serialize(&BigIntSer(
+            Ok(RawBytes::serialize(&BigIntSer(
                 &st.this_epoch_raw_byte_power,
             )))
         })?;
@@ -480,7 +485,7 @@ impl Actor {
                 let _ = rt.send(
                     *m,
                     miner::Method::ConfirmSectorProofsValid as MethodNum,
-                    Serialized::serialize(&miner::ConfirmSectorProofsParams {
+                    RawBytes::serialize(&miner::ConfirmSectorProofsParams {
                         sectors: successful,
                     })?,
                     Default::default(),
@@ -613,8 +618,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -622,36 +627,36 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CreateMiner) => {
                 let res = Self::create_miner(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::UpdateClaimedPower) => {
                 Self::update_claimed_power(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::EnrollCronEvent) => {
                 Self::enroll_cron_event(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::OnEpochTickEnd) => {
                 Self::on_epoch_tick_end(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::UpdatePledgeTotal) => {
                 let BigIntDe(param) = rt.deserialize_params(params)?;
                 Self::update_pledge_total(rt, param)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::SubmitPoRepForBulkVerify) => {
                 Self::submit_porep_for_bulk_verify(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CurrentTotalPower) => {
                 let res = Self::current_total_power(rt)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
         }

@@ -333,7 +333,8 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
 #[cfg(test)]
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
-    use crate::{errors::Error, from_leb_bytes, to_leb_bytes};
+    use crate::address::errors::Error;
+    use crate::address::{from_leb_bytes, to_leb_bytes};
 
     #[test]
     fn test_from_leb_bytes_passing() {

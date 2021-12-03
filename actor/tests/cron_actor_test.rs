@@ -1,14 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
-use address::Address;
 use common::*;
 use forest_actor::{
     cron::{ConstructorParams, Entry, State},
     CRON_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use vm::{ExitCode, Serialized};
+use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+
+mod common;
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {
@@ -103,33 +105,33 @@ fn epoch_tick_with_entries() {
     rt.expect_send(
         entry1.receiver,
         entry1.method_num,
-        Serialized::default(),
+        RawBytes::default(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
     rt.expect_send(
         entry2.receiver,
         entry2.method_num,
-        Serialized::default(),
+        RawBytes::default(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::ErrIllegalArgument,
     );
     rt.expect_send(
         entry3.receiver,
         entry3.method_num,
-        Serialized::default(),
+        RawBytes::default(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
     rt.expect_send(
         entry4.receiver,
         entry4.method_num,
-        Serialized::default(),
+        RawBytes::default(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
@@ -142,18 +144,18 @@ fn construct_and_verify(rt: &mut MockRuntime, params: &ConstructorParams) {
         .call(
             &*CRON_ACTOR_CODE_ID,
             1,
-            &Serialized::serialize(&params).unwrap(),
+            &RawBytes::serialize(&params).unwrap(),
         )
         .unwrap();
-    assert_eq!(Serialized::default(), ret);
+    assert_eq!(RawBytes::default(), ret);
     rt.verify();
 }
 
 fn epoch_tick_and_verify(rt: &mut MockRuntime) {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     let ret = rt
-        .call(&*CRON_ACTOR_CODE_ID, 2, &Serialized::default())
+        .call(&*CRON_ACTOR_CODE_ID, 2, &RawBytes::default())
         .unwrap();
-    assert_eq!(Serialized::default(), ret);
+    assert_eq!(RawBytes::default(), ret);
     rt.verify();
 }
