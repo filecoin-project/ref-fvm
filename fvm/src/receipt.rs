@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::message::RawBytes;
-use encoding::tuple::*;
-use vm::{ExitCode, Serialized};
+use fvm_shared::encoding::tuple::{Deserialize_tuple, Serialize_tuple};
+
+use crate::{exit_code::ExitCode, message::RawBytes};
 
 /// Result of a state transition from a message
 #[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]

@@ -1,5 +1,3 @@
-pub use r#mod::{BlockError, DefaultKernel, Kernel};
-
 mod adt;
 mod exit_code;
 mod externs;
@@ -11,6 +9,8 @@ mod message;
 mod receipt;
 mod state_tree;
 mod syscalls;
+
+pub use kernel::{default::DefaultKernel, BlockError, Kernel};
 
 #[derive(Copy, Clone)]
 pub struct Config {

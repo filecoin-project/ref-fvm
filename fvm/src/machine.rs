@@ -1,25 +1,26 @@
-use super::Config;
-use crate::exit_code::ExitCode;
-use crate::externs::Externs;
-use crate::gas::price_list_by_epoch;
-use crate::invocation::InvocationContainer;
-use crate::kernel::Kernel;
-use crate::message::Message;
-use crate::r#mod::{DefaultKernel, Kernel};
-use crate::r#mod::{Externs, Rand};
-use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
-use crate::syscalls::bind_syscalls;
-use blockstore::Blockstore;
+use std::marker::PhantomData;
+
 use cid::Cid;
+use fvm_shared::encoding::{Cbor, RawBytes};
+use num_traits::Zero;
+use serde_tuple::*;
+use thiserror::Error;
+use wasmtime::{Engine, Linker};
+
+use blockstore::Blockstore;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::Cbor;
-use num_traits::Zero;
-use std::collections::{HashMap, VecDeque};
-use std::marker::PhantomData;
-use wasmtime::{Engine, Instance, Linker, Store};
+
+use crate::exit_code::ExitCode;
+use crate::externs::Externs;
+use crate::gas::price_list_by_epoch;
+use crate::kernel::Kernel;
+use crate::message::Message;
+use crate::receipt::Receipt;
+use crate::state_tree::StateTree;
+use crate::syscalls::bind_syscalls;
+use crate::Config;
 
 /// The core of the FVM.
 ///
@@ -27,7 +28,7 @@ use wasmtime::{Engine, Instance, Linker, Store};
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<'a, B, E, K> {
+pub struct Machine<'a, B, E, K, V> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -60,6 +61,41 @@ pub struct Machine<'a, B, E, K> {
     call_stack: CallStack<'a, B>,
 }
 
+/// Result of a state transition from a message
+#[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]
+pub struct MessageReceipt {
+    pub exit_code: ExitCode,
+    pub return_data: RawBytes,
+    pub gas_used: i64,
+}
+
+/// Convenience macro for generating Actor Errors
+/// TODO: Delete this. It exists so the code can compile.
+#[macro_export]
+macro_rules! actor_error {
+    // Fatal Errors
+    ( fatal($msg:expr) ) => { ActorError::new_fatal($msg.to_string()) };
+    ( fatal($msg:literal $(, $ex:expr)+) ) => {
+        ActorError::new_fatal(format!($msg, $($ex,)*))
+    };
+
+    // Error with only one stringable expression
+    ( $code:ident; $msg:expr ) => { ActorError::new(ExitCode::$code, $msg.to_string()) };
+
+    // String with positional arguments
+    ( $code:ident; $msg:literal $(, $ex:expr)+ ) => {
+        ActorError::new(ExitCode::$code, format!($msg, $($ex,)*))
+    };
+
+    // Error with only one stringable expression, with comma separator
+    ( $code:ident, $msg:expr ) => { actor_error!($code; $msg) };
+
+    // String with positional arguments, with comma separator
+    ( $code:ident, $msg:literal $(, $ex:expr)+ ) => {
+        actor_error!($code; $msg $(, $ex)*)
+    };
+}
+
 impl<'a, B, E, K> Machine<'a, B, E, K>
 where
     B: Blockstore,
@@ -90,7 +126,7 @@ where
             externs,
             blockstore,
             kernel,
-            state_tree: StateTree::new_from_root(store, &state_root)?,
+            state_tree: StateTree::new_from_root(&blockstore, &context.state_root)?,
             commit_buffer: Default::default(), // @stebalien TBD
             verifier: Default::default(),
             call_stack: Default::default(), // TODO implement constructor.
@@ -122,7 +158,8 @@ where
         if cost_total > msg.gas_limit {
             return Ok(ApplyRet {
                 msg_receipt: MessageReceipt {
-                    return_data: Serialized::default(),
+                    // TODO: Eventually, this will be an arbitrary IPLD block.
+                    return_data: RawBytes::default(),
                     exit_code: ExitCode::SysErrOutOfGas,
                     gas_used: 0,
                 },

@@ -7,9 +7,9 @@ mod zero;
 #[cfg(feature = "proofs")]
 pub use zero::zero_piece_commitment;
 
-use crate::encoding::tuple::*;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
+use serde_tuple::*;
 
 /// Size of a piece in bytes.
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]

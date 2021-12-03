@@ -1,9 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::errors::Error;
-use super::{de::DeserializeOwned, from_slice, ser::Serialize, to_vec};
+use std::ops::Deref;
+
 use cid::{Cid, Code::Blake2b256};
+use serde::{Deserialize, Serialize};
+
+use super::errors::Error;
+use super::{de::DeserializeOwned, from_slice, to_vec};
 
 /// Cbor utility functions for serializable objects
 pub trait Cbor: Serialize + DeserializeOwned {
@@ -26,3 +30,45 @@ pub trait Cbor: Serialize + DeserializeOwned {
 
 impl<T> Cbor for Vec<T> where T: Cbor {}
 impl<T> Cbor for Option<T> where T: Cbor {}
+
+/// Raw serialized cbor bytes.
+/// This data is (de)serialized as a byte string.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Hash, Eq, Default)]
+#[serde(transparent)]
+pub struct RawBytes {
+    #[serde(with = "serde_bytes")]
+    bytes: Vec<u8>,
+}
+
+impl Cbor for RawBytes {}
+
+impl Deref for RawBytes {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
+}
+
+impl RawBytes {
+    /// Constructor if data is encoded already
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self { bytes }
+    }
+
+    /// Contructor for encoding Cbor encodable structure.
+    pub fn serialize<O: Serialize>(obj: O) -> Result<Self, Error> {
+        Ok(Self {
+            bytes: to_vec(&obj)?,
+        })
+    }
+
+    /// Returns serialized bytes.
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// Deserializes the serialized bytes into a defined type.
+    pub fn deserialize<O: DeserializeOwned>(&self) -> Result<O, Error> {
+        Ok(from_slice(&self.bytes)?)
+    }
+}

@@ -1,13 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use derive_builder::Builder;
+
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::de::{Deserialize, DeserializeOwned, Deserializer};
-use fvm_shared::encoding::ser::{Error, Serialize, Serializer};
-use fvm_shared::encoding::{de, from_slice, ser, to_vec, Cbor};
-use std::ops::Deref;
+use fvm_shared::encoding::{
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, Serializer},
+    Cbor, RawBytes,
+};
 
 /// Method number indicator for calling actor methods.
 pub type MethodNum = u64;
@@ -17,50 +20,8 @@ pub const METHOD_SEND: MethodNum = 0;
 /// Base actor constructor method.
 pub const METHOD_CONSTRUCTOR: MethodNum = 1;
 
-/// Serialized bytes to be used as parameters into actor methods.
-/// This data is (de)serialized as a byte string.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Hash, Eq, Default)]
-#[serde(transparent)]
-pub struct RawBytes {
-    #[serde(with = "serde_bytes")]
-    bytes: Vec<u8>,
-}
-
-impl Cbor for RawBytes {}
-
-impl Deref for RawBytes {
-    type Target = Vec<u8>;
-    fn deref(&self) -> &Self::Target {
-        &self.bytes
-    }
-}
-
-impl RawBytes {
-    /// Constructor if data is encoded already
-    pub fn new(bytes: Vec<u8>) -> Self {
-        Self { bytes }
-    }
-
-    /// Contructor for encoding Cbor encodable structure.
-    pub fn serialize<O: ser::Serialize>(obj: O) -> Result<Self, EncodingError> {
-        Ok(Self {
-            bytes: to_vec(&obj)?,
-        })
-    }
-
-    /// Returns serialized bytes.
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    /// Deserializes the serialized bytes into a defined type.
-    pub fn deserialize<O: de::DeserializeOwned>(&self) -> Result<O, EncodingError> {
-        Ok(from_slice(&self.bytes)?)
-    }
-}
-
 /// Default Unsigned VM message type which includes all data needed for a state transition
-#[derive(PartialEq, Clone, Debug, Hash, Eq)]
+#[derive(PartialEq, Clone, Debug, Hash, Eq, Builder)]
 pub struct Message {
     #[builder(default)]
     pub version: i64,

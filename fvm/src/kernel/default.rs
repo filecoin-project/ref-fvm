@@ -1,23 +1,23 @@
 use super::*;
-use crate::externs::Externs;
+
 use anyhow::Result;
 use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::ActorID;
-use std::collections::{hash_map::Entry, HashMap};
-use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
+use std::convert::TryFrom;
+
+use super::blocks::{Block, BlockRegistry};
 
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
-pub struct DefaultKernel<B: Blockstore> {
-    /// Tracks the state of blocks that have been brought in scope of
-    /// an execution.
-    block_state: HashMap<Cid, BlockState>,
+pub struct DefaultKernel<B> {
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
-    block_data: BlockRegistry<B>,
+    ///
+    /// This does not yet reason about reachability.
+    blocks: BlockRegistry,
+    store: B,
     /// Current state root of an actor.
     /// TODO This probably doesn't belong here.
     root: Cid,
@@ -27,8 +27,8 @@ impl<B> DefaultKernel<B> {
     pub fn new(bs: B, root: Cid) -> Self {
         Self {
             root,
-            block_data: BlockRegistry::new(bs),
-            block_state: HashMap::new(),
+            blocks: BlockRegistry::new(),
+            store: bs,
         }
     }
 }
@@ -44,9 +44,6 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        if !self.block_state.contains_key(&new) {
-            return Err(Error::Unreachable);
-        }
         self.root = new;
         Ok(())
     }
@@ -57,57 +54,43 @@ where
     B: Blockstore,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId, BlockError> {
-        // TODO Mark children as reachable.
-        match self.block_state.entry(*cid) {
-            Entry::Occupied(mut entry) => match entry.get_mut() {
-                BlockState::Open { id, .. } => {
-                    self.block_data.put(self.block_data.get(*id)?.clone())
-                }
-                state @ BlockState::Reachable => {
-                    let id = self.block_data.load(cid)?;
-                    *state = BlockState::Open { id, dirty: false };
-                    Ok(id)
-                }
-            },
-            Entry::Vacant(entry) => {
-                let id = self.block_data.load(cid)?;
-                entry.insert(BlockState::Open { id, dirty: false });
-                Ok(id)
-            }
-        }
+        let data = self
+            .blockstore
+            .get(cid)
+            .map_err(|e| BlockError::Internal(e.into()))?
+            .ok_or_else(|| BlockError::MissingState(Box::new(cid)))?;
+
+        let block = Block::new(cid.codec(), data);
+        self.blocks.put(block)
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId, BlockError> {
-        // TODO Check that children are reachable.
-        self.block_data.put(Block {
-            codec,
-            data: Rc::from(data),
-        })
+        self.blocks.put(Block::new(codec, data))
     }
 
-    fn block_cid(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid, BlockError> {
-        // TODO: limit the hash functions/sizes.
-
+    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid, BlockError> {
         use multihash::MultihashDigest;
-        let block = self.block_data.get(id)?;
-        let code = multihash::Code::try_from(hash_fun)
-            .ok()
-            .ok_or(Error::InvalidMultihashSpec)?;
+        let block = self.blocks.get(id)?;
+        let code =
+            multihash::Code::try_from(hash_fun)
+                .ok()
+                .ok_or(BlockError::InvalidMultihashSpec {
+                    code: hash_fun,
+                    length: hash_len,
+                })?;
 
-        let hash = code.digest(&block.data);
+        let hash = code.digest(&block.data());
         if u32::from(hash.size()) < hash_len {
-            return Err(Error::InvalidMultihashSpec);
+            return Err(BlockError::InvalidMultihashSpec {
+                code: hash_fun,
+                length: hash_len,
+            });
         }
-        let cid = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
-
-        if let state @ BlockState::Reachable = self
-            .block_state
-            .entry(cid)
-            .or_insert(BlockState::Open { id, dirty: true })
-        {
-            *state = BlockState::Open { id, dirty: true };
-        }
-        Ok(cid)
+        let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
+        // TODO: for now, we _put_ the block here. In the future, we should put it into a write
+        // cache, then flush it later.
+        self.store.put(&k, block.data())?;
+        Ok(k)
     }
 
     fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32, BlockError> {
@@ -123,8 +106,8 @@ where
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat, BlockError> {
         self.block_data.get(id).map(|b| BlockStat {
-            codec: b.codec,
-            size: b.data.len() as u32,
+            codec: b.codec(),
+            size: b.size(),
         })
     }
 }

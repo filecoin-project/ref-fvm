@@ -1,12 +1,6 @@
-use super::{ActorRuntime, Machine, Runtime};
-use crate::machine::Machine;
-use crate::syscalls::bind_syscalls;
-use crate::DefaultRuntime;
 use anyhow::Result;
 use blockstore::Blockstore;
-use cid::Cid;
 use std::collections::VecDeque;
-use std::marker::PhantomData;
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
 
 /// An entry in the return stack.
@@ -60,7 +54,7 @@ impl<'a> InvocationContainer<'a> {
         // let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
         bs.put(&root_cid, root_block)?;
 
-        let runtime = Runtime::new(blockstore, root_cid);
+        let runtime = DefaultKernel::new(blockstore, root_cid);
 
         let mut store = Store::new(&engine, runtime);
     }

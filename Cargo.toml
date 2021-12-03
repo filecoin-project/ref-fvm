@@ -6,9 +6,6 @@ members = [
     "shared",
     "lib/*",
     "actor",
-    "vm",
-    "vm/actor_interface",
-    "vm/address",
     "examples/*",
     "examples/blockstore-cgo/user",
 ]
@@ -23,9 +20,6 @@ default-members = [
     "shared",
     "lib/*",
     "actor",
-    "vm",
-    "vm/actor_interface",
-    "vm/address",
     # don't build the examples by default, as they require a specific target and profile.
     # build them with cargo make examples
     # "examples/*"

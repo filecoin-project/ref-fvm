@@ -1,32 +1,24 @@
 mod blocks;
-mod default;
+pub mod default;
 
-use super::*;
 use crate::externs::Externs;
 use anyhow::Result;
 use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::ActorID;
-use std::collections::{hash_map::Entry, HashMap};
-use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
+
+pub use blocks::{BlockError, BlockId, BlockStat};
 
 /// TODO likely don't need the Blockstore type parameter since the
 /// blockstore will be accessed through the externs.
-pub trait Kernel<B, E>: ActorOps + BlocksOps + InvocationOps
+pub trait Kernel<B, E>: ActorOps + BlockOps + InvocationOps
 where
     B: Blockstore,
     E: Externs,
 {
 }
 
-pub type BlockId = u32;
 pub type MethodId = u64;
-
-pub struct BlockStat {
-    pub codec: u64,
-    pub size: u32,
-}
 
 pub trait InvocationOps {
     fn method_number(&self) -> MethodId;
@@ -34,22 +26,6 @@ pub trait InvocationOps {
     fn caller(&self) -> ActorID;
     fn receiver(&self) -> ActorID;
     fn value_received(&self) -> u128;
-}
-
-#[derive(Error, Debug)]
-pub enum BlockError {
-    #[error("block is unreachable")]
-    Unreachable,
-    #[error("too many blocks have been written")]
-    TooManyBlocks,
-    #[error("block handle does not exist")]
-    InvalidHandle,
-    #[error("invalid multihash length or code")]
-    InvalidMultihashSpec,
-    #[error("invalid or forbidden ipld codec")]
-    InvalidCodec,
-    #[error("internal error: {0}")]
-    Internal(#[source] Box<dyn std::error::Error>),
 }
 
 /// The IPLD subset of the runtime.
@@ -71,7 +47,7 @@ pub trait BlockOps {
     /// This is the only way to add a new block to the "reachable" set.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_cid(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid, BlockError>;
+    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid, BlockError>;
 
     /// Read data from a block.
     ///

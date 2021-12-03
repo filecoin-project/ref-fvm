@@ -1,11 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::encoding::{serde_bytes, tuple::*};
-use crate::randomness::Randomness;
-use crate::sector::{RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-use crate::ActorID;
 use cid::Cid;
+use serde_tuple::*;
+
+use super::*;
+use crate::randomness::Randomness;
+use crate::ActorID;
 
 /// Randomness type used for generating PoSt proof randomness.
 pub type PoStRandomness = Randomness;

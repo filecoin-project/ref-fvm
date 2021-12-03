@@ -4,9 +4,12 @@
 mod charge;
 mod price_list;
 
+use crate::actor_error;
+use crate::exit_code::ExitCode;
+use crate::machine::ActorError;
+
 pub use self::charge::GasCharge;
 pub use self::price_list::{price_list_by_epoch, PriceList};
-use vm::{actor_error, ActorError, ExitCode};
 
 pub(crate) struct GasTracker {
     gas_available: i64,

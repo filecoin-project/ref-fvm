@@ -11,9 +11,18 @@ anyhow = "1.0.47"
 thiserror = "1.0.30"
 blockstore = { path = "../lib/blockstore" }
 num-traits = "0.2"
+derive_builder = "0.9"
+ahash = "0.6"
 num-derive = "0.3.3"
 cid = "0.7.0"
 multihash = "0.15.0"
 wasmtime = "0.31.0"
 fvm_shared = { path = "../shared" }
 ipld_hamt = { path = "../ipld/hamt"}
+ipld_amt = { path = "../ipld/amt"}
+serde = { version = "1.0", features = ["derive"] }
+serde_tuple = "0.5"
+serde_repr = "0.1"
+
+# FIXME: The FVM really shouldn't depend on this, but needs to for now.
+actor = { package = "forest_actor", path = "../actor" }

@@ -1,8 +1,8 @@
 use wasmtime::{self, Caller, Trap};
 
-use crate::Runtime;
-
 use cid::{self, Cid};
+
+use crate::Kernel;
 
 use super::context::Context;
 
@@ -24,7 +24,7 @@ fn encoded_cid_size(k: &Cid) -> u32 {
     }
 }
 
-pub fn get_root(caller: Caller<'_, impl Runtime>, cid_off: u32, cid_len: u32) -> Result<u32, Trap> {
+pub fn get_root(caller: Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> Result<u32, Trap> {
     let ctx = Context::new(caller);
 
     let root = *ctx.data().root();
@@ -42,21 +42,21 @@ pub fn get_root(caller: Caller<'_, impl Runtime>, cid_off: u32, cid_len: u32) ->
     Ok(size)
 }
 
-pub fn set_root(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<(), Trap> {
+pub fn set_root(caller: Caller<'_, impl Kernel>, cid: u32) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid)?;
     ctx.data_mut().set_root(cid)?;
     Ok(())
 }
 
-pub fn open(caller: Caller<'_, impl Runtime>, cid: u32) -> Result<u32, Trap> {
+pub fn open(caller: Caller<'_, impl Kernel>, cid: u32) -> Result<u32, Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid)?;
     Ok(ctx.data_mut().block_open(&cid)?)
 }
 
 pub fn create(
-    caller: Caller<'_, impl Runtime>,
+    caller: Caller<'_, impl Kernel>,
     codec: u64,
     data_off: u32,
     data_len: u32,
@@ -67,7 +67,7 @@ pub fn create(
 }
 
 pub fn cid(
-    caller: Caller<'_, impl Runtime>,
+    caller: Caller<'_, impl Kernel>,
     id: u32,
     hash_fun: u64,
     hash_len: u32,
@@ -75,7 +75,7 @@ pub fn cid(
     cid_len: u32,
 ) -> Result<u32, Trap> {
     let mut ctx = Context::new(caller);
-    let cid = ctx.data_mut().block_cid(id, hash_fun, hash_len)?;
+    let cid = ctx.data_mut().block_link(id, hash_fun, hash_len)?;
 
     let size = encoded_cid_size(&cid);
     if size > cid_len {
@@ -91,7 +91,7 @@ pub fn cid(
 }
 
 pub fn read(
-    caller: Caller<'_, impl Runtime>,
+    caller: Caller<'_, impl Kernel>,
     id: u32,
     offset: u32,
     obuf_off: u32,
@@ -102,7 +102,7 @@ pub fn read(
     Ok(rt.block_read(id, offset, data)?)
 }
 
-pub fn stat(caller: Caller<'_, impl Runtime>, id: u32) -> Result<(u64, u32), Trap> {
+pub fn stat(caller: Caller<'_, impl Kernel>, id: u32) -> Result<(u64, u32), Trap> {
     let ctx = Context::new(caller);
     Ok(ctx
         .data()
