@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use fvm_shared::encoding::tuple::{Deserialize_tuple, Serialize_tuple};
-
-use crate::{exit_code::ExitCode, message::RawBytes};
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
 
 /// Result of a state transition from a message
 #[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]

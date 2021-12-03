@@ -1,3 +1,4 @@
+use crate::DefaultKernel;
 use anyhow::Result;
 use blockstore::Blockstore;
 use std::collections::VecDeque;
@@ -45,18 +46,19 @@ impl<'a> InvocationContainer<'a> {
     where
         B: Blockstore,
     {
-        /// TODO implement
-        let module = Module::new(&engine, wasm_bytecode)?;
-
-        // let config = fvm::Config { max_pages: 10 };
-        // let bs = MemoryBlockstore::default();
-        // let root_block = b"test root block";
-        // let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
-        bs.put(&root_cid, root_block)?;
-
-        let runtime = DefaultKernel::new(blockstore, root_cid);
-
-        let mut store = Store::new(&engine, runtime);
+        // /// TODO implement
+        // let module = Module::new(&engine, wasm_bytecode)?;
+        //
+        // // let config = fvm::Config { max_pages: 10 };
+        // // let bs = MemoryBlockstore::default();
+        // // let root_block = b"test root block";
+        // // let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
+        // bs.put(&root_cid, root_block)?;
+        //
+        // let runtime = DefaultKernel::new(blockstore, root_cid);
+        //
+        // let mut store = Store::new(&engine, runtime);
+        todo!()
     }
 
     /// Describes the top element in the return stack.

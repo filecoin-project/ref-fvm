@@ -11,14 +11,7 @@ use fvm_shared::encoding::{
     ser::{Serialize, Serializer},
     Cbor, RawBytes,
 };
-
-/// Method number indicator for calling actor methods.
-pub type MethodNum = u64;
-
-/// Base actor send method.
-pub const METHOD_SEND: MethodNum = 0;
-/// Base actor constructor method.
-pub const METHOD_CONSTRUCTOR: MethodNum = 1;
+use fvm_shared::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[derive(PartialEq, Clone, Debug, Hash, Eq, Builder)]

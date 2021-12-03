@@ -28,17 +28,16 @@ pub trait Cbor: Serialize + DeserializeOwned {
     /// Default is Blake2b256 hash
     fn cid(&self) -> Result<Cid, Error> {
         use multihash::MultihashDigest;
-        let mh = multihash::Code::Blake2b256;
         const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
         let data = &self.marshal_cbor()?;
-        let hash = mh.digest(data);
-        if u32::from(hash.size()) < DIGEST_SIZE {
+        let hash = cid::Code::Blake2b256.digest(data);
+        if u32::from(hash.size()) != DIGEST_SIZE {
             return Err(Error {
                 description: "Invalid multihash length".into(),
                 protocol: CodecProtocol::Cbor, // TODO this is not accurate, and not convinced about this Error type.
             });
         }
-        Ok(Cid::new_v1(DAG_CBOR, hash.truncate(DIGEST_SIZE as u8)))
+        Ok(Cid::new_v1(DAG_CBOR, hash))
     }
 }
 

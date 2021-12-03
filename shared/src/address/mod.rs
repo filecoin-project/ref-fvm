@@ -11,6 +11,7 @@ pub use self::payload::{BLSPublicKey, Payload};
 pub use self::protocol::Protocol;
 
 use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
+use crate::ActorID;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
@@ -34,6 +35,9 @@ pub const SECP_PUB_LEN: usize = 65;
 
 /// BLS public key length used for validation of BLS addresses.
 pub const BLS_PUB_LEN: usize = 48;
+
+/// Defines first available ID address after builtin actors
+pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
 
 lazy_static::lazy_static! {
     static ref BLS_ZERO_ADDR_BYTES: BLSPublicKey = {

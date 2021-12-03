@@ -5,7 +5,7 @@ use num_derive::FromPrimitive;
 
 use crate::encoding::repr::*;
 
-mod actor_error;
+pub mod actor_error;
 
 pub use actor_error::*;
 

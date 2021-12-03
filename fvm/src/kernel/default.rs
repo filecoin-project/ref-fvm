@@ -58,7 +58,7 @@ where
             .blockstore
             .get(cid)
             .map_err(|e| BlockError::Internal(e.into()))?
-            .ok_or_else(|| BlockError::MissingState(Box::new(cid)))?;
+            .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;
 
         let block = Block::new(cid.codec(), data);
         self.blocks.put(block)

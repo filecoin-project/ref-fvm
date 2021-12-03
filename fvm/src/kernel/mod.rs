@@ -11,12 +11,7 @@ pub use blocks::{BlockError, BlockId, BlockStat};
 
 /// TODO likely don't need the Blockstore type parameter since the
 /// blockstore will be accessed through the externs.
-pub trait Kernel<B, E>: ActorOps + BlockOps + InvocationOps
-where
-    B: Blockstore,
-    E: Externs,
-{
-}
+pub trait Kernel: ActorOps + BlockOps + InvocationOps {}
 
 pub type MethodId = u64;
 

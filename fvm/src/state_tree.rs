@@ -1,7 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::adt::Map;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::error::Error as StdError;
+
+use lazy_static::lazy_static;
+
 use blockstore::Blockstore;
 use cid::multihash;
 use cid::Cid;
@@ -9,9 +14,11 @@ use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::error::Error as StdError;
+use fvm_shared::{bigint::bigint_ser, ActorID};
+
+use crate::adt::Map;
+use crate::init_actor::State as InitActorState;
+use crate::store::CborStore;
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
@@ -181,7 +188,9 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
-                Some(store.put(&StateInfo0::default(), multihash::Code::Blake2b256.into())?)
+                let cid = cid::Code::Blake2b256.into()?;
+                store.put(cid, &StateInfo0::default().into()?)?;
+                Some(cid)
             }
         };
 
@@ -203,7 +212,7 @@ where
             version,
             info,
             actors,
-        })) = store.get(c)
+        })) = CborStore::from(store).get_cbor(c)
         {
             (version, Some(info), actors)
         } else {
@@ -280,11 +289,7 @@ where
             return Ok(Some(res_address));
         }
 
-        let init_act = self
-            .get_actor(actor::builtin::INIT_ACTOR_ADDR)?
-            .ok_or("Init actor address could not be resolved")?;
-
-        let state = actor::init::State::load(self.hamt.store(), &init_act)?;
+        let (state, _) = InitActorState::load(&self)?;
 
         let a: Address = match state
             .resolve_address(self.store(), addr)
@@ -329,18 +334,14 @@ where
 
     /// Register a new address through the init actor.
     pub fn register_new_address(&mut self, addr: &Address) -> Result<Address, Box<dyn StdError>> {
-        let mut actor: ActorState = self
-            .get_actor(actor::init::ADDRESS)?
-            .ok_or("Could not retrieve init actor")?;
+        let (mut state, mut actor) = InitActorState::load(&self)?;
 
-        let mut ias = actor::init::State::load(self.store(), &actor)?;
-
-        let new_addr = ias.map_address_to_new_id(self.store(), addr)?;
+        let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = self.store().put(&ias, Blake2b256)?;
+        actor.state = CborStore::from(self.store).put_cbor(&state)?;
 
-        self.set_actor(actor::init::ADDRESS, actor)?;
+        self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
         Ok(new_addr)
     }
@@ -389,23 +390,22 @@ where
         if matches!(self.version, StateTreeVersion::V0) {
             Ok(root)
         } else {
-            Ok(self.store().put(
-                &StateRoot {
-                    version: self.version,
-                    actors: root,
-                    info: self
-                        .info
-                        .expect("malformed state tree, version 1 and version 2 require info"),
-                },
-                Blake2b256,
-            )?)
+            let cid = self
+                .info
+                .expect("malformed state tree, version 1 and version 2 require info");
+            let obj = &StateRoot {
+                version: self.version,
+                actors: root,
+                info: cid,
+            };
+            Ok(CborStore::from(self.store).put_cbor(&obj)?);
         }
     }
 
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
     where
         F: FnMut(Address, &ActorState) -> Result<(), Box<dyn StdError>>,
-        S: BlockStore,
+        S: Blockstore,
     {
         self.hamt.for_each(|k, v| f(Address::from_bytes(&k.0)?, v))
     }
@@ -452,10 +452,13 @@ impl ActorState {
 
 #[cfg(feature = "json")]
 pub mod json {
-    use super::*;
-    use crate::TokenAmount;
-    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::str::FromStr;
+
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+    use crate::TokenAmount;
+
+    use super::*;
 
     /// Wrapper for serializing and deserializing a SignedMessage from JSON.
     #[derive(Deserialize, Serialize)]

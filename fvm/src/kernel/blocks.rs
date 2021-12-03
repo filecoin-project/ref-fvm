@@ -69,7 +69,7 @@ impl BlockRegistry {
     }
 }
 
-impl<B> BlockRegistry {
+impl BlockRegistry {
     /// Adds a new block to the registry, and returns a handle to refer to it.
     pub fn put(&mut self, block: Block) -> Result<BlockId, BlockError> {
         // TODO: limit the code types we allow.
@@ -98,7 +98,7 @@ impl<B> BlockRegistry {
             .ok_or(BlockError::InvalidHandle(id))
             .map(|b| BlockStat {
                 codec: b.codec,
-                size: b.data.len(),
+                size: b.data.len() as u32,
             })
     }
 }

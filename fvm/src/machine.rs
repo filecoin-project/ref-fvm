@@ -7,10 +7,11 @@ use serde_tuple::*;
 use wasmtime::{Engine, Linker};
 
 use blockstore::Blockstore;
+use fvm_shared::actor_error;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::{actor_error, ExitCode};
+use fvm_shared::error::{ActorError, ExitCode};
 
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
@@ -27,7 +28,7 @@ use crate::Config;
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<'a, B, E, K, V> {
+pub struct Machine<'a, B, E, K> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -50,7 +51,7 @@ pub struct Machine<'a, B, E, K, V> {
     /// The FullVerifier is the gateway to filecoin-proofs-api.
     /// TODO these likely go in the kernel, as they are syscalls that can be
     /// resolved inside the FVM without traversing Boundary A.
-    verifier: PhantomData<V>,
+    // verifier: PhantomData<V>,
     /// The kernel template
     /// TODO likely will need to be cloned and "connected" to the context with every invocation container
     kernel: K,
@@ -60,19 +61,11 @@ pub struct Machine<'a, B, E, K, V> {
     call_stack: CallStack<'a, B>,
 }
 
-/// Result of a state transition from a message
-#[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]
-pub struct MessageReceipt {
-    pub exit_code: ExitCode,
-    pub return_data: RawBytes,
-    pub gas_used: i64,
-}
-
 impl<'a, B, E, K> Machine<'a, B, E, K>
 where
     B: Blockstore,
     E: Externs,
-    K: Kernel<B, E>,
+    K: Kernel,
 {
     pub fn new(
         config: Config,
@@ -91,6 +84,8 @@ where
         // TODO load the gas_list for this epoch, and give it to the kernel.
         // TODO instantiate the Kernel template.
 
+        let state_tree = StateTree::new_from_root(&blockstore, &context.state_root)?;
+
         Machine {
             config,
             context,
@@ -98,10 +93,9 @@ where
             externs,
             blockstore,
             kernel,
-            state_tree: StateTree::new_from_root(&blockstore, &context.state_root)?,
+            state_tree,
             commit_buffer: Default::default(), // @stebalien TBD
-            verifier: Default::default(),
-            call_stack: Default::default(), // TODO implement constructor.
+            call_stack: Default::default(),    // TODO implement constructor.
         }
     }
 
@@ -110,7 +104,7 @@ where
     }
 
     pub fn config(&self) -> Config {
-        self.config
+        self.config.clone()
     }
 
     /// This is the entrypoint to execute a message.
@@ -129,7 +123,7 @@ where
         // TODO handle errors properly
         if cost_total > msg.gas_limit {
             return Ok(ApplyRet {
-                msg_receipt: MessageReceipt {
+                msg_receipt: Receipt {
                     // TODO: Eventually, this will be an arbitrary IPLD block.
                     return_data: RawBytes::default(),
                     exit_code: ExitCode::SysErrOutOfGas,
@@ -162,7 +156,7 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
 }
 
-pub struct CallStack<'a, B: Blockstore> {
+pub struct CallStack<'a, B> {
     /// The buffer of blocks that that a given message execution has written.
     /// Reachable blocks from the updated state roots of actors touched by the
     /// call stack will probably need to be transferred to the Machine's
@@ -178,9 +172,13 @@ pub struct CallStack<'a, B: Blockstore> {
     // TODO figure out what else needs to be here.
 }
 
-impl CallStack<B> {
-    fn call_next(&self, msg: Message) -> thiserror::Result {
+impl<'a, B> CallStack<'_, B>
+where
+    B: Blockstore,
+{
+    fn call_next(&self, msg: Message) -> anyhow::Result<()> {
         // TODO TBD signature is not complete.
+        Ok(())
     }
 
     // TODO need accessors to check the outcome, and merge this state tree onto

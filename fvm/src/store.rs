@@ -41,8 +41,8 @@ where
 }
 
 /// Enables conversion from a Blockstore into a CborStore.
-impl<B: Blockstore> From<B> for CborStore<B> {
-    fn from(blockstore: B) -> Self {
+impl<B: Blockstore> From<&B> for CborStore<&B> {
+    fn from(blockstore: &B) -> Self {
         CborStore { blockstore }
     }
 }
