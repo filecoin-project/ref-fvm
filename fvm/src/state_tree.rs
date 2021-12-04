@@ -238,7 +238,7 @@ where
 
     /// Retrieve store reference to modify db.
     pub fn store(&self) -> &S {
-        self.hamt.store
+        self.hamt.store()
     }
 
     /// Get actor state from an address. Will be resolved to ID address.

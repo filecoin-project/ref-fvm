@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::anyhow;
 use derive_builder::Builder;
 
 use fvm_shared::address::Address;
@@ -38,14 +39,12 @@ impl Message {
 
     /// Does some basic checks on the Message to see if the fields are valid.
     pub fn check(self: &Message) -> anyhow::Result<()> {
-        // TODO convert to match.
         if self.gas_limit == 0 {
-            return Err("Message has no gas limit set");
+            return Err(anyhow!("Message has no gas limit set"));
         }
         if self.gas_limit < 0 {
-            return Err("Message has negative gas limit");
+            return Err(anyhow!("Message has negative gas limit"));
         }
-
         Ok(())
     }
 }
