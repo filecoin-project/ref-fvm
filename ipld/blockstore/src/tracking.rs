@@ -65,7 +65,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Code::Blake2b256;
+    use cid::multihash::MultihashDigest;
 
     #[test]
     fn basic_tracking_store() {
@@ -78,7 +78,7 @@ mod tests {
         let obj_bytes_len = encoding::to_vec(&object).unwrap().len();
 
         tr_store
-            .get::<u8>(&cid::new_from_cbor(&[0], Blake2b256))
+            .get::<u8>(&Cid::new_v1(crate::DAG_CBOR, Code::Blake2b256.digest(&[0])))
             .unwrap();
         assert_eq!(
             *tr_store.stats.borrow(),
@@ -88,7 +88,7 @@ mod tests {
             }
         );
 
-        let put_cid = tr_store.put(&object, Blake2b256).unwrap();
+        let put_cid = tr_store.put(&object, Code::Blake2b256).unwrap();
         assert_eq!(tr_store.get::<TestType>(&put_cid).unwrap(), Some(object));
         assert_eq!(
             *tr_store.stats.borrow(),

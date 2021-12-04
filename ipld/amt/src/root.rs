@@ -63,7 +63,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use encoding::{from_slice, to_vec};
+    use fvm_shared::encoding::{from_slice, to_vec};
 
     #[test]
     fn serialize_symmetric() {

@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 /// ```
 /// use ipld_hamt::Hamt;
 ///
-/// let store = db::MemoryDB::default();
+/// let store = ipld_blockstore::MemoryBlockstore::default();
 ///
 /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
 /// map.set(1, "a".to_string()).unwrap();
@@ -124,7 +124,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(37, "a".to_string()).unwrap();
@@ -153,7 +153,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
@@ -187,7 +187,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -218,7 +218,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -246,7 +246,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -281,7 +281,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, 1).unwrap();

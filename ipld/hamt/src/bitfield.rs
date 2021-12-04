@@ -144,7 +144,7 @@ impl std::fmt::Binary for Bitfield {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forest_encoding::{from_slice, to_vec};
+    use fvm_shared::encoding::{from_slice, to_vec};
 
     #[test]
     fn test_bitfield() {

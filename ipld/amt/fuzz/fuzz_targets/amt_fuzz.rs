@@ -21,7 +21,7 @@ enum Method {
 
 fuzz_target!(|data: (u8, Vec<Operation>)| {
     let (flush_rate, operations) = data;
-    let db = db::MemoryDB::default();
+    let db = ipld_blockstore::MemoryBlockstore::default();
     let mut amt = Amt::new(&db);
     let mut elements = ahash::AHashMap::new();
 
