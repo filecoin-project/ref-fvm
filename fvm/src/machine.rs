@@ -111,7 +111,7 @@ where
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
-        let pl = price_list_by_epoch(self.epoch());
+        let pl = price_list_by_epoch(self.context.epoch);
         let ser_msg = msg.marshal_cbor().map_err(|e| e.to_string())?;
         let msg_gas_cost = pl.on_chain_message(ser_msg.len());
         let cost_total = msg_gas_cost.total();
@@ -127,8 +127,8 @@ where
                     gas_used: 0,
                 },
                 act_error: Some(actor_error!(SysErrOutOfGas;
-                    "Out of gas ({} > {})", cost_total, msg.gas_limit())),
-                penalty: &self.base_fee * cost_total,
+                    "Out of gas ({} > {})", cost_total, msg.gas_limit)),
+                penalty: &self.context.base_fee * cost_total,
                 miner_tip: BigInt::zero(),
             });
         }

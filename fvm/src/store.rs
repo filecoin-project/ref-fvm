@@ -33,7 +33,7 @@ impl<'a, B: Blockstore> CborStore<'a, &B> {
         let bytes = to_vec(obj)?;
         // TODO @stebalien to calculate the CID with the right multihash and codec.
         let cid = Cid::default();
-        self.blockstore.put(&cid, bytes.as_ref())
+        self.blockstore.put(&cid, bytes.as_ref()).map(|| cid)
     }
 }
 
