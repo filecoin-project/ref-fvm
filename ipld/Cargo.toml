@@ -19,6 +19,7 @@ async-trait = "0.1"
 async-recursion = "0.3.1"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 cid = { version = "0.7", features = ["serde-codec"] }
+multihash = { version = "0.15", features = ["identity"] }
 
 [features]
 json = ["multibase"]

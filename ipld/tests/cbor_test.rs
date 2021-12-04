@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::multihash::MultihashDigest;
-use cid::{multihash::Code::Blake2b256, Cid};
+use cid::{
+    multihash::Code::{Blake2b256, Identity},
+    Cid,
+};
 use encoding::{from_slice, to_vec};
 use forest_ipld::{ipld, to_ipld, Ipld};
 use serde::{Deserialize, Serialize};
@@ -58,12 +61,8 @@ fn cid_conversions_ipld() {
     assert_eq!(to_ipld(&cid).unwrap(), Ipld::Link(cid));
 
     // Test with identity hash (different length prefix for cbor)
-    // TODO identity hash cannot be used because it depends on a transitive feature
-    //  cid -> multihash (with identity feature)
-    //  importing the multihash crate directly won't work because rust does not
-    //  coalesce multihash and cid::multihash in the build graph
-    // let cid = Cid::new_v1(DAG_CBOR, Identity.digest(&[1, 2]));
-    // let ipld = ipld!(Link(cid));
-    // let ipld2 = to_ipld(&cid).unwrap();
-    // assert_eq!(ipld, ipld2);
+    let cid = Cid::new_v1(DAG_CBOR, Identity.digest(&[1, 2]));
+    let ipld = ipld!(Link(cid));
+    let ipld2 = to_ipld(&cid).unwrap();
+    assert_eq!(ipld, ipld2);
 }
