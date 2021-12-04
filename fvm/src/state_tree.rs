@@ -395,7 +395,7 @@ where
                 actors: root,
                 info: cid,
             };
-            Ok(CborStore::from(self.store).put_cbor(&obj)?);
+            CborStore::from(self.store()).put_cbor(&obj)
         }
     }
 

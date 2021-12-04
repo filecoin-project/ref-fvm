@@ -73,7 +73,7 @@ where
     ) -> anyhow::Result<Machine<'a, B, E, K>> {
         let mut engine = Engine::new(&config.engine)?;
         let mut linker = Linker::new(&engine);
-        bind_syscalls(linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
+        bind_syscalls(&mut linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
 
         // Initialize the WASM engine.
         // TODO initialize the engine

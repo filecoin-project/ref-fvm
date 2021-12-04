@@ -63,12 +63,12 @@ impl<'a> InvocationContainer<'a> {
 
     /// Describes the top element in the return stack.
     /// -1 means error, 0 means non-existent, otherwise the length is returned.
-    pub fn return_desc(&self) -> u64 {
+    pub fn return_desc(&self) -> i64 {
         self.return_stack.back().map_or(0, |e| {
             if !e.0 {
                 return -1;
             }
-            e.1.len() as u64
+            e.1.len() as i64
         })
     }
 

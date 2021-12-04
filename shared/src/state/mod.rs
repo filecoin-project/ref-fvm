@@ -3,6 +3,7 @@
 
 use crate::encoding::repr::*;
 use crate::encoding::tuple::*;
+use crate::encoding::Cbor;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +36,8 @@ pub struct StateRoot {
     /// Info. The structure depends on the state root version.
     pub info: Cid,
 }
+
+impl Cbor for StateRoot {}
 
 /// Empty state tree information. This is serialized as an array for future proofing.
 #[derive(Default, Deserialize, Serialize)]
