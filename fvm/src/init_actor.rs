@@ -54,8 +54,9 @@ impl State {
     /// Loads the init actor state with the supplied CID from the underlying store.
     pub fn load<B: Blockstore>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)> {
         let init_act = state_tree
-            .get_actor(&INIT_ACTOR_ADDR)?
-            .ok_or("Init actor address could not be resolved")?;
+            .get_actor(&INIT_ACTOR_ADDR)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
+            .ok_or_else(|| anyhow::Error::msg("Init actor address could not be resolved"))?;
 
         let store = state_tree.store();
 
