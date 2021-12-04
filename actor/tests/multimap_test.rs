@@ -5,10 +5,11 @@ use forest_actor::Multimap;
 use fvm_shared::address::Address;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
+use ipld_blockstore::MemoryBlockstore;
 
 #[test]
 fn basic_add() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut mm = Multimap::new(&store, HAMT_BIT_WIDTH, 3);
 
     let addr = Address::new_id(100);
@@ -24,7 +25,7 @@ fn basic_add() {
 
 #[test]
 fn for_each() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut mm = Multimap::new(&store, HAMT_BIT_WIDTH, 3);
 
     let addr = Address::new_id(100);
@@ -47,7 +48,7 @@ fn for_each() {
 
 #[test]
 fn remove_all() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut mm = Multimap::new(&store, HAMT_BIT_WIDTH, 3);
 
     let addr1 = Address::new_id(100);

@@ -4,13 +4,14 @@
 use forest_actor::BalanceTable;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use ipld_blockstore::MemoryBlockstore;
 
 // Ported test from specs-actors
 #[test]
 fn total() {
     let addr1 = Address::new_id(100);
     let addr2 = Address::new_id(101);
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut bt = BalanceTable::new(&store);
 
     assert_eq!(bt.total().unwrap(), TokenAmount::from(0u8));
@@ -53,7 +54,7 @@ fn total() {
 #[test]
 fn balance_subtracts() {
     let addr = Address::new_id(100);
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut bt = BalanceTable::new(&store);
 
     bt.add(&addr, &TokenAmount::from(80u8)).unwrap();

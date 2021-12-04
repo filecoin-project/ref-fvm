@@ -5,10 +5,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error as StdError;
 
-use cid::{Cid, Code::Blake2b256};
-use db::MemoryDB;
+use cid::{multihash::Code, Cid};
 use forest_actor::runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
-use ipld_blockstore::BlockStore;
+use ipld_blockstore::{BlockStore, MemoryBlockstore};
 
 use fvm_shared::actor_error;
 use fvm_shared::address::{Address, Protocol};
@@ -46,7 +45,7 @@ pub struct MockRuntime {
 
     // VM Impl
     pub in_call: bool,
-    pub store: MemoryDB,
+    pub store: MemoryBlockstore,
     pub in_transaction: bool,
 
     // Expectations
@@ -170,7 +169,7 @@ impl MockRuntime {
         Ok(())
     }
     fn put<C: Cbor>(&self, o: &C) -> Result<Cid, ActorError> {
-        Ok(self.store.put(&o, Blake2b256).unwrap())
+        Ok(self.store.put(&o, Code::Blake2b256).unwrap())
     }
     fn _get<T: DeserializeOwned>(&self, cid: Cid) -> Result<T, ActorError> {
         Ok(self.store.get(&cid).unwrap().unwrap())
@@ -367,7 +366,7 @@ impl MockRuntime {
 
     #[allow(dead_code)]
     pub fn replace_state<C: Cbor>(&mut self, obj: &C) {
-        self.state = Some(self.store.put(obj, Blake2b256).unwrap());
+        self.state = Some(self.store.put(obj, Code::Blake2b256).unwrap());
     }
 }
 
@@ -383,7 +382,7 @@ impl MessageInfo for MockRuntime {
     }
 }
 
-impl Runtime<MemoryDB> for MockRuntime {
+impl Runtime<MemoryBlockstore> for MockRuntime {
     fn network_version(&self) -> NetworkVersion {
         self.network_version
     }
@@ -520,7 +519,7 @@ impl Runtime<MemoryDB> for MockRuntime {
         if self.state.is_some() {
             return Err(actor_error!(SysErrIllegalActor; "state already constructed"));
         }
-        self.state = Some(self.store.put(obj, Blake2b256).unwrap());
+        self.state = Some(self.store.put(obj, Code::Blake2b256).unwrap());
         Ok(())
     }
 
@@ -548,7 +547,7 @@ impl Runtime<MemoryDB> for MockRuntime {
         Ok(ret)
     }
 
-    fn store(&self) -> &MemoryDB {
+    fn store(&self) -> &MemoryBlockstore {
         &self.store
     }
 

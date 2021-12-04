@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, fmt};
 
 use cid::{
     multihash::{Code, MultihashDigest},
@@ -10,6 +10,12 @@ use crate::{BlockStore, DAG_CBOR};
 #[derive(Default, Clone)]
 pub struct MemoryBlockstore {
     map: RefCell<HashMap<Cid, Vec<u8>>>,
+}
+
+impl fmt::Debug for MemoryBlockstore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(&*self.map.borrow()).finish()
+    }
 }
 
 impl MemoryBlockstore {

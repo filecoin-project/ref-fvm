@@ -3,10 +3,11 @@
 
 use forest_actor::{u64_key, SetMultimap};
 use fvm_shared::clock::ChainEpoch;
+use ipld_blockstore::MemoryBlockstore;
 
 #[test]
 fn put_remove() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut smm = SetMultimap::new(&store);
 
     let epoch: ChainEpoch = 100;
@@ -26,7 +27,7 @@ fn put_remove() {
 
 #[test]
 fn for_each() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut smm = SetMultimap::new(&store);
 
     let epoch: ChainEpoch = 100;
