@@ -7,6 +7,7 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
+use anyhow::anyhow;
 use std::error::Error as StdError;
 
 use lazy_static::lazy_static;
@@ -60,11 +61,10 @@ impl State {
 
         let store = state_tree.store();
 
-        let state = CborStore::from(store)
+        CborStore::from(store)
             .get_cbor(&init_act.state)?
-            .ok_or("init actor state not found")?;
-
-        Ok((state, init_act))
+            .map(|state| (state, init_act))
+            .ok_or(anyhow!("init actor state not found"))
     }
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
