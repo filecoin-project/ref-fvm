@@ -81,7 +81,10 @@ where
         // TODO load the gas_list for this epoch, and give it to the kernel.
         // TODO instantiate the Kernel template.
 
-        let state_tree = StateTree::new_from_root(&blockstore, &context.state_root)?;
+        // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
+        // non-send errors in the state-tree.
+        let state_tree = StateTree::new_from_root(&blockstore, &context.state_root)
+            .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
             config,

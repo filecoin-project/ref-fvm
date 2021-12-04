@@ -222,7 +222,7 @@ where
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
                 // TODO: use the version.
-                let hamt = Map::load(&actors, store, version.into())?;
+                let hamt = Map::load(&actors, store)?;
 
                 Ok(Self {
                     hamt,

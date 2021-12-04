@@ -89,7 +89,9 @@ where
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
-        self.store.put(&k, block.data())?;
+        self.store
+            .put(&k, block.data())
+            .map_err(|e| BlockError::Internal(Box::new(e)))?;
         Ok(k)
     }
 

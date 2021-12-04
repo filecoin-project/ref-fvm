@@ -73,7 +73,7 @@ impl State {
         &mut self,
         store: &B,
         addr: &Address,
-    ) -> anyhow::Result<Address> {
+    ) -> Result<Address, Box<dyn StdError>> {
         let id = self.next_id;
         self.next_id += 1;
 
