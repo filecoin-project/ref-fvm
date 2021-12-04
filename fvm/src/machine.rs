@@ -70,7 +70,7 @@ where
         blockstore: B,
         externs: E,
         kernel: K,
-    ) -> Machine<'a, B, E, K> {
+    ) -> anyhow::Result<Machine<'a, B, E, K>> {
         let mut engine = Engine::new(&config.engine)?;
         let mut linker = Linker::new(&engine);
         bind_syscalls(linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
@@ -83,7 +83,7 @@ where
 
         let state_tree = StateTree::new_from_root(&blockstore, &context.state_root)?;
 
-        Machine {
+        Ok(Machine {
             config,
             context,
             engine,
@@ -92,8 +92,8 @@ where
             kernel,
             state_tree,
             commit_buffer: Default::default(), // @stebalien TBD
-            call_stack: Default::default(),    // TODO implement constructor.
-        }
+            call_stack: todo!(),               // TODO implement constructor.
+        })
     }
 
     pub fn engine(&self) -> &Engine {

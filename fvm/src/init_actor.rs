@@ -60,9 +60,11 @@ impl State {
 
         let store = state_tree.store();
 
-        CborStore::from(store)
+        let state = CborStore::from(store)
             .get_cbor(&init_act.state)?
-            .ok_or("init actor state not found")
+            .ok_or("init actor state not found")?;
+
+        Ok((state, init_act))
     }
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.

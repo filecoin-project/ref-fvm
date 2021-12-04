@@ -94,7 +94,7 @@ where
     }
 
     fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32, BlockError> {
-        let data = &self.block_data.get(id)?.data;
+        let data = &self.blocks.get(id)?.data;
         Ok(if offset as usize >= data.len() {
             0
         } else {
@@ -105,7 +105,7 @@ where
     }
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat, BlockError> {
-        self.block_data.get(id).map(|b| BlockStat {
+        self.blocks.get(id).map(|b| BlockStat {
             codec: b.codec(),
             size: b.size(),
         })

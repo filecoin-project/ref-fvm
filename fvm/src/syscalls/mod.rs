@@ -1,5 +1,5 @@
 use anyhow::Result;
-use wasmtime::{self, Linker};
+use wasmtime::Linker;
 
 mod context;
 mod ipld;

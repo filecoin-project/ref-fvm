@@ -11,7 +11,6 @@ type ReturnEntry = (bool, Vec<u8>);
 /// TODO This module needs to be heavily revisited.
 /// TODO
 
-#[derive(Default)]
 pub struct InvocationContainer<'a> {
     /// The machine to which this invocation container is bound.
     /// TODO likely don't need this reference since the syscall handlers

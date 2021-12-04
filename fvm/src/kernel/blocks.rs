@@ -3,6 +3,7 @@ use cid::Cid;
 use std::convert::TryInto;
 use std::rc::Rc;
 use thiserror::Error;
+use wasmtime::Trap;
 
 pub(crate) struct BlockRegistry {
     blocks: Vec<Block>,
@@ -61,6 +62,12 @@ pub enum BlockError {
     MissingState(Box<Cid>), // boxed because CIDs are potentially large.
     #[error("internal error: {0}")]
     Internal(#[source] Box<dyn std::error::Error>),
+}
+
+impl From<BlockError> for Trap {
+    fn from(e: BlockError) -> Trap {
+        Trap::new(e.to_string())
+    }
 }
 
 impl BlockRegistry {
