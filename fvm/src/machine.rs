@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use cid::Cid;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use num_traits::Zero;
@@ -25,21 +26,24 @@ use crate::Config;
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<'a, B, E, K> {
+pub struct Machine<'db, B, E, K> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
     engine: Engine,
+    /// The linker used to store wasm functions.
+    /// TODO: This probably needs to be per-invocation?
+    linker: Linker<K>,
     /// Blockstore to use for this machine instance.
-    blockstore: B,
+    blockstore: &'db B,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
     externs: E,
     /// The state tree. It is updated with the results from every message
     /// execution as the call stack for every message concludes.
-    state_tree: StateTree<'a, B>,
+    state_tree: StateTree<'db, B>,
     /// The buffer of blocks to be committed to the blockstore after
     /// execution concludes.
     /// TODO @steb needs to figure out how all of this is going to work.
@@ -55,22 +59,23 @@ pub struct Machine<'a, B, E, K> {
     /// The currently active call stack.
     /// TODO I don't think we need to store this in the state; it can probably
     /// be a stack variable in execute_message.
-    call_stack: CallStack<'a, B>,
+    /// @steb says we _can't_ store this state.
+    call_stack: CallStack<'db, B>,
 }
 
-impl<'a, B, E, K> Machine<'a, B, E, K>
+impl<'db, B, E, K> Machine<'db, B, E, K>
 where
     B: Blockstore,
     E: Externs,
-    K: Kernel,
+    K: Kernel + 'static,
 {
     pub fn new(
         config: Config,
         context: MachineContext,
-        blockstore: B,
+        blockstore: &'db B,
         externs: E,
         kernel: K,
-    ) -> anyhow::Result<Machine<'a, B, E, K>> {
+    ) -> anyhow::Result<Machine<'db, B, E, K>> {
         let mut engine = Engine::new(&config.engine)?;
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
@@ -83,11 +88,12 @@ where
 
         // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
         // non-send errors in the state-tree.
-        let state_tree = StateTree::new_from_root(&blockstore, &context.state_root)
+        let state_tree = StateTree::new_from_root(blockstore, &context.state_root)
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
             config,
+            linker,
             context,
             engine,
             externs,
@@ -194,7 +200,7 @@ pub enum ApplyKind {
 /// Execution context supplied to the machine. All fields are private.
 /// Epoch and base fee cannot be mutated. The state_root corresponds to the
 /// initial state root, and gets updated internally with every message execution.
-struct MachineContext {
+pub struct MachineContext {
     /// The epoch at which the Machine runs.
     epoch: ChainEpoch,
     /// The base fee that's in effect when the Machine runs.
