@@ -6,15 +6,12 @@ use fvm_shared::encoding::{from_slice, to_vec, Cbor};
 
 /// CborStore overlays a Blockstore and provides getters and setters that
 /// perform high-level object conversions using CBOR as a serialization format.
-pub struct CborStore<B> {
+pub struct CborStore<'a, B> {
     /// The underlying blockstore.
-    blockstore: B,
+    blockstore: &'a B,
 }
 
-impl<B> CborStore<B>
-where
-    B: Blockstore,
-{
+impl<'a, B: Blockstore> CborStore<'a, &B> {
     /// Gets the block specified by CID and deserializes it as CBOR before
     /// returning it as the high-level type T.
     pub fn get_cbor<T>(&self, cid: &Cid) -> anyhow::Result<Option<T>>
@@ -36,12 +33,15 @@ where
         let bytes = to_vec(obj)?;
         // TODO @stebalien to calculate the CID with the right multihash and codec.
         let cid = Cid::default();
-        self.blockstore.put(&cid, bytes)
+        self.blockstore.put(&cid, bytes.as_ref())
     }
 }
 
 /// Enables conversion from a Blockstore into a CborStore.
-impl<B: Blockstore> From<&B> for CborStore<&B> {
+impl<'a, B> From<&B> for CborStore<'a, &B>
+where
+    B: 'a + Blockstore,
+{
     fn from(blockstore: &B) -> Self {
         CborStore { blockstore }
     }

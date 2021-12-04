@@ -136,7 +136,8 @@ where
         // TODO instantiate a CallStack and make it run.
         // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
         // TODO pull the receipt from the CallStack and return it.
-        Ok(Default::default())
+        // Ok(Default::default())
+        todo!("return the receipt")
     }
 }
 

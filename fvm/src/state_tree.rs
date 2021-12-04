@@ -3,6 +3,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::error::Error as StdError;
 
 use blockstore::Blockstore;
@@ -237,7 +238,7 @@ where
 
     /// Retrieve store reference to modify db.
     pub fn store(&self) -> &S {
-        self.hamt.store()
+        self.hamt.store
     }
 
     /// Get actor state from an address. Will be resolved to ID address.
@@ -336,7 +337,7 @@ where
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = CborStore::from(self.store).put_cbor(&state)?;
+        actor.state = CborStore::from(self.store()).put_cbor(&state)?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -395,7 +396,9 @@ where
                 actors: root,
                 info: cid,
             };
-            CborStore::from(self.store()).put_cbor(&obj)
+            CborStore::from(self.store())
+                .put_cbor(obj)
+                .map_err(|e| Box::from(e))
         }
     }
 

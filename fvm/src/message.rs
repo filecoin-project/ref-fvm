@@ -37,12 +37,12 @@ impl Message {
     }
 
     /// Does some basic checks on the Message to see if the fields are valid.
-    pub fn check(self: &Message) -> Result<(), &'static str> {
+    pub fn check(self: &Message) -> anyhow::Result<()> {
         // TODO convert to match.
-        if self.gas_limit() == 0 {
+        if self.gas_limit == 0 {
             return Err("Message has no gas limit set");
         }
-        if self.gas_limit() < 0 {
+        if self.gas_limit < 0 {
             return Err("Message has negative gas limit");
         }
 
