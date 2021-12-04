@@ -7,6 +7,11 @@ members = [
     "actor",
     "examples/*",
     "examples/blockstore-cgo/user",
+
+    "ipld",
+    "ipld/blockstore",
+    "ipld/hamt",
+    "ipld/amt",
 ]
 exclude = [
     "examples/blockstore-cgo"
@@ -26,8 +31,8 @@ default-members = [
 [patch.crates-io]
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
 cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
-forest_cid = { path = "./ipld/cid" }
 forest_ipld = { path = "./ipld" }
+ipld_blockstore = { path = "./ipld/blockstore" }
 fvm_shared = { path = "./shared" }
 
 [profile.actor]
