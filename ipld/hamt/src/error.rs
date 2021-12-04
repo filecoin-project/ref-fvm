@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use forest_encoding::Error as EncodingError;
+use fvm_shared::encoding::Error as EncodingError;
 use std::error::Error as StdError;
 use thiserror::Error;
 
@@ -20,6 +20,8 @@ pub enum Error {
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
     CidNotFound(String),
+    // TODO: This should be something like "internal" or "io". And we shouldn't have both this and
+    // "other"; they serve the same purpose.
     /// Dynamic error for when the error needs to be forwarded as is.
     #[error("{0}")]
     Dynamic(Box<dyn StdError>),

@@ -1,29 +1,37 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-#![cfg(feature = "buffered")]
-
-use super::BlockStore;
+use super::Blockstore;
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use cid::{Cid, Code, DAG_CBOR};
-use dashmap::DashMap;
-use db::{Error, Store};
+use cid::{
+    multihash::{Code, MultihashDigest},
+    Cid,
+};
 
-use std::error::Error as StdError;
+// NOTE: This code doesn't currently work. It was taken from the ipld/blockstore crate but now lives here because that "blockstore" is really the actor store.
+// TODO:
+// 1. Finish converting it to a true blockstore.
+// 2. Add bulk put methods to the blockstore.
+// 3. Use libipld (https://github.com/ipfs-rust/libipld) instead of scan_for_links.
+
 use std::io::{Read, Seek};
+// TODO: replace HashMap with DashMap like in forest?
+use std::{collections::HashMap, error::Error as StdError};
 use std::{convert::TryFrom, io::Cursor};
 
-/// Wrapper around `BlockStore` to limit and have control over when values are written.
+// TODO: This is going to live in the kernel so it should be a Blockstore, not an ActorStore.
+
+/// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
 #[derive(Debug)]
-pub struct BufferedBlockStore<'bs, BS> {
+pub struct BufferedBlockstore<'bs, BS> {
     base: &'bs BS,
-    write: DashMap<Cid, Vec<u8>>,
+    write: HashMap<Cid, Vec<u8>>,
 }
 
-impl<'bs, BS> BufferedBlockStore<'bs, BS>
+impl<'bs, BS> BufferedBlockstore<'bs, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     pub fn new(base: &'bs BS) -> Self {
         Self {
@@ -40,7 +48,7 @@ where
         let s = &self.write;
         copy_rec(self.base, s, *root, &mut buffer)?;
 
-        self.base.bulk_write(&buffer)?;
+        self.base.bulk_put(&buffer)?;
         self.write = Default::default();
 
         Ok(())
@@ -153,12 +161,12 @@ where
 /// Copies the IPLD DAG under `root` from the cache to the base store.
 fn copy_rec<BS>(
     base: &BS,
-    cache: &DashMap<Cid, Vec<u8>>,
+    cache: &HashMap<Cid, Vec<u8>>,
     root: Cid,
     buffer: &mut Vec<(Vec<u8>, Vec<u8>)>,
 ) -> Result<(), Box<dyn StdError>>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     // Skip identity and Filecoin commitment Cids
     if root.codec() != DAG_CBOR {
@@ -189,9 +197,9 @@ where
     Ok(())
 }
 
-impl<BS> BlockStore for BufferedBlockStore<'_, BS>
+impl<BS> Blockstore for BufferedBlockStore<'_, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     fn get_bytes(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Box<dyn StdError>> {
         if let Some(data) = self.write.get(cid) {
@@ -201,74 +209,27 @@ where
         self.base.get_bytes(cid)
     }
 
-    fn put_raw(&self, bytes: Vec<u8>, code: Code) -> Result<Cid, Box<dyn StdError>> {
-        let cid = cid::new_from_cbor(&bytes, code);
-        self.write.insert(cid, bytes);
+    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn StdError>> {
+        let cid = Cid::new_v1(DAG_CBOR, code.digest(bytes));
+        self.write.insert(cid, Vec::from(bytes));
         Ok(cid)
     }
 }
 
-impl<BS> Store for BufferedBlockStore<'_, BS>
-where
-    BS: Store,
-{
-    fn read<K>(&self, key: K) -> Result<Option<Vec<u8>>, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.read(key)
-    }
-    fn write<K, V>(&self, key: K, value: V) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-        V: AsRef<[u8]>,
-    {
-        self.base.write(key, value)
-    }
-    fn delete<K>(&self, key: K) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.delete(key)
-    }
-    fn exists<K>(&self, key: K) -> Result<bool, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.exists(key)
-    }
-    fn bulk_read<K>(&self, keys: &[K]) -> Result<Vec<Option<Vec<u8>>>, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.bulk_read(keys)
-    }
-    fn bulk_write<K, V>(&self, values: &[(K, V)]) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-        V: AsRef<[u8]>,
-    {
-        self.base.bulk_write(values)
-    }
-    fn bulk_delete<K>(&self, keys: &[K]) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.bulk_delete(keys)
-    }
-}
-
 #[cfg(test)]
+#[cfg(disabled)]
 mod tests {
     use super::*;
-    use cid::{multihash::MultihashDigest, Code, RAW};
+    use cid::multihash::{Code, MultihashDigest};
     use forest_ipld::{ipld, Ipld};
     use fvm_shared::commcid::commitment_to_cid;
+
+    const RAW: u64 = 0x55;
 
     #[test]
     fn basic_buffered_store() {
         let mem = db::MemoryDB::default();
-        let mut buf_store = BufferedBlockStore::new(&mem);
+        let mut buf_store = BufferedBlockstore::new(&mem);
 
         let cid = buf_store.put(&8, Code::Blake2b256).unwrap();
         assert_eq!(mem.get::<u8>(&cid).unwrap(), None);
@@ -283,7 +244,7 @@ mod tests {
     #[test]
     fn buffered_store_with_links() {
         let mem = db::MemoryDB::default();
-        let mut buf_store = BufferedBlockStore::new(&mem);
+        let mut buf_store = BufferedBlockstore::new(&mem);
         let str_val = "value";
         let value = 8u8;
         let arr_cid = buf_store.put(&(str_val, value), Code::Blake2b256).unwrap();

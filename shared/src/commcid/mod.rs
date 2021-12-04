@@ -1,10 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::{
-    Cid, Multihash, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED, POSEIDON_BLS12_381_A1_FC1,
-    SHA2_256_TRUNC254_PADDED,
-};
+use cid::{multihash::Multihash, Cid};
+
+pub const FIL_COMMITMENT_SEALED: u64 = 0xf102;
+pub const FIL_COMMITMENT_UNSEALED: u64 = 0xf101;
+
+/// Multihash code for Poseidon BLS replica commitments.
+pub const POSEIDON_BLS12_381_A1_FC1: u64 = 0xb401;
+
+/// Multihash code for Sha2 256 trunc254 padded used in data commitments.
+pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 
 pub type Commitment = [u8; 32];
 

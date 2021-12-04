@@ -4,7 +4,7 @@
 use std::{cmp, collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use bitfield::BitField;
-use cid::{Cid, Code::Blake2b256};
+use cid::{multihash::Code, Cid};
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
@@ -96,7 +96,7 @@ impl Deadlines {
 
         deadline.validate_state()?;
 
-        self.due[deadline_idx as usize] = store.put(deadline, Blake2b256)?;
+        self.due[deadline_idx as usize] = store.put(deadline, Code::Blake2b256)?;
         Ok(())
     }
 }

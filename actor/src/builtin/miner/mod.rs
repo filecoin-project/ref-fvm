@@ -7,7 +7,7 @@ use std::{iter, ops::Neg};
 
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use cid::{Cid, Code};
+use cid::{multihash::Code, Cid};
 use ipld_blockstore::BlockStore;
 use log::{error, info, warn};
 use num_derive::FromPrimitive;

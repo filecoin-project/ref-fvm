@@ -30,6 +30,12 @@ pub(crate) use self::actor_code::*;
 
 mod actor_code;
 
+#[cfg(feature = "fvm_actor")]
+mod sdk;
+
+#[cfg(feature = "fvm_actor")]
+pub use sdk::ActorBlockstore;
+
 /// Runtime is the VM's internal runtime object.
 /// this is everything that is accessible to actors, beyond parameters.
 pub trait Runtime<BS: BlockStore>: Syscalls {

@@ -30,7 +30,7 @@ pub trait Cbor: Serialize + DeserializeOwned {
         use multihash::MultihashDigest;
         const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
         let data = &self.marshal_cbor()?;
-        let hash = cid::Code::Blake2b256.digest(data);
+        let hash = multihash::Code::Blake2b256.digest(data);
         if u32::from(hash.size()) != DIGEST_SIZE {
             return Err(Error {
                 description: "Invalid multihash length".into(),

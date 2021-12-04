@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::multihash::MultihashDigest;
-use cid::{Cid, Code};
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
 
 pub const SYSTEM_ACTOR_CODE_ID_NAME: &str = "fil/4/system";
 pub const INIT_ACTOR_CODE_ID_NAME: &str = "fil/4/init";

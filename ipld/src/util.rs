@@ -8,6 +8,7 @@ use cid::Cid;
 use encoding::Cbor;
 
 use crate::Ipld;
+use crate::DAG_CBOR;
 
 // Traverses all Cid links, loading all unique values and using the callback function
 // to interact with the data.
@@ -31,7 +32,7 @@ where
             }
         }
         Ipld::Link(cid) => {
-            if cid.codec() == cid::DAG_CBOR {
+            if cid.codec() == DAG_CBOR {
                 if !walked.insert(*cid) {
                     return Ok(());
                 }
@@ -58,7 +59,7 @@ where
         // Cid has already been traversed
         return Ok(());
     }
-    if root.codec() != cid::DAG_CBOR {
+    if root.codec() != DAG_CBOR {
         return Ok(());
     }
 

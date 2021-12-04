@@ -3,8 +3,8 @@
 
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
-use cid::{Cid, Code::Blake2b256};
-use encoding::{serde_bytes, BytesSer};
+use cid::{multihash::Code, Cid};
+use fvm_shared::encoding::{serde_bytes, BytesSer};
 use ipld_blockstore::BlockStore;
 use once_cell::unsync::OnceCell;
 use serde::{
@@ -194,7 +194,7 @@ where
                     n.flush(bs)?;
 
                     // Puts node in blockstore and and retrieves it's CID
-                    let cid = bs.put(n, Blake2b256)?;
+                    let cid = bs.put(n, Code::Blake2b256)?;
 
                     // Replace the data with some arbitrary node to move without requiring clone
                     let existing = std::mem::replace(n, Box::new(Node::empty()));

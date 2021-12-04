@@ -5,7 +5,7 @@ use std::{cmp, error::Error as StdError};
 use std::{collections::HashMap, ops::Neg};
 
 use bitfield::BitField;
-use cid::{Cid, Code::Blake2b256};
+use cid::{multihash::Code, Cid};
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
@@ -148,14 +148,14 @@ impl State {
                         "failed to construct sectors array",
                     )
                 })?;
-        let empty_bitfield = store.put(&BitField::new(), Blake2b256).map_err(|e| {
+        let empty_bitfield = store.put(&BitField::new(), Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct empty bitfield",
             )
         })?;
         let deadline = Deadline::new(store)?;
-        let empty_deadline = store.put(&deadline, Blake2b256).map_err(|e| {
+        let empty_deadline = store.put(&deadline, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
@@ -163,7 +163,7 @@ impl State {
         })?;
 
         let empty_deadlines = store
-            .put(&Deadlines::new(empty_deadline), Blake2b256)
+            .put(&Deadlines::new(empty_deadline), Code::Blake2b256)
             .map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrIllegalState,
@@ -171,12 +171,15 @@ impl State {
                 )
             })?;
 
-        let empty_vesting_funds_cid = store.put(&VestingFunds::new(), Blake2b256).map_err(|e| {
-            e.downcast_default(
-                ExitCode::ErrIllegalState,
-                "failed to construct illegal state",
-            )
-        })?;
+        let empty_vesting_funds_cid =
+            store
+                .put(&VestingFunds::new(), Code::Blake2b256)
+                .map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        "failed to construct illegal state",
+                    )
+                })?;
 
         Ok(Self {
             info: info_cid,
@@ -214,7 +217,7 @@ impl State {
         store: &BS,
         info: &MinerInfo,
     ) -> Result<(), Box<dyn StdError>> {
-        let cid = store.put(&info, Blake2b256)?;
+        let cid = store.put(&info, Code::Blake2b256)?;
         self.info = cid;
         Ok(())
     }
@@ -275,7 +278,7 @@ impl State {
             }
         }
         let new_allocation = &prior_allocation | sector_numbers;
-        self.allocated_sectors = store.put(&new_allocation, Blake2b256).map_err(|e| {
+        self.allocated_sectors = store.put(&new_allocation, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalArgument,
                 format!(
@@ -690,7 +693,7 @@ impl State {
         store: &BS,
         deadlines: Deadlines,
     ) -> Result<(), Box<dyn StdError>> {
-        self.deadlines = store.put(&deadlines, Blake2b256)?;
+        self.deadlines = store.put(&deadlines, Code::Blake2b256)?;
         Ok(())
     }
 
@@ -715,7 +718,7 @@ impl State {
         store: &BS,
         funds: &VestingFunds,
     ) -> Result<(), Box<dyn StdError>> {
-        self.vesting_funds = store.put(funds, Blake2b256)?;
+        self.vesting_funds = store.put(funds, Code::Blake2b256)?;
         Ok(())
     }
 

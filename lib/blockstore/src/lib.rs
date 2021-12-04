@@ -1,5 +1,7 @@
 use cid::Cid;
 
+#[cfg(feature = "buffered")]
+pub mod buffered;
 mod memory;
 pub use memory::MemoryBlockstore;
 

@@ -27,6 +27,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
+// TODO: move this somewhere else. Ideally we just put it into either the CID crate, or a shared
+// multicodec crate.
+const DAG_CBOR: u64 = 0x71;
+
 /// Represents IPLD data structure used when serializing and deserializing data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ipld {

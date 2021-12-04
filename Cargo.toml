@@ -33,6 +33,8 @@ multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "
 cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
 forest_ipld = { path = "./ipld" }
 ipld_blockstore = { path = "./ipld/blockstore" }
+ipld_hamt = { path = "./ipld/hamt" }
+ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }
 
 [profile.actor]

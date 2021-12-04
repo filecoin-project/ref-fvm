@@ -3,7 +3,7 @@
 
 use crate::node::Node;
 use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
-use cid::{Cid, Code::Blake2b256};
+use cid::{multihash::Code, Cid};
 use forest_hash_utils::BytesKey;
 use ipld_blockstore::BlockStore;
 use serde::{de::DeserializeOwned, Serialize, Serializer};
@@ -264,7 +264,7 @@ where
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.flush(self.store)?;
-        Ok(self.store.put(&self.root, Blake2b256)?)
+        Ok(self.store.put(&self.root, Code::Blake2b256)?)
     }
 
     /// Returns true if the HAMT has no entries

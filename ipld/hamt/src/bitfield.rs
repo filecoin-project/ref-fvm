@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use byteorder::{BigEndian, ByteOrder};
-use forest_encoding::{
+use fvm_shared::encoding::{
     de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
     serde_bytes,
