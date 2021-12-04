@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn basic_buffered_store() {
-        let mem = db::MemoryDB::default();
+        let mem = db::MemoryBlockstore::default();
         let mut buf_store = BufferedBlockstore::new(&mem);
 
         let cid = buf_store.put(&8, Code::Blake2b256).unwrap();
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn buffered_store_with_links() {
-        let mem = db::MemoryDB::default();
+        let mem = db::MemoryBlockstore::default();
         let mut buf_store = BufferedBlockstore::new(&mem);
         let str_val = "value";
         let value = 8u8;
