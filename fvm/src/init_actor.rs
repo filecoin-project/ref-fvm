@@ -12,16 +12,15 @@ use std::error::Error as StdError;
 
 use lazy_static::lazy_static;
 
-use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::address::{Address, Protocol, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
+use ipld_blockstore::BlockStore;
 
 use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
-use crate::store::CborStore;
 
 lazy_static! {
     pub static ref INIT_ACTOR_ADDR: Address = Address::new_id(1);
@@ -41,7 +40,7 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    pub fn new<B: Blockstore>(store: &B, network_name: String) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<B: BlockStore>(store: &B, network_name: String) -> Result<Self, Box<dyn StdError>> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| format!("failed to create empty map: {}", e))?;
@@ -53,23 +52,24 @@ impl State {
     }
 
     /// Loads the init actor state with the supplied CID from the underlying store.
-    pub fn load<B: Blockstore>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)> {
+    pub fn load<B: BlockStore>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)> {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)
             .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
             .ok_or_else(|| anyhow::Error::msg("Init actor address could not be resolved"))?;
 
-        let store = state_tree.store();
-
-        CborStore::from(store)
-            .get_cbor(&init_act.state)?
-            .map(|state| (state, init_act))
-            .ok_or(anyhow!("init actor state not found"))
+        let state = state_tree
+            .store()
+            .get(&init_act.state)
+            // XXX blockstore errors don't implement send
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?
+            .ok_or(anyhow!("init actor state not found"))?;
+        Ok((state, init_act))
     }
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
     /// Returns the newly-allocated address.
-    pub fn map_address_to_new_id<B: Blockstore>(
+    pub fn map_address_to_new_id<B: BlockStore>(
         &mut self,
         store: &B,
         addr: &Address,
@@ -94,7 +94,7 @@ impl State {
     /// Returns an undefined address and `false` if the address was not an ID-address and not found
     /// in the mapping.
     /// Returns an error only if state was inconsistent.
-    pub fn resolve_address<B: Blockstore>(
+    pub fn resolve_address<B: BlockStore>(
         &self,
         store: &B,
         addr: &Address,

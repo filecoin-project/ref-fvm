@@ -1,4 +1,3 @@
-use blockstore::Blockstore;
 use cid::Cid;
 use std::convert::TryInto;
 use std::rc::Rc;

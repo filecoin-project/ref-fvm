@@ -55,7 +55,7 @@ where
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId, BlockError> {
         let data = self
-            .blockstore
+            .store
             .get(cid)
             .map_err(|e| BlockError::Internal(e.into()))?
             .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;

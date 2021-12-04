@@ -8,7 +8,6 @@ mod machine;
 mod message;
 mod receipt;
 mod state_tree;
-mod store;
 mod syscalls;
 
 pub use kernel::{default::DefaultKernel, BlockError, Kernel};

@@ -3,20 +3,18 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::error::Error as StdError;
 
-use blockstore::Blockstore;
-use cid::Cid;
+use cid::{multihash, Cid};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
+use ipld_blockstore::BlockStore;
 
 use crate::adt::Map;
 use crate::init_actor::State as InitActorState;
-use crate::store::CborStore;
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
@@ -177,7 +175,7 @@ impl StateSnapshots {
 
 impl<'db, S> StateTree<'db, S>
 where
-    S: Blockstore,
+    S: BlockStore,
 {
     pub fn new(store: &'db S, version: StateTreeVersion) -> Result<Self, Box<dyn StdError>> {
         let info = match version {
@@ -186,8 +184,7 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
-                let cid = cid::Code::Blake2b256.into()?;
-                store.put(cid, &StateInfo0::default().into()?)?;
+                let cid = store.put(&StateInfo0::default(), multihash::Code::Blake2b256)?;
                 Some(cid)
             }
         };
@@ -210,7 +207,7 @@ where
             version,
             info,
             actors,
-        })) = CborStore::from(store).get_cbor(c)
+        })) = store.get(c)
         {
             (version, Some(info), actors)
         } else {
@@ -224,6 +221,7 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
+                // TODO: use the version.
                 let hamt = Map::load(&actors, store, version.into())?;
 
                 Ok(Self {
@@ -337,7 +335,7 @@ where
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = CborStore::from(self.store()).put_cbor(&state)?;
+        actor.state = self.store().put(&state, multihash::Code::Blake2b256)?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -396,8 +394,8 @@ where
                 actors: root,
                 info: cid,
             };
-            CborStore::from(self.store())
-                .put_cbor(obj)
+            self.store()
+                .put(obj, multihash::Code::Blake2b256)
                 .map_err(|e| Box::from(e))
         }
     }
@@ -405,7 +403,7 @@ where
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
     where
         F: FnMut(Address, &ActorState) -> Result<(), Box<dyn StdError>>,
-        S: Blockstore,
+        S: BlockStore,
     {
         self.hamt.for_each(|k, v| f(Address::from_bytes(&k.0)?, v))
     }
