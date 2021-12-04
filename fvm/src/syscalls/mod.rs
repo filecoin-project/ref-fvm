@@ -1,6 +1,5 @@
 use anyhow::Result;
-use std::error::Error;
-use wasmtime::{self, Engine, Linker, Trap};
+use wasmtime::{self, Linker};
 
 mod context;
 mod ipld;

@@ -26,7 +26,7 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MethodNum;
 
-pub use self::actor_code::*;
+pub(crate) use self::actor_code::*;
 
 mod actor_code;
 

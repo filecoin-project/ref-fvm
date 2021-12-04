@@ -1,9 +1,7 @@
 mod blocks;
 pub mod default;
 
-use crate::externs::Externs;
 use anyhow::Result;
-use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::ActorID;
 

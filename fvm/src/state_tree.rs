@@ -5,16 +5,13 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error as StdError;
 
-use lazy_static::lazy_static;
-
 use blockstore::Blockstore;
-use cid::multihash;
 use cid::Cid;
 use fvm_shared::address::{Address, Protocol};
+use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use fvm_shared::{bigint::bigint_ser, ActorID};
 
 use crate::adt::Map;
 use crate::init_actor::State as InitActorState;

@@ -1,7 +1,7 @@
-use crate::DefaultKernel;
 use anyhow::Result;
 use blockstore::Blockstore;
 use std::collections::VecDeque;
+#[allow(unused_imports)]
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
 
 /// An entry in the return stack.
@@ -47,6 +47,7 @@ impl<'a> InvocationContainer<'a> {
         B: Blockstore,
     {
         // /// TODO implement
+        // use crate::DefaultKernel;
         // let module = Module::new(&engine, wasm_bytecode)?;
         //
         // // let config = fvm::Config { max_pages: 10 };

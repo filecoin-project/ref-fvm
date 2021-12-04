@@ -7,23 +7,18 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::error::Error as StdError;
 
 use lazy_static::lazy_static;
 
 use blockstore::Blockstore;
-use cid::multihash;
 use cid::Cid;
 use fvm_shared::address::{Address, Protocol, FIRST_NON_SINGLETON_ADDR};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
-use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use fvm_shared::{bigint::bigint_ser, ActorID, HAMT_BIT_WIDTH};
+use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
-use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth, Map};
+use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
 use crate::store::CborStore;
 

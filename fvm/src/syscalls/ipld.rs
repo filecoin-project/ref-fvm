@@ -1,8 +1,5 @@
-use blockstore::Blockstore;
-use std::error::Error;
 use wasmtime::{self, Caller, Trap};
 
-use crate::externs::Externs;
 use cid::{self, Cid};
 
 use crate::Kernel;
