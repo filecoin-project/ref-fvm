@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::encoding::{from_slice, Cbor};
+use fvm_shared::encoding::{from_slice, Cbor};
 use data_encoding::{DecodeError, DecodeKind};
-use forest_address::{
+use fvm_shared::address::{
     checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };

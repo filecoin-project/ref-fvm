@@ -50,7 +50,7 @@ pub fn bytes_32(buf: &[u8]) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{from_slice, to_vec};
+    use crate::encoding::{from_slice, to_vec};
 
     #[test]
     fn array_symmetric_serialization() {
