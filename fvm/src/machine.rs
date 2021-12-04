@@ -112,7 +112,7 @@ where
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = price_list_by_epoch(self.context.epoch);
-        let ser_msg = msg.marshal_cbor().map_err(|e| e.to_string())?;
+        let ser_msg = msg.marshal_cbor()?;
         let msg_gas_cost = pl.on_chain_message(ser_msg.len());
         let cost_total = msg_gas_cost.total();
 
