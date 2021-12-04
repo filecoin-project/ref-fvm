@@ -76,7 +76,7 @@ where
         externs: E,
         kernel: K,
     ) -> anyhow::Result<Machine<'db, B, E, K>> {
-        let mut engine = Engine::new(&config.engine)?;
+        let engine = Engine::new(&config.engine)?;
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
 
