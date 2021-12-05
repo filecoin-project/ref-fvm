@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::{multihash::MultihashDigest, Cid, Code};
+use cid::{multihash::Code, multihash::Multihash, multihash::MultihashDigest, Cid};
 use fvm_shared::commcid::*;
 use rand::thread_rng;
 use rand::Rng;
@@ -22,8 +22,8 @@ fn comm_d_to_cid() {
 
     let cid = data_commitment_v1_to_cid(&comm).unwrap();
 
-    assert_eq!(cid.codec(), cid::FIL_COMMITMENT_UNSEALED);
-    assert_eq!(cid.hash().code(), cid::SHA2_256_TRUNC254_PADDED);
+    assert_eq!(cid.codec(), FIL_COMMITMENT_UNSEALED);
+    assert_eq!(cid.hash().code(), SHA2_256_TRUNC254_PADDED);
     assert_eq!(cid.hash().digest(), comm);
 }
 
@@ -32,18 +32,18 @@ fn cid_to_comm_d() {
     let comm = rand_comm();
 
     // Correct hash format
-    let mh = cid::Multihash::wrap(cid::SHA2_256_TRUNC254_PADDED, &comm).unwrap();
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_UNSEALED, mh);
+    let mh = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &comm).unwrap();
+    let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
     let decoded = cid_to_data_commitment_v1(&c).unwrap();
     assert_eq!(decoded, comm);
 
     // Should fail with incorrect codec
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_SEALED, mh);
+    let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
     assert!(cid_to_data_commitment_v1(&c).is_err());
 
     // Incorrect hash format
     let mh = Code::Blake2b256.digest(&comm);
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_UNSEALED, mh);
+    let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
     assert!(cid_to_data_commitment_v1(&c).is_err());
 }
 
@@ -53,8 +53,8 @@ fn comm_r_to_cid() {
 
     let cid = replica_commitment_v1_to_cid(&comm).unwrap();
 
-    assert_eq!(cid.codec(), cid::FIL_COMMITMENT_SEALED);
-    assert_eq!(cid.hash().code(), cid::POSEIDON_BLS12_381_A1_FC1);
+    assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
+    assert_eq!(cid.hash().code(), POSEIDON_BLS12_381_A1_FC1);
     assert_eq!(cid.hash().digest(), comm);
 }
 
@@ -63,18 +63,18 @@ fn cid_to_comm_r() {
     let comm = rand_comm();
 
     // Correct hash format
-    let mh = cid::Multihash::wrap(cid::POSEIDON_BLS12_381_A1_FC1, &comm).unwrap();
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_SEALED, mh);
+    let mh = Multihash::wrap(POSEIDON_BLS12_381_A1_FC1, &comm).unwrap();
+    let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
     let decoded = cid_to_replica_commitment_v1(&c).unwrap();
     assert_eq!(decoded, comm);
 
     // Should fail with incorrect codec
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_UNSEALED, mh);
+    let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
     assert!(cid_to_replica_commitment_v1(&c).is_err());
 
     // Incorrect hash format
     let mh = Code::Blake2b256.digest(&comm);
-    let c = Cid::new_v1(cid::FIL_COMMITMENT_SEALED, mh);
+    let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
     assert!(cid_to_replica_commitment_v1(&c).is_err());
 }
 
@@ -86,32 +86,20 @@ fn symmetric_conversion() {
     let cid = data_commitment_v1_to_cid(&comm).unwrap();
     assert_eq!(
         cid_to_commitment(&cid).unwrap(),
-        (
-            cid::FIL_COMMITMENT_UNSEALED,
-            cid::SHA2_256_TRUNC254_PADDED,
-            comm
-        )
+        (FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED, comm)
     );
 
     // replica
     let cid = replica_commitment_v1_to_cid(&comm).unwrap();
     assert_eq!(
         cid_to_commitment(&cid).unwrap(),
-        (
-            cid::FIL_COMMITMENT_SEALED,
-            cid::POSEIDON_BLS12_381_A1_FC1,
-            comm
-        )
+        (FIL_COMMITMENT_SEALED, POSEIDON_BLS12_381_A1_FC1, comm)
     );
 
     // piece
     let cid = piece_commitment_v1_to_cid(&comm).unwrap();
     assert_eq!(
         cid_to_commitment(&cid).unwrap(),
-        (
-            cid::FIL_COMMITMENT_UNSEALED,
-            cid::SHA2_256_TRUNC254_PADDED,
-            comm
-        )
+        (FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED, comm)
     );
 }
