@@ -18,8 +18,8 @@ fn put_remove() {
     smm.remove(epoch, 2).unwrap();
 
     let set = smm.get(epoch).unwrap().unwrap();
-    assert_eq!(set.has(&u64_key(8)).unwrap(), true);
-    assert_eq!(set.has(&u64_key(2)).unwrap(), false);
+    assert!(set.has(&u64_key(8)).unwrap());
+    assert!(!set.has(&u64_key(2)).unwrap());
 
     smm.remove_all(epoch).unwrap();
     assert_eq!(smm.get(epoch).unwrap(), None);

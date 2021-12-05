@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
-
 use bitfield::BitField;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
+use std::convert::TryInto;
+use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
@@ -15,7 +15,7 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
 use ipld_amt::{Amt, Error as AmtError, ValueMut};
 
-use crate::miner::QuantSpec;
+use crate::miner::{QuantSpec, ADDRESSED_SECTORS_MAX};
 use crate::ActorDowncast;
 
 use super::{power_for_sector, PowerPair, SectorOnChainInfo};
@@ -477,14 +477,15 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
     ) -> Result<(ExpirationSet, PowerPair), Box<dyn StdError>> {
         let mut remaining: HashSet<_> = sectors.iter().map(|sector| sector.sector_number).collect();
 
+        // ADDRESSED_SECTORS_MAX is defined as 25000, so this will not error.
         let faults_map: HashSet<_> = faults
-            .bounded_iter(ENTRY_SECTORS_MAX)
+            .bounded_iter(ADDRESSED_SECTORS_MAX.try_into().unwrap())
             .map_err(|e| format!("failed to expand faults: {}", e))?
             .map(|i| i as SectorNumber)
             .collect();
 
         let recovering_map: HashSet<_> = recovering
-            .bounded_iter(ENTRY_SECTORS_MAX)
+            .bounded_iter(ADDRESSED_SECTORS_MAX.try_into().unwrap())
             .map_err(|e| format!("failed to expand recoveries: {}", e))?
             .map(|i| i as SectorNumber)
             .collect();

@@ -60,6 +60,8 @@ jobs:
             touch examples/fvm/fvm_example_actor.wasm
       - rust/clippy:
           with_cache: false
+          flags: |
+            --all --all-targets
 
   rustfmt:
     executor:

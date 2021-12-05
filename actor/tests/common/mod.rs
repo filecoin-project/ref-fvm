@@ -488,13 +488,13 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             return Ok(Some(*address));
         }
 
-        Ok(self.id_addresses.get(&address).cloned())
+        Ok(self.id_addresses.get(address).cloned())
     }
 
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
         self.require_in_call();
 
-        Ok(self.actor_code_cids.get(&addr).cloned())
+        Ok(self.actor_code_cids.get(addr).cloned())
     }
 
     fn get_randomness_from_tickets(
@@ -526,7 +526,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
     fn state<C: Cbor>(&self) -> Result<C, ActorError> {
         Ok(self
             .store
-            .get(&self.state.as_ref().unwrap())
+            .get(self.state.as_ref().unwrap())
             .unwrap()
             .unwrap())
     }
@@ -610,7 +610,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             .take()
             .expect("unexpected call to create actor");
 
-        assert!(&expect_create_actor.code_id == &code_id && &expect_create_actor.address == address, "unexpected actor being created, expected code: {:?} address: {:?}, actual code: {:?} address: {:?}", expect_create_actor.code_id, expect_create_actor.address, code_id, address);
+        assert!(expect_create_actor.code_id == code_id && &expect_create_actor.address == address, "unexpected actor being created, expected code: {:?} address: {:?}, actual code: {:?} address: {:?}", expect_create_actor.code_id, expect_create_actor.address, code_id, address);
         Ok(())
     }
 
@@ -690,7 +690,7 @@ impl Syscalls for MockRuntime {
     }
 
     fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Box<dyn StdError>> {
-        Ok(blake2b_256(&data))
+        Ok(blake2b_256(data))
     }
     fn compute_unsealed_sector_cid(
         &self,
@@ -700,9 +700,11 @@ impl Syscalls for MockRuntime {
         let exp = self
             .expect_compute_unsealed_sector_cid
             .replace(None)
-            .ok_or(Box::new(actor_error!(ErrIllegalState;
-                "Unexpected syscall to ComputeUnsealedSectorCID"
-            )))?;
+            .ok_or_else(|| {
+                Box::new(actor_error!(ErrIllegalState;
+                     "Unexpected syscall to ComputeUnsealedSectorCID"
+                ))
+            })?;
 
         if exp.reg != reg {
             return Err(Box::new(actor_error!(ErrIllegalState;
@@ -725,9 +727,9 @@ impl Syscalls for MockRuntime {
         Ok(exp.cid)
     }
     fn verify_seal(&self, seal: &SealVerifyInfo) -> Result<(), Box<dyn StdError>> {
-        let exp = self.expect_verify_seal.replace(None).ok_or(Box::new(
-            actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"),
-        ))?;
+        let exp = self.expect_verify_seal.replace(None).ok_or_else(|| {
+            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"))
+        })?;
 
         if exp.seal != *seal {
             return Err(Box::new(
@@ -743,9 +745,9 @@ impl Syscalls for MockRuntime {
         Ok(())
     }
     fn verify_post(&self, post: &WindowPoStVerifyInfo) -> Result<(), Box<dyn StdError>> {
-        let exp = self.expect_verify_post.replace(None).ok_or(Box::new(
-            actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"),
-        ))?;
+        let exp = self.expect_verify_post.replace(None).ok_or_else(|| {
+            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))
+        })?;
 
         if exp.post != *post {
             return Err(Box::new(
@@ -769,9 +771,11 @@ impl Syscalls for MockRuntime {
         let exp = self
             .expect_verify_consensus_fault
             .replace(None)
-            .ok_or(Box::new(
-                actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
-            ))?;
+            .ok_or_else(|| {
+                Box::new(
+                    actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
+                )
+            })?;
         if exp.require_correct_input {
             if exp.block_header_1 != h1 {
                 return Err(Box::new(actor_error!(ErrIllegalState; "Header 1 mismatch")));

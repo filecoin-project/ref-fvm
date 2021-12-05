@@ -36,7 +36,7 @@ pub struct CgoBlockstore {
 
 impl CgoBlockstore {
     /// Construct a new blockstore from a handle.
-    pub unsafe fn new(handle: i32) -> CgoBlockstore {
+    pub fn new(handle: i32) -> CgoBlockstore {
         CgoBlockstore { handle }
     }
 }

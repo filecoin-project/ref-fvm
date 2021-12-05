@@ -51,9 +51,7 @@ mod tests {
         // Should fail becuase vec is no longer empty
         assert!(RawBytes::serialize(v).is_err());
 
-        let mut v: Vec<Option<UnmarshallableCBOR>> = vec![];
-
-        v.push(Some(UnmarshallableCBOR));
+        let v: Vec<Option<UnmarshallableCBOR>> = vec![Some(UnmarshallableCBOR)];
 
         // SHould only fail if a actual instance of UnmarshallableCBOR is used
         assert!(RawBytes::serialize(v).is_err());

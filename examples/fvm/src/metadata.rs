@@ -32,6 +32,7 @@ impl From<AbiTokenAmount> for u128 {
     }
 }
 
+#[allow(dead_code)]
 pub type Metadata = Metadata1;
 
 // TODO: we should probably move this definition to a shared crate with shared types (addresses, metadata, etc.).

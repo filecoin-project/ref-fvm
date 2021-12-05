@@ -6,6 +6,6 @@ use fvm_sdk as sdk;
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
     //let root = sdk::ipld::get_root();
-    let value = sdk::invocation::value_received();
+    let _value = sdk::invocation::value_received();
     sdk::ipld::UNIT
 }

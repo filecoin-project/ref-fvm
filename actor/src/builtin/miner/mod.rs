@@ -146,6 +146,7 @@ impl Actor {
 
         check_control_addresses(&params.control_addresses)?;
         check_peer_info(&params.peer_id, &params.multi_addresses)?;
+        check_valid_post_proof_type(params.window_post_proof_type)?;
 
         let owner = resolve_control_address(rt, params.owner)?;
         let worker = resolve_worker_address(rt, params.worker)?;
@@ -414,6 +415,22 @@ impl Actor {
     {
         let current_epoch = rt.curr_epoch();
 
+        if params.proofs.len() != 1 {
+            return Err(actor_error!(
+                ErrIllegalArgument,
+                "expected exactly one proof, got {}",
+                params.proofs.len()
+            ));
+        }
+
+        if check_valid_post_proof_type(params.proofs[0].post_proof).is_err() {
+            return Err(actor_error!(
+                ErrIllegalArgument,
+                "proof type {:?} not allowed",
+                params.proofs[0].post_proof
+            ));
+        }
+
         if params.deadline >= WPOST_PERIOD_DEADLINES as usize {
             return Err(actor_error!(
                 ErrIllegalArgument,
@@ -680,10 +697,13 @@ impl Actor {
         BS: BlockStore,
         RT: Runtime<BS>,
     {
-        let sector_numbers = params
-            .sector_numbers
-            .validate()
-            .map_err(|e| actor_error!(ErrIllegalArgument, "Invalid Bitfield argument:{}", e))?;
+        let sector_numbers = params.sector_numbers.validate().map_err(|e| {
+            actor_error!(
+                ErrIllegalState,
+                "Failed to validate bitfield for aggregated sectors: {}",
+                e
+            )
+        })?;
         let agg_sectors_count = sector_numbers.len();
 
         if agg_sectors_count > MAX_AGGREGATED_SECTORS {
@@ -3949,6 +3969,18 @@ fn check_control_addresses(control_addrs: &[Address]) -> Result<(), ActorError> 
     }
 
     Ok(())
+}
+
+fn check_valid_post_proof_type(proof_type: RegisteredPoStProof) -> Result<(), ActorError> {
+    match proof_type {
+        RegisteredPoStProof::StackedDRGWindow32GiBV1
+        | RegisteredPoStProof::StackedDRGWindow64GiBV1 => Ok(()),
+        _ => Err(actor_error!(
+            ErrIllegalArgument,
+            "proof type {:?} not allowed for new miner actors",
+            proof_type
+        )),
+    }
 }
 
 fn check_peer_info(peer_id: &[u8], multiaddrs: &[BytesDe]) -> Result<(), ActorError> {
