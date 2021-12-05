@@ -53,6 +53,11 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
+      - run:
+          name: make dummy example wasm module
+          command: |
+            # otherwise the include_bytes! macro fails because this file hasn't been generated
+            touch examples/fvm/fvm_example_actor.wasm
       - rust/clippy:
           with_cache: false
 
