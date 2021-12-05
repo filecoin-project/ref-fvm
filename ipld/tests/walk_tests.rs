@@ -5,11 +5,10 @@
 
 use async_trait::async_trait;
 use cid::{Cid, Code::Blake2b256};
-use db::MemoryDB;
 use forest_ipld::json::{self, IpldJson};
 use forest_ipld::selector::{LastBlockInfo, LinkResolver, Selector, VisitReason};
 use forest_ipld::{Ipld, Path};
-use ipld_blockstore::BlockStore;
+use ipld_blockstore::{BlockStore, MemoryBlockstore};
 use serde::Deserialize;
 use std::fs::File;
 use std::io::BufReader;
@@ -120,7 +119,7 @@ fn check_matched(reason: VisitReason, matched: bool) -> bool {
 }
 
 #[derive(Clone)]
-struct TestLinkResolver(MemoryDB);
+struct TestLinkResolver(MemoryBlockstore);
 
 #[async_trait]
 impl LinkResolver for TestLinkResolver {
@@ -132,7 +131,7 @@ impl LinkResolver for TestLinkResolver {
 async fn process_vector(tv: TestVector) -> Result<(), String> {
     // Setup resolver with any ipld nodes to store
     let resolver = tv.cbor_ipld_storage.map(|ipld_storage| {
-        let storage = MemoryDB::default();
+        let storage = MemoryBlockstore::default();
         for IpldJson(i) in ipld_storage {
             storage.put(&i, Blake2b256).unwrap();
         }

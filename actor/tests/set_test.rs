@@ -5,7 +5,7 @@ use forest_actor::Set;
 
 #[test]
 fn put() {
-    let store = db::MemoryDB::default();
+    let store = ipld_blockstore::MemoryBlockstore::new();
     let mut set = Set::new(&store);
 
     let key = "test".as_bytes();
@@ -17,7 +17,7 @@ fn put() {
 
 #[test]
 fn collect_keys() {
-    let store = db::MemoryDB::default();
+    let store = ipld_blockstore::MemoryBlockstore::new();
     let mut set = Set::new(&store);
 
     set.put("0".into()).unwrap();
@@ -33,7 +33,7 @@ fn collect_keys() {
 
 #[test]
 fn delete() {
-    let store = db::MemoryDB::default();
+    let store = ipld_blockstore::MemoryBlockstore::new();
     let mut set = Set::new(&store);
 
     let key = "0".as_bytes();

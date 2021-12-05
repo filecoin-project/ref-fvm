@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use fvm_shared::bigint::{BigInt, Integer};
+
 use crate::math::{poly_parse, poly_val, PRECISION};
-use num_bigint::{BigInt, Integer};
 
 lazy_static! {
     static ref EXP_NUM_COEF: Vec<BigInt> = poly_parse(&[

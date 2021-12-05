@@ -1,15 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::deal::DealProposal;
+use std::cmp::max;
+
+use num_traits::Zero;
+
+use fvm_shared::bigint::Integer;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::piece::PaddedPieceSize;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::TOTAL_FILECOIN;
+
 use crate::network::EPOCHS_IN_DAY;
 use crate::DealWeight;
-use clock::ChainEpoch;
-use fil_types::{PaddedPieceSize, StoragePower, TOTAL_FILECOIN};
-use num_bigint::Integer;
-use num_traits::Zero;
-use std::cmp::max;
-use vm::TokenAmount;
+
+use super::deal::DealProposal;
 
 /// DealUpdatesInterval is the number of blocks between payouts for deals
 pub const DEAL_UPDATES_INTERVAL: i64 = EPOCHS_IN_DAY;

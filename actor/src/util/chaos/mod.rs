@@ -1,18 +1,23 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod state;
-mod types;
-
-use address::Address;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use runtime::{ActorCode, Runtime};
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 pub use state::*;
 pub use types::*;
-use vm::{actor_error, ActorError, ExitCode, MethodNum, Serialized, METHOD_CONSTRUCTOR};
+
+use crate::runtime::{ActorCode, Runtime};
+
+mod state;
+mod types;
 
 // * Updated to test-vectors commit: 907892394dd83fe1f4bf1a82146bbbcc58963148
 
@@ -54,7 +59,7 @@ impl Actor {
         let result = rt.send(arg.to, arg.method, arg.params, arg.value);
         if let Err(e) = result {
             Ok(SendReturn {
-                return_value: Serialized::default(),
+                return_value: RawBytes::default(),
                 code: e.exit_code(),
             })
         } else {
@@ -196,8 +201,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -205,45 +210,45 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt);
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CallerValidation) => {
                 Self::caller_validation(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
 
             Some(Method::CreateActor) => {
                 Self::create_actor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ResolveAddress) => {
                 let res = Self::resolve_address(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
 
             Some(Method::Send) => {
                 let res: SendReturn = Self::send(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
 
             Some(Method::DeleteActor) => {
                 Self::delete_actor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
 
             Some(Method::MutateState) => {
                 Self::mutate_state(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
 
             Some(Method::AbortWith) => {
                 Self::abort_with(rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
 
             Some(Method::InspectRuntime) => {
                 let inspect = Self::inspect_runtime(rt)?;
-                Ok(Serialized::serialize(inspect)?)
+                Ok(RawBytes::serialize(inspect)?)
             }
 
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),

@@ -4,8 +4,7 @@
 #![cfg(feature = "tracking")]
 
 use super::BlockStore;
-use cid::{Cid, Code};
-use db::{Error, Store};
+use cid::{multihash::Code, Cid};
 use std::cell::RefCell;
 use std::error::Error as StdError;
 
@@ -56,73 +55,21 @@ where
         Ok(bytes)
     }
 
-    fn put_raw(&self, bytes: Vec<u8>, code: Code) -> Result<Cid, Box<dyn StdError>> {
+    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn StdError>> {
         self.stats.borrow_mut().w += 1;
         self.stats.borrow_mut().bw += bytes.len();
-        let cid = cid::new_from_cbor(&bytes, code);
-        self.write(cid.to_bytes(), bytes)?;
-        Ok(cid)
-    }
-}
-
-impl<BS> Store for TrackingBlockStore<'_, BS>
-where
-    BS: Store,
-{
-    fn read<K>(&self, key: K) -> Result<Option<Vec<u8>>, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.read(key)
-    }
-    fn write<K, V>(&self, key: K, value: V) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-        V: AsRef<[u8]>,
-    {
-        self.base.write(key, value)
-    }
-    fn delete<K>(&self, key: K) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.delete(key)
-    }
-    fn exists<K>(&self, key: K) -> Result<bool, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.exists(key)
-    }
-    fn bulk_read<K>(&self, keys: &[K]) -> Result<Vec<Option<Vec<u8>>>, Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.bulk_read(keys)
-    }
-    fn bulk_write<K, V>(&self, values: &[(K, V)]) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-        V: AsRef<[u8]>,
-    {
-        self.base.bulk_write(values)
-    }
-    fn bulk_delete<K>(&self, keys: &[K]) -> Result<(), Error>
-    where
-        K: AsRef<[u8]>,
-    {
-        self.base.bulk_delete(keys)
+        self.base.put_raw(bytes, code)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cid::Code::Blake2b256;
+    use cid::multihash::MultihashDigest;
 
     #[test]
     fn basic_tracking_store() {
-        let mem = db::MemoryDB::default();
+        let mem = blockstore::MemoryBlockstore::default();
         let tr_store = TrackingBlockStore::new(&mem);
         assert_eq!(*tr_store.stats.borrow(), BSStats::default());
 
@@ -131,7 +78,7 @@ mod tests {
         let obj_bytes_len = encoding::to_vec(&object).unwrap().len();
 
         tr_store
-            .get::<u8>(&cid::new_from_cbor(&[0], Blake2b256))
+            .get::<u8>(&Cid::new_v1(crate::DAG_CBOR, Code::Blake2b256.digest(&[0])))
             .unwrap();
         assert_eq!(
             *tr_store.stats.borrow(),
@@ -141,7 +88,7 @@ mod tests {
             }
         );
 
-        let put_cid = tr_store.put(&object, Blake2b256).unwrap();
+        let put_cid = tr_store.put(&object, Code::Blake2b256).unwrap();
         assert_eq!(tr_store.get::<TestType>(&put_cid).unwrap(), Some(object));
         assert_eq!(
             *tr_store.stats.borrow(),

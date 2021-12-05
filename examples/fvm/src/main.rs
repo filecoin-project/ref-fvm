@@ -2,27 +2,45 @@ use std::mem;
 
 use blockstore::{Blockstore, MemoryBlockstore};
 use cid::Cid;
-use fvm::{self, InvocationRuntime};
+use fvm;
+// TODO: the compiler doesn't bring inherited traits in scope automatically when
+//  importing a supertrait :-/
+use fvm::kernel::InvocationOps;
+use fvm::syscalls::bind_syscalls;
+use fvm::{DefaultKernel, Kernel};
 use multihash::{Code as MhCode, MultihashDigest};
 use std::convert::TryInto;
-//use wasmtime::{Config, Engine, Global, GlobalType, Module, Mutability, Store, Val, ValType};
-use wasmtime::{Config, Engine, Module, Store};
+use wasmtime::{
+    Config, Engine, Global, GlobalType, Linker, Module, Mutability, Store, Val, ValType,
+};
 
 mod metadata;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_wasm = include_bytes!("../fvm_example_actor.wasm");
-    let engine = Engine::new(&Config::default())?;
+    let config = fvm::Config {
+        initial_pages: 0,
+        max_pages: 10,
+        engine: Default::default(),
+    };
+    let mut engine = Engine::new(&config.engine)?;
     let module = Module::new(&engine, module_wasm)?;
-    let config = fvm::Config { max_pages: 10 };
+
     let bs = MemoryBlockstore::default();
     let root_block = b"test root block";
     let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
     bs.put(&root_cid, root_block)?;
-    let runtime = fvm::DefaultRuntime::new(config, bs, root_cid);
-    let linker = fvm::environment(&engine)?;
-    let mut store = Store::new(&engine, runtime);
 
+    // Create a new linker and bind the syscalls to it.
+    let mut linker = Linker::new(&engine);
+    bind_syscalls(&mut linker)?;
+
+    // Instantiate a new kernel for this invocation.
+    let kernel = DefaultKernel::new(bs, root_cid);
+
+    // Place the above kernel inside a wasmtime Store. Instantiate the module
+    // with this store.
+    let mut store = Store::new(&engine, kernel);
     let instance = linker.instantiate(&mut store, &module)?;
 
     if let Some(meta_global) = instance.get_export(&mut store, "meta1") {
@@ -41,12 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok_or("expected memory export")?;
 
         let metadata = {
-            let rt = store.data();
+            let k = store.data();
             metadata::Metadata1 {
-                value_received: rt.value_received().into(),
-                method: rt.method_number(),
-                caller: rt.caller(),
-                receiver: rt.receiver(),
+                value_received: k.value_received().into(),
+                method: k.method_number(),
+                caller: k.caller(),
+                receiver: k.receiver(),
                 epoch: 0,           // TODO
                 network_version: 0, // TODO
             }

@@ -1,15 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::ActorDowncast;
-use bitfield::BitField;
-use cid::Cid;
-use clock::ChainEpoch;
-use fil_types::deadlines::QuantSpec;
-use ipld_amt::{Amt, Error as AmtError};
-use ipld_blockstore::BlockStore;
 use std::collections::HashMap;
 use std::error::Error as StdError;
+
+use bitfield::BitField;
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+
+use fvm_shared::clock::ChainEpoch;
+use ipld_amt::{Amt, Error as AmtError};
+
+use crate::ActorDowncast;
+
+use super::QuantSpec;
 
 /// Wrapper for working with an AMT[ChainEpoch]*Bitfield functioning as a queue, bucketed by epoch.
 /// Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.

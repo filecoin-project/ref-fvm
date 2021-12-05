@@ -1,28 +1,32 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod state;
-mod types;
+use std::collections::HashSet;
+use std::error::Error as StdError;
 
-pub use self::state::*;
-pub use self::types::*;
+use ipld_blockstore::BlockStore;
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed};
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::Sign;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{to_vec, RawBytes};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+
+use crate::runtime::{ActorCode, Runtime, Syscalls};
 use crate::{
     make_empty_map, make_map_with_root, resolve_to_id_addr, ActorDowncast, Map,
     CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR,
 };
-use address::Address;
-use encoding::to_vec;
-use fil_types::HAMT_BIT_WIDTH;
-use ipld_blockstore::BlockStore;
-use num_bigint::Sign;
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed};
-use runtime::{ActorCode, Runtime, Syscalls};
-use std::collections::HashSet;
-use std::error::Error as StdError;
-use vm::{
-    actor_error, ActorError, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-};
+
+pub use self::state::*;
+pub use self::types::*;
+
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 
@@ -522,7 +526,7 @@ impl Actor {
         rt: &mut RT,
         tx_id: TxnID,
         mut txn: Transaction,
-    ) -> Result<(bool, Serialized, ExitCode), ActorError>
+    ) -> Result<(bool, RawBytes, ExitCode), ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -576,12 +580,12 @@ fn execute_transaction_if_approved<BS, RT>(
     st: &State,
     txn_id: TxnID,
     txn: &Transaction,
-) -> Result<(bool, Serialized, ExitCode), ActorError>
+) -> Result<(bool, RawBytes, ExitCode), ActorError>
 where
     BS: BlockStore,
     RT: Runtime<BS>,
 {
-    let mut out = Serialized::default();
+    let mut out = RawBytes::default();
     let mut code = ExitCode::Ok;
     let mut applied = false;
     let threshold_met = txn.approved.len() >= st.num_approvals_threshold;
@@ -695,8 +699,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -704,39 +708,39 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::Propose) => {
                 let res = Self::propose(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::Approve) => {
                 let res = Self::approve(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::Cancel) => {
                 Self::cancel(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::AddSigner) => {
                 Self::add_signer(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::RemoveSigner) => {
                 Self::remove_signer(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::SwapSigner) => {
                 Self::swap_signer(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ChangeNumApprovalsThreshold) => {
                 Self::change_num_approvals_threshold(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::LockBalance) => {
                 Self::lock_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
         }

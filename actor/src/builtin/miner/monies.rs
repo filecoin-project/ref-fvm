@@ -1,18 +1,24 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{VestSpec, REWARD_VESTING_SPEC};
+use std::cmp::{self, max};
+
+use num_traits::Zero;
+
+use fvm_shared::bigint::{num_integer::div_floor, BigInt, Integer};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::sector::StoragePower;
+use fvm_shared::FILECOIN_PRECISION;
+
 use crate::{
     math::PRECISION,
     network::EPOCHS_IN_DAY,
     smooth::{self, FilterEstimate},
-    TokenAmount, EXPECTED_LEADERS_PER_EPOCH,
+    EXPECTED_LEADERS_PER_EPOCH,
 };
-use clock::ChainEpoch;
-use fil_types::{StoragePower, FILECOIN_PRECISION};
-use num_bigint::{num_integer::div_floor, BigInt, Integer};
-use num_traits::Zero;
-use std::cmp::{self, max};
+
+use super::{VestSpec, REWARD_VESTING_SPEC};
 
 /// Projection period of expected sector block reward for deposit required to pre-commit a sector.
 /// This deposit is lost if the pre-commitment is not timely followed up by a commitment proof.

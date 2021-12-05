@@ -1,16 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::policy::*;
-use super::{Deadlines, Partition};
-use clock::ChainEpoch;
-use fil_types::{
-    deadlines::{DeadlineInfo, QuantSpec},
-    SectorNumber,
-};
-use ipld_amt::Amt;
-use ipld_blockstore::BlockStore;
 use std::error::Error as StdError;
+
+use ipld_blockstore::BlockStore;
+
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::sector::SectorNumber;
+use ipld_amt::Amt;
+
+use super::policy::*;
+use super::{DeadlineInfo, Deadlines, Partition, QuantSpec};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,

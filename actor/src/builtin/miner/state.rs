@@ -1,30 +1,34 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{cmp, error::Error as StdError};
+use std::{collections::HashMap, ops::Neg};
+
+use bitfield::BitField;
+use cid::{multihash::Code, Cid};
+use ipld_blockstore::BlockStore;
+use num_traits::{Signed, Zero};
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
+use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
+use ipld_amt::{Amt, Error as AmtError};
+use ipld_hamt::Error as HamtError;
+
+use crate::miner::{DeadlineInfo, QuantSpec};
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
+
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,
     new_deadline_info_from_offset_and_epoch, policy::*, quant_spec_for_deadline, types::*,
     BitFieldQueue, Deadline, DeadlineSectorMap, Deadlines, PowerPair, Sectors, TerminationResult,
     VestingFunds,
 };
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
-use address::Address;
-use bitfield::BitField;
-use cid::{Cid, Code::Blake2b256};
-use clock::{ChainEpoch, EPOCH_UNDEFINED};
-use encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
-use fil_types::{
-    deadlines::{DeadlineInfo, QuantSpec},
-    RegisteredPoStProof, SectorNumber, SectorSize, HAMT_BIT_WIDTH,
-};
-use ipld_amt::{Amt, Error as AmtError};
-use ipld_blockstore::BlockStore;
-use ipld_hamt::Error as HamtError;
-use num_bigint::bigint_ser;
-use num_traits::{Signed, Zero};
-use std::{cmp, error::Error as StdError};
-use std::{collections::HashMap, ops::Neg};
-use vm::{actor_error, ActorError, ExitCode, TokenAmount};
 
 const PRECOMMIT_EXPIRY_AMT_BITWIDTH: usize = 6;
 const SECTORS_AMT_BITWIDTH: usize = 5;
@@ -144,14 +148,14 @@ impl State {
                         "failed to construct sectors array",
                     )
                 })?;
-        let empty_bitfield = store.put(&BitField::new(), Blake2b256).map_err(|e| {
+        let empty_bitfield = store.put(&BitField::new(), Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct empty bitfield",
             )
         })?;
         let deadline = Deadline::new(store)?;
-        let empty_deadline = store.put(&deadline, Blake2b256).map_err(|e| {
+        let empty_deadline = store.put(&deadline, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
@@ -159,7 +163,7 @@ impl State {
         })?;
 
         let empty_deadlines = store
-            .put(&Deadlines::new(empty_deadline), Blake2b256)
+            .put(&Deadlines::new(empty_deadline), Code::Blake2b256)
             .map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrIllegalState,
@@ -167,12 +171,15 @@ impl State {
                 )
             })?;
 
-        let empty_vesting_funds_cid = store.put(&VestingFunds::new(), Blake2b256).map_err(|e| {
-            e.downcast_default(
-                ExitCode::ErrIllegalState,
-                "failed to construct illegal state",
-            )
-        })?;
+        let empty_vesting_funds_cid =
+            store
+                .put(&VestingFunds::new(), Code::Blake2b256)
+                .map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        "failed to construct illegal state",
+                    )
+                })?;
 
         Ok(Self {
             info: info_cid,
@@ -210,7 +217,7 @@ impl State {
         store: &BS,
         info: &MinerInfo,
     ) -> Result<(), Box<dyn StdError>> {
-        let cid = store.put(&info, Blake2b256)?;
+        let cid = store.put(&info, Code::Blake2b256)?;
         self.info = cid;
         Ok(())
     }
@@ -271,7 +278,7 @@ impl State {
             }
         }
         let new_allocation = &prior_allocation | sector_numbers;
-        self.allocated_sectors = store.put(&new_allocation, Blake2b256).map_err(|e| {
+        self.allocated_sectors = store.put(&new_allocation, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalArgument,
                 format!(
@@ -686,7 +693,7 @@ impl State {
         store: &BS,
         deadlines: Deadlines,
     ) -> Result<(), Box<dyn StdError>> {
-        self.deadlines = store.put(&deadlines, Blake2b256)?;
+        self.deadlines = store.put(&deadlines, Code::Blake2b256)?;
         Ok(())
     }
 
@@ -711,7 +718,7 @@ impl State {
         store: &BS,
         funds: &VestingFunds,
     ) -> Result<(), Box<dyn StdError>> {
-        self.vesting_funds = store.put(funds, Blake2b256)?;
+        self.vesting_funds = store.put(funds, Code::Blake2b256)?;
         Ok(())
     }
 
@@ -1153,7 +1160,7 @@ impl State {
         let precommitted =
             make_map_with_root_and_bitwidth(&self.pre_committed_sectors, store, HAMT_BIT_WIDTH)?;
         for sector_no in sector_nos.iter() {
-            if sector_no > fil_types::MAX_SECTOR_NUMBER as usize {
+            if sector_no > MAX_SECTOR_NUMBER as usize {
                 return Err(
                     actor_error!(ErrIllegalArgument, "sector number greater than maximum").into(),
                 );

@@ -3,15 +3,28 @@ name = "fvm"
 version = "0.1.0"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
 anyhow = "1.0.47"
-blockstore = { path = "../lib/blockstore" }
-cid = "0.7.0"
-multihash = "0.15.0"
 thiserror = "1.0.30"
+blockstore = { path = "../lib/blockstore" }
+num-traits = "0.2"
+derive_builder = "0.9"
+ahash = "0.6"
+num-derive = "0.3.3"
+cid = { version = "0.7", features = ["serde-codec"] }
+multihash = "0.15.0"
 wasmtime = "0.31.0"
+fvm_shared = { path = "../shared" }
+ipld_hamt = { path = "../ipld/hamt"}
+ipld_blockstore = { path = "../ipld/blockstore"}
+ipld_amt = { path = "../ipld/amt"}
+serde = { version = "1.0", features = ["derive"] }
+serde_tuple = "0.5"
+serde_repr = "0.1"
+lazy_static = "1.4.0"
+
+# FIXME: The FVM really shouldn't depend on this, but needs to for now.
+actor = { package = "forest_actor", path = "../actor" }

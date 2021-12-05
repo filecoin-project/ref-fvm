@@ -1,13 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use cid::multihash::MultihashDigest;
 use cid::{
+    multihash::Code::{Blake2b256, Identity},
     Cid,
-    Code::{Blake2b256, Identity},
 };
 use encoding::{from_slice, to_vec};
 use forest_ipld::{ipld, to_ipld, Ipld};
 use serde::{Deserialize, Serialize};
+
+// TODO move this to a multicodec crate.
+pub const DAG_CBOR: u64 = 0x71;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct TestStruct {
@@ -17,7 +21,7 @@ struct TestStruct {
 
 #[test]
 fn encode_new_type() {
-    let details = cid::new_from_cbor(&[1, 2, 3], Blake2b256);
+    let details = Cid::new_v1(DAG_CBOR, Blake2b256.digest(&[1, 2, 3]));
     let name = "Test".to_string();
     let t_struct = TestStruct {
         name: name.clone(),
@@ -40,7 +44,7 @@ fn encode_new_type() {
 
 #[test]
 fn cid_conversions_ipld() {
-    let cid = cid::new_from_cbor(&[1, 2, 3], Blake2b256);
+    let cid = Cid::new_v1(DAG_CBOR, Blake2b256.digest(&[1, 2, 3]));
     let m_s = TestStruct {
         name: "s".to_owned(),
         details: cid,
@@ -57,7 +61,7 @@ fn cid_conversions_ipld() {
     assert_eq!(to_ipld(&cid).unwrap(), Ipld::Link(cid));
 
     // Test with identity hash (different length prefix for cbor)
-    let cid = cid::new_from_cbor(&[1, 2], Identity);
+    let cid = Cid::new_v1(DAG_CBOR, Identity.digest(&[1, 2]));
     let ipld = ipld!(Link(cid));
     let ipld2 = to_ipld(&cid).unwrap();
     assert_eq!(ipld, ipld2);

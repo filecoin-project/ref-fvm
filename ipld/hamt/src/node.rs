@@ -5,7 +5,7 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use cid::Code::Blake2b256;
+use cid::multihash::Code;
 use ipld_blockstore::BlockStore;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
@@ -432,7 +432,7 @@ where
                 node.flush(store)?;
 
                 // Put node in blockstore and retrieve Cid
-                let cid = store.put(node, Blake2b256)?;
+                let cid = store.put(node, Code::Blake2b256)?;
 
                 // Can keep the flushed node in link cache
                 let cache = OnceCell::from(std::mem::take(node));

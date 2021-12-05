@@ -1,14 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
-
-use address::Address;
 use common::*;
 use forest_actor::{
     account::State, ACCOUNT_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use vm::{ExitCode, Serialized};
+use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
+
+mod common;
 
 macro_rules! account_tests {
     ($($name:ident: $value:expr,)*) => {
@@ -18,7 +19,7 @@ macro_rules! account_tests {
                 let (addr, exit_code) = $value;
 
                 let mut rt = MockRuntime {
-                    receiver: Address::new_id(100),
+                    receiver: fvm_shared::address::Address::new_id(100),
                     caller: SYSTEM_ACTOR_ADDR.clone(),
                     caller_type: SYSTEM_ACTOR_CODE_ID.clone(),
                     ..Default::default()
@@ -30,7 +31,7 @@ macro_rules! account_tests {
                     .call(
                         &*ACCOUNT_ACTOR_CODE_ID,
                         1,
-                        &Serialized::serialize(addr).unwrap(),
+                        &RawBytes::serialize(addr).unwrap(),
                     )
                     .unwrap();
 
@@ -40,7 +41,7 @@ macro_rules! account_tests {
                     rt.expect_validate_caller_any();
 
                     let pk: Address = rt
-                        .call(&*ACCOUNT_ACTOR_CODE_ID, 2, &Serialized::default())
+                        .call(&*ACCOUNT_ACTOR_CODE_ID, 2, &RawBytes::default())
                         .unwrap()
                         .deserialize()
                         .unwrap();
@@ -49,7 +50,7 @@ macro_rules! account_tests {
                     let res = rt.call(
                         &*ACCOUNT_ACTOR_CODE_ID,
                         1,
-                        &Serialized::serialize(addr).unwrap(),
+                        &RawBytes::serialize(addr).unwrap(),
                     ).map_err(|e| e.exit_code());
                     assert_eq!(res, Err(exit_code))
                 }
@@ -61,11 +62,11 @@ macro_rules! account_tests {
 
 account_tests! {
     happy_construct_secp256k1_address: (
-        Address::new_secp256k1(&[2; address::SECP_PUB_LEN]).unwrap(),
+        Address::new_secp256k1(&[2; fvm_shared::address::SECP_PUB_LEN]).unwrap(),
         ExitCode::Ok
     ),
     happy_construct_bls_address: (
-        Address::new_bls(&[1; address::BLS_PUB_LEN]).unwrap(),
+        Address::new_bls(&[1; fvm_shared::address::BLS_PUB_LEN]).unwrap(),
         ExitCode::Ok
     ),
     fail_construct_id_address: (

@@ -1,22 +1,28 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod state;
-mod types;
-
-pub use self::state::State;
-pub use self::types::*;
-use crate::{
-    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
-    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
-};
-use address::Address;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use runtime::{ActorCode, Runtime};
-use vm::{actor_error, ActorError, ExitCode, MethodNum, Serialized, METHOD_CONSTRUCTOR};
+
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
+
+use crate::runtime::{ActorCode, Runtime};
+use crate::{
+    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
+    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
+};
+
+pub use self::state::State;
+pub use self::types::*;
+
+mod state;
+mod types;
 
 // * Updated to specs-actors commit: 999e57a151cc7ada020ca2844b651499ab8c0dec (v3.0.1)
 
@@ -112,8 +118,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -121,11 +127,11 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::Exec) => {
                 let res = Self::exec(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
         }

@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use address::Address;
 use cid::Cid;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use encoding::Cbor;
-use num_bigint::{bigint_ser, BigInt};
-use vm::TokenAmount;
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::{bigint_ser, BigInt};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 
 /// A given payment channel actor is established by `from`
 /// to enable off-chain microtransactions to `to` address

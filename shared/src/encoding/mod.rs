@@ -17,6 +17,10 @@ pub use self::errors::*;
 pub use self::hash::*;
 pub use self::vec::*;
 
+// TODO: these really don't work all that well in a shared context like this as anyone importing
+// them also need to _explicitly_ import the serde_tuple & serde_repr crates. These are _macros_,
+// not normal items.
+
 pub mod tuple {
     pub use serde_tuple::{self, Deserialize_tuple, Serialize_tuple};
 }

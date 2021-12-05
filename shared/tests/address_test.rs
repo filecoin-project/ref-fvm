@@ -45,8 +45,8 @@ fn generate_validate_checksum() {
     let other_data = [1, 4, 3, 6, 7, 1, 2];
     let cksm = checksum(&data);
     assert_eq!(cksm.len(), 4);
-    assert!(validate_checksum(&data, cksm.clone()));
-    assert!(!validate_checksum(&other_data, cksm));
+    assert_eq!(validate_checksum(&data, cksm.clone()), true);
+    assert_eq!(validate_checksum(&other_data, cksm), false);
 }
 
 struct AddressTestVec<'a> {

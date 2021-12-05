@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Error as CidError;
-use encoding::Error as EncodingError;
 use std::error::Error as StdError;
 use thiserror::Error;
+
+use fvm_shared::encoding::Error as EncodingError;
 
 /// AMT Error
 #[derive(Debug, Error)]

@@ -3,7 +3,7 @@
 
 use crate::node::Node;
 use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
-use cid::{Cid, Code::Blake2b256};
+use cid::{multihash::Code, Cid};
 use forest_hash_utils::BytesKey;
 use ipld_blockstore::BlockStore;
 use serde::{de::DeserializeOwned, Serialize, Serializer};
@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 /// ```
 /// use ipld_hamt::Hamt;
 ///
-/// let store = db::MemoryDB::default();
+/// let store = ipld_blockstore::MemoryBlockstore::default();
 ///
 /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
 /// map.set(1, "a".to_string()).unwrap();
@@ -124,7 +124,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(37, "a".to_string()).unwrap();
@@ -153,7 +153,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
@@ -187,7 +187,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -218,7 +218,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -246,7 +246,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, "a".to_string()).unwrap();
@@ -264,7 +264,7 @@ where
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.flush(self.store)?;
-        Ok(self.store.put(&self.root, Blake2b256)?)
+        Ok(self.store.put(&self.root, Code::Blake2b256)?)
     }
 
     /// Returns true if the HAMT has no entries
@@ -281,7 +281,7 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
     /// map.set(1, 1).unwrap();

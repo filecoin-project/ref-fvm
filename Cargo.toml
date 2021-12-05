@@ -2,15 +2,16 @@
 members = [
     "fvm",
     "sdk",
-    "types",
     "shared",
     "lib/*",
     "actor",
-    "vm",
-    "vm/actor_interface",
-    "vm/address",
     "examples/*",
     "examples/blockstore-cgo/user",
+
+    "ipld",
+    "ipld/blockstore",
+    "ipld/hamt",
+    "ipld/amt",
 ]
 exclude = [
     "examples/blockstore-cgo"
@@ -19,13 +20,9 @@ exclude = [
 default-members = [
     "fvm",
     "sdk",
-    "types",
     "shared",
     "lib/*",
     "actor",
-    "vm",
-    "vm/actor_interface",
-    "vm/address",
     # don't build the examples by default, as they require a specific target and profile.
     # build them with cargo make examples
     # "examples/*"
@@ -34,19 +31,10 @@ default-members = [
 [patch.crates-io]
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
 cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
-fil_types = { path = "./types" }
-forest_address = { path = "./vm/address" }
-forest_bigint = { path = "./utils/bigint" }
-forest_bitfield = { path = "./utils/bitfield" }
-forest_cid = { path = "./ipld/cid" }
 forest_ipld = { path = "./ipld" }
-forest_encoding = { path = "./encoding" }
-forest_hash_utils = { path = "./utils/hash_utils" }
-forest_json_utils = { path = "./utils/json_utils" }
-commcid = { path = "./utils/commcid" }
-forest_vm = { path = "./vm" }
-forest_runtime = { path = "./vm/runtime" }
-forest_message = { path = "./vm/message" }
+ipld_blockstore = { path = "./ipld/blockstore" }
+ipld_hamt = { path = "./ipld/hamt" }
+ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }
 
 [profile.actor]

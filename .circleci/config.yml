@@ -53,17 +53,11 @@ jobs:
       - attach_workspace:
           at: "."
       - restore_rustup_cache
-      - go/install:
-          version: 1.17.3
       - run:
-          name: install wasm32 target and cbindgen
+          name: make dummy example wasm module
           command: |
-            rustup target add wasm32-unknown-unknown
-            cargo install --force cbindgen
-      - run:
-          name: wasmbuild
-          command: |
-            make examples
+            # otherwise the include_bytes! macro fails because this file hasn't been generated
+            touch examples/fvm/fvm_example_actor.wasm
       - rust/clippy:
           with_cache: false
           flags: |

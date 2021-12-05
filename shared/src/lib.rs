@@ -1,26 +1,32 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+#[macro_use]
+extern crate lazy_static;
+
+use num_bigint::BigInt;
+
+use address::Address;
+use clock::ChainEpoch;
+
 pub mod address;
 pub mod bigint;
 pub mod clock;
+pub mod commcid;
+pub mod consensus;
 pub mod crypto;
-pub mod deadlines;
 pub mod deal;
 pub mod econ;
 pub mod encoding;
+pub mod error;
 pub mod piece;
 pub mod randomness;
 pub mod sector;
 pub mod state;
 pub mod version;
 
-use address::Address;
-use clock::ChainEpoch;
-use num_bigint::BigInt;
-
-#[macro_use]
-extern crate lazy_static;
+#[cfg(feature = "json")]
+pub mod genesis;
 
 lazy_static! {
     /// Total Filecoin available to the network.
@@ -86,3 +92,11 @@ impl NetworkParams for DefaultNetworkParams {
     const TOTAL_FILECOIN: i64 = TOTAL_FILECOIN_BASE;
     const MINING_REWARD_TOTAL: i64 = 1_400_000_000;
 }
+
+/// Method number indicator for calling actor methods.
+pub type MethodNum = u64;
+
+/// Base actor send method.
+pub const METHOD_SEND: MethodNum = 0;
+/// Base actor constructor method.
+pub const METHOD_CONSTRUCTOR: MethodNum = 1;

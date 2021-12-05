@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::BlockStore;
-use cid::{Cid, DAG_CBOR};
+use super::{BlockStore, DAG_CBOR};
+use cid::Cid;
 use forest_ipld::Ipld;
 use std::error::Error as StdError;
 

@@ -1,5 +1,7 @@
 use cid::Cid;
 
+#[cfg(feature = "buffered")]
+pub mod buffered;
 mod memory;
 pub use memory::MemoryBlockstore;
 
@@ -14,7 +16,7 @@ pub mod cgo;
 // TODO: maybe have a block _reader_?
 pub trait Blockstore {
     /// The concrete error type that the implementation will throw.
-    type Error: std::error::Error + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
 
     fn has(&self, k: &Cid) -> Result<bool, Self::Error>;
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error>;

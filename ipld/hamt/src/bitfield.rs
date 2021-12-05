@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use byteorder::{BigEndian, ByteOrder};
-use forest_encoding::{
+use fvm_shared::encoding::{
     de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
     serde_bytes,
@@ -144,7 +144,7 @@ impl std::fmt::Binary for Bitfield {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forest_encoding::{from_slice, to_vec};
+    use fvm_shared::encoding::{from_slice, to_vec};
 
     #[test]
     fn test_bitfield() {

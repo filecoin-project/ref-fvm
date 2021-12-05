@@ -1,12 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{make_empty_map, make_map_with_root, BytesKey, Map};
-use cid::Cid;
-use fil_types::HAMT_BIT_WIDTH;
-use ipld_blockstore::BlockStore;
-use ipld_hamt::Error;
 use std::error::Error as StdError;
+
+use cid::Cid;
+use ipld_blockstore::BlockStore;
+
+use fvm_shared::HAMT_BIT_WIDTH;
+use ipld_hamt::Error;
+
+use crate::{make_empty_map, make_map_with_root, BytesKey, Map};
 
 /// Set is a Hamt with empty values for the purpose of acting as a hash set.
 #[derive(Debug)]

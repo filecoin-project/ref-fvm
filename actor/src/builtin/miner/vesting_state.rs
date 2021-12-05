@@ -1,14 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::VestSpec;
-use clock::ChainEpoch;
-use encoding::tuple::*;
-use fil_types::deadlines::QuantSpec;
-use num_bigint::{bigint_ser, Integer};
-use num_traits::Zero;
 use std::collections::HashMap;
-use vm::TokenAmount;
+
+use num_traits::Zero;
+
+use crate::miner::QuantSpec;
+use fvm_shared::bigint::{bigint_ser, Integer};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+
+use super::VestSpec;
 
 // Represents miner funds that will vest at the given epoch.
 #[derive(Serialize_tuple, Deserialize_tuple)]

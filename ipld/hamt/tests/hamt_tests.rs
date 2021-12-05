@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Code::Blake2b256;
-use ipld_blockstore::{BSStats, BlockStore, TrackingBlockStore};
+use cid::multihash::Code;
+use ipld_blockstore::{BSStats, BlockStore, MemoryBlockstore, TrackingBlockStore};
 use ipld_hamt::BytesKey;
 use ipld_hamt::Hamt;
 use serde_bytes::ByteBuf;
@@ -16,7 +16,7 @@ const BUCKET_SIZE: usize = 3;
 
 #[test]
 fn test_basics() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
     let mut hamt = Hamt::<_, String, _>::new(&store);
     hamt.set(1, "world".to_string()).unwrap();
 
@@ -27,7 +27,7 @@ fn test_basics() {
 
 #[test]
 fn test_load() {
-    let store = db::MemoryDB::default();
+    let store = MemoryBlockstore::default();
 
     let mut hamt: Hamt<_, _, usize> = Hamt::new(&store);
     hamt.set(1, "world".to_string()).unwrap();
@@ -53,7 +53,7 @@ fn test_load() {
     assert_eq!(hamt, new_hamt);
 
     // loading from an empty store does not work
-    let empty_store = db::MemoryDB::default();
+    let empty_store = MemoryBlockstore::default();
     assert!(Hamt::<_, usize>::load(&c2, &empty_store).is_err());
 
     // storing the hamt should produce the same cid as storing the root
@@ -63,7 +63,7 @@ fn test_load() {
 
 #[test]
 fn test_set_if_absent() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
@@ -97,7 +97,7 @@ fn test_set_if_absent() {
 
 #[test]
 fn set_with_no_effect_does_not_put() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut begn: Hamt<_, _> = Hamt::new_with_bit_width(&store, 1);
@@ -137,7 +137,7 @@ fn set_with_no_effect_does_not_put() {
 
 #[test]
 fn delete() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
@@ -166,7 +166,7 @@ fn delete() {
 
 #[test]
 fn delete_case() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
@@ -195,14 +195,14 @@ fn delete_case() {
 
 #[test]
 fn reload_empty() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let hamt: Hamt<_, ()> = Hamt::new(&store);
-    let c = store.put(&hamt, Blake2b256).unwrap();
+    let c = store.put(&hamt, Code::Blake2b256).unwrap();
 
     let h2 = Hamt::<_, ()>::load(&c, &store).unwrap();
-    let c2 = store.put(&h2, Blake2b256).unwrap();
+    let c2 = store.put(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
     assert_eq!(
         c.to_string().as_str(),
@@ -214,7 +214,7 @@ fn reload_empty() {
 
 #[test]
 fn set_delete_many() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     // Test vectors setup specifically for bit width of 5
@@ -258,7 +258,7 @@ fn set_delete_many() {
 }
 #[test]
 fn for_each() {
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut hamt: Hamt<_, BytesKey> = Hamt::new_with_bit_width(&store, 5);
@@ -330,7 +330,7 @@ fn add_and_remove_keys(
         .map(|(i, k)| (k.to_vec().into(), tstring(i)))
         .collect();
 
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut hamt: Hamt<_, _, _, Identity> = Hamt::new_with_bit_width(&store, bit_width);
@@ -447,7 +447,7 @@ fn clean_child_ordering() {
 
     let dummy_value: u8 = 42;
 
-    let mem = db::MemoryDB::default();
+    let mem = MemoryBlockstore::default();
     let store = TrackingBlockStore::new(&mem);
 
     let mut h: Hamt<_, _> = Hamt::new_with_bit_width(&store, 5);

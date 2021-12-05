@@ -1,16 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
-use crate::{network::*, DealWeight};
-use clock::ChainEpoch;
-use fil_types::{
-    NetworkVersion, RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize,
-    StoragePower,
-};
-use num_bigint::{BigInt, Integer};
+use cid::{Cid, Version};
 use std::cmp;
-use vm::TokenAmount;
+
+use fvm_shared::bigint::{BigInt, Integer};
+use fvm_shared::clock::{ChainEpoch, EPOCH_DURATION_SECONDS};
+use fvm_shared::commcid;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::sector::{
+    RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize, StoragePower,
+};
+use fvm_shared::version::NetworkVersion;
+
+use crate::{network::*, DealWeight, EXPECTED_LEADERS_PER_EPOCH};
+
+use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
 
 /// Maximum amount of sectors that can be aggregated.
 pub const MAX_AGGREGATED_SECTORS: usize = 819;
@@ -91,12 +96,13 @@ pub const NEW_SECTORS_PER_PERIOD_MAX: usize = 128 << 10;
 pub const CHAIN_FINALITY: ChainEpoch = 900;
 
 /// Prefix for sealed sector CIDs (CommR).
-pub const SEALED_CID_PREFIX: cid::Prefix = cid::Prefix {
-    version: cid::Version::V1,
-    codec: cid::FIL_COMMITMENT_SEALED,
-    mh_type: cid::POSEIDON_BLS12_381_A1_FC1,
-    mh_len: 32,
-};
+pub fn is_sealed_sector(c: &Cid) -> bool {
+    // TODO: Move FIL_COMMITMENT etc, into a better place
+    c.version() == Version::V1
+        && c.codec() == commcid::FIL_COMMITMENT_SEALED
+        && c.hash().code() == commcid::POSEIDON_BLS12_381_A1_FC1
+        && c.hash().size() == 32
+}
 
 /// List of proof types which can be used when creating new miner actors
 pub fn can_pre_commit_seal_proof(proof: RegisteredSealProof) -> bool {

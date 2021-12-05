@@ -1,28 +1,45 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use log::{error, info, warn};
+use std::collections::{hash_map::Entry, HashMap};
+use std::error::Error as StdError;
+use std::{iter, ops::Neg};
 
-mod bitfield_queue;
-mod deadline_assignment;
-mod deadline_state;
-mod deadlines;
-mod expiration_queue;
-mod monies;
-mod partition_state;
-mod policy;
-mod sector_map;
-mod sectors;
-mod state;
-mod termination;
-mod types;
-mod vesting_state;
+use bitfield::{BitField, UnvalidatedBitField, Validate};
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use cid::{multihash::Code, Cid};
+use ipld_blockstore::BlockStore;
+use log::{error, info, warn};
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
 
 pub use bitfield_queue::*;
 pub use deadline_assignment::*;
+pub use deadline_info::*;
 pub use deadline_state::*;
 pub use deadlines::*;
 pub use expiration_queue::*;
+use fvm_shared::bigint::bigint_ser::BigIntSer;
+use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
+use fvm_shared::encoding::{BytesDe, Cbor};
+use fvm_shared::{
+    actor_error,
+    address::{Address, Payload, Protocol},
+    bigint::BigInt,
+    clock::ChainEpoch,
+    crypto::randomness::*,
+    deal::DealID,
+    econ::TokenAmount,
+    encoding::RawBytes,
+    error::*,
+    randomness::*,
+    sector::*,
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
+// The following errors are particular cases of illegal state.
+// They're not expected to ever happen, but if they do, distinguished codes can help us
+// diagnose the problem.
+use fvm_shared::error::ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
 pub use monies::*;
 pub use partition_state::*;
 pub use policy::*;
@@ -33,11 +50,12 @@ pub use termination::*;
 pub use types::*;
 pub use vesting_state::*;
 
+use crate::runtime::ActorCode;
 use crate::{
     account::Method as AccountMethod,
-    actor_error,
     market::{self, ActivateDealsParams, ComputeDataCommitmentReturn, SectorDataSpec, SectorDeals},
     power::MAX_MINER_PROVE_COMMITS_PER_EPOCH,
+    runtime::Runtime,
 };
 use crate::{
     is_principal, smooth::FilterEstimate, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR,
@@ -57,42 +75,25 @@ use crate::{
     reward::ThisEpochRewardReturn,
     ActorDowncast,
 };
-use address::{Address, Payload, Protocol};
-use bitfield::{BitField, UnvalidatedBitField, Validate};
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use cid::{Cid, Code::Blake2b256, Prefix};
-use clock::ChainEpoch;
-use crypto::DomainSeparationTag::{
-    self, InteractiveSealChallengeSeed, SealRandomness, WindowedPoStChallengeSeed,
-};
-use encoding::{BytesDe, Cbor};
-use fil_types::{
-    deadlines::DeadlineInfo, AggregateSealVerifyInfo, AggregateSealVerifyProofAndInfos,
-    InteractiveSealRandomness, PoStProof, PoStRandomness, RegisteredPoStProof, RegisteredSealProof,
-    SealRandomness as SealRandom, SealVerifyInfo, SealVerifyParams, SectorID, SectorInfo,
-    SectorNumber, SectorSize, WindowPoStVerifyInfo, MAX_SECTOR_NUMBER, RANDOMNESS_LENGTH,
-};
-use ipld_blockstore::BlockStore;
-use num_bigint::bigint_ser::BigIntSer;
-use num_bigint::BigInt;
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-use runtime::{ActorCode, Runtime};
-use std::collections::{hash_map::Entry, HashMap};
-use std::error::Error as StdError;
-use std::{iter, ops::Neg};
-use vm::{
-    ActorError, DealID, ExitCode, MethodNum, Serialized, TokenAmount, METHOD_CONSTRUCTOR,
-    METHOD_SEND,
-};
+
+mod bitfield_queue;
+mod deadline_assignment;
+mod deadline_info;
+mod deadline_state;
+mod deadlines;
+mod expiration_queue;
+mod monies;
+mod partition_state;
+mod policy;
+mod sector_map;
+mod sectors;
+mod state;
+mod termination;
+mod types;
+mod vesting_state;
 
 // The first 1000 actor-specific codes are left open for user error, i.e. things that might
 // actually happen without programming error in the actor code.
-
-// The following errors are particular cases of illegal state.
-// They're not expected to ever happen, but if they do, distinguished codes can help us
-// diagnose the problem.
-use ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
 
 // * Updated to specs-actors commit: 17d3c602059e5c48407fb3c34343da87e6ea6586 (v0.9.12)
 
@@ -199,7 +200,7 @@ impl Actor {
                 e
             )
         })?;
-        let info_cid = rt.store().put(&info, Blake2b256).map_err(|e| {
+        let info_cid = rt.store().put(&info, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
@@ -809,12 +810,12 @@ impl Actor {
                 ));
             }
             let sv_info_randomness = rt.get_randomness_from_tickets(
-                SealRandomness,
+                DomainSeparationTag::SealRandomness,
                 precommit.info.seal_rand_epoch,
                 &receiver_bytes,
             )?;
             let sv_info_interactive_randomness = rt.get_randomness_from_beacon(
-                InteractiveSealChallengeSeed,
+                DomainSeparationTag::InteractiveSealChallengeSeed,
                 interactive_epoch,
                 &receiver_bytes,
             )?;
@@ -838,7 +839,7 @@ impl Actor {
         rt.verify_aggregate_seals(&AggregateSealVerifyProofAndInfos {
             miner: miner_actor_id,
             seal_proof,
-            aggregate_proof: fil_types::RegisteredAggregateProof::SnarkPackV1,
+            aggregate_proof: RegisteredAggregateProof::SnarkPackV1,
             proof: params.aggregate_proof,
             infos: svis,
         })
@@ -1077,7 +1078,7 @@ impl Actor {
             if let Err(e) = rt.send(
                 reporter,
                 METHOD_SEND,
-                Serialized::default(),
+                RawBytes::default(),
                 to_reward.clone(),
             ) {
                 error!("failed to send reward: {}", e);
@@ -1173,7 +1174,7 @@ impl Actor {
             }
             // Skip checking if CID is defined because it cannot be so in Rust
 
-            if Prefix::from(precommit.sealed_cid) != SEALED_CID_PREFIX {
+            if !is_sealed_sector(&precommit.sealed_cid) {
                 return Err(actor_error!(
                     ErrIllegalArgument,
                     "sealed CID had wrong prefix"
@@ -1467,7 +1468,7 @@ impl Actor {
         rt.send(
             *STORAGE_POWER_ACTOR_ADDR,
             PowerMethod::SubmitPoRepForBulkVerify as u64,
-            Serialized::serialize(&svi)?,
+            RawBytes::serialize(&svi)?,
             BigInt::zero(),
         )?;
 
@@ -2690,7 +2691,7 @@ impl Actor {
             Ok((burn_amount, reward_amount))
         })?;
 
-        if let Err(e) = rt.send(reporter, METHOD_SEND, Serialized::default(), reward_amount) {
+        if let Err(e) = rt.send(reporter, METHOD_SEND, RawBytes::default(), reward_amount) {
             error!("failed to send reward: {}", e);
         }
 
@@ -2797,7 +2798,7 @@ impl Actor {
             rt.send(
                 info.owner,
                 METHOD_SEND,
-                Serialized::default(),
+                RawBytes::default(),
                 amount_withdrawn.clone(),
             )?;
         }
@@ -3315,10 +3316,10 @@ where
     BS: BlockStore,
     RT: Runtime<BS>,
 {
-    let payload = Serialized::serialize(cb)
+    let payload = RawBytes::serialize(cb)
         .map_err(|e| ActorError::from(e).wrap("failed to serialize payload: {}"))?;
 
-    let ser_params = Serialized::serialize(EnrollCronEventParams {
+    let ser_params = RawBytes::serialize(EnrollCronEventParams {
         event_epoch,
         payload,
     })?;
@@ -3346,7 +3347,7 @@ where
     rt.send(
         *STORAGE_POWER_ACTOR_ADDR,
         crate::power::Method::UpdateClaimedPower as MethodNum,
-        Serialized::serialize(crate::power::UpdateClaimedPowerParams {
+        RawBytes::serialize(crate::power::UpdateClaimedPowerParams {
             raw_byte_delta: delta.raw,
             quality_adjusted_delta: delta.qa,
         })?,
@@ -3372,7 +3373,7 @@ where
         rt.send(
             *STORAGE_MARKET_ACTOR_ADDR,
             MarketMethod::OnMinerSectorsTerminate as u64,
-            Serialized::serialize(OnMinerSectorsTerminateParamsRef {
+            RawBytes::serialize(OnMinerSectorsTerminateParamsRef {
                 epoch,
                 deal_ids: chunk,
             })?,
@@ -3493,10 +3494,13 @@ where
         rt.message().receiver().marshal_cbor().map_err(|e| {
             ActorError::from(e).wrap("failed to marshal address for get verify info")
         })?;
-    let randomness: SealRandom =
-        rt.get_randomness_from_tickets(SealRandomness, params.seal_rand_epoch, &entropy)?;
+    let randomness: SealRandomness = rt.get_randomness_from_tickets(
+        DomainSeparationTag::SealRandomness,
+        params.seal_rand_epoch,
+        &entropy,
+    )?;
     let interactive_randomness: InteractiveSealRandomness = rt.get_randomness_from_beacon(
-        InteractiveSealChallengeSeed,
+        DomainSeparationTag::InteractiveSealChallengeSeed,
         params.interactive_epoch,
         &entropy,
     )?;
@@ -3532,7 +3536,7 @@ where
         .send(
             *STORAGE_MARKET_ACTOR_ADDR,
             MarketMethod::ComputeDataCommitment as u64,
-            Serialized::serialize(ComputeDataCommitmentParamsRef {
+            RawBytes::serialize(ComputeDataCommitmentParamsRef {
                 inputs: data_commitment_inputs,
             })?,
             TokenAmount::zero(),
@@ -3577,7 +3581,7 @@ where
     let serialized = rt.send(
         *STORAGE_MARKET_ACTOR_ADDR,
         MarketMethod::VerifyDealsForActivation as u64,
-        Serialized::serialize(VerifyDealsForActivationParamsRef { sectors })?,
+        RawBytes::serialize(VerifyDealsForActivationParamsRef { sectors })?,
         TokenAmount::zero(),
     )?;
 
@@ -3681,7 +3685,7 @@ where
         let ret = rt.send(
             resolved,
             AccountMethod::PubkeyAddress as u64,
-            Serialized::default(),
+            RawBytes::default(),
             TokenAmount::zero(),
         )?;
         let pub_key: Address = ret.deserialize().map_err(|e| {
@@ -3708,7 +3712,7 @@ where
         rt.send(
             *BURNT_FUNDS_ACTOR_ADDR,
             METHOD_SEND,
-            Serialized::default(),
+            RawBytes::default(),
             amount,
         )?;
     }
@@ -3724,7 +3728,7 @@ where
         rt.send(
             *STORAGE_POWER_ACTOR_ADDR,
             PowerMethod::UpdatePledgeTotal as u64,
-            Serialized::serialize(BigIntSer(pledge_delta))?,
+            RawBytes::serialize(BigIntSer(pledge_delta))?,
             TokenAmount::zero(),
         )?;
     }
@@ -4035,7 +4039,7 @@ where
             let res = rt.send(
                 *STORAGE_MARKET_ACTOR_ADDR,
                 crate::market::Method::ActivateDeals as MethodNum,
-                Serialized::serialize(ActivateDealsParams {
+                RawBytes::serialize(ActivateDealsParams {
                     deal_ids: pre_commit.info.deal_ids.clone(),
                     sector_expiry: pre_commit.info.expiration,
                 })?,
@@ -4260,8 +4264,8 @@ impl ActorCode for Actor {
     fn invoke_method<BS, RT>(
         rt: &mut RT,
         method: MethodNum,
-        params: &Serialized,
-    ) -> Result<Serialized, ActorError>
+        params: &RawBytes,
+    ) -> Result<RawBytes, ActorError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -4269,107 +4273,107 @@ impl ActorCode for Actor {
         match FromPrimitive::from_u64(method) {
             Some(Method::Constructor) => {
                 Self::constructor(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ControlAddresses) => {
                 let res = Self::control_addresses(rt)?;
-                Ok(Serialized::serialize(&res)?)
+                Ok(RawBytes::serialize(&res)?)
             }
             Some(Method::ChangeWorkerAddress) => {
                 Self::change_worker_address(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ChangePeerID) => {
                 Self::change_peer_id(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::SubmitWindowedPoSt) => {
                 Self::submit_windowed_post(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::PreCommitSector) => {
                 Self::pre_commit_sector(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ProveCommitSector) => {
                 Self::prove_commit_sector(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ExtendSectorExpiration) => {
                 Self::extend_sector_expiration(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::TerminateSectors) => {
                 let ret = Self::terminate_sectors(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(ret)?)
+                Ok(RawBytes::serialize(ret)?)
             }
             Some(Method::DeclareFaults) => {
                 Self::declare_faults(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::DeclareFaultsRecovered) => {
                 Self::declare_faults_recovered(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::OnDeferredCronEvent) => {
                 Self::on_deferred_cron_event(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CheckSectorProven) => {
                 Self::check_sector_proven(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ApplyRewards) => {
                 Self::apply_rewards(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ReportConsensusFault) => {
                 Self::report_consensus_fault(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::WithdrawBalance) => {
                 Self::withdraw_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ConfirmSectorProofsValid) => {
                 Self::confirm_sector_proofs_valid(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ChangeMultiaddrs) => {
                 Self::change_multiaddresses(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CompactPartitions) => {
                 Self::compact_partitions(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::CompactSectorNumbers) => {
                 Self::compact_sector_numbers(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ConfirmUpdateWorkerKey) => {
                 Self::confirm_update_worker_key(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::RepayDebt) => {
                 Self::repay_debt(rt)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ChangeOwnerAddress) => {
                 Self::change_owner_address(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::DisputeWindowedPoSt) => {
                 Self::dispute_windowed_post(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::PreCommitSectorBatch) => {
                 Self::pre_commit_sector_batch(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             Some(Method::ProveCommitAggregate) => {
                 Self::prove_commit_aggregate(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::default())
+                Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
         }

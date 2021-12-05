@@ -1,24 +1,29 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use cid::{Cid, Version};
+
+use fvm_shared::{
+    address::Address,
+    bigint::bigint_ser,
+    clock::ChainEpoch,
+    commcid,
+    crypto::signature::Signature,
+    econ::TokenAmount,
+    encoding::{tuple::*, Cbor},
+    piece::PaddedPieceSize,
+};
+
 use crate::DealWeight;
-use address::Address;
-use cid::{Cid, Prefix, Version};
-use clock::ChainEpoch;
-use crypto::Signature;
-use encoding::tuple::*;
-use encoding::Cbor;
-use fil_types::PaddedPieceSize;
-use num_bigint::bigint_ser;
-use vm::TokenAmount;
 
 /// Cid prefix for piece Cids
-pub const PIECE_CID_PREFIX: Prefix = Prefix {
-    version: Version::V1,
-    codec: cid::FIL_COMMITMENT_UNSEALED,
-    mh_type: cid::SHA2_256_TRUNC254_PADDED,
-    mh_len: 32,
-};
+pub fn is_piece_cid(c: &Cid) -> bool {
+    // TODO: Move FIL_COMMITMENT etc, into a better place
+    c.version() == Version::V1
+        && c.codec() == commcid::FIL_COMMITMENT_UNSEALED
+        && c.hash().code() == commcid::SHA2_256_TRUNC254_PADDED
+        && c.hash().size() == 32
+}
 
 /// Note: Deal Collateral is only released and returned to clients and miners
 /// when the storage deal stops counting towards power. In the current iteration,

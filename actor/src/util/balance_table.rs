@@ -1,15 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, Map};
-use address::Address;
+use std::error::Error as StdError;
+
 use cid::Cid;
 use ipld_blockstore::BlockStore;
-use ipld_hamt::Error;
-use num_bigint::bigint_ser::BigIntDe;
 use num_traits::{Signed, Zero};
-use std::error::Error as StdError;
-use vm::TokenAmount;
+
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser::BigIntDe;
+use fvm_shared::econ::TokenAmount;
+use ipld_hamt::Error;
+
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, Map};
 
 pub const BALANCE_TABLE_BITWIDTH: u32 = 6;
 

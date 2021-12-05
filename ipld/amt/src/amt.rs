@@ -7,8 +7,8 @@ use crate::{
     node::{CollapsedNode, Link},
     nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
-use cid::{Cid, Code::Blake2b256};
-use encoding::{de::DeserializeOwned, ser::Serialize};
+use cid::{multihash::Code, Cid};
+use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize};
 use ipld_blockstore::BlockStore;
 use itertools::sorted;
 use std::error::Error as StdError;
@@ -21,7 +21,7 @@ use std::error::Error as StdError;
 /// ```
 /// use ipld_amt::Amt;
 ///
-/// let db = db::MemoryDB::default();
+/// let db = ipld_blockstore::MemoryBlockstore::default();
 /// let mut amt = Amt::new(&db);
 ///
 /// // Insert or remove any serializable values
@@ -264,7 +264,7 @@ where
     /// flush root and return Cid used as key in block store
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.node.flush(self.block_store)?;
-        Ok(self.block_store.put(&self.root, Blake2b256)?)
+        Ok(self.block_store.put(&self.root, Code::Blake2b256)?)
     }
 
     /// Iterates over each value in the Amt and runs a function on the values.
@@ -277,7 +277,7 @@ where
     /// ```
     /// use ipld_amt::Amt;
     ///
-    /// let store = db::MemoryDB::default();
+    /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Amt<String, _> = Amt::new(&store);
     /// map.set(1, "One".to_owned()).unwrap();

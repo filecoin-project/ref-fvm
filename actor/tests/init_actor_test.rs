@@ -1,20 +1,23 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod common;
-
-use address::Address;
 use cid::Cid;
+use serde::Serialize;
+
 use common::*;
-use fil_types::HAMT_BIT_WIDTH;
 use forest_actor::{
     init::{ConstructorParams, ExecParams, ExecReturn, Method, State},
     Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, INIT_ACTOR_CODE_ID,
     MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID,
     STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use serde::Serialize;
-use vm::{ActorError, ExitCode, Serialized, TokenAmount, METHOD_CONSTRUCTOR};
+use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+
+mod common;
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {
@@ -70,14 +73,14 @@ fn create_2_payment_channels() {
         rt.expect_send(
             expected_id_addr,
             METHOD_CONSTRUCTOR,
-            Serialized::serialize(&fake_params).unwrap(),
+            RawBytes::serialize(&fake_params).unwrap(),
             balance,
-            Serialized::default(),
+            RawBytes::default(),
             ExitCode::Ok,
         );
 
         let exec_ret = exec_and_verify(&mut rt, *PAYCH_ACTOR_CODE_ID, &fake_params).unwrap();
-        let exec_ret: ExecReturn = Serialized::deserialize(&exec_ret).unwrap();
+        let exec_ret: ExecReturn = RawBytes::deserialize(&exec_ret).unwrap();
         assert_eq!(
             unique_address, exec_ret.robust_address,
             "Robust Address does not match"
@@ -118,15 +121,15 @@ fn create_storage_miner() {
     rt.expect_send(
         expected_id_addr,
         METHOD_CONSTRUCTOR,
-        Serialized::serialize(&fake_params).unwrap(),
+        RawBytes::serialize(&fake_params).unwrap(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
     let exec_ret = exec_and_verify(&mut rt, *MINER_ACTOR_CODE_ID, &fake_params).unwrap();
 
-    let exec_ret: ExecReturn = Serialized::deserialize(&exec_ret).unwrap();
+    let exec_ret: ExecReturn = RawBytes::deserialize(&exec_ret).unwrap();
     assert_eq!(unique_address, exec_ret.robust_address);
     assert_eq!(expected_id_addr, exec_ret.id_address);
 
@@ -172,15 +175,15 @@ fn create_multisig_actor() {
     rt.expect_send(
         expected_id_addr,
         METHOD_CONSTRUCTOR,
-        Serialized::serialize(&fake_params).unwrap(),
+        RawBytes::serialize(&fake_params).unwrap(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::Ok,
     );
 
     // Return should have been successful. Check the returned addresses
     let exec_ret = exec_and_verify(&mut rt, *MULTISIG_ACTOR_CODE_ID, &fake_params).unwrap();
-    let exec_ret: ExecReturn = Serialized::deserialize(&exec_ret).unwrap();
+    let exec_ret: ExecReturn = RawBytes::deserialize(&exec_ret).unwrap();
     assert_eq!(
         unique_address, exec_ret.robust_address,
         "Robust address does not macth"
@@ -213,9 +216,9 @@ fn sending_constructor_failure() {
     rt.expect_send(
         expected_id_addr,
         METHOD_CONSTRUCTOR,
-        Serialized::serialize(&fake_params).unwrap(),
+        RawBytes::serialize(&fake_params).unwrap(),
         0u8.into(),
-        Serialized::default(),
+        RawBytes::default(),
         ExitCode::ErrIllegalState,
     );
 
@@ -248,11 +251,11 @@ fn construct_and_verify(rt: &mut MockRuntime) {
         .call(
             &*INIT_ACTOR_CODE_ID,
             METHOD_CONSTRUCTOR,
-            &Serialized::serialize(&params).unwrap(),
+            &RawBytes::serialize(&params).unwrap(),
         )
         .unwrap();
 
-    assert_eq!(Serialized::default(), ret);
+    assert_eq!(RawBytes::default(), ret);
     rt.verify();
 
     let state_data: State = rt.get_state().unwrap();
@@ -271,20 +274,20 @@ fn exec_and_verify<S: Serialize>(
     rt: &mut MockRuntime,
     code_id: Cid,
     params: &S,
-) -> Result<Serialized, ActorError>
+) -> Result<RawBytes, ActorError>
 where
     S: Serialize,
 {
     rt.expect_validate_caller_any();
     let exec_params = ExecParams {
         code_cid: code_id,
-        constructor_params: Serialized::serialize(params).unwrap(),
+        constructor_params: RawBytes::serialize(params).unwrap(),
     };
 
     let ret = rt.call(
         &*INIT_ACTOR_CODE_ID,
         Method::Exec as u64,
-        &Serialized::serialize(&exec_params).unwrap(),
+        &RawBytes::serialize(&exec_params).unwrap(),
     );
 
     rt.verify();

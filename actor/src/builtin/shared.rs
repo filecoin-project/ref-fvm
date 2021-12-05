@@ -1,13 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::miner::{GetControlAddressesReturn, Method};
-use address::Address;
+use std::error::Error as StdError;
+
 use ipld_blockstore::BlockStore;
 use num_traits::Zero;
-use runtime::Runtime;
-use std::error::Error as StdError;
-use vm::{ActorError, Serialized, TokenAmount, METHOD_SEND};
+
+use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::METHOD_SEND;
+
+use crate::miner::{GetControlAddressesReturn, Method};
+use crate::runtime::Runtime;
+
+pub const HAMT_BIT_WIDTH: u32 = 5;
 
 pub(crate) fn request_miner_control_addrs<BS, RT>(
     rt: &mut RT,
@@ -20,7 +28,7 @@ where
     let ret = rt.send(
         miner_addr,
         Method::ControlAddresses as u64,
-        Serialized::default(),
+        RawBytes::default(),
         TokenAmount::zero(),
     )?;
     let addrs: GetControlAddressesReturn = ret.deserialize()?;
