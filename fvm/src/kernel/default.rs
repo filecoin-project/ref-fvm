@@ -23,7 +23,14 @@ pub struct DefaultKernel<B> {
     root: Cid,
 }
 
-impl<B> DefaultKernel<B> {
+// Even though all children traits are implemented, Rust needs to know that the
+// supertrait is implemented too.
+impl<B> Kernel for DefaultKernel<B> where B: Blockstore {}
+
+impl<B> DefaultKernel<B>
+where
+    B: Blockstore,
+{
     pub fn new(bs: B, root: Cid) -> Self {
         Self {
             root,
@@ -114,10 +121,7 @@ where
     }
 }
 
-impl<B> InvocationOps for DefaultKernel<B>
-where
-    B: Blockstore,
-{
+impl<B> InvocationOps for DefaultKernel<B> {
     fn method_number(&self) -> MethodId {
         // TODO
         0

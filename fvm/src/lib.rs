@@ -1,14 +1,15 @@
+pub mod externs;
+pub mod invocation;
+pub mod kernel;
+pub mod machine;
+pub mod message;
+pub mod receipt;
+pub mod syscalls;
+
 mod adt;
-mod externs;
 mod gas;
 mod init_actor;
-mod invocation;
-mod kernel;
-mod machine;
-mod message;
-mod receipt;
 mod state_tree;
-mod syscalls;
 
 pub use kernel::{default::DefaultKernel, BlockError, Kernel};
 
