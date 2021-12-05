@@ -6,13 +6,13 @@ use std::error::Error as StdError;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 
-use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use fvm_shared::address::{Address, Protocol};
-use fvm_shared::encoding::Cbor;
 use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
+use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use ipld_hamt::Error as HamtError;
 
-use crate::{FIRST_NON_SINGLETON_ADDR, make_empty_map, make_map_with_root_and_bitwidth};
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, FIRST_NON_SINGLETON_ADDR};
 
 /// State is reponsible for creating
 #[derive(Serialize_tuple, Deserialize_tuple)]

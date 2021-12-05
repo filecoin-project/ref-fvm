@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::bigint::{BigInt, bigint_ser, Integer};
+use fvm_shared::bigint::{bigint_ser, BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::encoding::Cbor;
 use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 
 use crate::util::math::PRECISION;
 
@@ -74,8 +74,8 @@ impl<'a, 'b, 'f> AlphaBetaFilter<'a, 'b, 'f> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{DEFAULT_ALPHA, DEFAULT_BETA};
+    use super::*;
 
     #[test]
     fn rounding() {

@@ -9,7 +9,7 @@ use ipld_blockstore::BlockStore;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_hamt::Error;
 
-use crate::{BytesKey, make_empty_map, make_map_with_root, Map};
+use crate::{make_empty_map, make_map_with_root, BytesKey, Map};
 
 /// Set is a Hamt with empty values for the purpose of acting as a hash set.
 #[derive(Debug)]

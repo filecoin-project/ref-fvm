@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use fvm_shared::address::Address;
-use fvm_shared::encoding::{Cbor, tuple::*};
+use fvm_shared::encoding::{tuple::*, Cbor};
 
 /// State includes the address for the actor
 #[derive(Serialize_tuple, Deserialize_tuple)]

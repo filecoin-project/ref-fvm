@@ -7,7 +7,7 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 
 use fvm_shared::address::Address;
-use fvm_shared::encoding::{Cbor, tuple::*};
+use fvm_shared::encoding::{tuple::*, Cbor};
 use fvm_shared::HAMT_BIT_WIDTH;
 
 use crate::make_empty_map;
