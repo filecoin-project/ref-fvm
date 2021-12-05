@@ -25,9 +25,6 @@ pub mod sector;
 pub mod state;
 pub mod version;
 
-#[cfg(feature = "json")]
-pub mod genesis;
-
 lazy_static! {
     /// Total Filecoin available to the network.
     pub static ref TOTAL_FILECOIN: BigInt = BigInt::from(TOTAL_FILECOIN_BASE) * FILECOIN_PRECISION;
