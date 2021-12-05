@@ -7,12 +7,12 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
-use anyhow::anyhow;
 use std::error::Error as StdError;
 
+use anyhow::anyhow;
+use cid::Cid;
 use lazy_static::lazy_static;
 
-use cid::Cid;
 use fvm_shared::address::{Address, Protocol, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;

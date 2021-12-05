@@ -1,11 +1,11 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
-mod cgo;
-
 use blockstore::Blockstore;
 use fvm_shared::{
     clock::ChainEpoch, consensus::ConsensusFault, crypto::randomness::DomainSeparationTag,
 };
+
+mod cgo;
 
 pub trait Externs: Rand + Consensus + Blockstore {}
 

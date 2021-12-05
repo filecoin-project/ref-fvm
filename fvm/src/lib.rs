@@ -1,3 +1,5 @@
+pub use kernel::{default::DefaultKernel, BlockError, Kernel};
+
 pub mod externs;
 pub mod invocation;
 pub mod kernel;
@@ -10,8 +12,6 @@ mod adt;
 mod gas;
 mod init_actor;
 mod state_tree;
-
-pub use kernel::{default::DefaultKernel, BlockError, Kernel};
 
 #[derive(Clone)]
 pub struct Config {

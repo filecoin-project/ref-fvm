@@ -1,8 +1,10 @@
-use anyhow::Result;
-use blockstore::Blockstore;
 use std::collections::VecDeque;
+
+use anyhow::Result;
 #[allow(unused_imports)]
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
+
+use blockstore::Blockstore;
 
 /// An entry in the return stack.
 type ReturnEntry = (bool, Vec<u8>);

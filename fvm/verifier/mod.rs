@@ -1,14 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod mock;
-
-pub use self::mock::*;
-
-use crate::{
-    AggregateSealVerifyProofAndInfos, PoStProof, Randomness, RegisteredPoStProof, SealVerifyInfo,
-    SectorInfo,
-};
 use address::Address;
 use commcid::{cid_to_data_commitment_v1, cid_to_replica_commitment_v1};
 use encoding::bytes_32;
@@ -22,6 +14,15 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::error::Error as StdError;
+
+use crate::{
+    AggregateSealVerifyProofAndInfos, PoStProof, Randomness, RegisteredPoStProof, SealVerifyInfo,
+    SectorInfo,
+};
+
+pub use self::mock::*;
+
+mod mock;
 
 /// Full verification implementation. This will verify all proofs through `rust-fil-proofs`
 /// using locally fetched parameters.

@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::ProofVerifier;
-use crate::{PoStProof, Randomness, RegisteredPoStProof, SealVerifyInfo, SectorInfo};
 use std::error::Error as StdError;
+
+use crate::{PoStProof, Randomness, RegisteredPoStProof, SealVerifyInfo, SectorInfo};
+
+use super::ProofVerifier;
 
 /// Mock verifier. This does no-op verification of any proofs.
 pub enum MockVerifier {}

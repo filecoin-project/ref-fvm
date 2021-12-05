@@ -1,6 +1,7 @@
-use cid::Cid;
 use std::convert::TryInto;
 use std::rc::Rc;
+
+use cid::Cid;
 use thiserror::Error;
 use wasmtime::Trap;
 

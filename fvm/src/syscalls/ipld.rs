@@ -1,6 +1,5 @@
-use wasmtime::{self, Caller, Trap};
-
 use cid::{self, Cid};
+use wasmtime::{self, Caller, Trap};
 
 use crate::Kernel;
 

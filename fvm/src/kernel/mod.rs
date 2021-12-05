@@ -1,11 +1,11 @@
-mod blocks;
-pub mod default;
-
 use anyhow::Result;
 use cid::Cid;
-use fvm_shared::ActorID;
 
 pub use blocks::{BlockError, BlockId, BlockStat};
+use fvm_shared::ActorID;
+
+mod blocks;
+pub mod default;
 
 /// TODO likely don't need the Blockstore type parameter since the
 /// blockstore will be accessed through the externs.

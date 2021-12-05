@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_shared::encoding::{Cbor, RawBytes};
 use num_traits::Zero;
 use wasmtime::{Engine, Linker};
 
@@ -9,6 +8,7 @@ use fvm_shared::actor_error;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 
 use crate::externs::Externs;

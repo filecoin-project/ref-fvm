@@ -1,15 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod charge;
-mod price_list;
-
+use fvm_shared::actor_error;
 use fvm_shared::error::ActorError;
 
 pub use self::charge::GasCharge;
 pub use self::price_list::{price_list_by_epoch, PriceList};
 
-use fvm_shared::actor_error;
+mod charge;
+mod price_list;
 
 pub(crate) struct GasTracker {
     gas_available: i64,

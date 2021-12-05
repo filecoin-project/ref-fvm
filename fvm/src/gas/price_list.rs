@@ -1,8 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::GasCharge;
 use ahash::AHashMap;
+use lazy_static::lazy_static;
+use num_traits::Zero;
+
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
@@ -12,8 +14,8 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::{MethodNum, METHOD_SEND};
-use lazy_static::lazy_static;
-use num_traits::Zero;
+
+use super::GasCharge;
 
 /// V7 network upgrade
 pub const UPGRADE_CALICO_HEIGHT: ChainEpoch = 265200;
