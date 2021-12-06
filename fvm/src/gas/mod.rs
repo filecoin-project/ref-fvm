@@ -10,7 +10,7 @@ pub use self::price_list::{price_list_by_epoch, PriceList};
 mod charge;
 mod price_list;
 
-pub(crate) struct GasTracker {
+pub struct GasTracker {
     gas_available: i64,
     gas_used: i64,
 }

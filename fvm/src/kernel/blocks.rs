@@ -5,6 +5,7 @@ use cid::Cid;
 use thiserror::Error;
 use wasmtime::Trap;
 
+#[derive(Default)]
 pub(crate) struct BlockRegistry {
     blocks: Vec<Block>,
 }

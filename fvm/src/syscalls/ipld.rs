@@ -26,7 +26,7 @@ fn encoded_cid_size(k: &Cid) -> u32 {
 pub fn get_root(caller: Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> Result<u32, Trap> {
     let ctx = Context::new(caller);
 
-    let root = *ctx.data().root();
+    let root = ctx.data().root();
     let size = encoded_cid_size(&root);
     if size > cid_len {
         return Ok(size);

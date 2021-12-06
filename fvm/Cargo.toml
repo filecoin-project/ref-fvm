@@ -15,7 +15,7 @@ derive_builder = "0.9"
 ahash = "0.6"
 num-derive = "0.3.3"
 cid = { version = "0.7", features = ["serde-codec"] }
-multihash = "0.15.0"
+multihash = { version = "0.15", features = ["identity", "default"] }
 wasmtime = "0.31.0"
 fvm_shared = { path = "../shared" }
 ipld_hamt = { path = "../ipld/hamt"}
@@ -25,6 +25,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
 lazy_static = "1.4.0"
+derive-getters = "0.2.0"
 
 # FIXME: The FVM really shouldn't depend on this, but needs to for now.
 actor = { package = "forest_actor", path = "../actor" }

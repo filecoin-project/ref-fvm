@@ -10,7 +10,7 @@ use crate::encoding::{from_slice, to_vec, CodecProtocol};
 use cid::{multihash, Cid};
 
 // TODO find something to reference.
-const DAG_CBOR: u64 = 0x71;
+pub const DAG_CBOR: u64 = 0x71;
 
 /// Cbor utility functions for serializable objects
 pub trait Cbor: Serialize + DeserializeOwned {

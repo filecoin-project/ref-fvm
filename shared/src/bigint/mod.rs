@@ -6,3 +6,4 @@ pub mod biguint_ser;
 
 pub use num_bigint::*;
 pub use num_integer::{self, Integer};
+pub use num_traits::Zero;
