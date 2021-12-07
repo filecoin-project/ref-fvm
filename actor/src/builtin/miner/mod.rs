@@ -4118,6 +4118,7 @@ where
                     "precommit {} has lifetime {} less than minimum {}. ignoring",
                     pre_commit.info.sector_number, duration, MIN_SECTOR_EXPIRATION,
                 );
+                continue;
             }
 
             let power = qa_power_for_weight(
