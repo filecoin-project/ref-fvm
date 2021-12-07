@@ -5,6 +5,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error as StdError;
 use std::{iter, ops::Neg};
 
+use crate::miner::Code::Blake2b256;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use cid::{multihash::Code, Cid};
@@ -192,15 +193,8 @@ impl Actor {
             params.peer_id,
             params.multi_addresses,
             params.window_post_proof_type,
-        )
-        .map_err(|e| {
-            actor_error!(
-                ErrIllegalState,
-                "failed to construct initial miner info: {}",
-                e
-            )
-        })?;
-        let info_cid = rt.store().put(&info, Code::Blake2b256).map_err(|e| {
+        )?;
+        let info_cid = rt.store().put(&info, Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
