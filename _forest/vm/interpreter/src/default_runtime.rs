@@ -469,7 +469,7 @@ where
         self.charge_gas(self.price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() && self.network_version() >= NetworkVersion::V10 {
-            actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor");
+            Err(actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"))?
         }
 
         let addr_id = self
