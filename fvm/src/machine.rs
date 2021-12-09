@@ -354,46 +354,6 @@ where
         None
     }
 
-    // // TODO
-    // pub fn call_next(&mut self, msg: &Message) -> anyhow::Result<Receipt> {
-    //     // Clone because we may override the receiver in the message.
-    //     let mut msg = msg.clone();
-    //
-    //     // Get the receiver; this will resolve the address.
-    //     let receiver = match self
-    //         .state_tree
-    //         .lookup_id(&msg.to)
-    //         .map_err(|e| anyhow::Error::msg(e.to_string()))?
-    //     {
-    //         Some(addr) => addr,
-    //         None => match msg.to.protocol() {
-    //             Protocol::BLS | Protocol::Secp256k1 => {
-    //                 // Try to create an account actor if the receiver is a key address.
-    //                 let (_, id_addr) = self.try_create_account_actor(&msg.to)?;
-    //                 msg.to = id_addr;
-    //                 id_addr
-    //             }
-    //             _ => return Err(anyhow!("actor not found: {}", msg.to)),
-    //         },
-    //     };
-    //
-    //     // TODO Load the code for the receiver by CID (state.code).
-    //     // TODO The node's blockstore will need to return the appropriate WASM
-    //     //  code for built-in system actors. Either we implement a load_code(cid)
-    //     //  Boundary A syscall, or a special blockstore with static mappings from
-    //     //  CodeCID => WASM bytecode for built-in actors will be necessary on the
-    //     //  node side.
-    //
-    //     // TODO instantiate a WASM instance, wrapping the InvocationContainer as
-    //     //  the store data.
-    //
-    //     // TODO invoke the entrypoint on the WASM instance.
-    //
-    //     // TODO somehow instrument so that sends are looped into the call stack.
-    //
-    //     todo!()
-    // }
-
     pub fn context(&self) -> &MachineContext {
         &self.context
     }

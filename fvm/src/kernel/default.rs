@@ -1,21 +1,24 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 
+use actor::ActorDowncast;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;
-use wasmtime::{Linker, Module, Store};
+use wasmtime::{Engine, Linker, Module, Store};
 
 use blockstore::Blockstore;
-use fvm_shared::encoding::DAG_CBOR;
+use fvm_shared::address::Protocol;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ActorError;
-use fvm_shared::ActorID;
+use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
 use crate::gas::GasTracker;
 use crate::machine::Machine;
 use crate::message::Message;
-use crate::state_tree::StateTree;
+use crate::state_tree::{ActorState, StateTree};
 use crate::syscalls::bind_syscalls;
 
 use super::blocks::{Block, BlockRegistry};
@@ -122,12 +125,6 @@ where
 
         msg = self.replace_id_addrs(msg);
 
-        // Inject the message parameters as a block in the block registry.
-        let params_block_id = match self.block_create(DAG_CBOR, msg.params.bytes()) {
-            Ok(v) => v,
-            Err(e) => return (Err(e.into()), machine),
-        };
-
         let attachment = KernelAttachment {
             machine,
             gas_tracker: Box::new(gas_tracker),
@@ -137,30 +134,84 @@ where
         self.attachment.set(attachment);
         let mut store = Store::new(&engine, self);
 
-        let result = || -> Result<InvocationResult> {
-            // Instantiate the module with the supplied bytecode.
-            let module = Module::new(&engine, bytecode)?;
-
-            // Create a new linker.
-            // TODO: move this to arguments so it can be reused and supplied by the machine?
-            let mut linker = Linker::new(&engine);
-            bind_syscalls(&mut linker);
-
-            let instance = linker.instantiate(&mut store, &module)?;
-            let invoke = instance.get_typed_func(&mut store, "invoke")?;
-            let (return_block_id,): (u32,) = invoke.call(&mut store, (params_block_id))?;
-
-            Ok(InvocationResult {
-                return_bytes: vec![],
-                error: None,
-            })
-        }();
+        let result = DefaultKernel::run_invocation_container(&engine, &mut store, bytecode);
 
         // Destroy the store by consuming it, we're done with it; get the Machine back out.
         let k = store.into_data();
         let machine = k.attachment.take().machine;
 
         (result, machine)
+    }
+
+    fn run_invocation_container(
+        &mut self,
+        engine: &Engine,
+        store: &mut Store<Self>,
+        bytecode: &[u8],
+    ) -> Result<InvocationResult> {
+        // Inject the message parameters as a block in the block registry.
+        let params_block_id = match self.block_create(DAG_CBOR, msg.params.bytes()) {
+            Ok(v) => v,
+            Err(e) => return (Err(e.into()), machine),
+        };
+
+        // Instantiate the module with the supplied bytecode.
+        let module = Module::new(&engine, bytecode)?;
+
+        // Create a new linker.
+        // TODO: move this to arguments so it can be reused and supplied by the machine?
+        let mut linker = Linker::new(&engine);
+        bind_syscalls(&mut linker);
+
+        let instance = linker.instantiate(store, &module)?;
+        let invoke = instance.get_typed_func(store, "invoke")?;
+        let (return_block_id,): (u32,) = invoke.call(store, (params_block_id))?;
+
+        Ok(InvocationResult {
+            return_bytes: vec![],
+            error: None,
+        })
+    }
+
+    // Calls
+    fn call_next(
+        mut self,
+        msg: &Message,
+    ) -> anyhow::Result<(InvocationResult, DefaultKernel<B, E>)> {
+        // Clone because we may override the receiver in the message.
+        let mut msg = msg.clone();
+
+        // Get the receiver; this will resolve the address.
+        let receiver = match self
+            .attachment
+            .state_tree()
+            .lookup_id(&msg.to)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?
+        {
+            Some(addr) => addr,
+            None => match msg.to.protocol() {
+                Protocol::BLS | Protocol::Secp256k1 => {
+                    // Try to create an account actor if the receiver is a key address.
+                    let (_, id_addr) = self.create_account_actor(&msg.to)?;
+                    msg.to = id_addr;
+                    id_addr
+                }
+                _ => return Err(anyhow!("actor not found: {}", msg.to)),
+            },
+        };
+
+        // DefaultKernel
+
+        // TODO Load the code for the receiver by CID (state.code).
+        // TODO The node's blockstore will need to return the appropriate WASM
+        //  code for built-in system actors. Either we implement a load_code(cid)
+        //  Boundary A syscall, or a special blockstore with static mappings from
+        //  CodeCID => WASM bytecode for built-in actors will be necessary on the
+        //  node side.
+
+        // TODO somehow instrument so that sends are looped into the call stack.
+
+        todo!()
     }
 
     // TODO: We should be constructing the kernel with pre-looked-up addresses. That'll make this
@@ -181,64 +232,77 @@ where
         msg
     }
 
-    //     pub fn try_create_account_actor(
-    //         &mut self,
-    //         addr: &Address,
-    //     ) -> Result<(ActorState, Address), ActorError> {
-    //         let attachment = self.attachment.as_mut().expect("unattached kernel");
-    //         let machine: &mut Machine<B, E> = attachment.machine.borrow_mut();
-    //         let gas_tracker: &mut GasTracker = attachment.gas_tracker.borrow_mut();
-    //
-    //         let mut state_tree = machine.state_tree_mut();
-    //
-    //         gas_tracker.charge_gas(machine.context().price_list().on_create_actor())?;
-    //
-    //         if addr.is_bls_zero_address() {
-    //             actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor");
-    //         }
-    //
-    //         let addr_id = state_tree
-    //             .register_new_address(addr)
-    //             .map_err(|e| e.downcast_fatal("failed to register new address"))?;
-    //
-    //         let act = crate::account_actor::ZERO_STATE.clone();
-    //
-    //         state_tree
-    //             .set_actor(&addr_id, act)
-    //             .map_err(|e| e.downcast_fatal("failed to set actor"))?;
-    //
-    //         let params = RawBytes::serialize(&addr).map_err(|e| {
-    //             actor_error!(fatal(
-    //                 "couldn't serialize params for actor construction: {:?}",
-    //                 e
-    //             ))
-    //         })?;
-    //
-    //         let msg = Message {
-    //             from: *crate::account_actor::SYSTEM_ACTOR_ADDR,
-    //             to: addr.clone(),
-    //             method_num: fvm_shared::METHOD_CONSTRUCTOR,
-    //             value: TokenAmount::from(0_u32),
-    //             params,
-    //             gas_limit: gas_tracker.gas_available(),
-    //             version: Default::default(),
-    //             sequence: Default::default(),
-    //             gas_fee_cap: Default::default(),
-    //             gas_premium: Default::default(),
-    //         };
-    //
-    //         let mut next_kernel = self.stash(msg);
-    //         next_kernel.run_invocation_container(&[]); // TODO get bytecode.
-    //         *self = *next_kernel.finish().expect("missing previous kernel"); // restore our kernel.
-    //
-    //         // TODO referencing the old state_tree is safe?
-    //         let act = state_tree
-    //             .get_actor(&addr_id)
-    //             .map_err(|e| e.downcast_fatal("failed to get actor"))?
-    //             .ok_or_else(|| actor_error!(fatal("failed to retrieve created actor state")))?;
-    //
-    //         Ok((act, addr_id))
-    //     }
+    pub fn create_account_actor(
+        &mut self,
+        addr: &Address,
+    ) -> Result<(ActorState, Address), ActorError> {
+        // Charge the gas.
+        let gas_available = self.attachment.map_mut(|mut attachment| {
+            let gas = attachment
+                .machine()
+                .context()
+                .price_list()
+                .on_create_actor();
+            let res = attachment.gas_tracker.charge_gas(gas);
+            let available = attachment.gas_tracker.gas_available();
+            (attachment, res.map(|_| available))
+        })?;
+
+        if addr.is_bls_zero_address() {
+            actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor");
+        }
+
+        // Create the actor in the state tree.
+        let act = crate::account_actor::ZERO_STATE.clone();
+        self.create_actor(addr, act)?;
+
+        // Now invoke the constructor; first create the parameters, then
+        // instantiate a new kernel to invoke the constructor.
+        let params = RawBytes::serialize(&addr).map_err(|e| {
+            actor_error!(fatal(
+                "couldn't serialize params for actor construction: {:?}",
+                e
+            ))
+        })?;
+
+        let msg = Message {
+            from: *crate::account_actor::SYSTEM_ACTOR_ADDR,
+            to: addr.clone(),
+            method_num: fvm_shared::METHOD_CONSTRUCTOR,
+            value: TokenAmount::from(0_u32),
+            params,
+            gas_limit: gas_available,
+            version: Default::default(),
+            sequence: Default::default(),
+            gas_fee_cap: Default::default(),
+            gas_premium: Default::default(),
+        };
+
+        // let mut next_kernel = self.stash(msg);
+        // next_kernel.run_invocation_container(&[]); // TODO get bytecode.
+        // *self = *next_kernel.finish().expect("missing previous kernel"); // restore our kernel.
+        //
+        // // TODO referencing the old state_tree is safe?
+        // let act = state_tree
+        //     .get_actor(&addr_id)
+        //     .map_err(|e| e.downcast_fatal("failed to get actor"))?
+        //     .ok_or_else(|| actor_error!(fatal("failed to retrieve created actor state")))?;
+        //
+        // Ok((act, addr_id))
+        todo!()
+    }
+
+    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<(), ActorError> {
+        let mut state_tree = self.attachment.machine.state_tree_mut();
+
+        let addr_id = state_tree
+            .register_new_address(addr)
+            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+
+        state_tree
+            .set_actor(&addr_id, act)
+            .map_err(|e| e.downcast_fatal("failed to set actor"))
+    }
 }
 
 impl<B, E> ActorOps for DefaultKernel<B, E>
@@ -399,5 +463,15 @@ where
         let len = into.len().min(ret.len());
         into.copy_from_slice(&ret[..len]);
         len as u64
+    }
+}
+
+impl<B, E> SendOps for DefaultKernel<B, E>
+where
+    B: Blockstore + 'static,
+    E: Externs + 'static,
+{
+    fn send(&mut self, message: Message) -> anyhow::Result<()> {
+        todo!()
     }
 }
