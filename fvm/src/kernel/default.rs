@@ -241,7 +241,7 @@ where
     //     }
 }
 
-impl<B, E> ActorOps for DefaultKernel<B, E>
+impl<B, E> SelfOps for DefaultKernel<B, E>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
@@ -344,7 +344,7 @@ where
     }
 }
 
-impl<B, E> InvocationOps for DefaultKernel<B, E>
+impl<B, E> MessageOps for DefaultKernel<B, E>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
