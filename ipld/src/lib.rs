@@ -15,7 +15,7 @@ pub mod json;
 #[macro_use]
 mod macros;
 
-pub use self::error::Error;
+pub use self::error::IpldError;
 pub use path::Path;
 pub use path_segment::PathSegment;
 pub use util::*;
@@ -128,7 +128,7 @@ impl Ipld {
 impl Cbor for Ipld {}
 
 /// Convert any object into an IPLD object
-pub fn to_ipld<T>(ipld: T) -> Result<Ipld, Error>
+pub fn to_ipld<T>(ipld: T) -> Result<Ipld, IpldError>
 where
     T: Serialize,
 {

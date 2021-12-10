@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::super::{Error, Ipld, Path, PathSegment};
+use super::super::{Ipld, IpldError, Path, PathSegment};
 use super::Selector;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -15,7 +15,7 @@ impl Selector {
         ipld: &Ipld,
         resolver: Option<L>,
         callback: F,
-    ) -> Result<(), Error>
+    ) -> Result<(), IpldError>
     where
         F: Fn(&Progress<L>, &Ipld, VisitReason) -> Result<(), String> + Sync,
         L: LinkResolver + Sync + Send,
@@ -36,7 +36,7 @@ impl Selector {
         ipld: &Ipld,
         resolver: Option<L>,
         callback: F,
-    ) -> Result<(), Error>
+    ) -> Result<(), IpldError>
     where
         F: Fn(&Progress<L>, &Ipld) -> Result<(), String> + Sync,
         L: LinkResolver + Sync + Send,
@@ -109,7 +109,7 @@ where
         ipld: &Ipld,
         selector: Selector,
         callback: &F,
-    ) -> Result<(), Error>
+    ) -> Result<(), IpldError>
     where
         F: Fn(&Progress<L>, &Ipld, VisitReason) -> Result<(), String> + Sync,
     {
@@ -120,9 +120,9 @@ where
                     path: self.path.clone(),
                     link: *cid,
                 });
-                let mut node = resolver.load_link(cid).await.map_err(Error::Link)?;
+                let mut node = resolver.load_link(cid).await.map_err(IpldError::Link)?;
                 while let Some(Ipld::Link(c)) = node {
-                    node = resolver.load_link(&c).await.map_err(Error::Link)?;
+                    node = resolver.load_link(&c).await.map_err(IpldError::Link)?;
                 }
 
                 if let Some(n) = node {
@@ -139,7 +139,7 @@ where
         } else {
             VisitReason::SelectionCandidate
         };
-        callback(self, ipld, reason).map_err(Error::Custom)?;
+        callback(self, ipld, reason).map_err(IpldError::Custom)?;
 
         // If Ipld is list or map, continue traversal, otherwise return
         match ipld {
@@ -192,7 +192,7 @@ where
         callback: &F,
         ps: PathSegment,
         v: &Ipld,
-    ) -> Result<(), Error>
+    ) -> Result<(), IpldError>
     where
         F: Fn(&Progress<L>, &Ipld, VisitReason) -> Result<(), String> + Sync,
     {

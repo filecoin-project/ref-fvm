@@ -8,7 +8,7 @@ use thiserror::Error;
 
 /// Ipld error
 #[derive(Debug, PartialEq, Error)]
-pub enum Error {
+pub enum IpldError {
     #[error("{0}")]
     Encoding(String),
     #[error("{0}")]
@@ -19,14 +19,14 @@ pub enum Error {
     Custom(String),
 }
 
-impl ser::Error for Error {
-    fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::Encoding(msg.to_string())
+impl ser::Error for IpldError {
+    fn custom<T: fmt::Display>(msg: T) -> IpldError {
+        IpldError::Encoding(msg.to_string())
     }
 }
 
-impl From<CborError> for Error {
-    fn from(e: CborError) -> Error {
-        Error::Encoding(e.to_string())
+impl From<CborError> for IpldError {
+    fn from(e: CborError) -> IpldError {
+        IpldError::Encoding(e.to_string())
     }
 }
