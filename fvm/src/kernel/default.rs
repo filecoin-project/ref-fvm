@@ -48,11 +48,6 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     return_stack: VecDeque<Vec<u8>>,
 }
 
-pub struct InvocationResult {
-    pub return_bytes: Vec<u8>,
-    pub error: Option<ActorError>,
-}
-
 // Even though all children traits are implemented, Rust needs to know that the
 // supertrait is implemented too.
 impl<B, E> Kernel for DefaultKernel<B, E>
@@ -250,7 +245,7 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError> {
+    fn send(&mut self, message: Message) -> anyhow::Result<RawBytes, ActorError> {
         self.call_manager.map_mut(|cm| {
             let (res, cm) = cm.send(
                 message.to,

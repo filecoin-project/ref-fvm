@@ -1,10 +1,10 @@
 use anyhow::Result;
 use cid::Cid;
 
-use crate::kernel::default::InvocationResult;
 use crate::message::Message;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
+use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ActorError;
 use fvm_shared::ActorID;
 pub use mapcell::*;
@@ -70,7 +70,7 @@ pub trait ActorOps: BlockOps {
     /// Update the state-root.
     ///
     /// This method will fail if the new state-root isn't reachable.
-    fn set_root(&mut self, root: Cid) -> anyhow::Result<()>;
+    fn set_root(&mut self, root: Cid) -> Result<()>;
 }
 
 pub trait ReturnOps {
@@ -89,5 +89,5 @@ pub trait ReturnOps {
 
 /// Operations to send messages to other actors.
 pub trait SendOps {
-    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError>;
+    fn send(&mut self, message: Message) -> Result<RawBytes, ActorError>;
 }
