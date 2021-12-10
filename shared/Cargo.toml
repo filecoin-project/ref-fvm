@@ -31,6 +31,7 @@ libsecp256k1 = "0.6"
 bls-signatures = { version = "0.9", default-features = false }
 ## TODO maybe shared shouldn't be depending on filecoin proofs.
 filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false, optional = true }
+anyhow = "1.0.47"
 
 [dev-dependencies]
 rand = "0.7.3"

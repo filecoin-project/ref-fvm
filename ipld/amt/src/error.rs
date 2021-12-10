@@ -5,7 +5,7 @@ use cid::Error as CidError;
 use std::error::Error as StdError;
 use thiserror::Error;
 
-use fvm_shared::encoding::Error as EncodingError;
+use fvm_shared::encoding::EncodingError;
 
 /// AMT Error
 #[derive(Debug, Error)]

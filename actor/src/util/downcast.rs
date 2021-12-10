@@ -3,7 +3,7 @@
 
 use std::error::Error as StdError;
 
-use fvm_shared::encoding::{error::Error as CborError, Error as EncodingError};
+use fvm_shared::encoding::{error::Error as CborError, EncodingError};
 use fvm_shared::error::{ActorError, ExitCode};
 use ipld_amt::AmtError;
 use ipld_hamt::HamtError;

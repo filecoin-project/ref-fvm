@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::Result;
 use cid::Error as CidError;
 use serde_cbor::error::Error as CborError;
 use std::fmt;
@@ -13,13 +14,13 @@ use thiserror::Error;
 /// encoded or decoded.
 #[derive(Debug, PartialEq, Error)]
 #[error("Serialization error for {protocol} protocol: {description}")]
-pub struct Error {
+pub struct EncodingError {
     pub description: String,
     pub protocol: CodecProtocol,
 }
 
-impl From<CborError> for Error {
-    fn from(err: CborError) -> Error {
+impl From<CborError> for EncodingError {
+    fn from(err: CborError) -> EncodingError {
         Self {
             description: err.to_string(),
             protocol: CodecProtocol::Cbor,
@@ -27,7 +28,7 @@ impl From<CborError> for Error {
     }
 }
 
-impl From<CidError> for Error {
+impl From<CidError> for EncodingError {
     fn from(err: CidError) -> Self {
         Self {
             description: err.to_string(),
@@ -36,8 +37,8 @@ impl From<CidError> for Error {
     }
 }
 
-impl From<Error> for io::Error {
-    fn from(err: Error) -> Self {
+impl From<EncodingError> for io::Error {
+    fn from(err: EncodingError) -> Self {
         Self::new(io::ErrorKind::Other, err)
     }
 }

@@ -62,8 +62,8 @@ impl ActorError {
 }
 
 // TODO former EncodingError
-impl From<crate::encoding::Error> for ActorError {
-    fn from(e: crate::encoding::Error) -> Self {
+impl From<crate::encoding::EncodingError> for ActorError {
+    fn from(e: crate::encoding::EncodingError) -> Self {
         Self {
             fatal: false,
             exit_code: ExitCode::ErrSerialization,

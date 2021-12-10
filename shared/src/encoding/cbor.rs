@@ -5,8 +5,9 @@ use std::{ops::Deref, rc::Rc};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::errors::Error;
+use super::errors::EncodingError;
 use crate::encoding::{from_slice, to_vec, CodecProtocol};
+use anyhow::Result;
 use cid::{multihash, Cid};
 
 // TODO find something to reference.
@@ -15,24 +16,24 @@ pub const DAG_CBOR: u64 = 0x71;
 /// Cbor utility functions for serializable objects
 pub trait Cbor: Serialize + DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes
-    fn marshal_cbor(&self) -> Result<Vec<u8>, Error> {
+    fn marshal_cbor(&self) -> Result<Vec<u8>, EncodingError> {
         Ok(to_vec(&self)?)
     }
 
     /// Unmarshals cbor encoded bytes to object
-    fn unmarshal_cbor(bz: &[u8]) -> Result<Self, Error> {
+    fn unmarshal_cbor(bz: &[u8]) -> Result<Self, EncodingError> {
         Ok(from_slice(bz)?)
     }
 
     /// Returns the content identifier of the raw block of data
     /// Default is Blake2b256 hash
-    fn cid(&self) -> Result<Cid, Error> {
+    fn cid(&self) -> Result<Cid, EncodingError> {
         use multihash::MultihashDigest;
         const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
         let data = &self.marshal_cbor()?;
         let hash = multihash::Code::Blake2b256.digest(data);
         if u32::from(hash.size()) != DIGEST_SIZE {
-            return Err(Error {
+            return Err(EncodingError {
                 description: "Invalid multihash length".into(),
                 protocol: CodecProtocol::Cbor, // TODO this is not accurate, and not convinced about this Error type.
             });
@@ -81,7 +82,7 @@ impl RawBytes {
     }
 
     /// Contructor for encoding Cbor encodable structure.
-    pub fn serialize<O: Serialize>(obj: O) -> Result<Self, Error> {
+    pub fn serialize<O: Serialize>(obj: O) -> Result<Self, EncodingError> {
         Ok(Self {
             bytes: to_vec(&obj)?,
         })
@@ -93,7 +94,7 @@ impl RawBytes {
     }
 
     /// Deserializes the serialized bytes into a defined type.
-    pub fn deserialize<O: DeserializeOwned>(&self) -> Result<O, Error> {
+    pub fn deserialize<O: DeserializeOwned>(&self) -> Result<O, EncodingError> {
         Ok(from_slice(&self.bytes)?)
     }
 }
