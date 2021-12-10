@@ -18,7 +18,7 @@ mod hash_bits;
 mod node;
 mod pointer;
 
-pub use self::error::Error;
+pub use self::error::HamtError;
 pub use self::hamt::Hamt;
 pub use self::hash::*;
 pub use self::hash_algorithm::*;

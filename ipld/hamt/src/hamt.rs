@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::node::Node;
-use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
+use crate::{HamtError, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
+use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use forest_hash_utils::BytesKey;
 use ipld_blockstore::BlockStore;
@@ -80,12 +81,16 @@ where
     }
 
     /// Lazily instantiate a hamt from this root Cid.
-    pub fn load(cid: &Cid, store: &'a BS) -> Result<Self, Error> {
+    pub fn load(cid: &Cid, store: &'a BS) -> Result<Self, HamtError> {
         Self::load_with_bit_width(cid, store, DEFAULT_BIT_WIDTH)
     }
 
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
-    pub fn load_with_bit_width(cid: &Cid, store: &'a BS, bit_width: u32) -> Result<Self, Error> {
+    pub fn load_with_bit_width(
+        cid: &Cid,
+        store: &'a BS,
+        bit_width: u32,
+    ) -> Result<Self, HamtError> {
         match store.get(cid)? {
             Some(root) => Ok(Self {
                 root,
@@ -93,15 +98,15 @@ where
                 bit_width,
                 hash: Default::default(),
             }),
-            None => Err(Error::CidNotFound(cid.to_string())),
+            None => Err(HamtError::CidNotFound(cid.to_string())),
         }
     }
 
     /// Sets the root based on the Cid of the root node using the Hamt store
-    pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
+    pub fn set_root(&mut self, cid: &Cid) -> Result<(), HamtError> {
         match self.store.get(cid)? {
             Some(root) => self.root = root,
-            None => return Err(Error::CidNotFound(cid.to_string())),
+            None => return Err(HamtError::CidNotFound(cid.to_string())),
         }
 
         Ok(())
@@ -133,7 +138,7 @@ where
     /// map.set(37, "b".to_string()).unwrap();
     /// map.set(37, "c".to_string()).unwrap();
     /// ```
-    pub fn set(&mut self, key: K, value: V) -> Result<Option<V>, Error>
+    pub fn set(&mut self, key: K, value: V) -> Result<Option<V>, HamtError>
     where
         V: PartialEq,
     {
@@ -167,7 +172,7 @@ where
     /// let c = map.set_if_absent(30, "c".to_string()).unwrap();
     /// assert_eq!(c, true);
     /// ```
-    pub fn set_if_absent(&mut self, key: K, value: V) -> Result<bool, Error>
+    pub fn set_if_absent(&mut self, key: K, value: V) -> Result<bool, HamtError>
     where
         V: PartialEq,
     {
@@ -195,7 +200,7 @@ where
     /// assert_eq!(map.get(&2).unwrap(), None);
     /// ```
     #[inline]
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, Error>
+    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, HamtError>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -226,7 +231,7 @@ where
     /// assert_eq!(map.contains_key(&2).unwrap(), false);
     /// ```
     #[inline]
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, Error>
+    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, HamtError>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -253,7 +258,7 @@ where
     /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
     /// assert_eq!(map.delete(&1).unwrap(), None);
     /// ```
-    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error>
+    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, HamtError>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -262,7 +267,7 @@ where
     }
 
     /// Flush root and return Cid for hamt
-    pub fn flush(&mut self) -> Result<Cid, Error> {
+    pub fn flush(&mut self) -> Result<Cid, HamtError> {
         self.root.flush(self.store)?;
         Ok(self.store.put(&self.root, Code::Blake2b256)?)
     }

@@ -7,7 +7,7 @@ use thiserror::Error;
 
 /// HAMT Error
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum HamtError {
     /// Maximum depth error
     #[error("Maximum depth reached")]
     MaxDepth,
@@ -30,13 +30,13 @@ pub enum Error {
     Other(String),
 }
 
-impl From<EncodingError> for Error {
+impl From<EncodingError> for HamtError {
     fn from(e: EncodingError) -> Self {
         Self::Dynamic(Box::new(e))
     }
 }
 
-impl From<Box<dyn StdError>> for Error {
+impl From<Box<dyn StdError>> for HamtError {
     fn from(e: Box<dyn StdError>) -> Self {
         Self::Dynamic(e)
     }

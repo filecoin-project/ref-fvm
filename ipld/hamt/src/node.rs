@@ -4,7 +4,8 @@
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{HamtError, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use anyhow::Result;
 use cid::multihash::Code;
 use ipld_blockstore::BlockStore;
 use once_cell::unsync::OnceCell;
@@ -83,7 +84,7 @@ where
         store: &S,
         bit_width: u32,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error>
+    ) -> Result<(Option<V>, bool), HamtError>
     where
         V: PartialEq,
     {
@@ -105,7 +106,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&V>, Error>
+    ) -> Result<Option<&V>, HamtError>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -119,7 +120,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<(K, V)>, Error>
+    ) -> Result<Option<(K, V)>, HamtError>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -148,7 +149,7 @@ where
                             node
                         } else {
                             #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()).into());
+                            return Err(HamtError::CidNotFound(cid.to_string()).into());
 
                             #[cfg(feature = "ignore-dead-links")]
                             continue;
@@ -176,7 +177,7 @@ where
         q: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error>
+    ) -> Result<Option<&KeyValuePair<K, V>>, HamtError>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -192,7 +193,7 @@ where
         depth: usize,
         key: &Q,
         store: &S,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error>
+    ) -> Result<Option<&KeyValuePair<K, V>>, HamtError>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -215,7 +216,7 @@ where
                         node
                     } else {
                         #[cfg(not(feature = "ignore-dead-links"))]
-                        return Err(Error::CidNotFound(cid.to_string()));
+                        return Err(HamtError::CidNotFound(cid.to_string()));
 
                         #[cfg(feature = "ignore-dead-links")]
                         return Ok(None);
@@ -242,7 +243,7 @@ where
         value: V,
         store: &S,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error>
+    ) -> Result<(Option<V>, bool), HamtError>
     where
         V: PartialEq,
     {
@@ -262,7 +263,7 @@ where
                 cache.get_or_try_init(|| {
                     store
                         .get(cid)?
-                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                        .ok_or_else(|| HamtError::CidNotFound(cid.to_string()))
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -362,7 +363,7 @@ where
         depth: usize,
         key: &Q,
         store: &S,
-    ) -> Result<Option<(K, V)>, Error>
+    ) -> Result<Option<(K, V)>, HamtError>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -382,7 +383,7 @@ where
                 cache.get_or_try_init(|| {
                     store
                         .get(cid)?
-                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                        .ok_or_else(|| HamtError::CidNotFound(cid.to_string()))
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -425,7 +426,7 @@ where
         }
     }
 
-    pub fn flush<S: BlockStore>(&mut self, store: &S) -> Result<(), Error> {
+    pub fn flush<S: BlockStore>(&mut self, store: &S) -> Result<(), HamtError> {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache

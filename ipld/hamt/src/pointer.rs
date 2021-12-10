@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::node::Node;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{HamtError, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use anyhow::Result;
 use cid::Cid;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
@@ -118,10 +119,10 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean(&mut self) -> Result<(), Error> {
+    pub(crate) fn clean(&mut self) -> Result<(), HamtError> {
         match self {
             Pointer::Dirty(n) => match n.pointers.len() {
-                0 => Err(Error::ZeroPointers),
+                0 => Err(HamtError::ZeroPointers),
                 1 => {
                     // Node has only one pointer, swap with parent node
                     if let Pointer::Values(vals) = &mut n.pointers[0] {
