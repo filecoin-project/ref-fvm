@@ -12,7 +12,6 @@ pub use self::protocol::Protocol;
 
 use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use crate::ActorID;
-use anyhow::Result;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
