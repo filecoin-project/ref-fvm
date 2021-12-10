@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
-use actor::ActorDowncast;
+use actor::CallErrorConversions;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;

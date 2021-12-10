@@ -14,7 +14,7 @@ use ipld_blockstore::BlockStore;
 
 use ipld_amt::{Amt, AmtError};
 
-use crate::{ActorDowncast, CallError};
+use crate::{CallError, CallErrorConversions};
 
 use super::SectorOnChainInfo;
 
@@ -50,7 +50,7 @@ impl<'db, BS: BlockStore> Sectors<'db, BS> {
                 .amt
                 .get(sector_number)
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to load sector {}", sector_number),
                     )
@@ -69,7 +69,7 @@ impl<'db, BS: BlockStore> Sectors<'db, BS> {
         Ok(self
             .amt
             .get(sector_number as usize)
-            .map_err(|e| e.downcast_wrap(format!("failed to get sector {}", sector_number)))?
+            .map_err(|e| e.convert_wrap(format!("failed to get sector {}", sector_number)))?
             .cloned())
     }
 
@@ -81,9 +81,9 @@ impl<'db, BS: BlockStore> Sectors<'db, BS> {
                 return Err(format!("sector number {} out of range", info.sector_number).into());
             }
 
-            self.amt.set(sector_number as usize, info).map_err(|e| {
-                e.downcast_wrap(format!("failed to store sector {}", sector_number))
-            })?;
+            self.amt
+                .set(sector_number as usize, info)
+                .map_err(|e| e.convert_wrap(format!("failed to store sector {}", sector_number)))?;
         }
 
         Ok(())

@@ -14,8 +14,8 @@ use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
 use crate::{
-    make_map_with_root_and_bitwidth, resolve_to_id_addr, ActorDowncast, STORAGE_MARKET_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR,
+    make_map_with_root_and_bitwidth, resolve_to_id_addr, CallErrorConversions,
+    STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 
 pub use self::state::State;
@@ -54,7 +54,7 @@ impl Actor {
             .ok_or_else(|| call_error!(ErrIllegalArgument, "root should be an ID address"))?;
 
         let st = State::new(rt.store(), id_addr).map_err(|e| {
-            e.downcast_default(ExitCode::ErrIllegalState, "Failed to create verifreg state")
+            e.convert_default(ExitCode::ErrIllegalState, "Failed to create verifreg state")
         })?;
 
         rt.create(&st)?;
@@ -76,7 +76,7 @@ impl Actor {
         }
 
         let verifier = resolve_to_id_addr(rt, &params.address).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve addr {} to ID addr", params.address),
             )
@@ -96,7 +96,7 @@ impl Actor {
             let mut verifiers =
                 make_map_with_root_and_bitwidth(&st.verifiers, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                        e.downcast_default(
+                        e.convert_default(
                             ExitCode::ErrIllegalState,
                             "failed to load verified clients",
                         )
@@ -107,13 +107,13 @@ impl Actor {
                 HAMT_BIT_WIDTH,
             )
             .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to load verified clients")
             })?;
 
             let found = verified_clients
                 .contains_key(&verifier.to_bytes())
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to get client state for {}", verifier),
                     )
@@ -132,10 +132,10 @@ impl Actor {
                     BigIntDe(params.allowance.clone()),
                 )
                 .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to add verifier")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to add verifier")
                 })?;
             st.verifiers = verifiers.flush().map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
             })?;
 
             Ok(())
@@ -150,7 +150,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         let verifier = resolve_to_id_addr(rt, &verifier_addr).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve addr {} to ID addr", verifier_addr),
             )
@@ -166,19 +166,19 @@ impl Actor {
                 HAMT_BIT_WIDTH,
             )
             .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to load verified clients")
             })?;
             verifiers
                 .delete(&verifier.to_bytes())
                 .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to remove verifier")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to remove verifier")
                 })?
                 .ok_or_else(|| {
                     call_error!(ErrIllegalArgument, "failed to remove verifier: not found")
                 })?;
 
             st.verifiers = verifiers.flush().map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
             })?;
             Ok(())
         })?;
@@ -207,7 +207,7 @@ impl Actor {
         }
 
         let client = resolve_to_id_addr(rt, &params.address).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve addr {} to ID addr", params.address),
             )
@@ -225,7 +225,7 @@ impl Actor {
             let mut verifiers =
                 make_map_with_root_and_bitwidth(&st.verifiers, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                        e.downcast_default(
+                        e.convert_default(
                             ExitCode::ErrIllegalState,
                             "failed to load verified clients",
                         )
@@ -233,7 +233,7 @@ impl Actor {
             let mut verified_clients =
                 make_map_with_root_and_bitwidth(&st.verified_clients, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to load verified clients")
                 })?;
 
             // Validate caller is one of the verifiers.
@@ -241,7 +241,7 @@ impl Actor {
             let BigIntDe(verifier_cap) = verifiers
                 .get(&verifier.to_bytes())
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to get Verifier {}", verifier),
                     )
@@ -252,7 +252,7 @@ impl Actor {
 
             // Validate client to be added isn't a verifier
             let found = verifiers.contains_key(&client.to_bytes()).map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to get verifier")
             })?;
             if found {
                 return Err(call_error!(
@@ -276,14 +276,14 @@ impl Actor {
             verifiers
                 .set(verifier.to_bytes().into(), BigIntDe(new_verifier_cap))
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("Failed to update new verifier cap for {}", verifier),
                     )
                 })?;
 
             let client_cap = verified_clients.get(&client.to_bytes()).map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     format!("Failed to get verified client {}", client),
                 )
@@ -299,7 +299,7 @@ impl Actor {
             verified_clients
                 .set(client.to_bytes().into(), BigIntDe(client_cap.clone()))
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!(
                             "Failed to add verified client {} with cap {}",
@@ -309,10 +309,10 @@ impl Actor {
                 })?;
 
             st.verifiers = verifiers.flush().map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to flush verifiers")
             })?;
             st.verified_clients = verified_clients.flush().map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to flush verified clients",
                 )
@@ -335,7 +335,7 @@ impl Actor {
         rt.validate_immediate_caller_is(std::iter::once(&*STORAGE_MARKET_ACTOR_ADDR))?;
 
         let client = resolve_to_id_addr(rt, &params.address).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve addr {} to ID addr", params.address),
             )
@@ -353,13 +353,13 @@ impl Actor {
             let mut verified_clients =
                 make_map_with_root_and_bitwidth(&st.verified_clients, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to load verified clients")
                 })?;
 
             let BigIntDe(vc_cap) = verified_clients
                 .get(&client.to_bytes())
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to get verified client {}", &client),
                     )
@@ -391,7 +391,7 @@ impl Actor {
                 verified_clients
                     .delete(&client.to_bytes())
                     .map_err(|e| {
-                        e.downcast_default(
+                        e.convert_default(
                             ExitCode::ErrIllegalState,
                             format!("Failed to delete verified client {}", client),
                         )
@@ -407,7 +407,7 @@ impl Actor {
                 verified_clients
                     .set(client.to_bytes().into(), BigIntDe(new_vc_cap))
                     .map_err(|e| {
-                        e.downcast_default(
+                        e.convert_default(
                             ExitCode::ErrIllegalState,
                             format!("Failed to update verified client {}", client),
                         )
@@ -415,7 +415,7 @@ impl Actor {
             }
 
             st.verified_clients = verified_clients.flush().map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to flush verified clients",
                 )
@@ -443,7 +443,7 @@ impl Actor {
         }
 
         let client = resolve_to_id_addr(rt, &params.address).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve addr {} to ID addr", params.address),
             )
@@ -461,7 +461,7 @@ impl Actor {
             let mut verified_clients =
                 make_map_with_root_and_bitwidth(&st.verified_clients, rt.store(), HAMT_BIT_WIDTH)
                     .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to load verified clients")
                 })?;
             let verifiers = make_map_with_root_and_bitwidth::<_, BigIntDe>(
                 &st.verifiers,
@@ -469,12 +469,12 @@ impl Actor {
                 HAMT_BIT_WIDTH,
             )
             .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verifiers")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to load verifiers")
             })?;
 
             // validate we are NOT attempting to do this for a verifier
             let found = verifiers.contains_key(&client.to_bytes()).map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to get verifier")
             })?;
             if found {
                 return Err(call_error!(
@@ -488,7 +488,7 @@ impl Actor {
             let BigIntDe(vc_cap) = verified_clients
                 .get(&client.to_bytes())
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to get verified client {}", &client),
                     )
@@ -501,14 +501,14 @@ impl Actor {
             verified_clients
                 .set(client.to_bytes().into(), BigIntDe(new_vc_cap))
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("Failed to put verified client {}", client),
                     )
                 })?;
 
             st.verified_clients = verified_clients.flush().map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to flush verified clients",
                 )

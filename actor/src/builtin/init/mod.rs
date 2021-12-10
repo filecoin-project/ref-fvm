@@ -14,7 +14,7 @@ use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
 use crate::{
-    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
+    CallErrorConversions, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
     POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
 };
 
@@ -46,7 +46,7 @@ impl Actor {
         let sys_ref: &Address = &SYSTEM_ACTOR_ADDR;
         rt.validate_immediate_caller_is(std::iter::once(sys_ref))?;
         let state = State::new(rt.store(), params.network_name).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct init actor state",
             )
@@ -91,7 +91,7 @@ impl Actor {
         let id_address: Address = rt.transaction(|s: &mut State, rt| {
             s.map_address_to_new_id(rt.store(), &robust_address)
                 .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to allocate ID address")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to allocate ID address")
                 })
         })?;
 

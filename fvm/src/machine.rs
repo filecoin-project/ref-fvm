@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 
 use std::rc::Rc;
 
-use actor::ActorDowncast;
+use actor::CallErrorConversions;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -123,11 +123,11 @@ where
 
         let addr_id = state_tree
             .register_new_address(addr)
-            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+            .map_err(|e| e.convert_fatal("failed to register new address"))?;
 
         state_tree
             .set_actor(&Address::new_id(addr_id), act)
-            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+            .map_err(|e| e.convert_fatal("failed to set actor"))?;
         Ok(addr_id)
     }
 

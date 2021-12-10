@@ -3,14 +3,14 @@
 
 pub use self::balance_table::BalanceTable;
 pub use self::balance_table::BALANCE_TABLE_BITWIDTH;
-pub use self::downcast::*;
+pub use self::convert_err::*;
 pub use self::multimap::*;
 pub use self::set::Set;
 pub use self::set_multimap::SetMultimap;
 
 mod balance_table;
 pub mod chaos;
-mod downcast;
+mod convert_err;
 pub mod math;
 mod multimap;
 mod set;

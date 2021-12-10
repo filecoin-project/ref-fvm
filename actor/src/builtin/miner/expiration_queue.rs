@@ -16,7 +16,7 @@ use fvm_shared::sector::{SectorNumber, SectorSize};
 use ipld_amt::{Amt, AmtError, ValueMut};
 
 use crate::miner::{QuantSpec, ADDRESSED_SECTORS_MAX};
-use crate::ActorDowncast;
+use crate::CallErrorConversions;
 
 use super::{power_for_sector, PowerPair, SectorOnChainInfo};
 
@@ -189,7 +189,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
                 &PowerPair::zero(),
                 &group.pledge,
             )
-            .map_err(|e| e.downcast_wrap("failed to record new sector expirations"))?;
+            .map_err(|e| e.convert_wrap("failed to record new sector expirations"))?;
 
             total_sectors.push(sector_numbers);
             total_power += &group.power;
@@ -216,7 +216,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
 
         let (sector_numbers, power, pledge) = self
             .remove_active_sectors(sectors, sector_size)
-            .map_err(|e| e.downcast_wrap("failed to remove sector expirations"))?;
+            .map_err(|e| e.convert_wrap("failed to remove sector expirations"))?;
 
         self.add(
             new_expiration,
@@ -226,7 +226,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
             &PowerPair::zero(),
             &pledge,
         )
-        .map_err(|e| e.downcast_wrap("failed to record new sector expirations"))?;
+        .map_err(|e| e.convert_wrap("failed to record new sector expirations"))?;
 
         Ok(())
     }
@@ -450,11 +450,11 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
     ) -> Result<(BitField, BitField, PowerPair, TokenAmount), Box<dyn StdError>> {
         let (old_sector_numbers, old_power, old_pledge) = self
             .remove_active_sectors(old_sectors, sector_size)
-            .map_err(|e| e.downcast_wrap("failed to remove replaced sectors"))?;
+            .map_err(|e| e.convert_wrap("failed to remove replaced sectors"))?;
 
         let (new_sector_numbers, new_power, new_pledge) = self
             .add_active_sectors(new_sectors, sector_size)
-            .map_err(|e| e.downcast_wrap("failed to add replacement sectors"))?;
+            .map_err(|e| e.convert_wrap("failed to add replacement sectors"))?;
 
         Ok((
             old_sector_numbers,
@@ -515,7 +515,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
         // Remove non-faulty sectors.
         let (removed_sector_numbers, removed_power, removed_pledge) = self
             .remove_active_sectors(&non_faulty_sectors, sector_size)
-            .map_err(|e| e.downcast_wrap("failed to remove on-time recoveries"))?;
+            .map_err(|e| e.convert_wrap("failed to remove on-time recoveries"))?;
         removed.on_time_sectors = removed_sector_numbers;
         removed.active_power = removed_power;
         removed.on_time_pledge = removed_pledge;
@@ -660,7 +660,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
         let mut expiration_set = self
             .amt
             .get(epoch as usize)
-            .map_err(|e| e.downcast_wrap(format!("failed to lookup queue epoch {}", epoch)))?
+            .map_err(|e| e.convert_wrap(format!("failed to lookup queue epoch {}", epoch)))?
             .ok_or_else(|| format!("missing expected expiration set at epoch {}", epoch))?
             .clone();
         expiration_set
@@ -755,7 +755,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
         Ok(self
             .amt
             .get(key as usize)
-            .map_err(|e| e.downcast_wrap(format!("failed to lookup queue epoch {}", key)))?
+            .map_err(|e| e.convert_wrap(format!("failed to lookup queue epoch {}", key)))?
             .cloned()
             .unwrap_or_default())
     }
@@ -767,7 +767,7 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
     ) -> Result<(), Box<dyn StdError>> {
         self.amt
             .set(epoch as usize, expiration_set)
-            .map_err(|e| e.downcast_wrap(format!("failed to set queue epoch {}", epoch)))
+            .map_err(|e| e.convert_wrap(format!("failed to set queue epoch {}", epoch)))
     }
 
     /// Since this might delete the node, it's not safe for use inside an iteration.
@@ -779,11 +779,11 @@ impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
         if expiration_set.is_empty() {
             self.amt
                 .delete(epoch as usize)
-                .map_err(|e| e.downcast_wrap(format!("failed to delete queue epoch {}", epoch)))?;
+                .map_err(|e| e.convert_wrap(format!("failed to delete queue epoch {}", epoch)))?;
         } else {
             self.amt
                 .set(epoch as usize, expiration_set)
-                .map_err(|e| e.downcast_wrap(format!("failed to set queue epoch {}", epoch)))?;
+                .map_err(|e| e.convert_wrap(format!("failed to set queue epoch {}", epoch)))?;
         }
 
         Ok(())

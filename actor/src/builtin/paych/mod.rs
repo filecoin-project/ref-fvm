@@ -15,7 +15,7 @@ use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 use ipld_amt::Amt;
 
-use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
+use crate::{resolve_to_id_addr, CallErrorConversions, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
 // TODO rename to actor exit code to be used ambiguously (requires new releases)
 use crate::runtime::{ActorCode, Runtime};
 
@@ -58,7 +58,7 @@ impl Actor {
         let empty_arr_cid = Amt::<(), _>::new_with_bit_width(rt.store(), LANE_STATES_AMT_BITWIDTH)
             .flush()
             .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to create empty AMT")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to create empty AMT")
             })?;
 
         rt.create(&State::new(from, to, empty_arr_cid))?;
@@ -72,7 +72,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         let resolved = resolve_to_id_addr(rt, raw).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 format!("failed to resolve address {}", raw),
             )
@@ -140,7 +140,7 @@ impl Actor {
 
         // Validate signature
         rt.verify_signature(sig, &signer, &sv_bz).map_err(|e| {
-            e.downcast_default(ExitCode::ErrIllegalArgument, "voucher signature invalid")
+            e.convert_default(ExitCode::ErrIllegalArgument, "voucher signature invalid")
         })?;
 
         let pch_addr = rt.message().receiver();
@@ -173,7 +173,7 @@ impl Actor {
         if !sv.secret_pre_image.is_empty() {
             let hashed_secret: &[u8] = &rt
                 .hash_blake2b(&params.secret)
-                .map_err(|e| e.downcast_fatal("unexpected error from blake2b hash"))?;
+                .map_err(|e| e.convert_fatal("unexpected error from blake2b hash"))?;
             if hashed_secret != sv.secret_pre_image.as_slice() {
                 return Err(call_error!(ErrIllegalArgument; "incorrect secret"));
             }
@@ -191,7 +191,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, rt| {
             let mut l_states = Amt::load(&st.lane_states, rt.store()).map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load lane states")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to load lane states")
             })?;
 
             // Find the voucher lane, create and insert it in sorted order if necessary.
@@ -233,7 +233,7 @@ impl Actor {
                 redeemed_from_others += &other_ls.redeemed;
                 other_ls.nonce = merge.nonce;
                 l_states.set(merge.lane, other_ls).map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         format!("failed to store lane {}", merge.lane),
                     )
@@ -275,14 +275,14 @@ impl Actor {
             }
 
             l_states.set(lane_id, lane_state).map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     format!("failed to store lane {}", lane_id),
                 )
             })?;
 
             st.lane_states = l_states.flush().map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to save lanes")
+                e.convert_default(ExitCode::ErrIllegalState, "failed to save lanes")
             })?;
             Ok(())
         })
@@ -345,7 +345,7 @@ where
     }
 
     ls.get(id as usize).map_err(|e| {
-        e.downcast_default(
+        e.convert_default(
             ExitCode::ErrIllegalState,
             format!("failed to load lane {}", id),
         )

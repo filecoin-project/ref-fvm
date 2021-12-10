@@ -21,7 +21,7 @@ use ipld_amt::{Amt, AmtError};
 use ipld_hamt::HamtError;
 
 use crate::miner::{DeadlineInfo, QuantSpec};
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, CallErrorConversions};
 
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,
@@ -125,7 +125,7 @@ impl State {
         let empty_precommit_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to construct empty precommit map",
                 )
@@ -134,7 +134,7 @@ impl State {
             Amt::<BitField, BS>::new_with_bit_width(store, PRECOMMIT_EXPIRY_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         "failed to construct empty precommits array",
                     )
@@ -143,20 +143,20 @@ impl State {
             Amt::<SectorOnChainInfo, BS>::new_with_bit_width(store, SECTORS_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         "failed to construct sectors array",
                     )
                 })?;
         let empty_bitfield = store.put(&BitField::new(), Code::Blake2b256).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct empty bitfield",
             )
         })?;
         let deadline = Deadline::new(store)?;
         let empty_deadline = store.put(&deadline, Code::Blake2b256).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
             )
@@ -165,7 +165,7 @@ impl State {
         let empty_deadlines = store
             .put(&Deadlines::new(empty_deadline), Code::Blake2b256)
             .map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to construct illegal state",
                 )
@@ -175,7 +175,7 @@ impl State {
             store
                 .put(&VestingFunds::new(), Code::Blake2b256)
                 .map_err(|e| {
-                    e.downcast_default(
+                    e.convert_default(
                         ExitCode::ErrIllegalState,
                         "failed to construct illegal state",
                     )
@@ -208,7 +208,7 @@ impl State {
         match store.get(&self.info) {
             Ok(Some(info)) => Ok(info),
             Ok(None) => Err(call_error!(ErrNotFound, "failed to get miner info").into()),
-            Err(e) => Err(e.downcast_wrap("failed to get miner info")),
+            Err(e) => Err(e.convert_wrap("failed to get miner info")),
         }
     }
 
@@ -258,7 +258,7 @@ impl State {
         let prior_allocation = store
             .get(&self.allocated_sectors)
             .map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "failed to load allocated sectors bitfield",
                 )
@@ -279,7 +279,7 @@ impl State {
         }
         let new_allocation = &prior_allocation | sector_numbers;
         self.allocated_sectors = store.put(&new_allocation, Code::Blake2b256).map_err(|e| {
-            e.downcast_default(
+            e.convert_default(
                 ExitCode::ErrIllegalArgument,
                 format!(
                     "failed to store allocated sectors bitfield after adding {:?}",
@@ -303,7 +303,7 @@ impl State {
             let modified = precommitted
                 .set_if_absent(u64_key(precommit.info.sector_number), precommit)
                 .map_err(|e| {
-                    e.downcast_wrap(format!("failed to store precommitment for {:?}", sector_no,))
+                    e.convert_wrap(format!("failed to store precommitment for {:?}", sector_no,))
                 })?;
             if !modified {
                 return Err(format!("sector {} already pre-commited", sector_no).into());
@@ -339,7 +339,7 @@ impl State {
 
         for &sector_number in sector_numbers {
             let info = match precommitted.get(&u64_key(sector_number)).map_err(|e| {
-                e.downcast_wrap(format!(
+                e.convert_wrap(format!(
                     "failed to load precommitment for {}",
                     sector_number
                 ))
@@ -388,14 +388,14 @@ impl State {
         new_sectors: Vec<SectorOnChainInfo>,
     ) -> Result<(), Box<dyn StdError>> {
         let mut sectors = Sectors::load(store, &self.sectors)
-            .map_err(|e| e.downcast_wrap("failed to load sectors"))?;
+            .map_err(|e| e.convert_wrap("failed to load sectors"))?;
 
         sectors.store(new_sectors)?;
 
         self.sectors = sectors
             .amt
             .flush()
-            .map_err(|e| e.downcast_wrap("failed to persist sectors"))?;
+            .map_err(|e| e.convert_wrap("failed to persist sectors"))?;
 
         Ok(())
     }
@@ -420,7 +420,7 @@ impl State {
             sectors
                 .amt
                 .delete(sector_num)
-                .map_err(|e| e.downcast_wrap("could not delete sector number"))?;
+                .map_err(|e| e.convert_wrap("could not delete sector number"))?;
         }
 
         self.sectors = sectors.amt.flush()?;
@@ -595,7 +595,7 @@ impl State {
                     max_sectors - result.sectors_processed,
                 )
                 .map_err(|e| {
-                    e.downcast_wrap(format!(
+                    e.convert_wrap(format!(
                         "failed to pop early terminations for deadline {}",
                         deadline_idx
                     ))
@@ -682,7 +682,7 @@ impl State {
     pub fn load_deadlines<BS: BlockStore>(&self, store: &BS) -> Result<Deadlines, CallError> {
         store
             .get::<Deadlines>(&self.deadlines)
-            .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to load deadlines"))?
+            .map_err(|e| e.convert_default(ExitCode::ErrIllegalState, "failed to load deadlines"))?
             .ok_or_else(
                 || call_error!(ErrIllegalState; "failed to load deadlines {}", self.deadlines),
             )
@@ -705,7 +705,7 @@ impl State {
         Ok(store
             .get(&self.vesting_funds)
             .map_err(|e| {
-                e.downcast_wrap(
+                e.convert_wrap(
                     format!("failed to load vesting funds {}", self.vesting_funds),
                 )
             })?
@@ -989,7 +989,7 @@ impl State {
         let quant = self.quant_spec_every_deadline();
         let mut queue =
             super::BitFieldQueue::new(store, &self.pre_committed_sectors_cleanup, quant)
-                .map_err(|e| e.downcast_wrap("failed to load pre-commit clean up queue"))?;
+                .map_err(|e| e.convert_wrap("failed to load pre-commit clean up queue"))?;
 
         // Sort the epoch keys for stable iteration when manipulating the queue
         let mut epochs = Vec::with_capacity(cleanup_events.len());

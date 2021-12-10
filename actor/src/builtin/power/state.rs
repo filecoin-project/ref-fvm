@@ -22,7 +22,7 @@ use fvm_shared::HAMT_BIT_WIDTH;
 use crate::{
     consensus_miner_min_power, make_empty_map, make_map_with_root, make_map_with_root_and_bitwidth,
     smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA},
-    ActorDowncast, BytesKey, Map, Multimap,
+    BytesKey, CallErrorConversions, Map, Multimap,
 };
 
 use super::{CONSENSUS_MINER_MIN_MINERS, CRON_QUEUE_AMT_BITWIDTH, CRON_QUEUE_HAMT_BITWIDTH};
@@ -82,7 +82,7 @@ impl State {
         let empty_mmap = Multimap::new(store, CRON_QUEUE_HAMT_BITWIDTH, CRON_QUEUE_AMT_BITWIDTH)
             .root()
             .map_err(|e| {
-                e.downcast_default(
+                e.convert_default(
                     ExitCode::ErrIllegalState,
                     "Failed to get empty multimap cid",
                 )
@@ -223,7 +223,7 @@ impl State {
         }
 
         events.add(epoch_key(epoch), event).map_err(|e| {
-            e.downcast_wrap(format!("failed to store cron event at epoch {}", epoch))
+            e.convert_wrap(format!("failed to store cron event at epoch {}", epoch))
         })?;
         Ok(())
     }
@@ -276,11 +276,11 @@ impl State {
         BS: BlockStore,
     {
         let claims = make_map_with_root::<_, Claim>(&self.claims, store)
-            .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to load claims"))?;
+            .map_err(|e| e.convert_default(ExitCode::ErrIllegalState, "failed to load claims"))?;
 
         if !claims
             .contains_key(&miner_addr.to_bytes())
-            .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to look up claim"))?
+            .map_err(|e| e.convert_default(ExitCode::ErrIllegalState, "failed to look up claim"))?
         {
             return Err(call_error!(
                 ErrForbidden,
@@ -299,7 +299,7 @@ impl State {
         let claims =
             make_map_with_root_and_bitwidth::<_, Claim>(&self.claims, store, HAMT_BIT_WIDTH)
                 .map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load claims")
+                    e.convert_default(ExitCode::ErrIllegalState, "failed to load claims")
                 })?;
 
         let claim = get_claim(&claims, miner)?;
@@ -312,7 +312,7 @@ impl State {
         miner: &Address,
     ) -> Result<(), Box<dyn StdError>> {
         let (rbp, qap) =
-            match get_claim(claims, miner).map_err(|e| e.downcast_wrap("failed to get claim"))? {
+            match get_claim(claims, miner).map_err(|e| e.convert_wrap("failed to get claim"))? {
                 None => {
                     return Ok(());
                 }
@@ -324,11 +324,11 @@ impl State {
 
         // Subtract from stats to remove power
         self.add_to_claim(claims, miner, &rbp.neg(), &qap.neg())
-            .map_err(|e| e.downcast_wrap("failed to subtract miner power before deleting claim"))?;
+            .map_err(|e| e.convert_wrap("failed to subtract miner power before deleting claim"))?;
 
         claims
             .delete(&miner.to_bytes())
-            .map_err(|e| e.downcast_wrap(format!("failed to delete claim for address {}", miner)))?
+            .map_err(|e| e.convert_wrap(format!("failed to delete claim for address {}", miner)))?
             .ok_or("failed to delete claim for address: doesn't exist")?;
         Ok(())
     }
@@ -355,7 +355,7 @@ fn get_claim<'m, BS: BlockStore>(
 ) -> Result<Option<&'m Claim>, Box<dyn StdError>> {
     claims
         .get(&a.to_bytes())
-        .map_err(|e| e.downcast_wrap(format!("failed to get claim for address {}", a)))
+        .map_err(|e| e.convert_wrap(format!("failed to get claim for address {}", a)))
 }
 
 pub fn set_claim<BS: BlockStore>(
@@ -380,7 +380,7 @@ pub fn set_claim<BS: BlockStore>(
 
     claims
         .set(a.to_bytes().into(), claim)
-        .map_err(|e| e.downcast_wrap(format!("failed to set claim for address {}", a)))?;
+        .map_err(|e| e.convert_wrap(format!("failed to set claim for address {}", a)))?;
     Ok(())
 }
 
