@@ -1,7 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
+use super::{from_leb_bytes, to_leb_bytes, AddressError, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
+use anyhow::Result;
 use std::convert::TryInto;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -86,22 +87,22 @@ impl Payload {
     }
 
     /// Generates payload from raw bytes and protocol.
-    pub fn new(protocol: Protocol, payload: &[u8]) -> Result<Self, Error> {
+    pub fn new(protocol: Protocol, payload: &[u8]) -> Result<Self, AddressError> {
         let payload = match protocol {
             Protocol::ID => Self::ID(from_leb_bytes(payload)?),
             Protocol::Secp256k1 => Self::Secp256k1(
                 payload
                     .try_into()
-                    .map_err(|_| Error::InvalidPayloadLength(payload.len()))?,
+                    .map_err(|_| AddressError::InvalidPayloadLength(payload.len()))?,
             ),
             Protocol::Actor => Self::Actor(
                 payload
                     .try_into()
-                    .map_err(|_| Error::InvalidPayloadLength(payload.len()))?,
+                    .map_err(|_| AddressError::InvalidPayloadLength(payload.len()))?,
             ),
             Protocol::BLS => {
                 if payload.len() != BLS_PUB_LEN {
-                    return Err(Error::InvalidBLSLength(payload.len()));
+                    return Err(AddressError::InvalidBLSLength(payload.len()));
                 }
                 let mut pk = [0u8; BLS_PUB_LEN];
                 pk.copy_from_slice(payload);

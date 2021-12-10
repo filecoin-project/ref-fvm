@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::address::{Address, Error as AddressError, Protocol};
-use crate::encoding::{blake2b_256, de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
+use crate::address::{Address, AddressError, Protocol};
+use crate::encoding::{blake2b_256, de, repr::*, ser, serde_bytes, Cbor, EncodingError};
 use bls_signatures::{
     verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
 };

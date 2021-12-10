@@ -3,8 +3,8 @@
 
 use data_encoding::{DecodeError, DecodeKind};
 use fvm_shared::address::{
-    checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
-    SECP_PUB_LEN,
+    checksum, validate_checksum, Address, AddressError, Network, Protocol, BLS_PUB_LEN,
+    PAYLOAD_HASH_LEN, SECP_PUB_LEN,
 };
 use fvm_shared::encoding::{from_slice, Cbor};
 use std::str::FromStr;
@@ -282,46 +282,46 @@ fn id_address() {
 fn invalid_string_addresses() {
     struct StringAddrVec {
         input: &'static str,
-        expected: Error,
+        expected: AddressError,
     }
     let test_vectors = &[
         StringAddrVec {
             input: "Q2gfvuyh7v2sx3patm5k23wdzmhyhtmqctasbr23y",
-            expected: Error::UnknownNetwork,
+            expected: AddressError::UnknownNetwork,
         },
         StringAddrVec {
             input: "f4gfvuyh7v2sx3patm5k23wdzmhyhtmqctasbr23y",
-            expected: Error::UnknownProtocol,
+            expected: AddressError::UnknownProtocol,
         },
         StringAddrVec {
             input: "f2gfvuyh7v2sx3patm5k23wdzmhyhtmqctasbr24y",
-            expected: Error::InvalidChecksum,
+            expected: AddressError::InvalidChecksum,
         },
         StringAddrVec {
             input: "f0banananananannnnnnnnn",
-            expected: Error::InvalidLength,
+            expected: AddressError::InvalidLength,
         },
         StringAddrVec {
             input: "f0banananananannnnnnnn",
-            expected: Error::InvalidPayload,
+            expected: AddressError::InvalidPayload,
         },
         StringAddrVec {
             input: "f2gfvuyh7v2sx3patm1k23wdzmhyhtmqctasbr24y",
-            expected: Error::Base32Decoding(DecodeError {
+            expected: AddressError::Base32Decoding(DecodeError {
                 position: 16,
                 kind: DecodeKind::Symbol,
             }),
         },
         StringAddrVec {
             input: "f2gfvuyh7v2sx3paTm1k23wdzmhyhtmqctasbr24y",
-            expected: Error::Base32Decoding(DecodeError {
+            expected: AddressError::Base32Decoding(DecodeError {
                 position: 14,
                 kind: DecodeKind::Symbol,
             }),
         },
         StringAddrVec {
             input: "f2",
-            expected: Error::InvalidLength,
+            expected: AddressError::InvalidLength,
         },
     ];
 
@@ -338,7 +338,7 @@ fn invalid_string_addresses() {
 fn invalid_byte_addresses() {
     struct StringAddrVec {
         input: Vec<u8>,
-        expected: Error,
+        expected: AddressError,
     }
 
     let secp_vec = vec![1];
@@ -363,39 +363,39 @@ fn invalid_byte_addresses() {
         // Unknown Protocol
         StringAddrVec {
             input: vec![4, 4, 4],
-            expected: Error::UnknownProtocol,
+            expected: AddressError::UnknownProtocol,
         },
         // ID protocol
         StringAddrVec {
             input: vec![0],
-            expected: Error::InvalidLength,
+            expected: AddressError::InvalidLength,
         },
         // SECP256K1 Protocol
         StringAddrVec {
             input: secp_l,
-            expected: Error::InvalidPayloadLength(21),
+            expected: AddressError::InvalidPayloadLength(21),
         },
         StringAddrVec {
             input: secp_s,
-            expected: Error::InvalidPayloadLength(19),
+            expected: AddressError::InvalidPayloadLength(19),
         },
         // Actor Protocol
         StringAddrVec {
             input: actor_l,
-            expected: Error::InvalidPayloadLength(21),
+            expected: AddressError::InvalidPayloadLength(21),
         },
         StringAddrVec {
             input: actor_s,
-            expected: Error::InvalidPayloadLength(19),
+            expected: AddressError::InvalidPayloadLength(19),
         },
         // BLS Protocol
         StringAddrVec {
             input: bls_l,
-            expected: Error::InvalidBLSLength(49),
+            expected: AddressError::InvalidBLSLength(49),
         },
         StringAddrVec {
             input: bls_s,
-            expected: Error::InvalidBLSLength(47),
+            expected: AddressError::InvalidBLSLength(47),
         },
     ];
 

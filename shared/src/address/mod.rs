@@ -5,13 +5,14 @@ mod errors;
 mod network;
 mod payload;
 mod protocol;
-pub use self::errors::Error;
+pub use self::errors::AddressError;
 pub use self::network::Network;
 pub use self::payload::{BLSPublicKey, Payload};
 pub use self::protocol::Protocol;
 
 use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use crate::ActorID;
+use anyhow::Result;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
@@ -75,7 +76,7 @@ impl Cbor for Address {}
 
 impl Address {
     /// Address constructor
-    fn new(network: Network, protocol: Protocol, bz: &[u8]) -> Result<Self, Error> {
+    fn new(network: Network, protocol: Protocol, bz: &[u8]) -> Result<Self, AddressError> {
         Ok(Self {
             network,
             payload: Payload::new(protocol, bz)?,
@@ -83,11 +84,11 @@ impl Address {
     }
 
     /// Creates address from encoded bytes
-    pub fn from_bytes(bz: &[u8]) -> Result<Self, Error> {
+    pub fn from_bytes(bz: &[u8]) -> Result<Self, AddressError> {
         if bz.len() < 2 {
-            Err(Error::InvalidLength)
+            Err(AddressError::InvalidLength)
         } else {
-            let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
+            let protocol = Protocol::from_byte(bz[0]).ok_or(AddressError::UnknownProtocol)?;
             Self::new(
                 *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
                 protocol,
@@ -105,9 +106,9 @@ impl Address {
     }
 
     /// Generates new address using Secp256k1 pubkey
-    pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
+    pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, AddressError> {
         if pubkey.len() != 65 {
-            return Err(Error::InvalidSECPLength(pubkey.len()));
+            return Err(AddressError::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
             network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
@@ -124,9 +125,9 @@ impl Address {
     }
 
     /// Generates new address using BLS pubkey
-    pub fn new_bls(pubkey: &[u8]) -> Result<Self, Error> {
+    pub fn new_bls(pubkey: &[u8]) -> Result<Self, AddressError> {
         if pubkey.len() != BLS_PUB_LEN {
-            return Err(Error::InvalidBLSLength(pubkey.len()));
+            return Err(AddressError::InvalidBLSLength(pubkey.len()));
         }
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
@@ -182,10 +183,10 @@ impl Address {
     }
 
     /// Get ID of the address. ID protocol only.
-    pub fn id(&self) -> Result<u64, Error> {
+    pub fn id(&self) -> Result<u64, AddressError> {
         match self.payload {
             Payload::ID(id) => Ok(id),
-            _ => Err(Error::NonIDAddress),
+            _ => Err(AddressError::NonIDAddress),
         }
     }
 }
@@ -197,37 +198,37 @@ impl fmt::Display for Address {
 }
 
 impl FromStr for Address {
-    type Err = Error;
-    fn from_str(addr: &str) -> Result<Self, Error> {
+    type Err = AddressError;
+    fn from_str(addr: &str) -> Result<Self, AddressError> {
         if addr.len() > MAX_ADDRESS_LEN || addr.len() < 3 {
-            return Err(Error::InvalidLength);
+            return Err(AddressError::InvalidLength);
         }
         // ensure the network character is valid before converting
-        let network: Network = match addr.get(0..1).ok_or(Error::UnknownNetwork)? {
+        let network: Network = match addr.get(0..1).ok_or(AddressError::UnknownNetwork)? {
             TESTNET_PREFIX => Network::Testnet,
             MAINNET_PREFIX => Network::Mainnet,
             _ => {
-                return Err(Error::UnknownNetwork);
+                return Err(AddressError::UnknownNetwork);
             }
         };
 
         // get protocol from second character
-        let protocol: Protocol = match addr.get(1..2).ok_or(Error::UnknownProtocol)? {
+        let protocol: Protocol = match addr.get(1..2).ok_or(AddressError::UnknownProtocol)? {
             "0" => Protocol::ID,
             "1" => Protocol::Secp256k1,
             "2" => Protocol::Actor,
             "3" => Protocol::BLS,
             _ => {
-                return Err(Error::UnknownProtocol);
+                return Err(AddressError::UnknownProtocol);
             }
         };
 
         // bytes after the protocol character is the data payload of the address
-        let raw = addr.get(2..).ok_or(Error::InvalidPayload)?;
+        let raw = addr.get(2..).ok_or(AddressError::InvalidPayload)?;
         if protocol == Protocol::ID {
             if raw.len() > 20 {
                 // 20 is max u64 as string
-                return Err(Error::InvalidLength);
+                return Err(AddressError::InvalidLength);
             }
             let id = raw.parse::<u64>()?;
             return Ok(Address {
@@ -245,19 +246,19 @@ impl FromStr for Address {
         if (protocol == Protocol::Secp256k1 || protocol == Protocol::Actor)
             && payload.len() != PAYLOAD_HASH_LEN
         {
-            return Err(Error::InvalidPayload);
+            return Err(AddressError::InvalidPayload);
         }
 
         // sanity check to make sure bls pub key is correct length
         if protocol == Protocol::BLS && payload.len() != BLS_PUB_LEN {
-            return Err(Error::InvalidPayload);
+            return Err(AddressError::InvalidPayload);
         }
 
         // validate checksum
         let mut ingest = payload.clone();
         ingest.insert(0, protocol as u8);
         if !validate_checksum(&ingest, cksm) {
-            return Err(Error::InvalidChecksum);
+            return Err(AddressError::InvalidChecksum);
         }
 
         Address::new(network, protocol, &payload)
@@ -311,7 +312,7 @@ fn encode(addr: &Address) -> String {
     }
 }
 
-pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, Error> {
+pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, AddressError> {
     let mut buf = Vec::new();
 
     // write id to buffer in leb128 format
@@ -321,7 +322,7 @@ pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, Error> {
     Ok(buf)
 }
 
-pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
+pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, AddressError> {
     let mut readable = bz;
 
     // write id to buffer in leb128 format
@@ -330,7 +331,7 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
     if to_leb_bytes(id)? == bz {
         Ok(id)
     } else {
-        Err(Error::InvalidAddressIDPayload(bz.to_owned()))
+        Err(AddressError::InvalidAddressIDPayload(bz.to_owned()))
     }
 }
 
@@ -362,7 +363,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(extra_bytes));
+                assert_eq!(e, AddressError::InvalidAddressIDPayload(extra_bytes));
             }
         }
     }
@@ -380,7 +381,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(minimal_encoding));
+                assert_eq!(e, AddressError::InvalidAddressIDPayload(minimal_encoding));
             }
         }
     }

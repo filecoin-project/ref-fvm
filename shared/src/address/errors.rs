@@ -9,7 +9,7 @@ use thiserror::Error;
 
 /// Address error
 #[derive(Debug, PartialEq, Error)]
-pub enum Error {
+pub enum AddressError {
     #[error("Unknown address network")]
     UnknownNetwork,
     #[error("Unknown address protocol")]
@@ -34,19 +34,19 @@ pub enum Error {
     InvalidAddressIDPayload(Vec<u8>),
 }
 
-impl From<num::ParseIntError> for Error {
-    fn from(_: num::ParseIntError) -> Error {
-        Error::InvalidPayload
+impl From<num::ParseIntError> for AddressError {
+    fn from(_: num::ParseIntError) -> AddressError {
+        AddressError::InvalidPayload
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(_: io::Error) -> Error {
-        Error::InvalidPayload
+impl From<io::Error> for AddressError {
+    fn from(_: io::Error) -> AddressError {
+        AddressError::InvalidPayload
     }
 }
-impl From<Leb128Error> for Error {
-    fn from(_: Leb128Error) -> Error {
-        Error::InvalidPayload
+impl From<Leb128Error> for AddressError {
+    fn from(_: Leb128Error) -> AddressError {
+        AddressError::InvalidPayload
     }
 }
