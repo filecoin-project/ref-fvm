@@ -7,7 +7,6 @@ use crate::{
     node::{CollapsedNode, Link},
     nodes_for_height, AmtError, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
-use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize};
 use ipld_blockstore::BlockStore;

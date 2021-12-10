@@ -393,9 +393,7 @@ where
                 actors: root,
                 info: cid,
             };
-            self.store()
-                .put(obj, multihash::Code::Blake2b256)
-                .map_err(|e| Box::from(e))
+            self.store().put(obj, multihash::Code::Blake2b256)
         }
     }
 

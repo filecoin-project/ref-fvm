@@ -3,7 +3,6 @@
 
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, AmtError};
-use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{serde_bytes, BytesSer};
 use ipld_blockstore::BlockStore;
