@@ -6,9 +6,9 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use fvm_shared::actor_error;
+use fvm_shared::call_error;
 use fvm_shared::encoding::{Cbor, RawBytes};
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
@@ -33,7 +33,7 @@ impl Cbor for State {}
 pub struct Actor;
 impl Actor {
     /// System actor constructor.
-    pub fn constructor<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    pub fn constructor<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -50,7 +50,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         _params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -60,7 +60,7 @@ impl ActorCode for Actor {
                 Self::constructor(rt)?;
                 Ok(RawBytes::default())
             }
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

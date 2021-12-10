@@ -19,7 +19,7 @@ use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::clock::EPOCH_UNDEFINED;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR, METHOD_SEND};
 use ipld_amt::Amt;
 
@@ -49,7 +49,7 @@ fn setup() -> MockRuntime {
     rt
 }
 
-fn get_escrow_balance(rt: &MockRuntime, addr: &Address) -> Result<TokenAmount, ActorError> {
+fn get_escrow_balance(rt: &MockRuntime, addr: &Address) -> Result<TokenAmount, CallError> {
     let st: State = rt.get_state()?;
 
     let et = BalanceTable::from_root(rt.store(), &st.escrow_table).unwrap();

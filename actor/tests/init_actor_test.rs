@@ -14,7 +14,7 @@ use forest_actor::{
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 mod common;
@@ -274,7 +274,7 @@ fn exec_and_verify<S: Serialize>(
     rt: &mut MockRuntime,
     code_id: Cid,
     params: &S,
-) -> Result<RawBytes, ActorError>
+) -> Result<RawBytes, CallError>
 where
     S: Serialize,
 {

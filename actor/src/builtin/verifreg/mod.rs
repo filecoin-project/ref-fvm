@@ -5,11 +5,11 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
+use fvm_shared::call_error;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
@@ -41,7 +41,7 @@ pub enum Method {
 pub struct Actor;
 impl Actor {
     /// Constructor for Registry Actor
-    pub fn constructor<BS, RT>(rt: &mut RT, root_key: Address) -> Result<(), ActorError>
+    pub fn constructor<BS, RT>(rt: &mut RT, root_key: Address) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -51,7 +51,7 @@ impl Actor {
         // root should be an ID address
         let id_addr = rt
             .resolve_address(&root_key)?
-            .ok_or_else(|| actor_error!(ErrIllegalArgument, "root should be an ID address"))?;
+            .ok_or_else(|| call_error!(ErrIllegalArgument, "root should be an ID address"))?;
 
         let st = State::new(rt.store(), id_addr).map_err(|e| {
             e.downcast_default(ExitCode::ErrIllegalState, "Failed to create verifreg state")
@@ -61,13 +61,13 @@ impl Actor {
         Ok(())
     }
 
-    pub fn add_verifier<BS, RT>(rt: &mut RT, params: AddVerifierParams) -> Result<(), ActorError>
+    pub fn add_verifier<BS, RT>(rt: &mut RT, params: AddVerifierParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
     {
         if &params.allowance < &MINIMUM_VERIFIED_DEAL_SIZE {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Allowance {} below minimum deal size for add verifier {}",
                 params.allowance,
@@ -86,7 +86,7 @@ impl Actor {
         rt.validate_immediate_caller_is(std::iter::once(&st.root_key))?;
 
         if verifier == st.root_key {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Rootkey cannot be added as verifier"
             ));
@@ -119,7 +119,7 @@ impl Actor {
                     )
                 })?;
             if found {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "verified client {} cannot become a verifier",
                     verifier
@@ -144,7 +144,7 @@ impl Actor {
         Ok(())
     }
 
-    pub fn remove_verifier<BS, RT>(rt: &mut RT, verifier_addr: Address) -> Result<(), ActorError>
+    pub fn remove_verifier<BS, RT>(rt: &mut RT, verifier_addr: Address) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -174,7 +174,7 @@ impl Actor {
                     e.downcast_default(ExitCode::ErrIllegalState, "failed to remove verifier")
                 })?
                 .ok_or_else(|| {
-                    actor_error!(ErrIllegalArgument, "failed to remove verifier: not found")
+                    call_error!(ErrIllegalArgument, "failed to remove verifier: not found")
                 })?;
 
             st.verifiers = verifiers.flush().map_err(|e| {
@@ -189,7 +189,7 @@ impl Actor {
     pub fn add_verified_client<BS, RT>(
         rt: &mut RT,
         params: AddVerifierClientParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -198,7 +198,7 @@ impl Actor {
         rt.validate_immediate_caller_accept_any()?;
 
         if params.allowance < *MINIMUM_VERIFIED_DEAL_SIZE {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Allowance {} below MinVerifiedDealSize for add verified client {}",
                 params.allowance,
@@ -215,7 +215,7 @@ impl Actor {
 
         let st: State = rt.state()?;
         if client == st.root_key {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Rootkey cannot be added as verifier"
             ));
@@ -247,7 +247,7 @@ impl Actor {
                     )
                 })?
                 .ok_or_else(|| {
-                    actor_error!(ErrNotFound, format!("no such Verifier {}", verifier))
+                    call_error!(ErrNotFound, format!("no such Verifier {}", verifier))
                 })?;
 
             // Validate client to be added isn't a verifier
@@ -255,7 +255,7 @@ impl Actor {
                 e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier")
             })?;
             if found {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "verifier {} cannot be added as a verified client",
                     client
@@ -264,7 +264,7 @@ impl Actor {
 
             // Compute new verifier cap and update.
             if verifier_cap < &params.allowance {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "Add more DataCap {} for VerifiedClient than allocated {}",
                     params.allowance,
@@ -327,7 +327,7 @@ impl Actor {
     /// Called by StorageMarketActor during PublishStorageDeals.
     /// Do not allow partially verified deals (DealSize must be greater than equal to allowed cap).
     /// Delete VerifiedClient if remaining DataCap is smaller than minimum VerifiedDealSize.
-    pub fn use_bytes<BS, RT>(rt: &mut RT, params: UseBytesParams) -> Result<(), ActorError>
+    pub fn use_bytes<BS, RT>(rt: &mut RT, params: UseBytesParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -342,7 +342,7 @@ impl Actor {
         })?;
 
         if params.deal_size < *MINIMUM_VERIFIED_DEAL_SIZE {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Verified Dealsize {} is below minimum in usedbytes",
                 params.deal_size
@@ -364,9 +364,9 @@ impl Actor {
                         format!("failed to get verified client {}", &client),
                     )
                 })?
-                .ok_or_else(|| actor_error!(ErrNotFound, "no such verified client {}", client))?;
+                .ok_or_else(|| call_error!(ErrNotFound, "no such verified client {}", client))?;
             if vc_cap.is_negative() {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalState,
                     "negative cap for client {}: {}",
                     client,
@@ -375,7 +375,7 @@ impl Actor {
             }
 
             if &params.deal_size > vc_cap {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "Deal size of {} is greater than verifier_cap {} for verified client {}",
                     params.deal_size,
@@ -397,7 +397,7 @@ impl Actor {
                         )
                     })?
                     .ok_or_else(|| {
-                        actor_error!(
+                        call_error!(
                             ErrIllegalState,
                             "Failed to delete verified client {}: not found",
                             client
@@ -428,14 +428,14 @@ impl Actor {
 
     /// Called by HandleInitTimeoutDeals from StorageMarketActor when a VerifiedDeal fails to init.
     /// Restore allowable cap for the client, creating new entry if the client has been deleted.
-    pub fn restore_bytes<BS, RT>(rt: &mut RT, params: RestoreBytesParams) -> Result<(), ActorError>
+    pub fn restore_bytes<BS, RT>(rt: &mut RT, params: RestoreBytesParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*STORAGE_MARKET_ACTOR_ADDR))?;
         if params.deal_size < *MINIMUM_VERIFIED_DEAL_SIZE {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Below minimum VerifiedDealSize requested in RestoreBytes: {}",
                 params.deal_size
@@ -451,7 +451,7 @@ impl Actor {
 
         let st: State = rt.state()?;
         if client == st.root_key {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "Cannot restore allowance for Rootkey"
             ));
@@ -477,7 +477,7 @@ impl Actor {
                 e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier")
             })?;
             if found {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "cannot restore allowance for a verifier {}",
                     client
@@ -525,7 +525,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -555,7 +555,7 @@ impl ActorCode for Actor {
                 Self::restore_bytes(rt, rt.deserialize_params(params)?)?;
                 Ok(RawBytes::default())
             }
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

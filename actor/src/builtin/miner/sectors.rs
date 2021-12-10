@@ -7,14 +7,14 @@ use std::error::Error as StdError;
 use ahash::AHashSet;
 use bitfield::BitField;
 use cid::Cid;
-use fvm_shared::actor_error;
+use fvm_shared::call_error;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
 use ipld_blockstore::BlockStore;
 
 use ipld_amt::{Amt, AmtError};
 
-use crate::{ActorDowncast, ActorError};
+use crate::{ActorDowncast, CallError};
 
 use super::SectorOnChainInfo;
 
@@ -32,11 +32,11 @@ impl<'db, BS: BlockStore> Sectors<'db, BS> {
     pub fn load_sector<'a>(
         &self,
         sector_numbers: impl bitfield::Validate<'a>,
-    ) -> Result<Vec<SectorOnChainInfo>, ActorError> {
+    ) -> Result<Vec<SectorOnChainInfo>, CallError> {
         let sector_numbers = match sector_numbers.validate() {
             Ok(sector_numbers) => sector_numbers,
             Err(e) => {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "failed to load sectors: {}",
                     e
@@ -56,7 +56,7 @@ impl<'db, BS: BlockStore> Sectors<'db, BS> {
                     )
                 })?
                 .cloned()
-                .ok_or_else(|| actor_error!(ErrNotFound; "sector not found: {}", sector_number))?;
+                .ok_or_else(|| call_error!(ErrNotFound; "sector not found: {}", sector_number))?;
             sector_infos.push(sector_on_chain);
         }
         Ok(sector_infos)

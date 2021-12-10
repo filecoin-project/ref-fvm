@@ -6,10 +6,10 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
+use fvm_shared::call_error;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
@@ -38,7 +38,7 @@ pub enum Method {
 pub struct Actor;
 impl Actor {
     /// Init actor constructor
-    pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
+    pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -58,7 +58,7 @@ impl Actor {
     }
 
     /// Exec init actor
-    pub fn exec<BS, RT>(rt: &mut RT, params: ExecParams) -> Result<ExecReturn, ActorError>
+    pub fn exec<BS, RT>(rt: &mut RT, params: ExecParams) -> Result<ExecReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -67,14 +67,14 @@ impl Actor {
         let caller_code = rt
             .get_actor_code_cid(rt.message().caller())?
             .ok_or_else(|| {
-                actor_error!(
+                call_error!(
                     ErrIllegalState,
                     "no code for caller as {}",
                     rt.message().caller()
                 )
             })?;
         if !can_exec(&caller_code, &params.code_cid) {
-            return Err(actor_error!(ErrForbidden;
+            return Err(call_error!(ErrForbidden;
                     "called type {} cannot exec actor type {}",
                     &caller_code, &params.code_cid
             ));
@@ -119,7 +119,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -133,7 +133,7 @@ impl ActorCode for Actor {
                 let res = Self::exec(rt, rt.deserialize_params(params)?)?;
                 Ok(RawBytes::serialize(res)?)
             }
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

@@ -7,8 +7,8 @@ use super::ExitCode;
 /// TODO fix error system; actor errors should be transparent to the VM.
 /// The error type that gets returned by actor method calls.
 #[derive(Error, Debug, Clone, PartialEq)]
-#[error("ActorError(fatal: {fatal}, exit_code: {exit_code:?}, msg: {msg})")]
-pub struct ActorError {
+#[error("CallError(fatal: {fatal}, exit_code: {exit_code:?}, msg: {msg})")]
+pub struct CallError {
     /// Is this a fatal error.
     fatal: bool,
     /// The exit code for this invocation, must not be `0`.
@@ -17,7 +17,7 @@ pub struct ActorError {
     msg: String,
 }
 
-impl ActorError {
+impl CallError {
     pub fn new(exit_code: ExitCode, msg: String) -> Self {
         Self {
             fatal: false,
@@ -62,7 +62,7 @@ impl ActorError {
 }
 
 // TODO former EncodingError
-impl From<crate::encoding::EncodingError> for ActorError {
+impl From<crate::encoding::EncodingError> for CallError {
     fn from(e: crate::encoding::EncodingError) -> Self {
         Self {
             fatal: false,
@@ -73,7 +73,7 @@ impl From<crate::encoding::EncodingError> for ActorError {
 }
 
 // TODO former CborError
-impl From<crate::encoding::error::Error> for ActorError {
+impl From<crate::encoding::error::Error> for CallError {
     fn from(e: crate::encoding::error::Error) -> Self {
         Self {
             fatal: false,
@@ -84,7 +84,7 @@ impl From<crate::encoding::error::Error> for ActorError {
 }
 
 // TODO: is this the right way to do this?
-impl From<Box<dyn StdError>> for ActorError {
+impl From<Box<dyn StdError>> for CallError {
     fn from(e: Box<dyn StdError>) -> Self {
         Self {
             fatal: true,
@@ -97,26 +97,26 @@ impl From<Box<dyn StdError>> for ActorError {
 /// Convenience macro for generating Actor Errors
 /// TODO: Delete this. It exists so the code can compile.
 #[macro_export]
-macro_rules! actor_error {
+macro_rules! call_error {
     // Fatal Errors
-    ( fatal($msg:expr) ) => { $crate::error::ActorError::new_fatal($msg.to_string()) };
+    ( fatal($msg:expr) ) => { $crate::error::CallError::new_fatal($msg.to_string()) };
     ( fatal($msg:literal $(, $ex:expr)+) ) => {
-        $crate::error::ActorError::new_fatal(format!($msg, $($ex,)*))
+        $crate::error::CallError::new_fatal(format!($msg, $($ex,)*))
     };
 
     // Error with only one stringable expression
-    ( $code:ident; $msg:expr ) => { $crate::error::ActorError::new($crate::error::ExitCode::$code, $msg.to_string()) };
+    ( $code:ident; $msg:expr ) => { $crate::error::CallError::new($crate::error::ExitCode::$code, $msg.to_string()) };
 
     // String with positional arguments
     ( $code:ident; $msg:literal $(, $ex:expr)+ ) => {
-        $crate::error::ActorError::new($crate::error::ExitCode::$code, format!($msg, $($ex,)*))
+        $crate::error::CallError::new($crate::error::ExitCode::$code, format!($msg, $($ex,)*))
     };
 
     // Error with only one stringable expression, with comma separator
-    ( $code:ident, $msg:expr ) => { $crate::actor_error!($code; $msg) };
+    ( $code:ident, $msg:expr ) => { $crate::call_error!($code; $msg) };
 
     // String with positional arguments, with comma separator
     ( $code:ident, $msg:literal $(, $ex:expr)+ ) => {
-        $crate::actor_error!($code; $msg $(, $ex)*)
+        $crate::call_error!($code; $msg $(, $ex)*)
     };
 }

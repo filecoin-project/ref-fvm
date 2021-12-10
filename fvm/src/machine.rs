@@ -14,8 +14,8 @@ use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::error::{CallError, ExitCode};
+use fvm_shared::{call_error, ActorID};
 
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasTracker, PriceList};
@@ -118,7 +118,7 @@ where
         &mut self,
         addr: &Address,
         act: ActorState,
-    ) -> Result<ActorID, ActorError> {
+    ) -> Result<ActorID, CallError> {
         let mut state_tree = self.state_tree_mut();
 
         let addr_id = state_tree
@@ -334,7 +334,7 @@ where
         // TODO handle errors properly
         if cost_total > msg.gas_limit {
             let err =
-                actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit);
+                call_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit);
             return Some(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrOutOfGas,
                 &self.context.base_fee * cost_total,
@@ -354,7 +354,7 @@ where
                         gas_used: 0,
                     },
                     penalty: miner_penalty_amount,
-                    act_error: Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                    act_error: Some(call_error!(SysErrSenderInvalid; "Sender invalid")),
                     miner_tip: BigInt::zero(),
                 });
             }
@@ -369,7 +369,7 @@ where
                     gas_used: 0,
                 },
                 penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
+                act_error: Some(call_error!(SysErrSenderInvalid; "send not from account actor")),
                 miner_tip: BigInt::zero(),
             });
         };
@@ -383,7 +383,7 @@ where
                     gas_used: 0,
                 },
                 penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
+                act_error: Some(call_error!(SysErrSenderStateInvalid;
                     "actor sequence invalid: {} != {}", msg.sequence, sender.sequence)),
                 miner_tip: BigInt::zero(),
             });
@@ -399,7 +399,7 @@ where
                     gas_used: 0,
                 },
                 penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
+                act_error: Some(call_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
                 miner_tip: BigInt::zero(),
             });
@@ -422,7 +422,7 @@ pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
     /// Actor error from the transaction, if one exists.
-    pub act_error: Option<ActorError>,
+    pub act_error: Option<CallError>,
     /// Gas penalty from transaction, if any.
     pub penalty: BigInt,
     /// Tip given to miner from message.
@@ -434,7 +434,7 @@ impl ApplyRet {
     pub fn prevalidation_fail(
         exit_code: ExitCode,
         miner_penalty: BigInt,
-        error: Option<ActorError>,
+        error: Option<CallError>,
     ) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {

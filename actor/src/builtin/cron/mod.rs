@@ -5,11 +5,11 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use fvm_shared::actor_error;
+use fvm_shared::call_error;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime};
@@ -41,7 +41,7 @@ pub struct ConstructorParams {
 pub struct Actor;
 impl Actor {
     /// Constructor for Cron actor
-    fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
+    fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -55,7 +55,7 @@ impl Actor {
     /// Executes built-in periodic actions, run at every Epoch.
     /// epoch_tick(r) is called after all other messages in the epoch have been applied.
     /// This can be seen as an implicit last message.
-    fn epoch_tick<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    fn epoch_tick<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -81,7 +81,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -95,7 +95,7 @@ impl ActorCode for Actor {
                 Self::epoch_tick(rt)?;
                 Ok(RawBytes::default())
             }
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

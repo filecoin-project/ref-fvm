@@ -11,8 +11,8 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
-use fvm_shared::actor_error;
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::call_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
@@ -222,7 +222,7 @@ impl Partition {
         quant: QuantSpec,
     ) -> Result<(BitField, PowerPair, PowerPair), Box<dyn StdError>> {
         validate_partition_contains_sectors(self, sector_numbers)
-            .map_err(|e| actor_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
+            .map_err(|e| call_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
 
         let sector_numbers = sector_numbers
             .validate()
@@ -320,7 +320,7 @@ impl Partition {
     ) -> Result<(), Box<dyn StdError>> {
         // Check that the declared sectors are actually assigned to the partition.
         validate_partition_contains_sectors(self, sector_numbers)
-            .map_err(|e| actor_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
+            .map_err(|e| call_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
 
         let sector_numbers = sector_numbers
             .validate()
@@ -490,7 +490,7 @@ impl Partition {
     ) -> Result<ExpirationSet, Box<dyn StdError>> {
         let live_sectors = self.live_sectors();
         let sector_numbers = sector_numbers.validate().map_err(|e| {
-            actor_error!(
+            call_error!(
                 ErrIllegalArgument,
                 "failed to validate terminating sectors: {}",
                 e
@@ -498,7 +498,7 @@ impl Partition {
         })?;
 
         if !live_sectors.contains_all(sector_numbers) {
-            return Err(actor_error!(ErrIllegalArgument, "can only terminate live sectors").into());
+            return Err(call_error!(ErrIllegalArgument, "can only terminate live sectors").into());
         }
 
         let sector_infos = sectors.load_sector(sector_numbers)?;
@@ -731,7 +731,7 @@ impl Partition {
         skipped: &mut UnvalidatedBitField,
     ) -> Result<(PowerPair, PowerPair, PowerPair, bool), Box<dyn StdError>> {
         let skipped = skipped.validate().map_err(|e| {
-            actor_error!(
+            call_error!(
                 ErrIllegalArgument,
                 "failed to validate skipped sectors: {}",
                 e
@@ -749,7 +749,7 @@ impl Partition {
 
         // Check that the declared sectors are actually in the partition.
         if !self.sectors.contains_all(skipped) {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "skipped faults contains sectors outside partition"
             )

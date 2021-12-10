@@ -7,15 +7,15 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::call_error;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
 
@@ -120,9 +120,9 @@ impl State {
 fn deal_get_payment_remaining(
     deal: &DealProposal,
     mut slash_epoch: ChainEpoch,
-) -> Result<TokenAmount, ActorError> {
+) -> Result<TokenAmount, CallError> {
     if slash_epoch > deal.end_epoch {
-        return Err(actor_error!(
+        return Err(call_error!(
             ErrIllegalState,
             "deal slash epoch {} after end epoch {}",
             slash_epoch,
@@ -135,7 +135,7 @@ fn deal_get_payment_remaining(
 
     let duration_remaining = deal.end_epoch - slash_epoch;
     if duration_remaining < 0 {
-        return Err(actor_error!(
+        return Err(call_error!(
             ErrIllegalState,
             "deal remaining duration negative: {}",
             duration_remaining
@@ -355,13 +355,13 @@ where
         state: &DealState,
         deal: &DealProposal,
         epoch: ChainEpoch,
-    ) -> Result<(TokenAmount, ChainEpoch, bool), ActorError> {
+    ) -> Result<(TokenAmount, ChainEpoch, bool), CallError> {
         let ever_updated = state.last_updated_epoch != EPOCH_UNDEFINED;
         let ever_slashed = state.slash_epoch != EPOCH_UNDEFINED;
 
         // if the deal was ever updated, make sure it didn't happen in the future
         if ever_updated && state.last_updated_epoch > epoch {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalState,
                 "deal updated at future epoch {}",
                 state.last_updated_epoch
@@ -376,14 +376,14 @@ where
 
         let payment_end_epoch = if ever_slashed {
             if epoch < state.slash_epoch {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalState,
                     "current epoch less than deal slash epoch {}",
                     state.slash_epoch
                 ));
             }
             if state.slash_epoch > deal.end_epoch {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalState,
                     "deal slash epoch {} after deal end {}",
                     state.slash_epoch,
@@ -461,7 +461,7 @@ where
     pub(super) fn process_deal_init_timed_out(
         &mut self,
         deal: &DealProposal,
-    ) -> Result<TokenAmount, ActorError> {
+    ) -> Result<TokenAmount, CallError> {
         self.unlock_balance(
             &deal.client,
             &deal.total_storage_fee(),
@@ -515,15 +515,12 @@ where
         &mut self,
         deal: &DealProposal,
         state: &DealState,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
     {
         if state.sector_start_epoch == EPOCH_UNDEFINED {
-            return Err(actor_error!(
-                ErrIllegalState,
-                "start sector epoch undefined"
-            ));
+            return Err(call_error!(ErrIllegalState, "start sector epoch undefined"));
         }
 
         self.unlock_balance(
@@ -563,9 +560,9 @@ where
         &mut self,
         addr: &Address,
         amount: &TokenAmount,
-    ) -> Result<(), ActorError> {
+    ) -> Result<(), CallError> {
         if amount.is_negative() {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalState,
                 "cannot lock negative amount {}",
                 amount
@@ -581,7 +578,7 @@ where
         })?;
 
         if &prev_locked + amount > escrow_balance {
-            return Err(actor_error!(ErrInsufficientFunds;
+            return Err(call_error!(ErrInsufficientFunds;
                     "not enough balance to lock for addr{}: \
                     escrow balance {} < prev locked {} + amount {}",
                     addr, escrow_balance, prev_locked, amount));
@@ -600,7 +597,7 @@ where
     pub(super) fn lock_client_and_provider_balances(
         &mut self,
         proposal: &DealProposal,
-    ) -> Result<(), ActorError> {
+    ) -> Result<(), CallError> {
         self.maybe_lock_balance(&proposal.client, &proposal.client_balance_requirement())
             .map_err(|e| e.wrap("failed to lock client funds"))?;
 
@@ -626,7 +623,7 @@ where
         lock_reason: Reason,
     ) -> Result<(), Box<dyn StdError>> {
         if amount.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalState,
                 "unlock negative amount: {}",
                 amount
@@ -658,9 +655,9 @@ where
         from_addr: &Address,
         to_addr: &Address,
         amount: &TokenAmount,
-    ) -> Result<(), ActorError> {
+    ) -> Result<(), CallError> {
         if amount.is_negative() {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalState,
                 "transfer negative amount: {}",
                 amount
@@ -694,7 +691,7 @@ where
         lock_reason: Reason,
     ) -> Result<(), Box<dyn StdError>> {
         if amount.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalState,
                 "negative amount to slash: {}",
                 amount

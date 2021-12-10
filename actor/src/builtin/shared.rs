@@ -9,7 +9,7 @@ use num_traits::Zero;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::METHOD_SEND;
 
 use crate::miner::{GetControlAddressesReturn, Method};
@@ -20,7 +20,7 @@ pub const HAMT_BIT_WIDTH: u32 = 5;
 pub(crate) fn request_miner_control_addrs<BS, RT>(
     rt: &mut RT,
     miner_addr: Address,
-) -> Result<(Address, Address, Vec<Address>), ActorError>
+) -> Result<(Address, Address, Vec<Address>), CallError>
 where
     BS: BlockStore,
     RT: Runtime<BS>,

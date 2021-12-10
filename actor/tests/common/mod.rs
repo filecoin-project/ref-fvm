@@ -9,15 +9,15 @@ use cid::{multihash::Code, Cid};
 use forest_actor::runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
 use ipld_blockstore::{BlockStore, MemoryBlockstore};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::{Address, Protocol};
+use fvm_shared::call_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::de::DeserializeOwned;
 use fvm_shared::encoding::{blake2b_256, Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -162,21 +162,21 @@ impl MockRuntime {
             "invalid runtime invocation outside of method call",
         )
     }
-    fn check_argument(&self, predicate: bool, msg: String) -> Result<(), ActorError> {
+    fn check_argument(&self, predicate: bool, msg: String) -> Result<(), CallError> {
         if !predicate {
-            return Err(actor_error!(SysErrIllegalArgument; msg));
+            return Err(call_error!(SysErrIllegalArgument; msg));
         }
         Ok(())
     }
-    fn put<C: Cbor>(&self, o: &C) -> Result<Cid, ActorError> {
+    fn put<C: Cbor>(&self, o: &C) -> Result<Cid, CallError> {
         Ok(self.store.put(&o, Code::Blake2b256).unwrap())
     }
-    fn _get<T: DeserializeOwned>(&self, cid: Cid) -> Result<T, ActorError> {
+    fn _get<T: DeserializeOwned>(&self, cid: Cid) -> Result<T, CallError> {
         Ok(self.store.get(&cid).unwrap().unwrap())
     }
 
     #[allow(dead_code)]
-    pub fn get_state<T: Cbor>(&self) -> Result<T, ActorError> {
+    pub fn get_state<T: Cbor>(&self) -> Result<T, CallError> {
         // TODO this doesn't handle errors exactly as go implementation
         self.state()
     }
@@ -242,11 +242,11 @@ impl MockRuntime {
         to_code: &Cid,
         method_num: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes, CallError> {
         self.in_call = true;
         let prev_state = self.state;
         let res = forest_actor::invoke_code(to_code, self, method_num, params)
-            .unwrap_or_else(|| Err(actor_error!(SysErrForbidden, "invalid method id")));
+            .unwrap_or_else(|| Err(call_error!(SysErrForbidden, "invalid method id")));
 
         if res.is_err() {
             self.state = prev_state;
@@ -397,7 +397,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         self.epoch
     }
 
-    fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
+    fn validate_immediate_caller_accept_any(&mut self) -> Result<(), CallError> {
         self.require_in_call();
         assert!(
             self.expect_validate_caller_any.get(),
@@ -407,7 +407,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(())
     }
 
-    fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), ActorError>
+    fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), CallError>
     where
         I: IntoIterator<Item = &'a Address>,
     {
@@ -436,12 +436,12 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             }
         }
         self.expect_validate_caller_addr = None;
-        return Err(actor_error!(ErrForbidden;
+        return Err(call_error!(ErrForbidden;
                 "caller address {:?} forbidden, allowed: {:?}",
                 self.message().caller(), &addrs
         ));
     }
-    fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), ActorError>
+    fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), CallError>
     where
         I: IntoIterator<Item = &'a Cid>,
     {
@@ -472,17 +472,17 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         self.expect_validate_caller_type = None;
 
         Err(
-            actor_error!(ErrForbidden; "caller type {:?} forbidden, allowed: {:?}",
+            call_error!(ErrForbidden; "caller type {:?} forbidden, allowed: {:?}",
                 self.caller_type, types),
         )
     }
 
-    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
+    fn current_balance(&self) -> Result<TokenAmount, CallError> {
         self.require_in_call();
         Ok(self.balance.clone())
     }
 
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, CallError> {
         self.require_in_call();
         if address.protocol() == Protocol::ID {
             return Ok(Some(*address));
@@ -491,7 +491,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(self.id_addresses.get(address).cloned())
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, CallError> {
         self.require_in_call();
 
         Ok(self.actor_code_cids.get(addr).cloned())
@@ -502,7 +502,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         _personalization: DomainSeparationTag,
         _rand_epoch: ChainEpoch,
         _entropy: &[u8],
-    ) -> Result<Randomness, ActorError> {
+    ) -> Result<Randomness, CallError> {
         unimplemented!()
     }
 
@@ -511,19 +511,19 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         _personalization: DomainSeparationTag,
         _rand_epoch: ChainEpoch,
         _entropy: &[u8],
-    ) -> Result<Randomness, ActorError> {
+    ) -> Result<Randomness, CallError> {
         unimplemented!()
     }
 
-    fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
+    fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), CallError> {
         if self.state.is_some() {
-            return Err(actor_error!(SysErrIllegalActor; "state already constructed"));
+            return Err(call_error!(SysErrIllegalActor; "state already constructed"));
         }
         self.state = Some(self.store.put(obj, Code::Blake2b256).unwrap());
         Ok(())
     }
 
-    fn state<C: Cbor>(&self) -> Result<C, ActorError> {
+    fn state<C: Cbor>(&self) -> Result<C, CallError> {
         Ok(self
             .store
             .get(self.state.as_ref().unwrap())
@@ -531,13 +531,13 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             .unwrap())
     }
 
-    fn transaction<C, RT, F>(&mut self, f: F) -> Result<RT, ActorError>
+    fn transaction<C, RT, F>(&mut self, f: F) -> Result<RT, CallError>
     where
         C: Cbor,
-        F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>,
+        F: FnOnce(&mut C, &mut Self) -> Result<RT, CallError>,
     {
         if self.in_transaction {
-            return Err(actor_error!(SysErrIllegalActor; "nested transaction"));
+            return Err(call_error!(SysErrIllegalActor; "nested transaction"));
         }
         let mut read_only = self.state()?;
         self.in_transaction = true;
@@ -557,10 +557,10 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         method: MethodNum,
         params: RawBytes,
         value: TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes, CallError> {
         self.require_in_call();
         if self.in_transaction {
-            return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
+            return Err(call_error!(SysErrIllegalActor; "side-effect within transaction"));
         }
 
         assert!(
@@ -577,7 +577,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         assert!(expected_msg.to == to && expected_msg.method == method && expected_msg.params == params && expected_msg.value == value, "expectedMessage being sent does not match expectation.\nMessage -\t to: {:?} method: {:?} value: {:?} params: {:?}\nExpected -\t {:?}", to, method, value, params, self.expect_sends[0]);
 
         if value > self.balance {
-            return Err(actor_error!(SysErrSenderStateInvalid;
+            return Err(call_error!(SysErrSenderStateInvalid;
                     "cannot send value: {:?} exceeds balance: {:?}",
                     value, self.balance
             ));
@@ -586,11 +586,11 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
 
         match expected_msg.exit_code {
             ExitCode::Ok => Ok(expected_msg.send_return),
-            x => Err(ActorError::new(x, "Expected message Fail".to_string())),
+            x => Err(CallError::new(x, "Expected message Fail".to_string())),
         }
     }
 
-    fn new_actor_address(&mut self) -> Result<Address, ActorError> {
+    fn new_actor_address(&mut self) -> Result<Address, CallError> {
         self.require_in_call();
         let ret = *self
             .new_actor_addr
@@ -600,10 +600,10 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(ret)
     }
 
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), CallError> {
         self.require_in_call();
         if self.in_transaction {
-            return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
+            return Err(call_error!(SysErrIllegalActor; "side-effect within transaction"));
         }
         let expect_create_actor = self
             .expect_create_actor
@@ -614,10 +614,10 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(())
     }
 
-    fn delete_actor(&mut self, addr: &Address) -> Result<(), ActorError> {
+    fn delete_actor(&mut self, addr: &Address) -> Result<(), CallError> {
         self.require_in_call();
         if self.in_transaction {
-            return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
+            return Err(call_error!(SysErrIllegalActor; "side-effect within transaction"));
         }
         let exp_act = self.expect_delete_actor.take();
         if exp_act.is_none() {
@@ -633,11 +633,11 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(())
     }
 
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount, CallError> {
         unimplemented!();
     }
 
-    fn charge_gas(&mut self, _: &'static str, _: i64) -> Result<(), ActorError> {
+    fn charge_gas(&mut self, _: &'static str, _: i64) -> Result<(), CallError> {
         // TODO implement functionality if needed for testing
         Ok(())
     }
@@ -701,25 +701,25 @@ impl Syscalls for MockRuntime {
             .expect_compute_unsealed_sector_cid
             .replace(None)
             .ok_or_else(|| {
-                Box::new(actor_error!(ErrIllegalState;
+                Box::new(call_error!(ErrIllegalState;
                      "Unexpected syscall to ComputeUnsealedSectorCID"
                 ))
             })?;
 
         if exp.reg != reg {
-            return Err(Box::new(actor_error!(ErrIllegalState;
+            return Err(Box::new(call_error!(ErrIllegalState;
                 "Unexpected compute_unsealed_sector_cid : reg mismatch"
             )));
         }
 
         if exp.pieces[..].eq(pieces) {
-            return Err(Box::new(actor_error!(ErrIllegalState;
+            return Err(Box::new(call_error!(ErrIllegalState;
                 "Unexpected compute_unsealed_sector_cid : pieces mismatch"
             )));
         }
 
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(Box::new(CallError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
@@ -728,16 +728,16 @@ impl Syscalls for MockRuntime {
     }
     fn verify_seal(&self, seal: &SealVerifyInfo) -> Result<(), Box<dyn StdError>> {
         let exp = self.expect_verify_seal.replace(None).ok_or_else(|| {
-            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"))
+            Box::new(call_error!(ErrIllegalState; "Unexpected syscall to verify seal"))
         })?;
 
         if exp.seal != *seal {
             return Err(Box::new(
-                actor_error!(ErrIllegalState; "Unexpected seal verification"),
+                call_error!(ErrIllegalState; "Unexpected seal verification"),
             ));
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(Box::new(CallError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
@@ -746,16 +746,16 @@ impl Syscalls for MockRuntime {
     }
     fn verify_post(&self, post: &WindowPoStVerifyInfo) -> Result<(), Box<dyn StdError>> {
         let exp = self.expect_verify_post.replace(None).ok_or_else(|| {
-            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))
+            Box::new(call_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))
         })?;
 
         if exp.post != *post {
             return Err(Box::new(
-                actor_error!(ErrIllegalState; "Unexpected PoSt verification"),
+                call_error!(ErrIllegalState; "Unexpected PoSt verification"),
             ));
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(Box::new(CallError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
@@ -773,24 +773,24 @@ impl Syscalls for MockRuntime {
             .replace(None)
             .ok_or_else(|| {
                 Box::new(
-                    actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
+                    call_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
                 )
             })?;
         if exp.require_correct_input {
             if exp.block_header_1 != h1 {
-                return Err(Box::new(actor_error!(ErrIllegalState; "Header 1 mismatch")));
+                return Err(Box::new(call_error!(ErrIllegalState; "Header 1 mismatch")));
             }
             if exp.block_header_2 != h2 {
-                return Err(Box::new(actor_error!(ErrIllegalState; "Header 2 mismatch")));
+                return Err(Box::new(call_error!(ErrIllegalState; "Header 2 mismatch")));
             }
             if exp.block_header_extra != extra {
                 return Err(Box::new(
-                    actor_error!(ErrIllegalState; "Header extra mismatch"),
+                    call_error!(ErrIllegalState; "Header extra mismatch"),
                 ));
             }
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(Box::new(CallError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));

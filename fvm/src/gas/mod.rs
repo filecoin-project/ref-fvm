@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::actor_error;
-use fvm_shared::error::ActorError;
+use fvm_shared::call_error;
+use fvm_shared::error::CallError;
 
 pub use self::charge::GasCharge;
 pub use self::price_list::{price_list_by_epoch, PriceList};
@@ -25,13 +25,13 @@ impl GasTracker {
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), CallError> {
         let to_use = charge.total();
         let used_or = self.gas_used.checked_add(to_use);
         match used_or {
             None => {
                 self.gas_used = self.gas_available;
-                Err(actor_error!(SysErrOutOfGas;
+                Err(call_error!(SysErrOutOfGas;
                     "adding gas_used={} and to_use={} overflowed",
                     self.gas_used, to_use
                 ))
@@ -39,7 +39,7 @@ impl GasTracker {
             Some(used) => {
                 if used > self.gas_available {
                     self.gas_used = self.gas_available;
-                    Err(actor_error!(SysErrOutOfGas;
+                    Err(call_error!(SysErrOutOfGas;
                             "not enough gas (used={}) (available={})",
                        used, self.gas_available
                     ))

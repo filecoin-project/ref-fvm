@@ -9,11 +9,11 @@ use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
 use crate::ActorDowncast;
-use fvm_shared::actor_error;
+use fvm_shared::call_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::sector::{PoStProof, SectorSize};
 use ipld_amt::Amt;
 
@@ -55,7 +55,7 @@ impl Deadlines {
         deadline_idx: usize,
     ) -> Result<Deadline, Box<dyn StdError>> {
         if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalArgument,
                 "invalid deadline {}",
                 deadline_idx
@@ -63,7 +63,7 @@ impl Deadlines {
         }
 
         Ok(store.get(&self.due[deadline_idx])?.ok_or_else(|| {
-            Box::new(actor_error!(
+            Box::new(call_error!(
                 ErrIllegalState,
                 "failed to lookup deadline {}",
                 deadline_idx
@@ -251,7 +251,7 @@ impl Deadline {
                     format!("failed to lookup partition {}", partition_idx),
                 )
             })?
-            .ok_or_else(|| actor_error!(ErrNotFound, "no partition {}", partition_idx))?;
+            .ok_or_else(|| call_error!(ErrNotFound, "no partition {}", partition_idx))?;
 
         Ok(partition.clone())
     }
@@ -271,7 +271,7 @@ impl Deadline {
                     format!("failed to lookup partition snapshot {}", partition_idx),
                 )
             })?
-            .ok_or_else(|| actor_error!(ErrNotFound, "no partition snapshot {}", partition_idx))?;
+            .ok_or_else(|| call_error!(ErrNotFound, "no partition snapshot {}", partition_idx))?;
 
         Ok(partition.clone())
     }
@@ -569,7 +569,7 @@ impl Deadline {
                     e.downcast_wrap(format!("failed to load partition {}", partition_idx))
                 })?
                 .ok_or_else(
-                    || actor_error!(ErrNotFound; "failed to find partition {}", partition_idx),
+                    || call_error!(ErrNotFound; "failed to find partition {}", partition_idx),
                 )?
                 .clone();
 
@@ -637,7 +637,7 @@ impl Deadline {
         let to_remove_set: HashSet<_> = to_remove
             .bounded_iter(partition_count as usize)
             .map_err(
-                |e| actor_error!(ErrIllegalArgument; "failed to expand partitions into map: {}", e),
+                |e| call_error!(ErrIllegalArgument; "failed to expand partitions into map: {}", e),
             )?
             .collect();
 
@@ -648,7 +648,7 @@ impl Deadline {
 
         if let Some(partition_idx) = to_remove_set.iter().find(|&&i| i >= partition_count) {
             return Err(
-                actor_error!(ErrIllegalArgument; "partition index {} out of range [0, {})", partition_idx, partition_count).into()
+                call_error!(ErrIllegalArgument; "partition index {} out of range [0, {})", partition_idx, partition_count).into()
             );
         }
 
@@ -677,7 +677,7 @@ impl Deadline {
                 // Don't allow removing partitions with faulty sectors.
                 let has_no_faults = partition.faults.is_empty();
                 if !has_no_faults {
-                    return Err(actor_error!(
+                    return Err(call_error!(
                         ErrIllegalArgument,
                         "cannot remove partition {}: has faults",
                         partition_idx
@@ -688,7 +688,7 @@ impl Deadline {
                 // Don't allow removing partitions with unproven sectors
                 let all_proven = partition.unproven.is_empty();
                 if !all_proven {
-                    return Err(actor_error!(
+                    return Err(call_error!(
                         ErrIllegalArgument,
                         "cannot remove partition {}: has unproven sectors",
                         partition_idx
@@ -762,7 +762,7 @@ impl Deadline {
                         format!("failed to load partition {}", partition_idx),
                     )
                 })?
-                .ok_or_else(|| actor_error!(ErrNotFound; "no such partition {}", partition_idx))?
+                .ok_or_else(|| call_error!(ErrNotFound; "no such partition {}", partition_idx))?
                 .clone();
 
             let (new_faults, partition_power_delta, partition_new_faulty_power) = partition
@@ -833,7 +833,7 @@ impl Deadline {
                         format!("failed to load partition {}", partition_idx),
                     )
                 })?
-                .ok_or_else(|| actor_error!(ErrNotFound; "no such partition {}", partition_idx))?
+                .ok_or_else(|| call_error!(ErrNotFound; "no such partition {}", partition_idx))?
                 .clone();
 
             partition
@@ -865,7 +865,7 @@ impl Deadline {
         store: &BS,
         quant: QuantSpec,
         fault_expiration_epoch: ChainEpoch,
-    ) -> Result<(PowerPair, PowerPair), ActorError> {
+    ) -> Result<(PowerPair, PowerPair), CallError> {
         let mut partitions = self.partitions_amt(store).map_err(|e| {
             e.downcast_default(ExitCode::ErrIllegalState, "failed to load partitions")
         })?;
@@ -889,7 +889,7 @@ impl Deadline {
                         format!("failed to load partition {}", partition_idx),
                     )
                 })?
-                .ok_or_else(|| actor_error!(ErrIllegalState; "no partition {}", partition_idx))?
+                .ok_or_else(|| call_error!(ErrIllegalState; "no partition {}", partition_idx))?
                 .clone();
 
             // If we have no recovering power/sectors, and all power is faulty, skip
@@ -1111,7 +1111,7 @@ impl Deadline {
 
         let num_partitions = partition_indexes.len();
         if num_partitions != post_partitions.len() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalArgument,
                 "duplicate partitions proven"
             )));
@@ -1121,7 +1121,7 @@ impl Deadline {
         // This is faster than checking one by one.
         let already_proven = &self.partitions_posted & &partition_indexes;
         if !already_proven.is_empty() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalArgument,
                 "parition already proven: {:?}",
                 already_proven
@@ -1143,7 +1143,7 @@ impl Deadline {
             let mut partition = partitions
                 .get(post.index)
                 .map_err(|e| e.downcast_wrap(format!("failed to load partition {}", post.index)))?
-                .ok_or_else(|| actor_error!(ErrNotFound; "no such partition {}", post.index))?
+                .ok_or_else(|| call_error!(ErrNotFound; "no such partition {}", post.index))?
                 .clone();
 
             // Process new faults and accumulate new faulty power.
@@ -1282,7 +1282,7 @@ impl Deadline {
         let post = proof_arr
             .delete(idx as usize)
             .map_err(|e| e.downcast_wrap(format!("failed to retrieve proof {}", idx)))?
-            .ok_or_else(|| actor_error!(ErrIllegalArgument, "proof {} not found", idx))?;
+            .ok_or_else(|| call_error!(ErrIllegalArgument, "proof {} not found", idx))?;
 
         let root = proof_arr
             .flush()

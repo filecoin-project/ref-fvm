@@ -11,8 +11,8 @@ use blockstore::Blockstore;
 use fvm_shared::address::Protocol;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::error::{CallError, ExitCode};
+use fvm_shared::{call_error, ActorID};
 
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
@@ -50,7 +50,7 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
 
 pub struct InvocationResult {
     pub return_bytes: Vec<u8>,
-    pub error: Option<ActorError>,
+    pub error: Option<CallError>,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -250,7 +250,7 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError> {
+    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, CallError> {
         self.call_manager.map_mut(|cm| {
             let (res, cm) = cm.send(
                 message.to,
@@ -265,8 +265,8 @@ where
 }
 
 // TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
-impl Into<ActorError> for BlockError {
-    fn into(self) -> ActorError {
-        ActorError::new_fatal(self.to_string())
+impl Into<CallError> for BlockError {
+    fn into(self) -> CallError {
+        CallError::new_fatal(self.to_string())
     }
 }

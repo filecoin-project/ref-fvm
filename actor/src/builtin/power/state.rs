@@ -9,13 +9,13 @@ use integer_encoding::VarInt;
 use ipld_blockstore::BlockStore;
 use num_traits::Signed;
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{bigint_ser, BigInt};
+use fvm_shared::call_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{tuple::*, Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
 use fvm_shared::HAMT_BIT_WIDTH;
 
@@ -146,7 +146,7 @@ impl State {
         qa_power: &StoragePower,
     ) -> Result<(), Box<dyn StdError>> {
         let old_claim = get_claim(claims, miner)?
-            .ok_or_else(|| actor_error!(ErrNotFound, "no claim for actor {}", miner))?;
+            .ok_or_else(|| call_error!(ErrNotFound, "no claim for actor {}", miner))?;
 
         self.total_qa_bytes_committed += qa_power;
         self.total_bytes_committed += power;
@@ -184,21 +184,21 @@ impl State {
         }
 
         if new_claim.raw_byte_power.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalState,
                 "negative claimed raw byte power: {}",
                 new_claim.raw_byte_power
             )));
         }
         if new_claim.quality_adj_power.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalState,
                 "negative claimed quality adjusted power: {}",
                 new_claim.quality_adj_power
             )));
         }
         if self.miner_above_min_power_count < 0 {
-            return Err(Box::new(actor_error!(
+            return Err(Box::new(call_error!(
                 ErrIllegalState,
                 "negative amount of miners lather than min: {}",
                 self.miner_above_min_power_count
@@ -271,7 +271,7 @@ impl State {
         &self,
         store: &BS,
         miner_addr: &Address,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
     {
@@ -282,7 +282,7 @@ impl State {
             .contains_key(&miner_addr.to_bytes())
             .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to look up claim"))?
         {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrForbidden,
                 "unknown miner {} forbidden to interact with power actor",
                 miner_addr
@@ -364,14 +364,14 @@ pub fn set_claim<BS: BlockStore>(
     claim: Claim,
 ) -> Result<(), Box<dyn StdError>> {
     if claim.raw_byte_power.is_negative() {
-        return Err(Box::new(actor_error!(
+        return Err(Box::new(call_error!(
             ErrIllegalState,
             "negative claim raw power {}",
             claim.raw_byte_power
         )));
     }
     if claim.quality_adj_power.is_negative() {
-        return Err(Box::new(actor_error!(
+        return Err(Box::new(call_error!(
             ErrIllegalState,
             "negative claim quality-adjusted power {}",
             claim.quality_adj_power

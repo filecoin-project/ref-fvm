@@ -8,12 +8,12 @@ use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
+use fvm_shared::call_error;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::sector::SealVerifyInfo;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
@@ -60,7 +60,7 @@ pub enum Method {
 pub struct Actor;
 impl Actor {
     /// Constructor for StoragePower actor
-    fn constructor<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    fn constructor<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -80,7 +80,7 @@ impl Actor {
     fn create_miner<BS, RT>(
         rt: &mut RT,
         params: CreateMinerParams,
-    ) -> Result<CreateMinerReturn, ActorError>
+    ) -> Result<CreateMinerReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -137,7 +137,7 @@ impl Actor {
 
             st.update_stats_for_new_miner(window_post_proof_type)
                 .map_err(|e| {
-                    actor_error!(
+                    call_error!(
                         ErrIllegalState,
                         "failed to update power stats for new miner {}: {}",
                         &id_address,
@@ -161,7 +161,7 @@ impl Actor {
     fn update_claimed_power<BS, RT>(
         rt: &mut RT,
         params: UpdateClaimedPowerParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -201,7 +201,7 @@ impl Actor {
     fn enroll_cron_event<BS, RT>(
         rt: &mut RT,
         params: EnrollCronEventParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -215,7 +215,7 @@ impl Actor {
         // Ensure it is not possible to enter a large negative number which would cause
         // problems in cron processing.
         if params.event_epoch < 0 {
-            return Err(actor_error!(ErrIllegalArgument;
+            return Err(call_error!(ErrIllegalArgument;
                 "cron event epoch {} cannot be less than zero", params.event_epoch));
         }
 
@@ -243,7 +243,7 @@ impl Actor {
         Ok(())
     }
 
-    fn on_epoch_tick_end<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    fn on_epoch_tick_end<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -278,7 +278,7 @@ impl Actor {
         Ok(())
     }
 
-    fn update_pledge_total<BS, RT>(rt: &mut RT, pledge_delta: TokenAmount) -> Result<(), ActorError>
+    fn update_pledge_total<BS, RT>(rt: &mut RT, pledge_delta: TokenAmount) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -288,7 +288,7 @@ impl Actor {
             st.validate_miner_has_claim(rt.store(), rt.message().caller())?;
             st.add_pledge_total(pledge_delta);
             if st.total_pledge_collateral.is_negative() {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalState,
                     "negative total pledge collateral {}",
                     st.total_pledge_collateral
@@ -301,7 +301,7 @@ impl Actor {
     fn submit_porep_for_bulk_verify<BS, RT>(
         rt: &mut RT,
         seal_info: SealVerifyInfo,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -342,7 +342,7 @@ impl Actor {
                 })?;
             if let Some(arr) = arr {
                 if arr.count() >= MAX_MINER_PROVE_COMMITS_PER_EPOCH {
-                    return Err(actor_error!(ErrTooManyProveCommits;
+                    return Err(call_error!(ErrTooManyProveCommits;
                         "miner {} attempting to prove commit over {} sectors in epoch",
                         miner_addr, MAX_MINER_PROVE_COMMITS_PER_EPOCH));
                 }
@@ -372,7 +372,7 @@ impl Actor {
     /// The returned values are frozen during the cron tick before this epoch
     /// so that this method returns consistent values while processing all messages
     /// of an epoch.
-    fn current_total_power<BS, RT>(rt: &mut RT) -> Result<CurrentTotalPowerReturn, ActorError>
+    fn current_total_power<BS, RT>(rt: &mut RT) -> Result<CurrentTotalPowerReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -388,7 +388,7 @@ impl Actor {
         })
     }
 
-    fn process_batch_proof_verifies<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    fn process_batch_proof_verifies<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -420,7 +420,7 @@ impl Actor {
                     })?;
             mmap.for_all::<_, SealVerifyInfo>(|k, arr| {
                 let addr = Address::from_bytes(&k.0).map_err(|e| {
-                    actor_error!(ErrIllegalState, "failed to parse address key: {}", e)
+                    call_error!(ErrIllegalState, "failed to parse address key: {}", e)
                 })?;
 
                 let contains_claim = claims.contains_key(&addr.to_bytes()).map_err(|e| {
@@ -465,7 +465,7 @@ impl Actor {
 
         for (m, verifs) in verifies.iter() {
             let vres = res.get(m).ok_or_else(
-                || actor_error!(ErrNotFound; "batch verify seals syscall implemented incorrectly"),
+                || call_error!(ErrNotFound; "batch verify seals syscall implemented incorrectly"),
             )?;
 
             let mut seen = AHashSet::<_>::new();
@@ -495,7 +495,7 @@ impl Actor {
         Ok(())
     }
 
-    fn process_deferred_cron_events<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
+    fn process_deferred_cron_events<BS, RT>(rt: &mut RT) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -620,7 +620,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -659,7 +659,7 @@ impl ActorCode for Actor {
                 let res = Self::current_total_power(rt)?;
                 Ok(RawBytes::serialize(res)?)
             }
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

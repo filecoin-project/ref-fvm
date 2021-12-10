@@ -15,7 +15,7 @@ use crate::runtime::{ActorCode, Runtime};
 use builtin::HAMT_BIT_WIDTH;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::MethodNum;
 pub use ipld_amt;
 pub use ipld_hamt;
@@ -89,7 +89,7 @@ pub fn invoke_code<RT, BS>(
     rt: &mut RT,
     method_num: MethodNum,
     params: &RawBytes,
-) -> Option<Result<RawBytes, ActorError>>
+) -> Option<Result<RawBytes, CallError>>
 where
     BS: BlockStore,
     RT: Runtime<BS>,

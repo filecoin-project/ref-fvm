@@ -6,10 +6,10 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
+use fvm_shared::call_error;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 pub use state::*;
 pub use types::*;
@@ -49,7 +49,7 @@ pub enum Method {
 pub struct Actor;
 
 impl Actor {
-    pub fn send<BS, RT>(rt: &mut RT, arg: SendArgs) -> Result<SendReturn, ActorError>
+    pub fn send<BS, RT>(rt: &mut RT, arg: SendArgs) -> Result<SendReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -89,7 +89,7 @@ impl Actor {
     pub fn caller_validation<BS, RT>(
         rt: &mut RT,
         args: CallerValidationArgs,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -112,7 +112,7 @@ impl Actor {
     }
 
     // Creates an actor with the supplied CID and Address.
-    pub fn create_actor<BS, RT>(rt: &mut RT, arg: CreateActorArgs) -> Result<(), ActorError>
+    pub fn create_actor<BS, RT>(rt: &mut RT, arg: CreateActorArgs) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -134,7 +134,7 @@ impl Actor {
     pub fn resolve_address<BS, RT>(
         rt: &mut RT,
         args: Address,
-    ) -> Result<ResolveAddressResponse, ActorError>
+    ) -> Result<ResolveAddressResponse, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -147,7 +147,7 @@ impl Actor {
         })
     }
 
-    pub fn delete_actor<BS, RT>(rt: &mut RT, beneficiary: Address) -> Result<(), ActorError>
+    pub fn delete_actor<BS, RT>(rt: &mut RT, beneficiary: Address) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -156,7 +156,7 @@ impl Actor {
         rt.delete_actor(&beneficiary)
     }
 
-    pub fn mutate_state<BS, RT>(rt: &mut RT, arg: MutateStateArgs) -> Result<(), ActorError>
+    pub fn mutate_state<BS, RT>(rt: &mut RT, arg: MutateStateArgs) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -169,18 +169,18 @@ impl Actor {
                 Ok(())
             }),
 
-            _ => Err(actor_error!(ErrIllegalArgument; "Invalid mutate state command given" )),
+            _ => Err(call_error!(ErrIllegalArgument; "Invalid mutate state command given" )),
         }
     }
 
-    pub fn abort_with(arg: AbortWithArgs) -> Result<(), ActorError> {
+    pub fn abort_with(arg: AbortWithArgs) -> Result<(), CallError> {
         if arg.uncontrolled {
             panic!("Uncontrolled abort/error");
         }
-        Err(ActorError::new(arg.code, arg.message))
+        Err(CallError::new(arg.code, arg.message))
     }
 
-    pub fn inspect_runtime<BS, RT>(rt: &mut RT) -> Result<InspectRuntimeReturn, ActorError>
+    pub fn inspect_runtime<BS, RT>(rt: &mut RT) -> Result<InspectRuntimeReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -202,7 +202,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -251,7 +251,7 @@ impl ActorCode for Actor {
                 Ok(RawBytes::serialize(inspect)?)
             }
 
-            None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod; "Invalid method")),
         }
     }
 }

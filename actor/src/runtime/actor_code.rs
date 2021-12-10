@@ -4,7 +4,7 @@
 use ipld_blockstore::BlockStore;
 
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::MethodNum;
 
 use crate::Runtime;
@@ -17,7 +17,7 @@ pub(crate) trait ActorCode {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>;

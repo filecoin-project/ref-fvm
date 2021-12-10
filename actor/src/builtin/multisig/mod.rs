@@ -8,12 +8,12 @@ use ipld_blockstore::BlockStore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Sign;
+use fvm_shared::call_error;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use crate::runtime::{ActorCode, Runtime, Syscalls};
@@ -49,7 +49,7 @@ pub enum Method {
 pub struct Actor;
 impl Actor {
     /// Constructor for Multisig actor
-    pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
+    pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -57,11 +57,11 @@ impl Actor {
         rt.validate_immediate_caller_is(std::iter::once(&*INIT_ACTOR_ADDR))?;
 
         if params.signers.is_empty() {
-            return Err(actor_error!(ErrIllegalArgument; "Must have at least one signer"));
+            return Err(call_error!(ErrIllegalArgument; "Must have at least one signer"));
         }
 
         if params.signers.len() > SIGNERS_MAX {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "cannot add more than {} signers",
                 SIGNERS_MAX
@@ -80,7 +80,7 @@ impl Actor {
             })?;
             if dedup_signers.contains(&resolved) {
                 return Err(
-                    actor_error!(ErrIllegalArgument; "duplicate signer not allowed: {}", signer),
+                    call_error!(ErrIllegalArgument; "duplicate signer not allowed: {}", signer),
                 );
             }
             resolved_signers.push(resolved);
@@ -89,16 +89,16 @@ impl Actor {
 
         if params.num_approvals_threshold > params.signers.len() {
             return Err(
-                actor_error!(ErrIllegalArgument; "must not require more approvals than signers"),
+                call_error!(ErrIllegalArgument; "must not require more approvals than signers"),
             );
         }
 
         if params.num_approvals_threshold < 1 {
-            return Err(actor_error!(ErrIllegalArgument; "must require at least one approval"));
+            return Err(call_error!(ErrIllegalArgument; "must require at least one approval"));
         }
 
         if params.unlock_duration < 0 {
-            return Err(actor_error!(ErrIllegalArgument; "negative unlock duration disallowed"));
+            return Err(call_error!(ErrIllegalArgument; "negative unlock duration disallowed"));
         }
 
         let empty_root = make_empty_map::<_, ()>(rt.store(), HAMT_BIT_WIDTH)
@@ -130,7 +130,7 @@ impl Actor {
     }
 
     /// Multisig actor propose function
-    pub fn propose<BS, RT>(rt: &mut RT, params: ProposeParams) -> Result<ProposeReturn, ActorError>
+    pub fn propose<BS, RT>(rt: &mut RT, params: ProposeParams) -> Result<ProposeReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -139,7 +139,7 @@ impl Actor {
         let proposer: Address = *rt.message().caller();
 
         if params.value.sign() == Sign::Minus {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "proposed value must be non-negative, was {}",
                 params.value
@@ -148,7 +148,7 @@ impl Actor {
 
         let (txn_id, txn) = rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&proposer) {
-                return Err(actor_error!(ErrForbidden, "{} is not a signer", proposer));
+                return Err(call_error!(ErrForbidden, "{} is not a signer", proposer));
             }
 
             let mut ptx = make_map_with_root(&st.pending_txs, rt.store()).map_err(|e| {
@@ -197,7 +197,7 @@ impl Actor {
     }
 
     /// Multisig actor approve function
-    pub fn approve<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<ApproveReturn, ActorError>
+    pub fn approve<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<ApproveReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -208,7 +208,7 @@ impl Actor {
         let id = params.id;
         let (st, txn) = rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&approver) {
-                return Err(actor_error!(ErrForbidden; "{} is not a signer", approver));
+                return Err(call_error!(ErrForbidden; "{} is not a signer", approver));
             }
 
             let ptx = make_map_with_root(&st.pending_txs, rt.store()).map_err(|e| {
@@ -237,7 +237,7 @@ impl Actor {
     }
 
     /// Multisig actor cancel function
-    pub fn cancel<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<(), ActorError>
+    pub fn cancel<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -247,7 +247,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&caller_addr) {
-                return Err(actor_error!(ErrForbidden; "{} is not a signer", caller_addr));
+                return Err(call_error!(ErrForbidden; "{} is not a signer", caller_addr));
             }
 
             let mut ptx = make_map_with_root::<_, Transaction>(&st.pending_txs, rt.store())
@@ -267,14 +267,12 @@ impl Actor {
                     )
                 })?
                 .ok_or_else(|| {
-                    actor_error!(ErrNotFound, "no such transaction {:?} to cancel", params.id)
+                    call_error!(ErrNotFound, "no such transaction {:?} to cancel", params.id)
                 })?;
 
             // Check to make sure transaction proposer is caller address
             if tx.approved.get(0) != Some(&caller_addr) {
-                return Err(
-                    actor_error!(ErrForbidden; "Cannot cancel another signers transaction"),
-                );
+                return Err(call_error!(ErrForbidden; "Cannot cancel another signers transaction"));
             }
 
             let calculated_hash = compute_proposal_hash(&tx, rt).map_err(|e| {
@@ -285,7 +283,7 @@ impl Actor {
             })?;
 
             if !params.proposal_hash.is_empty() && params.proposal_hash != calculated_hash {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalState,
                     "hash does not match proposal params"
                 ));
@@ -303,7 +301,7 @@ impl Actor {
     }
 
     /// Multisig actor function to add signers to multisig
-    pub fn add_signer<BS, RT>(rt: &mut RT, params: AddSignerParams) -> Result<(), ActorError>
+    pub fn add_signer<BS, RT>(rt: &mut RT, params: AddSignerParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -319,14 +317,14 @@ impl Actor {
 
         rt.transaction(|st: &mut State, _| {
             if st.signers.len() >= SIGNERS_MAX {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrForbidden,
                     "cannot add more than {} signers",
                     SIGNERS_MAX
                 ));
             }
             if st.is_signer(&resolved_new_signer) {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrForbidden,
                     "{} is already a signer",
                     resolved_new_signer
@@ -344,7 +342,7 @@ impl Actor {
     }
 
     /// Multisig actor function to remove signers to multisig
-    pub fn remove_signer<BS, RT>(rt: &mut RT, params: RemoveSignerParams) -> Result<(), ActorError>
+    pub fn remove_signer<BS, RT>(rt: &mut RT, params: RemoveSignerParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -360,7 +358,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&resolved_old_signer) {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrForbidden,
                     "{} is not a signer",
                     resolved_old_signer
@@ -368,11 +366,11 @@ impl Actor {
             }
 
             if st.signers.len() == 1 {
-                return Err(actor_error!(ErrForbidden; "Cannot remove only signer"));
+                return Err(call_error!(ErrForbidden; "Cannot remove only signer"));
             }
 
             if !params.decrease && st.signers.len() - 1 < st.num_approvals_threshold {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "can't reduce signers to {} below threshold {} with decrease=false",
                     st.signers.len(),
@@ -382,7 +380,7 @@ impl Actor {
 
             if params.decrease {
                 if st.num_approvals_threshold < 2 {
-                    return Err(actor_error!(
+                    return Err(call_error!(
                         ErrIllegalArgument,
                         "can't decrease approvals from {} to {}",
                         st.num_approvals_threshold,
@@ -409,7 +407,7 @@ impl Actor {
     }
 
     /// Multisig actor function to swap signers to multisig
-    pub fn swap_signer<BS, RT>(rt: &mut RT, params: SwapSignerParams) -> Result<(), ActorError>
+    pub fn swap_signer<BS, RT>(rt: &mut RT, params: SwapSignerParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -431,13 +429,11 @@ impl Actor {
 
         rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&from_resolved) {
-                return Err(actor_error!(ErrForbidden; "{} is not a signer", from_resolved));
+                return Err(call_error!(ErrForbidden; "{} is not a signer", from_resolved));
             }
 
             if st.is_signer(&to_resolved) {
-                return Err(
-                    actor_error!(ErrIllegalArgument; "{} is already a signer", to_resolved),
-                );
+                return Err(call_error!(ErrIllegalArgument; "{} is already a signer", to_resolved));
             }
 
             // Remove signer from state (retain preserves order of elements)
@@ -463,7 +459,7 @@ impl Actor {
     pub fn change_num_approvals_threshold<BS, RT>(
         rt: &mut RT,
         params: ChangeNumApprovalsThresholdParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -474,7 +470,7 @@ impl Actor {
         rt.transaction(|st: &mut State, _| {
             // Check if valid threshold value
             if params.new_threshold == 0 || params.new_threshold > st.signers.len() {
-                return Err(actor_error!(ErrIllegalArgument; "New threshold value not supported"));
+                return Err(call_error!(ErrIllegalArgument; "New threshold value not supported"));
             }
 
             // Update threshold on state
@@ -486,7 +482,7 @@ impl Actor {
     }
 
     /// Multisig actor function to change number of approvals needed
-    pub fn lock_balance<BS, RT>(rt: &mut RT, params: LockBalanceParams) -> Result<(), ActorError>
+    pub fn lock_balance<BS, RT>(rt: &mut RT, params: LockBalanceParams) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -495,14 +491,14 @@ impl Actor {
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
 
         if params.unlock_duration <= 0 {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "unlock duration must be positive"
             ));
         }
 
         if params.amount.is_negative() {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "amount to lock must be positive"
             ));
@@ -510,7 +506,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, _| {
             if st.unlock_duration != 0 {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrForbidden,
                     "modification of unlock disallowed"
                 ));
@@ -526,14 +522,14 @@ impl Actor {
         rt: &mut RT,
         tx_id: TxnID,
         mut txn: Transaction,
-    ) -> Result<(bool, RawBytes, ExitCode), ActorError>
+    ) -> Result<(bool, RawBytes, ExitCode), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
     {
         for previous_approver in &txn.approved {
             if previous_approver == rt.message().caller() {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrForbidden,
                     "{} already approved this message",
                     previous_approver
@@ -580,7 +576,7 @@ fn execute_transaction_if_approved<BS, RT>(
     st: &State,
     txn_id: TxnID,
     txn: &Transaction,
-) -> Result<(bool, RawBytes, ExitCode), ActorError>
+) -> Result<(bool, RawBytes, ExitCode), CallError>
 where
     BS: BlockStore,
     RT: Runtime<BS>,
@@ -591,9 +587,7 @@ where
     let threshold_met = txn.approved.len() >= st.num_approvals_threshold;
     if threshold_met {
         st.check_available(rt.current_balance()?, &txn.value, rt.curr_epoch())
-            .map_err(|e| {
-                actor_error!(ErrInsufficientFunds, "insufficient funds unlocked: {}", e)
-            })?;
+            .map_err(|e| call_error!(ErrInsufficientFunds, "insufficient funds unlocked: {}", e))?;
 
         match rt.send(txn.to, txn.method, txn.params.clone(), txn.value.clone()) {
             Ok(ser) => {
@@ -640,7 +634,7 @@ fn get_transaction<'bs, 'm, BS, RT>(
     txn_id: TxnID,
     proposal_hash: Vec<u8>,
     check_hash: bool,
-) -> Result<&'m Transaction, ActorError>
+) -> Result<&'m Transaction, CallError>
 where
     BS: BlockStore,
     RT: Runtime<BS>,
@@ -653,9 +647,7 @@ where
                 format!("failed to load transaction {:?} for approval", txn_id),
             )
         })?
-        .ok_or_else(|| {
-            actor_error!(ErrNotFound, "no such transaction {:?} for approval", txn_id)
-        })?;
+        .ok_or_else(|| call_error!(ErrNotFound, "no such transaction {:?} for approval", txn_id))?;
 
     if check_hash {
         let calculated_hash = compute_proposal_hash(txn, rt).map_err(|e| {
@@ -666,7 +658,7 @@ where
         })?;
 
         if !proposal_hash.is_empty() && proposal_hash != calculated_hash {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "hash does not match proposal params (ensure requester is an ID address)"
             ));
@@ -690,7 +682,7 @@ fn compute_proposal_hash(
         params: &txn.params,
     };
     let data = to_vec(&proposal_hash)
-        .map_err(|e| ActorError::from(e).wrap("failed to construct multisig approval hash"))?;
+        .map_err(|e| CallError::from(e).wrap("failed to construct multisig approval hash"))?;
 
     sys.hash_blake2b(&data)
 }
@@ -700,7 +692,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -742,7 +734,7 @@ impl ActorCode for Actor {
                 Self::lock_balance(rt, rt.deserialize_params(params)?)?;
                 Ok(RawBytes::default())
             }
-            None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod, "Invalid method")),
         }
     }
 }

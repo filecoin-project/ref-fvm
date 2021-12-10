@@ -21,7 +21,7 @@ use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{METHOD_CONSTRUCTOR, METHOD_SEND};
 
@@ -355,7 +355,7 @@ fn award_block_reward(
     gas_reward: TokenAmount,
     win_count: i64,
     expected_payment: TokenAmount,
-) -> Result<RawBytes, ActorError> {
+) -> Result<RawBytes, CallError> {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     let miner_penalty = &penalty * PENALTY_MULTIPLIER;
     rt.expect_send(

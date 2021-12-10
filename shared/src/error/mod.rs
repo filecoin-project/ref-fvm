@@ -5,9 +5,9 @@ use num_derive::FromPrimitive;
 
 use crate::encoding::repr::*;
 
-pub mod actor_error;
+pub mod call_error;
 
-pub use actor_error::*;
+pub use call_error::*;
 
 /// ExitCode defines the exit code from the VM execution.
 #[repr(u64)]

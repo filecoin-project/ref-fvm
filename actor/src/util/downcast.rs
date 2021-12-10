@@ -4,58 +4,56 @@
 use std::error::Error as StdError;
 
 use fvm_shared::encoding::{error::Error as CborError, EncodingError};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use ipld_amt::AmtError;
 use ipld_hamt::HamtError;
 
-/// Trait to allow multiple error types to be able to be downcasted into an `ActorError`.
+/// Trait to allow multiple error types to be able to be downcasted into an `CallError`.
 pub trait ActorDowncast {
-    /// Downcast a dynamic std Error into an `ActorError`. If the error cannot be downcasted
-    /// into an ActorError automatically, use the provided `ExitCode` to generate a new error.
-    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError;
+    /// Downcast a dynamic std Error into an `CallError`. If the error cannot be downcasted
+    /// into an CallError automatically, use the provided `ExitCode` to generate a new error.
+    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> CallError;
 
-    /// Downcast a dynamic std Error into an `ActorError`. If the error cannot be downcasted
+    /// Downcast a dynamic std Error into an `CallError`. If the error cannot be downcasted
     /// then it will convert the error into a fatal error.
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError;
+    fn downcast_fatal(self, msg: impl AsRef<str>) -> CallError;
 
     /// Wrap the error with a message, without overwriting an exit code.
     fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError>;
 }
 
 impl ActorDowncast for Box<dyn StdError> {
-    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> CallError {
         match downcast_util(self) {
-            Ok(actor_error) => actor_error.wrap(msg),
-            Err(other) => {
-                ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other))
-            }
+            Ok(call_error) => call_error.wrap(msg),
+            Err(other) => CallError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_fatal(self, msg: impl AsRef<str>) -> CallError {
         match downcast_util(self) {
-            Ok(actor_error) => actor_error.wrap(msg),
-            Err(other) => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
+            Ok(call_error) => call_error.wrap(msg),
+            Err(other) => CallError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
         match downcast_util(self) {
-            Ok(actor_error) => Box::new(actor_error.wrap(msg)),
+            Ok(call_error) => Box::new(call_error.wrap(msg)),
             Err(other) => format!("{}: {}", msg.as_ref(), other).into(),
         }
     }
 }
 
 impl ActorDowncast for AmtError {
-    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> CallError {
         match self {
             AmtError::Dynamic(e) => e.downcast_default(default_exit_code, msg),
-            other => ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
+            other => CallError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_fatal(self, msg: impl AsRef<str>) -> CallError {
         match self {
             AmtError::Dynamic(e) => e.downcast_fatal(msg),
-            other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
+            other => CallError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
@@ -67,16 +65,16 @@ impl ActorDowncast for AmtError {
 }
 
 impl ActorDowncast for HamtError {
-    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> CallError {
         match self {
             HamtError::Dynamic(e) => e.downcast_default(default_exit_code, msg),
-            other => ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
+            other => CallError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
+    fn downcast_fatal(self, msg: impl AsRef<str>) -> CallError {
         match self {
             HamtError::Dynamic(e) => e.downcast_fatal(msg),
-            other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
+            other => CallError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
@@ -90,9 +88,9 @@ impl ActorDowncast for HamtError {
 /// Attempts to downcast a `Box<dyn std::error::Error>` into an actor error.
 /// Returns `Ok` with the actor error if it can be downcasted automatically
 /// and returns `Err` with the original error if it cannot.
-fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdError>> {
-    // Check if error is ActorError, return as such
-    let error = match error.downcast::<ActorError>() {
+fn downcast_util(error: Box<dyn StdError>) -> Result<CallError, Box<dyn StdError>> {
+    // Check if error is CallError, return as such
+    let error = match error.downcast::<CallError>() {
         Ok(actor_err) => return Ok(*actor_err),
         Err(other) => other,
     };
@@ -100,7 +98,7 @@ fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdErro
     // Check if error is Encoding error, if so return `ErrSerialization`
     let error = match error.downcast::<EncodingError>() {
         Ok(enc_error) => {
-            return Ok(ActorError::new(
+            return Ok(CallError::new(
                 ExitCode::ErrSerialization,
                 enc_error.to_string(),
             ))
@@ -112,7 +110,7 @@ fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdErro
     // future proof.
     let error = match error.downcast::<CborError>() {
         Ok(enc_error) => {
-            return Ok(ActorError::new(
+            return Ok(CallError::new(
                 ExitCode::ErrSerialization,
                 enc_error.to_string(),
             ))

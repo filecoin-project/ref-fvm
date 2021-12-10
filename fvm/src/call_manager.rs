@@ -1,11 +1,11 @@
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
-    actor_error,
     address::{Address, Protocol},
+    call_error,
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
-    error::ActorError,
+    error::CallError,
     ActorID,
 };
 use num_traits::Zero;
@@ -57,7 +57,7 @@ where
         }
     }
 
-    fn create_account_actor(mut self, addr: &Address) -> (Result<ActorID, ActorError>, Self) {
+    fn create_account_actor(mut self, addr: &Address) -> (Result<ActorID, CallError>, Self) {
         macro_rules! t {
             ($e:expr) => {
                 match $e {
@@ -70,9 +70,7 @@ where
 
         if addr.is_bls_zero_address() {
             return (
-                Err(
-                    actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"),
-                ),
+                Err(call_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")),
                 self,
             );
         }
@@ -84,7 +82,7 @@ where
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
         let params = t!(RawBytes::serialize(&addr).map_err(|e| {
-            actor_error!(fatal(
+            call_error!(fatal(
                 "couldn't serialize params for actor construction: {:?}",
                 e
             ))
@@ -117,13 +115,13 @@ where
         // TODO: in the future, we'll need to pass more than one block as params.
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<InvocationResult, CallError>, Self) {
         // Eew. NOOOOO This is horrible.
         // 1. We need better error conversions.
         // 2. NOOOOOOOOOOOOO
         // 3. WHYYYYYYYYY!
         match self.state_tree_mut().snapshot() {
-            Err(e) => return (Err(actor_error!(fatal(e))), self),
+            Err(e) => return (Err(call_error!(fatal(e))), self),
             _ => (),
         };
 
@@ -135,7 +133,7 @@ where
             self.state_tree_mut().revert_to_snapshot()
         } {
             Ok(()) => (res, self),
-            Err(e) => (Err(actor_error!(fatal(e))), self),
+            Err(e) => (Err(call_error!(fatal(e))), self),
         }
     }
 
@@ -147,7 +145,7 @@ where
         // TODO: in the future, we'll need to pass more than one block as params.
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<InvocationResult, CallError>, Self) {
         macro_rules! t {
             ($e:expr) => {
                 match $e {
@@ -162,7 +160,7 @@ where
         let to = match t!(self
             .state_tree()
             .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e))))
+            .map_err(|e| call_error!(fatal(e))))
         {
             Some(addr) => addr,
             None => match to.protocol() {
@@ -177,7 +175,7 @@ where
                     };
                     id_addr
                 }
-                _ => return (Err(actor_error!(fatal("actor not found: {}", to))), self),
+                _ => return (Err(call_error!(fatal("actor not found: {}", to))), self),
             },
         };
 
@@ -197,7 +195,7 @@ where
         method: MethodId,
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<InvocationResult, CallError>, Self) {
         let prev_from = self.from;
         self.from = from;
         let (res, mut s) = self.send_resolved(to, method, params, value);
@@ -214,7 +212,7 @@ where
         method: MethodId,
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<InvocationResult, CallError>, Self) {
         macro_rules! t {
             ($e:expr) => {
                 match $e {
@@ -232,7 +230,7 @@ where
 
         // Create a new linker.
         let mut linker = Linker::new(&engine);
-        t!(bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e))));
+        t!(bind_syscalls(&mut linker).map_err(|e| call_error!(fatal(e))));
 
         let to_addr = Address::new_id(to);
 
@@ -240,12 +238,12 @@ where
         // TODO: should we let the kernel do this? We could _ask_ the kernel for the code to
         //  execute?
         let mut state = t!(t!(self.state_tree().get_actor(&to_addr))
-            .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to))));
+            .ok_or_else(|| call_error!(fatal("actor does not exist: {}", to))));
 
         let module = t!(self
             .machine
             .load_module(&state.code)
-            .map_err(|e| actor_error!(fatal(e))));
+            .map_err(|e| call_error!(fatal(e))));
 
         // 2. Update balance.
         if !value.is_zero() {
@@ -264,7 +262,7 @@ where
         // TODO: This copies the block. Ideally, we'd give ownership.
         let param_id = match kernel.block_create(DAG_CBOR, &params) {
             Ok(id) => id,
-            Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
+            Err(e) => return (Err(call_error!(fatal(e))), kernel.take()),
         };
 
         // TODO: BELOW ERROR HANDLING IS BROKEN.
@@ -307,7 +305,7 @@ where
     }
 
     /// Charge gas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), CallError> {
         self.gas_tracker.charge_gas(charge)
     }
 

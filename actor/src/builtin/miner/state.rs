@@ -14,9 +14,9 @@ use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
-use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
+use fvm_shared::{call_error, HAMT_BIT_WIDTH};
 use ipld_amt::{Amt, AmtError};
 use ipld_hamt::HamtError;
 
@@ -207,7 +207,7 @@ impl State {
     pub fn get_info<BS: BlockStore>(&self, store: &BS) -> Result<MinerInfo, Box<dyn StdError>> {
         match store.get(&self.info) {
             Ok(Some(info)) => Ok(info),
-            Ok(None) => Err(actor_error!(ErrNotFound, "failed to get miner info").into()),
+            Ok(None) => Err(call_error!(ErrNotFound, "failed to get miner info").into()),
             Err(e) => Err(e.downcast_wrap("failed to get miner info")),
         }
     }
@@ -254,7 +254,7 @@ impl State {
         store: &BS,
         sector_numbers: &BitField,
         policy: CollisionPolicy,
-    ) -> Result<(), ActorError> {
+    ) -> Result<(), CallError> {
         let prior_allocation = store
             .get(&self.allocated_sectors)
             .map_err(|e| {
@@ -263,14 +263,14 @@ impl State {
                     "failed to load allocated sectors bitfield",
                 )
             })?
-            .ok_or_else(|| actor_error!(ErrIllegalState, "allocated sectors bitfield not found"))?;
+            .ok_or_else(|| call_error!(ErrIllegalState, "allocated sectors bitfield not found"))?;
 
         if policy != CollisionPolicy::AllowCollisions {
             // NOTE: A fancy merge algorithm could extract this intersection while merging, below, saving
             // one iteration of the runs
             let collisions = &prior_allocation & sector_numbers;
             if !collisions.is_empty() {
-                return Err(actor_error!(
+                return Err(call_error!(
                     ErrIllegalArgument,
                     "sector numbers {:?} already allocated",
                     collisions
@@ -641,7 +641,7 @@ impl State {
         let partition = deadline.load_partition(store, partition_idx)?;
 
         if !partition.sectors.get(sector_number as usize) {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrNotFound;
                 "sector {} not a member of partition {}, deadline {}",
                 sector_number, partition_idx, deadline_idx
@@ -650,7 +650,7 @@ impl State {
         }
 
         if partition.faults.get(sector_number as usize) {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrForbidden;
                 "sector {} not a member of partition {}, deadline {}",
                 sector_number, partition_idx, deadline_idx
@@ -659,7 +659,7 @@ impl State {
         }
 
         if partition.terminated.get(sector_number as usize) {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrNotFound;
                 "sector {} not of partition {}, deadline {} is terminated",
                 sector_number, partition_idx, deadline_idx
@@ -679,12 +679,12 @@ impl State {
         Ok(Sectors::load(store, &self.sectors)?.load_sector(sectors)?)
     }
 
-    pub fn load_deadlines<BS: BlockStore>(&self, store: &BS) -> Result<Deadlines, ActorError> {
+    pub fn load_deadlines<BS: BlockStore>(&self, store: &BS) -> Result<Deadlines, CallError> {
         store
             .get::<Deadlines>(&self.deadlines)
             .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to load deadlines"))?
             .ok_or_else(
-                || actor_error!(ErrIllegalState; "failed to load deadlines {}", self.deadlines),
+                || call_error!(ErrIllegalState; "failed to load deadlines {}", self.deadlines),
             )
     }
 
@@ -709,7 +709,7 @@ impl State {
                     format!("failed to load vesting funds {}", self.vesting_funds),
                 )
             })?
-            .ok_or_else(|| actor_error!(ErrNotFound; "failed to load vesting funds {:?}", self.vesting_funds))?)
+            .ok_or_else(|| call_error!(ErrNotFound; "failed to load vesting funds {:?}", self.vesting_funds))?)
     }
 
     /// Saves the vesting table to the store.
@@ -845,7 +845,7 @@ impl State {
     ) -> Result<TokenAmount, Box<dyn StdError>> {
         let unlocked_balance = self.get_unlocked_balance(curr_balance)?;
         if unlocked_balance < self.fee_debt {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrInsufficientFunds,
                 "unlocked balance can not repay fee debt ({} < {})",
                 unlocked_balance,
@@ -1162,13 +1162,13 @@ impl State {
         for sector_no in sector_nos.iter() {
             if sector_no > MAX_SECTOR_NUMBER as usize {
                 return Err(
-                    actor_error!(ErrIllegalArgument, "sector number greater than maximum").into(),
+                    call_error!(ErrIllegalArgument, "sector number greater than maximum").into(),
                 );
             }
             let info: &SectorPreCommitOnChainInfo =
                 precommitted
                     .get(&u64_key(sector_no as u64))?
-                    .ok_or_else(|| actor_error!(ErrNotFound, "sector {} not found", sector_no))?;
+                    .ok_or_else(|| call_error!(ErrNotFound, "sector {} not found", sector_no))?;
             precommits.push(info.clone());
         }
         Ok(precommits)
@@ -1242,14 +1242,14 @@ impl MinerInfo {
         peer_id: Vec<u8>,
         multi_address: Vec<BytesDe>,
         window_post_proof_type: RegisteredPoStProof,
-    ) -> Result<Self, ActorError> {
+    ) -> Result<Self, CallError> {
         let sector_size = window_post_proof_type
             .sector_size()
-            .map_err(|e| actor_error!(ErrIllegalArgument, "invalid sector size: {}", e))?;
+            .map_err(|e| call_error!(ErrIllegalArgument, "invalid sector size: {}", e))?;
 
         let window_post_partition_sectors = window_post_proof_type
             .window_post_partitions_sector()
-            .map_err(|e| actor_error!(ErrIllegalArgument, "invalid partition sectors: {}", e))?;
+            .map_err(|e| call_error!(ErrIllegalArgument, "invalid partition sectors: {}", e))?;
 
         Ok(Self {
             owner,

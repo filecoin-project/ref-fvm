@@ -17,7 +17,7 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::{CallError, ExitCode};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -50,24 +50,24 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
 
     /// Validates the caller against some predicate.
     /// Exported actor methods must invoke at least one caller validation before returning.
-    fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError>;
-    fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), ActorError>
+    fn validate_immediate_caller_accept_any(&mut self) -> Result<(), CallError>;
+    fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), CallError>
     where
         I: IntoIterator<Item = &'a Address>;
-    fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), ActorError>
+    fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), CallError>
     where
         I: IntoIterator<Item = &'a Cid>;
 
     /// The balance of the receiver.
-    fn current_balance(&self) -> Result<TokenAmount, ActorError>;
+    fn current_balance(&self) -> Result<TokenAmount, CallError>;
 
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError>;
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, CallError>;
 
     /// Look up the code ID at an actor address.
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError>;
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, CallError>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// ticket chain from a given epoch and incorporating requisite entropy.
@@ -77,7 +77,7 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness, ActorError>;
+    ) -> Result<Randomness, CallError>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// beacon from a given epoch and incorporating requisite entropy.
@@ -87,16 +87,16 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness, ActorError>;
+    ) -> Result<Randomness, CallError>;
 
     /// Initializes the state object.
     /// This is only valid in a constructor function and when the state has not yet been initialized.
-    fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError>;
+    fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), CallError>;
 
     /// Loads a readonly copy of the state of the receiver into the argument.
     ///
     /// Any modification to the state is illegal and will result in an abort.
-    fn state<C: Cbor>(&self) -> Result<C, ActorError>;
+    fn state<C: Cbor>(&self) -> Result<C, CallError>;
 
     /// Loads a mutable version of the state into the `obj` argument and protects
     /// the execution from side effects (including message send).
@@ -107,10 +107,10 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
     /// If the state is modified after this function returns, execution will abort.
     ///
     /// The gas cost of this method is that of a Store.Put of the mutated state object.
-    fn transaction<C, RT, F>(&mut self, f: F) -> Result<RT, ActorError>
+    fn transaction<C, RT, F>(&mut self, f: F) -> Result<RT, CallError>
     where
         C: Cbor,
-        F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>;
+        F: FnOnce(&mut C, &mut Self) -> Result<RT, CallError>;
 
     /// Returns reference to blockstore
     fn store(&self) -> &BS;
@@ -124,22 +124,22 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
         method: MethodNum,
         params: RawBytes,
         value: TokenAmount,
-    ) -> Result<RawBytes, ActorError>;
+    ) -> Result<RawBytes, CallError>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
     /// different actor after messages are re-ordered).
     /// Always an ActorExec address.
-    fn new_actor_address(&mut self) -> Result<Address, ActorError>;
+    fn new_actor_address(&mut self) -> Result<Address, CallError>;
 
     /// Creates an actor with code `codeID` and address `address`, with empty state.
     /// May only be called by Init actor.
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError>;
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), CallError>;
 
     /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
     /// Aborts if the beneficiary does not exist.
     /// May only be called by the actor itself.
-    fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError>;
+    fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), CallError>;
 
     /// Returns the total token supply in circulation at the beginning of the current epoch.
     /// The circulating supply is the sum of:
@@ -149,26 +149,26 @@ pub trait Runtime<BS: BlockStore>: Syscalls {
     /// - funds burnt,
     /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
     /// - deal collateral locked by the storage market actor
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError>;
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount, CallError>;
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError>;
+    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), CallError>;
 
     /// This function is a workaround for go-implementation's faulty exit code handling of
     /// parameters before version 7
     fn deserialize_params<O: de::DeserializeOwned>(
         &self,
         params: &RawBytes,
-    ) -> Result<O, ActorError> {
+    ) -> Result<O, CallError> {
         params.deserialize().map_err(|e| {
             if self.network_version() < NetworkVersion::V7 {
-                ActorError::new(
+                CallError::new(
                     ExitCode::SysErrSenderInvalid,
                     format!("failed to decode parameters: {}", e),
                 )
             } else {
-                ActorError::from(e).wrap("failed to decode parameters")
+                CallError::from(e).wrap("failed to decode parameters")
             }
         })
     }

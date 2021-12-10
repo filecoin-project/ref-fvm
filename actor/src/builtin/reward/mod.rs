@@ -6,12 +6,12 @@ use log::{error, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
 use fvm_shared::bigint::Sign;
 use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
+use fvm_shared::call_error;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::error::CallError;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
@@ -52,7 +52,7 @@ impl Actor {
     fn constructor<BS, RT>(
         rt: &mut RT,
         curr_realized_power: Option<StoragePower>,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -63,7 +63,7 @@ impl Actor {
             rt.create(&State::new(power))?;
             Ok(())
         } else {
-            Err(actor_error!(
+            Err(call_error!(
                 ErrIllegalArgument,
                 "argument should not be nil"
             ))
@@ -83,7 +83,7 @@ impl Actor {
     fn award_block_reward<BS, RT>(
         rt: &mut RT,
         params: AwardBlockRewardParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -91,21 +91,21 @@ impl Actor {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
         let prior_balance = rt.current_balance()?;
         if params.penalty.sign() == Sign::Minus {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "negative penalty {}",
                 params.penalty
             ));
         }
         if params.gas_reward.sign() == Sign::Minus {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "negative gas reward {}",
                 params.gas_reward
             ));
         }
         if prior_balance < params.gas_reward {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalState,
                 "actor current balance {} insufficient to pay gas reward {}",
                 prior_balance,
@@ -113,7 +113,7 @@ impl Actor {
             ));
         }
         if params.win_count <= 0 {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalArgument,
                 "invalid win count {}",
                 params.win_count
@@ -122,7 +122,7 @@ impl Actor {
 
         let miner_addr = rt
             .resolve_address(&params.miner)?
-            .ok_or_else(|| actor_error!(ErrNotFound, "failed to resolve given owner address"))?;
+            .ok_or_else(|| call_error!(ErrNotFound, "failed to resolve given owner address"))?;
 
         let penalty: TokenAmount = &params.penalty * PENALTY_MULTIPLIER;
 
@@ -140,7 +140,7 @@ impl Actor {
                 total_reward = curr_balance;
                 block_reward = &total_reward - &params.gas_reward;
                 if block_reward.is_negative() {
-                    return Err(actor_error!(
+                    return Err(call_error!(
                         ErrIllegalState,
                         "programming error, block reward {} below zero",
                         block_reward
@@ -154,7 +154,7 @@ impl Actor {
         // * Go implementation added this and removed capping it -- this could potentially panic
         // * as they treat panics as an exit code. Revisit this.
         if total_reward > prior_balance {
-            return Err(actor_error!(
+            return Err(call_error!(
                 ErrIllegalState,
                 "reward {} exceeds balance {}",
                 total_reward,
@@ -199,7 +199,7 @@ impl Actor {
     /// The award value used for the current epoch, updated at the end of an epoch
     /// through cron tick.  In the case previous epochs were null blocks this
     /// is the reward value as calculated at the last non-null epoch.
-    fn this_epoch_reward<BS, RT>(rt: &mut RT) -> Result<ThisEpochRewardReturn, ActorError>
+    fn this_epoch_reward<BS, RT>(rt: &mut RT) -> Result<ThisEpochRewardReturn, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -218,14 +218,14 @@ impl Actor {
     fn update_network_kpi<BS, RT>(
         rt: &mut RT,
         curr_realized_power: Option<StoragePower>,
-    ) -> Result<(), ActorError>
+    ) -> Result<(), CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*STORAGE_POWER_ACTOR_ADDR))?;
         let curr_realized_power = curr_realized_power
-            .ok_or_else(|| actor_error!(ErrIllegalArgument, "argument cannot be None"))?;
+            .ok_or_else(|| call_error!(ErrIllegalArgument, "argument cannot be None"))?;
 
         rt.transaction(|st: &mut State, rt| {
             let prev = st.epoch;
@@ -249,7 +249,7 @@ impl ActorCode for Actor {
         rt: &mut RT,
         method: MethodNum,
         params: &RawBytes,
-    ) -> Result<RawBytes, ActorError>
+    ) -> Result<RawBytes, CallError>
     where
         BS: BlockStore,
         RT: Runtime<BS>,
@@ -273,7 +273,7 @@ impl ActorCode for Actor {
                 Self::update_network_kpi(rt, param.map(|v| v.0))?;
                 Ok(RawBytes::default())
             }
-            None => Err(actor_error!(SysErrInvalidMethod, "Invalid method")),
+            None => Err(call_error!(SysErrInvalidMethod, "Invalid method")),
         }
     }
 }
