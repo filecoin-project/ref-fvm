@@ -195,10 +195,10 @@ where
         params: RawBytes,
         value: TokenAmount,
     ) -> (Result<InvocationResult, ActorError>, Self) {
-        let from = self.from;
+        let prev_from = self.from;
         self.from = from;
         let (res, mut s) = self.send_resolved(to, method, params, value);
-        s.from = from;
+        s.from = prev_from;
         (res, s)
     }
 
