@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use anyhow::Result;
 use blake2b_simd::Params;
 
 /// Generates blake2b hash with provided size.

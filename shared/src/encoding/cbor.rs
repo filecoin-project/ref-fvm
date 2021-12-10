@@ -7,7 +7,6 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::errors::EncodingError;
 use crate::encoding::{from_slice, to_vec, CodecProtocol};
-use anyhow::Result;
 use cid::{multihash, Cid};
 
 // TODO find something to reference.

@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use anyhow::Result;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
 
