@@ -162,15 +162,11 @@ where
         let ser_msg = t!(msg.marshal_cbor());
         let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
-        // Validate if the message
-        // TODO I don't like the Option return value here.
-        if let Some(ret) = self.validate_message(&msg, inclusion_cost.total()) {
-            return (Ok(ret), self);
-        }
-
-        // TODO we calculate this twice, in validate_message and here.
-        // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap * msg.gas_limit;
+        // Validate if the message was correct, and extract some preliminary data from it.
+        let (receiver_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
+            Ok((receiver_id, gas_cost)) => (receiver_id, gas_cost),
+            Err(apply_ret) => return (Ok(apply_ret), self),
+        };
 
         // Deduct message inclusion gas cost and increment sequence.
         // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
@@ -183,12 +179,15 @@ where
             })
             .map_err(|e| anyhow!(e.to_string())));
 
-        t!(self.state_tree.snapshot().map_err(anyhow::Error::msg));
+        t!(self
+            .state_tree
+            .snapshot()
+            .map_err(|e| anyhow!(e.to_string())));
 
         todo!("resolve actor ID");
 
         /// TODO this requires the ActorID; need to resolve it first.
-        let mut cm = CallManager::new(self, 0, msg.gas_limit);
+        let mut cm = CallManager::new(self, receiver_id, msg.gas_limit);
         t!(cm.charge_gas(inclusion_cost));
 
         // Invoke the message.
@@ -196,7 +195,21 @@ where
         let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
         let (gas_used, s) = cm.finish();
         self = s;
-        let result = t!(res);
+
+        // Extract the exit code and build the
+        let exit_code = res.map_err(|e| e.exit_code()).err().unwrap_or(ExitCode::Ok);
+        let ret = ApplyRet {
+            msg_receipt: Receipt {
+                exit_code,
+                return_data: res.ok().unwrap_or_default(),
+                gas_used,
+            },
+            act_error: res.err(),
+            penalty: Default::default(),   // TODO
+            miner_tip: Default::default(), // TODO
+        };
+
+        (Ok(ret), self)
 
         // XXXX steb left off here
 
