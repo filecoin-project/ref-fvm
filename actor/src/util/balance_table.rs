@@ -10,7 +10,7 @@ use num_traits::{Signed, Zero};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::econ::TokenAmount;
-use ipld_hamt::Error;
+use ipld_hamt::HamtError;
 
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, Map};
 
@@ -28,7 +28,7 @@ where
     }
 
     /// Initializes a balance table from a root Cid
-    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, Error> {
+    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, HamtError> {
         Ok(Self(make_map_with_root_and_bitwidth(
             cid,
             bs,
@@ -37,7 +37,7 @@ where
     }
 
     /// Retrieve root from balance table
-    pub fn root(&mut self) -> Result<Cid, Error> {
+    pub fn root(&mut self) -> Result<Cid, HamtError> {
         self.0.flush()
     }
 

@@ -8,7 +8,7 @@ use ipld_blockstore::BlockStore;
 use serde::{de::DeserializeOwned, Serialize};
 
 use ipld_amt::Amt;
-use ipld_hamt::Error;
+use ipld_hamt::HamtError;
 
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, BytesKey, Map};
 
@@ -32,7 +32,7 @@ where
         cid: &Cid,
         outer_bitwidth: u32,
         inner_bitwidth: usize,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, HamtError> {
         Ok(Self(
             make_map_with_root_and_bitwidth(cid, bs, outer_bitwidth)?,
             inner_bitwidth,
@@ -41,7 +41,7 @@ where
 
     /// Retrieve root from the multimap.
     #[inline]
-    pub fn root(&mut self) -> Result<Cid, Error> {
+    pub fn root(&mut self) -> Result<Cid, HamtError> {
         self.0.flush()
     }
 

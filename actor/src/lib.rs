@@ -19,7 +19,7 @@ use fvm_shared::error::ActorError;
 use fvm_shared::MethodNum;
 pub use ipld_amt;
 pub use ipld_hamt;
-use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
+use ipld_hamt::{BytesKey, Hamt, HamtError};
 
 pub use self::builtin::*;
 pub use self::util::*;

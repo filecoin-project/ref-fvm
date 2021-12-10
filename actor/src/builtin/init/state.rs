@@ -10,7 +10,7 @@ use fvm_shared::address::{Address, Protocol};
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
-use ipld_hamt::Error as HamtError;
+use ipld_hamt::HamtError;
 
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, FIRST_NON_SINGLETON_ADDR};
 

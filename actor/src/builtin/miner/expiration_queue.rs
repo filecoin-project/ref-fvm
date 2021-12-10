@@ -13,7 +13,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
-use ipld_amt::{Amt, Error as AmtError, ValueMut};
+use ipld_amt::{Amt, AmtError, ValueMut};
 
 use crate::miner::{QuantSpec, ADDRESSED_SECTORS_MAX};
 use crate::ActorDowncast;

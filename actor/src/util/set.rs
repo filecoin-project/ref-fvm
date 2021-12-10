@@ -7,7 +7,7 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 
 use fvm_shared::HAMT_BIT_WIDTH;
-use ipld_hamt::Error;
+use ipld_hamt::HamtError;
 
 use crate::{make_empty_map, make_map_with_root, BytesKey, Map};
 
@@ -36,19 +36,19 @@ where
     }
 
     /// Initializes a Set from a root Cid.
-    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, Error> {
+    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, HamtError> {
         Ok(Self(make_map_with_root(cid, bs)?))
     }
 
     /// Retrieve root from the Set.
     #[inline]
-    pub fn root(&mut self) -> Result<Cid, Error> {
+    pub fn root(&mut self) -> Result<Cid, HamtError> {
         self.0.flush()
     }
 
     /// Adds key to the set.
     #[inline]
-    pub fn put(&mut self, key: BytesKey) -> Result<(), Error> {
+    pub fn put(&mut self, key: BytesKey) -> Result<(), HamtError> {
         // Set hamt node to array root
         self.0.set(key, ())?;
         Ok(())
@@ -56,13 +56,13 @@ where
 
     /// Checks if key exists in the set.
     #[inline]
-    pub fn has(&self, key: &[u8]) -> Result<bool, Error> {
+    pub fn has(&self, key: &[u8]) -> Result<bool, HamtError> {
         self.0.contains_key(key)
     }
 
     /// Deletes key from set.
     #[inline]
-    pub fn delete(&mut self, key: &[u8]) -> Result<Option<()>, Error> {
+    pub fn delete(&mut self, key: &[u8]) -> Result<Option<()>, HamtError> {
         match self.0.delete(key)? {
             Some(_) => Ok(Some(())),
             None => Ok(None),
@@ -79,7 +79,7 @@ where
     }
 
     /// Collects all keys from the set into a vector.
-    pub fn collect_keys(&self) -> Result<Vec<BytesKey>, Error> {
+    pub fn collect_keys(&self) -> Result<Vec<BytesKey>, HamtError> {
         let mut ret_keys = Vec::new();
 
         self.for_each(|k| {

@@ -9,7 +9,7 @@ use cid::Cid;
 use ipld_blockstore::BlockStore;
 
 use fvm_shared::clock::ChainEpoch;
-use ipld_amt::{Amt, Error as AmtError};
+use ipld_amt::{Amt, AmtError};
 
 use crate::ActorDowncast;
 

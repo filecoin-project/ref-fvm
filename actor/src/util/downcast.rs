@@ -5,8 +5,8 @@ use std::error::Error as StdError;
 
 use fvm_shared::encoding::{error::Error as CborError, Error as EncodingError};
 use fvm_shared::error::{ActorError, ExitCode};
-use ipld_amt::Error as AmtError;
-use ipld_hamt::Error as HamtError;
+use ipld_amt::AmtError;
+use ipld_hamt::HamtError;
 
 /// Trait to allow multiple error types to be able to be downcasted into an `ActorError`.
 pub trait ActorDowncast {

@@ -10,7 +10,7 @@ use ipld_blockstore::BlockStore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::HAMT_BIT_WIDTH;
-use ipld_hamt::Error;
+use ipld_hamt::HamtError;
 
 use crate::{make_empty_map, make_map_with_root, parse_uint_key, u64_key, Map};
 
@@ -29,13 +29,13 @@ where
     }
 
     /// Initializes a SetMultimap from a root Cid.
-    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, Error> {
+    pub fn from_root(bs: &'a BS, cid: &Cid) -> Result<Self, HamtError> {
         Ok(Self(make_map_with_root(cid, bs)?))
     }
 
     /// Retrieve root from the SetMultimap.
     #[inline]
-    pub fn root(&mut self) -> Result<Cid, Error> {
+    pub fn root(&mut self) -> Result<Cid, HamtError> {
         self.0.flush()
     }
 

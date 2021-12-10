@@ -17,8 +17,8 @@ use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
 use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
-use ipld_amt::{Amt, Error as AmtError};
-use ipld_hamt::Error as HamtError;
+use ipld_amt::{Amt, AmtError};
+use ipld_hamt::HamtError;
 
 use crate::miner::{DeadlineInfo, QuantSpec};
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};

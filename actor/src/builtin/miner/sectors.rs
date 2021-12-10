@@ -12,7 +12,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
 use ipld_blockstore::BlockStore;
 
-use ipld_amt::{Amt, Error as AmtError};
+use ipld_amt::{Amt, AmtError};
 
 use crate::{ActorDowncast, ActorError};
 
