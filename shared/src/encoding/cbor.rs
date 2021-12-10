@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::ops::Deref;
+use std::{ops::Deref, rc::Rc};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -51,6 +51,18 @@ impl<T> Cbor for Option<T> where T: Cbor {}
 pub struct RawBytes {
     #[serde(with = "serde_bytes")]
     bytes: Vec<u8>,
+}
+
+impl From<RawBytes> for Vec<u8> {
+    fn from(b: RawBytes) -> Vec<u8> {
+        b.bytes
+    }
+}
+
+impl From<RawBytes> for Rc<[u8]> {
+    fn from(b: RawBytes) -> Rc<[u8]> {
+        b.bytes.into()
+    }
 }
 
 impl Cbor for RawBytes {}

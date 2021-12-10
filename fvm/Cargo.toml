@@ -29,3 +29,4 @@ derive-getters = "0.2.0"
 
 # FIXME: The FVM really shouldn't depend on this, but needs to for now.
 actor = { package = "forest_actor", path = "../actor" }
+derive_more = "0.99.17"

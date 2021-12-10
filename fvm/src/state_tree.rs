@@ -7,11 +7,12 @@ use std::error::Error as StdError;
 
 use cid::{multihash, Cid};
 
-use fvm_shared::address::{Address, Protocol};
+use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
+use fvm_shared::ActorID;
 use ipld_blockstore::BlockStore;
 
 use crate::adt::Map;
@@ -37,8 +38,8 @@ struct StateSnapshots {
 /// State snap shot layer
 #[derive(Debug, Default)]
 struct StateSnapLayer {
-    actors: RefCell<HashMap<Address, Option<ActorState>>>,
-    resolve_cache: RefCell<HashMap<Address, Address>>,
+    actors: RefCell<HashMap<ActorID, Option<ActorState>>>,
+    resolve_cache: RefCell<HashMap<Address, ActorID>>,
 }
 
 impl StateSnapshots {
@@ -102,7 +103,10 @@ impl StateSnapshots {
         self.drop_layer()
     }
 
-    fn resolve_address(&self, addr: &Address) -> Option<Address> {
+    fn resolve_address(&self, addr: &Address) -> Option<ActorID> {
+        if let &Payload::ID(id) = addr.payload() {
+            return Some(id);
+        }
         for layer in self.layers.iter().rev() {
             if let Some(res_addr) = layer.resolve_cache.borrow().get(addr).cloned() {
                 return Some(res_addr);
@@ -112,11 +116,7 @@ impl StateSnapshots {
         None
     }
 
-    fn cache_resolve_address(
-        &self,
-        addr: Address,
-        resolve_addr: Address,
-    ) -> Result<(), Box<dyn StdError>> {
+    fn cache_resolve_address(&self, addr: Address, id: ActorID) -> Result<(), Box<dyn StdError>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -127,14 +127,14 @@ impl StateSnapshots {
             })?
             .resolve_cache
             .borrow_mut()
-            .insert(addr, resolve_addr);
+            .insert(addr, id);
 
         Ok(())
     }
 
-    fn get_actor(&self, addr: &Address) -> Option<ActorState> {
+    fn get_actor(&self, id: ActorID) -> Option<ActorState> {
         for layer in self.layers.iter().rev() {
-            if let Some(state) = layer.actors.borrow().get(addr) {
+            if let Some(state) = layer.actors.borrow().get(&id) {
                 return state.clone();
             }
         }
@@ -142,7 +142,7 @@ impl StateSnapshots {
         None
     }
 
-    fn set_actor(&self, addr: Address, actor: ActorState) -> Result<(), Box<dyn StdError>> {
+    fn set_actor(&self, id: ActorID, actor: ActorState) -> Result<(), Box<dyn StdError>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -153,11 +153,11 @@ impl StateSnapshots {
             })?
             .actors
             .borrow_mut()
-            .insert(addr, Some(actor));
+            .insert(id, Some(actor));
         Ok(())
     }
 
-    fn delete_actor(&self, addr: Address) -> Result<(), Box<dyn StdError>> {
+    fn delete_actor(&self, id: ActorID) -> Result<(), Box<dyn StdError>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -168,7 +168,7 @@ impl StateSnapshots {
             })?
             .actors
             .borrow_mut()
-            .insert(addr, None);
+            .insert(id, None);
 
         Ok(())
     }
@@ -242,22 +242,22 @@ where
 
     /// Get actor state from an address. Will be resolved to ID address.
     pub fn get_actor(&self, addr: &Address) -> Result<Option<ActorState>, Box<dyn StdError>> {
-        let addr = match self.lookup_id(addr)? {
-            Some(addr) => addr,
+        let id = match self.lookup_id(addr)? {
+            Some(id) => id,
             None => return Ok(None),
         };
 
         // Check cache for actor state
-        if let Some(actor_state) = self.snaps.get_actor(&addr) {
+        if let Some(actor_state) = self.snaps.get_actor(id) {
             return Ok(Some(actor_state));
         }
 
         // if state doesn't exist, find using hamt
-        let act = self.hamt.get(&addr.to_bytes())?.cloned();
+        let act = self.hamt.get(&Address::new_id(id).to_bytes())?.cloned();
 
         // Update cache if state was found
         if let Some(act_s) = &act {
-            self.snaps.set_actor(addr, act_s.clone())?;
+            self.snaps.set_actor(id, act_s.clone())?;
         }
 
         Ok(act)
@@ -269,17 +269,17 @@ where
         addr: &Address,
         actor: ActorState,
     ) -> Result<(), Box<dyn StdError>> {
-        let addr = self
+        let id = self
             .lookup_id(addr)?
             .ok_or_else(|| format!("Resolution lookup failed for {}", addr))?;
 
-        self.snaps.set_actor(addr, actor)
+        self.snaps.set_actor(id, actor)
     }
 
     /// Get an ID address from any Address
-    pub fn lookup_id(&self, addr: &Address) -> Result<Option<Address>, Box<dyn StdError>> {
-        if addr.protocol() == Protocol::ID {
-            return Ok(Some(*addr));
+    pub fn lookup_id(&self, addr: &Address) -> Result<Option<ActorID>, Box<dyn StdError>> {
+        if let &Payload::ID(id) = addr.payload() {
+            return Ok(Some(id));
         }
 
         if let Some(res_address) = self.snaps.resolve_address(addr) {
@@ -288,7 +288,7 @@ where
 
         let (state, _) = InitActorState::load(&self)?;
 
-        let a: Address = match state
+        let a = match state
             .resolve_address(self.store(), addr)
             .map_err(|e| format!("Could not resolve address: {:?}", e))?
         {
@@ -330,7 +330,7 @@ where
     }
 
     /// Register a new address through the init actor.
-    pub fn register_new_address(&mut self, addr: &Address) -> Result<Address, Box<dyn StdError>> {
+    pub fn register_new_address(&mut self, addr: &Address) -> Result<ActorID, Box<dyn StdError>> {
         let (mut state, mut actor) = InitActorState::load(&self)?;
 
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
@@ -371,7 +371,8 @@ where
             .into());
         }
 
-        for (addr, sto) in self.snaps.layers[0].actors.borrow().iter() {
+        for (&id, sto) in self.snaps.layers[0].actors.borrow().iter() {
+            let addr = Address::new_id(id);
             match sto {
                 None => {
                     self.hamt.delete(&addr.to_bytes())?;

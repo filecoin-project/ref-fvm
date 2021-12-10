@@ -15,8 +15,10 @@ use crate::state_tree::ActorState;
 // TODO: This shouldn't be defined here.
 const IPLD_RAW: u64 = 0x55;
 
+pub const SYSTEM_ACTOR_ID: u64 = 0;
+
 lazy_static!(
-    pub static ref SYSTEM_ACTOR_ADDR: Address = Address::new_id(0);
+    pub static ref SYSTEM_ACTOR_ADDR: Address = Address::new_id(SYSTEM_ACTOR_ID);
 
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
     pub static ref EMPTY_ARR_CID: Cid = {

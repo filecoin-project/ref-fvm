@@ -13,7 +13,7 @@ use anyhow::anyhow;
 use cid::Cid;
 use lazy_static::lazy_static;
 
-use fvm_shared::address::{Address, Protocol, FIRST_NON_SINGLETON_ADDR};
+use fvm_shared::address::{Address, Payload, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
@@ -73,7 +73,7 @@ impl State {
         &mut self,
         store: &B,
         addr: &Address,
-    ) -> Result<Address, Box<dyn StdError>> {
+    ) -> Result<ActorID, Box<dyn StdError>> {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -81,9 +81,11 @@ impl State {
         map.set(addr.to_bytes().into(), id)?;
         self.address_map = map.flush()?;
 
-        Ok(Address::new_id(id))
+        Ok(id)
     }
 
+    // TODO(steb): I've changed this from the actors. It shouldn't make a difference in practice,
+    // but trying to distinguish between "resolved" and "unresolved" addresses was getting annoying.
     /// ResolveAddress resolves an address to an ID-address, if possible.
     /// If the provided address is an ID address, it is returned as-is.
     /// This means that mapped ID-addresses (which should only appear as values, not keys) and
@@ -98,13 +100,13 @@ impl State {
         &self,
         store: &B,
         addr: &Address,
-    ) -> Result<Option<Address>, Box<dyn StdError>> {
-        if addr.protocol() == Protocol::ID {
-            return Ok(Some(*addr));
+    ) -> Result<Option<u64>, Box<dyn StdError>> {
+        if let &Payload::ID(id) = addr.payload() {
+            return Ok(Some(id));
         }
 
         let map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
 
-        Ok(map.get(&addr.to_bytes())?.copied().map(Address::new_id))
+        Ok(map.get(&addr.to_bytes())?.copied())
     }
 }

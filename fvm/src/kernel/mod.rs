@@ -1,7 +1,11 @@
 use anyhow::Result;
 use cid::Cid;
 
+use crate::kernel::default::InvocationResult;
+use crate::message::Message;
 pub use blocks::{BlockError, BlockId, BlockStat};
+use fvm_shared::address::Address;
+use fvm_shared::error::ActorError;
 use fvm_shared::ActorID;
 pub use mapcell::*;
 
@@ -81,4 +85,9 @@ pub trait ReturnOps {
     /// specified buffer. This buffer must be appropriately sized according to
     /// return_size. This method returns the amount of bytes copied.
     fn return_pop(&mut self, into: &mut [u8]) -> u64;
+}
+
+/// Operations to send messages to other actors.
+pub trait SendOps {
+    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError>;
 }

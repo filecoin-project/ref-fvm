@@ -2,27 +2,31 @@ use std::borrow::BorrowMut;
 
 use std::rc::Rc;
 
+use actor::ActorDowncast;
 use anyhow::anyhow;
 use cid::Cid;
+use fvm_shared::address::Address;
 use num_traits::Zero;
-use wasmtime::Engine;
+use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
-use fvm_shared::actor_error;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, GasTracker, PriceList};
+use crate::gas::{price_list_by_epoch, GasCharge, GasTracker, PriceList};
 
 use crate::message::Message;
 use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
+use crate::state_tree::{ActorState, StateTree};
 
 use crate::{Config, DefaultKernel};
+
+use crate::call_manager::CallManager;
 
 /// The core of the FVM.
 ///
@@ -108,45 +112,93 @@ where
         self.state_tree.borrow_mut()
     }
 
+    /// Creates an uninitialized actor.
+    // TODO: Remove
+    pub(crate) fn create_actor(
+        &mut self,
+        addr: &Address,
+        act: ActorState,
+    ) -> Result<ActorID, ActorError> {
+        let mut state_tree = self.state_tree_mut();
+
+        let addr_id = state_tree
+            .register_new_address(addr)
+            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+
+        state_tree
+            .set_actor(&Address::new_id(addr_id), act)
+            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+        Ok(addr_id)
+    }
+
+    pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
+        // TODO: cache compiled code, and modules?
+        todo!("get the actual code");
+        let bytecode = &[];
+        Module::new(&self.engine, bytecode)
+    }
+
     /// This is the entrypoint to execute a message.
     pub fn execute_message(
         mut self: Box<Self>,
         msg: Message,
         _: ApplyKind,
-    ) -> anyhow::Result<ApplyRet> {
+    ) -> (anyhow::Result<ApplyRet>, Box<Self>) {
+        macro_rules! t {
+            ($e:expr) => {
+                match $e {
+                    Ok(v) => v,
+                    Err(e) => return (Err(e.into()), self),
+                }
+            };
+        }
         // TODO return self.
         // TODO sanity check on message, copied from Forest, needs adaptation.
-        msg.check()?;
+        t!(msg.check());
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context.price_list;
-        let ser_msg = msg.marshal_cbor()?;
-        let inclusion_cost = pl.on_chain_message(ser_msg.len()).total();
+        let ser_msg = t!(msg.marshal_cbor());
+        let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
         // Validate if the message
         // TODO I don't like the Option return value here.
-        if let Some(ret) = self.validate_message(&msg, inclusion_cost) {
-            return Ok(ret);
+        if let Some(ret) = self.validate_message(&msg, inclusion_cost.total()) {
+            return (Ok(ret), self);
         }
 
+        // TODO we calculate this twice, in validate_message and here.
+        // Ensure from actor has enough balance to cover the gas cost of the message.
+        let gas_cost: TokenAmount = msg.gas_fee_cap * msg.gas_limit;
+
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree
+        // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
+        t!(self
+            .state_tree
             .mutate_actor(&msg.from, |act| {
-                act.deduct_funds(&inclusion_cost.into())?;
+                act.deduct_funds(&gas_cost)?;
                 act.sequence += 1;
                 Ok(())
             })
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .map_err(|e| anyhow!(e.to_string())));
 
-        self.state_tree.snapshot().map_err(anyhow::Error::msg)?;
+        t!(self.state_tree.snapshot().map_err(anyhow::Error::msg));
 
-        // initial gas cost is the message inclusion gas.
-        let gas_tracker = GasTracker::new(msg.gas_limit, inclusion_cost);
+        todo!("resolve actor ID");
 
-        // this machine is now moved to the initial kernel.
-        let k = DefaultKernel::unattached(); // TODO error handling
-        let _ = k.execute(self, gas_tracker, &[], msg.clone()); // TODO bytecode.
+        /// TODO this requires the ActorID; need to resolve it first.
+        let mut cm = CallManager::new(self, 0, msg.gas_limit);
+        t!(cm.charge_gas(inclusion_cost));
+
+        // Invoke the message.
+        // TODO: We need some macro/monad help here.
+        let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
+        let (gas_used, s) = cm.finish();
+        self = s;
+        let result = t!(res);
+
+        // XXXX steb left off here
 
         // Perform state transition
         // // TODO: here is where we start the call stack and the invocation container.
@@ -276,6 +328,7 @@ where
         todo!()
     }
 
+    // TODO probably should return a validation failure.
     fn validate_message(&mut self, msg: &Message, cost_total: i64) -> Option<ApplyRet> {
         // Verify the cost of the message is not over the message gas limit.
         // TODO handle errors properly
@@ -353,46 +406,6 @@ where
         };
         None
     }
-
-    // // TODO
-    // pub fn call_next(&mut self, msg: &Message) -> anyhow::Result<Receipt> {
-    //     // Clone because we may override the receiver in the message.
-    //     let mut msg = msg.clone();
-    //
-    //     // Get the receiver; this will resolve the address.
-    //     let receiver = match self
-    //         .state_tree
-    //         .lookup_id(&msg.to)
-    //         .map_err(|e| anyhow::Error::msg(e.to_string()))?
-    //     {
-    //         Some(addr) => addr,
-    //         None => match msg.to.protocol() {
-    //             Protocol::BLS | Protocol::Secp256k1 => {
-    //                 // Try to create an account actor if the receiver is a key address.
-    //                 let (_, id_addr) = self.try_create_account_actor(&msg.to)?;
-    //                 msg.to = id_addr;
-    //                 id_addr
-    //             }
-    //             _ => return Err(anyhow!("actor not found: {}", msg.to)),
-    //         },
-    //     };
-    //
-    //     // TODO Load the code for the receiver by CID (state.code).
-    //     // TODO The node's blockstore will need to return the appropriate WASM
-    //     //  code for built-in system actors. Either we implement a load_code(cid)
-    //     //  Boundary A syscall, or a special blockstore with static mappings from
-    //     //  CodeCID => WASM bytecode for built-in actors will be necessary on the
-    //     //  node side.
-    //
-    //     // TODO instantiate a WASM instance, wrapping the InvocationContainer as
-    //     //  the store data.
-    //
-    //     // TODO invoke the entrypoint on the WASM instance.
-    //
-    //     // TODO somehow instrument so that sends are looped into the call stack.
-    //
-    //     todo!()
-    // }
 
     pub fn context(&self) -> &MachineContext {
         &self.context

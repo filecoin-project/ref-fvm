@@ -11,31 +11,16 @@ impl<T> MapCell<T> {
         MapCell(Some(item))
     }
 
-    /// Constructs an empty MapCell to be filled in later.
-    ///
-    /// WARNING: Calling any other method on the MapCell and/or dereferencing it will _panic_.
-    pub fn empty() -> Self {
-        MapCell(None)
-    }
-
-    /// Returns whether this MapCell is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_none()
-    }
-
-    /// Set the MapCell value.
-    pub fn set(&mut self, item: T) {
-        self.0 = Some(item)
-    }
-
-    /// Map over the MapCell value, temporarily removing it and replacing it.
+    /// Apply over the MapCell value, temporarily removing it and replacing it.
     ///
     /// If the inner function panics, the MapCell will be poisoned.
-    pub fn map<F>(&mut self, f: F)
+    pub fn map_mut<F, R>(&mut self, f: F) -> R
     where
-        F: FnOnce(T) -> T,
+        F: FnOnce(T) -> (T, R),
     {
-        self.0 = Some(f(self.0.take().expect("MapCell empty")));
+        let (next, r) = f(self.0.take().expect("MapCell empty"));
+        self.0 = Some(next);
+        r
     }
 
     /// Destructively take the MapCell value
@@ -57,12 +42,4 @@ impl<T> DerefMut for MapCell<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("MapCell empty")
     }
-}
-
-fn main() {
-    let mut cell = MapCell::new(String::new());
-    cell.map(|mut s| {
-        s.push_str("foo");
-        s
-    });
 }

@@ -9,6 +9,7 @@ pub mod syscalls;
 
 mod account_actor;
 mod adt;
+mod call_manager;
 mod gas;
 mod init_actor;
 mod state_tree;
@@ -22,4 +23,13 @@ pub struct Config {
     pub max_pages: usize,
     /// Wasmtime engine configuration.
     pub engine: wasmtime::Config,
+}
+
+macro_rules! t {
+    ($e:expr) => {
+        match $e {
+            Ok(v) => v,
+            Err(e) => return (Err(e.into()), self),
+        }
+    };
 }
