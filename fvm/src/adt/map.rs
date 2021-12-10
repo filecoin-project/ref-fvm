@@ -3,12 +3,13 @@
 
 use cid::Cid;
 
+use anyhow::Result;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::encoding::de::DeserializeOwned;
 use fvm_shared::encoding::ser::Serialize;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_blockstore::BlockStore;
-use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
+use ipld_hamt::{BytesKey, Hamt, HamtError};
 
 /// Map type to be used within actors. The underlying type is a hamt.
 pub type Map<'bs, BS, V> = Hamt<'bs, BS, V, BytesKey>;
