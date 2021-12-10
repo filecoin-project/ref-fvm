@@ -338,86 +338,81 @@ where
         // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
         // TODO pull the receipt from the CallStack and return it.
         // Ok(Default::default())
-        todo!()
     }
 
-    // TODO probably should return a validation failure.
-    fn validate_message(&mut self, msg: &Message, cost_total: i64) -> Option<ApplyRet> {
+    fn validate_message(
+        &mut self,
+        msg: &Message,
+        cost_total: i64,
+    ) -> Result<(ActorID, TokenAmount), ApplyRet> {
         // Verify the cost of the message is not over the message gas limit.
-        // TODO handle errors properly
         if cost_total > msg.gas_limit {
-            let err =
-                actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit);
-            return Some(ApplyRet::prevalidation_fail(
+            return Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrOutOfGas,
                 &self.context.base_fee * cost_total,
-                Some(err),
+                Some(
+                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit),
+                ),
             ));
         }
 
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
-        let sender = match self.state_tree.get_actor(&msg.from) {
-            Ok(Some(sender)) => sender,
-            _ => {
-                return Some(ApplyRet {
-                    msg_receipt: Receipt {
-                        return_data: RawBytes::default(),
-                        exit_code: ExitCode::SysErrSenderInvalid,
-                        gas_used: 0,
-                    },
-                    penalty: miner_penalty_amount,
-                    act_error: Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
-                    miner_tip: BigInt::zero(),
-                });
-            }
-        };
+        let sender = self
+            .state_tree
+            .get_actor(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
+
+        let sender_id = self
+            .state_tree
+            .lookup_id(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
 
         // If sender is not an account actor, the message is invalid.
         if !actor::is_account_actor(&sender.code) {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
+            ));
         };
 
         // Check sequence is correct
         if msg.sequence != sender.sequence {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
-                    "actor sequence invalid: {} != {}", msg.sequence, sender.sequence)),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(
+                    actor_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
+                ),
+            ));
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
         if sender.balance < gas_cost {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
-                miner_tip: BigInt::zero(),
-            });
-        };
-        None
+            ));
+        }
+        Ok((sender_id, gas_cost))
     }
 
     pub fn context(&self) -> &MachineContext {
