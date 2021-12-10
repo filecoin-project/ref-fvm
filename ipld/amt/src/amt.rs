@@ -5,8 +5,9 @@ use super::ValueMut;
 use crate::{
     init_sized_vec,
     node::{CollapsedNode, Link},
-    nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    nodes_for_height, AmtError, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
+use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize};
 use ipld_blockstore::BlockStore;
@@ -69,15 +70,15 @@ where
     }
 
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
-    pub fn load(cid: &Cid, block_store: &'db BS) -> Result<Self, Error> {
+    pub fn load(cid: &Cid, block_store: &'db BS) -> Result<Self, AmtError> {
         // Load root bytes from database
         let root: Root<V> = block_store
             .get(cid)?
-            .ok_or_else(|| Error::CidNotFound(cid.to_string()))?;
+            .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?;
 
         // Sanity check, this should never be possible.
         if root.height > MAX_HEIGHT {
-            return Err(Error::MaxHeight(root.height, MAX_HEIGHT));
+            return Err(AmtError::MaxHeight(root.height, MAX_HEIGHT));
         }
 
         Ok(Self { root, block_store })
@@ -97,7 +98,7 @@ where
     pub fn new_from_iter(
         block_store: &'db BS,
         vals: impl IntoIterator<Item = V>,
-    ) -> Result<Cid, Error> {
+    ) -> Result<Cid, AmtError> {
         let mut t = Self::new(block_store);
 
         t.batch_set(vals)?;
@@ -106,9 +107,9 @@ where
     }
 
     /// Get value at index of AMT
-    pub fn get(&self, i: usize) -> Result<Option<&V>, Error> {
+    pub fn get(&self, i: usize) -> Result<Option<&V>, AmtError> {
         if i > MAX_INDEX {
-            return Err(Error::OutOfRange(i));
+            return Err(AmtError::OutOfRange(i));
         }
 
         if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
@@ -121,9 +122,9 @@ where
     }
 
     /// Set value at index
-    pub fn set(&mut self, i: usize, val: V) -> Result<(), Error> {
+    pub fn set(&mut self, i: usize, val: V) -> Result<(), AmtError> {
         if i > MAX_INDEX {
-            return Err(Error::OutOfRange(i));
+            return Err(AmtError::OutOfRange(i));
         }
 
         while i >= nodes_for_height(self.bit_width(), self.height() + 1) {
@@ -163,7 +164,7 @@ where
 
     /// Batch set (naive for now)
     // TODO Implement more efficient batch set to not have to traverse tree and keep cache for each
-    pub fn batch_set(&mut self, vals: impl IntoIterator<Item = V>) -> Result<(), Error> {
+    pub fn batch_set(&mut self, vals: impl IntoIterator<Item = V>) -> Result<(), AmtError> {
         for (i, val) in vals.into_iter().enumerate() {
             self.set(i, val)?;
         }
@@ -172,9 +173,9 @@ where
     }
 
     /// Delete item from AMT at index
-    pub fn delete(&mut self, i: usize) -> Result<Option<V>, Error> {
+    pub fn delete(&mut self, i: usize) -> Result<Option<V>, AmtError> {
         if i > MAX_INDEX {
-            return Err(Error::OutOfRange(i));
+            return Err(AmtError::OutOfRange(i));
         }
 
         if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
@@ -217,7 +218,7 @@ where
                                 // Only retrieve sub node if not found in cache
                                 self.block_store
                                     .get::<CollapsedNode<V>>(cid)?
-                                    .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                    .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                                     .expand(self.root.bit_width)?
                             }
                         }
@@ -243,7 +244,7 @@ where
         &mut self,
         iter: impl IntoIterator<Item = usize>,
         strict: bool,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool, AmtError> {
         // TODO: optimize this
         let mut modified = false;
 
@@ -251,7 +252,7 @@ where
         for i in sorted(iter) {
             let found = self.delete(i)?.is_none();
             if strict && found {
-                return Err(Error::Other(format!(
+                return Err(AmtError::Other(format!(
                     "no such index {} in Amt for batch delete",
                     i
                 )));
@@ -262,7 +263,7 @@ where
     }
 
     /// flush root and return Cid used as key in block store
-    pub fn flush(&mut self) -> Result<Cid, Error> {
+    pub fn flush(&mut self) -> Result<Cid, AmtError> {
         self.root.node.flush(self.block_store)?;
         Ok(self.block_store.put(&self.root, Code::Blake2b256)?)
     }

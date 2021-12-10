@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::{init_sized_vec, node::CollapsedNode, Node};
+use anyhow::Result;
 use serde::{
     de::{self, Deserialize},
     ser::{self, Serialize},

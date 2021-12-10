@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use crate::{bmap_bytes, init_sized_vec, nodes_for_height, AmtError};
+use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{serde_bytes, BytesSer};
 use ipld_blockstore::BlockStore;
@@ -104,7 +105,7 @@ where
                             collapsed.push(cid);
                             bmap[i / 8] |= 1 << (i % 8);
                         } else {
-                            return Err(ser::Error::custom(Error::Cached));
+                            return Err(ser::Error::custom(AmtError::Cached));
                         }
                     }
                 }
@@ -118,14 +119,14 @@ where
 pub(crate) struct CollapsedNode<V>(#[serde(with = "serde_bytes")] Vec<u8>, Vec<Cid>, Vec<V>);
 
 impl<V> CollapsedNode<V> {
-    pub(crate) fn expand(self, bit_width: usize) -> Result<Node<V>, Error> {
+    pub(crate) fn expand(self, bit_width: usize) -> Result<Node<V>, AmtError> {
         let CollapsedNode(bmap, links, values) = self;
         if !links.is_empty() && !values.is_empty() {
-            return Err(Error::LinksAndValues);
+            return Err(AmtError::LinksAndValues);
         }
 
         if bmap_bytes(bit_width) != bmap.len() {
-            return Err(Error::Other(format!(
+            return Err(AmtError::Other(format!(
                 "expected bitfield of length {}, found bitfield with length {}",
                 bmap_bytes(bit_width),
                 bmap.len()
@@ -138,14 +139,14 @@ impl<V> CollapsedNode<V> {
             for (i, v) in links.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(Link::from(links_iter.next().ok_or_else(|| {
-                        Error::Other(
+                        AmtError::Other(
                             "Bitmap contained more set bits than links provided".to_string(),
                         )
                     })?))
                 }
             }
             if links_iter.next().is_some() {
-                return Err(Error::Other(
+                return Err(AmtError::Other(
                     "Bitmap contained less set bits than links provided".to_string(),
                 ));
             }
@@ -156,14 +157,14 @@ impl<V> CollapsedNode<V> {
             for (i, v) in vals.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(val_iter.next().ok_or_else(|| {
-                        Error::Other(
+                        AmtError::Other(
                             "Bitmap contained more set bits than values provided".to_string(),
                         )
                     })?)
                 }
             }
             if val_iter.next().is_some() {
-                return Err(Error::Other(
+                return Err(AmtError::Other(
                     "Bitmap contained less set bits than values provided".to_string(),
                 ));
             }
@@ -185,7 +186,7 @@ where
     }
 
     /// Flushes cache for node, replacing any cached values with a Cid variant
-    pub(super) fn flush<DB: BlockStore>(&mut self, bs: &DB) -> Result<(), Error> {
+    pub(super) fn flush<DB: BlockStore>(&mut self, bs: &DB) -> Result<(), AmtError> {
         if let Node::Link { links } = self {
             for link in links.iter_mut().flatten() {
                 // links should only be flushed if the bitmap is set.
@@ -240,7 +241,7 @@ where
         height: usize,
         bit_width: usize,
         i: usize,
-    ) -> Result<Option<&V>, Error> {
+    ) -> Result<Option<&V>, AmtError> {
         let sub_i = i / nodes_for_height(bit_width, height);
 
         match self {
@@ -249,7 +250,7 @@ where
                 Some(Link::Cid { cid, cache }) => {
                     let cached_node = cache.get_or_try_init(|| {
                         bs.get::<CollapsedNode<V>>(cid)?
-                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                            .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                             .expand(bit_width)
                             .map(Box::new)
                     })?;
@@ -280,7 +281,7 @@ where
         bit_width: usize,
         i: usize,
         val: V,
-    ) -> Result<Option<V>, Error> {
+    ) -> Result<Option<V>, AmtError> {
         if height == 0 {
             return Ok(self.set_leaf(i, val));
         }
@@ -299,7 +300,7 @@ where
                     } else {
                         // Only retrieve sub node if not found in cache
                         bs.get::<CollapsedNode<V>>(cid)?
-                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                            .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                             .expand(bit_width)
                             .map(Box::new)?
                     };
@@ -349,7 +350,7 @@ where
         height: usize,
         bit_width: usize,
         i: usize,
-    ) -> Result<Option<V>, Error> {
+    ) -> Result<Option<V>, AmtError> {
         let sub_i = i / nodes_for_height(bit_width, height);
 
         match self {
@@ -379,7 +380,7 @@ where
                         // Take cache, will be replaced if no nodes deleted
                         cache.get_or_try_init(|| {
                             bs.get::<CollapsedNode<V>>(cid)?
-                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                                 .expand(bit_width)
                                 .map(Box::new)
                         })?;
@@ -450,7 +451,7 @@ where
                             Link::Cid { cid, cache } => {
                                 let cached_node = cache.get_or_try_init(|| {
                                     bs.get::<CollapsedNode<V>>(cid)?
-                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)
                                 })?;
@@ -514,7 +515,7 @@ where
                             Link::Cid { cid, cache } => {
                                 cache.get_or_try_init(|| {
                                     bs.get::<CollapsedNode<V>>(cid)?
-                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .ok_or_else(|| AmtError::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)
                                 })?;

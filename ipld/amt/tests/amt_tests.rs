@@ -50,7 +50,7 @@ fn out_of_range() {
     assert_eq!(a.height(), 21);
 
     let res = a.set(MAX_INDEX + 1, tbytes(b"what is up"));
-    assert!(matches!(res, Err(Error::OutOfRange(_))));
+    assert!(matches!(res, Err(AmtError::OutOfRange(_))));
 
     let res = a.set(MAX_INDEX - 1, tbytes(b"what is up"));
     assert!(res.err().is_none());

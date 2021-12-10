@@ -9,7 +9,7 @@ use fvm_shared::encoding::Error as EncodingError;
 
 /// AMT Error
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum AmtError {
     /// Index referenced it above arbitrary max set
     #[error("index {0} out of range for the amt")]
     OutOfRange(usize),
@@ -39,13 +39,13 @@ pub enum Error {
     Other(String),
 }
 
-impl From<EncodingError> for Error {
+impl From<EncodingError> for AmtError {
     fn from(e: EncodingError) -> Self {
         Self::Dynamic(Box::new(e))
     }
 }
 
-impl From<Box<dyn StdError>> for Error {
+impl From<Box<dyn StdError>> for AmtError {
     fn from(e: Box<dyn StdError>) -> Self {
         Self::Dynamic(e)
     }
