@@ -196,7 +196,7 @@ where
         let (gas_used, s) = cm.finish();
         self = s;
 
-        // Extract the exit code and build the
+        // Extract the exit code and build the result of the message application.
         let exit_code = res.map_err(|e| e.exit_code()).err().unwrap_or(ExitCode::Ok);
         let ret = ApplyRet {
             msg_receipt: Receipt {
