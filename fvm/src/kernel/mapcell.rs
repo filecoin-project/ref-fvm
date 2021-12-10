@@ -11,23 +11,6 @@ impl<T> MapCell<T> {
         MapCell(Some(item))
     }
 
-    /// Constructs an empty MapCell to be filled in later.
-    ///
-    /// WARNING: Calling any other method on the MapCell and/or dereferencing it will _panic_.
-    pub fn empty() -> Self {
-        MapCell(None)
-    }
-
-    /// Returns whether this MapCell is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_none()
-    }
-
-    /// Set the MapCell value.
-    pub fn set(&mut self, item: T) {
-        self.0 = Some(item)
-    }
-
     /// Apply over the MapCell value, temporarily removing it and replacing it.
     ///
     /// If the inner function panics, the MapCell will be poisoned.

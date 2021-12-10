@@ -2,27 +2,31 @@ use std::borrow::BorrowMut;
 
 use std::rc::Rc;
 
+use actor::ActorDowncast;
 use anyhow::anyhow;
 use cid::Cid;
+use fvm_shared::address::Address;
 use num_traits::Zero;
 use wasmtime::Engine;
 
 use blockstore::Blockstore;
-use fvm_shared::actor_error;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, GasTracker, PriceList};
+use crate::gas::{price_list_by_epoch, GasCharge, GasTracker, PriceList};
 
 use crate::message::Message;
 use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
+use crate::state_tree::{ActorState, StateTree};
 
 use crate::{Config, DefaultKernel};
+
+use crate::call_manager::CallManager;
 
 /// The core of the FVM.
 ///
@@ -108,45 +112,85 @@ where
         self.state_tree.borrow_mut()
     }
 
+    /// Creates an uninitialized actor.
+    // TODO: Remove
+    pub(crate) fn create_actor(
+        &mut self,
+        addr: &Address,
+        act: ActorState,
+    ) -> Result<ActorID, ActorError> {
+        let mut state_tree = self.state_tree_mut();
+
+        let addr_id = state_tree
+            .register_new_address(addr)
+            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+
+        state_tree
+            .set_actor(&Address::new_id(addr_id), act)
+            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+        Ok(addr_id)
+    }
+
+    pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
+        // TODO: cache compiled code, and modules?
+        let bytecode = todo!("get the actual code");
+        Ok(Module::new(&self.engine, bytecode))
+    }
+
     /// This is the entrypoint to execute a message.
     pub fn execute_message(
         mut self: Box<Self>,
         msg: Message,
         _: ApplyKind,
-    ) -> anyhow::Result<ApplyRet> {
+    ) -> (anyhow::Result<ApplyRet>, Box<Self>) {
+        macro_rules! t {
+            ($e:expr) => {
+                match $e {
+                    Ok(v) => v,
+                    Err(e) => return (Err(e.into()), self),
+                }
+            };
+        }
         // TODO return self.
         // TODO sanity check on message, copied from Forest, needs adaptation.
-        msg.check()?;
+        t!(msg.check());
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context.price_list;
-        let ser_msg = msg.marshal_cbor()?;
-        let inclusion_cost = pl.on_chain_message(ser_msg.len()).total();
+        let ser_msg = t!(msg.marshal_cbor());
+        let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
         // Validate if the message
         // TODO I don't like the Option return value here.
-        if let Some(ret) = self.validate_message(&msg, inclusion_cost) {
-            return Ok(ret);
+        if let Some(ret) = self.validate_message(&msg, inclusion_cost.total()) {
+            return (Ok(ret), self);
         }
 
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree
+        // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
+        t!(self
+            .state_tree
             .mutate_actor(&msg.from, |act| {
                 act.deduct_funds(&inclusion_cost.into())?;
                 act.sequence += 1;
                 Ok(())
             })
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .map_err(|e| anyhow!(e.to_string())));
 
-        self.state_tree.snapshot().map_err(anyhow::Error::msg)?;
+        t!(self.state_tree.snapshot().map_err(anyhow::Error::msg));
 
-        // initial gas cost is the message inclusion gas.
-        let gas_tracker = GasTracker::new(msg.gas_limit, inclusion_cost);
+        let mut cm = CallManager::new(self, addr, msg.gas_limit);
+        t!(cm.charge_gas(inclusion_cost));
 
-        // this machine is now moved to the initial kernel.
-        let k = DefaultKernel::unattached(); // TODO error handling
-        let _ = k.execute(self, gas_tracker, &[], msg.clone()); // TODO bytecode.
+        // Invoke the message.
+        // TODO: We need some macro/monad help here.
+        let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
+        let (gas_used, s) = cm.finish();
+        self = s;
+        let result = t!(res);
+
+        // XXXX steb left off here
 
         // Perform state transition
         // // TODO: here is where we start the call stack and the invocation container.
