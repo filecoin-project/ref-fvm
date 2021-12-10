@@ -3,7 +3,6 @@
 
 use crate::node::Node;
 use crate::{HamtError, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
-use anyhow::Result;
 use cid::{multihash::Code, Cid};
 use forest_hash_utils::BytesKey;
 use ipld_blockstore::BlockStore;

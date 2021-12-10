@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::{HamtError, HashedKey};
-use anyhow::Result;
 use std::cmp::Ordering;
 
 /// Helper struct which indexes and allows returning bits from a hashed key

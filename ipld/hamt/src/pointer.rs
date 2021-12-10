@@ -3,7 +3,6 @@
 
 use super::node::Node;
 use super::{HamtError, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use anyhow::Result;
 use cid::Cid;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;

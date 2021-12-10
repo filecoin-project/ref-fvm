@@ -5,7 +5,6 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{HamtError, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use anyhow::Result;
 use cid::multihash::Code;
 use ipld_blockstore::BlockStore;
 use once_cell::unsync::OnceCell;
