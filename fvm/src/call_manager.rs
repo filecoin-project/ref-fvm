@@ -90,20 +90,15 @@ where
             ))
         }));
 
-        match self.send_explicit(
+        let (res, s) = self.send_explicit(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             params,
             TokenAmount::from(0u32),
-        ) {
-            // Succeeded
-            (Ok(InvocationResult { error: None, .. }), s) => (Ok(id), s),
-            // Internal failure.
-            (Ok(InvocationResult { error: Some(e), .. }), s) => (Err(e), s),
-            // Failed for some other reason.
-            (Err(e), s) => (Err(e), s),
-        }
+        );
+
+        (res.map(|_| id), s)
     }
 
     /// Send a message to an actor.
