@@ -108,7 +108,7 @@ where
 
     /// Send a message to an actor.
     pub fn send(
-        self,
+        mut self,
         to: Address,
         method: MethodId,
         // TODO: in the future, we'll need to pass more than one block as params.
@@ -138,7 +138,7 @@ where
 
     /// The inner send function that doesn't snapshot.
     fn send_inner(
-        self,
+        mut self,
         to: Address,
         method: MethodId,
         // TODO: in the future, we'll need to pass more than one block as params.
@@ -206,7 +206,7 @@ where
     ///
     /// NOTE: DOES NOT SNAPSHOT!
     fn send_resolved(
-        self,
+        mut self,
         to: ActorID,
         method: MethodId,
         params: RawBytes,
@@ -228,7 +228,6 @@ where
         let engine = self.engine().clone();
 
         // Create a new linker.
-        // TODO: move this to arguments so it can be reused and supplied by the machine?
         let mut linker = Linker::new(&engine);
         t!(bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e))));
 
@@ -236,24 +235,26 @@ where
 
         // 2. Lookup the actor.
         // TODO: should we let the kernel do this? We could _ask_ the kernel for the code to
-        // execute?
-        let state = t!(t!(self.state_tree().get_actor(&to_addr))
+        //  execute?
+        let mut state = t!(t!(self.state_tree().get_actor(&to_addr))
             .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to))));
 
         let module = t!(self
+            .machine
             .load_module(&state.code)
             .map_err(|e| actor_error!(fatal(e))));
 
         // 2. Update balance.
         if !value.is_zero() {
-            state.balance += value;
+            state.balance += value.clone();
             t!(self.state_tree_mut().set_actor(&to_addr, state));
         }
 
         // 3. Construct a kernel.
 
         // TODO: Make the kernel pluggable.
-        let mut kernel = DefaultKernel::new(self, self.from, to, method, value);
+        let from = self.from.clone();
+        let mut kernel = DefaultKernel::new(self, from, to, method, value);
 
         // 4. Load parameters.
 
@@ -268,21 +269,25 @@ where
 
         // 3. Instantiate the module.
         let mut store = Store::new(&engine, kernel);
-
-        let instance = linker.instantiate(store, &module)?;
+        // TODO error handling.
+        let instance = linker.instantiate(&mut store, &module).unwrap();
 
         // 4. Invoke it.
-        let invoke = instance.get_typed_func(store, "invoke")?;
-        let (return_block_id,): (u32,) = invoke.call(store, (params_block_id))?;
+        // TODO error handling.
+        let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
+        // TODO error handling.
+        let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id)).unwrap();
 
         // 5. Recover return value.
         let kernel = store.into_data();
 
         // TODO: this is a nasty API. We should have a nicer way to just "get a block".
-        let ret_stat = kernel.block_stat(return_block_id)?;
-        let mut ret = vec![0; ret_stat.size];
-        let read = kernel.block_read(return_block_id, 0, &mut ret)?;
-        ret.truncate(read);
+        // TODO error handling.
+        let ret_stat = kernel.block_stat(return_block_id).unwrap();
+        let mut ret = vec![0; ret_stat.size as usize];
+        // TODO error handling.
+        let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
+        ret.truncate(read as usize);
 
         (
             Ok(InvocationResult {

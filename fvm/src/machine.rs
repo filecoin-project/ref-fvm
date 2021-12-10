@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use cid::Cid;
 use fvm_shared::address::Address;
 use num_traits::Zero;
-use wasmtime::Engine;
+use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
 use fvm_shared::bigint::BigInt;
@@ -133,8 +133,9 @@ where
 
     pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
         // TODO: cache compiled code, and modules?
-        let bytecode = todo!("get the actual code");
-        Ok(Module::new(&self.engine, bytecode))
+        todo!("get the actual code");
+        let bytecode = &[];
+        Module::new(&self.engine, bytecode)
     }
 
     /// This is the entrypoint to execute a message.
@@ -167,12 +168,16 @@ where
             return (Ok(ret), self);
         }
 
+        // TODO we calculate this twice, in validate_message and here.
+        // Ensure from actor has enough balance to cover the gas cost of the message.
+        let gas_cost: TokenAmount = msg.gas_fee_cap * msg.gas_limit;
+
         // Deduct message inclusion gas cost and increment sequence.
         // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
         t!(self
             .state_tree
             .mutate_actor(&msg.from, |act| {
-                act.deduct_funds(&inclusion_cost.into())?;
+                act.deduct_funds(&gas_cost)?;
                 act.sequence += 1;
                 Ok(())
             })
@@ -180,7 +185,10 @@ where
 
         t!(self.state_tree.snapshot().map_err(anyhow::Error::msg));
 
-        let mut cm = CallManager::new(self, addr, msg.gas_limit);
+        todo!("resolve actor ID");
+
+        /// TODO this requires the ActorID; need to resolve it first.
+        let mut cm = CallManager::new(self, 0, msg.gas_limit);
         t!(cm.charge_gas(inclusion_cost));
 
         // Invoke the message.
@@ -320,6 +328,7 @@ where
         todo!()
     }
 
+    // TODO probably should return a validation failure.
     fn validate_message(&mut self, msg: &Message, cost_total: i64) -> Option<ApplyRet> {
         // Verify the cost of the message is not over the message gas limit.
         // TODO handle errors properly

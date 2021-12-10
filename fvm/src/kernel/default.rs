@@ -11,7 +11,7 @@ use blockstore::Blockstore;
 use fvm_shared::address::Protocol;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::ActorError;
+use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
 use crate::call_manager::CallManager;
@@ -95,7 +95,7 @@ where
     E: Externs + 'static,
 {
     fn root(&self) -> Cid {
-        let addr = self.call_manager.message().to;
+        let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree();
 
         state_tree
@@ -107,7 +107,7 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let addr = self.call_manager.message().to;
+        let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree_mut();
 
         state_tree
@@ -213,6 +213,7 @@ where
     fn value_received(&self) -> u128 {
         // TODO: we shouldn't have to do this conversion here.
         self.value_received
+            .clone()
             .try_into()
             .expect("value received exceeds max filecoin")
     }
@@ -246,17 +247,25 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> anyhow::Result {
-        self.call_manager.map_mut(|cm| {
-            let (res, cm) = cm.send(
-                message.to,
-                message.method_num,
-                message.params,
-                message.value,
-            );
-            // Do something with the result.
-            todo!();
-            cm
-        })
+    fn send(&mut self, message: Message) -> anyhow::Result<()> {
+        // self.call_manager.map_mut(|cm| {
+        //     let (res, cm) = cm.send(
+        //         message.to,
+        //         message.method_num,
+        //         message.params,
+        //         message.value,
+        //     );
+        //     // Do something with the result.
+        //     todo!();
+        //     cm
+        // })
+        todo!()
+    }
+}
+
+// TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
+impl Into<ActorError> for BlockError {
+    fn into(self) -> ActorError {
+        ActorError::new_fatal(self.to_string())
     }
 }
