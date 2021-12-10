@@ -27,19 +27,12 @@ lazy_static = "1.4.0"
 log = "0.4.8"
 ## TODO @steb to migrate to the final CID library
 cid = { version = "0.7", features = ["serde-codec"] }
-libsecp256k1 = "0.6"
-bls-signatures = { version = "0.9", default-features = false }
-## TODO maybe shared shouldn't be depending on filecoin proofs.
-filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false, optional = true }
 
 [dev-dependencies]
 rand = "0.7.3"
 rand_chacha = "0.2.2"
 
 [features]
-default = ["blst", "proofs", "filecoin-proofs-api"]
-proofs = []
 json = ["base64"]
-blst = ["bls-signatures/blst"]
-pairing = ["bls-signatures/pairing"]
+
 

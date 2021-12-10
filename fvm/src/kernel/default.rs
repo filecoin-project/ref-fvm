@@ -4,15 +4,18 @@ use std::convert::TryFrom;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;
+use filecoin_proofs_api::seal::compute_comm_d;
 use wasmtime::{Linker, Module, Store};
 
 use blockstore::Blockstore;
 use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::ActorError;
+use fvm_shared::piece::PaddedPieceSize;
 use fvm_shared::ActorID;
 
 use crate::externs::Externs;
 use crate::gas::GasTracker;
+use crate::kernel::commcid::data_commitment_v1_to_cid;
 use crate::machine::Machine;
 use crate::message::Message;
 use crate::state_tree::StateTree;
@@ -68,6 +71,246 @@ where
 pub struct InvocationResult {
     return_bytes: Vec<u8>,
     error: Option<ActorError>,
+}
+
+impl<B, E> ActorOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
+        todo!()
+    }
+
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
+        todo!()
+    }
+
+    fn new_actor_address(&mut self) -> Result<Address, ActorError> {
+        todo!()
+    }
+
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> CircSupplyOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> CryptoOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn verify_signature(
+        &self,
+        signature: &Signature,
+        signer: &Address,
+        plaintext: &[u8],
+    ) -> Result<()> {
+        todo!()
+    }
+
+    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]> {
+        todo!()
+    }
+
+    /// Computes sector [Cid] from proof type and pieces for verification.
+    fn compute_unsealed_sector_cid(
+        &self,
+        proof_type: RegisteredSealProof,
+        pieces: &[PieceInfo],
+    ) -> Result<Cid> {
+        let ssize = proof_type.sector_size()? as u64;
+
+        let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+
+        let pssize = PaddedPieceSize(ssize);
+        if pieces.is_empty() {
+            all_pieces.push(proofs::PieceInfo {
+                size: pssize.unpadded().into(),
+                commitment: zero_piece_commitment(pssize),
+            })
+        } else {
+            // pad remaining space with 0 piece commitments
+            let mut sum = PaddedPieceSize(0);
+            let pad_to = |pads: Vec<PaddedPieceSize>,
+                          all_pieces: &mut Vec<proofs::PieceInfo>,
+                          sum: &mut PaddedPieceSize| {
+                for p in pads {
+                    all_pieces.push(proofs::PieceInfo {
+                        size: p.unpadded().into(),
+                        commitment: zero_piece_commitment(p),
+                    });
+
+                    sum.0 += p.0;
+                }
+            };
+            for p in pieces {
+                let (ps, _) = get_required_padding(sum, p.size);
+                pad_to(ps, &mut all_pieces, &mut sum);
+
+                all_pieces.push(proofs::PieceInfo::try_from(p)?);
+                sum.0 += p.size.0;
+            }
+
+            let (ps, _) = get_required_padding(sum, pssize);
+            pad_to(ps, &mut all_pieces, &mut sum);
+        }
+
+        let comm_d = compute_comm_d(proof_type.try_into()?, &all_pieces)?;
+
+        Ok(data_commitment_v1_to_cid(&comm_d)?)
+    }
+
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()> {
+        todo!()
+    }
+
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
+        todo!()
+    }
+
+    fn verify_consensus_fault(
+        &self,
+        h1: &[u8],
+        h2: &[u8],
+        extra: &[u8],
+    ) -> Result<Option<ConsensusFault>> {
+        todo!()
+    }
+
+    fn batch_verify_seals(
+        &self,
+        vis: &[(&Address, &Vec<SealVerifyInfo>)],
+    ) -> Result<HashMap<Address, Vec<bool>>> {
+        let mut verified = HashMap::new();
+        for (&addr, s) in vis.iter() {
+            let vals = s.iter().map(|si| self.verify_seal(si).is_ok()).collect();
+            verified.insert(addr, vals);
+        }
+        Ok(verified)
+    }
+
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()> {
+        todo!()
+    }
+}
+
+fn get_required_padding(
+    old_length: PaddedPieceSize,
+    new_piece_length: PaddedPieceSize,
+) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
+    let mut sum = 0;
+
+    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
+    let n = to_fill.count_ones();
+    let mut pad_pieces = Vec::with_capacity(n as usize);
+    for _ in 0..n {
+        let next = to_fill.trailing_zeros();
+        let p_size = 1 << next;
+        to_fill ^= p_size;
+
+        let padded = PaddedPieceSize(p_size);
+        pad_pieces.push(padded);
+        sum += padded.0;
+    }
+
+    (pad_pieces, PaddedPieceSize(sum))
+}
+
+impl<B, E> GasOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> NetworkOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn network_curr_epoch(&self) -> ChainEpoch {
+        todo!()
+    }
+
+    fn network_version(&self) -> NetworkVersion {
+        todo!()
+    }
+
+    fn network_base_fee(&self) -> &TokenAmount {
+        todo!()
+    }
+}
+
+impl<B, E> RandomnessOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn get_randomness_from_tickets(
+        &self,
+        personalization: DomainSeparationTag,
+        rand_epoch: ChainEpoch,
+        entropy: &[u8],
+    ) -> Result<Randomness, ActorError> {
+        todo!()
+    }
+
+    fn get_randomness_from_beacon(
+        &self,
+        personalization: DomainSeparationTag,
+        rand_epoch: ChainEpoch,
+        entropy: &[u8],
+    ) -> Result<Randomness, ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> SendOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn send(&mut self, message: Message) -> Result<RawBytes, ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> ValidationOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
+        todo!()
+    }
+
+    fn validate_immediate_caller_addr_one_of(
+        &mut self,
+        allowed: Vec<Address>,
+    ) -> Result<(), ActorError> {
+        todo!()
+    }
+
+    fn validate_immediate_caller_type_one_of(
+        &mut self,
+        allowed: Vec<Cid>,
+    ) -> Result<(), ActorError> {
+        todo!()
+    }
 }
 
 // Even though all children traits are implemented, Rust needs to know that the

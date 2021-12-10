@@ -24,6 +24,8 @@ pub use mapcell::*;
 use crate::message::Message;
 
 mod blocks;
+mod commcid;
+mod crypto;
 pub mod default;
 mod mapcell;
 
@@ -47,7 +49,7 @@ pub trait Kernel:
 pub trait NetworkOps {
     fn network_curr_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
-    fn base_fee(&self) -> &TokenAmount;
+    fn network_base_fee(&self) -> &TokenAmount;
 }
 
 /// Message validation operations.

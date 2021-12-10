@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::{multihash::Code, multihash::Multihash, multihash::MultihashDigest, Cid};
-use fvm_shared::commcid::*;
+use fvm_shared::commcid2::*;
 use rand::thread_rng;
 use rand::Rng;
 

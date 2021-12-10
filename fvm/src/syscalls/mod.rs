@@ -4,7 +4,8 @@ use wasmtime::Linker;
 use crate::Kernel;
 
 mod context;
-pub mod ipld;
+mod ipld;
+mod network;
 mod typestate;
 
 // Binds the syscall handlers so they can handle invocations
