@@ -107,6 +107,9 @@ where
     }
 
     /// Send a message to an actor.
+    ///
+    /// Creates a state tree snapshot prior to executing the send. Discards the
+    /// snapshot if the destination actor aborts.
     pub fn send(
         mut self,
         to: Address,

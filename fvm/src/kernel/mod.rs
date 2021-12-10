@@ -1,9 +1,11 @@
 use anyhow::Result;
 use cid::Cid;
 
+use crate::kernel::default::InvocationResult;
 use crate::message::Message;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
+use fvm_shared::error::ActorError;
 use fvm_shared::ActorID;
 pub use mapcell::*;
 
@@ -87,5 +89,5 @@ pub trait ReturnOps {
 
 /// Operations to send messages to other actors.
 pub trait SendOps {
-    fn send(&mut self, message: Message) -> anyhow::Result<()>;
+    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError>;
 }

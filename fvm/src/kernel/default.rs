@@ -29,10 +29,13 @@ use super::*;
 ///
 /// TODO writes probably ought to be scoped by invocation container.
 pub struct DefaultKernel<B: 'static, E: 'static> {
+    // Fields extracted from the message, except parameters, which have been
+    // preloaded into the block registry.
     from: ActorID,
     to: ActorID,
     method: MethodId,
     value_received: TokenAmount,
+
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
     call_manager: MapCell<CallManager<B, E>>,
@@ -247,19 +250,17 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> anyhow::Result<()> {
-        // self.call_manager.map_mut(|cm| {
-        //     let (res, cm) = cm.send(
-        //         message.to,
-        //         message.method_num,
-        //         message.params,
-        //         message.value,
-        //     );
-        //     // Do something with the result.
-        //     todo!();
-        //     cm
-        // })
-        todo!()
+    fn send(&mut self, message: Message) -> anyhow::Result<InvocationResult, ActorError> {
+        self.call_manager.map_mut(|cm| {
+            let (res, cm) = cm.send(
+                message.to,
+                message.method_num,
+                message.params,
+                message.value,
+            );
+            // Do something with the result.
+            (cm, res)
+        })
     }
 }
 
