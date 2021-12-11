@@ -26,16 +26,8 @@ serde_tuple = "0.5"
 serde_repr = "0.1"
 lazy_static = "1.4.0"
 derive-getters = "0.2.0"
-bls-signatures = { version = "0.9", default-features = false }
-libsecp256k1 = "0.6"
-filecoin-proofs-api = { version = "9", features = ["blst"], default_features = false, optional = true }
+derive_more = "0.99.17"
 
 # FIXME: The FVM really shouldn't depend on this, but needs to for now.
 actor = { package = "forest_actor", path = "../actor" }
 
-[features]
-default = ["blst", "proofs", "filecoin-proofs-api"]
-proofs = []
-blst = ["bls-signatures/blst"]
-pairing = ["bls-signatures/pairing"]
-derive_more = "0.99.17"

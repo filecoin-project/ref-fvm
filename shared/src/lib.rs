@@ -12,6 +12,7 @@ use clock::ChainEpoch;
 pub mod address;
 pub mod bigint;
 pub mod clock;
+pub mod commcid;
 pub mod consensus;
 pub mod crypto;
 pub mod deal;
