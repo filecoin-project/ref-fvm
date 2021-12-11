@@ -132,7 +132,8 @@ pub trait SelfOps: BlockOps {
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<(), ActorError>;
 }
 
-/// Operations to enquire about other actors.
+/// Actors operations whose scope of action is actors other than the calling
+/// actor. The calling actor's state may be consulted to resolve some.
 pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
@@ -153,6 +154,8 @@ pub trait ActorOps {
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError>;
 }
 
+/// Operations that query and manipulate the return stack. The return stack is
+/// how the kernel delivers variable-length return values to the caller.
 pub trait ReturnOps {
     /// Returns the size of the top element in the return stack.
     /// 0 means non-existent, otherwise the length is returned.
@@ -172,6 +175,7 @@ pub trait SendOps {
     fn send(&mut self, message: Message) -> Result<RawBytes, ActorError>;
 }
 
+/// Operations to query the circulating supply.
 pub trait CircSupplyOps {
     /// Returns the total token supply in circulation at the beginning of the current epoch.
     /// The circulating supply is the sum of:
@@ -184,6 +188,12 @@ pub trait CircSupplyOps {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError>;
 }
 
+/// Operations for explicit gas charging.
+///
+/// TODO this is unsafe; most gas charges should occur as part of syscalls, but
+///  some built-in actors currently charge gas explicitly for concrete actions.
+///  In the future (M1), this should disappear and be replaced by gas instrumentation
+///  at the WASM level.
 pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
@@ -241,6 +251,7 @@ pub trait CryptoOps {
     fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()>;
 }
 
+/// Randomness queries.
 pub trait RandomnessOps {
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// ticket chain from a given epoch and incorporating requisite entropy.
