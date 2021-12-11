@@ -16,7 +16,7 @@ use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, PriceList};
+use crate::gas::{price_list_by_epoch, GasCharge, PriceList};
 
 use crate::message::Message;
 use crate::receipt::Receipt;
@@ -137,40 +137,14 @@ where
         msg: Message,
         _: ApplyKind,
     ) -> (anyhow::Result<ApplyRet>, Box<Self>) {
-        macro_rules! t {
-            ($e:expr) => {
-                match $e {
-                    Ok(v) => v,
-                    Err(e) => return (Err(e.into()), self),
-                }
-            };
-        }
-        // TODO return self.
-        // TODO sanity check on message, copied from Forest, needs adaptation.
-        t!(msg.check());
-
-        // TODO I don't like having price lists _inside_ the FVM, but passing
-        //  these across the boundary is also a no-go.
-        let pl = &self.context.price_list;
-        let ser_msg = t!(msg.marshal_cbor());
-        let inclusion_cost = pl.on_chain_message(ser_msg.len());
-
-        // Validate if the message was correct, and extract some preliminary data from it.
-        let (sender_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
-            Ok((receiver_id, gas_cost)) => (receiver_id, gas_cost),
-            Err(apply_ret) => return (Ok(apply_ret), self),
+        // Validate if the message was correct, charge for it, and extract some preliminary data.
+        let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg) {
+            Ok(Ok(res)) => res,
+            Ok(Err(apply_ret)) => return (Ok(apply_ret), self),
+            Err(e) => return (Err(e), self),
         };
 
-        // Deduct message inclusion gas cost and increment sequence.
-        t!(self
-            .state_tree
-            .mutate_actor(&msg.from, |act| {
-                act.deduct_funds(&gas_cost)?;
-                act.sequence += 1;
-                Ok(())
-            })
-            .map_err(|e| anyhow!(e.to_string())));
-
+        // Apply the message.
         let mut cm = CallManager::new(self, sender_id, msg.gas_limit);
         match cm.charge_gas(inclusion_cost) {
             Err(e) => return (Err(e.into()), cm.finish().1),
@@ -182,6 +156,8 @@ where
         let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
         let (gas_used, s) = cm.finish();
         self = s;
+
+        // TODO: move this all into a "post_message" function.
 
         // Extract the exit code and build the result of the message application.
         let (ret_data, exit_code, err) = match res {
@@ -332,79 +308,105 @@ where
         // Ok(Default::default())
     }
 
-    fn validate_message(
+    // TODO: The return type here is very strange because we have three cases:
+    // 1. Continue (return actor ID & gas).
+    // 2. Short-circuit (return ApplyRet).
+    // 3. Fail (return an error).
+    //
+    // We could use custom types, but that would be even more annoying.
+    fn preflight_message(
         &mut self,
         msg: &Message,
-        cost_total: i64,
-    ) -> Result<(ActorID, TokenAmount), ApplyRet> {
+    ) -> anyhow::Result<Result<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+        // TODO sanity check on message, copied from Forest, needs adaptation.
+        msg.check()?;
+
+        // TODO I don't like having price lists _inside_ the FVM, but passing
+        //  these across the boundary is also a no-go.
+        let pl = &self.context.price_list;
+        let ser_msg = msg.marshal_cbor()?;
+        let inclusion_cost = pl.on_chain_message(ser_msg.len());
+        let inclusion_total = inclusion_cost.total();
+
         // Verify the cost of the message is not over the message gas limit.
-        if cost_total > msg.gas_limit {
-            return Err(ApplyRet::prevalidation_fail(
+        if inclusion_total > msg.gas_limit {
+            return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrOutOfGas,
-                &self.context.base_fee * cost_total,
+                &self.context.base_fee * inclusion_total,
                 Some(
-                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit),
+                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                 ),
-            ));
+            )));
         }
 
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
-        let sender = self
-            .state_tree
-            .get_actor(&msg.from)
-            .map_err(|e| {
-                ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
-                    miner_penalty_amount.clone(),
-                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
-                )
-            })?
-            .unwrap();
 
-        let sender_id = self
-            .state_tree
-            .lookup_id(&msg.from)
-            .map_err(|e| {
-                ApplyRet::prevalidation_fail(
+        let sender_id = match self.state_tree.lookup_id(&msg.from) {
+            Ok(Some(id)) => id,
+            Ok(None) => {
+                return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
                     miner_penalty_amount.clone(),
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
-                )
-            })?
-            .unwrap();
+                )))
+            }
+            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
+        };
+
+        let sender = match self.state_tree.get_actor(&Address::new_id(sender_id)) {
+            Ok(Some(act)) => act,
+            Ok(None) => {
+                return Ok(Err(ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )))
+            }
+            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
+        };
 
         // If sender is not an account actor, the message is invalid.
         if !actor::is_account_actor(&sender.code) {
-            return Err(ApplyRet::prevalidation_fail(
+            return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderInvalid,
                 miner_penalty_amount,
                 Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
-            ));
+            )));
         };
 
         // Check sequence is correct
         if msg.sequence != sender.sequence {
-            return Err(ApplyRet::prevalidation_fail(
+            return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderStateInvalid,
                 miner_penalty_amount,
                 Some(
                     actor_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
                 ),
-            ));
+            )));
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
         if sender.balance < gas_cost {
-            return Err(ApplyRet::prevalidation_fail(
+            return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderStateInvalid,
                 miner_penalty_amount,
                 Some(actor_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
-            ));
+            )));
         }
-        Ok((sender_id, gas_cost))
+
+        // Deduct message inclusion gas cost and increment sequence.
+        self.state_tree
+            .mutate_actor(&Address::new_id(sender_id), |act| {
+                act.deduct_funds(&gas_cost)?;
+                act.sequence += 1;
+                Ok(())
+            })
+            .map_err(|e| anyhow!(e.to_string()))?;
+
+        Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
 
     pub fn context(&self) -> &MachineContext {
