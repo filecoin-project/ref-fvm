@@ -57,9 +57,6 @@ const MAX_ADDRESS_LEN: usize = 84 + 2;
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
-#[cfg(feature = "json")]
-const UNDEF_ADDR_STRING: &str = "<empty>";
-
 // TODO pull network from config (probably)
 pub static NETWORK_DEFAULT: OnceCell<Network> = OnceCell::new();
 
@@ -312,26 +309,17 @@ fn encode(addr: &Address) -> String {
 }
 
 pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, Error> {
-    let mut buf = Vec::new();
-
     // write id to buffer in leb128 format
-    leb128::write::unsigned(&mut buf, id)?;
-
-    // Create byte vector from buffer
-    Ok(buf)
+    Ok(unsigned_varint::encode::u64(id, &mut unsigned_varint::encode::u64_buffer()).into())
 }
 
 pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
-    let mut readable = bz;
-
     // write id to buffer in leb128 format
-    let id = leb128::read::unsigned(&mut readable)?;
-
-    if to_leb_bytes(id)? == bz {
-        Ok(id)
-    } else {
-        Err(Error::InvalidAddressIDPayload(bz.to_owned()))
+    let (id, remaining) = unsigned_varint::decode::u64(bz)?;
+    if remaining.len() > 0 {
+        return Err(Error::InvalidPayload);
     }
+    Ok(id)
 }
 
 #[cfg(test)]
@@ -362,7 +350,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(extra_bytes));
+                assert_eq!(e, Error::InvalidPayload);
             }
         }
     }
@@ -380,7 +368,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(minimal_encoding));
+                assert_eq!(e, Error::InvalidPayload);
             }
         }
     }
@@ -403,114 +391,4 @@ fn address_hash(ingest: &[u8]) -> [u8; 20] {
     let mut hash = [0u8; 20];
     hash.clone_from_slice(&digest);
     hash
-}
-
-#[cfg(feature = "json")]
-pub mod json {
-    use super::*;
-    use serde::{Deserialize, Deserializer, Serializer};
-    use std::borrow::Cow;
-
-    /// Wrapper for serializing and deserializing a SignedMessage from JSON.
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct AddressJson(#[serde(with = "self")] pub Address);
-
-    /// Wrapper for serializing a SignedMessage reference to JSON.
-    #[derive(Serialize)]
-    #[serde(transparent)]
-    pub struct AddressJsonRef<'a>(#[serde(with = "self")] pub &'a Address);
-
-    impl From<Address> for AddressJson {
-        fn from(address: Address) -> Self {
-            Self(address)
-        }
-    }
-
-    impl From<AddressJson> for Address {
-        fn from(address: AddressJson) -> Self {
-            address.0
-        }
-    }
-
-    pub fn serialize<S>(m: &Address, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&encode(m))
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Address, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let address_as_string: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
-        Address::from_str(&address_as_string).map_err(de::Error::custom)
-    }
-
-    #[cfg(feature = "json")]
-    pub mod vec {
-        use super::*;
-        use crate::encoding::GoVecVisitor;
-        use crate::json::{AddressJson, AddressJsonRef};
-        use serde::ser::SerializeSeq;
-
-        /// Wrapper for serializing and deserializing a Cid vector from JSON.
-        #[derive(Deserialize, Serialize)]
-        #[serde(transparent)]
-        pub struct AddressJsonVec(#[serde(with = "self")] pub Vec<Address>);
-
-        /// Wrapper for serializing a cid slice to JSON.
-        #[derive(Serialize)]
-        #[serde(transparent)]
-        pub struct AddressJsonSlice<'a>(#[serde(with = "self")] pub &'a [Address]);
-
-        pub fn serialize<S>(m: &[Address], serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let mut seq = serializer.serialize_seq(Some(m.len()))?;
-            for e in m {
-                seq.serialize_element(&AddressJsonRef(e))?;
-            }
-            seq.end()
-        }
-
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Address>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            deserializer.deserialize_any(GoVecVisitor::<Address, AddressJson>::new())
-        }
-    }
-
-    pub mod opt {
-        use super::*;
-        use serde::{self, Deserialize, Deserializer, Serializer};
-        use std::borrow::Cow;
-
-        pub fn serialize<S>(v: &Option<Address>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            if let Some(unwrapped_address) = v.as_ref() {
-                serializer.serialize_str(&encode(unwrapped_address))
-            } else {
-                serializer.serialize_str(UNDEF_ADDR_STRING)
-            }
-        }
-
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Address>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let address_as_string: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
-            if address_as_string == UNDEF_ADDR_STRING {
-                return Ok(None);
-            }
-            Ok(Some(
-                Address::from_str(&address_as_string).map_err(de::Error::custom)?,
-            ))
-        }
-    }
 }

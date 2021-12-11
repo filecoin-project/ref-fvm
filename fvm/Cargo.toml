@@ -38,3 +38,4 @@ default = ["blst", "proofs", "filecoin-proofs-api"]
 proofs = []
 blst = ["bls-signatures/blst"]
 pairing = ["bls-signatures/pairing"]
+derive_more = "0.99.17"

@@ -1,28 +1,30 @@
-use std::borrow::BorrowMut;
-
 use std::rc::Rc;
 
+use actor::ActorDowncast;
 use anyhow::anyhow;
 use cid::Cid;
+use fvm_shared::address::Address;
 use num_traits::Zero;
-use wasmtime::Engine;
+use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
-use fvm_shared::actor_error;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, GasTracker, PriceList};
+use crate::gas::{price_list_by_epoch, PriceList};
 
 use crate::message::Message;
 use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
+use crate::state_tree::{ActorState, StateTree};
 
-use crate::{Config, DefaultKernel};
+use crate::Config;
+
+use crate::call_manager::CallManager;
 
 /// The core of the FVM.
 ///
@@ -48,10 +50,6 @@ pub struct Machine<B: 'static, E: 'static> {
     ///
     /// Owned.
     state_tree: StateTree<'static, B>,
-    /// The buffer of blocks to be committed to the blockstore after
-    /// execution concludes.
-    /// TODO @steb needs to figure out how all of this is going to work.
-    commit_buffer: (),
 }
 
 impl<B, E> Machine<B, E>
@@ -84,7 +82,6 @@ where
             externs,
             blockstore,
             state_tree,
-            commit_buffer: Default::default(), // @stebalien TBD
         })
     }
 
@@ -105,7 +102,33 @@ where
     }
 
     pub fn state_tree_mut(&mut self) -> &mut StateTree<'static, B> {
-        self.state_tree.borrow_mut()
+        &mut self.state_tree
+    }
+
+    /// Creates an uninitialized actor.
+    // TODO: Remove
+    pub(crate) fn create_actor(
+        &mut self,
+        addr: &Address,
+        act: ActorState,
+    ) -> Result<ActorID, ActorError> {
+        let state_tree = self.state_tree_mut();
+
+        let addr_id = state_tree
+            .register_new_address(addr)
+            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+
+        state_tree
+            .set_actor(&Address::new_id(addr_id), act)
+            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+        Ok(addr_id)
+    }
+
+    pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
+        // TODO: cache compiled code, and modules?
+        todo!("get the actual code");
+        let bytecode = &[];
+        Module::new(&self.engine, bytecode)
     }
 
     /// This is the entrypoint to execute a message.
@@ -113,40 +136,74 @@ where
         mut self: Box<Self>,
         msg: Message,
         _: ApplyKind,
-    ) -> anyhow::Result<ApplyRet> {
+    ) -> (anyhow::Result<ApplyRet>, Box<Self>) {
+        macro_rules! t {
+            ($e:expr) => {
+                match $e {
+                    Ok(v) => v,
+                    Err(e) => return (Err(e.into()), self),
+                }
+            };
+        }
         // TODO return self.
         // TODO sanity check on message, copied from Forest, needs adaptation.
-        msg.check()?;
+        t!(msg.check());
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context.price_list;
-        let ser_msg = msg.marshal_cbor()?;
-        let inclusion_cost = pl.on_chain_message(ser_msg.len()).total();
+        let ser_msg = t!(msg.marshal_cbor());
+        let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
-        // Validate if the message
-        // TODO I don't like the Option return value here.
-        if let Some(ret) = self.validate_message(&msg, inclusion_cost) {
-            return Ok(ret);
-        }
+        // Validate if the message was correct, and extract some preliminary data from it.
+        let (sender_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
+            Ok((receiver_id, gas_cost)) => (receiver_id, gas_cost),
+            Err(apply_ret) => return (Ok(apply_ret), self),
+        };
 
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree
+        t!(self
+            .state_tree
             .mutate_actor(&msg.from, |act| {
-                act.deduct_funds(&inclusion_cost.into())?;
+                act.deduct_funds(&gas_cost)?;
                 act.sequence += 1;
                 Ok(())
             })
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .map_err(|e| anyhow!(e.to_string())));
 
-        self.state_tree.snapshot().map_err(anyhow::Error::msg)?;
+        let mut cm = CallManager::new(self, sender_id, msg.gas_limit);
+        match cm.charge_gas(inclusion_cost) {
+            Err(e) => return (Err(e.into()), cm.finish().1),
+            _ => (),
+        }
 
-        // initial gas cost is the message inclusion gas.
-        let gas_tracker = GasTracker::new(msg.gas_limit, inclusion_cost);
+        // Invoke the message.
+        // TODO: We need some macro/monad help here.
+        let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
+        let (gas_used, s) = cm.finish();
+        self = s;
 
-        // this machine is now moved to the initial kernel.
-        let k = DefaultKernel::unattached(); // TODO error handling
-        let _ = k.execute(self, gas_tracker, &[], msg.clone()); // TODO bytecode.
+        // Extract the exit code and build the result of the message application.
+        let (ret_data, exit_code, err) = match res {
+            Ok(ret) => (ret, ExitCode::Ok, None),
+            Err(e) => (Default::default(), e.exit_code(), Some(e)),
+        };
+        let ret = ApplyRet {
+            msg_receipt: Receipt {
+                exit_code,
+                return_data: ret_data,
+                gas_used,
+            },
+            act_error: err,
+            penalty: Default::default(),   // TODO
+            miner_tip: Default::default(), // TODO
+        };
+
+        // Now we need to refund
+
+        (Ok(ret), self)
+
+        // XXXX steb left off here
 
         // Perform state transition
         // // TODO: here is where we start the call stack and the invocation container.
@@ -273,126 +330,82 @@ where
         // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
         // TODO pull the receipt from the CallStack and return it.
         // Ok(Default::default())
-        todo!()
     }
 
-    fn validate_message(&mut self, msg: &Message, cost_total: i64) -> Option<ApplyRet> {
+    fn validate_message(
+        &mut self,
+        msg: &Message,
+        cost_total: i64,
+    ) -> Result<(ActorID, TokenAmount), ApplyRet> {
         // Verify the cost of the message is not over the message gas limit.
-        // TODO handle errors properly
         if cost_total > msg.gas_limit {
-            let err =
-                actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit);
-            return Some(ApplyRet::prevalidation_fail(
+            return Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrOutOfGas,
                 &self.context.base_fee * cost_total,
-                Some(err),
+                Some(
+                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit),
+                ),
             ));
         }
 
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
-        let sender = match self.state_tree.get_actor(&msg.from) {
-            Ok(Some(sender)) => sender,
-            _ => {
-                return Some(ApplyRet {
-                    msg_receipt: Receipt {
-                        return_data: RawBytes::default(),
-                        exit_code: ExitCode::SysErrSenderInvalid,
-                        gas_used: 0,
-                    },
-                    penalty: miner_penalty_amount,
-                    act_error: Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
-                    miner_tip: BigInt::zero(),
-                });
-            }
-        };
+        let sender = self
+            .state_tree
+            .get_actor(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
+
+        let sender_id = self
+            .state_tree
+            .lookup_id(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
 
         // If sender is not an account actor, the message is invalid.
         if !actor::is_account_actor(&sender.code) {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
+            ));
         };
 
         // Check sequence is correct
         if msg.sequence != sender.sequence {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
-                    "actor sequence invalid: {} != {}", msg.sequence, sender.sequence)),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(
+                    actor_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
+                ),
+            ));
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
         if sender.balance < gas_cost {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
-                miner_tip: BigInt::zero(),
-            });
-        };
-        None
+            ));
+        }
+        Ok((sender_id, gas_cost))
     }
-
-    // // TODO
-    // pub fn call_next(&mut self, msg: &Message) -> anyhow::Result<Receipt> {
-    //     // Clone because we may override the receiver in the message.
-    //     let mut msg = msg.clone();
-    //
-    //     // Get the receiver; this will resolve the address.
-    //     let receiver = match self
-    //         .state_tree
-    //         .lookup_id(&msg.to)
-    //         .map_err(|e| anyhow::Error::msg(e.to_string()))?
-    //     {
-    //         Some(addr) => addr,
-    //         None => match msg.to.protocol() {
-    //             Protocol::BLS | Protocol::Secp256k1 => {
-    //                 // Try to create an account actor if the receiver is a key address.
-    //                 let (_, id_addr) = self.try_create_account_actor(&msg.to)?;
-    //                 msg.to = id_addr;
-    //                 id_addr
-    //             }
-    //             _ => return Err(anyhow!("actor not found: {}", msg.to)),
-    //         },
-    //     };
-    //
-    //     // TODO Load the code for the receiver by CID (state.code).
-    //     // TODO The node's blockstore will need to return the appropriate WASM
-    //     //  code for built-in system actors. Either we implement a load_code(cid)
-    //     //  Boundary A syscall, or a special blockstore with static mappings from
-    //     //  CodeCID => WASM bytecode for built-in actors will be necessary on the
-    //     //  node side.
-    //
-    //     // TODO instantiate a WASM instance, wrapping the InvocationContainer as
-    //     //  the store data.
-    //
-    //     // TODO invoke the entrypoint on the WASM instance.
-    //
-    //     // TODO somehow instrument so that sends are looped into the call stack.
-    //
-    //     todo!()
-    // }
 
     pub fn context(&self) -> &MachineContext {
         &self.context

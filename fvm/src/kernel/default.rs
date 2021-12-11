@@ -1,24 +1,25 @@
 use std::collections::VecDeque;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
+use actor::ActorDowncast;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;
-use filecoin_proofs_api::seal::compute_comm_d;
-use wasmtime::{Linker, Module, Store};
+use wasmtime::{Engine, Linker, Module, Store};
 
 use blockstore::Blockstore;
-use fvm_shared::encoding::DAG_CBOR;
-use fvm_shared::error::ActorError;
-use fvm_shared::piece::PaddedPieceSize;
-use fvm_shared::ActorID;
+use fvm_shared::address::Protocol;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{RawBytes, DAG_CBOR};
+use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::{actor_error, ActorID};
 
+use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::GasTracker;
-use crate::kernel::commcid::data_commitment_v1_to_cid;
 use crate::machine::Machine;
 use crate::message::Message;
-use crate::state_tree::StateTree;
+use crate::state_tree::{ActorState, StateTree};
 use crate::syscalls::bind_syscalls;
 
 use super::blocks::{Block, BlockRegistry};
@@ -28,12 +29,16 @@ use super::*;
 ///
 /// TODO writes probably ought to be scoped by invocation container.
 pub struct DefaultKernel<B: 'static, E: 'static> {
-    /// The environment attachments to this kernel. If Some, this kernel is
-    /// considered attached and active. If None, this kernel is inactive and
-    /// cannot be used.
-    ///
-    /// As kernels are spun up and unwound, the attachment travels with them.
-    attachment: MapCell<KernelAttachment<B, E>>,
+    // Fields extracted from the message, except parameters, which have been
+    // preloaded into the block registry.
+    from: ActorID,
+    to: ActorID,
+    method: MethodId,
+    value_received: TokenAmount,
+
+    /// The call manager for this call stack. If this kernel calls another actor, it will
+    /// temporarily "give" the call manager to the other kernel before re-attaching it.
+    call_manager: MapCell<CallManager<B, E>>,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
@@ -41,58 +46,6 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     blocks: BlockRegistry,
     /// Return stack where values returned by syscalls are stored for consumption.
     return_stack: VecDeque<Vec<u8>>,
-}
-
-#[derive(Getters)]
-pub struct KernelAttachment<B: 'static, E: 'static> {
-    /// The machine this kernel is attached to.
-    machine: Box<Machine<B, E>>,
-    /// The gas tracker.
-    gas_tracker: Box<GasTracker>,
-    /// The message being processed by the invocation container to which this
-    /// kernel is bound.
-    message: Message,
-}
-
-impl<B, E> KernelAttachment<B, E>
-where
-    B: Blockstore + 'static,
-    E: Externs + 'static,
-{
-    fn state_tree(&self) -> &StateTree<'static, B> {
-        self.machine.state_tree()
-    }
-
-    fn state_tree_mut(&mut self) -> &mut StateTree<'static, B> {
-        self.machine.state_tree_mut()
-    }
-}
-
-pub struct InvocationResult {
-    return_bytes: Vec<u8>,
-    error: Option<ActorError>,
-}
-
-impl<B, E> ActorOps for DefaultKernel<B, E>
-where
-    B: 'static + Blockstore,
-    E: 'static + Externs,
-{
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
-        todo!()
-    }
-
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
-        todo!()
-    }
-
-    fn new_actor_address(&mut self) -> Result<Address, ActorError> {
-        todo!()
-    }
-
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
-        todo!()
-    }
 }
 
 impl<B, E> CircSupplyOps for DefaultKernel<B, E>
@@ -123,52 +76,12 @@ where
         todo!()
     }
 
-    /// Computes sector [Cid] from proof type and pieces for verification.
     fn compute_unsealed_sector_cid(
         &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        let ssize = proof_type.sector_size()? as u64;
-
-        let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
-
-        let pssize = PaddedPieceSize(ssize);
-        if pieces.is_empty() {
-            all_pieces.push(proofs::PieceInfo {
-                size: pssize.unpadded().into(),
-                commitment: zero_piece_commitment(pssize),
-            })
-        } else {
-            // pad remaining space with 0 piece commitments
-            let mut sum = PaddedPieceSize(0);
-            let pad_to = |pads: Vec<PaddedPieceSize>,
-                          all_pieces: &mut Vec<proofs::PieceInfo>,
-                          sum: &mut PaddedPieceSize| {
-                for p in pads {
-                    all_pieces.push(proofs::PieceInfo {
-                        size: p.unpadded().into(),
-                        commitment: zero_piece_commitment(p),
-                    });
-
-                    sum.0 += p.0;
-                }
-            };
-            for p in pieces {
-                let (ps, _) = get_required_padding(sum, p.size);
-                pad_to(ps, &mut all_pieces, &mut sum);
-
-                all_pieces.push(proofs::PieceInfo::try_from(p)?);
-                sum.0 += p.size.0;
-            }
-
-            let (ps, _) = get_required_padding(sum, pssize);
-            pad_to(ps, &mut all_pieces, &mut sum);
-        }
-
-        let comm_d = compute_comm_d(proof_type.try_into()?, &all_pieces)?;
-
-        Ok(data_commitment_v1_to_cid(&comm_d)?)
+        todo!()
     }
 
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()> {
@@ -192,39 +105,12 @@ where
         &self,
         vis: &[(&Address, &Vec<SealVerifyInfo>)],
     ) -> Result<HashMap<Address, Vec<bool>>> {
-        let mut verified = HashMap::new();
-        for (&addr, s) in vis.iter() {
-            let vals = s.iter().map(|si| self.verify_seal(si).is_ok()).collect();
-            verified.insert(addr, vals);
-        }
-        Ok(verified)
+        todo!()
     }
 
     fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()> {
         todo!()
     }
-}
-
-fn get_required_padding(
-    old_length: PaddedPieceSize,
-    new_piece_length: PaddedPieceSize,
-) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
-    let mut sum = 0;
-
-    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
-    let n = to_fill.count_ones();
-    let mut pad_pieces = Vec::with_capacity(n as usize);
-    for _ in 0..n {
-        let next = to_fill.trailing_zeros();
-        let p_size = 1 << next;
-        to_fill ^= p_size;
-
-        let padded = PaddedPieceSize(p_size);
-        pad_pieces.push(padded);
-        sum += padded.0;
-    }
-
-    (pad_pieces, PaddedPieceSize(sum))
 }
 
 impl<B, E> GasOps for DefaultKernel<B, E>
@@ -233,6 +119,32 @@ where
     E: 'static + Externs,
 {
     fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError> {
+        todo!()
+    }
+}
+
+impl<B, E> MessageOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn caller(&self) -> ActorID {
+        todo!()
+    }
+
+    fn receiver(&self) -> ActorID {
+        todo!()
+    }
+
+    fn method_number(&self) -> MethodNum {
+        todo!()
+    }
+
+    fn method_params(&self) -> BlockId {
+        todo!()
+    }
+
+    fn value_received(&self) -> u128 {
         todo!()
     }
 }
@@ -279,12 +191,24 @@ where
     }
 }
 
-impl<B, E> SendOps for DefaultKernel<B, E>
+impl<B, E> SelfOps for DefaultKernel<B, E>
 where
     B: 'static + Blockstore,
     E: 'static + Externs,
 {
-    fn send(&mut self, message: Message) -> Result<RawBytes, ActorError> {
+    fn root(&self) -> Cid {
+        todo!()
+    }
+
+    fn set_root(&mut self, root: Cid) -> Result<ActorError> {
+        todo!()
+    }
+
+    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
+        todo!()
+    }
+
+    fn self_destruct(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
         todo!()
     }
 }
@@ -328,171 +252,38 @@ where
     E: Externs + 'static,
 {
     /// Starts an unattached kernel.
-    pub fn unattached() -> Self {
+    // TODO: combine the gas tracker and the machine into some form of "call stack context"?
+    pub fn new(
+        mgr: CallManager<B, E>,
+        from: ActorID,
+        to: ActorID,
+        method: MethodId,
+        value_received: TokenAmount,
+    ) -> Self {
         DefaultKernel {
-            attachment: MapCell::empty(),
+            call_manager: MapCell::new(mgr),
             blocks: BlockRegistry::new(),
             return_stack: Default::default(),
+            from,
+            to,
+            method,
+            value_received,
         }
     }
 
-    /// Execute initiates a call stack to handle a message, using the provided
-    /// Machine and pre-initialized GasTracker. This method will not charge
-    /// the cost of message inclusion. So for correctness, the caller must have
-    /// charged that cost before calling this method.
-    ///
-    /// This method consumes all arguments provided, including itself. This
-    /// means that a DefaultKernel can be used only once.
-    ///
-    /// Because it's likely that the application will want to apply more than
-    /// one message, ownership of the Machine is relinquished and returned once
-    /// the call stack concludes.
-    pub fn execute(
-        mut self,
-        machine: Box<Machine<B, E>>,
-        gas_tracker: GasTracker,
-        bytecode: &[u8],
-        mut msg: Message,
-    ) -> (Result<InvocationResult>, Box<Machine<B, E>>) {
-        // TODO check that not reentrant into the same kernel (i.e. we can't run
-        //  another invocation container without stashing and recursing).
-
-        assert!(self.attachment.is_empty());
-
-        // This is a cheap operation as it doesn't actually clone the struct,
-        // it returns a referenced copy.
-        let engine = machine.engine().clone();
-
-        msg = self.replace_id_addrs(msg);
-
-        // Inject the message parameters as a block in the block registry.
-        let params_block_id = match self.block_create(DAG_CBOR, msg.params.bytes()) {
-            Ok(v) => v,
-            Err(e) => return (Err(e.into()), machine),
-        };
-
-        let attachment = KernelAttachment {
-            machine,
-            gas_tracker: Box::new(gas_tracker),
-            message: msg,
-        };
-
-        self.attachment.set(attachment);
-        let mut store = Store::new(&engine, self);
-
-        let result = || -> Result<InvocationResult> {
-            // Instantiate the module with the supplied bytecode.
-            let module = Module::new(&engine, bytecode)?;
-
-            // Create a new linker.
-            // TODO: move this to arguments so it can be reused and supplied by the machine?
-            let mut linker = Linker::new(&engine);
-            bind_syscalls(&mut linker);
-
-            let instance = linker.instantiate(&mut store, &module)?;
-            let invoke = instance.get_typed_func(&mut store, "invoke")?;
-            let (return_block_id,): (u32,) = invoke.call(&mut store, (params_block_id))?;
-
-            Ok(InvocationResult {
-                return_bytes: vec![],
-                error: None,
-            })
-        }();
-
-        // Destroy the store by consuming it, we're done with it; get the Machine back out.
-        let k = store.into_data();
-        let machine = k.attachment.take().machine;
-
-        (result, machine)
+    pub fn take(self) -> CallManager<B, E> {
+        self.call_manager.take()
     }
-
-    // TODO: We should be constructing the kernel with pre-looked-up addresses. That'll make this
-    // much easier.
-    fn replace_id_addrs(&mut self, mut msg: Message) -> Message {
-        let state_tree = self.attachment.state_tree();
-
-        msg.from = state_tree
-            .lookup_id(&msg.from)
-            .expect("failed to convert from address to id address")
-            .expect("from address has no id");
-
-        msg.to = state_tree
-            .lookup_id(&msg.to)
-            .expect("failed to convert to address to id address")
-            .expect("to address has no id");
-
-        msg
-    }
-
-    //     pub fn try_create_account_actor(
-    //         &mut self,
-    //         addr: &Address,
-    //     ) -> Result<(ActorState, Address), ActorError> {
-    //         let attachment = self.attachment.as_mut().expect("unattached kernel");
-    //         let machine: &mut Machine<B, E> = attachment.machine.borrow_mut();
-    //         let gas_tracker: &mut GasTracker = attachment.gas_tracker.borrow_mut();
-    //
-    //         let mut state_tree = machine.state_tree_mut();
-    //
-    //         gas_tracker.charge_gas(machine.context().price_list().on_create_actor())?;
-    //
-    //         if addr.is_bls_zero_address() {
-    //             actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor");
-    //         }
-    //
-    //         let addr_id = state_tree
-    //             .register_new_address(addr)
-    //             .map_err(|e| e.downcast_fatal("failed to register new address"))?;
-    //
-    //         let act = crate::account_actor::ZERO_STATE.clone();
-    //
-    //         state_tree
-    //             .set_actor(&addr_id, act)
-    //             .map_err(|e| e.downcast_fatal("failed to set actor"))?;
-    //
-    //         let params = RawBytes::serialize(&addr).map_err(|e| {
-    //             actor_error!(fatal(
-    //                 "couldn't serialize params for actor construction: {:?}",
-    //                 e
-    //             ))
-    //         })?;
-    //
-    //         let msg = Message {
-    //             from: *crate::account_actor::SYSTEM_ACTOR_ADDR,
-    //             to: addr.clone(),
-    //             method_num: fvm_shared::METHOD_CONSTRUCTOR,
-    //             value: TokenAmount::from(0_u32),
-    //             params,
-    //             gas_limit: gas_tracker.gas_available(),
-    //             version: Default::default(),
-    //             sequence: Default::default(),
-    //             gas_fee_cap: Default::default(),
-    //             gas_premium: Default::default(),
-    //         };
-    //
-    //         let mut next_kernel = self.stash(msg);
-    //         next_kernel.run_invocation_container(&[]); // TODO get bytecode.
-    //         *self = *next_kernel.finish().expect("missing previous kernel"); // restore our kernel.
-    //
-    //         // TODO referencing the old state_tree is safe?
-    //         let act = state_tree
-    //             .get_actor(&addr_id)
-    //             .map_err(|e| e.downcast_fatal("failed to get actor"))?
-    //             .ok_or_else(|| actor_error!(fatal("failed to retrieve created actor state")))?;
-    //
-    //         Ok((act, addr_id))
-    //     }
 }
 
-impl<B, E> SelfOps for DefaultKernel<B, E>
+impl<B, E> ActorOps for DefaultKernel<B, E>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
     fn root(&self) -> Cid {
-        let attachment = &self.attachment;
-        let addr = attachment.message().to;
-        let state_tree = attachment.state_tree();
+        let addr = Address::new_id(self.to);
+        let state_tree = self.call_manager.state_tree();
 
         state_tree
             .get_actor(&addr)
@@ -503,8 +294,8 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let addr = self.attachment.message().to;
-        let state_tree = self.attachment.state_tree_mut();
+        let addr = Address::new_id(self.to);
+        let state_tree = self.call_manager.state_tree_mut();
 
         state_tree
             .mutate_actor(&addr, |actor_state| {
@@ -522,8 +313,7 @@ where
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId, BlockError> {
         let data = self
-            .attachment
-            .machine()
+            .call_manager
             .blockstore()
             .get(cid)
             .map_err(|e| BlockError::Internal(e.into()))?
@@ -558,10 +348,7 @@ where
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
-        // self.attachment
-        //     .as_ref()
-        //     .expect("no attachment")
-        //     .machine
+        // self.call_manager
         //     .blockstore()
         //     .put(&k, block.data())
         //     .map_err(|e| BlockError::Internal(Box::new(e)))?;
@@ -587,40 +374,35 @@ where
     }
 }
 
-impl<B, E> MessageOps for DefaultKernel<B, E>
+impl<B, E> InvocationOps for DefaultKernel<B, E>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
     fn method_number(&self) -> MethodId {
-        self.attachment.message().method_num
+        self.method_number()
     }
 
+    // TODO: Remove this? We're currently passing it to invoke.
     fn method_params(&self) -> BlockId {
         // TODO
         0
     }
 
     fn caller(&self) -> ActorID {
-        self.attachment
-            .message()
-            .from
-            .id()
-            .expect("invocation from address was not an ID address")
+        self.from
     }
 
     fn receiver(&self) -> ActorID {
-        self.attachment
-            .message()
-            .to
-            .id()
-            .expect("invocation to address was not an ID address")
+        self.to
     }
 
     fn value_received(&self) -> u128 {
-        // TODO @steb
-        // self.invocation_msg.value.into()
-        0
+        // TODO: we shouldn't have to do this conversion here.
+        self.value_received
+            .clone()
+            .try_into()
+            .expect("value received exceeds max filecoin")
     }
 }
 
@@ -642,5 +424,33 @@ where
         let len = into.len().min(ret.len());
         into.copy_from_slice(&ret[..len]);
         len as u64
+    }
+}
+
+impl<B, E> SendOps for DefaultKernel<B, E>
+where
+    B: Blockstore + 'static,
+    E: Externs + 'static,
+{
+    /// XXX: is message the right argument? Most of the fields are unused and unchecked.
+    /// Also, won't the params be a block ID?
+    fn send(&mut self, message: Message) -> anyhow::Result<RawBytes, ActorError> {
+        self.call_manager.map_mut(|cm| {
+            let (res, cm) = cm.send(
+                message.to,
+                message.method_num,
+                message.params,
+                message.value,
+            );
+            // Do something with the result.
+            (cm, res)
+        })
+    }
+}
+
+// TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
+impl Into<ActorError> for BlockError {
+    fn into(self) -> ActorError {
+        ActorError::new_fatal(self.to_string())
     }
 }

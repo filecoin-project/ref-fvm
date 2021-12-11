@@ -3,15 +3,16 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::error::Error as StdError;
+use std::error::Error;
 
 use cid::{multihash, Cid};
 
-use fvm_shared::address::{Address, Protocol};
+use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
+use fvm_shared::ActorID;
 use ipld_blockstore::BlockStore;
 
 use crate::adt::Map;
@@ -37,8 +38,8 @@ struct StateSnapshots {
 /// State snap shot layer
 #[derive(Debug, Default)]
 struct StateSnapLayer {
-    actors: RefCell<HashMap<Address, Option<ActorState>>>,
-    resolve_cache: RefCell<HashMap<Address, Address>>,
+    actors: RefCell<HashMap<ActorID, Option<ActorState>>>,
+    resolve_cache: RefCell<HashMap<Address, ActorID>>,
 }
 
 impl StateSnapshots {
@@ -53,7 +54,7 @@ impl StateSnapshots {
         self.layers.push(StateSnapLayer::default())
     }
 
-    fn drop_layer(&mut self) -> Result<(), String> {
+    fn drop_layer(&mut self) -> Result<(), Box<dyn Error>> {
         self.layers.pop().ok_or_else(|| {
             format!(
                 "drop layer failed to index snapshot layer at index {}",
@@ -64,7 +65,7 @@ impl StateSnapshots {
         Ok(())
     }
 
-    fn merge_last_layer(&mut self) -> Result<(), String> {
+    fn merge_last_layer(&mut self) -> Result<(), Box<dyn Error>> {
         self.layers
             .get(&self.layers.len() - 2)
             .ok_or_else(|| {
@@ -102,7 +103,10 @@ impl StateSnapshots {
         self.drop_layer()
     }
 
-    fn resolve_address(&self, addr: &Address) -> Option<Address> {
+    fn resolve_address(&self, addr: &Address) -> Option<ActorID> {
+        if let &Payload::ID(id) = addr.payload() {
+            return Some(id);
+        }
         for layer in self.layers.iter().rev() {
             if let Some(res_addr) = layer.resolve_cache.borrow().get(addr).cloned() {
                 return Some(res_addr);
@@ -112,11 +116,7 @@ impl StateSnapshots {
         None
     }
 
-    fn cache_resolve_address(
-        &self,
-        addr: Address,
-        resolve_addr: Address,
-    ) -> Result<(), Box<dyn StdError>> {
+    fn cache_resolve_address(&self, addr: Address, id: ActorID) -> Result<(), Box<dyn Error>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -127,14 +127,14 @@ impl StateSnapshots {
             })?
             .resolve_cache
             .borrow_mut()
-            .insert(addr, resolve_addr);
+            .insert(addr, id);
 
         Ok(())
     }
 
-    fn get_actor(&self, addr: &Address) -> Option<ActorState> {
+    fn get_actor(&self, id: ActorID) -> Option<ActorState> {
         for layer in self.layers.iter().rev() {
-            if let Some(state) = layer.actors.borrow().get(addr) {
+            if let Some(state) = layer.actors.borrow().get(&id) {
                 return state.clone();
             }
         }
@@ -142,7 +142,7 @@ impl StateSnapshots {
         None
     }
 
-    fn set_actor(&self, addr: Address, actor: ActorState) -> Result<(), Box<dyn StdError>> {
+    fn set_actor(&self, id: ActorID, actor: ActorState) -> Result<(), Box<dyn Error>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -153,11 +153,11 @@ impl StateSnapshots {
             })?
             .actors
             .borrow_mut()
-            .insert(addr, Some(actor));
+            .insert(id, Some(actor));
         Ok(())
     }
 
-    fn delete_actor(&self, addr: Address) -> Result<(), Box<dyn StdError>> {
+    fn delete_actor(&self, id: ActorID) -> Result<(), Box<dyn Error>> {
         self.layers
             .last()
             .ok_or_else(|| {
@@ -168,7 +168,7 @@ impl StateSnapshots {
             })?
             .actors
             .borrow_mut()
-            .insert(addr, None);
+            .insert(id, None);
 
         Ok(())
     }
@@ -178,7 +178,7 @@ impl<'db, S> StateTree<'db, S>
 where
     S: BlockStore,
 {
-    pub fn new(store: &'db S, version: StateTreeVersion) -> Result<Self, Box<dyn StdError>> {
+    pub fn new(store: &'db S, version: StateTreeVersion) -> Result<Self, Box<dyn Error>> {
         let info = match version {
             StateTreeVersion::V0 => None,
             StateTreeVersion::V1
@@ -202,7 +202,7 @@ where
     }
 
     /// Constructor for a hamt state tree given an IPLD store
-    pub fn new_from_root(store: &'db S, c: &Cid) -> Result<Self, Box<dyn StdError>> {
+    pub fn new_from_root(store: &'db S, c: &Cid) -> Result<Self, Box<dyn Error>> {
         // Try to load state root, if versioned
         let (version, info, actors) = if let Ok(Some(StateRoot {
             version,
@@ -241,45 +241,41 @@ where
     }
 
     /// Get actor state from an address. Will be resolved to ID address.
-    pub fn get_actor(&self, addr: &Address) -> Result<Option<ActorState>, Box<dyn StdError>> {
-        let addr = match self.lookup_id(addr)? {
-            Some(addr) => addr,
+    pub fn get_actor(&self, addr: &Address) -> Result<Option<ActorState>, Box<dyn Error>> {
+        let id = match self.lookup_id(addr)? {
+            Some(id) => id,
             None => return Ok(None),
         };
 
         // Check cache for actor state
-        if let Some(actor_state) = self.snaps.get_actor(&addr) {
+        if let Some(actor_state) = self.snaps.get_actor(id) {
             return Ok(Some(actor_state));
         }
 
         // if state doesn't exist, find using hamt
-        let act = self.hamt.get(&addr.to_bytes())?.cloned();
+        let act = self.hamt.get(&Address::new_id(id).to_bytes())?.cloned();
 
         // Update cache if state was found
         if let Some(act_s) = &act {
-            self.snaps.set_actor(addr, act_s.clone())?;
+            self.snaps.set_actor(id, act_s.clone())?;
         }
 
         Ok(act)
     }
 
     /// Set actor state for an address. Will set state at ID address.
-    pub fn set_actor(
-        &mut self,
-        addr: &Address,
-        actor: ActorState,
-    ) -> Result<(), Box<dyn StdError>> {
-        let addr = self
+    pub fn set_actor(&mut self, addr: &Address, actor: ActorState) -> Result<(), Box<dyn Error>> {
+        let id = self
             .lookup_id(addr)?
             .ok_or_else(|| format!("Resolution lookup failed for {}", addr))?;
 
-        self.snaps.set_actor(addr, actor)
+        self.snaps.set_actor(id, actor)
     }
 
     /// Get an ID address from any Address
-    pub fn lookup_id(&self, addr: &Address) -> Result<Option<Address>, Box<dyn StdError>> {
-        if addr.protocol() == Protocol::ID {
-            return Ok(Some(*addr));
+    pub fn lookup_id(&self, addr: &Address) -> Result<Option<ActorID>, Box<dyn Error>> {
+        if let &Payload::ID(id) = addr.payload() {
+            return Ok(Some(id));
         }
 
         if let Some(res_address) = self.snaps.resolve_address(addr) {
@@ -288,7 +284,7 @@ where
 
         let (state, _) = InitActorState::load(&self)?;
 
-        let a: Address = match state
+        let a = match state
             .resolve_address(self.store(), addr)
             .map_err(|e| format!("Could not resolve address: {:?}", e))?
         {
@@ -302,7 +298,7 @@ where
     }
 
     /// Delete actor for an address. Will resolve to ID address to delete.
-    pub fn delete_actor(&mut self, addr: &Address) -> Result<(), Box<dyn StdError>> {
+    pub fn delete_actor(&mut self, addr: &Address) -> Result<(), Box<dyn Error>> {
         let addr = self
             .lookup_id(addr)?
             .ok_or_else(|| format!("Resolution lookup failed for {}", addr))?;
@@ -314,9 +310,9 @@ where
     }
 
     /// Mutate and set actor state for an Address.
-    pub fn mutate_actor<F>(&mut self, addr: &Address, mutate: F) -> Result<(), Box<dyn StdError>>
+    pub fn mutate_actor<F>(&mut self, addr: &Address, mutate: F) -> Result<(), Box<dyn Error>>
     where
-        F: FnOnce(&mut ActorState) -> Result<(), String>,
+        F: FnOnce(&mut ActorState) -> Result<(), Box<dyn Error>>,
     {
         // Retrieve actor state from address
         let mut act: ActorState = self
@@ -330,7 +326,7 @@ where
     }
 
     /// Register a new address through the init actor.
-    pub fn register_new_address(&mut self, addr: &Address) -> Result<Address, Box<dyn StdError>> {
+    pub fn register_new_address(&mut self, addr: &Address) -> Result<ActorID, Box<dyn Error>> {
         let (mut state, mut actor) = InitActorState::load(&self)?;
 
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
@@ -344,25 +340,25 @@ where
     }
 
     /// Add snapshot layer to stack.
-    pub fn snapshot(&mut self) -> Result<(), String> {
+    pub fn snapshot(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.add_layer();
         Ok(())
     }
 
     /// Merges last two snap shot layers.
-    pub fn clear_snapshot(&mut self) -> Result<(), String> {
+    pub fn clear_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.merge_last_layer()
     }
 
     /// Revert state cache by removing last snapshot
-    pub fn revert_to_snapshot(&mut self) -> Result<(), String> {
+    pub fn revert_to_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.drop_layer()?;
         self.snaps.add_layer();
         Ok(())
     }
 
     /// Flush state tree and return Cid root.
-    pub fn flush(&mut self) -> Result<Cid, Box<dyn StdError>> {
+    pub fn flush(&mut self) -> Result<Cid, Box<dyn Error>> {
         if self.snaps.layers.len() != 1 {
             return Err(format!(
                 "tried to flush state tree with snapshots on the stack: {:?}",
@@ -371,7 +367,8 @@ where
             .into());
         }
 
-        for (addr, sto) in self.snaps.layers[0].actors.borrow().iter() {
+        for (&id, sto) in self.snaps.layers[0].actors.borrow().iter() {
+            let addr = Address::new_id(id);
             match sto {
                 None => {
                     self.hamt.delete(&addr.to_bytes())?;
@@ -401,9 +398,9 @@ where
         }
     }
 
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn Error>>
     where
-        F: FnMut(Address, &ActorState) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(Address, &ActorState) -> Result<(), Box<dyn Error>>,
         S: BlockStore,
     {
         self.hamt.for_each(|k, v| f(Address::from_bytes(&k.0)?, v))
@@ -435,9 +432,9 @@ impl ActorState {
         }
     }
     /// Safely deducts funds from an Actor
-    pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<(), String> {
+    pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<(), Box<dyn Error>> {
         if &self.balance < amt {
-            return Err("Not enough funds".to_owned());
+            return Err("Not enough funds".into());
         }
         self.balance -= amt;
 

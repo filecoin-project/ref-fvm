@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use cid::Cid;
 
+use crate::message::Message;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -20,8 +21,6 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
 pub use mapcell::*;
-
-use crate::message::Message;
 
 mod blocks;
 mod commcid;
