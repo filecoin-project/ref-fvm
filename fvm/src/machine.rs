@@ -162,15 +162,11 @@ where
         let ser_msg = t!(msg.marshal_cbor());
         let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
-        // Validate if the message
-        // TODO I don't like the Option return value here.
-        if let Some(ret) = self.validate_message(&msg, inclusion_cost.total()) {
-            return (Ok(ret), self);
-        }
-
-        // TODO we calculate this twice, in validate_message and here.
-        // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap * msg.gas_limit;
+        // Validate if the message was correct, and extract some preliminary data from it.
+        let (receiver_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
+            Ok((receiver_id, gas_cost)) => (receiver_id, gas_cost),
+            Err(apply_ret) => return (Ok(apply_ret), self),
+        };
 
         // Deduct message inclusion gas cost and increment sequence.
         // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
@@ -183,12 +179,15 @@ where
             })
             .map_err(|e| anyhow!(e.to_string())));
 
-        t!(self.state_tree.snapshot().map_err(anyhow::Error::msg));
+        t!(self
+            .state_tree
+            .snapshot()
+            .map_err(|e| anyhow!(e.to_string())));
 
         todo!("resolve actor ID");
 
         /// TODO this requires the ActorID; need to resolve it first.
-        let mut cm = CallManager::new(self, 0, msg.gas_limit);
+        let mut cm = CallManager::new(self, receiver_id, msg.gas_limit);
         t!(cm.charge_gas(inclusion_cost));
 
         // Invoke the message.
@@ -196,7 +195,21 @@ where
         let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
         let (gas_used, s) = cm.finish();
         self = s;
-        let result = t!(res);
+
+        // Extract the exit code and build the result of the message application.
+        let exit_code = res.map_err(|e| e.exit_code()).err().unwrap_or(ExitCode::Ok);
+        let ret = ApplyRet {
+            msg_receipt: Receipt {
+                exit_code,
+                return_data: res.ok().unwrap_or_default(),
+                gas_used,
+            },
+            act_error: res.err(),
+            penalty: Default::default(),   // TODO
+            miner_tip: Default::default(), // TODO
+        };
+
+        (Ok(ret), self)
 
         // XXXX steb left off here
 
@@ -325,86 +338,81 @@ where
         // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
         // TODO pull the receipt from the CallStack and return it.
         // Ok(Default::default())
-        todo!()
     }
 
-    // TODO probably should return a validation failure.
-    fn validate_message(&mut self, msg: &Message, cost_total: i64) -> Option<ApplyRet> {
+    fn validate_message(
+        &mut self,
+        msg: &Message,
+        cost_total: i64,
+    ) -> Result<(ActorID, TokenAmount), ApplyRet> {
         // Verify the cost of the message is not over the message gas limit.
-        // TODO handle errors properly
         if cost_total > msg.gas_limit {
-            let err =
-                actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit);
-            return Some(ApplyRet::prevalidation_fail(
+            return Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrOutOfGas,
                 &self.context.base_fee * cost_total,
-                Some(err),
+                Some(
+                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", cost_total, msg.gas_limit),
+                ),
             ));
         }
 
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
-        let sender = match self.state_tree.get_actor(&msg.from) {
-            Ok(Some(sender)) => sender,
-            _ => {
-                return Some(ApplyRet {
-                    msg_receipt: Receipt {
-                        return_data: RawBytes::default(),
-                        exit_code: ExitCode::SysErrSenderInvalid,
-                        gas_used: 0,
-                    },
-                    penalty: miner_penalty_amount,
-                    act_error: Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
-                    miner_tip: BigInt::zero(),
-                });
-            }
-        };
+        let sender = self
+            .state_tree
+            .get_actor(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
+
+        let sender_id = self
+            .state_tree
+            .lookup_id(&msg.from)
+            .map_err(|e| {
+                ApplyRet::prevalidation_fail(
+                    ExitCode::SysErrSenderInvalid,
+                    miner_penalty_amount.clone(),
+                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                )
+            })?
+            .unwrap();
 
         // If sender is not an account actor, the message is invalid.
         if !actor::is_account_actor(&sender.code) {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
+            ));
         };
 
         // Check sequence is correct
         if msg.sequence != sender.sequence {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
-                    "actor sequence invalid: {} != {}", msg.sequence, sender.sequence)),
-                miner_tip: BigInt::zero(),
-            });
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(
+                    actor_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
+                ),
+            ));
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
         if sender.balance < gas_cost {
-            return Some(ApplyRet {
-                msg_receipt: Receipt {
-                    return_data: RawBytes::default(),
-                    exit_code: ExitCode::SysErrSenderStateInvalid,
-                    gas_used: 0,
-                },
-                penalty: miner_penalty_amount,
-                act_error: Some(actor_error!(SysErrSenderStateInvalid;
+            return Err(ApplyRet::prevalidation_fail(
+                ExitCode::SysErrSenderStateInvalid,
+                miner_penalty_amount,
+                Some(actor_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
-                miner_tip: BigInt::zero(),
-            });
-        };
-        None
+            ));
+        }
+        Ok((sender_id, gas_cost))
     }
 
     pub fn context(&self) -> &MachineContext {

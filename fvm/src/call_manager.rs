@@ -14,7 +14,7 @@ use wasmtime::{Linker, Module, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{default::InvocationResult, BlockOps, MethodId},
+    kernel::{BlockOps, MethodId},
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -90,20 +90,15 @@ where
             ))
         }));
 
-        match self.send_explicit(
+        let (res, s) = self.send_explicit(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             params,
             TokenAmount::from(0u32),
-        ) {
-            // Succeeded
-            (Ok(InvocationResult { error: None, .. }), s) => (Ok(id), s),
-            // Internal failure.
-            (Ok(InvocationResult { error: Some(e), .. }), s) => (Err(e), s),
-            // Failed for some other reason.
-            (Err(e), s) => (Err(e), s),
-        }
+        );
+
+        (res.map(|_| id), s)
     }
 
     /// Send a message to an actor.
@@ -117,7 +112,7 @@ where
         // TODO: in the future, we'll need to pass more than one block as params.
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<RawBytes, ActorError>, Self) {
         // Eew. NOOOOO This is horrible.
         // 1. We need better error conversions.
         // 2. NOOOOOOOOOOOOO
@@ -127,6 +122,7 @@ where
             _ => (),
         };
 
+        // Call the target actor; revert the state tree changes if the call fails.
         let (res, s) = self.send_inner(to, method, params, value);
         self = s;
         match if res.is_ok() {
@@ -147,7 +143,7 @@ where
         // TODO: in the future, we'll need to pass more than one block as params.
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<RawBytes, ActorError>, Self) {
         macro_rules! t {
             ($e:expr) => {
                 match $e {
@@ -197,7 +193,7 @@ where
         method: MethodId,
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<RawBytes, ActorError>, Self) {
         let prev_from = self.from;
         self.from = from;
         let (res, mut s) = self.send_resolved(to, method, params, value);
@@ -214,7 +210,7 @@ where
         method: MethodId,
         params: RawBytes,
         value: TokenAmount,
-    ) -> (Result<InvocationResult, ActorError>, Self) {
+    ) -> (Result<RawBytes, ActorError>, Self) {
         macro_rules! t {
             ($e:expr) => {
                 match $e {
@@ -292,13 +288,7 @@ where
         let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
         ret.truncate(read as usize);
 
-        (
-            Ok(InvocationResult {
-                return_bytes: ret,
-                error: None,
-            }),
-            kernel.take(),
-        )
+        (Ok(RawBytes::new(ret)), kernel.take())
     }
 
     /// Finishes execution, returning the gas used and the machine.
