@@ -340,21 +340,18 @@ where
     }
 
     /// Add snapshot layer to stack.
-    pub fn snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn snapshot(&mut self) {
         self.snaps.add_layer();
-        Ok(())
     }
 
-    /// Merges last two snap shot layers.
-    pub fn clear_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Commit the top snapshot.
+    pub fn commit_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.merge_last_layer()
     }
 
-    /// Revert state cache by removing last snapshot
-    pub fn revert_to_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
-        self.snaps.drop_layer()?;
-        self.snaps.add_layer();
-        Ok(())
+    /// Drop the top snapshot.
+    pub fn revert_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+        self.snaps.drop_layer()
     }
 
     /// Flush state tree and return Cid root.

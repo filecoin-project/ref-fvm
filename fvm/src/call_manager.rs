@@ -113,22 +113,17 @@ where
         params: RawBytes,
         value: TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
-        // Eew. NOOOOO This is horrible.
-        // 1. We need better error conversions.
-        // 2. NOOOOOOOOOOOOO
-        // 3. WHYYYYYYYYY!
-        match self.state_tree_mut().snapshot() {
-            Err(e) => return (Err(actor_error!(fatal(e))), self),
-            _ => (),
-        };
+        // TODO: lotus doesn't do snapshots inside send, it does them outside. I prefer it this way,
+        // but there may be reasons...?
+        self.state_tree_mut().snapshot();
 
         // Call the target actor; revert the state tree changes if the call fails.
         let (res, s) = self.send_inner(to, method, params, value);
         self = s;
         match if res.is_ok() {
-            self.state_tree_mut().clear_snapshot()
+            self.state_tree_mut().commit_snapshot()
         } else {
-            self.state_tree_mut().revert_to_snapshot()
+            self.state_tree_mut().revert_snapshot()
         } {
             Ok(()) => (res, self),
             Err(e) => (Err(actor_error!(fatal(e))), self),
