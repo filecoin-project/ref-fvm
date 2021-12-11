@@ -162,8 +162,16 @@ where
         // Charge for including the result.
         // We shouldn't put this here, but this is where we can still account for gas.
         // TODO: Maybe CallManager::finish() should return the GasTracker?
-        res.as_ref()
-            .map(|ret| cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len())));
+        if let Ok(ret) = res.as_ref() {
+            if let Err(e) =
+                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
+            {
+                // No need to charge any gas, we've already charged the _full_ amount.
+                // XXX: But we do need to revert here!!
+                let (_, s) = cm.finish();
+                return (Err(e.into()), s);
+            }
+        }
 
         let (gas_used, s) = cm.finish();
         self = s;
@@ -171,49 +179,17 @@ where
         // Extract the exit code and build the result of the message application.
         let (ret_data, exit_code, err) = match res {
             Ok(ret) => (ret, ExitCode::Ok, None),
-            Err(err) => {
-                if err.is_fatal() {
-                    return (
-                        Err(anyhow!(
-                            "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
-                            msg.from,
-                            msg.to,
-                            msg.sequence,
-                            msg.method_num,
-                            self.epoch,
-                            err
-                        )),
-                        self,
-                    );
-                } else if err.is_ok() {
-                    return (
-                        Err(anyhow!(
-                            "message invocation errored with an ok status: {}",
-                            err
-                        )),
-                        self,
-                    );
-                }
-                (Default::default(), err.exit_code(), Some(err))
-            }
+            Err(err) => (Default::default(), err.exit_code(), Some(err)),
         };
 
-        let ret = ApplyRet {
-            msg_receipt: Receipt {
-                exit_code,
-                return_data: ret_data,
-                gas_used,
-            },
-            act_error: err,
-            penalty: Default::default(),   // TODO
-            miner_tip: Default::default(), // TODO
+        let receipt = Receipt {
+            exit_code,
+            return_data: ret_data,
+            gas_used,
         };
 
         // Finish processing.
-        (
-            self.finish_message(&msg, &ret, &gas_cost).map(|_| ret),
-            self,
-        )
+        (self.finish_message(msg, receipt, err, gas_cost), self)
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -319,10 +295,31 @@ where
 
     pub fn finish_message(
         &mut self,
-        msg: &Message,
-        ret: &ApplyRet,
-        gas_cost: &BigInt,
-    ) -> anyhow::Result<()> {
+        msg: Message,
+        receipt: Receipt,
+        act_err: Option<ActorError>,
+        gas_cost: BigInt,
+    ) -> anyhow::Result<ApplyRet> {
+        // Make sure the actor error is sane.
+        if let Some(err) = &act_err {
+            if err.is_fatal() {
+                return Err(anyhow!(
+                    "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
+                    msg.from,
+                    msg.to,
+                    msg.sequence,
+                    msg.method_num,
+                    self.epoch,
+                    err
+                ));
+            } else if err.is_ok() {
+                return Err(anyhow!(
+                    "message invocation errored with an ok status: {}",
+                    err
+                ));
+            }
+        }
+
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
             base_fee_burn,
@@ -332,7 +329,7 @@ where
             miner_penalty,
             ..
         } = compute_gas_outputs(
-            ret.msg_receipt.gas_used,
+            receipt.gas_used,
             msg.gas_limit,
             &self.context.base_fee,
             &msg.gas_fee_cap,
@@ -364,12 +361,17 @@ where
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;
 
-        if &(&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
+        if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             // XXX: this _is_ a fatal error in the FVM, at the moment at least.
             return Err(anyhow!("Gas handling math is wrong"));
         }
-        todo!()
+        Ok(ApplyRet {
+            msg_receipt: receipt,
+            act_error: act_err,
+            penalty: miner_penalty,
+            miner_tip,
+        })
     }
 
     pub fn context(&self) -> &MachineContext {
