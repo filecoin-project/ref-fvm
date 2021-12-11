@@ -8,14 +8,17 @@ use std::error::Error as StdError;
 use cid::Cid;
 use ipld_blockstore::BlockStore;
 
+use filecoin_proofs_api as proofs;
+use filecoin_proofs_api::seal::compute_comm_d;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::commcid::data_commitment_v1_to_cid;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::piece::{/*zero_piece_commitment, */ PaddedPieceSize, PieceInfo};
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -205,7 +208,7 @@ pub trait Syscalls {
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid, Box<dyn StdError>> {
-        todo!()
+        compute_unsealed_sector_cid(proof_type, pieces)
     }
     /// Verifies a sector seal proof.
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), Box<dyn StdError>>;
@@ -264,4 +267,73 @@ pub enum ConsensusFaultType {
     DoubleForkMining = 1,
     ParentGrinding = 2,
     TimeOffsetMining = 3,
+}
+
+fn get_required_padding(
+    old_length: PaddedPieceSize,
+    new_piece_length: PaddedPieceSize,
+) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
+    let mut sum = 0;
+
+    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
+    let n = to_fill.count_ones();
+    let mut pad_pieces = Vec::with_capacity(n as usize);
+    for _ in 0..n {
+        let next = to_fill.trailing_zeros();
+        let p_size = 1 << next;
+        to_fill ^= p_size;
+
+        let padded = PaddedPieceSize(p_size);
+        pad_pieces.push(padded);
+        sum += padded.0;
+    }
+
+    (pad_pieces, PaddedPieceSize(sum))
+}
+
+/// Computes sector [Cid] from proof type and pieces for verification.
+pub fn compute_unsealed_sector_cid(
+    proof_type: RegisteredSealProof,
+    pieces: &[PieceInfo],
+) -> Result<Cid, Box<dyn StdError>> {
+    let ssize = proof_type.sector_size()? as u64;
+
+    let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+
+    let pssize = PaddedPieceSize(ssize);
+    if pieces.is_empty() {
+        all_pieces.push(proofs::PieceInfo {
+            size: pssize.unpadded().into(),
+            commitment: zero_piece_commitment(pssize),
+        })
+    } else {
+        // pad remaining space with 0 piece commitments
+        let mut sum = PaddedPieceSize(0);
+        let pad_to = |pads: Vec<PaddedPieceSize>,
+                      all_pieces: &mut Vec<proofs::PieceInfo>,
+                      sum: &mut PaddedPieceSize| {
+            for p in pads {
+                all_pieces.push(proofs::PieceInfo {
+                    size: p.unpadded().into(),
+                    commitment: zero_piece_commitment(p),
+                });
+
+                sum.0 += p.0;
+            }
+        };
+        for p in pieces {
+            let (ps, _) = get_required_padding(sum, p.size);
+            pad_to(ps, &mut all_pieces, &mut sum);
+
+            all_pieces.push(proofs::PieceInfo::try_from(p)?);
+            sum.0 += p.size.0;
+        }
+
+        let (ps, _) = get_required_padding(sum, pssize);
+        pad_to(ps, &mut all_pieces, &mut sum);
+    }
+
+    let comm_d = compute_comm_d(proof_type.try_into()?, &all_pieces)?;
+
+    Ok(data_commitment_v1_to_cid(&comm_d)?)
 }
