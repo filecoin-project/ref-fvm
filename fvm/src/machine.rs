@@ -171,11 +171,6 @@ where
             })
             .map_err(|e| anyhow!(e.to_string())));
 
-        t!(self
-            .state_tree
-            .snapshot()
-            .map_err(|e| anyhow!(e.to_string())));
-
         let mut cm = CallManager::new(self, sender_id, msg.gas_limit);
         match cm.charge_gas(inclusion_cost) {
             Err(e) => return (Err(e.into()), cm.finish().1),
