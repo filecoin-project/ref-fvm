@@ -3,11 +3,12 @@
 
 use cid::{Cid, Version};
 
+use fvm_shared::commcid::{FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED};
 use fvm_shared::{
     address::Address,
     bigint::bigint_ser,
     clock::ChainEpoch,
-    commcid2,
+    commcid,
     crypto::signature::Signature,
     econ::TokenAmount,
     encoding::{tuple::*, Cbor},
@@ -20,8 +21,8 @@ use crate::DealWeight;
 pub fn is_piece_cid(c: &Cid) -> bool {
     // TODO: Move FIL_COMMITMENT etc, into a better place
     c.version() == Version::V1
-        && c.codec() == commcid2::FIL_COMMITMENT_UNSEALED
-        && c.hash().code() == commcid2::SHA2_256_TRUNC254_PADDED
+        && c.codec() == FIL_COMMITMENT_UNSEALED
+        && c.hash().code() == SHA2_256_TRUNC254_PADDED
         && c.hash().size() == 32
 }
 

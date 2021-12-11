@@ -42,6 +42,10 @@ pub trait Kernel:
 {
 }
 
+// TODO @raulk: most of these methods should NOT generate an ActorError, since
+//  the errors raised by the impls of these traits are system errors. We need to
+//  segregate the monolithic ActorError into a system error, actor error, and more.
+
 /// Network-related operations.
 pub trait NetworkOps {
     fn network_curr_epoch(&self) -> ChainEpoch;
@@ -67,11 +71,11 @@ pub trait ValidationOps {
 
 /// Accessors to query attributes of the incoming message.
 pub trait MessageOps {
-    fn caller(&self) -> ActorID;
-    fn receiver(&self) -> ActorID;
-    fn method_number(&self) -> MethodNum;
-    fn method_params(&self) -> BlockId;
-    fn value_received(&self) -> u128;
+    fn msg_caller(&self) -> ActorID;
+    fn msg_receiver(&self) -> ActorID;
+    fn msg_method_number(&self) -> MethodNum;
+    fn msg_method_params(&self) -> BlockId;
+    fn msg_value_received(&self) -> u128;
 }
 
 /// The IPLD subset of the kernel.
@@ -117,7 +121,7 @@ pub trait SelfOps: BlockOps {
     /// Update the state-root.
     ///
     /// This method will fail if the new state-root isn't reachable.
-    fn set_root(&mut self, root: Cid) -> Result<ActorError>;
+    fn set_root(&mut self, root: Cid) -> Result<(), ActorError>;
 
     /// The balance of the receiver.
     fn current_balance(&self) -> Result<TokenAmount, ActorError>;

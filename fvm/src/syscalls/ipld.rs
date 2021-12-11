@@ -44,7 +44,9 @@ pub fn get_root(caller: Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> 
 pub fn set_root(caller: Caller<'_, impl Kernel>, cid: u32) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid)?;
-    ctx.data_mut().set_root(cid)?;
+    ctx.data_mut()
+        .set_root(cid)
+        .map_err(|e| Trap::new(e.msg()))?; // TODO SYS_ERR this needs to be a system error
     Ok(())
 }
 

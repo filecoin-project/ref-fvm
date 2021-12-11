@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
+use std::ops::Deref;
 
 use actor::ActorDowncast;
 use anyhow::{anyhow, Result};
@@ -33,7 +34,7 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     // preloaded into the block registry.
     from: ActorID,
     to: ActorID,
-    method: MethodId,
+    method: MethodNum,
     value_received: TokenAmount,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
@@ -123,32 +124,6 @@ where
     }
 }
 
-impl<B, E> MessageOps for DefaultKernel<B, E>
-where
-    B: 'static + Blockstore,
-    E: 'static + Externs,
-{
-    fn caller(&self) -> ActorID {
-        todo!()
-    }
-
-    fn receiver(&self) -> ActorID {
-        todo!()
-    }
-
-    fn method_number(&self) -> MethodNum {
-        todo!()
-    }
-
-    fn method_params(&self) -> BlockId {
-        todo!()
-    }
-
-    fn value_received(&self) -> u128 {
-        todo!()
-    }
-}
-
 impl<B, E> NetworkOps for DefaultKernel<B, E>
 where
     B: 'static + Blockstore,
@@ -191,28 +166,6 @@ where
     }
 }
 
-impl<B, E> SelfOps for DefaultKernel<B, E>
-where
-    B: 'static + Blockstore,
-    E: 'static + Externs,
-{
-    fn root(&self) -> Cid {
-        todo!()
-    }
-
-    fn set_root(&mut self, root: Cid) -> Result<ActorError> {
-        todo!()
-    }
-
-    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
-        todo!()
-    }
-
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
-        todo!()
-    }
-}
-
 impl<B, E> ValidationOps for DefaultKernel<B, E>
 where
     B: 'static + Blockstore,
@@ -237,6 +190,28 @@ where
     }
 }
 
+impl<B, E> ActorOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
+        todo!()
+    }
+
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
+        todo!()
+    }
+
+    fn new_actor_address(&mut self) -> Result<Address, ActorError> {
+        todo!()
+    }
+
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
+        todo!()
+    }
+}
+
 // Even though all children traits are implemented, Rust needs to know that the
 // supertrait is implemented too.
 impl<B, E> Kernel for DefaultKernel<B, E>
@@ -257,7 +232,7 @@ where
         mgr: CallManager<B, E>,
         from: ActorID,
         to: ActorID,
-        method: MethodId,
+        method: MethodNum,
         value_received: TokenAmount,
     ) -> Self {
         DefaultKernel {
@@ -276,10 +251,10 @@ where
     }
 }
 
-impl<B, E> ActorOps for DefaultKernel<B, E>
+impl<B, E> SelfOps for DefaultKernel<B, E>
 where
-    B: Blockstore + 'static,
-    E: Externs + 'static,
+    B: 'static + Blockstore,
+    E: 'static + Externs,
 {
     fn root(&self) -> Cid {
         let addr = Address::new_id(self.to);
@@ -293,7 +268,7 @@ where
             .clone()
     }
 
-    fn set_root(&mut self, new: Cid) -> Result<()> {
+    fn set_root(&mut self, new: Cid) -> Result<(), ActorError> {
         let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree_mut();
 
@@ -302,7 +277,15 @@ where
                 actor_state.state = new;
                 Ok(())
             })
-            .map_err(|e| anyhow!(e.to_string()))
+            .map_err(|e| actor_error!(fatal(e.to_string())))
+    }
+
+    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
+        todo!()
+    }
+
+    fn self_destruct(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
+        todo!()
     }
 }
 
@@ -374,30 +357,30 @@ where
     }
 }
 
-impl<B, E> InvocationOps for DefaultKernel<B, E>
+impl<B, E> MessageOps for DefaultKernel<B, E>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
-    fn method_number(&self) -> MethodId {
-        self.method_number()
+    fn msg_method_number(&self) -> MethodNum {
+        self.msg_method_number()
     }
 
     // TODO: Remove this? We're currently passing it to invoke.
-    fn method_params(&self) -> BlockId {
+    fn msg_method_params(&self) -> BlockId {
         // TODO
         0
     }
 
-    fn caller(&self) -> ActorID {
+    fn msg_caller(&self) -> ActorID {
         self.from
     }
 
-    fn receiver(&self) -> ActorID {
+    fn msg_receiver(&self) -> ActorID {
         self.to
     }
 
-    fn value_received(&self) -> u128 {
+    fn msg_value_received(&self) -> u128 {
         // TODO: we shouldn't have to do this conversion here.
         self.value_received
             .clone()
