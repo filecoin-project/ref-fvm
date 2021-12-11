@@ -139,24 +139,15 @@ where
         params: RawBytes,
         value: TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
-        macro_rules! t {
-            ($e:expr) => {
-                match $e {
-                    Ok(v) => v,
-                    Err(e) => return (Err(e.into()), self),
-                }
-            };
-        }
-
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
-        let to = match t!(self
+        let to = match self
             .state_tree()
             .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e))))
+            .map_err(|e| actor_error!(fatal(e)))
         {
-            Some(addr) => addr,
-            None => match to.protocol() {
+            Ok(Some(addr)) => addr,
+            Ok(None) => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
                     let id_addr = match self.create_account_actor(&to) {
@@ -170,6 +161,7 @@ where
                 }
                 _ => return (Err(actor_error!(fatal("actor not found: {}", to))), self),
             },
+            Err(e) => return (Err(e.into()), self),
         };
 
         // Do the actual send.
