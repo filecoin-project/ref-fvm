@@ -8,4 +8,3 @@ crate-type = ["lib"]
 
 [dependencies]
 cid = { version = "0.7.0", default-features = false }
-fvm_shared = { path = "../shared" }

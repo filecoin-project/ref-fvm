@@ -2,7 +2,6 @@ use core::ptr;
 
 pub mod invocation;
 pub mod ipld;
-//pub mod network;
 pub mod sys;
 
 #[macro_export]
