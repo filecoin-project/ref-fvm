@@ -1,6 +1,7 @@
+use std::convert::TryFrom;
 use std::rc::Rc;
 
-use actor::ActorDowncast;
+use actor::{ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -8,7 +9,7 @@ use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
-use fvm_shared::bigint::BigInt;
+use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
@@ -50,6 +51,8 @@ pub struct Machine<B: 'static, E: 'static> {
     ///
     /// Owned.
     state_tree: StateTree<'static, B>,
+    /// Current epoch.
+    epoch: ChainEpoch,
 }
 
 impl<B, E> Machine<B, E>
@@ -76,6 +79,7 @@ where
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
+            epoch,
             config,
             context,
             engine,
@@ -153,17 +157,47 @@ where
 
         // Invoke the message.
         // TODO: We need some macro/monad help here.
-        let (res, cm) = cm.send(msg.to, msg.method_num, msg.params, msg.value);
+        let (res, mut cm) = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
+
+        // Charge for including the result.
+        // We shouldn't put this here, but this is where we can still account for gas.
+        // TODO: Maybe CallManager::finish() should return the GasTracker?
+        res.as_ref()
+            .map(|ret| cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len())));
+
         let (gas_used, s) = cm.finish();
         self = s;
-
-        // TODO: move this all into a "post_message" function.
 
         // Extract the exit code and build the result of the message application.
         let (ret_data, exit_code, err) = match res {
             Ok(ret) => (ret, ExitCode::Ok, None),
-            Err(e) => (Default::default(), e.exit_code(), Some(e)),
+            Err(err) => {
+                if err.is_fatal() {
+                    return (
+                        Err(anyhow!(
+                            "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
+                            msg.from,
+                            msg.to,
+                            msg.sequence,
+                            msg.method_num,
+                            self.epoch,
+                            err
+                        )),
+                        self,
+                    );
+                } else if err.is_ok() {
+                    return (
+                        Err(anyhow!(
+                            "message invocation errored with an ok status: {}",
+                            err
+                        )),
+                        self,
+                    );
+                }
+                (Default::default(), err.exit_code(), Some(err))
+            }
         };
+
         let ret = ApplyRet {
             msg_receipt: Receipt {
                 exit_code,
@@ -175,137 +209,11 @@ where
             miner_tip: Default::default(), // TODO
         };
 
-        // Now we need to refund
-
-        (Ok(ret), self)
-
-        // XXXX steb left off here
-
-        // Perform state transition
-        // // TODO: here is where we start the call stack and the invocation container.
-        // let (mut ret_data, rt, mut act_err) = self.send(msg.message(), Some(msg_gas_cost));
-        // if let Some(err) = &act_err {
-        //     if err.is_fatal() {
-        //         return Err(format!(
-        //             "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
-        //             msg.from(),
-        //             msg.to(),
-        //             msg.sequence(),
-        //             msg.method_num(),
-        //             self.epoch,
-        //             err
-        //         ));
-        //     } else {
-        //         debug!(
-        //             "[from={}, to={}, seq={}, m={}] send error: {}",
-        //             msg.from(),
-        //             msg.to(),
-        //             msg.sequence(),
-        //             msg.method_num(),
-        //             err
-        //         );
-        //         if !ret_data.is_empty() {
-        //             return Err(format!(
-        //                 "message invocation errored, but had a return value anyway: {}",
-        //                 err
-        //             ));
-        //         }
-        //     }
-        // }
-
-        // let gas_used = if let Some(mut rt) = rt {
-        //     if !ret_data.is_empty() {
-        //         if let Err(e) = rt.charge_gas(rt.price_list().on_chain_return_value(ret_data.len()))
-        //         {
-        //             act_err = Some(e);
-        //             ret_data = Serialized::default();
-        //         }
-        //     }
-        //     if rt.gas_used() < 0 {
-        //         0
-        //     } else {
-        //         rt.gas_used()
-        //     }
-        // } else {
-        //     return Err(format!("send returned None runtime: {:?}", act_err));
-        // };
-        //
-        // let err_code = if let Some(err) = &act_err {
-        //     if !err.is_ok() {
-        //         // Revert all state changes on error.
-        //         self.state.revert_to_snapshot()?;
-        //     }
-        //     err.exit_code()
-        // } else {
-        //     ExitCode::Ok
-        // };
-        //
-        // let should_burn = self
-        //     .should_burn(self.state(), msg, err_code)
-        //     .map_err(|e| format!("failed to decide whether to burn: {}", e))?;
-        //
-        // let GasOutputs {
-        //     base_fee_burn,
-        //     miner_tip,
-        //     over_estimation_burn,
-        //     refund,
-        //     miner_penalty,
-        //     ..
-        // } = compute_gas_outputs(
-        //     gas_used,
-        //     msg.gas_limit(),
-        //     &self.base_fee,
-        //     msg.gas_fee_cap(),
-        //     msg.gas_premium().clone(),
-        //     should_burn,
-        // );
-        //
-        // let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> Result<(), String> {
-        //     if amt.sign() == Sign::Minus {
-        //         return Err("attempted to transfer negative value into actor".into());
-        //     }
-        //     if amt.is_zero() {
-        //         return Ok(());
-        //     }
-        //
-        //     self.state
-        //         .mutate_actor(addr, |act| {
-        //             act.deposit_funds(amt);
-        //             Ok(())
-        //         })
-        //         .map_err(|e| e.to_string())?;
-        //     Ok(())
-        // };
-        //
-        // transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
-        //
-        // transfer_to_actor(&**reward::ADDRESS, &miner_tip)?;
-        //
-        // transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
-        //
-        // // refund unused gas
-        // transfer_to_actor(msg.from(), &refund)?;
-        //
-        // if &base_fee_burn + over_estimation_burn + &refund + &miner_tip != gas_cost {
-        //     // Sanity check. This could be a fatal error.
-        //     return Err("Gas handling math is wrong".to_owned());
-        // }
-        // self.state.clear_snapshot()?;
-        //
-        // Ok(ApplyRet {
-        //     msg_receipt: MessageReceipt {
-        //         return_data: ret_data,
-        //         exit_code: err_code,
-        //         gas_used,
-        //     },
-        //     penalty: miner_penalty,
-        //     act_error: act_err,
-        //     miner_tip,
-        // })
-
-        // TODO once the CallStack finishes running, copy over the resulting state tree layer to the Machine's state tree
-        // TODO pull the receipt from the CallStack and return it.
-        // Ok(Default::default())
+        // Finish processing.
+        (
+            self.finish_message(&msg, &ret, &gas_cost).map(|_| ret),
+            self,
+        )
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -409,6 +317,61 @@ where
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
 
+    pub fn finish_message(
+        &mut self,
+        msg: &Message,
+        ret: &ApplyRet,
+        gas_cost: &BigInt,
+    ) -> anyhow::Result<()> {
+        // NOTE: we don't support old network versions in the FVM, so we always burn.
+        let GasOutputs {
+            base_fee_burn,
+            miner_tip,
+            over_estimation_burn,
+            refund,
+            miner_penalty,
+            ..
+        } = compute_gas_outputs(
+            ret.msg_receipt.gas_used,
+            msg.gas_limit,
+            &self.context.base_fee,
+            &msg.gas_fee_cap,
+            &msg.gas_premium,
+        );
+
+        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
+            if amt.sign() == Sign::Minus {
+                return Err(anyhow!("attempted to transfer negative value into actor"));
+            }
+            if amt.is_zero() {
+                return Ok(());
+            }
+
+            self.state_tree
+                .mutate_actor(addr, |act| {
+                    act.deposit_funds(amt);
+                    Ok(())
+                })
+                .map_err(|e| anyhow!("failed to lookup actor for transfer: {}", e))
+        };
+
+        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+
+        transfer_to_actor(&*REWARD_ACTOR_ADDR, &miner_tip)?;
+
+        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+
+        // refund unused gas
+        transfer_to_actor(&msg.from, &refund)?;
+
+        if &(&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
+            // Sanity check. This could be a fatal error.
+            // XXX: this _is_ a fatal error in the FVM, at the moment at least.
+            return Err(anyhow!("Gas handling math is wrong"));
+        }
+        todo!()
+    }
+
     pub fn context(&self) -> &MachineContext {
         &self.context
     }
@@ -454,6 +417,83 @@ impl ApplyRet {
 pub enum ApplyKind {
     Explicit,
     Implicit,
+}
+
+// TODO: move this to a gas module?
+
+#[derive(Clone, Default)]
+struct GasOutputs {
+    base_fee_burn: TokenAmount,
+    over_estimation_burn: TokenAmount,
+    miner_penalty: TokenAmount,
+    miner_tip: TokenAmount,
+    refund: TokenAmount,
+
+    gas_refund: i64,
+    gas_burned: i64,
+}
+
+fn compute_gas_outputs(
+    gas_used: i64,
+    gas_limit: i64,
+    base_fee: &TokenAmount,
+    fee_cap: &TokenAmount,
+    gas_premium: &TokenAmount,
+) -> GasOutputs {
+    let mut base_fee_to_pay = base_fee;
+    let mut out = GasOutputs::default();
+
+    if base_fee > fee_cap {
+        base_fee_to_pay = fee_cap;
+        out.miner_penalty = (base_fee - fee_cap) * gas_used
+    }
+
+    out.base_fee_burn = base_fee_to_pay * gas_used;
+
+    let mut miner_tip = gas_premium.clone();
+    if &(base_fee_to_pay + &miner_tip) > fee_cap {
+        miner_tip = fee_cap - base_fee_to_pay;
+    }
+    out.miner_tip = &miner_tip * gas_limit;
+
+    let (out_gas_refund, out_gas_burned) = compute_gas_overestimation_burn(gas_used, gas_limit);
+    out.gas_refund = out_gas_refund;
+    out.gas_burned = out_gas_burned;
+
+    if out.gas_burned != 0 {
+        out.over_estimation_burn = base_fee_to_pay * out.gas_burned;
+        out.miner_penalty += (base_fee - base_fee_to_pay) * out.gas_burned;
+    }
+    let required_funds = fee_cap * gas_limit;
+    let refund = required_funds - &out.base_fee_burn - &out.miner_tip - &out.over_estimation_burn;
+    out.refund = refund;
+
+    out
+}
+
+fn compute_gas_overestimation_burn(gas_used: i64, gas_limit: i64) -> (i64, i64) {
+    const GAS_OVERUSE_NUM: i64 = 11;
+    const GAS_OVERUSE_DENOM: i64 = 10;
+
+    if gas_used == 0 {
+        return (0, gas_limit);
+    }
+
+    let mut over = gas_limit - (GAS_OVERUSE_NUM * gas_used) / GAS_OVERUSE_DENOM;
+    if over < 0 {
+        return (gas_limit - gas_used, 0);
+    }
+
+    if over > gas_used {
+        over = gas_used;
+    }
+
+    let mut gas_to_burn: BigInt = (gas_limit - gas_used).into();
+    gas_to_burn *= over;
+    gas_to_burn /= gas_used;
+
+    let gas_to_burn = i64::try_from(gas_to_burn).unwrap();
+    (gas_limit - gas_used - gas_to_burn, gas_to_burn)
 }
 
 /// Execution context supplied to the machine. All fields are private.

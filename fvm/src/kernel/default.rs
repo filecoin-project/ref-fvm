@@ -250,8 +250,8 @@ where
             let (res, cm) = cm.send(
                 message.to,
                 message.method_num,
-                message.params,
-                message.value,
+                &message.params,
+                &message.value,
             );
             // Do something with the result.
             (cm, res)
