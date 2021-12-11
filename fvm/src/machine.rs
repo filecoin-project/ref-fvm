@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 use std::rc::Rc;
 
 use actor::ActorDowncast;
@@ -18,13 +16,13 @@ use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, GasCharge, GasTracker, PriceList};
+use crate::gas::{price_list_by_epoch, PriceList};
 
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 
-use crate::{Config, DefaultKernel};
+use crate::Config;
 
 use crate::call_manager::CallManager;
 
@@ -52,10 +50,6 @@ pub struct Machine<B: 'static, E: 'static> {
     ///
     /// Owned.
     state_tree: StateTree<'static, B>,
-    /// The buffer of blocks to be committed to the blockstore after
-    /// execution concludes.
-    /// TODO @steb needs to figure out how all of this is going to work.
-    commit_buffer: (),
 }
 
 impl<B, E> Machine<B, E>
@@ -88,7 +82,6 @@ where
             externs,
             blockstore,
             state_tree,
-            commit_buffer: Default::default(), // @stebalien TBD
         })
     }
 
@@ -109,7 +102,7 @@ where
     }
 
     pub fn state_tree_mut(&mut self) -> &mut StateTree<'static, B> {
-        self.state_tree.borrow_mut()
+        &mut self.state_tree
     }
 
     /// Creates an uninitialized actor.
@@ -119,7 +112,7 @@ where
         addr: &Address,
         act: ActorState,
     ) -> Result<ActorID, ActorError> {
-        let mut state_tree = self.state_tree_mut();
+        let state_tree = self.state_tree_mut();
 
         let addr_id = state_tree
             .register_new_address(addr)
@@ -163,13 +156,12 @@ where
         let inclusion_cost = pl.on_chain_message(ser_msg.len());
 
         // Validate if the message was correct, and extract some preliminary data from it.
-        let (receiver_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
+        let (sender_id, gas_cost) = match self.validate_message(&msg, inclusion_cost.total()) {
             Ok((receiver_id, gas_cost)) => (receiver_id, gas_cost),
             Err(apply_ret) => return (Ok(apply_ret), self),
         };
 
         // Deduct message inclusion gas cost and increment sequence.
-        // XXX: We need to charge the gas for the whole message here. That's base_fee * total cost.
         t!(self
             .state_tree
             .mutate_actor(&msg.from, |act| {
@@ -179,16 +171,11 @@ where
             })
             .map_err(|e| anyhow!(e.to_string())));
 
-        t!(self
-            .state_tree
-            .snapshot()
-            .map_err(|e| anyhow!(e.to_string())));
-
-        todo!("resolve actor ID");
-
-        /// TODO this requires the ActorID; need to resolve it first.
-        let mut cm = CallManager::new(self, receiver_id, msg.gas_limit);
-        t!(cm.charge_gas(inclusion_cost));
+        let mut cm = CallManager::new(self, sender_id, msg.gas_limit);
+        match cm.charge_gas(inclusion_cost) {
+            Err(e) => return (Err(e.into()), cm.finish().1),
+            _ => (),
+        }
 
         // Invoke the message.
         // TODO: We need some macro/monad help here.
@@ -197,17 +184,22 @@ where
         self = s;
 
         // Extract the exit code and build the result of the message application.
-        let exit_code = res.map_err(|e| e.exit_code()).err().unwrap_or(ExitCode::Ok);
+        let (ret_data, exit_code, err) = match res {
+            Ok(ret) => (ret, ExitCode::Ok, None),
+            Err(e) => (Default::default(), e.exit_code(), Some(e)),
+        };
         let ret = ApplyRet {
             msg_receipt: Receipt {
                 exit_code,
-                return_data: res.ok().unwrap_or_default(),
+                return_data: ret_data,
                 gas_used,
             },
-            act_error: res.err(),
+            act_error: err,
             penalty: Default::default(),   // TODO
             miner_tip: Default::default(), // TODO
         };
+
+        // Now we need to refund
 
         (Ok(ret), self)
 
