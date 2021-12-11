@@ -309,26 +309,17 @@ fn encode(addr: &Address) -> String {
 }
 
 pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, Error> {
-    let mut buf = Vec::new();
-
     // write id to buffer in leb128 format
-    leb128::write::unsigned(&mut buf, id)?;
-
-    // Create byte vector from buffer
-    Ok(buf)
+    Ok(unsigned_varint::encode::u64(id, &mut unsigned_varint::encode::u64_buffer()).into())
 }
 
 pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
-    let mut readable = bz;
-
     // write id to buffer in leb128 format
-    let id = leb128::read::unsigned(&mut readable)?;
-
-    if to_leb_bytes(id)? == bz {
-        Ok(id)
-    } else {
-        Err(Error::InvalidAddressIDPayload(bz.to_owned()))
+    let (id, remaining) = unsigned_varint::decode::u64(bz)?;
+    if remaining.len() > 0 {
+        return Err(Error::InvalidPayload);
     }
+    Ok(id)
 }
 
 #[cfg(test)]
@@ -359,7 +350,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(extra_bytes));
+                assert_eq!(e, Error::InvalidPayload);
             }
         }
     }
@@ -377,7 +368,7 @@ mod tests {
                 panic!();
             }
             Err(e) => {
-                assert_eq!(e, Error::InvalidAddressIDPayload(minimal_encoding));
+                assert_eq!(e, Error::InvalidPayload);
             }
         }
     }

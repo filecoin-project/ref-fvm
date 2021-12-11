@@ -3,9 +3,9 @@
 
 use super::{BLS_PUB_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN};
 use data_encoding::DecodeError;
-use leb128::read::Error as Leb128Error;
 use std::{io, num};
 use thiserror::Error;
+use unsigned_varint::decode::Error as VarintError;
 
 /// Address error
 #[derive(Debug, PartialEq, Error)]
@@ -30,8 +30,6 @@ pub enum Error {
     Base32Decoding(#[from] DecodeError),
     #[error("Cannot get id from non id address")]
     NonIDAddress,
-    #[error("Invalid address ID payload")]
-    InvalidAddressIDPayload(Vec<u8>),
 }
 
 impl From<num::ParseIntError> for Error {
@@ -45,8 +43,8 @@ impl From<io::Error> for Error {
         Error::InvalidPayload
     }
 }
-impl From<Leb128Error> for Error {
-    fn from(_: Leb128Error) -> Error {
+impl From<VarintError> for Error {
+    fn from(_: VarintError) -> Error {
         Error::InvalidPayload
     }
 }
