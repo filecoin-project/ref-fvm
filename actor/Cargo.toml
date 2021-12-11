@@ -17,7 +17,7 @@ ipld_hamt = { path = "../ipld/hamt" }
 ipld_amt = { path = "../ipld/amt", features = ["go-interop"]}
 forest_ipld = "0.1.1"
 ## TODO proofs feature enabled by default
-fvm_shared = { path = "../shared" }
+fvm_shared = { path = "../shared", features = ["crypto"] }
 unsigned-varint = "0.6"
 integer-encoding = { version = "3.0", default-features = false }
 bitfield = { package = "forest_bitfield", version = "0.1" }

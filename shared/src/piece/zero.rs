@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::PaddedPieceSize;
-use filecoin_proofs_api::Commitment;
 
 const LEVELS: usize = 37;
 const SKIP: usize = 2; // can't generate for 32, 64b
+
+// This is a clone of the type alias found in filecoin_proofs_api. Copied here
+// to avoid the dependency.
+type Commitment = [u8; 32];
 
 /// Zero piece commitments. This is statically defined to be able to pad remaining space with.
 const PIECE_COMMS: [Commitment; LEVELS - SKIP] = [
