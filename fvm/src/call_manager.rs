@@ -103,38 +103,11 @@ where
 
     /// Send a message to an actor.
     ///
-    /// Creates a state tree snapshot prior to executing the send. Discards the
-    /// snapshot if the destination actor aborts.
+    /// This method does not create any transactions, that's the caller's responsibility.
     pub fn send(
         mut self,
         to: Address,
         method: MethodId,
-        params: &RawBytes,
-        value: &TokenAmount,
-    ) -> (Result<RawBytes, ActorError>, Self) {
-        // TODO: lotus doesn't do snapshots inside send, it does them outside. I prefer it this way,
-        // but there may be reasons...?
-        self.state_tree_mut().begin_transaction();
-
-        // Call the target actor; revert the state tree changes if the call fails.
-        let (res, s) = self.send_inner(to, method, &params, &value);
-        self = s;
-        match if res.is_ok() {
-            self.state_tree_mut().commit_transaction()
-        } else {
-            self.state_tree_mut().abort_transaction()
-        } {
-            Ok(()) => (res, self),
-            Err(e) => (Err(actor_error!(fatal(e))), self),
-        }
-    }
-
-    /// The inner send function that doesn't snapshot.
-    fn send_inner(
-        mut self,
-        to: Address,
-        method: MethodId,
-        // TODO: in the future, we'll need to pass more than one block as params.
         params: &RawBytes,
         value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
@@ -170,8 +143,6 @@ where
 
     /// Send with an explicit from. Used when we need to do an internal send with a different
     /// "from".
-    ///
-    /// NOTE: DOES NOT SNAPSHOT!
     fn send_explicit(
         mut self,
         from: ActorID,
@@ -188,8 +159,6 @@ where
     }
 
     /// Send with resolved addresses.
-    ///
-    /// NOTE: DOES NOT SNAPSHOT!
     fn send_resolved(
         mut self,
         to: ActorID,
