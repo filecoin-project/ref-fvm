@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
-use actor::ActorDowncast;
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_shared::address::Address;
 use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
+use crate::account_actor::is_account_actor;
 use blockstore::Blockstore;
+use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -15,16 +15,14 @@ use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
+use crate::call_manager::CallManager;
+use crate::errors::ActorDowncast;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, PriceList};
-
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
-
 use crate::Config;
-
-use crate::call_manager::CallManager;
 
 /// The core of the FVM.
 ///
@@ -375,7 +373,7 @@ where
             .unwrap();
 
         // If sender is not an account actor, the message is invalid.
-        if !actor::is_account_actor(&sender.code) {
+        if !is_account_actor(&sender.code) {
             return Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderInvalid,
                 miner_penalty_amount,
