@@ -5,9 +5,11 @@ use fvm_shared::actor_error;
 use fvm_shared::error::ActorError;
 
 pub use self::charge::GasCharge;
+pub(crate) use self::outputs::GasOutputs;
 pub use self::price_list::{price_list_by_epoch, PriceList};
 
 mod charge;
+mod outputs;
 mod price_list;
 
 pub struct GasTracker {
