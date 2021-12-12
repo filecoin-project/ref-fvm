@@ -339,18 +339,18 @@ where
         Ok(new_addr)
     }
 
-    /// Add snapshot layer to stack.
-    pub fn snapshot(&mut self) {
+    /// Begin a new state transaction. Transactions stack.
+    pub fn begin_transaction(&mut self) {
         self.snaps.add_layer();
     }
 
-    /// Commit the top snapshot.
-    pub fn commit_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Commit the top transaction.
+    pub fn commit_transaction(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.merge_last_layer()
     }
 
-    /// Drop the top snapshot.
-    pub fn revert_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Abort and rollback the top transaction.
+    pub fn abort_transaction(&mut self) -> Result<(), Box<dyn Error>> {
         self.snaps.drop_layer()
     }
 

@@ -114,15 +114,15 @@ where
     ) -> (Result<RawBytes, ActorError>, Self) {
         // TODO: lotus doesn't do snapshots inside send, it does them outside. I prefer it this way,
         // but there may be reasons...?
-        self.state_tree_mut().snapshot();
+        self.state_tree_mut().begin_transaction();
 
         // Call the target actor; revert the state tree changes if the call fails.
         let (res, s) = self.send_inner(to, method, &params, &value);
         self = s;
         match if res.is_ok() {
-            self.state_tree_mut().commit_snapshot()
+            self.state_tree_mut().commit_transaction()
         } else {
-            self.state_tree_mut().revert_snapshot()
+            self.state_tree_mut().abort_transaction()
         } {
             Ok(()) => (res, self),
             Err(e) => (Err(actor_error!(fatal(e))), self),
