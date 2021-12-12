@@ -9,7 +9,7 @@ use fvm_shared::{
     ActorID,
 };
 use num_traits::Zero;
-use wasmtime::{Linker, Module, Store};
+use wasmtime::{Linker, Store};
 
 use crate::{
     externs::Externs,
@@ -94,8 +94,8 @@ where
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            params,
-            TokenAmount::from(0u32),
+            &params,
+            &TokenAmount::from(0u32),
         );
 
         (res.map(|_| id), s)
@@ -109,26 +109,20 @@ where
         mut self,
         to: Address,
         method: MethodId,
-        // TODO: in the future, we'll need to pass more than one block as params.
-        params: RawBytes,
-        value: TokenAmount,
+        params: &RawBytes,
+        value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
-        // Eew. NOOOOO This is horrible.
-        // 1. We need better error conversions.
-        // 2. NOOOOOOOOOOOOO
-        // 3. WHYYYYYYYYY!
-        match self.state_tree_mut().snapshot() {
-            Err(e) => return (Err(actor_error!(fatal(e))), self),
-            _ => (),
-        };
+        // TODO: lotus doesn't do snapshots inside send, it does them outside. I prefer it this way,
+        // but there may be reasons...?
+        self.state_tree_mut().begin_transaction();
 
         // Call the target actor; revert the state tree changes if the call fails.
-        let (res, s) = self.send_inner(to, method, params, value);
+        let (res, s) = self.send_inner(to, method, &params, &value);
         self = s;
         match if res.is_ok() {
-            self.state_tree_mut().clear_snapshot()
+            self.state_tree_mut().commit_transaction()
         } else {
-            self.state_tree_mut().revert_to_snapshot()
+            self.state_tree_mut().abort_transaction()
         } {
             Ok(()) => (res, self),
             Err(e) => (Err(actor_error!(fatal(e))), self),
@@ -141,27 +135,18 @@ where
         to: Address,
         method: MethodId,
         // TODO: in the future, we'll need to pass more than one block as params.
-        params: RawBytes,
-        value: TokenAmount,
+        params: &RawBytes,
+        value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
-        macro_rules! t {
-            ($e:expr) => {
-                match $e {
-                    Ok(v) => v,
-                    Err(e) => return (Err(e.into()), self),
-                }
-            };
-        }
-
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
-        let to = match t!(self
+        let to = match self
             .state_tree()
             .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e))))
+            .map_err(|e| actor_error!(fatal(e)))
         {
-            Some(addr) => addr,
-            None => match to.protocol() {
+            Ok(Some(addr)) => addr,
+            Ok(None) => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
                     let id_addr = match self.create_account_actor(&to) {
@@ -175,11 +160,12 @@ where
                 }
                 _ => return (Err(actor_error!(fatal("actor not found: {}", to))), self),
             },
+            Err(e) => return (Err(e.into()), self),
         };
 
         // Do the actual send.
 
-        self.send_resolved(to, method, params, value)
+        self.send_resolved(to, method, &params, &value)
     }
 
     /// Send with an explicit from. Used when we need to do an internal send with a different
@@ -191,8 +177,8 @@ where
         from: ActorID,
         to: ActorID,
         method: MethodId,
-        params: RawBytes,
-        value: TokenAmount,
+        params: &RawBytes,
+        value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
         let prev_from = self.from;
         self.from = from;
@@ -208,8 +194,8 @@ where
         mut self,
         to: ActorID,
         method: MethodId,
-        params: RawBytes,
-        value: TokenAmount,
+        params: &RawBytes,
+        value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
         macro_rules! t {
             ($e:expr) => {
@@ -253,12 +239,11 @@ where
 
         // TODO: Make the kernel pluggable.
         let from = self.from.clone();
-        let mut kernel = DefaultKernel::new(self, from, to, method, value);
+        let mut kernel = DefaultKernel::new(self, from, to, method, value.clone());
 
         // 4. Load parameters.
 
-        // TODO: This copies the block. Ideally, we'd give ownership.
-        let param_id = match kernel.block_create(DAG_CBOR, &params) {
+        let param_id = match kernel.block_create(DAG_CBOR, params) {
             Ok(id) => id,
             Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
         };
@@ -275,7 +260,7 @@ where
         // TODO error handling.
         let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
         // TODO error handling.
-        let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id)).unwrap();
+        let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,)).unwrap();
 
         // 5. Recover return value.
         let kernel = store.into_data();
@@ -293,7 +278,8 @@ where
 
     /// Finishes execution, returning the gas used and the machine.
     pub fn finish(self) -> (i64, Box<Machine<B, E>>) {
-        (self.gas_used(), self.machine)
+        // TODO: Having to check against zero here is fishy, but this is what lotus does.
+        (self.gas_used().max(0), self.machine)
     }
 
     /// Charge gas.
