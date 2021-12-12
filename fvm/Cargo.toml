@@ -27,6 +27,3 @@ serde_repr = "0.1"
 lazy_static = "1.4.0"
 derive-getters = "0.2.0"
 derive_more = "0.99.17"
-
-# FIXME: The FVM really shouldn't depend on this, but needs to for now.
-actor = { package = "forest_actor", path = "../actor" }

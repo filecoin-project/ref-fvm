@@ -20,6 +20,12 @@ pub const SYSTEM_ACTOR_ID: u64 = 0;
 lazy_static!(
     pub static ref SYSTEM_ACTOR_ADDR: Address = Address::new_id(SYSTEM_ACTOR_ID);
 
+    // TODO this may need to be versioned with SnapDeals; and maybe a few more
+    //  times before account actors are moved to user-land.
+    pub static ref ACCOUNT_ACTOR_CODE_ID: Cid = {
+        Cid::new_v1(IPLD_RAW, Code::Identity.digest(b"fil/5/account"))
+    };
+
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
     pub static ref EMPTY_ARR_CID: Cid = {
         let empty = to_vec::<[(); 0]>(&[]).unwrap();
@@ -33,3 +39,8 @@ lazy_static!(
         balance: TokenAmount::zero(),
     };
 );
+
+/// Returns true if the code belongs to an account actor.
+pub fn is_account_actor(code: &Cid) -> bool {
+    code == &*ACCOUNT_ACTOR_CODE_ID
+}

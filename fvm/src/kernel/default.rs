@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Deref;
 
-use actor::ActorDowncast;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;
@@ -16,6 +15,7 @@ use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
 use crate::call_manager::CallManager;
+use crate::errors::ActorDowncast;
 use crate::externs::Externs;
 use crate::gas::GasTracker;
 use crate::machine::Machine;
