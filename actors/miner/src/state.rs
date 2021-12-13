@@ -1166,10 +1166,11 @@ impl State {
         let precommitted =
             make_map_with_root_and_bitwidth(&self.pre_committed_sectors, store, HAMT_BIT_WIDTH)?;
         for sector_no in sector_nos.iter() {
-            if sector_no > MAX_SECTOR_NUMBER as usize {
-                return Err(
-                    actor_error!(ErrIllegalArgument, "sector number greater than maximum").into(),
-                );
+            if sector_no as u64 > MAX_SECTOR_NUMBER {
+                return Err(Box::new(actor_error!(
+                    ErrIllegalArgument,
+                    "sector number greater than maximum"
+                )));
             }
             let info: &SectorPreCommitOnChainInfo =
                 precommitted
