@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
-use lazy_static::lazy_static;
 use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
@@ -27,11 +26,9 @@ use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
-lazy_static! {
-    pub static ref REWARD_ACTOR_ADDR: Address         = Address::new_id(2);
-    /// Distinguished AccountActor that is the destination of all burnt funds.
-    pub static ref BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
-}
+pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
+/// Distinguished AccountActor that is the destination of all burnt funds.
+pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 
 /// The core of the FVM.
 ///
@@ -385,11 +382,11 @@ where
                 .map_err(|e| anyhow!("failed to lookup actor for transfer: {}", e))
         };
 
-        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
 
-        transfer_to_actor(&*REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
 
-        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
 
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;

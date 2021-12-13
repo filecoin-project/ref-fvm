@@ -12,7 +12,6 @@ use std::error::Error as StdError;
 use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::Cid;
-use lazy_static::lazy_static;
 
 use fvm_shared::address::{Address, Payload, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::encoding::tuple::*;
@@ -23,9 +22,7 @@ use ipld_blockstore::BlockStore;
 use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
 
-lazy_static! {
-    pub static ref INIT_ACTOR_ADDR: Address = Address::new_id(1);
-}
+pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
 
 // TODO need to untangle all this init actor mess
 //  In theory, we should go through the actor version multiplexer to decide which

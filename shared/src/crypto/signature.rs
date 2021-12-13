@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::address::{Address, Error as AddressError, Protocol};
+use crate::address::Error as AddressError;
 use crate::encoding::{de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
