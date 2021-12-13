@@ -1,7 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::Blockstore;
+use blockstore::BlockStore;
+use log::error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -84,12 +85,18 @@ impl Actor {
         let st: State = rt.state()?;
         for entry in st.entries {
             // Intentionally ignore any error when calling cron methods
-            let _ = rt.send(
+            let res = rt.send(
                 entry.receiver,
                 entry.method_num,
                 RawBytes::default(),
                 TokenAmount::from(0u8),
             );
+            if let Err(e) = res {
+                error!(
+                    "cron failed to send entry to {}, send error code {}",
+                    entry.receiver, e
+                );
+            }
         }
         Ok(())
     }
