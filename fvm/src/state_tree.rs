@@ -339,22 +339,18 @@ where
         Ok(new_addr)
     }
 
-    /// Add snapshot layer to stack.
-    pub fn snapshot(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Begin a new state transaction. Transactions stack.
+    pub fn begin_transaction(&mut self) {
         self.snaps.add_layer();
-        Ok(())
     }
 
-    /// Merges last two snap shot layers.
-    pub fn clear_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
-        self.snaps.merge_last_layer()
-    }
-
-    /// Revert state cache by removing last snapshot
-    pub fn revert_to_snapshot(&mut self) -> Result<(), Box<dyn Error>> {
-        self.snaps.drop_layer()?;
-        self.snaps.add_layer();
-        Ok(())
+    /// End a transaction, reverting if requested.
+    pub fn end_transaction(&mut self, revert: bool) -> Result<(), Box<dyn Error>> {
+        if revert {
+            self.snaps.drop_layer()
+        } else {
+            self.snaps.merge_last_layer()
+        }
     }
 
     /// Flush state tree and return Cid root.
