@@ -36,6 +36,7 @@ ipld_blockstore = { path = "./ipld/blockstore" }
 ipld_hamt = { path = "./ipld/hamt" }
 ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }
+libipld = { git = "https://github.com/ipfs-rust/libipld", branch = "steb/next" }
 
 [profile.actor]
 inherits = "release"

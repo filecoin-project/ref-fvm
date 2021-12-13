@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::Blockstore;
-use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use cid::{
-    multihash::{Code, MultihashDigest},
-    Cid,
-};
+use cid::Cid;
+
+// TODO: figure out where to put this.
+const DAG_CBOR: u64 = 0x71;
 
 // NOTE: This code doesn't currently work. It was taken from the ipld/blockstore crate but now lives here because that "blockstore" is really the actor store.
 // TODO:
 // 1. Finish converting it to a true blockstore.
 // 2. Add bulk put methods to the blockstore.
-// 3. Use libipld (https://github.com/ipfs-rust/libipld) instead of scan_for_links.
 
-use std::io::{Read, Seek};
+use std::cell::RefCell;
 // TODO: replace HashMap with DashMap like in forest?
 use std::{collections::HashMap, error::Error as StdError};
-use std::{convert::TryFrom, io::Cursor};
 
 // TODO: This is going to live in the kernel so it should be a Blockstore, not an ActorStore.
 
@@ -26,7 +23,7 @@ use std::{convert::TryFrom, io::Cursor};
 #[derive(Debug)]
 pub struct BufferedBlockstore<'bs, BS> {
     base: &'bs BS,
-    write: HashMap<Cid, Vec<u8>>,
+    write: RefCell<HashMap<Cid, Vec<u8>>>,
 }
 
 impl<'bs, BS> BufferedBlockstore<'bs, BS>
@@ -43,131 +40,29 @@ where
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
     /// root Cid.
-    pub fn flush(&mut self, root: &Cid) -> Result<(), Box<dyn StdError + '_>> {
+    pub fn flush(&self, root: &Cid) -> Result<(), Box<dyn StdError + '_>> {
         let mut buffer = Vec::new();
-        let s = &self.write;
-        copy_rec(self.base, s, *root, &mut buffer)?;
+        let mut s = self.write.borrow_mut();
+        copy_rec(self.base, &s, *root, &mut buffer)?;
 
-        self.base.bulk_put(&buffer)?;
-        self.write = Default::default();
+        self.base.put_many(buffer)?;
+        *s = Default::default();
 
         Ok(())
     }
 }
 
-/// Given a CBOR encoded Buffer, returns a tuple of:
-/// the type of the CBOR object along with extra
-/// elements we expect to read. More info on this can be found in
-/// Appendix C. of RFC 7049 which defines the CBOR specification.
-/// This was implemented because the CBOR library we use does not expose low
-/// methods like this, requiring us to deserialize the whole CBOR payload, which
-/// is unnecessary and quite inefficient for our usecase here.
-fn cbor_read_header_buf<B: Read>(
-    br: &mut B,
-    scratch: &mut [u8],
-) -> Result<(u8, usize), Box<dyn StdError>> {
-    let first = br.read_u8()?;
-    let maj = (first & 0xe0) >> 5;
-    let low = first & 0x1f;
-
-    if low < 24 {
-        Ok((maj, low as usize))
-    } else if low == 24 {
-        let val = br.read_u8()?;
-        if val < 24 {
-            return Err("cbor input was not canonical (lval 24 with value < 24)".into());
-        }
-        Ok((maj, val as usize))
-    } else if low == 25 {
-        br.read_exact(&mut scratch[..2])?;
-        let val = BigEndian::read_u16(&scratch[..2]);
-        if val <= u8::MAX as u16 {
-            return Err("cbor input was not canonical (lval 25 with value <= MaxUint8)".into());
-        }
-        Ok((maj, val as usize))
-    } else if low == 26 {
-        br.read_exact(&mut scratch[..4])?;
-        let val = BigEndian::read_u32(&scratch[..4]);
-        if val <= u16::MAX as u32 {
-            return Err("cbor input was not canonical (lval 26 with value <= MaxUint16)".into());
-        }
-        Ok((maj, val as usize))
-    } else if low == 27 {
-        br.read_exact(&mut scratch[..8])?;
-        let val = BigEndian::read_u64(&scratch[..8]);
-        if val <= u32::MAX as u64 {
-            return Err("cbor input was not canonical (lval 27 with value <= MaxUint32)".into());
-        }
-        Ok((maj, val as usize))
-    } else {
-        Err("invalid header cbor_read_header_buf".into())
-    }
-}
-
-/// Given a CBOR serialized IPLD buffer, read through all of it and return all the Links.
-/// This function is useful because it is quite a bit more fast than doing this recursively on a
-/// deserialized IPLD object.
-fn scan_for_links<B: Read + Seek, F>(buf: &mut B, mut callback: F) -> Result<(), Box<dyn StdError>>
-where
-    F: FnMut(Cid) -> Result<(), Box<dyn StdError>>,
-{
-    let mut scratch: [u8; 100] = [0; 100];
-    let mut remaining = 1;
-    while remaining > 0 {
-        let (maj, extra) = cbor_read_header_buf(buf, &mut scratch)?;
-        match maj {
-            // MajUnsignedInt, MajNegativeInt, MajOther
-            0 | 1 | 7 => {}
-            // MajByteString, MajTextString
-            2 | 3 => {
-                buf.seek(std::io::SeekFrom::Current(extra as i64))?;
-            }
-            // MajTag
-            6 => {
-                // Check if the tag refers to a CID
-                if extra == 42 {
-                    let (maj, extra) = cbor_read_header_buf(buf, &mut scratch)?;
-                    // The actual CID is expected to be a byte string
-                    if maj != 2 {
-                        return Err("expected cbor type byte string in input".into());
-                    }
-                    if extra > 100 {
-                        return Err("string in cbor input too long".into());
-                    }
-                    buf.read_exact(&mut scratch[..extra])?;
-                    let c = Cid::try_from(&scratch[1..extra])?;
-                    callback(c)?;
-                } else {
-                    remaining += 1;
-                }
-            }
-            // MajArray
-            4 => {
-                remaining += extra;
-            }
-            // MajMap
-            5 => {
-                remaining += extra * 2;
-            }
-            _ => {
-                return Err(format!("unhandled cbor type: {}", maj).into());
-            }
-        }
-        remaining -= 1;
-    }
-    Ok(())
-}
-
 /// Copies the IPLD DAG under `root` from the cache to the base store.
-fn copy_rec<BS>(
+fn copy_rec<'a, BS>(
     base: &BS,
-    cache: &HashMap<Cid, Vec<u8>>,
+    cache: &'a HashMap<Cid, Vec<u8>>,
     root: Cid,
-    buffer: &mut Vec<(Vec<u8>, Vec<u8>)>,
+    buffer: &mut Vec<(Cid, &'a [u8])>,
 ) -> Result<(), Box<dyn StdError>>
 where
     BS: Blockstore,
 {
+    // TODO: Make this non-recursive.
     // Skip identity and Filecoin commitment Cids
     if root.codec() != DAG_CBOR {
         return Ok(());
@@ -177,42 +72,71 @@ where
         .get(&root)
         .ok_or_else(|| format!("Invalid link ({}) in flushing buffered store", root))?;
 
-    scan_for_links(&mut Cursor::new(block), |link| {
+    use libipld::cbor::DagCborCodec;
+    use libipld::{codec::Codec, Ipld};
+    let mut references = Vec::new();
+    DagCborCodec.references::<Ipld, _>(&block, &mut references)?;
+
+    for link in &references {
         if link.codec() != DAG_CBOR {
-            return Ok(());
+            continue;
         }
+
         // DB reads are expensive. So we check if it exists in the cache.
         // If it doesnt exist in the DB, which is likely, we proceed with using the cache.
         if !cache.contains_key(&link) {
-            return Ok(());
+            continue;
         }
+
         // Recursively find more links under the links we're iterating over.
-        copy_rec(base, cache, link, buffer)?;
+        copy_rec(base, cache, *link, buffer)?;
+    }
 
-        Ok(())
-    })?;
-
-    buffer.push((root.to_bytes(), block.clone()));
+    buffer.push((root, block));
 
     Ok(())
 }
 
-impl<BS> Blockstore for BufferedBlockStore<'_, BS>
+impl<BS> Blockstore for BufferedBlockstore<'_, BS>
 where
     BS: Blockstore,
 {
-    fn get_bytes(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Box<dyn StdError>> {
-        if let Some(data) = self.write.get(cid) {
-            return Ok(Some(data.clone()));
+    type Error = BS::Error;
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+        if self.write.borrow().contains_key(k) {
+            Ok(true)
+        } else {
+            self.base.has(k)
         }
-
-        self.base.get_bytes(cid)
     }
 
-    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn StdError>> {
-        let cid = Cid::new_v1(DAG_CBOR, code.digest(bytes));
-        self.write.insert(cid, Vec::from(bytes));
-        Ok(cid)
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
+        if let Some(data) = self.write.borrow().get(cid) {
+            Ok(Some(data.clone()))
+        } else {
+            self.base.get(cid)
+        }
+    }
+
+    fn put(&self, cid: &Cid, buf: &[u8]) -> Result<(), Self::Error> {
+        self.write.borrow_mut().insert(*cid, Vec::from(buf));
+        Ok(())
+    }
+
+    fn delete(&self, k: &Cid) -> Result<(), Self::Error> {
+        self.write.borrow_mut().remove(k);
+        self.base.delete(k)
+    }
+
+    fn put_many<'a, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        I: IntoIterator<Item = (Cid, &'a [u8])>,
+    {
+        self.write
+            .borrow_mut()
+            .extend(blocks.into_iter().map(|(k, v)| (k, Vec::from(v))));
+        Ok(())
     }
 }
 
