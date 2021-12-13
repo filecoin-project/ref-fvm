@@ -246,7 +246,9 @@ where
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
     fn send(&mut self, message: Message) -> anyhow::Result<RawBytes, ActorError> {
-        self.call_manager.map_mut(|cm| {
+        self.call_manager.state_tree_mut().begin_transaction();
+
+        let res = self.call_manager.map_mut(|cm| {
             let (res, cm) = cm.send(
                 message.to,
                 message.method_num,
@@ -255,7 +257,11 @@ where
             );
             // Do something with the result.
             (cm, res)
-        })
+        });
+        self.call_manager
+            .state_tree_mut()
+            .end_transaction(res.is_err())?;
+        res
     }
 }
 

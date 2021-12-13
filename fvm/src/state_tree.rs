@@ -344,14 +344,13 @@ where
         self.snaps.add_layer();
     }
 
-    /// Commit the top transaction.
-    pub fn commit_transaction(&mut self) -> Result<(), Box<dyn Error>> {
-        self.snaps.merge_last_layer()
-    }
-
-    /// Abort and rollback the top transaction.
-    pub fn abort_transaction(&mut self) -> Result<(), Box<dyn Error>> {
-        self.snaps.drop_layer()
+    /// End a transaction, reverting if requested.
+    pub fn end_transaction(&mut self, revert: bool) -> Result<(), Box<dyn Error>> {
+        if revert {
+            self.snaps.drop_layer()
+        } else {
+            self.snaps.merge_last_layer()
+        }
     }
 
     /// Flush state tree and return Cid root.

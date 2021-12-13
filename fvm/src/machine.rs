@@ -155,26 +155,26 @@ where
             _ => (),
         }
 
+        cm.state_tree.begin_transaction();
+
         // Invoke the message.
-        // TODO: We need some macro/monad help here.
-        let (res, mut cm) = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
+        let (mut res, mut cm) = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
 
         // Charge for including the result.
         // We shouldn't put this here, but this is where we can still account for gas.
         // TODO: Maybe CallManager::finish() should return the GasTracker?
-        if let Ok(ret) = res.as_ref() {
-            if let Err(e) =
-                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
-            {
-                // No need to charge any gas, we've already charged the _full_ amount.
-                // XXX: But we do need to revert here!!
-                let (_, s) = cm.finish();
-                return (Err(e.into()), s);
-            }
-        }
+        res = res.and_then(|ret| {
+            cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
+                .map(|_| ret)
+        });
 
         let (gas_used, s) = cm.finish();
         self = s;
+
+        // Abort or commit the transaction.
+        if let Err(e) = self.state_tree.end_transaction(res.is_err()) {
+            return (Err(anyhow!("failed to end transaction: {}", e)), self);
+        }
 
         // Extract the exit code and build the result of the message application.
         let (ret_data, exit_code, err) = match res {
