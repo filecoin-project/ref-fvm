@@ -8,7 +8,7 @@ use crate::encoding::repr::Serialize_repr;
 #[repr(u32)]
 pub enum NetworkVersion {
     /// genesis (specs-actors v0.9.3)
-    V0,
+    V0 = 0,
     /// breeze (specs-actors v0.9.7)
     V1,
     /// smoke (specs-actors v0.9.8)
@@ -35,4 +35,30 @@ pub enum NetworkVersion {
     V12,
     /// reserved
     V13,
+}
+
+impl TryFrom<u32> for NetworkVersion {
+    // TODO: better error
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use NetworkVersion::*;
+        match value {
+            0 => Ok(V0),
+            1 => Ok(V1),
+            2 => Ok(V2),
+            3 => Ok(V3),
+            4 => Ok(V4),
+            5 => Ok(V5),
+            6 => Ok(V6),
+            7 => Ok(V7),
+            8 => Ok(V8),
+            9 => Ok(V9),
+            10 => Ok(V10),
+            11 => Ok(V11),
+            12 => Ok(V12),
+            13 => Ok(V13),
+            _ => Err(()),
+        }
+    }
 }
