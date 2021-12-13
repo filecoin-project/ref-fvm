@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use anyhow::anyhow;
@@ -25,6 +25,7 @@ use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
+use crate::util::MapCell;
 use crate::Config;
 
 lazy_static! {
@@ -39,7 +40,10 @@ lazy_static! {
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<B: 'static, E: 'static> {
+pub struct Machine<B: 'static, E: 'static>(MapCell<Box<MachineState<B, E>>>);
+
+#[doc(hidden)]
+pub struct MachineState<B: 'static, E: 'static> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -57,6 +61,27 @@ pub struct Machine<B: 'static, E: 'static> {
     ///
     /// Owned.
     state_tree: StateTree<'static, B>,
+}
+
+// These deref impls exist only for internal usage. THere are no public methods or fields on
+// MachineState anyways.
+
+#[doc(hidden)]
+impl<B: 'static, E: 'static> Deref for Machine<B, E> {
+    type Target = MachineState<B, E>;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[doc(hidden)]
+impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl<B, E> Machine<B, E>
@@ -89,14 +114,18 @@ where
         let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        Ok(Machine {
+        Ok(Machine::wrap(Box::new(MachineState {
             config,
             context,
             engine,
             externs,
             blockstore,
             state_tree,
-        })
+        })))
+    }
+
+    fn wrap(state: Box<MachineState<B, E>>) -> Self {
+        Machine(MapCell::new(state))
     }
 
     pub fn engine(&self) -> &Engine {
@@ -146,45 +175,44 @@ where
     }
 
     /// This is the entrypoint to execute a message.
-    pub fn execute_message(
-        mut self: Box<Self>,
-        msg: Message,
-        _: ApplyKind,
-    ) -> (anyhow::Result<ApplyRet>, Box<Self>) {
+    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
-        let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg) {
-            Ok(Ok(res)) => res,
-            Ok(Err(apply_ret)) => return (Ok(apply_ret), self),
-            Err(e) => return (Err(e), self),
+        let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg)? {
+            Ok(res) => res,
+            Err(apply_ret) => return Ok(apply_ret),
         };
 
         // Apply the message.
-        let mut cm = CallManager::new(self, sender_id, msg.gas_limit);
-        match cm.charge_gas(inclusion_cost) {
-            Err(e) => return (Err(e.into()), cm.finish().1),
-            _ => (),
-        }
+        let (res, gas_used) = self.map_mut(|machine| {
+            let mut cm = CallManager::new(machine, sender_id, msg.gas_limit);
+            if let Err(e) = cm.charge_gas(inclusion_cost) {
+                return (Err(e), cm.finish().1);
+            }
 
-        cm.state_tree.begin_transaction();
+            // BEGIN CRITICAL SECTION: Do not return an error after this line
+            cm.state_tree.begin_transaction();
 
-        // Invoke the message.
-        let mut res = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
+            // Invoke the message.
+            let mut res = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
 
-        // Charge for including the result.
-        // We shouldn't put this here, but this is where we can still account for gas.
-        // TODO: Maybe CallManager::finish() should return the GasTracker?
-        res = res.and_then(|ret| {
-            cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
-                .map(|_| ret)
-        });
+            // Charge for including the result.
+            // We shouldn't put this here, but this is where we can still account for gas.
+            // TODO: Maybe CallManager::finish() should return the GasTracker?
+            let result = res.and_then(|ret| {
+                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
+                    .map(|_| ret)
+            });
 
-        let (gas_used, s) = cm.finish();
-        self = s;
+            let (gas_used, machine) = cm.finish();
+            (Ok((result, gas_used)), machine)
+        })?;
 
         // Abort or commit the transaction.
-        if let Err(e) = self.state_tree.end_transaction(res.is_err()) {
-            return (Err(anyhow!("failed to end transaction: {}", e)), self);
-        }
+        self.state_tree
+            .end_transaction(res.is_err())
+            .map_err(|e| anyhow!("failed to end transaction: {}", e))?;
+
+        // END CRITICAL SECTION
 
         // Extract the exit code and build the result of the message application.
         let (ret_data, exit_code, err) = match res {
@@ -199,7 +227,7 @@ where
         };
 
         // Finish processing.
-        (self.finish_message(msg, receipt, err, gas_cost), self)
+        self.finish_message(msg, receipt, err, gas_cost)
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -390,6 +418,16 @@ where
 
     pub fn externs(&self) -> &E {
         &self.externs
+    }
+
+    fn map_mut<F, T>(&mut self, f: F) -> T
+    where
+        F: FnOnce(Self) -> (T, Self),
+    {
+        self.0.map_mut(|state| {
+            let (ret, state) = f(Machine::wrap(state));
+            (ret, state.0.take())
+        })
     }
 }
 

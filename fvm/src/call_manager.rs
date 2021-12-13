@@ -37,7 +37,7 @@ pub struct CallManager<B: 'static, E: 'static>(MapCell<CallManagerState<B, E>>);
 struct CallManagerState<B: 'static, E: 'static> {
     from: ActorID,
     /// The machine this kernel is attached to.
-    machine: Box<Machine<B, E>>,
+    machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
 }
@@ -63,7 +63,7 @@ where
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Box<Machine<B, E>>, from: ActorID, gas_limit: i64) -> Self {
+    pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
         Self::wrap(CallManagerState {
             from,
             machine,
@@ -241,7 +241,7 @@ where
     }
 
     /// Finishes execution, returning the gas used and the machine.
-    pub fn finish(self) -> (i64, Box<Machine<B, E>>) {
+    pub fn finish(self) -> (i64, Machine<B, E>) {
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
         (self.gas_used().max(0), self.0.take().machine)
     }
