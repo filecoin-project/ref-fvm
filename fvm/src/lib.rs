@@ -14,6 +14,7 @@ mod errors;
 mod gas;
 mod init_actor;
 mod state_tree;
+mod util;
 
 #[derive(Clone)]
 pub struct Config {
@@ -24,13 +25,4 @@ pub struct Config {
     pub max_pages: usize,
     /// Wasmtime engine configuration.
     pub engine: wasmtime::Config,
-}
-
-macro_rules! t {
-    ($e:expr) => {
-        match $e {
-            Ok(v) => v,
-            Err(e) => return (Err(e.into()), self),
-        }
-    };
 }

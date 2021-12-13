@@ -20,6 +20,7 @@ use crate::machine::Machine;
 use crate::message::Message;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscalls::bind_syscalls;
+use crate::util::MapCell;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -252,16 +253,13 @@ where
     fn send(&mut self, message: Message) -> Fallible<RawBytes> {
         self.call_manager.state_tree_mut().begin_transaction();
 
-        let res = self.call_manager.map_mut(|cm| {
-            let (res, cm) = cm.send(
-                message.to,
-                message.method_num,
-                &message.params,
-                &message.value,
-            );
-            // Do something with the result.
-            (cm, res)
-        });
+        let res = self.call_manager.send(
+            message.to,
+            message.method_num,
+            &message.params,
+            &message.value,
+        );
+        // TODO Do something with the result.
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
