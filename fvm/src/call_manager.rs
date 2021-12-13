@@ -1,5 +1,4 @@
 use blockstore::Blockstore;
-use derive_more::{Deref, DerefMut};
 use fvm_shared::{
     actor_error,
     address::{Address, Protocol},
@@ -17,6 +16,7 @@ use crate::{
     kernel::BlockOps,
     machine::Machine,
     syscalls::bind_syscalls,
+    util::MapCell,
     DefaultKernel,
 };
 
@@ -32,15 +32,29 @@ use crate::{
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
-#[derive(Deref, DerefMut)]
-pub struct CallManager<B: 'static, E: 'static> {
+pub struct CallManager<B: 'static, E: 'static>(MapCell<CallManagerState<B, E>>);
+
+struct CallManagerState<B: 'static, E: 'static> {
     from: ActorID,
     /// The machine this kernel is attached to.
-    #[deref]
-    #[deref_mut]
     machine: Box<Machine<B, E>>,
     /// The gas tracker.
     gas_tracker: GasTracker,
+}
+
+impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
+    type Target = Machine<B, E>;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        &self.0.machine
+    }
+}
+
+impl<B: 'static, E: 'static> std::ops::DerefMut for CallManager<B, E> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.machine
+    }
 }
 
 impl<B: 'static, E: 'static> CallManager<B, E>
@@ -50,90 +64,74 @@ where
 {
     /// Construct a new call manager. This should be called by the machine.
     pub(crate) fn new(machine: Box<Machine<B, E>>, from: ActorID, gas_limit: i64) -> Self {
-        Self {
+        Self::wrap(CallManagerState {
             from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
-        }
+        })
     }
 
-    fn create_account_actor(mut self, addr: &Address) -> (Result<ActorID, ActorError>, Self) {
-        macro_rules! t {
-            ($e:expr) => {
-                match $e {
-                    Ok(v) => v,
-                    Err(e) => return (Err(e.into()), self),
-                }
-            };
-        }
-        t!(self.charge_gas(self.context().price_list().on_create_actor()));
+    fn wrap(state: CallManagerState<B, E>) -> Self {
+        Self(MapCell::new(state))
+    }
+
+    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ActorError> {
+        self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            return (
-                Err(
-                    actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"),
-                ),
-                self,
+            return Err(
+                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"),
             );
         }
 
         // Create the actor in the state tree.
         let act = crate::account_actor::ZERO_STATE.clone();
-        let id = t!(self.create_actor(addr, act));
+        let id = self.create_actor(addr, act)?;
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = t!(RawBytes::serialize(&addr).map_err(|e| {
+        let params = RawBytes::serialize(&addr).map_err(|e| {
             actor_error!(fatal(
                 "couldn't serialize params for actor construction: {:?}",
                 e
             ))
-        }));
+        })?;
 
-        let (res, s) = self.send_explicit(
+        self.send_explicit(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             &params,
             &TokenAmount::from(0u32),
-        );
-
-        (res.map(|_| id), s)
+        )?;
+        Ok(id)
     }
 
     /// Send a message to an actor.
     ///
     /// This method does not create any transactions, that's the caller's responsibility.
     pub fn send(
-        mut self,
+        &mut self,
         to: Address,
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> (Result<RawBytes, ActorError>, Self) {
+    ) -> Result<RawBytes, ActorError> {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
         let to = match self
             .state_tree()
             .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e)))
+            .map_err(|e| actor_error!(fatal(e)))?
         {
-            Ok(Some(addr)) => addr,
-            Ok(None) => match to.protocol() {
+            Some(addr) => addr,
+            None => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
-                    let id_addr = match self.create_account_actor(&to) {
-                        (Ok(res), s) => {
-                            self = s;
-                            res
-                        }
-                        (Err(e), s) => return (Err(e), s),
-                    };
-                    id_addr
+                    self.create_account_actor(&to)?
                 }
-                _ => return (Err(actor_error!(fatal("actor not found: {}", to))), self),
+                _ => return Err(actor_error!(fatal("actor not found: {}", to))),
             },
-            Err(e) => return (Err(e.into()), self),
         };
 
         // Do the actual send.
@@ -144,37 +142,31 @@ where
     /// Send with an explicit from. Used when we need to do an internal send with a different
     /// "from".
     fn send_explicit(
-        mut self,
+        &mut self,
         from: ActorID,
         to: ActorID,
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> (Result<RawBytes, ActorError>, Self) {
-        let prev_from = self.from;
-        self.from = from;
-        let (res, mut s) = self.send_resolved(to, method, params, value);
-        s.from = prev_from;
-        (res, s)
+    ) -> Result<RawBytes, ActorError> {
+        // TODO: this is kind of nasty...
+        // Maybe just make from explicit?
+        let prev_from = self.0.from;
+        self.0.from = from;
+        let res = self.send_resolved(to, method, params, value);
+        self.0.from = prev_from;
+
+        res
     }
 
     /// Send with resolved addresses.
     fn send_resolved(
-        mut self,
+        &mut self,
         to: ActorID,
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> (Result<RawBytes, ActorError>, Self) {
-        macro_rules! t {
-            ($e:expr) => {
-                match $e {
-                    Ok(v) => v,
-                    Err(e) => return (Err(e.into()), self),
-                }
-            };
-        }
-
+    ) -> Result<RawBytes, ActorError> {
         // 1. Setup the engine/linker. TODO: move these into the machine?
 
         // This is a cheap operation as it doesn't actually clone the struct,
@@ -183,86 +175,99 @@ where
 
         // Create a new linker.
         let mut linker = Linker::new(&engine);
-        t!(bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e))));
+        bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e)))?;
 
         let to_addr = Address::new_id(to);
 
         // 2. Lookup the actor.
         // TODO: should we let the kernel do this? We could _ask_ the kernel for the code to
         //  execute?
-        let mut state = t!(t!(self.state_tree().get_actor(&to_addr))
-            .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to))));
+        let mut state = self
+            .state_tree()
+            .get_actor(&to_addr)?
+            .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to)))?;
 
-        let module = t!(self
-            .machine
+        let module = self
             .load_module(&state.code)
-            .map_err(|e| actor_error!(fatal(e))));
+            .map_err(|e| actor_error!(fatal(e)))?;
 
         // 2. Update balance.
         if !value.is_zero() {
             state.balance += value.clone();
-            t!(self.state_tree_mut().set_actor(&to_addr, state));
+            self.state_tree_mut().set_actor(&to_addr, state)?;
         }
 
         // 3. Construct a kernel.
 
         // TODO: Make the kernel pluggable.
-        let from = self.from.clone();
-        let mut kernel = DefaultKernel::new(self, from, to, method, value.clone());
+        self.map_mut(|cm| {
+            let from = cm.0.from.clone();
+            let mut kernel = DefaultKernel::new(cm, from, to, method, value.clone());
 
-        // 4. Load parameters.
+            // 4. Load parameters.
 
-        let param_id = match kernel.block_create(DAG_CBOR, params) {
-            Ok(id) => id,
-            Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
-        };
+            let param_id = match kernel.block_create(DAG_CBOR, params) {
+                Ok(id) => id,
+                Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
+            };
 
-        // TODO: BELOW ERROR HANDLING IS BROKEN.
-        // We should put it in a new function.
+            // TODO: BELOW ERROR HANDLING IS BROKEN.
+            // We should put it in a new function.
 
-        // 3. Instantiate the module.
-        let mut store = Store::new(&engine, kernel);
-        // TODO error handling.
-        let instance = linker.instantiate(&mut store, &module).unwrap();
+            // 3. Instantiate the module.
+            let mut store = Store::new(&engine, kernel);
+            // TODO error handling.
+            let instance = linker.instantiate(&mut store, &module).unwrap();
 
-        // 4. Invoke it.
-        // TODO error handling.
-        let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
-        // TODO error handling.
-        let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,)).unwrap();
+            // 4. Invoke it.
+            // TODO error handling.
+            let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
+            // TODO error handling.
+            let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,)).unwrap();
 
-        // 5. Recover return value.
-        let kernel = store.into_data();
+            // 5. Recover return value.
+            let kernel = store.into_data();
 
-        // TODO: this is a nasty API. We should have a nicer way to just "get a block".
-        // TODO error handling.
-        let ret_stat = kernel.block_stat(return_block_id).unwrap();
-        let mut ret = vec![0; ret_stat.size as usize];
-        // TODO error handling.
-        let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
-        ret.truncate(read as usize);
+            // TODO: this is a nasty API. We should have a nicer way to just "get a block".
+            // TODO error handling.
+            let ret_stat = kernel.block_stat(return_block_id).unwrap();
+            let mut ret = vec![0; ret_stat.size as usize];
+            // TODO error handling.
+            let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
+            ret.truncate(read as usize);
 
-        (Ok(RawBytes::new(ret)), kernel.take())
+            (Ok(RawBytes::new(ret)), kernel.take())
+        })
     }
 
     /// Finishes execution, returning the gas used and the machine.
     pub fn finish(self) -> (i64, Box<Machine<B, E>>) {
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (self.gas_used().max(0), self.machine)
+        (self.gas_used().max(0), self.0.take().machine)
     }
 
     /// Charge gas.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
-        self.gas_tracker.charge_gas(charge)
+        self.0.gas_tracker.charge_gas(charge)
     }
 
     /// Returns the available gas.
     pub fn gas_available(&self) -> i64 {
-        self.gas_tracker.gas_available()
+        self.0.gas_tracker.gas_available()
     }
 
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
-        self.gas_tracker.gas_used()
+        self.0.gas_tracker.gas_used()
+    }
+
+    fn map_mut<F, T>(&mut self, f: F) -> T
+    where
+        F: FnOnce(Self) -> (T, Self),
+    {
+        self.0.map_mut(|state| {
+            let (ret, state) = f(CallManager::wrap(state));
+            (ret, state.0.take())
+        })
     }
 }

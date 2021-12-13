@@ -168,7 +168,7 @@ where
         cm.state_tree.begin_transaction();
 
         // Invoke the message.
-        let (mut res, mut cm) = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
+        let mut res = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
 
         // Charge for including the result.
         // We shouldn't put this here, but this is where we can still account for gas.
