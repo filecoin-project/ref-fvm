@@ -20,7 +20,6 @@ use crate::machine::Machine;
 use crate::message::Message;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscalls::bind_syscalls;
-use crate::util::MapCell;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -38,7 +37,7 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
-    call_manager: MapCell<CallManager<B, E>>,
+    call_manager: CallManager<B, E>,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
@@ -72,7 +71,7 @@ where
         value_received: TokenAmount,
     ) -> Self {
         DefaultKernel {
-            call_manager: MapCell::new(mgr),
+            call_manager: mgr,
             blocks: BlockRegistry::new(),
             return_stack: Default::default(),
             from,
@@ -83,7 +82,7 @@ where
     }
 
     pub fn take(self) -> CallManager<B, E> {
-        self.call_manager.take()
+        self.call_manager
     }
 }
 

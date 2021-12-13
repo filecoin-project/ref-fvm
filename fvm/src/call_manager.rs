@@ -16,7 +16,6 @@ use crate::{
     kernel::BlockOps,
     machine::Machine,
     syscalls::bind_syscalls,
-    util::MapCell,
     DefaultKernel,
 };
 
@@ -32,7 +31,7 @@ use crate::{
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
-pub struct CallManager<B: 'static, E: 'static>(MapCell<CallManagerState<B, E>>);
+pub struct CallManager<B: 'static, E: 'static>(CallManagerState<B, E>);
 
 struct CallManagerState<B: 'static, E: 'static> {
     from: ActorID,
@@ -64,15 +63,11 @@ where
 {
     /// Construct a new call manager. This should be called by the machine.
     pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
-        Self::wrap(CallManagerState {
+        CallManager(CallManagerState {
             from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
         })
-    }
-
-    fn wrap(state: CallManagerState<B, E>) -> Self {
-        Self(MapCell::new(state))
     }
 
     fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ActorError> {
@@ -243,7 +238,7 @@ where
     /// Finishes execution, returning the gas used and the machine.
     pub fn finish(self) -> (i64, Machine<B, E>) {
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (self.gas_used().max(0), self.0.take().machine)
+        (self.gas_used().max(0), self.0.machine)
     }
 
     /// Charge gas.
@@ -265,9 +260,6 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        self.0.map_mut(|state| {
-            let (ret, state) = f(CallManager::wrap(state));
-            (ret, state.0.take())
-        })
+        replace_with::replace_with_or_abort_and_return(self, f)
     }
 }

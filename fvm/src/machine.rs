@@ -25,7 +25,6 @@ use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
-use crate::util::MapCell;
 use crate::Config;
 
 lazy_static! {
@@ -40,7 +39,7 @@ lazy_static! {
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<B: 'static, E: 'static>(MapCell<Box<MachineState<B, E>>>);
+pub struct Machine<B: 'static, E: 'static>(Box<MachineState<B, E>>);
 
 #[doc(hidden)]
 pub struct MachineState<B: 'static, E: 'static> {
@@ -125,7 +124,7 @@ where
     }
 
     fn wrap(state: Box<MachineState<B, E>>) -> Self {
-        Machine(MapCell::new(state))
+        Machine(state)
     }
 
     pub fn engine(&self) -> &Engine {
@@ -424,10 +423,7 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        self.0.map_mut(|state| {
-            let (ret, state) = f(Machine::wrap(state));
-            (ret, state.0.take())
-        })
+        replace_with::replace_with_or_abort_and_return(self, f)
     }
 }
 

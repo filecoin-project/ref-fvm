@@ -14,7 +14,6 @@ mod errors;
 mod gas;
 mod init_actor;
 mod state_tree;
-mod util;
 
 #[derive(Clone)]
 pub struct Config {

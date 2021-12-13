@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use cid::Cid;
 
 use crate::message::Message;
-use crate::util::*;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
