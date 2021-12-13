@@ -1767,6 +1767,10 @@ impl Actor {
 
                             let mut sector = sector.clone();
                             sector.expiration = decl.new_expiration;
+
+                            sector.deal_weight = new_deal_weight;
+                            sector.verified_deal_weight = new_verified_deal_weight;
+
                             Ok(sector)
                         })
                         .collect::<Result<_, _>>()?;
@@ -2855,7 +2859,9 @@ impl Actor {
                     format!("balance invariants broken: {}", e),
                 )
             })?;
-        Ok(())
+        Ok(WithdrawBalanceReturn {
+            amount_withdrawn: amount_withdrawn.clone(),
+        })
     }
 
     fn repay_debt<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
@@ -2897,9 +2903,7 @@ impl Actor {
                     format!("balance invariants broken: {}", e),
                 )
             })?;
-        Ok(WithdrawBalanceReturn {
-            amount_withdrawn: amount_withdrawn.clone(),
-        })
+        Ok(())
     }
 
     fn on_deferred_cron_event<BS, RT>(
@@ -4438,7 +4442,7 @@ impl ActorCode for Actor {
             }
             Some(Method::WithdrawBalance) => {
                 let res = Self::withdraw_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(&res)?)
+                Ok(RawBytes::serialize(&res)?)
             }
             Some(Method::ConfirmSectorProofsValid) => {
                 Self::confirm_sector_proofs_valid(rt, rt.deserialize_params(params)?)?;

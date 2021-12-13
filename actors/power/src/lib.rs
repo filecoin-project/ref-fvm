@@ -276,7 +276,7 @@ impl Actor {
             .send(
                 *REWARD_ACTOR_ADDR,
                 crate::reward::Method::ThisEpochReward as MethodNum,
-                Serialized::default(),
+                RawBytes::default(),
                 TokenAmount::zero(),
             )
             .map_err(|e| e.wrap("failed to check epoch baseline power"))?
@@ -305,7 +305,7 @@ impl Actor {
             *REWARD_ACTOR_ADDR,
             ext::reward::UPDATE_NETWORK_KPI,
             this_epoch_raw_byte_power?,
-            TokenAmount::from(0),
+            TokenAmount::from(0_u32),
         )
         .map_err(|e| e.wrap("failed to update network KPI with reward actor"))?;
 
