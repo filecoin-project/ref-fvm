@@ -1,14 +1,14 @@
 use std::convert::TryFrom;
 use std::rc::Rc;
 
-use actor::{ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_shared::address::Address;
+use lazy_static::lazy_static;
 use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
+use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -16,16 +16,21 @@ use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{actor_error, ActorID};
 
+use crate::account_actor::is_account_actor;
+use crate::call_manager::CallManager;
+use crate::errors::ActorDowncast;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
-
 use crate::Config;
 
-use crate::call_manager::CallManager;
+lazy_static! {
+    pub static ref REWARD_ACTOR_ADDR: Address         = Address::new_id(2);
+    /// Distinguished AccountActor that is the destination of all burnt funds.
+    pub static ref BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
+}
 
 /// The core of the FVM.
 ///
@@ -251,7 +256,7 @@ where
         };
 
         // If sender is not an account actor, the message is invalid.
-        if !actor::is_account_actor(&sender.code) {
+        if !is_account_actor(&sender.code) {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderInvalid,
                 miner_penalty_amount,

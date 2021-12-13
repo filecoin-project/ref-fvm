@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::address::{Address, Error as AddressError, Protocol};
-use crate::encoding::{blake2b_256, de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
-use bls_signatures::{
-    verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
-};
-use libsecp256k1::Error as SecpError;
-use libsecp256k1::{recover, Message, RecoveryId, Signature as EcsdaSignature};
+use crate::encoding::{de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::borrow::Cow;
@@ -104,112 +99,146 @@ impl Signature {
     pub fn signature_type(&self) -> SignatureType {
         self.sig_type
     }
+}
 
+#[cfg(feature = "crypto")]
+impl Signature {
     /// Checks if a signature is valid given data and address.
     pub fn verify(&self, data: &[u8], addr: &Address) -> Result<(), String> {
         match addr.protocol() {
-            Protocol::BLS => verify_bls_sig(self.bytes(), data, addr),
-            Protocol::Secp256k1 => verify_secp256k1_sig(self.bytes(), data, addr),
+            Protocol::BLS => self::ops::verify_bls_sig(self.bytes(), data, addr),
+            Protocol::Secp256k1 => self::ops::verify_secp256k1_sig(self.bytes(), data, addr),
             _ => Err("Address must be resolved to verify a signature".to_owned()),
         }
     }
 }
 
-/// Returns `String` error if a bls signature is invalid.
-pub(crate) fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
-    let pub_k = addr.payload_bytes();
-
-    // generate public key object from bytes
-    let pk = BlsPubKey::from_bytes(&pub_k).map_err(|e| e.to_string())?;
-
-    // generate signature struct from bytes
-    let sig = BlsSignature::from_bytes(signature).map_err(|e| e.to_string())?;
-
-    // BLS verify hash against key
-    if verify_messages(&sig, &[data], &[pk]) {
-        Ok(())
-    } else {
-        Err(format!(
-            "bls signature verification failed for addr: {}",
-            addr
-        ))
-    }
-}
-
-/// Returns `String` error if a secp256k1 signature is invalid.
-fn verify_secp256k1_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
-    if signature.len() != SECP_SIG_LEN {
-        return Err(format!(
-            "Invalid Secp256k1 signature length. Was {}, must be 65",
-            signature.len()
-        ));
-    }
-
-    // blake2b 256 hash
-    let hash = blake2b_256(data);
-
-    // Ecrecover with hash and signature
-    let mut sig = [0u8; SECP_SIG_LEN];
-    sig[..].copy_from_slice(signature);
-    let rec_addr = ecrecover(&hash, &sig).map_err(|e| e.to_string())?;
-
-    // check address against recovered address
-    if &rec_addr == addr {
-        Ok(())
-    } else {
-        Err("Secp signature verification failed".to_owned())
-    }
-}
-/// Aggregates and verifies bls signatures collectively.
-pub fn verify_bls_aggregate(data: &[&[u8]], pub_keys: &[&[u8]], aggregate_sig: &Signature) -> bool {
-    // If the number of public keys and data does not match, then return false
-    if data.len() != pub_keys.len() {
-        return false;
-    }
-    if data.is_empty() {
-        return true;
-    }
-
-    let sig = match BlsSignature::from_bytes(aggregate_sig.bytes()) {
-        Ok(v) => v,
-        Err(_) => return false,
+#[cfg(feature = "crypto")]
+pub mod ops {
+    use super::{Error, SECP_SIG_LEN};
+    use crate::address::Address;
+    use crate::crypto::signature::Signature;
+    use crate::encoding::blake2b_256;
+    use bls_signatures::{
+        verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
     };
+    use libsecp256k1::Error as SecpError;
+    use libsecp256k1::{recover, Message, RecoveryId, Signature as EcsdaSignature};
 
-    let pk_map_results: Result<Vec<_>, _> =
-        pub_keys.iter().map(|x| BlsPubKey::from_bytes(x)).collect();
+    /// Returns `String` error if a bls signature is invalid.
+    pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
+        let pub_k = addr.payload_bytes();
 
-    let pks = match pk_map_results {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
+        // generate public key object from bytes
+        let pk = BlsPubKey::from_bytes(&pub_k).map_err(|e| e.to_string())?;
 
-    // Does the aggregate verification
-    verify_messages(&sig, data, &pks[..])
-}
+        // generate signature struct from bytes
+        let sig = BlsSignature::from_bytes(signature).map_err(|e| e.to_string())?;
 
-/// Return Address for a message given it's signing bytes hash and signature.
-pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
-    // generate types to recover key from
-    let rec_id = RecoveryId::parse(signature[64])?;
-    let message = Message::parse(hash);
+        // BLS verify hash against key
+        if verify_messages(&sig, &[data], &[pk]) {
+            Ok(())
+        } else {
+            Err(format!(
+                "bls signature verification failed for addr: {}",
+                addr
+            ))
+        }
+    }
 
-    // Signature value without recovery byte
-    let mut s = [0u8; 64];
-    s.clone_from_slice(signature[..64].as_ref());
-    // generate Signature
-    let sig = EcsdaSignature::parse_standard(&s)?;
+    /// Returns `String` error if a secp256k1 signature is invalid.
+    pub fn verify_secp256k1_sig(
+        signature: &[u8],
+        data: &[u8],
+        addr: &Address,
+    ) -> Result<(), String> {
+        if signature.len() != SECP_SIG_LEN {
+            return Err(format!(
+                "Invalid Secp256k1 signature length. Was {}, must be 65",
+                signature.len()
+            ));
+        }
 
-    let key = recover(&message, &sig, &rec_id)?;
-    let ret = key.serialize();
-    let addr = Address::new_secp256k1(&ret)?;
-    Ok(addr)
+        // blake2b 256 hash
+        let hash = blake2b_256(data);
+
+        // Ecrecover with hash and signature
+        let mut sig = [0u8; SECP_SIG_LEN];
+        sig[..].copy_from_slice(signature);
+        let rec_addr = ecrecover(&hash, &sig).map_err(|e| e.to_string())?;
+
+        // check address against recovered address
+        if &rec_addr == addr {
+            Ok(())
+        } else {
+            Err("Secp signature verification failed".to_owned())
+        }
+    }
+    /// Aggregates and verifies bls signatures collectively.
+    pub fn verify_bls_aggregate(
+        data: &[&[u8]],
+        pub_keys: &[&[u8]],
+        aggregate_sig: &Signature,
+    ) -> bool {
+        // If the number of public keys and data does not match, then return false
+        if data.len() != pub_keys.len() {
+            return false;
+        }
+        if data.is_empty() {
+            return true;
+        }
+
+        let sig = match BlsSignature::from_bytes(aggregate_sig.bytes()) {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        let pk_map_results: Result<Vec<_>, _> =
+            pub_keys.iter().map(|x| BlsPubKey::from_bytes(x)).collect();
+
+        let pks = match pk_map_results {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        // Does the aggregate verification
+        verify_messages(&sig, data, &pks[..])
+    }
+
+    /// Return Address for a message given it's signing bytes hash and signature.
+    pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
+        // generate types to recover key from
+        let rec_id = RecoveryId::parse(signature[64])?;
+        let message = Message::parse(hash);
+
+        // Signature value without recovery byte
+        let mut s = [0u8; 64];
+        s.clone_from_slice(signature[..64].as_ref());
+        // generate Signature
+        let sig = EcsdaSignature::parse_standard(&s)?;
+
+        let key = recover(&message, &sig, &rec_id)?;
+        let ret = key.serialize();
+        let addr = Address::new_secp256k1(&ret)?;
+        Ok(addr)
+    }
+
+    impl From<SecpError> for Error {
+        fn from(err: SecpError) -> Error {
+            match err {
+                SecpError::InvalidRecoveryId => Error::InvalidRecovery(format!("{:?}", err)),
+                _ => Error::SigningError(format!("{:?}", err)),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
     use bls_signatures::{PrivateKey, Serialize, Signature as BlsSignature};
-    use libsecp256k1::{sign, PublicKey, SecretKey};
+    use libsecp256k1::{sign, Message, PublicKey, SecretKey};
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
 
@@ -287,15 +316,6 @@ impl From<Box<dyn error::Error>> for Error {
     fn from(err: Box<dyn error::Error>) -> Error {
         // Pass error encountered in signer trait as module error type
         Error::SigningError(err.to_string())
-    }
-}
-
-impl From<SecpError> for Error {
-    fn from(err: SecpError) -> Error {
-        match err {
-            SecpError::InvalidRecoveryId => Error::InvalidRecovery(format!("{:?}", err)),
-            _ => Error::SigningError(format!("{:?}", err)),
-        }
     }
 }
 

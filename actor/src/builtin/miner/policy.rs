@@ -7,6 +7,7 @@ use std::cmp;
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::{ChainEpoch, EPOCH_DURATION_SECONDS};
 use fvm_shared::commcid;
+use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, POSEIDON_BLS12_381_A1_FC1};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sector::{
     RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize, StoragePower,
@@ -99,8 +100,8 @@ pub const CHAIN_FINALITY: ChainEpoch = 900;
 pub fn is_sealed_sector(c: &Cid) -> bool {
     // TODO: Move FIL_COMMITMENT etc, into a better place
     c.version() == Version::V1
-        && c.codec() == commcid::FIL_COMMITMENT_SEALED
-        && c.hash().code() == commcid::POSEIDON_BLS12_381_A1_FC1
+        && c.codec() == FIL_COMMITMENT_SEALED
+        && c.hash().code() == POSEIDON_BLS12_381_A1_FC1
         && c.hash().size() == 32
 }
 

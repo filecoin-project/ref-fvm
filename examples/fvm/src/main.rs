@@ -5,7 +5,7 @@ use cid::Cid;
 use fvm;
 // TODO: the compiler doesn't bring inherited traits in scope automatically when
 //  importing a supertrait :-/
-use fvm::kernel::InvocationOps;
+use fvm::kernel::MessageOps;
 use fvm::syscalls::bind_syscalls;
 use fvm::{DefaultKernel, Kernel};
 use multihash::{Code as MhCode, MultihashDigest};

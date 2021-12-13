@@ -6,7 +6,7 @@ use fvm_shared::{
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
     error::ActorError,
-    ActorID,
+    ActorID, MethodNum,
 };
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
@@ -14,7 +14,7 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{BlockOps, MethodId},
+    kernel::BlockOps,
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -107,7 +107,7 @@ where
     pub fn send(
         mut self,
         to: Address,
-        method: MethodId,
+        method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
@@ -147,7 +147,7 @@ where
         mut self,
         from: ActorID,
         to: ActorID,
-        method: MethodId,
+        method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
@@ -162,7 +162,7 @@ where
     fn send_resolved(
         mut self,
         to: ActorID,
-        method: MethodId,
+        method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
     ) -> (Result<RawBytes, ActorError>, Self) {
