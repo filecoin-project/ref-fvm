@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use cid::Cid;
 use num_traits::Zero;
 use wasmtime::{Engine, Module};
@@ -18,9 +18,9 @@ use fvm_shared::{actor_error, ActorID};
 
 use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
-use crate::errors::ActorDowncast;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
+use crate::kernel::ExecutionError;
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
@@ -90,7 +90,7 @@ where
         state_root: Cid,
         blockstore: B,
         externs: E,
-    ) -> anyhow::Result<Machine<B, E>> {
+    ) -> Result<Machine<B, E>, ExecutionError> {
         let context = MachineContext::new(
             epoch,
             base_fee,
@@ -146,28 +146,33 @@ where
         &mut self,
         addr: &Address,
         act: ActorState,
-    ) -> Result<ActorID, ActorError> {
+    ) -> Result<ActorID, ExecutionError> {
         let state_tree = self.state_tree_mut();
 
         let addr_id = state_tree
             .register_new_address(addr)
-            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+            .context("failed to register new address")?;
 
         state_tree
             .set_actor(&Address::new_id(addr_id), act)
-            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+            .context("failed to set actor")?;
         Ok(addr_id)
     }
 
-    pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
+    pub fn load_module(&self, k: &Cid) -> Result<Module, ExecutionError> {
         // TODO: cache compiled code, and modules?
         todo!("get the actual code");
         let bytecode = &[];
-        Module::new(&self.engine, bytecode)
+        let module = Module::new(&self.engine, bytecode)?;
+        Ok(module)
     }
 
     /// This is the entrypoint to execute a message.
-    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet> {
+    pub fn execute_message(
+        &mut self,
+        msg: Message,
+        _: ApplyKind,
+    ) -> Result<ApplyRet, ExecutionError> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg)? {
             Ok(res) => res,
@@ -193,6 +198,7 @@ where
             let result = res.and_then(|ret| {
                 cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
                     .map(|_| ret)
+                    .map_err(Into::into)
             });
 
             let (gas_used, machine) = cm.finish();
@@ -202,7 +208,7 @@ where
         // Abort or commit the transaction.
         self.state_tree
             .end_transaction(res.is_err())
-            .map_err(|e| anyhow!("failed to end transaction: {}", e))?;
+            .context("failed to end transaction")?;
 
         // END CRITICAL SECTION
 
@@ -231,7 +237,7 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
-    ) -> anyhow::Result<Result<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<Result<(ActorID, TokenAmount, GasCharge), ApplyRet>, ExecutionError> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check()?;
 
@@ -256,28 +262,34 @@ where
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
 
-        let sender_id = match self.state_tree.lookup_id(&msg.from) {
-            Ok(Some(id)) => id,
-            Ok(None) => {
+        let sender_id = match self
+            .state_tree
+            .lookup_id(&msg.from)
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+        {
+            Some(id) => id,
+            None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
                     miner_penalty_amount.clone(),
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
-            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
         };
 
-        let sender = match self.state_tree.get_actor(&Address::new_id(sender_id)) {
-            Ok(Some(act)) => act,
-            Ok(None) => {
+        let sender = match self
+            .state_tree
+            .get_actor(&Address::new_id(sender_id))
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+        {
+            Some(act) => act,
+            None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
                     miner_penalty_amount.clone(),
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
-            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
         };
 
         // If sender is not an account actor, the message is invalid.
@@ -327,28 +339,34 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        act_err: Option<ActorError>,
+        act_err: Option<ExecutionError>,
         gas_cost: BigInt,
-    ) -> anyhow::Result<ApplyRet> {
+    ) -> Result<ApplyRet, ExecutionError> {
         // Make sure the actor error is sane.
-        if let Some(err) = &act_err {
-            if err.is_fatal() {
-                return Err(anyhow!(
-                    "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
-                    msg.from,
-                    msg.to,
-                    msg.sequence,
-                    msg.method_num,
-                    self.context.epoch,
-                    err
-                ));
-            } else if err.is_ok() {
-                return Err(anyhow!(
-                    "message invocation errored with an ok status: {}",
-                    err
-                ));
+        let act_err = match act_err {
+            Some(ExecutionError::Actor(err)) => {
+                if err.is_fatal() {
+                    return Err(anyhow!(
+                        "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
+                        msg.from,
+                        msg.to,
+                        msg.sequence,
+                        msg.method_num,
+                        self.context.epoch,
+                        err
+                    )
+                    .into());
+                } else if err.is_ok() {
+                    return Err(
+                        anyhow!("message invocation errored with an ok status: {}", err).into(),
+                    );
+                } else {
+                    Some(err)
+                }
             }
-        }
+            Some(e @ ExecutionError::SystemError(_)) => return Err(e),
+            None => None,
+        };
 
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -366,21 +384,23 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
-            if amt.sign() == Sign::Minus {
-                return Err(anyhow!("attempted to transfer negative value into actor"));
-            }
-            if amt.is_zero() {
-                return Ok(());
-            }
+        let mut transfer_to_actor =
+            |addr: &Address, amt: &TokenAmount| -> Result<(), ExecutionError> {
+                if amt.sign() == Sign::Minus {
+                    return Err(anyhow!("attempted to transfer negative value into actor").into());
+                }
+                if amt.is_zero() {
+                    return Ok(());
+                }
 
-            self.state_tree
-                .mutate_actor(addr, |act| {
-                    act.deposit_funds(amt);
-                    Ok(())
-                })
-                .map_err(|e| anyhow!("failed to lookup actor for transfer: {}", e))
-        };
+                self.state_tree
+                    .mutate_actor(addr, |act| {
+                        act.deposit_funds(amt);
+                        Ok(())
+                    })
+                    .context("failed to lookup actor for transfer")?;
+                Ok(())
+            };
 
         transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
 
@@ -394,7 +414,7 @@ where
         if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             // XXX: this _is_ a fatal error in the FVM, at the moment at least.
-            return Err(anyhow!("Gas handling math is wrong"));
+            return Err(anyhow!("Gas handling math is wrong").into());
         }
         Ok(ApplyRet {
             msg_receipt: receipt,

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use address::Address;
+use anyhow::Error;
 use crypto::{Signature, Signer};
 use forest_message::{Message, SignedMessage, UnsignedMessage};
-use std::error::Error;
 use vm::{MethodNum, Serialized, TokenAmount};
 
 const DUMMY_SIG: [u8; 1] = [0u8];
 
 struct DummySigner;
 impl Signer for DummySigner {
-    fn sign_bytes(&self, _: &[u8], _: &Address) -> Result<Signature, Box<dyn Error>> {
+    fn sign_bytes(&self, _: &[u8], _: &Address) -> Result<Signature, Error> {
         Ok(Signature::new_secp256k1(DUMMY_SIG.to_vec()))
     }
 }

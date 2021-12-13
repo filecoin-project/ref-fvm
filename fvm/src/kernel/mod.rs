@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cid::Cid;
+use fvm_shared::error::{ActorError, ExitCode};
 
 use crate::message::Message;
 pub use blocks::{BlockError, BlockId, BlockStat};
@@ -10,8 +11,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
+use fvm_shared::encoding::{self, RawBytes};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -23,11 +23,51 @@ use fvm_shared::{ActorID, MethodNum};
 mod blocks;
 pub mod default;
 
-// Type aliases to make return values easier to follow.
-// TODO ActorError should be replaced with SystemError (or similar), as these
-//  are _not_ actor errors.
-type Fallible<T, E = ActorError> = anyhow::Result<T, E>;
+type Fallible<T, E = ExecutionError> = anyhow::Result<T, E>;
 type Infallible<T> = T;
+
+#[derive(thiserror::Error, Debug)]
+pub enum ExecutionError {
+    #[error("{0:?}")]
+    Actor(#[from] ActorError),
+    #[error("{0:?}")]
+    SystemError(#[from] anyhow::Error),
+}
+
+impl ExecutionError {
+    pub fn exit_code(&self) -> ExitCode {
+        match self {
+            ExecutionError::Actor(e) => e.exit_code(),
+            ExecutionError::SystemError(_) => ExitCode::ErrPlaceholder, // same as fatal before
+        }
+    }
+}
+
+impl From<encoding::Error> for ExecutionError {
+    fn from(e: encoding::Error) -> Self {
+        ExecutionError::SystemError(e.into())
+    }
+}
+
+impl From<blocks::BlockError> for ExecutionError {
+    fn from(e: blocks::BlockError) -> Self {
+        ExecutionError::SystemError(e.into())
+    }
+}
+
+impl From<ipld_hamt::Error> for ExecutionError {
+    fn from(e: ipld_hamt::Error) -> Self {
+        // TODO: box dyn error is pervasive..
+        ExecutionError::SystemError(anyhow::anyhow!("{:?}", e))
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for ExecutionError {
+    fn from(e: Box<dyn std::error::Error>) -> Self {
+        // TODO: make better
+        ExecutionError::SystemError(anyhow::anyhow!(e.to_string()))
+    }
+}
 
 pub trait Kernel:
     ActorOps

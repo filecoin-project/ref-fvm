@@ -2,24 +2,16 @@ use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
-use derive_getters::Getters;
-use wasmtime::{Engine, Linker, Module, Store};
 
 use blockstore::Blockstore;
-use fvm_shared::address::Protocol;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::ActorID;
 
 use crate::call_manager::CallManager;
-use crate::errors::ActorDowncast;
 use crate::externs::Externs;
-use crate::gas::GasTracker;
-use crate::machine::Machine;
 use crate::message::Message;
-use crate::state_tree::{ActorState, StateTree};
-use crate::syscalls::bind_syscalls;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -107,12 +99,11 @@ where
         let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree_mut();
 
-        state_tree
-            .mutate_actor(&addr, |actor_state| {
-                actor_state.state = new;
-                Ok(())
-            })
-            .map_err(|e| actor_error!(fatal(e.to_string())))
+        state_tree.mutate_actor(&addr, |actor_state| {
+            actor_state.state = new;
+            Ok(())
+        })?;
+        Ok(())
     }
 
     fn current_balance(&self) -> Fallible<TokenAmount> {
@@ -262,7 +253,7 @@ where
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
-        res
+        res.map_err(Into::into)
     }
 }
 

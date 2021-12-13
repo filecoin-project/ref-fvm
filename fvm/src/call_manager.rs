@@ -1,3 +1,4 @@
+use anyhow::Context;
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
@@ -5,7 +6,6 @@ use fvm_shared::{
     address::{Address, Protocol},
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
-    error::ActorError,
     ActorID, MethodNum,
 };
 use num_traits::Zero;
@@ -14,7 +14,7 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::BlockOps,
+    kernel::{BlockOps, ExecutionError},
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -58,12 +58,13 @@ where
         }
     }
 
-    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ActorError> {
+    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ExecutionError> {
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
             return Err(
-                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"),
+                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
+                    .into(),
             );
         }
 
@@ -73,12 +74,8 @@ where
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = RawBytes::serialize(&addr).map_err(|e| {
-            actor_error!(fatal(
-                "couldn't serialize params for actor construction: {:?}",
-                e
-            ))
-        })?;
+        let params = RawBytes::serialize(&addr)
+            .context("couldn't serialize params for actor construction: {:?}")?;
 
         self.send_explicit(
             crate::account_actor::SYSTEM_ACTOR_ID,
@@ -87,6 +84,7 @@ where
             &params,
             &TokenAmount::from(0u32),
         )?;
+
         Ok(id)
     }
 
@@ -99,21 +97,17 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes, ExecutionError> {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
-        let to = match self
-            .state_tree()
-            .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e)))?
-        {
+        let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,
             None => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor(&to)?
                 }
-                _ => return Err(actor_error!(fatal("actor not found: {}", to))),
+                _ => return Err(anyhow::anyhow!("actor not found: {}", to).into()),
             },
         };
 
@@ -131,7 +125,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes, ExecutionError> {
         // TODO: this is kind of nasty...
         // Maybe just make from explicit?
         let prev_from = self.from;
@@ -149,7 +143,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes, ExecutionError> {
         // 1. Setup the engine/linker. TODO: move these into the machine?
 
         // This is a cheap operation as it doesn't actually clone the struct,
@@ -191,7 +185,7 @@ where
 
             let param_id = match kernel.block_create(DAG_CBOR, params) {
                 Ok(id) => id,
-                Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
+                Err(e) => return (Err(e.into()), kernel.take()),
             };
 
             // TODO: BELOW ERROR HANDLING IS BROKEN.
@@ -230,8 +224,9 @@ where
     }
 
     /// Charge gas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
-        self.gas_tracker.charge_gas(charge)
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ExecutionError> {
+        self.0.gas_tracker.charge_gas(charge)?;
+        Ok(())
     }
 
     /// Returns the available gas.
