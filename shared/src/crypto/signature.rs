@@ -233,7 +233,7 @@ pub mod ops {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "crypto"))]
 mod tests {
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
