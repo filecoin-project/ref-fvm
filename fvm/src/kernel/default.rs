@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
-use std::ops::Deref;
 
-use anyhow::{anyhow, Result};
 use cid::Cid;
 use derive_getters::Getters;
 use wasmtime::{Engine, Linker, Module, Store};
@@ -328,7 +326,7 @@ where
 
     fn batch_verify_seals(
         &self,
-        vis: &[(&Address, &Vec<SealVerifyInfo>)],
+        vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Fallible<HashMap<Address, Vec<bool>>> {
         todo!()
     }
@@ -399,11 +397,11 @@ where
         todo!()
     }
 
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: Vec<Address>) -> Fallible<()> {
+    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Fallible<()> {
         todo!()
     }
 
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: Vec<Cid>) -> Fallible<()> {
+    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Fallible<()> {
         todo!()
     }
 }

@@ -64,8 +64,8 @@ pub trait NetworkOps {
 /// TODO Kernel must track validation status.
 pub trait ValidationOps {
     fn validate_immediate_caller_accept_any(&mut self) -> Fallible<()>;
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: Vec<Address>) -> Fallible<()>;
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: Vec<Cid>) -> Fallible<()>;
+    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Fallible<()>;
+    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Fallible<()>;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -249,7 +249,7 @@ pub trait CryptoOps {
 
     fn batch_verify_seals(
         &self,
-        vis: &[(&Address, &Vec<SealVerifyInfo>)],
+        vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Fallible<HashMap<Address, Vec<bool>>>;
 
     fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Fallible<()>;
