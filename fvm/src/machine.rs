@@ -14,6 +14,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor_error, ActorID};
 
 use crate::account_actor::is_account_actor;
@@ -56,8 +57,6 @@ pub struct Machine<B: 'static, E: 'static> {
     ///
     /// Owned.
     state_tree: StateTree<'static, B>,
-    /// Current epoch.
-    epoch: ChainEpoch,
 }
 
 impl<B, E> Machine<B, E>
@@ -69,11 +68,18 @@ where
         config: Config,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
+        network_version: NetworkVersion,
         state_root: Cid,
         blockstore: &'static B,
         externs: E,
     ) -> anyhow::Result<Machine<B, E>> {
-        let context = MachineContext::new(epoch, base_fee, state_root, price_list_by_epoch(epoch));
+        let context = MachineContext::new(
+            epoch,
+            base_fee,
+            state_root,
+            price_list_by_epoch(epoch),
+            network_version,
+        );
 
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
@@ -84,7 +90,6 @@ where
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
-            epoch,
             config,
             context,
             engine,
@@ -314,7 +319,7 @@ where
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.epoch,
+                    self.context.epoch,
                     err
                 ));
             } else if err.is_ok() {
@@ -438,6 +443,8 @@ pub struct MachineContext {
     initial_state_root: Cid,
     /// The price list.
     price_list: Rc<PriceList>,
+    /// The network version at epoch
+    network_version: NetworkVersion,
 }
 
 impl MachineContext {
@@ -446,12 +453,14 @@ impl MachineContext {
         base_fee: TokenAmount,
         state_root: Cid,
         price_list: PriceList,
+        network_version: NetworkVersion,
     ) -> MachineContext {
         MachineContext {
             epoch,
             base_fee,
             initial_state_root: state_root,
             price_list: Rc::new(price_list),
+            network_version,
         }
     }
 
