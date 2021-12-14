@@ -14,7 +14,7 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{BlockOps, ExecutionError, Result},
+    kernel::{BlockOps, Result},
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -224,7 +224,7 @@ where
 
     /// Charge gas.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.0.gas_tracker.charge_gas(charge)?;
+        self.gas_tracker.charge_gas(charge)?;
         Ok(())
     }
 
@@ -242,6 +242,7 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
+        // TODO: decide on panic handling
         replace_with::replace_with_or_abort_and_return(self, f)
     }
 }
