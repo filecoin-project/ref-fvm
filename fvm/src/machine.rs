@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-use std::convert::TryFrom;
 use std::rc::Rc;
 
 use anyhow::anyhow;
@@ -47,9 +45,6 @@ pub struct Machine<B: 'static, E: 'static> {
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
     engine: Engine,
-    /// Blockstore to use for this machine instance and all kernels
-    /// constructed under it.
-    blockstore: Rc<B>,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
     externs: E,
@@ -62,7 +57,7 @@ pub struct Machine<B: 'static, E: 'static> {
 
 impl<B, E> Machine<B, E>
 where
-    B: Blockstore + Clone + Borrow<B>,
+    B: Blockstore,
     E: Externs,
 {
     pub fn new(
@@ -85,11 +80,9 @@ where
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
 
-        let blockstore = Rc::new(blockstore);
-
         // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
         //  non-send errors in the state-tree.
-        let state_tree = StateTree::new_from_root(blockstore.clone(), &context.initial_state_root)
+        let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
@@ -97,7 +90,6 @@ where
             context,
             engine,
             externs,
-            blockstore,
             state_tree,
         })
     }
@@ -111,7 +103,7 @@ where
     }
 
     pub fn blockstore(&self) -> &B {
-        &self.blockstore
+        &self.state_tree.store()
     }
 
     pub fn state_tree(&self) -> &StateTree<B> {

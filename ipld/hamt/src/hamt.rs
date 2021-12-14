@@ -10,7 +10,6 @@ use serde::{de::DeserializeOwned, Serialize, Serializer};
 use std::borrow::Borrow;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -62,7 +61,7 @@ impl<BS, V, K, H> Hamt<BS, V, K, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
-    BS: BlockStore + Clone + Borrow<BS>,
+    BS: BlockStore,
     H: HashAlgorithm,
 {
     pub fn new(store: BS) -> Self {
@@ -109,7 +108,7 @@ where
 
     /// Returns a reference to the underlying store of the Hamt.
     pub fn store(&self) -> &BS {
-        self.store.borrow()
+        &self.store
     }
 
     /// Inserts a key-value pair into the HAMT.

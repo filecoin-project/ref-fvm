@@ -7,11 +7,10 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
-use std::borrow::Borrow;
 use std::error::Error as StdError;
-use std::rc::Rc;
 
 use anyhow::anyhow;
+use blockstore::Blockstore;
 use cid::Cid;
 use lazy_static::lazy_static;
 
@@ -44,7 +43,7 @@ impl Cbor for State {}
 impl State {
     pub fn new<B>(store: B, network_name: String) -> Result<Self, Box<dyn StdError>>
     where
-        B: BlockStore + Clone + Borrow<B>,
+        B: BlockStore,
     {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
@@ -59,16 +58,14 @@ impl State {
     /// Loads the init actor state with the supplied CID from the underlying store.
     pub fn load<B>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)>
     where
-        B: BlockStore + Clone + Borrow<B>,
+        B: Blockstore,
     {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)
             .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
             .ok_or_else(|| anyhow::Error::msg("Init actor address could not be resolved"))?;
 
-        let state = state_tree
-            .store()
-            .get(&init_act.state)
+        let state = BlockStore::get(state_tree.store(), &init_act.state)
             // XXX blockstore errors don't implement send
             .map_err(|e| anyhow::Error::msg(e.to_string()))?
             .ok_or(anyhow!("init actor state not found"))?;
@@ -83,14 +80,11 @@ impl State {
         addr: &Address,
     ) -> Result<ActorID, Box<dyn StdError>>
     where
-        B: BlockStore + Clone + Borrow<B>,
+        B: BlockStore,
     {
         let id = self.next_id;
         self.next_id += 1;
 
-        // TODO we could technically avoid the cost of the Rc::clone here, since the map is dropped
-        //  as soon as we return, so B could be a borrow for the lifetime of this function.
-        //  But to make that possible we'd need a Hamt#apply_on(Cid, &store, FnOnce(Hamt) -> R)) method.
         let mut map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
         map.set(addr.to_bytes().into(), id)?;
         self.address_map = map.flush()?;
@@ -116,15 +110,12 @@ impl State {
         addr: &Address,
     ) -> Result<Option<u64>, Box<dyn StdError>>
     where
-        B: BlockStore + Clone + Borrow<B>,
+        B: BlockStore,
     {
         if let &Payload::ID(id) = addr.payload() {
             return Ok(Some(id));
         }
 
-        // TODO we could technically avoid the cost of the Rc::clone here, since the map is dropped
-        //  as soon as we return, so B could be a borrow for the lifetime of this function.
-        //  But to make that possible we'd need a Hamt#apply_on(Cid, &store, FnOnce(Hamt) -> R)) method.
         let map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
 
         Ok(map.get(&addr.to_bytes())?.copied())

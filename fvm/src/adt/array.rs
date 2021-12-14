@@ -3,4 +3,4 @@
 
 use ipld_amt::Amt;
 
-pub type Array<'a, BS, V> = Amt<'a, V, BS>;
+pub type Array<BS, V> = Amt<V, BS>;

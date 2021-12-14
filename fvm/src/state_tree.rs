@@ -1,12 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
-use std::rc::Rc;
 
+use blockstore::Blockstore;
 use cid::{multihash, Cid};
 
 use fvm_shared::address::{Address, Payload};
@@ -178,7 +177,7 @@ impl StateSnapshots {
 
 impl<S> StateTree<S>
 where
-    S: BlockStore + Clone + Borrow<S>,
+    S: Blockstore,
 {
     pub fn new(store: S, version: StateTreeVersion) -> Result<Self, Box<dyn Error>> {
         let info = match version {
@@ -187,7 +186,8 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
-                let cid = store.put(&StateInfo0::default(), multihash::Code::Blake2b256)?;
+                let cid =
+                    BlockStore::put(&store, &StateInfo0::default(), multihash::Code::Blake2b256)?;
                 Some(cid)
             }
         };
@@ -210,7 +210,7 @@ where
             version,
             info,
             actors,
-        })) = store.get(c)
+        })) = BlockStore::get(&store, c)
         {
             (version, Some(info), actors)
         } else {
@@ -239,7 +239,7 @@ where
 
     /// Retrieve store reference to modify db.
     pub fn store(&self) -> &S {
-        self.hamt.store().borrow()
+        self.hamt.store()
     }
 
     /// Get actor state from an address. Will be resolved to ID address.
@@ -334,7 +334,7 @@ where
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = self.store().put(&state, multihash::Code::Blake2b256)?;
+        actor.state = BlockStore::put(self.store(), &state, multihash::Code::Blake2b256)?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -390,8 +390,7 @@ where
                 actors: root,
                 info: cid,
             };
-            self.store()
-                .put(obj, multihash::Code::Blake2b256)
+            BlockStore::put(self.store(), obj, multihash::Code::Blake2b256)
                 .map_err(|e| Box::from(e))
         }
     }

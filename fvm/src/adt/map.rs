@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use std::borrow::Borrow;
 use std::rc::Rc;
 
 use fvm_shared::bigint::BigInt;
@@ -22,7 +21,7 @@ pub type DealWeight = BigInt;
 #[inline]
 pub fn make_empty_map<BS, V>(store: BS, bitwidth: u32) -> Map<BS, V>
 where
-    BS: BlockStore + Clone + Borrow<BS>,
+    BS: BlockStore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::new_with_bit_width(store, bitwidth)
@@ -32,7 +31,7 @@ where
 #[inline]
 pub fn make_map_with_root<BS, V>(root: &Cid, store: BS) -> Result<Map<BS, V>, HamtError>
 where
-    BS: BlockStore + Clone + Borrow<BS>,
+    BS: BlockStore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::load_with_bit_width(root, store, HAMT_BIT_WIDTH)
@@ -46,7 +45,7 @@ pub fn make_map_with_root_and_bitwidth<BS, V>(
     bitwidth: u32,
 ) -> Result<Map<BS, V>, HamtError>
 where
-    BS: BlockStore + Clone + Borrow<BS>,
+    BS: BlockStore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::load_with_bit_width(root, store, bitwidth)
