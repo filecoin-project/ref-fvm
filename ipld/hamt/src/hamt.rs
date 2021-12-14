@@ -10,6 +10,7 @@ use serde::{de::DeserializeOwned, Serialize, Serializer};
 use std::borrow::Borrow;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -17,10 +18,11 @@ use std::marker::PhantomData;
 ///
 /// ```
 /// use ipld_hamt::Hamt;
+/// use std::rc::Rc;
 ///
 /// let store = ipld_blockstore::MemoryBlockstore::default();
 ///
-/// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+/// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
 /// map.set(1, "a".to_string()).unwrap();
 /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
 /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
@@ -28,15 +30,15 @@ use std::marker::PhantomData;
 /// let cid = map.flush().unwrap();
 /// ```
 #[derive(Debug)]
-pub struct Hamt<'a, BS, V, K = BytesKey, H = Sha256> {
+pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
     root: Node<K, V, H>,
-    store: &'a BS,
+    store: BS,
 
     bit_width: u32,
     hash: PhantomData<H>,
 }
 
-impl<BS, V, K, H> Serialize for Hamt<'_, BS, V, K, H>
+impl<BS, V, K, H> Serialize for Hamt<BS, V, K, H>
 where
     K: Serialize,
     V: Serialize,
@@ -50,27 +52,25 @@ where
     }
 }
 
-impl<'a, K: PartialEq, V: PartialEq, S: BlockStore, H: HashAlgorithm> PartialEq
-    for Hamt<'a, S, V, K, H>
-{
+impl<K: PartialEq, V: PartialEq, S: BlockStore, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<'a, BS, V, K, H> Hamt<'a, BS, V, K, H>
+impl<BS, V, K, H> Hamt<BS, V, K, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
-    BS: BlockStore,
+    BS: BlockStore + Clone + Borrow<BS>,
     H: HashAlgorithm,
 {
-    pub fn new(store: &'a BS) -> Self {
+    pub fn new(store: BS) -> Self {
         Self::new_with_bit_width(store, DEFAULT_BIT_WIDTH)
     }
 
     /// Construct hamt with a bit width
-    pub fn new_with_bit_width(store: &'a BS, bit_width: u32) -> Self {
+    pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
         Self {
             root: Node::default(),
             store,
@@ -80,12 +80,12 @@ where
     }
 
     /// Lazily instantiate a hamt from this root Cid.
-    pub fn load(cid: &Cid, store: &'a BS) -> Result<Self, Error> {
+    pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
         Self::load_with_bit_width(cid, store, DEFAULT_BIT_WIDTH)
     }
 
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
-    pub fn load_with_bit_width(cid: &Cid, store: &'a BS, bit_width: u32) -> Result<Self, Error> {
+    pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
         match store.get(cid)? {
             Some(root) => Ok(Self {
                 root,
@@ -108,8 +108,8 @@ where
     }
 
     /// Returns a reference to the underlying store of the Hamt.
-    pub fn store(&self) -> &'a BS {
-        self.store
+    pub fn store(&self) -> &BS {
+        self.store.borrow()
     }
 
     /// Inserts a key-value pair into the HAMT.
@@ -123,10 +123,11 @@ where
     ///
     /// ```
     /// use ipld_hamt::Hamt;
+    /// use std::rc::Rc;
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(37, "a".to_string()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     ///
@@ -138,7 +139,7 @@ where
         V: PartialEq,
     {
         self.root
-            .set(key, value, self.store, self.bit_width, true)
+            .set(key, value, self.store.borrow(), self.bit_width, true)
             .map(|(r, _)| r)
     }
 
@@ -152,10 +153,11 @@ where
     ///
     /// ```
     /// use ipld_hamt::Hamt;
+    /// use std::rc::Rc;
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     /// assert_eq!(a, true);
@@ -172,7 +174,7 @@ where
         V: PartialEq,
     {
         self.root
-            .set(key, value, self.store, self.bit_width, false)
+            .set(key, value, self.store.borrow(), self.bit_width, false)
             .map(|(_, set)| set)
     }
 
@@ -186,10 +188,11 @@ where
     ///
     /// ```
     /// use ipld_hamt::Hamt;
+    /// use std::rc::Rc;
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
     /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
     /// assert_eq!(map.get(&2).unwrap(), None);
@@ -201,7 +204,7 @@ where
         Q: Hash + Eq,
         V: DeserializeOwned,
     {
-        match self.root.get(k, self.store, self.bit_width)? {
+        match self.root.get(k, self.store.borrow(), self.bit_width)? {
             Some(v) => Ok(Some(v)),
             None => Ok(None),
         }
@@ -217,10 +220,11 @@ where
     ///
     /// ```
     /// use ipld_hamt::Hamt;
+    /// use std::rc::Rc;
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
     /// assert_eq!(map.contains_key(&1).unwrap(), true);
     /// assert_eq!(map.contains_key(&2).unwrap(), false);
@@ -231,7 +235,10 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq,
     {
-        Ok(self.root.get(k, self.store, self.bit_width)?.is_some())
+        Ok(self
+            .root
+            .get(k, self.store.borrow(), self.bit_width)?
+            .is_some())
     }
 
     /// Removes a key from the HAMT, returning the value at the key if the key
@@ -245,10 +252,11 @@ where
     ///
     /// ```
     /// use ipld_hamt::Hamt;
+    /// use std::rc::Rc;
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
     /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
     /// assert_eq!(map.delete(&1).unwrap(), None);
@@ -258,12 +266,13 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq,
     {
-        self.root.remove_entry(k, self.store, self.bit_width)
+        self.root
+            .remove_entry(k, self.store.borrow(), self.bit_width)
     }
 
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
-        self.root.flush(self.store)?;
+        self.root.flush(self.store.borrow())?;
         Ok(self.store.put(&self.root, Code::Blake2b256)?)
     }
 
@@ -283,7 +292,7 @@ where
     ///
     /// let store = ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(&store);
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, 1).unwrap();
     /// map.set(4, 2).unwrap();
     ///
@@ -300,6 +309,6 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> Result<(), Box<dyn StdError>>,
     {
-        self.root.for_each(self.store, &mut f)
+        self.root.for_each(self.store.borrow(), &mut f)
     }
 }

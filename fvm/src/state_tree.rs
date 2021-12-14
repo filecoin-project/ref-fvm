@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
+use std::rc::Rc;
 
 use cid::{multihash, Cid};
 
@@ -20,8 +22,8 @@ use crate::init_actor::State as InitActorState;
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
-pub struct StateTree<'db, S> {
-    hamt: Map<'db, S, ActorState>,
+pub struct StateTree<S> {
+    hamt: Map<S, ActorState>,
 
     version: StateTreeVersion,
     info: Option<Cid>,
@@ -174,11 +176,11 @@ impl StateSnapshots {
     }
 }
 
-impl<'db, S> StateTree<'db, S>
+impl<S> StateTree<S>
 where
-    S: BlockStore,
+    S: BlockStore + Clone + Borrow<S>,
 {
-    pub fn new(store: &'db S, version: StateTreeVersion) -> Result<Self, Box<dyn Error>> {
+    pub fn new(store: S, version: StateTreeVersion) -> Result<Self, Box<dyn Error>> {
         let info = match version {
             StateTreeVersion::V0 => None,
             StateTreeVersion::V1
@@ -202,7 +204,7 @@ where
     }
 
     /// Constructor for a hamt state tree given an IPLD store
-    pub fn new_from_root(store: &'db S, c: &Cid) -> Result<Self, Box<dyn Error>> {
+    pub fn new_from_root(store: S, c: &Cid) -> Result<Self, Box<dyn Error>> {
         // Try to load state root, if versioned
         let (version, info, actors) = if let Ok(Some(StateRoot {
             version,
@@ -237,7 +239,7 @@ where
 
     /// Retrieve store reference to modify db.
     pub fn store(&self) -> &S {
-        self.hamt.store()
+        self.hamt.store().borrow()
     }
 
     /// Get actor state from an address. Will be resolved to ID address.

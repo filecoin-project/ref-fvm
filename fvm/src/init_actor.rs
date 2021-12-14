@@ -7,7 +7,9 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
+use std::borrow::Borrow;
 use std::error::Error as StdError;
+use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
@@ -40,7 +42,10 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    pub fn new<B: BlockStore>(store: &B, network_name: String) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<B>(store: B, network_name: String) -> Result<Self, Box<dyn StdError>>
+    where
+        B: BlockStore + Clone + Borrow<B>,
+    {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| format!("failed to create empty map: {}", e))?;
@@ -52,7 +57,10 @@ impl State {
     }
 
     /// Loads the init actor state with the supplied CID from the underlying store.
-    pub fn load<B: BlockStore>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)> {
+    pub fn load<B>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)>
+    where
+        B: BlockStore + Clone + Borrow<B>,
+    {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)
             .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
@@ -69,14 +77,20 @@ impl State {
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
     /// Returns the newly-allocated address.
-    pub fn map_address_to_new_id<B: BlockStore>(
+    pub fn map_address_to_new_id<B>(
         &mut self,
-        store: &B,
+        store: B,
         addr: &Address,
-    ) -> Result<ActorID, Box<dyn StdError>> {
+    ) -> Result<ActorID, Box<dyn StdError>>
+    where
+        B: BlockStore + Clone + Borrow<B>,
+    {
         let id = self.next_id;
         self.next_id += 1;
 
+        // TODO we could technically avoid the cost of the Rc::clone here, since the map is dropped
+        //  as soon as we return, so B could be a borrow for the lifetime of this function.
+        //  But to make that possible we'd need a Hamt#apply_on(Cid, &store, FnOnce(Hamt) -> R)) method.
         let mut map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
         map.set(addr.to_bytes().into(), id)?;
         self.address_map = map.flush()?;
@@ -96,15 +110,21 @@ impl State {
     /// Returns an undefined address and `false` if the address was not an ID-address and not found
     /// in the mapping.
     /// Returns an error only if state was inconsistent.
-    pub fn resolve_address<B: BlockStore>(
+    pub fn resolve_address<B>(
         &self,
-        store: &B,
+        store: B,
         addr: &Address,
-    ) -> Result<Option<u64>, Box<dyn StdError>> {
+    ) -> Result<Option<u64>, Box<dyn StdError>>
+    where
+        B: BlockStore + Clone + Borrow<B>,
+    {
         if let &Payload::ID(id) = addr.payload() {
             return Ok(Some(id));
         }
 
+        // TODO we could technically avoid the cost of the Rc::clone here, since the map is dropped
+        //  as soon as we return, so B could be a borrow for the lifetime of this function.
+        //  But to make that possible we'd need a Hamt#apply_on(Cid, &store, FnOnce(Hamt) -> R)) method.
         let map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
 
         Ok(map.get(&addr.to_bytes())?.copied())

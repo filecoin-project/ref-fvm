@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::convert::TryFrom;
 use std::rc::Rc;
 
@@ -48,7 +49,7 @@ pub struct Machine<B: 'static, E: 'static> {
     engine: Engine,
     /// Blockstore to use for this machine instance and all kernels
     /// constructed under it.
-    blockstore: &'static B,
+    blockstore: Rc<B>,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
     externs: E,
@@ -56,12 +57,12 @@ pub struct Machine<B: 'static, E: 'static> {
     /// execution as the call stack for every message concludes.
     ///
     /// Owned.
-    state_tree: StateTree<'static, B>,
+    state_tree: StateTree<B>,
 }
 
 impl<B, E> Machine<B, E>
 where
-    B: Blockstore + 'static,
+    B: Blockstore + Clone + Borrow<B>,
     E: Externs,
 {
     pub fn new(
@@ -70,7 +71,7 @@ where
         base_fee: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        blockstore: &'static B,
+        blockstore: B,
         externs: E,
     ) -> anyhow::Result<Machine<B, E>> {
         let context = MachineContext::new(
@@ -84,9 +85,11 @@ where
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
 
+        let blockstore = Rc::new(blockstore);
+
         // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
         //  non-send errors in the state-tree.
-        let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)
+        let state_tree = StateTree::new_from_root(blockstore.clone(), &context.initial_state_root)
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(Machine {
@@ -111,11 +114,11 @@ where
         &self.blockstore
     }
 
-    pub fn state_tree(&self) -> &StateTree<'static, B> {
+    pub fn state_tree(&self) -> &StateTree<B> {
         &self.state_tree
     }
 
-    pub fn state_tree_mut(&mut self) -> &mut StateTree<'static, B> {
+    pub fn state_tree_mut(&mut self) -> &mut StateTree<B> {
         &mut self.state_tree
     }
 

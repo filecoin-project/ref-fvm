@@ -9,6 +9,7 @@ use fvm_shared::{
     ActorID, MethodNum,
 };
 use num_traits::Zero;
+use std::borrow::Borrow;
 use wasmtime::{Linker, Store};
 
 use crate::{
@@ -45,7 +46,7 @@ pub struct CallManager<B: 'static, E: 'static> {
 
 impl<B: 'static, E: 'static> CallManager<B, E>
 where
-    B: Blockstore,
+    B: Blockstore + Clone + Borrow<B>,
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
