@@ -35,3 +35,16 @@ impl BlockStore for MemoryBlockstore {
         Ok(cid)
     }
 }
+
+// Ideally we'd have a blanket impl of BlockStore for &T where T is BlockStore. But we already have that for Blockstore -> BlockStore.
+//
+// We should find a way to deduplicate these traits.
+impl BlockStore for &MemoryBlockstore {
+    fn get_bytes(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+        (*self).get_bytes(cid)
+    }
+
+    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn std::error::Error>> {
+        (*self).put_raw(bytes, code)
+    }
+}

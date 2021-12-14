@@ -25,16 +25,16 @@ pub struct BSStats {
 /// Wrapper around `BlockStore` to tracking reads and writes for verification.
 /// This struct should only be used for testing.
 #[derive(Debug)]
-pub struct TrackingBlockStore<'bs, BS> {
-    base: &'bs BS,
+pub struct TrackingBlockStore<BS> {
+    base: BS,
     pub stats: RefCell<BSStats>,
 }
 
-impl<'bs, BS> TrackingBlockStore<'bs, BS>
+impl<BS> TrackingBlockStore<BS>
 where
     BS: BlockStore,
 {
-    pub fn new(base: &'bs BS) -> Self {
+    pub fn new(base: BS) -> Self {
         Self {
             base,
             stats: Default::default(),
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<BS> BlockStore for TrackingBlockStore<'_, BS>
+impl<BS> BlockStore for TrackingBlockStore<BS>
 where
     BS: BlockStore,
 {
@@ -59,6 +59,22 @@ where
         self.stats.borrow_mut().w += 1;
         self.stats.borrow_mut().bw += bytes.len();
         self.base.put_raw(bytes, code)
+    }
+}
+
+// Ideally we'd have a blanket impl of BlockStore for &T where T is BlockStore. But we already have that for Blockstore -> BlockStore.
+//
+// We should find a way to deduplicate these traits.
+impl<BS> BlockStore for &TrackingBlockStore<BS>
+where
+    BS: BlockStore,
+{
+    fn get_bytes(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+        (*self).get_bytes(cid)
+    }
+
+    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn std::error::Error>> {
+        (*self).put_raw(bytes, code)
     }
 }
 
