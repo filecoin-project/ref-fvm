@@ -51,14 +51,14 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
 // supertrait is implemented too.
 impl<B, E> Kernel for DefaultKernel<B, E>
 where
-    B: Blockstore + 'static,
+    B: Blockstore,
     E: Externs + 'static,
 {
 }
 
 impl<B, E> DefaultKernel<B, E>
 where
-    B: Blockstore + 'static,
+    B: Blockstore,
     E: Externs + 'static,
 {
     /// Starts an unattached kernel.
@@ -88,7 +88,7 @@ where
 
 impl<B, E> SelfOps for DefaultKernel<B, E>
 where
-    B: 'static + Blockstore,
+    B: Blockstore,
     E: 'static + Externs,
 {
     fn root(&self) -> Infallible<Cid> {
@@ -126,7 +126,7 @@ where
 
 impl<B, E> BlockOps for DefaultKernel<B, E>
 where
-    B: 'static + Blockstore,
+    B: Blockstore,
     E: 'static + Externs,
 {
     fn block_open(&mut self, cid: &Cid) -> Fallible<BlockId, BlockError> {
@@ -244,7 +244,7 @@ impl<B, E> ReturnOps for DefaultKernel<B, E> {
 
 impl<B, E> SendOps for DefaultKernel<B, E>
 where
-    B: Blockstore + 'static,
+    B: Blockstore,
     E: Externs + 'static,
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
@@ -348,7 +348,7 @@ impl<B, E> NetworkOps for DefaultKernel<B, E> {
 
 impl<B, E> RandomnessOps for DefaultKernel<B, E>
 where
-    B: 'static + Blockstore,
+    B: Blockstore,
     E: 'static + Externs,
 {
     fn get_randomness_from_tickets(

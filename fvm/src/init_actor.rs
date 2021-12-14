@@ -10,6 +10,7 @@
 use std::error::Error as StdError;
 
 use anyhow::anyhow;
+use blockstore::Blockstore;
 use cid::Cid;
 use lazy_static::lazy_static;
 
@@ -40,7 +41,10 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    pub fn new<B: BlockStore>(store: &B, network_name: String) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<B>(store: B, network_name: String) -> Result<Self, Box<dyn StdError>>
+    where
+        B: BlockStore,
+    {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| format!("failed to create empty map: {}", e))?;
@@ -52,15 +56,16 @@ impl State {
     }
 
     /// Loads the init actor state with the supplied CID from the underlying store.
-    pub fn load<B: BlockStore>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)> {
+    pub fn load<B>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)>
+    where
+        B: Blockstore,
+    {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)
             .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
             .ok_or_else(|| anyhow::Error::msg("Init actor address could not be resolved"))?;
 
-        let state = state_tree
-            .store()
-            .get(&init_act.state)
+        let state = BlockStore::get(state_tree.store(), &init_act.state)
             // XXX blockstore errors don't implement send
             .map_err(|e| anyhow::Error::msg(e.to_string()))?
             .ok_or(anyhow!("init actor state not found"))?;
@@ -69,11 +74,14 @@ impl State {
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
     /// Returns the newly-allocated address.
-    pub fn map_address_to_new_id<B: BlockStore>(
+    pub fn map_address_to_new_id<B>(
         &mut self,
-        store: &B,
+        store: B,
         addr: &Address,
-    ) -> Result<ActorID, Box<dyn StdError>> {
+    ) -> Result<ActorID, Box<dyn StdError>>
+    where
+        B: BlockStore,
+    {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -96,11 +104,14 @@ impl State {
     /// Returns an undefined address and `false` if the address was not an ID-address and not found
     /// in the mapping.
     /// Returns an error only if state was inconsistent.
-    pub fn resolve_address<B: BlockStore>(
+    pub fn resolve_address<B>(
         &self,
-        store: &B,
+        store: B,
         addr: &Address,
-    ) -> Result<Option<u64>, Box<dyn StdError>> {
+    ) -> Result<Option<u64>, Box<dyn StdError>>
+    where
+        B: BlockStore,
+    {
         if let &Payload::ID(id) = addr.payload() {
             return Ok(Some(id));
         }

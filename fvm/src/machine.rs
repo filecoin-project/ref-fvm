@@ -49,9 +49,6 @@ pub struct MachineState<B: 'static, E: 'static> {
     /// The wasmtime engine is created on construction of the Machine, and
     /// is dropped when the Machine is dropped.
     engine: Engine,
-    /// Blockstore to use for this machine instance and all kernels
-    /// constructed under it.
-    blockstore: &'static B,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
     externs: E,
@@ -59,7 +56,7 @@ pub struct MachineState<B: 'static, E: 'static> {
     /// execution as the call stack for every message concludes.
     ///
     /// Owned.
-    state_tree: StateTree<'static, B>,
+    state_tree: StateTree<B>,
 }
 
 // These deref impls exist only for internal usage. THere are no public methods or fields on
@@ -85,7 +82,7 @@ impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
 
 impl<B, E> Machine<B, E>
 where
-    B: Blockstore + 'static,
+    B: Blockstore,
     E: Externs,
 {
     pub fn new(
@@ -94,7 +91,7 @@ where
         base_fee: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        blockstore: &'static B,
+        blockstore: B,
         externs: E,
     ) -> anyhow::Result<Machine<B, E>> {
         let context = MachineContext::new(
@@ -118,7 +115,6 @@ where
             context,
             engine,
             externs,
-            blockstore,
             state_tree,
         })))
     }
@@ -136,14 +132,14 @@ where
     }
 
     pub fn blockstore(&self) -> &B {
-        &self.blockstore
+        &self.state_tree.store()
     }
 
-    pub fn state_tree(&self) -> &StateTree<'static, B> {
+    pub fn state_tree(&self) -> &StateTree<B> {
         &self.state_tree
     }
 
-    pub fn state_tree_mut(&mut self) -> &mut StateTree<'static, B> {
+    pub fn state_tree_mut(&mut self) -> &mut StateTree<B> {
         &mut self.state_tree
     }
 

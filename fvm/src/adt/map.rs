@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
+use std::rc::Rc;
 
 use fvm_shared::bigint::BigInt;
 use fvm_shared::encoding::de::DeserializeOwned;
@@ -11,14 +12,14 @@ use ipld_blockstore::BlockStore;
 use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
 
 /// Map type to be used within actors. The underlying type is a hamt.
-pub type Map<'bs, BS, V> = Hamt<'bs, BS, V, BytesKey>;
+pub type Map<BS, V> = Hamt<BS, V, BytesKey>;
 
 /// Deal weight
 pub type DealWeight = BigInt;
 
 /// Create a hamt with a custom bitwidth.
 #[inline]
-pub fn make_empty_map<BS, V>(store: &'_ BS, bitwidth: u32) -> Map<'_, BS, V>
+pub fn make_empty_map<BS, V>(store: BS, bitwidth: u32) -> Map<BS, V>
 where
     BS: BlockStore,
     V: DeserializeOwned + Serialize,
@@ -28,10 +29,7 @@ where
 
 /// Create a map with a root cid.
 #[inline]
-pub fn make_map_with_root<'bs, BS, V>(
-    root: &Cid,
-    store: &'bs BS,
-) -> Result<Map<'bs, BS, V>, HamtError>
+pub fn make_map_with_root<BS, V>(root: &Cid, store: BS) -> Result<Map<BS, V>, HamtError>
 where
     BS: BlockStore,
     V: DeserializeOwned + Serialize,
@@ -41,11 +39,11 @@ where
 
 /// Create a map with a root cid.
 #[inline]
-pub fn make_map_with_root_and_bitwidth<'bs, BS, V>(
+pub fn make_map_with_root_and_bitwidth<BS, V>(
     root: &Cid,
-    store: &'bs BS,
+    store: BS,
     bitwidth: u32,
-) -> Result<Map<'bs, BS, V>, HamtError>
+) -> Result<Map<BS, V>, HamtError>
 where
     BS: BlockStore,
     V: DeserializeOwned + Serialize,

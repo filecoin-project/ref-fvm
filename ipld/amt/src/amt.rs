@@ -35,29 +35,29 @@ use std::error::Error as StdError;
 /// let cid = amt.flush().unwrap();
 /// ```
 #[derive(Debug)]
-pub struct Amt<'db, V, BS> {
+pub struct Amt<V, BS> {
     root: Root<V>,
-    block_store: &'db BS,
+    block_store: BS,
 }
 
-impl<'a, V: PartialEq, BS: BlockStore> PartialEq for Amt<'a, V, BS> {
+impl<V: PartialEq, BS: BlockStore> PartialEq for Amt<V, BS> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<'db, V, BS> Amt<'db, V, BS>
+impl<V, BS> Amt<V, BS>
 where
     V: DeserializeOwned + Serialize,
     BS: BlockStore,
 {
     /// Constructor for Root AMT node
-    pub fn new(block_store: &'db BS) -> Self {
+    pub fn new(block_store: BS) -> Self {
         Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }
 
     /// Construct new Amt with given bit width.
-    pub fn new_with_bit_width(block_store: &'db BS, bit_width: usize) -> Self {
+    pub fn new_with_bit_width(block_store: BS, bit_width: usize) -> Self {
         Self {
             root: Root::new(bit_width),
             block_store,
@@ -69,7 +69,7 @@ where
     }
 
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
-    pub fn load(cid: &Cid, block_store: &'db BS) -> Result<Self, Error> {
+    pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
         // Load root bytes from database
         let root: Root<V> = block_store
             .get(cid)?
@@ -94,10 +94,7 @@ where
     }
 
     /// Generates an AMT with block store and array of cbor marshallable objects and returns Cid
-    pub fn new_from_iter(
-        block_store: &'db BS,
-        vals: impl IntoIterator<Item = V>,
-    ) -> Result<Cid, Error> {
+    pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
         let mut t = Self::new(block_store);
 
         t.batch_set(vals)?;
@@ -117,7 +114,7 @@ where
 
         self.root
             .node
-            .get(self.block_store, self.height(), self.bit_width(), i)
+            .get(&self.block_store, self.height(), self.bit_width(), i)
     }
 
     /// Set value at index
@@ -152,7 +149,7 @@ where
         if self
             .root
             .node
-            .set(self.block_store, self.height(), self.bit_width(), i, val)?
+            .set(&self.block_store, self.height(), self.bit_width(), i, val)?
             .is_none()
         {
             self.root.count += 1;
@@ -186,7 +183,7 @@ where
         let deleted =
             self.root
                 .node
-                .delete(self.block_store, self.height(), self.bit_width(), i)?;
+                .delete(&self.block_store, self.height(), self.bit_width(), i)?;
 
         if deleted.is_none() {
             return Ok(None);
@@ -263,7 +260,7 @@ where
 
     /// flush root and return Cid used as key in block store
     pub fn flush(&mut self) -> Result<Cid, Error> {
-        self.root.node.flush(self.block_store)?;
+        self.root.node.flush(&self.block_store)?;
         Ok(self.block_store.put(&self.root, Code::Blake2b256)?)
     }
 
@@ -309,7 +306,13 @@ where
     {
         self.root
             .node
-            .for_each_while(self.block_store, self.height(), self.bit_width(), 0, &mut f)
+            .for_each_while(
+                &self.block_store,
+                self.height(),
+                self.bit_width(),
+                0,
+                &mut f,
+            )
             .map(|_| ())
     }
 
@@ -339,7 +342,13 @@ where
         {
             self.root
                 .node
-                .for_each_while_mut(self.block_store, self.height(), self.bit_width(), 0, &mut f)
+                .for_each_while_mut(
+                    &self.block_store,
+                    self.height(),
+                    self.bit_width(),
+                    0,
+                    &mut f,
+                )
                 .map(|_| ())
         }
 
@@ -353,7 +362,7 @@ where
             let mut mutated = ahash::AHashMap::new();
 
             self.root.node.for_each_while_mut(
-                self.block_store,
+                &self.block_store,
                 self.height(),
                 self.bit_width(),
                 0,
