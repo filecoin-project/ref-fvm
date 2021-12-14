@@ -19,11 +19,9 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
-pub use mapcell::*;
 
 mod blocks;
 pub mod default;
-mod mapcell;
 
 // Type aliases to make return values easier to follow.
 // TODO ActorError should be replaced with SystemError (or similar), as these
