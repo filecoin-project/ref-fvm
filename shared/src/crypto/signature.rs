@@ -104,7 +104,9 @@ impl Signature {
 #[cfg(feature = "crypto")]
 impl Signature {
     /// Checks if a signature is valid given data and address.
-    pub fn verify(&self, data: &[u8], addr: &Address) -> Result<(), String> {
+    pub fn verify(&self, data: &[u8], addr: &crate::address::Address) -> Result<(), String> {
+        use crate::address::Protocol;
+
         match addr.protocol() {
             Protocol::BLS => self::ops::verify_bls_sig(self.bytes(), data, addr),
             Protocol::Secp256k1 => self::ops::verify_secp256k1_sig(self.bytes(), data, addr),
