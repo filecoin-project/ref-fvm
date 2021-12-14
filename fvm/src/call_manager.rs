@@ -1,4 +1,5 @@
 use blockstore::Blockstore;
+use derive_more::{Deref, DerefMut};
 use fvm_shared::{
     actor_error,
     address::{Address, Protocol},
@@ -31,29 +32,16 @@ use crate::{
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
-pub struct CallManager<B: 'static, E: 'static>(CallManagerState<B, E>);
-
-struct CallManagerState<B: 'static, E: 'static> {
-    from: ActorID,
+#[derive(Deref, DerefMut)]
+pub struct CallManager<B: 'static, E: 'static> {
     /// The machine this kernel is attached to.
+    #[deref]
+    #[deref_mut]
     machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
-}
-
-impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
-    type Target = Machine<B, E>;
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.0.machine
-    }
-}
-
-impl<B: 'static, E: 'static> std::ops::DerefMut for CallManager<B, E> {
-    #[inline(always)]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0.machine
-    }
+    /// The sender of the message.
+    from: ActorID,
 }
 
 impl<B: 'static, E: 'static> CallManager<B, E>
@@ -63,11 +51,11 @@ where
 {
     /// Construct a new call manager. This should be called by the machine.
     pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
-        CallManager(CallManagerState {
+        CallManager {
             from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
-        })
+        }
     }
 
     fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ActorError> {
@@ -146,10 +134,10 @@ where
     ) -> Result<RawBytes, ActorError> {
         // TODO: this is kind of nasty...
         // Maybe just make from explicit?
-        let prev_from = self.0.from;
-        self.0.from = from;
+        let prev_from = self.from;
+        self.from = from;
         let res = self.send_resolved(to, method, params, value);
-        self.0.from = prev_from;
+        self.from = prev_from;
 
         res
     }
@@ -196,7 +184,7 @@ where
 
         // TODO: Make the kernel pluggable.
         self.map_mut(|cm| {
-            let from = cm.0.from.clone();
+            let from = cm.from.clone();
             let mut kernel = DefaultKernel::new(cm, from, to, method, value.clone());
 
             // 4. Load parameters.
@@ -238,22 +226,22 @@ where
     /// Finishes execution, returning the gas used and the machine.
     pub fn finish(self) -> (i64, Machine<B, E>) {
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (self.gas_used().max(0), self.0.machine)
+        (self.gas_used().max(0), self.machine)
     }
 
     /// Charge gas.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
-        self.0.gas_tracker.charge_gas(charge)
+        self.gas_tracker.charge_gas(charge)
     }
 
     /// Returns the available gas.
     pub fn gas_available(&self) -> i64 {
-        self.0.gas_tracker.gas_available()
+        self.gas_tracker.gas_available()
     }
 
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
-        self.0.gas_tracker.gas_used()
+        self.gas_tracker.gas_used()
     }
 
     fn map_mut<F, T>(&mut self, f: F) -> T
