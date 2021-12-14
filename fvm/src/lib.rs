@@ -25,12 +25,3 @@ pub struct Config {
     /// Wasmtime engine configuration.
     pub engine: wasmtime::Config,
 }
-
-macro_rules! t {
-    ($e:expr) => {
-        match $e {
-            Ok(v) => v,
-            Err(e) => return (Err(e.into()), self),
-        }
-    };
-}
