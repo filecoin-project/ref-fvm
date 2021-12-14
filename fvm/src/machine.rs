@@ -1,3 +1,4 @@
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::result::Result as StdResult;
 
@@ -36,7 +37,27 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<B: 'static, E: 'static> {
+//
+// If the inner value is `None` it means the machine got poisend and is unusable.
+#[repr(transparent)]
+pub struct Machine<B: 'static, E: 'static>(Option<InnerMachine<B, E>>);
+
+impl<B: 'static, E: 'static> Deref for Machine<B, E> {
+    type Target = InnerMachine<B, E>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("machine is poisoned")
+    }
+}
+
+impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("machine is poisoned")
+    }
+}
+
+#[doc(hidden)]
+pub struct InnerMachine<B: 'static, E: 'static> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -82,13 +103,13 @@ where
         //  non-send errors in the state-tree.
         let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)?;
 
-        Ok(Machine {
+        Ok(Machine(Some(InnerMachine {
             config,
             context,
             engine,
             externs,
             state_tree,
-        })
+        })))
     }
 
     pub fn engine(&self) -> &Engine {
@@ -401,8 +422,7 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        // TODO: decide on panic handling
-        replace_with::replace_with_or_abort_and_return(self, f)
+        replace_with::replace_with_and_return(self, || Machine(None), f)
     }
 }
 
