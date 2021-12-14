@@ -476,6 +476,10 @@ impl MachineContext {
         self.initial_state_root
     }
 
+    pub fn network_version(&self) -> NetworkVersion {
+        self.network_version
+    }
+
     pub fn price_list(&self) -> Rc<PriceList> {
         self.price_list.clone()
     }
