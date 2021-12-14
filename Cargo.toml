@@ -29,8 +29,8 @@ default-members = [
 ]
 
 [patch.crates-io]
-multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next-const-fns" }
-cid = { git = "https://github.com/multiformats/rust-cid", branch = "next-const" }
+multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
+cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
 forest_ipld = { path = "./ipld" }
 ipld_blockstore = { path = "./ipld/blockstore" }
 ipld_hamt = { path = "./ipld/hamt" }
