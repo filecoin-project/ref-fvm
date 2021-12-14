@@ -1,7 +1,6 @@
-use anyhow::Result;
 use wasmtime::Linker;
 
-use crate::Kernel;
+use crate::{kernel::Result, Kernel};
 
 mod context;
 mod ipld;

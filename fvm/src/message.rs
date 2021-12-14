@@ -14,6 +14,8 @@ use fvm_shared::encoding::{
 };
 use fvm_shared::MethodNum;
 
+use crate::kernel::Result;
+
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[derive(PartialEq, Clone, Debug, Hash, Eq, Builder)]
 pub struct Message {
@@ -38,19 +40,19 @@ impl Message {
     }
 
     /// Does some basic checks on the Message to see if the fields are valid.
-    pub fn check(self: &Message) -> anyhow::Result<()> {
+    pub fn check(self: &Message) -> Result<()> {
         if self.gas_limit == 0 {
-            return Err(anyhow!("Message has no gas limit set"));
+            return Err(anyhow!("Message has no gas limit set").into());
         }
         if self.gas_limit < 0 {
-            return Err(anyhow!("Message has negative gas limit"));
+            return Err(anyhow!("Message has negative gas limit").into());
         }
         Ok(())
     }
 }
 
 impl Serialize for Message {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, s: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -71,7 +73,7 @@ impl Serialize for Message {
 }
 
 impl<'de> Deserialize<'de> for Message {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {

@@ -14,7 +14,7 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{BlockOps, ExecutionError},
+    kernel::{BlockOps, ExecutionError, Result},
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -58,10 +58,11 @@ where
         }
     }
 
-    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ExecutionError> {
+    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID> {
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
+            // TODO: should this be an actor error?
             return Err(
                 actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
                     .into(),
@@ -97,7 +98,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ExecutionError> {
+    ) -> Result<RawBytes> {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
         let to = match self.state_tree().lookup_id(&to)? {
@@ -125,7 +126,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ExecutionError> {
+    ) -> Result<RawBytes> {
         // TODO: this is kind of nasty...
         // Maybe just make from explicit?
         let prev_from = self.from;
@@ -143,7 +144,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ExecutionError> {
+    ) -> Result<RawBytes> {
         // 1. Setup the engine/linker. TODO: move these into the machine?
 
         // This is a cheap operation as it doesn't actually clone the struct,
@@ -152,7 +153,7 @@ where
 
         // Create a new linker.
         let mut linker = Linker::new(&engine);
-        bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e)))?;
+        bind_syscalls(&mut linker)?;
 
         let to_addr = Address::new_id(to);
 
@@ -162,11 +163,9 @@ where
         let mut state = self
             .state_tree()
             .get_actor(&to_addr)?
-            .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to)))?;
+            .with_context(|| format!("actor does not exist: {}", to))?;
 
-        let module = self
-            .load_module(&state.code)
-            .map_err(|e| actor_error!(fatal(e)))?;
+        let module = self.load_module(&state.code)?;
 
         // 2. Update balance.
         if !value.is_zero() {
@@ -224,7 +223,7 @@ where
     }
 
     /// Charge gas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ExecutionError> {
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         self.0.gas_tracker.charge_gas(charge)?;
         Ok(())
     }
