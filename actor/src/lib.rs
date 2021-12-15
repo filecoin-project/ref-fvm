@@ -1,6 +1,25 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+/// Export the wasm binary
+#[cfg(not(feature = "runtime-wasm"))]
+pub mod wasm {
+    include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_wasm_binaries() {
+            assert!(WASM_BINARY.unwrap().len() > 0);
+            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+        }
+    }
+}
+
+// TODO: disable everything else when not using runtime-wasm
+
 #[macro_use]
 extern crate lazy_static;
 // workaround for a compiler bug, see https://github.com/rust-lang/rust/issues/55779

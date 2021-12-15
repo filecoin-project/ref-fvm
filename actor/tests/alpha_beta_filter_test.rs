@@ -3,10 +3,10 @@
 
 use num_traits::sign::Signed;
 
-use forest_actor::math::{poly_parse, PRECISION};
-use forest_actor::smooth::extrapolated_cum_sum_of_ratio as ecsor;
-use forest_actor::smooth::*;
-use forest_actor::EPOCHS_IN_DAY;
+use actors::math::{poly_parse, PRECISION};
+use actors::smooth::extrapolated_cum_sum_of_ratio as ecsor;
+use actors::smooth::*;
+use actors::EPOCHS_IN_DAY;
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::sector::StoragePower;

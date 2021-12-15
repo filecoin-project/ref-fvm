@@ -6,8 +6,7 @@ extern crate lazy_static;
 
 use num_traits::FromPrimitive;
 
-use common::*;
-use forest_actor::{
+use actors::{
     miner::{ApplyRewardParams, Method as MinerMethod},
     reward::{
         AwardBlockRewardParams, Method, State, ThisEpochRewardReturn, BASELINE_INITIAL_VALUE,
@@ -16,6 +15,7 @@ use forest_actor::{
     BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, REWARD_ACTOR_CODE_ID,
     STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
+use common::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::clock::ChainEpoch;

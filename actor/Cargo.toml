@@ -1,5 +1,5 @@
 [package]
-name = "forest_actor"
+name = "actors"
 description = "System actors for the Filecoin protocol"
 version = "4.0.0"
 license = "MIT OR Apache-2.0"
@@ -15,8 +15,7 @@ lazy_static = "1.4.0"
 ipld_hamt = { path = "../ipld/hamt" }
 ipld_amt = { path = "../ipld/amt", features = ["go-interop"]}
 forest_ipld = "0.1.1"
-## TODO proofs feature enabled by default
-fvm_shared = { path = "../shared", features = ["crypto"] }
+fvm_shared = { path = "../shared", default-features = false }
 unsigned-varint = "0.7"
 integer-encoding = { version = "3.0", default-features = false }
 bitfield = { package = "forest_bitfield", version = "0.1" }
@@ -28,8 +27,10 @@ base64 = "0.13"
 fvm_sdk = { path = "../sdk", optional = true }
 log = "0.4.8"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
-filecoin-proofs-api = { version = "10.1", features = ["opencl"], default_features = false }
 blockstore = { version = "0.1.0", path = "../lib/blockstore" }
+
+# enforce wasm comapt
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 derive_builder = "0.10"
@@ -41,3 +42,9 @@ default = ["fvm_actor"]
 devnet = []
 interopnet = []
 fvm_actor = ["fvm_sdk"]
+
+# This feature is set when building wasm
+runtime-wasm = []
+
+[build-dependencies]
+wasm-builder = "3.0.1"

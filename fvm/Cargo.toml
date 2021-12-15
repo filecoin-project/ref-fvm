@@ -27,3 +27,7 @@ lazy_static = "1.4.0"
 derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
+
+actors = { path = "../actor" }
+
+[features]

@@ -8,7 +8,7 @@ use cid::Cid;
 use derive_builder::Builder;
 
 use common::*;
-use forest_actor::{
+use actors::{
     paych::{
         ConstructorParams, LaneState, Merge, Method, ModVerifyParams, PaymentVerifyParams,
         SignedVoucher, State as PState, UpdateChannelStateParams, MAX_LANE, SETTLE_DELAY,

@@ -151,10 +151,9 @@ where
 
     pub fn load_module(&self, k: &Cid) -> Result<Module> {
         // TODO: cache compiled code, and modules?
-        todo!("get the actual code");
-        // let bytecode = &[];
-        // let module = Module::new(&self.engine, bytecode)?;
-        // Ok(module)
+        let bytecode = actors::wasm::WASM_BINARY.context("missing wasm binary")?;
+        let module = Module::new(&self.engine, bytecode)?;
+        Ok(module)
     }
 
     /// This is the entrypoint to execute a message.

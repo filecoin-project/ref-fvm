@@ -8,8 +8,6 @@ use std::error::Error as StdError;
 use blockstore::Blockstore;
 use cid::Cid;
 
-use filecoin_proofs_api as proofs;
-use filecoin_proofs_api::seal::compute_comm_d;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::commcid::data_commitment_v1_to_cid;
@@ -18,7 +16,7 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
+use fvm_shared::piece::{PaddedPieceSize, PieceInfo};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -293,47 +291,48 @@ fn get_required_padding(
 
 /// Computes sector [Cid] from proof type and pieces for verification.
 pub fn compute_unsealed_sector_cid(
-    proof_type: RegisteredSealProof,
-    pieces: &[PieceInfo],
+    _proof_type: RegisteredSealProof,
+    _pieces: &[PieceInfo],
 ) -> Result<Cid, Box<dyn StdError>> {
-    let ssize = proof_type.sector_size()? as u64;
+    todo!("syscall?")
+    // let ssize = proof_type.sector_size()? as u64;
 
-    let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+    // let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
 
-    let pssize = PaddedPieceSize(ssize);
-    if pieces.is_empty() {
-        all_pieces.push(proofs::PieceInfo {
-            size: pssize.unpadded().into(),
-            commitment: zero_piece_commitment(pssize),
-        })
-    } else {
-        // pad remaining space with 0 piece commitments
-        let mut sum = PaddedPieceSize(0);
-        let pad_to = |pads: Vec<PaddedPieceSize>,
-                      all_pieces: &mut Vec<proofs::PieceInfo>,
-                      sum: &mut PaddedPieceSize| {
-            for p in pads {
-                all_pieces.push(proofs::PieceInfo {
-                    size: p.unpadded().into(),
-                    commitment: zero_piece_commitment(p),
-                });
+    // let pssize = PaddedPieceSize(ssize);
+    // if pieces.is_empty() {
+    //     all_pieces.push(proofs::PieceInfo {
+    //         size: pssize.unpadded().into(),
+    //         commitment: zero_piece_commitment(pssize),
+    //     })
+    // } else {
+    //     // pad remaining space with 0 piece commitments
+    //     let mut sum = PaddedPieceSize(0);
+    //     let pad_to = |pads: Vec<PaddedPieceSize>,
+    //                   all_pieces: &mut Vec<proofs::PieceInfo>,
+    //                   sum: &mut PaddedPieceSize| {
+    //         for p in pads {
+    //             all_pieces.push(proofs::PieceInfo {
+    //                 size: p.unpadded().into(),
+    //                 commitment: zero_piece_commitment(p),
+    //             });
 
-                sum.0 += p.0;
-            }
-        };
-        for p in pieces {
-            let (ps, _) = get_required_padding(sum, p.size);
-            pad_to(ps, &mut all_pieces, &mut sum);
+    //             sum.0 += p.0;
+    //         }
+    //     };
+    //     for p in pieces {
+    //         let (ps, _) = get_required_padding(sum, p.size);
+    //         pad_to(ps, &mut all_pieces, &mut sum);
 
-            all_pieces.push(proofs::PieceInfo::try_from(p)?);
-            sum.0 += p.size.0;
-        }
+    //         all_pieces.push(proofs::PieceInfo::try_from(p)?);
+    //         sum.0 += p.size.0;
+    //     }
 
-        let (ps, _) = get_required_padding(sum, pssize);
-        pad_to(ps, &mut all_pieces, &mut sum);
-    }
+    //     let (ps, _) = get_required_padding(sum, pssize);
+    //     pad_to(ps, &mut all_pieces, &mut sum);
+    // }
 
-    let comm_d = compute_comm_d(proof_type.try_into()?, &all_pieces)?;
+    // let comm_d = compute_comm_d(proof_type.try_into()?, &all_pieces)?;
 
-    Ok(data_commitment_v1_to_cid(&comm_d)?)
+    // Ok(data_commitment_v1_to_cid(&comm_d)?)
 }

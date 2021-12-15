@@ -5,9 +5,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error as StdError;
 
+use actors::runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
 use blockstore::{Blockstore, MemoryBlockstore};
 use cid::{multihash::Code, Cid};
-use forest_actor::runtime::{ConsensusFault, MessageInfo, Runtime, Syscalls};
 
 use fvm_shared::actor_error;
 use fvm_shared::address::{Address, Protocol};
@@ -245,7 +245,7 @@ impl MockRuntime {
     ) -> Result<RawBytes, ActorError> {
         self.in_call = true;
         let prev_state = self.state;
-        let res = forest_actor::invoke_code(to_code, self, method_num, params)
+        let res = actors::invoke_code(to_code, self, method_num, params)
             .unwrap_or_else(|| Err(actor_error!(SysErrForbidden, "invalid method id")));
 
         if res.is_err() {

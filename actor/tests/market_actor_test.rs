@@ -3,9 +3,8 @@
 
 use std::collections::HashMap;
 
-use common::*;
-use forest_actor::runtime::Runtime;
-use forest_actor::{
+use actors::runtime::Runtime;
+use actors::{
     make_empty_map,
     market::{Method, State, WithdrawBalanceParams, PROPOSALS_AMT_BITWIDTH, STATES_AMT_BITWIDTH},
     miner::{GetControlAddressesReturn, Method as MinerMethod},
@@ -14,6 +13,7 @@ use forest_actor::{
     MARKET_ACTOR_CODE_ID, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, STORAGE_MARKET_ACTOR_ADDR,
     SYSTEM_ACTOR_ADDR,
 };
+use common::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::clock::EPOCH_UNDEFINED;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use common::*;
-use forest_actor::{
+use actors::{
     cron::{ConstructorParams, Entry, State},
     CRON_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
