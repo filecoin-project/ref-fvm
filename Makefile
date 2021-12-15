@@ -7,7 +7,10 @@ build:
 	cargo build
 .PHONY: build
 
-examples: example-actor example-fvm example-blockstore-cgo
+#examples: example-actor example-fvm example-blockstore-cgo
+# take the fvm examples out of the build tree; the examples will be superseded
+# by tests
+examples: example-actor example-blockstore-cgo
 .PHONY: examples
 
 example-actor:
