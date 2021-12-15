@@ -1,4 +1,5 @@
 use crate::syscalls::context::Context;
+use crate::syscalls::errors::into_trap;
 use crate::Kernel;
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -8,7 +9,7 @@ pub fn validate_immediate_caller_accept_any(caller: Caller<'_, impl Kernel>) -> 
     Context::new(caller)
         .data_mut()
         .validate_immediate_caller_accept_any()
-        .map_err(|e| Trap::from(Box::from(e)))
+        .map_err(into_trap)
 }
 
 pub fn validate_immediate_caller_addr_one_of(
@@ -23,7 +24,7 @@ pub fn validate_immediate_caller_addr_one_of(
         fvm_shared::encoding::from_slice(bytes).map_err(|e| Trap::from(Box::from(e)))?;
     ctx.data_mut()
         .validate_immediate_caller_addr_one_of(addrs.as_slice())
-        .map_err(|e| Trap::from(Box::from(e)))
+        .map_err(into_trap)
 }
 
 pub fn validate_immediate_caller_type_one_of(
@@ -37,5 +38,5 @@ pub fn validate_immediate_caller_type_one_of(
         fvm_shared::encoding::from_slice(bytes).map_err(|e| Trap::from(Box::from(e)))?;
     ctx.data_mut()
         .validate_immediate_caller_type_one_of(cids.as_slice())
-        .map_err(|e| Trap::from(Box::from(e)))
+        .map_err(into_trap)
 }

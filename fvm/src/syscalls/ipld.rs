@@ -1,6 +1,7 @@
 use cid::{self, Cid};
 use wasmtime::{self, Caller, Trap};
 
+use crate::syscalls::errors::into_trap;
 use crate::Kernel;
 
 use super::context::Context;
@@ -35,8 +36,7 @@ pub fn get_root(caller: Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> 
     let mut ctx = ctx.with_memory()?;
     let mut out_slice = ctx.try_slice_mut(cid_off, cid_len)?;
 
-    root.write_bytes(&mut out_slice)
-        .map_err(|err| Trap::new(err.to_string()))?;
+    root.write_bytes(&mut out_slice).map_err(into_trap)?;
 
     Ok(size)
 }
@@ -44,9 +44,7 @@ pub fn get_root(caller: Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> 
 pub fn set_root(caller: Caller<'_, impl Kernel>, cid: u32) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid)?;
-    ctx.data_mut()
-        .set_root(cid)
-        .map_err(|e| Trap::new(e.to_string()))?; // TODO SYS_ERR this needs to be a system error
+    ctx.data_mut().set_root(cid).map_err(into_trap)?; // TODO SYS_ERR this needs to be a system error
     Ok(())
 }
 
@@ -86,8 +84,7 @@ pub fn cid(
     let mut ctx = ctx.with_memory()?;
     let mut out_slice = ctx.try_slice_mut(cid_off, cid_len)?;
 
-    cid.write_bytes(&mut out_slice)
-        .map_err(|err| Trap::new(err.to_string()))?;
+    cid.write_bytes(&mut out_slice).map_err(into_trap)?;
     Ok(size)
 }
 
