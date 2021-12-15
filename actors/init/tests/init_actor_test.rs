@@ -4,18 +4,21 @@
 use cid::Cid;
 use serde::Serialize;
 
-use actors::{
-    init::{ConstructorParams, ExecParams, ExecReturn, Method, State},
-    Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, INIT_ACTOR_CODE_ID,
-    MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID,
-    STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
+use actors_runtime::test_utils::*;
+use actors_runtime::{
+    Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, MINER_ACTOR_CODE_ID,
+    MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID, STORAGE_POWER_ACTOR_ADDR,
+    SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use common::*;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+
+use fvm_actor_init::{
+    Actor as InitActor, ConstructorParams, ExecParams, ExecReturn, Method, State,
+};
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {
@@ -246,11 +249,7 @@ fn construct_and_verify(rt: &mut MockRuntime) {
         network_name: "mock".to_string(),
     };
     let ret = rt
-        .call(
-            &*INIT_ACTOR_CODE_ID,
-            METHOD_CONSTRUCTOR,
-            &RawBytes::serialize(&params).unwrap(),
-        )
+        .call::<InitActor>(METHOD_CONSTRUCTOR, &RawBytes::serialize(&params).unwrap())
         .unwrap();
 
     assert_eq!(RawBytes::default(), ret);
@@ -282,8 +281,7 @@ where
         constructor_params: RawBytes::serialize(params).unwrap(),
     };
 
-    let ret = rt.call(
-        &*INIT_ACTOR_CODE_ID,
+    let ret = rt.call::<InitActor>(
         Method::Exec as u64,
         &RawBytes::serialize(&exec_params).unwrap(),
     );

@@ -6,17 +6,16 @@ use cid::Cid;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
+use actors_runtime::{
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
+    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
+};
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
-
-use crate::runtime::{ActorCode, Runtime};
-use crate::{
-    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
-    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
-};
 
 pub use self::state::State;
 pub use self::types::*;
