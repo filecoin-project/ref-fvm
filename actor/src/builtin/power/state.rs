@@ -6,7 +6,7 @@ use std::ops::Neg;
 
 use cid::Cid;
 use integer_encoding::VarInt;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::Signed;
 
 use fvm_shared::actor_error;
@@ -74,7 +74,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: BlockStore>(store: &BS) -> Result<State, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> Result<State, Box<dyn StdError>> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| format!("Failed to create empty map: {}", e))?;
@@ -103,7 +103,7 @@ impl State {
     }
 
     /// Checks power actor state for if miner meets minimum consensus power.
-    pub fn miner_nominal_power_meets_consensus_minimum<BS: BlockStore>(
+    pub fn miner_nominal_power_meets_consensus_minimum<BS: Blockstore>(
         &self,
         s: &BS,
         miner: &Address,
@@ -129,7 +129,7 @@ impl State {
         }
     }
 
-    pub fn miner_power<BS: BlockStore>(
+    pub fn miner_power<BS: Blockstore>(
         &self,
         s: &BS,
         miner: &Address,
@@ -138,7 +138,7 @@ impl State {
         get_claim(&claims, miner).map(|s| s.cloned())
     }
 
-    pub(super) fn add_to_claim<BS: BlockStore>(
+    pub(super) fn add_to_claim<BS: Blockstore>(
         &mut self,
         claims: &mut Map<BS, Claim>,
         miner: &Address,
@@ -212,7 +212,7 @@ impl State {
         self.total_pledge_collateral += amount;
     }
 
-    pub(super) fn append_cron_event<BS: BlockStore>(
+    pub(super) fn append_cron_event<BS: Blockstore>(
         &mut self,
         events: &mut Multimap<BS>,
         epoch: ChainEpoch,
@@ -273,7 +273,7 @@ impl State {
         miner_addr: &Address,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
     {
         let claims = make_map_with_root::<_, Claim>(&self.claims, store)
             .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to load claims"))?;
@@ -291,7 +291,7 @@ impl State {
         Ok(())
     }
 
-    pub fn get_claim<BS: BlockStore>(
+    pub fn get_claim<BS: Blockstore>(
         &self,
         store: &BS,
         miner: &Address,
@@ -306,7 +306,7 @@ impl State {
         Ok(claim.cloned())
     }
 
-    pub(super) fn delete_claim<BS: BlockStore>(
+    pub(super) fn delete_claim<BS: Blockstore>(
         &mut self,
         claims: &mut Map<BS, Claim>,
         miner: &Address,
@@ -334,7 +334,7 @@ impl State {
     }
 }
 
-pub(super) fn load_cron_events<BS: BlockStore>(
+pub(super) fn load_cron_events<BS: Blockstore>(
     mmap: &Multimap<BS>,
     epoch: ChainEpoch,
 ) -> Result<Vec<CronEvent>, Box<dyn StdError>> {
@@ -349,7 +349,7 @@ pub(super) fn load_cron_events<BS: BlockStore>(
 }
 
 /// Gets claim from claims map by address
-fn get_claim<'m, BS: BlockStore>(
+fn get_claim<'m, BS: Blockstore>(
     claims: &'m Map<BS, Claim>,
     a: &Address,
 ) -> Result<Option<&'m Claim>, Box<dyn StdError>> {
@@ -358,7 +358,7 @@ fn get_claim<'m, BS: BlockStore>(
         .map_err(|e| e.downcast_wrap(format!("failed to get claim for address {}", a)))
 }
 
-pub fn set_claim<BS: BlockStore>(
+pub fn set_claim<BS: Blockstore>(
     claims: &mut Map<BS, Claim>,
     a: &Address,
     claim: Claim,

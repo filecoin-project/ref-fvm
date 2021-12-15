@@ -4,11 +4,15 @@ use std::collections::HashMap;
 // TODO: move to ! someday. https://doc.rust-lang.org/std/convert/enum.Infallible.html#future-compatibility
 use std::convert::Infallible;
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct MemoryBlockstore {
-    // TODO: make the blockstore take self by mut to avoid this?
-    // Trying to match forest for now.
     blocks: RefCell<HashMap<Cid, Vec<u8>>>,
+}
+
+impl MemoryBlockstore {
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Blockstore for MemoryBlockstore {
@@ -22,13 +26,8 @@ impl Blockstore for MemoryBlockstore {
         Ok(self.blocks.borrow().get(k).cloned())
     }
 
-    fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
-        self.blocks.borrow_mut().insert(*k, Vec::from(block));
-        Ok(())
-    }
-
-    fn delete(&self, k: &Cid) -> Result<(), Self::Error> {
-        self.blocks.borrow_mut().remove(k);
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
+        self.blocks.borrow_mut().insert(*k, block.into());
         Ok(())
     }
 }

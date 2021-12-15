@@ -3,7 +3,7 @@
 
 use std::error::Error as StdError;
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::Zero;
 
 use fvm_shared::address::Address;
@@ -22,7 +22,7 @@ pub(crate) fn request_miner_control_addrs<BS, RT>(
     miner_addr: Address,
 ) -> Result<(Address, Address, Vec<Address>), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let ret = rt.send(
@@ -44,7 +44,7 @@ pub(crate) fn resolve_to_id_addr<BS, RT>(
     address: &Address,
 ) -> Result<Address, Box<dyn StdError>>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // if we are able to resolve it to an ID address, return the resolved address

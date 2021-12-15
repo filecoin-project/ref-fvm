@@ -4,7 +4,7 @@
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::encoding::tuple::*;
@@ -23,7 +23,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: BlockStore>(
+    pub fn new<BS: Blockstore>(
         store: &BS,
         network_name: String,
     ) -> Result<Self, Box<dyn StdError>> {
@@ -39,7 +39,7 @@ impl State {
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
     /// Returns the newly-allocated address.
-    pub fn map_address_to_new_id<BS: BlockStore>(
+    pub fn map_address_to_new_id<BS: Blockstore>(
         &mut self,
         store: &BS,
         addr: &Address,
@@ -64,7 +64,7 @@ impl State {
     /// Returns an undefined address and `false` if the address was not an ID-address and not found
     /// in the mapping.
     /// Returns an error only if state was inconsistent.
-    pub fn resolve_address<BS: BlockStore>(
+    pub fn resolve_address<BS: Blockstore>(
         &self,
         store: &BS,
         addr: &Address,

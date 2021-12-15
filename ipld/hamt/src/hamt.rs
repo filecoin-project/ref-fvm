@@ -3,9 +3,10 @@
 
 use crate::node::Node;
 use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
+use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use forest_hash_utils::BytesKey;
-use ipld_blockstore::BlockStore;
+use fvm_shared::encoding::CborStore;
 use serde::{de::DeserializeOwned, Serialize, Serializer};
 use std::borrow::Borrow;
 use std::error::Error as StdError;
@@ -17,11 +18,10 @@ use std::marker::PhantomData;
 ///
 /// ```
 /// use ipld_hamt::Hamt;
-/// use std::rc::Rc;
 ///
-/// let store = ipld_blockstore::MemoryBlockstore::default();
+/// let store = blockstore::MemoryBlockstore::default();
 ///
-/// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+/// let mut map: Hamt<_, _, usize> = Hamt::new(store);
 /// map.set(1, "a".to_string()).unwrap();
 /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
 /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<K: PartialEq, V: PartialEq, S: BlockStore, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
+impl<K: PartialEq, V: PartialEq, S: Blockstore, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
@@ -61,7 +61,7 @@ impl<BS, V, K, H> Hamt<BS, V, K, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
-    BS: BlockStore,
+    BS: Blockstore,
     H: HashAlgorithm,
 {
     pub fn new(store: BS) -> Self {
@@ -85,7 +85,7 @@ where
 
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
     pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
-        match store.get(cid)? {
+        match store.get_cbor(cid)? {
             Some(root) => Ok(Self {
                 root,
                 store,
@@ -98,7 +98,7 @@ where
 
     /// Sets the root based on the Cid of the root node using the Hamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
-        match self.store.get(cid)? {
+        match self.store.get_cbor(cid)? {
             Some(root) => self.root = root,
             None => return Err(Error::CidNotFound(cid.to_string())),
         }
@@ -124,7 +124,7 @@ where
     /// use ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(37, "a".to_string()).unwrap();
@@ -154,7 +154,7 @@ where
     /// use ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
@@ -189,7 +189,7 @@ where
     /// use ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -221,7 +221,7 @@ where
     /// use ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -253,7 +253,7 @@ where
     /// use ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -272,7 +272,7 @@ where
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.flush(self.store.borrow())?;
-        Ok(self.store.put(&self.root, Code::Blake2b256)?)
+        Ok(self.store.put_cbor(&self.root, Code::Blake2b256)?)
     }
 
     /// Returns true if the HAMT has no entries
@@ -289,9 +289,9 @@ where
     /// ```
     /// use ipld_hamt::Hamt;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
     /// map.set(1, 1).unwrap();
     /// map.set(4, 2).unwrap();
     ///

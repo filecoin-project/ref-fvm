@@ -3,7 +3,7 @@
 
 use ahash::AHashSet;
 use indexmap::IndexMap;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
@@ -62,7 +62,7 @@ impl Actor {
     /// Constructor for StoragePower actor
     fn constructor<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
@@ -82,7 +82,7 @@ impl Actor {
         params: CreateMinerParams,
     ) -> Result<CreateMinerReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
@@ -163,7 +163,7 @@ impl Actor {
         params: UpdateClaimedPowerParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -203,7 +203,7 @@ impl Actor {
         params: EnrollCronEventParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -245,7 +245,7 @@ impl Actor {
 
     fn on_epoch_tick_end<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*CRON_ACTOR_ADDR))?;
@@ -280,7 +280,7 @@ impl Actor {
 
     fn update_pledge_total<BS, RT>(rt: &mut RT, pledge_delta: TokenAmount) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -303,7 +303,7 @@ impl Actor {
         seal_info: SealVerifyInfo,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -374,7 +374,7 @@ impl Actor {
     /// of an epoch.
     fn current_total_power<BS, RT>(rt: &mut RT) -> Result<CurrentTotalPowerReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -390,7 +390,7 @@ impl Actor {
 
     fn process_batch_proof_verifies<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // Index map is needed here to preserve insertion order, miners must be iterated based
@@ -497,7 +497,7 @@ impl Actor {
 
     fn process_deferred_cron_events<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let rt_epoch = rt.curr_epoch();
@@ -622,7 +622,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

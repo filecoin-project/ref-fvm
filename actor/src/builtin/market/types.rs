@@ -10,7 +10,7 @@ use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::RegisteredSealProof;
-use ipld_amt::Amt;
+use crate::Array;
 
 use crate::DealWeight;
 
@@ -103,10 +103,10 @@ pub struct ComputeDataCommitmentReturn {
 }
 
 /// A specialization of a array to deals.
-pub type DealArray<'bs, BS> = Amt<'bs, DealProposal, BS>;
+pub type DealArray<'bs, BS> = Array<'bs, DealProposal, BS>;
 
 /// A specialization of a array to deals.
-pub type DealMetaArray<'bs, BS> = Amt<'bs, DealState, BS>;
+pub type DealMetaArray<'bs, BS> = Array<'bs, DealState, BS>;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct SectorDataSpec {

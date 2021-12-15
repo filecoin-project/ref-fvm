@@ -120,7 +120,7 @@ fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdErro
         Err(other) => other,
     };
 
-    // Dynamic errors can come from Amt and Hamt through blockstore usages, check them.
+    // Dynamic errors can come from Array and Hamt through blockstore usages, check them.
     let error = match error.downcast::<AmtError>() {
         Ok(amt_err) => match *amt_err {
             AmtError::Dynamic(de) => match downcast_util(de) {

@@ -7,9 +7,9 @@ use std::{iter, ops::Neg};
 
 use crate::miner::Code::Blake2b256;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
+use blockstore::Blockstore;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use cid::{multihash::Code, Cid};
-use ipld_blockstore::BlockStore;
 use log::{error, info, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
@@ -22,7 +22,7 @@ pub use deadlines::*;
 pub use expiration_queue::*;
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
-use fvm_shared::encoding::{BytesDe, Cbor};
+use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
 use fvm_shared::{
     actor_error,
     address::{Address, Payload, Protocol},
@@ -140,7 +140,7 @@ impl Actor {
         params: MinerConstructorParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(&[*INIT_ACTOR_ADDR])?;
@@ -194,7 +194,7 @@ impl Actor {
             params.multi_addresses,
             params.window_post_proof_type,
         )?;
-        let info_cid = rt.store().put(&info, Blake2b256).map_err(|e| {
+        let info_cid = rt.store().put_cbor(&info, Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
@@ -211,7 +211,7 @@ impl Actor {
 
     fn control_addresses<BS, RT>(rt: &mut RT) -> Result<GetControlAddressesReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -232,7 +232,7 @@ impl Actor {
         params: ChangeWorkerAddressParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         check_control_addresses(&params.new_control_addresses)?;
@@ -274,7 +274,7 @@ impl Actor {
     /// Triggers a worker address change if a change has been requested and its effective epoch has arrived.
     fn confirm_update_worker_key<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.transaction(|state: &mut State, rt| {
@@ -295,7 +295,7 @@ impl Actor {
     /// that proposed address.
     fn change_owner_address<BS, RT>(rt: &mut RT, new_address: Address) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // * Cannot match go checking for undef address, does go impl allow this to be
@@ -345,7 +345,7 @@ impl Actor {
 
     fn change_peer_id<BS, RT>(rt: &mut RT, params: ChangePeerIDParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         check_peer_info(&params.new_id, &[])?;
@@ -374,7 +374,7 @@ impl Actor {
         params: ChangeMultiaddrsParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         check_peer_info(&[], &params.new_multi_addrs)?;
@@ -404,7 +404,7 @@ impl Actor {
         mut params: SubmitWindowedPoStParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let current_epoch = rt.curr_epoch();
@@ -688,7 +688,7 @@ impl Actor {
         mut params: ProveCommitAggregateParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let sector_numbers = params.sector_numbers.validate().map_err(|e| {
@@ -874,7 +874,7 @@ impl Actor {
         params: DisputeWindowedPoStParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
@@ -1099,7 +1099,7 @@ impl Actor {
         params: PreCommitSectorParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let batch_params = PreCommitSectorBatchParams {
@@ -1121,7 +1121,7 @@ impl Actor {
         params: PreCommitSectorBatchParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let curr_epoch = rt.curr_epoch();
@@ -1383,7 +1383,7 @@ impl Actor {
         params: ProveCommitSectorParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -1471,7 +1471,7 @@ impl Actor {
         params: ConfirmSectorProofsParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(iter::once(&*STORAGE_POWER_ACTOR_ADDR))?;
@@ -1504,7 +1504,7 @@ impl Actor {
         params: CheckSectorProvenParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -1542,7 +1542,7 @@ impl Actor {
         mut params: ExtendSectorExpirationParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.extensions.len() as u64 > DELCARATIONS_MAX {
@@ -1843,7 +1843,7 @@ impl Actor {
         params: TerminateSectorsParams,
     ) -> Result<TerminateSectorsReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // Note: this cannot terminate pre-committed but un-proven sectors.
@@ -1998,7 +1998,7 @@ impl Actor {
 
     fn declare_faults<BS, RT>(rt: &mut RT, params: DeclareFaultsParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.faults.len() as u64 > DELCARATIONS_MAX {
@@ -2143,7 +2143,7 @@ impl Actor {
         params: DeclareFaultsRecoveredParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.recoveries.len() as u64 > DELCARATIONS_MAX {
@@ -2297,7 +2297,7 @@ impl Actor {
         mut params: CompactPartitionsParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.deadline >= WPOST_PERIOD_DEADLINES as usize {
@@ -2451,7 +2451,7 @@ impl Actor {
         mut params: CompactSectorNumbersParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let mask_sector_numbers = params
@@ -2496,7 +2496,7 @@ impl Actor {
     /// Locks up some amount of a the miner's unlocked balance (including funds received alongside the invoking message).
     fn apply_rewards<BS, RT>(rt: &mut RT, params: ApplyRewardParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.reward.is_negative() {
@@ -2596,7 +2596,7 @@ impl Actor {
         params: ReportConsensusFaultParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // Note: only the first report of any fault is processed because it sets the
@@ -2706,7 +2706,7 @@ impl Actor {
         params: WithdrawBalanceParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.amount_requested.is_negative() {
@@ -2809,7 +2809,7 @@ impl Actor {
 
     fn repay_debt<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let (from_vesting, from_balance, state) = rt.transaction(|state: &mut State, rt| {
@@ -2854,7 +2854,7 @@ impl Actor {
         payload: CronEventPayload,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*STORAGE_POWER_ACTOR_ADDR))?;
@@ -2884,7 +2884,7 @@ impl Actor {
 /// Invoked at the end of each proving period, at the end of the epoch before the next one starts.
 fn process_early_terminations<BS, RT>(rt: &mut RT) -> Result</* more */ bool, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let reward_stats = request_current_epoch_block_reward(rt)?;
@@ -3005,7 +3005,7 @@ where
 /// Invoked at the end of the last epoch for each proving deadline.
 fn handle_proving_deadline<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let curr_epoch = rt.curr_epoch();
@@ -3143,7 +3143,7 @@ fn validate_expiration<BS, RT>(
     seal_proof: RegisteredSealProof,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // Expiration must be after activation. Check this explicitly to avoid an underflow below.
@@ -3208,7 +3208,7 @@ fn validate_replace_sector<BS>(
     params: &SectorPreCommitInfo,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     let replace_sector = state
         .get_sector(store, params.replace_sector_number)
@@ -3303,7 +3303,7 @@ fn enroll_cron_event<BS, RT>(
     cb: CronEventPayload,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let payload = RawBytes::serialize(cb)
@@ -3325,7 +3325,7 @@ where
 
 fn request_update_power<BS, RT>(rt: &mut RT, delta: PowerPair) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if delta.is_zero() {
@@ -3354,7 +3354,7 @@ fn request_terminate_deals<BS, RT>(
     deal_ids: Vec<DealID>,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     const MAX_LENGTH: usize = 8192;
@@ -3376,7 +3376,7 @@ where
 
 fn schedule_early_termination_work<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     enroll_cron_event(
@@ -3401,7 +3401,7 @@ fn verify_windowed_post<BS, RT>(
     proofs: Vec<PoStProof>,
 ) -> Result<bool, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let miner_actor_id: u64 = if let Payload::ID(i) = rt.message().receiver().payload() {
@@ -3457,7 +3457,7 @@ fn get_verify_info<BS, RT>(
     params: SealVerifyParams,
 ) -> Result<SealVerifyInfo, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if rt.curr_epoch() <= params.interactive_epoch {
@@ -3517,7 +3517,7 @@ fn request_unsealed_sector_cids<BS, RT>(
     data_commitment_inputs: &[SectorDataSpec],
 ) -> Result<Vec<Cid>, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if data_commitment_inputs.is_empty() {
@@ -3548,7 +3548,7 @@ fn request_deal_weights<BS, RT>(
     sectors: &[market::SectorDeals],
 ) -> Result<VerifyDealsForActivationReturn, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // Short-circuit if there are no deals in any of the sectors.
@@ -3585,7 +3585,7 @@ fn request_current_epoch_block_reward<BS, RT>(
     rt: &mut RT,
 ) -> Result<ThisEpochRewardReturn, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let ret = rt
@@ -3607,7 +3607,7 @@ where
 /// Requests the current network total power and pledge from the power actor.
 fn request_current_total_power<BS, RT>(rt: &mut RT) -> Result<CurrentTotalPowerReturn, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let ret = rt
@@ -3629,7 +3629,7 @@ where
 /// Resolves an address to an ID address and verifies that it is address of an account or multisig actor.
 fn resolve_control_address<BS, RT>(rt: &RT, raw: Address) -> Result<Address, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let resolved = rt
@@ -3654,7 +3654,7 @@ where
 /// The worker must be BLS since the worker key will be used alongside a BLS-VRF.
 fn resolve_worker_address<BS, RT>(rt: &mut RT, raw: Address) -> Result<Address, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let resolved = rt
@@ -3696,7 +3696,7 @@ where
 
 fn burn_funds<BS, RT>(rt: &mut RT, amount: TokenAmount) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if amount.is_positive() {
@@ -3712,7 +3712,7 @@ where
 
 fn notify_pledge_changed<BS, RT>(rt: &mut RT, pledge_delta: &BigInt) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if !pledge_delta.is_zero() {
@@ -3864,7 +3864,7 @@ fn power_for_sectors(sector_size: SectorSize, sectors: &[SectorOnChainInfo]) -> 
 
 fn get_miner_info<BS>(store: &BS, state: &State) -> Result<MinerInfo, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     state
         .get_info(store)
@@ -3877,7 +3877,7 @@ fn process_pending_worker<BS, RT>(
     state: &mut State,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let pending_worker_key = if let Some(k) = &info.pending_worker_key {
@@ -3907,7 +3907,7 @@ where
 /// will be at most one proving period old if computed in the cron callback.
 fn repay_debts_or_abort<BS, RT>(rt: &RT, state: &mut State) -> Result<TokenAmount, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     state.repay_debts(&rt.current_balance()?).map_err(|e| {
@@ -4008,7 +4008,7 @@ fn confirm_sector_proofs_valid_internal<BS, RT>(
     pre_commits: Vec<SectorPreCommitOnChainInfo>,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // get network stats from other actors
@@ -4259,7 +4259,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

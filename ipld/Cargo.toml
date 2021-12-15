@@ -28,4 +28,5 @@ submodule_tests = ["json"]
 [dev-dependencies]
 serde_json = "1.0"
 async-std = { version = "1.9", features = ["attributes"] }
-ipld_blockstore = "0.1"
+blockstore = { path = "../lib/blockstore" }
+fvm_shared = { path = "../shared" }

@@ -1,21 +1,48 @@
 use cid::{multihash::Code, Cid};
 use fvm_sdk::ipld;
-use std::error::Error as StdError; // TODO: nostd!
+use fvm_shared::error::{ActorError, ExitCode};
+use std::convert::TryFrom;
 
-use ipld_blockstore::{BlockStore, DAG_CBOR};
+use blockstore::{Block, Blockstore};
 
 /// A blockstore suitable for use within actors.
 pub struct ActorBlockstore;
 
-impl BlockStore for ActorBlockstore {
-    fn get_bytes(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Box<dyn StdError>> {
+impl Blockstore for ActorBlockstore {
+    type Error = ActorError;
+
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         Ok(Some(ipld::get(cid)))
     }
 
-    fn put_raw(&self, bytes: &[u8], code: Code) -> Result<Cid, Box<dyn StdError>> {
+    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid, Self::Error>
+    where
+        D: AsRef<[u8]>,
+    {
         // TODO: Don't hard-code the size. Unfortunately, there's no good way to get it from the
         // codec at the moment.
         const SIZE: u32 = 32;
-        Ok(ipld::put(code.into(), SIZE, DAG_CBOR, bytes))
+        Ok(ipld::put(
+            code.into(),
+            SIZE,
+            block.codec,
+            block.data.as_ref(),
+        ))
+    }
+
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
+        let k2 = self.put(
+            Code::try_from(k.hash().code())
+                .map_err(|e| ActorError::new(ExitCode::ErrSerialization, e.to_string()))?,
+            &Block::new(k.codec(), block),
+        )?;
+        if k != &k2 {
+            Err(ActorError::new(
+                ExitCode::ErrSerialization,
+                format!("put block with cid {} but has cid {}", k, k2),
+            ))
+        } else {
+            Ok(())
+        }
     }
 }

@@ -97,7 +97,7 @@ impl Blockstore for CgoBlockstore {
         }
     }
 
-    fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Error> {
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Error> {
         let k_bytes = k.to_bytes();
         unsafe {
             match cgobs_put(
@@ -112,20 +112,6 @@ impl Blockstore for CgoBlockstore {
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // This error makes no sense.
                 ERR_NOT_FOUND => panic!("not found error on put"),
-                _ => Err(Error::Other),
-            }
-        }
-    }
-
-    fn delete(&self, k: &Cid) -> Result<(), Error> {
-        let k_bytes = k.to_bytes();
-        unsafe {
-            match cgobs_delete(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
-                0 => Ok(()),
-                r @ 1.. => panic!("invalid return value from has: {}", r),
-                ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
-                // We shouldn't get this... but it's not an issue.
-                ERR_NOT_FOUND => Ok(()),
                 _ => Err(Error::Other),
             }
         }

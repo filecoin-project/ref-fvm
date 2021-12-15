@@ -41,3 +41,9 @@ impl From<Box<dyn StdError>> for Error {
         Self::Dynamic(e)
     }
 }
+
+impl From<Box<dyn StdError + Send + Sync + 'static>> for Error {
+    fn from(e: Box<dyn StdError + Send + Sync + 'static>) -> Self {
+        Self::Dynamic(e)
+    }
+}

@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use blockstore::{tracking::BSStats, tracking::TrackingBlockstore, Blockstore, MemoryBlockstore};
 use cid::multihash::Code;
-use ipld_blockstore::{BSStats, BlockStore, MemoryBlockstore, TrackingBlockStore};
+use fvm_shared::encoding::CborStore;
 use ipld_hamt::BytesKey;
 use ipld_hamt::Hamt;
 use serde_bytes::ByteBuf;
@@ -64,7 +65,7 @@ fn test_load() {
 #[test]
 fn test_set_if_absent() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
     assert!(hamt
@@ -98,7 +99,7 @@ fn test_set_if_absent() {
 #[test]
 fn set_with_no_effect_does_not_put() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut begn: Hamt<_, _> = Hamt::new_with_bit_width(&store, 1);
     let entries = 2 * BUCKET_SIZE * 5;
@@ -138,7 +139,7 @@ fn set_with_no_effect_does_not_put() {
 #[test]
 fn delete() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
     hamt.set(tstring("foo"), tstring("cat dog bear")).unwrap();
@@ -167,7 +168,7 @@ fn delete() {
 #[test]
 fn delete_case() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
 
@@ -196,13 +197,13 @@ fn delete_case() {
 #[test]
 fn reload_empty() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let hamt: Hamt<_, ()> = Hamt::new(&store);
-    let c = store.put(&hamt, Code::Blake2b256).unwrap();
+    let c = store.put_cbor(&hamt, Code::Blake2b256).unwrap();
 
     let h2 = Hamt::<_, ()>::load(&c, &store).unwrap();
-    let c2 = store.put(&h2, Code::Blake2b256).unwrap();
+    let c2 = store.put_cbor(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
     assert_eq!(
         c.to_string().as_str(),
@@ -215,7 +216,7 @@ fn reload_empty() {
 #[test]
 fn set_delete_many() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     // Test vectors setup specifically for bit width of 5
     let mut hamt: Hamt<_, BytesKey> = Hamt::new_with_bit_width(&store, 5);
@@ -259,7 +260,7 @@ fn set_delete_many() {
 #[test]
 fn for_each() {
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, BytesKey> = Hamt::new_with_bit_width(&store, 5);
 
@@ -331,7 +332,7 @@ fn add_and_remove_keys(
         .collect();
 
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _, _, Identity> = Hamt::new_with_bit_width(&store, bit_width);
 
@@ -448,7 +449,7 @@ fn clean_child_ordering() {
     let dummy_value: u8 = 42;
 
     let mem = MemoryBlockstore::default();
-    let store = TrackingBlockStore::new(&mem);
+    let store = TrackingBlockstore::new(&mem);
 
     let mut h: Hamt<_, _> = Hamt::new_with_bit_width(&store, 5);
 

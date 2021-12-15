@@ -5,7 +5,7 @@ use forest_actor::Multimap;
 use fvm_shared::address::Address;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
-use ipld_blockstore::MemoryBlockstore;
+use blockstore::MemoryBlockstore;
 
 #[test]
 fn basic_add() {

@@ -5,22 +5,23 @@ use std::{cmp, error::Error as StdError};
 use std::{collections::HashMap, ops::Neg};
 
 use bitfield::BitField;
+use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor};
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
 use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
-use ipld_amt::{Amt, Error as AmtError};
+use ipld_amt::Error as AmtError;
 use ipld_hamt::Error as HamtError;
 
 use crate::miner::{DeadlineInfo, QuantSpec};
+use crate::Array;
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
 
 use super::{
@@ -116,7 +117,7 @@ impl Cbor for State {}
 
 impl State {
     #[allow(clippy::too_many_arguments)]
-    pub fn new<BS: BlockStore>(
+    pub fn new<BS: Blockstore>(
         store: &BS,
         info_cid: Cid,
         period_start: ChainEpoch,
@@ -131,7 +132,7 @@ impl State {
                 )
             })?;
         let empty_precommits_cleanup_array =
-            Amt::<BitField, BS>::new_with_bit_width(store, PRECOMMIT_EXPIRY_AMT_BITWIDTH)
+            Array::<BitField, BS>::new_with_bit_width(store, PRECOMMIT_EXPIRY_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| {
                     e.downcast_default(
@@ -140,7 +141,7 @@ impl State {
                     )
                 })?;
         let empty_sectors_array =
-            Amt::<SectorOnChainInfo, BS>::new_with_bit_width(store, SECTORS_AMT_BITWIDTH)
+            Array::<SectorOnChainInfo, BS>::new_with_bit_width(store, SECTORS_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| {
                     e.downcast_default(
@@ -148,14 +149,16 @@ impl State {
                         "failed to construct sectors array",
                     )
                 })?;
-        let empty_bitfield = store.put(&BitField::new(), Code::Blake2b256).map_err(|e| {
-            e.downcast_default(
-                ExitCode::ErrIllegalState,
-                "failed to construct empty bitfield",
-            )
-        })?;
+        let empty_bitfield = store
+            .put_cbor(&BitField::new(), Code::Blake2b256)
+            .map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalState,
+                    "failed to construct empty bitfield",
+                )
+            })?;
         let deadline = Deadline::new(store)?;
-        let empty_deadline = store.put(&deadline, Code::Blake2b256).map_err(|e| {
+        let empty_deadline = store.put_cbor(&deadline, Code::Blake2b256).map_err(|e| {
             e.downcast_default(
                 ExitCode::ErrIllegalState,
                 "failed to construct illegal state",
@@ -163,7 +166,7 @@ impl State {
         })?;
 
         let empty_deadlines = store
-            .put(&Deadlines::new(empty_deadline), Code::Blake2b256)
+            .put_cbor(&Deadlines::new(empty_deadline), Code::Blake2b256)
             .map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrIllegalState,
@@ -171,15 +174,14 @@ impl State {
                 )
             })?;
 
-        let empty_vesting_funds_cid =
-            store
-                .put(&VestingFunds::new(), Code::Blake2b256)
-                .map_err(|e| {
-                    e.downcast_default(
-                        ExitCode::ErrIllegalState,
-                        "failed to construct illegal state",
-                    )
-                })?;
+        let empty_vesting_funds_cid = store
+            .put_cbor(&VestingFunds::new(), Code::Blake2b256)
+            .map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalState,
+                    "failed to construct illegal state",
+                )
+            })?;
 
         Ok(Self {
             info: info_cid,
@@ -204,20 +206,20 @@ impl State {
         })
     }
 
-    pub fn get_info<BS: BlockStore>(&self, store: &BS) -> Result<MinerInfo, Box<dyn StdError>> {
-        match store.get(&self.info) {
+    pub fn get_info<BS: Blockstore>(&self, store: &BS) -> Result<MinerInfo, Box<dyn StdError>> {
+        match store.get_cbor(&self.info) {
             Ok(Some(info)) => Ok(info),
             Ok(None) => Err(actor_error!(ErrNotFound, "failed to get miner info").into()),
             Err(e) => Err(e.downcast_wrap("failed to get miner info")),
         }
     }
 
-    pub fn save_info<BS: BlockStore>(
+    pub fn save_info<BS: Blockstore>(
         &mut self,
         store: &BS,
         info: &MinerInfo,
     ) -> Result<(), Box<dyn StdError>> {
-        let cid = store.put(&info, Code::Blake2b256)?;
+        let cid = store.put_cbor(&info, Code::Blake2b256)?;
         self.info = cid;
         Ok(())
     }
@@ -249,14 +251,14 @@ impl State {
 
     /// Marks a set of sector numbers as having been allocated.
     /// If policy is `DenyCollisions`, fails if the set intersects with the sector numbers already allocated.
-    pub fn allocate_sector_numbers<BS: BlockStore>(
+    pub fn allocate_sector_numbers<BS: Blockstore>(
         &mut self,
         store: &BS,
         sector_numbers: &BitField,
         policy: CollisionPolicy,
     ) -> Result<(), ActorError> {
         let prior_allocation = store
-            .get(&self.allocated_sectors)
+            .get_cbor(&self.allocated_sectors)
             .map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrIllegalState,
@@ -278,20 +280,23 @@ impl State {
             }
         }
         let new_allocation = &prior_allocation | sector_numbers;
-        self.allocated_sectors = store.put(&new_allocation, Code::Blake2b256).map_err(|e| {
-            e.downcast_default(
-                ExitCode::ErrIllegalArgument,
-                format!(
-                    "failed to store allocated sectors bitfield after adding {:?}",
-                    sector_numbers,
-                ),
-            )
-        })?;
+        self.allocated_sectors =
+            store
+                .put_cbor(&new_allocation, Code::Blake2b256)
+                .map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalArgument,
+                        format!(
+                            "failed to store allocated sectors bitfield after adding {:?}",
+                            sector_numbers,
+                        ),
+                    )
+                })?;
         Ok(())
     }
 
     /// Stores a pre-committed sector info, failing if the sector number is already present.
-    pub fn put_precommitted_sectors<BS: BlockStore>(
+    pub fn put_precommitted_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         precommits: Vec<SectorPreCommitOnChainInfo>,
@@ -314,7 +319,7 @@ impl State {
         Ok(())
     }
 
-    pub fn get_precommitted_sector<BS: BlockStore>(
+    pub fn get_precommitted_sector<BS: Blockstore>(
         &self,
         store: &BS,
         sector_num: SectorNumber,
@@ -325,7 +330,7 @@ impl State {
     }
 
     /// Gets and returns the requested pre-committed sectors, skipping missing sectors.
-    pub fn find_precommitted_sectors<BS: BlockStore>(
+    pub fn find_precommitted_sectors<BS: Blockstore>(
         &self,
         store: &BS,
         sector_numbers: &[SectorNumber],
@@ -354,7 +359,7 @@ impl State {
         Ok(result)
     }
 
-    pub fn delete_precommitted_sectors<BS: BlockStore>(
+    pub fn delete_precommitted_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         sector_nums: &[SectorNumber],
@@ -373,7 +378,7 @@ impl State {
         Ok(())
     }
 
-    pub fn has_sector_number<BS: BlockStore>(
+    pub fn has_sector_number<BS: Blockstore>(
         &self,
         store: &BS,
         sector_num: SectorNumber,
@@ -382,7 +387,7 @@ impl State {
         Ok(sectors.get(sector_num)?.is_some())
     }
 
-    pub fn put_sectors<BS: BlockStore>(
+    pub fn put_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         new_sectors: Vec<SectorOnChainInfo>,
@@ -400,7 +405,7 @@ impl State {
         Ok(())
     }
 
-    pub fn get_sector<BS: BlockStore>(
+    pub fn get_sector<BS: Blockstore>(
         &self,
         store: &BS,
         sector_num: SectorNumber,
@@ -409,7 +414,7 @@ impl State {
         sectors.get(sector_num)
     }
 
-    pub fn delete_sectors<BS: BlockStore>(
+    pub fn delete_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         sector_nos: &BitField,
@@ -427,7 +432,7 @@ impl State {
         Ok(())
     }
 
-    pub fn for_each_sector<BS: BlockStore, F>(
+    pub fn for_each_sector<BS: Blockstore, F>(
         &self,
         store: &BS,
         mut f: F,
@@ -440,7 +445,7 @@ impl State {
     }
 
     /// Returns the deadline and partition index for a sector number.
-    pub fn find_sector<BS: BlockStore>(
+    pub fn find_sector<BS: Blockstore>(
         &self,
         store: &BS,
         sector_number: SectorNumber,
@@ -458,7 +463,7 @@ impl State {
     /// sectors to expire at the end of the next deadline. Given the expense of
     /// sealing a sector, this function skips missing/faulty/terminated "upgraded"
     /// sectors instead of failing. That way, the new sectors can still be proved.
-    pub fn reschedule_sector_expirations<BS: BlockStore>(
+    pub fn reschedule_sector_expirations<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -498,7 +503,7 @@ impl State {
     }
 
     /// Assign new sectors to deadlines.
-    pub fn assign_sectors_to_deadlines<BS: BlockStore>(
+    pub fn assign_sectors_to_deadlines<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -564,7 +569,7 @@ impl State {
     /// Pops up to `max_sectors` early terminated sectors from all deadlines.
     ///
     /// Returns `true` if we still have more early terminations to process.
-    pub fn pop_early_terminations<BS: BlockStore>(
+    pub fn pop_early_terminations<BS: Blockstore>(
         &mut self,
         store: &BS,
         max_partitions: u64,
@@ -629,7 +634,7 @@ impl State {
     }
 
     // /Returns an error if the target sector cannot be found and/or is faulty/terminated.
-    pub fn check_sector_health<BS: BlockStore>(
+    pub fn check_sector_health<BS: Blockstore>(
         &self,
         store: &BS,
         deadline_idx: usize,
@@ -671,7 +676,7 @@ impl State {
     }
 
     /// Loads sector info for a sequence of sectors.
-    pub fn load_sector_infos<BS: BlockStore>(
+    pub fn load_sector_infos<BS: Blockstore>(
         &self,
         store: &BS,
         sectors: &BitField,
@@ -679,31 +684,31 @@ impl State {
         Ok(Sectors::load(store, &self.sectors)?.load_sector(sectors)?)
     }
 
-    pub fn load_deadlines<BS: BlockStore>(&self, store: &BS) -> Result<Deadlines, ActorError> {
+    pub fn load_deadlines<BS: Blockstore>(&self, store: &BS) -> Result<Deadlines, ActorError> {
         store
-            .get::<Deadlines>(&self.deadlines)
+            .get_cbor::<Deadlines>(&self.deadlines)
             .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to load deadlines"))?
             .ok_or_else(
                 || actor_error!(ErrIllegalState; "failed to load deadlines {}", self.deadlines),
             )
     }
 
-    pub fn save_deadlines<BS: BlockStore>(
+    pub fn save_deadlines<BS: Blockstore>(
         &mut self,
         store: &BS,
         deadlines: Deadlines,
     ) -> Result<(), Box<dyn StdError>> {
-        self.deadlines = store.put(&deadlines, Code::Blake2b256)?;
+        self.deadlines = store.put_cbor(&deadlines, Code::Blake2b256)?;
         Ok(())
     }
 
     /// Loads the vesting funds table from the store.
-    pub fn load_vesting_funds<BS: BlockStore>(
+    pub fn load_vesting_funds<BS: Blockstore>(
         &self,
         store: &BS,
     ) -> Result<VestingFunds, Box<dyn StdError>> {
         Ok(store
-            .get(&self.vesting_funds)
+            .get_cbor(&self.vesting_funds)
             .map_err(|e| {
                 e.downcast_wrap(
                     format!("failed to load vesting funds {}", self.vesting_funds),
@@ -713,12 +718,12 @@ impl State {
     }
 
     /// Saves the vesting table to the store.
-    pub fn save_vesting_funds<BS: BlockStore>(
+    pub fn save_vesting_funds<BS: Blockstore>(
         &mut self,
         store: &BS,
         funds: &VestingFunds,
     ) -> Result<(), Box<dyn StdError>> {
-        self.vesting_funds = store.put(funds, Code::Blake2b256)?;
+        self.vesting_funds = store.put_cbor(funds, Code::Blake2b256)?;
         Ok(())
     }
 
@@ -767,7 +772,7 @@ impl State {
     }
 
     /// First vests and unlocks the vested funds AND then locks the given funds in the vesting table.
-    pub fn add_locked_funds<BS: BlockStore>(
+    pub fn add_locked_funds<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -804,7 +809,7 @@ impl State {
     /// Returns the amount unlocked from the vesting table and the amount taken from
     /// current balance. If the fee debt exceeds the total amount available for repayment
     /// the fee debt field is updated to track the remaining debt.  Otherwise it is set to zero.
-    pub fn repay_partial_debt_in_priority_order<BS: BlockStore>(
+    pub fn repay_partial_debt_in_priority_order<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -859,7 +864,7 @@ impl State {
     /// Unlocks an amount of funds that have *not yet vested*, if possible.
     /// The soonest-vesting entries are unlocked first.
     /// Returns the amount actually unlocked.
-    pub fn unlock_unvested_funds<BS: BlockStore>(
+    pub fn unlock_unvested_funds<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -886,7 +891,7 @@ impl State {
 
     /// Unlocks all vesting funds that have vested before the provided epoch.
     /// Returns the amount unlocked.
-    pub fn unlock_vested_funds<BS: BlockStore>(
+    pub fn unlock_vested_funds<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -911,7 +916,7 @@ impl State {
     }
 
     /// CheckVestedFunds returns the amount of vested funds that have vested before the provided epoch.
-    pub fn check_vested_funds<BS: BlockStore>(
+    pub fn check_vested_funds<BS: Blockstore>(
         &self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -980,7 +985,7 @@ impl State {
         }
     }
 
-    pub fn add_pre_commit_clean_ups<BS: BlockStore>(
+    pub fn add_pre_commit_clean_ups<BS: Blockstore>(
         &mut self,
         store: &BS,
         cleanup_events: HashMap<ChainEpoch, Vec<u64>>,
@@ -1013,7 +1018,7 @@ impl State {
         Ok(())
     }
 
-    pub fn cleanup_expired_pre_commits<BS: BlockStore>(
+    pub fn cleanup_expired_pre_commits<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -1068,7 +1073,7 @@ impl State {
         Ok(deposit_to_burn)
     }
 
-    pub fn advance_deadline<BS: BlockStore>(
+    pub fn advance_deadline<BS: Blockstore>(
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
@@ -1151,7 +1156,7 @@ impl State {
         })
     }
 
-    pub fn get_all_precommitted_sectors<BS: BlockStore>(
+    pub fn get_all_precommitted_sectors<BS: Blockstore>(
         &self,
         store: &BS,
         sector_nos: &BitField,

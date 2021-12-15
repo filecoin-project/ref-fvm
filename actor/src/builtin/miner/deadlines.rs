@@ -3,11 +3,11 @@
 
 use std::error::Error as StdError;
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::sector::SectorNumber;
-use ipld_amt::Amt;
+use crate::Array;
 
 use super::policy::*;
 use super::{DeadlineInfo, Deadlines, Partition, QuantSpec};
@@ -32,7 +32,7 @@ pub fn new_deadline_info(
 impl Deadlines {
     /// Returns the deadline and partition index for a sector number.
     /// Returns an error if the sector number is not tracked by `self`.
-    pub fn find_sector<BS: BlockStore>(
+    pub fn find_sector<BS: Blockstore>(
         &self,
         store: &BS,
         sector_number: SectorNumber,
@@ -40,7 +40,7 @@ impl Deadlines {
         for i in 0..self.due.len() {
             let deadline_idx = i;
             let deadline = self.load_deadline(store, deadline_idx)?;
-            let partitions = Amt::<Partition, _>::load(&deadline.partitions, store)?;
+            let partitions = Array::<Partition, _>::load(&deadline.partitions, store)?;
 
             let mut partition_idx = None;
 

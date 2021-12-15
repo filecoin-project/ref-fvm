@@ -4,7 +4,7 @@
 use forest_actor::BalanceTable;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use ipld_blockstore::MemoryBlockstore;
+use blockstore::MemoryBlockstore;
 
 // Ported test from specs-actors
 #[test]
