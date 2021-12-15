@@ -5,9 +5,6 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
-use fvm_shared::sector::StoragePower;
-
-use crate::smooth::FilterEstimate;
 
 #[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
 pub struct AwardBlockRewardParams {
@@ -19,10 +16,4 @@ pub struct AwardBlockRewardParams {
     pub win_count: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
-pub struct ThisEpochRewardReturn {
-    // * Removed this_epoch_reward in v2
-    pub this_epoch_reward_smoothed: FilterEstimate,
-    #[serde(with = "bigint_ser")]
-    pub this_epoch_baseline_power: StoragePower,
-}
+pub use fvm_shared::reward::ThisEpochRewardReturn;

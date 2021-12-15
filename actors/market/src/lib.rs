@@ -13,24 +13,26 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::clock::EPOCH_UNDEFINED;
+use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
+use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{actor_error, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use crate::miner::QuantSpec;
-use crate::runtime::{ActorCode, Runtime};
-use crate::{
-    power, request_miner_control_addrs, reward,
-    verifreg::{Method as VerifregMethod, RestoreBytesParams, UseBytesParams},
+use actors_runtime::{
+    request_miner_control_addrs,
+    runtime::{ActorCode, Runtime},
     ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
     VERIFIED_REGISTRY_ACTOR_ADDR,
 };
+use fvm_actor_power as power;
+use fvm_actor_verifreg::{Method as VerifregMethod, RestoreBytesParams, UseBytesParams};
 
 pub use self::deal::*;
 use self::policy::*;
@@ -1311,7 +1313,7 @@ where
         RawBytes::default(),
         0.into(),
     )?;
-    let ret: reward::ThisEpochRewardReturn = rwret.deserialize()?;
+    let ret: ThisEpochRewardReturn = rwret.deserialize()?;
     Ok(ret.this_epoch_baseline_power)
 }
 

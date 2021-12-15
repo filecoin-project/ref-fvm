@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 
 use fvm_shared::address::Address;

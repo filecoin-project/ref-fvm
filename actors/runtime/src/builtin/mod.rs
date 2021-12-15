@@ -4,7 +4,7 @@
 pub use self::codes::*;
 pub use self::network::*;
 pub use self::sector::*;
-pub(crate) use self::shared::*;
+pub use self::shared::*;
 pub use self::singletons::*;
 
 mod codes;

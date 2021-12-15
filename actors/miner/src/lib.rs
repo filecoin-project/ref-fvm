@@ -5,7 +5,6 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error as StdError;
 use std::{iter, ops::Neg};
 
-use crate::miner::Code::Blake2b256;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use blockstore::Blockstore;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
@@ -20,6 +19,7 @@ pub use deadline_info::*;
 pub use deadline_state::*;
 pub use deadlines::*;
 pub use expiration_queue::*;
+
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
 use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
@@ -51,31 +51,25 @@ pub use termination::*;
 pub use types::*;
 pub use vesting_state::*;
 
-use crate::runtime::ActorCode;
-use crate::{
-    account::Method as AccountMethod,
-    market::{self, ActivateDealsParams, ComputeDataCommitmentReturn, SectorDataSpec, SectorDeals},
-    power::MAX_MINER_PROVE_COMMITS_PER_EPOCH,
-    runtime::Runtime,
+use actors_runtime::{
+    is_principal,
+    runtime::{ActorCode, RUntime},
+    smooth::FilterEstimate,
+    ActorDowncast, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE,
+    INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
 };
-use crate::{
-    is_principal, smooth::FilterEstimate, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR,
-    CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR,
-    STORAGE_POWER_ACTOR_ADDR,
+use fvm_actor_account::Method as AccountMethod;
+use fvm_actor_market::{
+    self as market, ActivateDealsParams, ComputeDataCommitmentParamsRef,
+    ComputeDataCommitmentReturn, Method as MarketMethod, OnMinerSectorsTerminateParams,
+    OnMinerSectorsTerminateParamsRef, SectorDataSpec, SectorDeals,
+    VerifyDealsForActivationParamsRef, VerifyDealsForActivationReturn,
 };
-use crate::{
-    market::{
-        ComputeDataCommitmentParamsRef, Method as MarketMethod, OnMinerSectorsTerminateParams,
-        OnMinerSectorsTerminateParamsRef, VerifyDealsForActivationParamsRef,
-        VerifyDealsForActivationReturn,
-    },
-    power::CurrentTotalPowerReturn,
+use fvm_actor_power::{
+    CurrentTotalPowerReturn, EnrollCronEventParams, Method as PowerMethod,
+    MAX_MINER_PROVE_COMMITS_PER_EPOCH,
 };
-use crate::{
-    power::{EnrollCronEventParams, Method as PowerMethod},
-    reward::ThisEpochRewardReturn,
-    ActorDowncast,
-};
+use fvm_actor_reward::ThisEpochRewardReturn;
 
 pub fn request_miner_control_addrs<BS, RT>(
     rt: &mut RT,

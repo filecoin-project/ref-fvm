@@ -10,7 +10,7 @@ use fvm_shared::address::Address;
 use fvm_shared::encoding::{tuple::*, Cbor};
 use fvm_shared::HAMT_BIT_WIDTH;
 
-use crate::make_empty_map;
+use actors_runtime::make_empty_map;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct State {

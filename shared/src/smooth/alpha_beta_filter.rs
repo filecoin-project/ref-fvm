@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::bigint::{bigint_ser, BigInt, Integer};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::encoding::Cbor;
+use crate::bigint::{bigint_ser, BigInt, Integer};
+use crate::clock::ChainEpoch;
+use crate::encoding::tuple::*;
+use crate::encoding::Cbor;
 
-use crate::util::math::PRECISION;
+use crate::math::PRECISION;
 
 #[derive(Default, Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq)]
 pub struct FilterEstimate {

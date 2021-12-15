@@ -1,21 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-#[macro_use]
-extern crate lazy_static;
-
+use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 
-use actors::{
-    miner::{ApplyRewardParams, Method as MinerMethod},
-    reward::{
-        AwardBlockRewardParams, Method, State, ThisEpochRewardReturn, BASELINE_INITIAL_VALUE,
-        PENALTY_MULTIPLIER,
-    },
-    BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, REWARD_ACTOR_CODE_ID,
-    STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
+use fvm_actor_reward::{
+    ext, Actor as RewardActor, AwardBlockRewardParams, Method, State, ThisEpochRewardReturn,
+    BASELINE_INITIAL_VALUE, PENALTY_MULTIPLIER,
 };
-use common::*;
+
+use actors_runtime::test_utils::*;
+use actors_runtime::{
+    BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
+    SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
+};
+
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::clock::ChainEpoch;
@@ -182,7 +181,7 @@ mod test_award_block_reward {
 
         rt.expect_send(
             *WINNER,
-            MinerMethod::ApplyRewards as u64,
+            ext::miner::APPLY_REWARDS_METHOD,
             RawBytes::serialize(BigIntSer(&expected_reward)).unwrap(),
             expected_reward,
             RawBytes::default(),
@@ -204,8 +203,7 @@ mod test_award_block_reward {
             win_count: 1,
         };
         assert!(rt
-            .call(
-                &*REWARD_ACTOR_CODE_ID,
+            .call::<RewardActor>(
                 Method::AwardBlockReward as u64,
                 &RawBytes::serialize(params).unwrap()
             )
@@ -258,7 +256,7 @@ mod test_award_block_reward {
         let expected_reward = TokenAmount::from(1000);
         rt.expect_send(
             *WINNER,
-            MinerMethod::ApplyRewards as u64,
+            ext::miner::APPLY_REWARDS_METHOD,
             RawBytes::serialize(BigIntSer(&expected_reward)).unwrap(),
             expected_reward.clone(),
             RawBytes::default(),
@@ -281,8 +279,7 @@ mod test_award_block_reward {
         };
 
         assert!(rt
-            .call(
-                &*REWARD_ACTOR_CODE_ID,
+            .call::<RewardActor>(
                 Method::AwardBlockReward as u64,
                 &RawBytes::serialize(params).unwrap()
             )
@@ -334,8 +331,7 @@ fn construct_and_verify(curr_power: &StoragePower) -> MockRuntime {
     };
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     let ret = rt
-        .call(
-            &*REWARD_ACTOR_CODE_ID,
+        .call::<RewardActor>(
             METHOD_CONSTRUCTOR,
             &RawBytes::serialize(BigIntSer(curr_power)).unwrap(),
         )
@@ -358,8 +354,8 @@ fn award_block_reward(
     let miner_penalty = &penalty * PENALTY_MULTIPLIER;
     rt.expect_send(
         miner,
-        MinerMethod::ApplyRewards as u64,
-        RawBytes::serialize(&ApplyRewardParams {
+        ext::miner::APPLY_REWARDS_METHOD,
+        RawBytes::serialize(&ext::miner::ApplyRewardParams {
             reward: expected_payment.clone(),
             penalty: miner_penalty,
         })
@@ -388,11 +384,7 @@ fn award_block_reward(
     })
     .unwrap();
 
-    let serialized_bytes = rt.call(
-        &*REWARD_ACTOR_CODE_ID,
-        Method::AwardBlockReward as u64,
-        &params,
-    )?;
+    let serialized_bytes = rt.call::<RewardActor>(Method::AwardBlockReward as u64, &params)?;
 
     rt.verify();
     Ok(serialized_bytes)
@@ -401,11 +393,7 @@ fn award_block_reward(
 fn this_epoch_reward(rt: &mut MockRuntime) -> ThisEpochRewardReturn {
     rt.expect_validate_caller_any();
     let serialized_result = rt
-        .call(
-            &*REWARD_ACTOR_CODE_ID,
-            Method::ThisEpochReward as u64,
-            &RawBytes::default(),
-        )
+        .call::<RewardActor>(Method::ThisEpochReward as u64, &RawBytes::default())
         .unwrap();
     let resp: ThisEpochRewardReturn = RawBytes::deserialize(&serialized_result).unwrap();
     rt.verify();
@@ -418,11 +406,7 @@ fn update_network_kpi(rt: &mut MockRuntime, curr_raw_power: &StoragePower) {
 
     let params = &RawBytes::serialize(BigIntSer(&curr_raw_power)).unwrap();
     assert!(rt
-        .call(
-            &*REWARD_ACTOR_CODE_ID,
-            Method::UpdateNetworkKPI as u64,
-            params
-        )
+        .call::<RewardActor>(Method::UpdateNetworkKPI as u64, params)
         .is_ok());
     rt.verify();
 }

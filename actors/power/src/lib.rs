@@ -17,13 +17,16 @@ use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::SealVerifyInfo;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
-use crate::miner::MinerConstructorParams;
-use crate::runtime::{ActorCode, Runtime};
-use crate::{
-    init, miner, ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
+use actors_runtime::{
+    make_map_with_root_and_bitwidth,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
-use crate::{make_map_with_root_and_bitwidth, reward::Method as RewardMethod};
+
+use fvm_actor_init as init;
+use fvm_actor_miner::{self as miner, MinerConstructorParams};
+use fvm_actor_reward::Method as RewardMethod;
 
 pub use self::policy::*;
 pub use self::state::*;

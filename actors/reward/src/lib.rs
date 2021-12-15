@@ -8,16 +8,19 @@ use num_traits::{FromPrimitive, Signed};
 
 use fvm_shared::actor_error;
 use fvm_shared::bigint::Sign;
-use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
+use fvm_shared::bigint::{
+    bigint_ser::{self, BigIntDe},
+    Integer,
+};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
+use fvm_shared::encoding::{tuple::*, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use crate::runtime::{ActorCode, Runtime};
-use crate::{
-    miner, BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,
+use actors_runtime::{
+    runtime::{ActorCode, Runtime},
+    BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,
     SYSTEM_ACTOR_ADDR,
 };
 
@@ -29,6 +32,10 @@ pub(crate) mod expneg;
 mod logic;
 mod state;
 mod types;
+
+// only exported for tests
+#[doc(hidden)]
+pub mod ext;
 
 // * Updated to specs-actors commit: 999e57a151cc7ada020ca2844b651499ab8c0dec (v3.0.1)
 
@@ -163,13 +170,13 @@ impl Actor {
         }
 
         // if this fails, we can assume the miner is responsible and avoid failing here.
-        let reward_params = miner::ApplyRewardParams {
+        let reward_params = ext::miner::ApplyRewardParams {
             reward: total_reward.clone(),
             penalty,
         };
         let res = rt.send(
             miner_addr,
-            miner::Method::ApplyRewards as u64,
+            ext::miner::APPLY_REWARDS_METHOD,
             RawBytes::serialize(&reward_params)?,
             total_reward.clone(),
         );

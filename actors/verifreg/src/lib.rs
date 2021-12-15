@@ -12,10 +12,10 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
-use crate::runtime::{ActorCode, Runtime};
-use crate::{
-    make_map_with_root_and_bitwidth, resolve_to_id_addr, ActorDowncast, STORAGE_MARKET_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR,
+use actors_runtime::{
+    make_map_with_root_and_bitwidth, resolve_to_id_addr,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 
 pub use self::state::State;

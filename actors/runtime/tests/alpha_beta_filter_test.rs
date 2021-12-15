@@ -3,13 +3,13 @@
 
 use num_traits::sign::Signed;
 
-use actors_runtime::math::{poly_parse, PRECISION};
-use actors_runtime::smooth::extrapolated_cum_sum_of_ratio as ecsor;
-use actors_runtime::smooth::*;
 use actors_runtime::EPOCHS_IN_DAY;
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::math::{poly_parse, PRECISION};
 use fvm_shared::sector::StoragePower;
+use fvm_shared::smooth::extrapolated_cum_sum_of_ratio as ecsor;
+use fvm_shared::smooth::*;
 
 const ERR_BOUND: u64 = 350;
 

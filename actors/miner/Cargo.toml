@@ -9,8 +9,16 @@ repository = "https://github.com/filecoin-project/fvm"
 
 [dependencies]
 fvm_shared = { path = "../../shared", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
+cid = { version = "0.7", features = ["serde-codec"] }
 num-traits = "0.2"
 num-derive = "0.3.0"
+
+# fvm_actor_account = { path = "../account" }
+# fvm_actor_market = { path = "../market" }
+# fvm_actor_power = { path = "../power" }
+# fvm_actor_reward = { path = "../reward" }
 
 [features]
 default = []
