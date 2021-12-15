@@ -11,8 +11,10 @@ use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
-use crate::runtime::{ActorCode, Runtime};
-use crate::SYSTEM_ACTOR_ADDR;
+use actors_runtime::{
+    runtime::{ActorCode, Runtime},
+    SYSTEM_ACTOR_ADDR,
+};
 
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 
