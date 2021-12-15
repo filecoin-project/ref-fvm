@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 use num_traits::Zero;
 
-use crate::miner::QuantSpec;
 use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 

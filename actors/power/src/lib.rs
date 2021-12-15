@@ -90,7 +90,7 @@ impl Actor {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
         let value = rt.message().value_received().clone();
 
-        let constructor_params = RawBytes::serialize(MinerConstructorParams {
+        let constructor_params = RawBytes::serialize(ext::miner::MinerConstructorParams {
             owner: params.owner,
             worker: params.worker,
             window_post_proof_type: params.window_post_proof_type,
@@ -569,7 +569,7 @@ impl Actor {
         for event in cron_events {
             let res = rt.send(
                 event.miner_addr,
-                miner::Method::OnDeferredCronEvent as MethodNum,
+                ext::miner::ON_DEFERRED_CRON_EVENT_METHOD,
                 event.callback_payload,
                 Default::default(),
             );

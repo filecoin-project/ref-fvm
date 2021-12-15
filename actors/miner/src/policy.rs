@@ -6,7 +6,6 @@ use std::cmp;
 
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::{ChainEpoch, EPOCH_DURATION_SECONDS};
-use fvm_shared::commcid;
 use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, POSEIDON_BLS12_381_A1_FC1};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sector::{
@@ -14,7 +13,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 
-use crate::{network::*, DealWeight, EXPECTED_LEADERS_PER_EPOCH};
+use actors_runtime::{network::*, DealWeight, EXPECTED_LEADERS_PER_EPOCH};
 
 use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
 

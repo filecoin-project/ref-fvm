@@ -13,7 +13,7 @@ use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
 
-use crate::DealWeight;
+use actors_runtime::DealWeight;
 
 pub type CronEvent = i64;
 pub const CRON_EVENT_WORKER_KEY_CHANGE: CronEvent = 0;

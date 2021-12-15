@@ -7,8 +7,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, RawBytes};
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
-
-use crate::smooth::FilterEstimate;
+use fvm_shared::smooth::FilterEstimate;
 
 pub type SectorTermination = i64;
 

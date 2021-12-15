@@ -4,18 +4,15 @@
 use std::collections::HashSet;
 use std::error::Error as StdError;
 
+use actors_runtime::{ActorDowncast, Array};
 use ahash::AHashSet;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::actor_error;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
-
 use ipld_amt::Error as AmtError;
-
-use crate::Array;
-use crate::{ActorDowncast, ActorError};
 
 use super::SectorOnChainInfo;
 

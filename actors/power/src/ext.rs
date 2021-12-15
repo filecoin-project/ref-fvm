@@ -1,5 +1,7 @@
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::sector::SectorNumber;
+use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, RawBytes};
+use fvm_shared::sector::{RegisteredPoStProof, SectorNumber};
 
 pub mod init {
     use super::*;
@@ -27,15 +29,25 @@ pub mod miner {
     use super::*;
 
     pub const CONFIRM_SECTOR_PROOFS_VALID_METHOD: u64 = 17;
+    pub const ON_DEFERRED_CRON_EVENT_METHOD: u64 = 12;
 
     #[derive(Serialize_tuple, Deserialize_tuple)]
     pub struct ConfirmSectorProofsParams {
         pub sectors: Vec<SectorNumber>,
     }
+
+    #[derive(Serialize_tuple, Deserialize_tuple)]
+    pub struct MinerConstructorParams {
+        pub owner: Address,
+        pub worker: Address,
+        pub control_addresses: Vec<Address>,
+        pub window_post_proof_type: RegisteredPoStProof,
+        #[serde(with = "serde_bytes")]
+        pub peer_id: Vec<u8>,
+        pub multi_addresses: Vec<BytesDe>,
+    }
 }
 
 pub mod reward {
-    use super::*;
-
     pub const UPDATE_NETWORK_KPI: u64 = 4;
 }

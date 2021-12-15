@@ -3,20 +3,18 @@
 
 use std::cmp::{self, max};
 
+use lazy_static::lazy_static;
 use num_traits::Zero;
 
 use fvm_shared::bigint::{num_integer::div_floor, BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::math::PRECISION;
 use fvm_shared::sector::StoragePower;
+use fvm_shared::smooth::{self, FilterEstimate};
 use fvm_shared::FILECOIN_PRECISION;
 
-use crate::{
-    math::PRECISION,
-    network::EPOCHS_IN_DAY,
-    smooth::{self, FilterEstimate},
-    EXPECTED_LEADERS_PER_EPOCH,
-};
+use actors_runtime::{network::EPOCHS_IN_DAY, EXPECTED_LEADERS_PER_EPOCH};
 
 use super::{VestSpec, REWARD_VESTING_SPEC};
 

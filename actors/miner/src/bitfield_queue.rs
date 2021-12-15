@@ -8,13 +8,10 @@ use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::Cid;
 
+use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::QuantSpec;
 use ipld_amt::Error as AmtError;
-
-use crate::ActorDowncast;
-use crate::Array;
-
-use super::QuantSpec;
 
 /// Wrapper for working with an AMT[ChainEpoch]*Bitfield functioning as a queue, bucketed by epoch.
 /// Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.

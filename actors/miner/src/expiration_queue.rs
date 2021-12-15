@@ -10,14 +10,14 @@ use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
 use ipld_amt::{Error as AmtError, ValueMut};
 
-use crate::miner::{QuantSpec, ADDRESSED_SECTORS_MAX};
-use crate::ActorDowncast;
-use crate::Array;
+use crate::policy::ADDRESSED_SECTORS_MAX;
+use actors_runtime::{ActorDowncast, Array};
 
 use super::{power_for_sector, PowerPair, SectorOnChainInfo};
 

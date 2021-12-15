@@ -5,12 +5,13 @@ use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 
-use crate::Array;
+use actors_runtime::Array;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::{DeadlineInfo, QuantSpec};
 use fvm_shared::sector::SectorNumber;
 
 use super::policy::*;
-use super::{DeadlineInfo, Deadlines, Partition, QuantSpec};
+use super::{Deadlines, Partition};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,

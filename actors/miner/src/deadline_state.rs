@@ -8,16 +8,15 @@ use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use num_traits::{Signed, Zero};
 
-use crate::ActorDowncast;
-use crate::Array;
+use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::actor_error;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{PoStProof, SectorSize};
 
-use super::QuantSpec;
 use super::{
     BitFieldQueue, ExpirationSet, Partition, PartitionSectorMap, PoStPartition, PowerPair,
     SectorOnChainInfo, Sectors, TerminationResult, WPOST_PERIOD_DEADLINES,

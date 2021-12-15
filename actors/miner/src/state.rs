@@ -12,6 +12,7 @@ use num_traits::{Signed, Zero};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
+use fvm_shared::deadlines::{DeadlineInfo, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
@@ -20,9 +21,9 @@ use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
 use ipld_amt::Error as AmtError;
 use ipld_hamt::Error as HamtError;
 
-use crate::miner::{DeadlineInfo, QuantSpec};
-use crate::Array;
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast};
+use actors_runtime::{
+    make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast, Array,
+};
 
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,

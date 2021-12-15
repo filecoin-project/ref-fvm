@@ -11,17 +11,15 @@ use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
 
-use crate::Array;
+use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::actor_error;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::deadlines::{QuantSpec, NO_QUANTIZATION};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorSize, StoragePower};
-
-use crate::miner::{QuantSpec, NO_QUANTIZATION};
-use crate::ActorDowncast;
 
 use super::{
     power_for_sectors, select_sectors, validate_partition_contains_sectors, BitFieldQueue,

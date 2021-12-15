@@ -22,6 +22,7 @@ pub use expiration_queue::*;
 
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
+use fvm_shared::deadlines::DeadlineInfo;
 use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
 use fvm_shared::{
     actor_error,
@@ -53,23 +54,14 @@ pub use vesting_state::*;
 
 use actors_runtime::{
     is_principal,
-    runtime::{ActorCode, RUntime},
-    smooth::FilterEstimate,
+    runtime::{ActorCode, Runtime},
     ActorDowncast, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE,
     INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
 };
-use fvm_actor_account::Method as AccountMethod;
-use fvm_actor_market::{
-    self as market, ActivateDealsParams, ComputeDataCommitmentParamsRef,
-    ComputeDataCommitmentReturn, Method as MarketMethod, OnMinerSectorsTerminateParams,
-    OnMinerSectorsTerminateParamsRef, SectorDataSpec, SectorDeals,
-    VerifyDealsForActivationParamsRef, VerifyDealsForActivationReturn,
-};
-use fvm_actor_power::{
-    CurrentTotalPowerReturn, EnrollCronEventParams, Method as PowerMethod,
-    MAX_MINER_PROVE_COMMITS_PER_EPOCH,
-};
-use fvm_actor_reward::ThisEpochRewardReturn;
+use fvm_shared::reward::ThisEpochRewardReturn;
+use fvm_shared::smooth::FilterEstimate;
+
+use crate::Code::Blake2b256;
 
 mod bitfield_queue;
 mod deadline_assignment;
@@ -77,6 +69,8 @@ mod deadline_info;
 mod deadline_state;
 mod deadlines;
 mod expiration_queue;
+#[doc(hidden)]
+pub mod ext;
 mod monies;
 mod partition_state;
 mod policy;
@@ -767,7 +761,7 @@ impl Actor {
                 }
             }
 
-            compute_data_commitments_inputs.push(SectorDataSpec {
+            compute_data_commitments_inputs.push(ext::market::SectorDataSpec {
                 deal_ids: precommit.info.deal_ids.clone(),
                 sector_type: precommit.info.seal_proof,
             });
@@ -1213,7 +1207,7 @@ impl Actor {
                     precommit.replace_sector_number
                 ));
             }
-            sectors_deals.push(SectorDeals {
+            sectors_deals.push(ext::market::SectorDeals {
                 sector_expiry: precommit.expiration,
                 deal_ids: precommit.deal_ids.clone(),
             })
@@ -1452,7 +1446,7 @@ impl Actor {
 
         rt.send(
             *STORAGE_POWER_ACTOR_ADDR,
-            PowerMethod::SubmitPoRepForBulkVerify as u64,
+            ext::power::SUBMIT_POREP_FOR_BULK_VERIFY_METHOD,
             RawBytes::serialize(&svi)?,
             BigInt::zero(),
         )?;
@@ -1472,11 +1466,11 @@ impl Actor {
 
         // This should be enforced by the power actor. We log here just in case
         // something goes wrong.
-        if params.sectors.len() > MAX_MINER_PROVE_COMMITS_PER_EPOCH {
+        if params.sectors.len() > ext::power::MAX_MINER_PROVE_COMMITS_PER_EPOCH {
             warn!(
                 "confirmed more prove commits in an epoch than permitted: {} > {}",
                 params.sectors.len(),
-                MAX_MINER_PROVE_COMMITS_PER_EPOCH
+                ext::power::MAX_MINER_PROVE_COMMITS_PER_EPOCH
             );
         }
         let st: State = rt.state()?;
@@ -2916,7 +2910,9 @@ where
 
             let mut total_initial_pledge = TokenAmount::zero();
             let mut deals_to_terminate =
-                Vec::<OnMinerSectorsTerminateParams>::with_capacity(result.sectors.len());
+                Vec::<ext::market::OnMinerSectorsTerminateParams>::with_capacity(
+                    result.sectors.len(),
+                );
             let mut penalty = TokenAmount::zero();
 
             for (epoch, sector_numbers) in result.iter() {
@@ -2939,7 +2935,7 @@ where
                     total_initial_pledge += sector.initial_pledge;
                 }
 
-                let params = OnMinerSectorsTerminateParams { epoch, deal_ids };
+                let params = ext::market::OnMinerSectorsTerminateParams { epoch, deal_ids };
                 deals_to_terminate.push(params);
             }
 
@@ -3303,13 +3299,13 @@ where
     let payload = RawBytes::serialize(cb)
         .map_err(|e| ActorError::from(e).wrap("failed to serialize payload: {}"))?;
 
-    let ser_params = RawBytes::serialize(EnrollCronEventParams {
+    let ser_params = RawBytes::serialize(ext::power::EnrollCronEventParams {
         event_epoch,
         payload,
     })?;
     rt.send(
         *STORAGE_POWER_ACTOR_ADDR,
-        PowerMethod::EnrollCronEvent as u64,
+        ext::power::ENROLL_CRON_EVENT_METHOD,
         ser_params,
         TokenAmount::zero(),
     )?;
@@ -3330,8 +3326,8 @@ where
 
     rt.send(
         *STORAGE_POWER_ACTOR_ADDR,
-        crate::power::Method::UpdateClaimedPower as MethodNum,
-        RawBytes::serialize(crate::power::UpdateClaimedPowerParams {
+        ext::power::UPDATE_CLAIMED_POWER_METHOD,
+        RawBytes::serialize(ext::power::UpdateClaimedPowerParams {
             raw_byte_delta: delta.raw,
             quality_adjusted_delta: delta.qa,
         })?,
@@ -3356,8 +3352,8 @@ where
     for chunk in deal_ids.chunks(MAX_LENGTH) {
         rt.send(
             *STORAGE_MARKET_ACTOR_ADDR,
-            MarketMethod::OnMinerSectorsTerminate as u64,
-            RawBytes::serialize(OnMinerSectorsTerminateParamsRef {
+            ext::market::ON_MINER_SECTORS_TERMINATE_METHOD,
+            RawBytes::serialize(ext::market::OnMinerSectorsTerminateParamsRef {
                 epoch,
                 deal_ids: chunk,
             })?,
@@ -3460,7 +3456,7 @@ where
 
     let commds = request_unsealed_sector_cids(
         rt,
-        &[SectorDataSpec {
+        &[ext::market::SectorDataSpec {
             deal_ids: params.deal_ids.clone(),
             sector_type: params.registered_seal_proof,
         }],
@@ -3508,7 +3504,7 @@ where
 /// Requests the storage market actor compute the unsealed sector CID from a sector's deals.
 fn request_unsealed_sector_cids<BS, RT>(
     rt: &mut RT,
-    data_commitment_inputs: &[SectorDataSpec],
+    data_commitment_inputs: &[ext::market::SectorDataSpec],
 ) -> Result<Vec<Cid>, ActorError>
 where
     BS: Blockstore,
@@ -3517,11 +3513,11 @@ where
     if data_commitment_inputs.is_empty() {
         return Ok(vec![]);
     }
-    let ret: ComputeDataCommitmentReturn = rt
+    let ret: ext::market::ComputeDataCommitmentReturn = rt
         .send(
             *STORAGE_MARKET_ACTOR_ADDR,
-            MarketMethod::ComputeDataCommitment as u64,
-            RawBytes::serialize(ComputeDataCommitmentParamsRef {
+            ext::market::COMPUTE_DATA_COMMITMENT_METHOD,
+            RawBytes::serialize(ext::market::ComputeDataCommitmentParamsRef {
                 inputs: data_commitment_inputs,
             })?,
             TokenAmount::zero(),
@@ -3539,8 +3535,8 @@ where
 
 fn request_deal_weights<BS, RT>(
     rt: &mut RT,
-    sectors: &[market::SectorDeals],
-) -> Result<VerifyDealsForActivationReturn, ActorError>
+    sectors: &[ext::market::SectorDeals],
+) -> Result<ext::market::VerifyDealsForActivationReturn, ActorError>
 where
     BS: Blockstore,
     RT: Runtime<BS>,
@@ -3551,11 +3547,11 @@ where
         deal_count += sector.deal_ids.len();
     }
     if deal_count == 0 {
-        let mut empty_result = VerifyDealsForActivationReturn {
+        let mut empty_result = ext::market::VerifyDealsForActivationReturn {
             sectors: Vec::with_capacity(sectors.len()),
         };
         for _ in 0..sectors.len() {
-            empty_result.sectors.push(market::SectorWeights {
+            empty_result.sectors.push(ext::market::SectorWeights {
                 deal_space: 0,
                 deal_weight: 0.into(),
                 verified_deal_weight: 0.into(),
@@ -3565,8 +3561,8 @@ where
     }
     let serialized = rt.send(
         *STORAGE_MARKET_ACTOR_ADDR,
-        MarketMethod::VerifyDealsForActivation as u64,
-        RawBytes::serialize(VerifyDealsForActivationParamsRef { sectors })?,
+        ext::market::VERIFY_DEALS_FOR_ACTIVATION_METHOD,
+        RawBytes::serialize(ext::market::VerifyDealsForActivationParamsRef { sectors })?,
         TokenAmount::zero(),
     )?;
 
@@ -3585,7 +3581,7 @@ where
     let ret = rt
         .send(
             *REWARD_ACTOR_ADDR,
-            crate::reward::Method::ThisEpochReward as MethodNum,
+            ext::reward::THIS_EPOCH_REWARD_METHOD,
             Default::default(),
             TokenAmount::zero(),
         )
@@ -3599,7 +3595,9 @@ where
 }
 
 /// Requests the current network total power and pledge from the power actor.
-fn request_current_total_power<BS, RT>(rt: &mut RT) -> Result<CurrentTotalPowerReturn, ActorError>
+fn request_current_total_power<BS, RT>(
+    rt: &mut RT,
+) -> Result<ext::power::CurrentTotalPowerReturn, ActorError>
 where
     BS: Blockstore,
     RT: Runtime<BS>,
@@ -3607,13 +3605,13 @@ where
     let ret = rt
         .send(
             *STORAGE_POWER_ACTOR_ADDR,
-            crate::power::Method::CurrentTotalPower as MethodNum,
+            ext::power::CURRENT_TOTAL_POWER_METHOD,
             Default::default(),
             TokenAmount::zero(),
         )
         .map_err(|e| e.wrap("failed to check current power"))?;
 
-    let power: CurrentTotalPowerReturn = ret
+    let power: ext::power::CurrentTotalPowerReturn = ret
         .deserialize()
         .map_err(|e| ActorError::from(e).wrap("failed to unmarshal power total value"))?;
 
@@ -3669,7 +3667,7 @@ where
     if raw.protocol() != Protocol::BLS {
         let ret = rt.send(
             resolved,
-            AccountMethod::PubkeyAddress as u64,
+            ext::account::PUBKEY_ADDRESS_METHOD,
             RawBytes::default(),
             TokenAmount::zero(),
         )?;
@@ -3712,7 +3710,7 @@ where
     if !pledge_delta.is_zero() {
         rt.send(
             *STORAGE_POWER_ACTOR_ADDR,
-            PowerMethod::UpdatePledgeTotal as u64,
+            ext::power::UPDATE_PLEDGE_TOTAL_METHOD,
             RawBytes::serialize(BigIntSer(pledge_delta))?,
             TokenAmount::zero(),
         )?;
@@ -4023,8 +4021,8 @@ where
             // Check (and activate) storage deals associated to sector. Abort if checks failed.
             let res = rt.send(
                 *STORAGE_MARKET_ACTOR_ADDR,
-                crate::market::Method::ActivateDeals as MethodNum,
-                RawBytes::serialize(ActivateDealsParams {
+                ext::market::ACTIVATE_DEALS_METHOD,
+                RawBytes::serialize(ext::market::ActivateDealsParams {
                     deal_ids: pre_commit.info.deal_ids.clone(),
                     sector_expiry: pre_commit.info.expiration,
                 })?,
@@ -4117,7 +4115,7 @@ where
                 &reward_stats.this_epoch_reward_smoothed,
                 &power_total.quality_adj_power_smoothed,
                 &power,
-                crate::EPOCHS_IN_DAY,
+                actors_runtime::EPOCHS_IN_DAY,
             );
 
             // The storage pledge is recorded for use in computing the penalty if this sector is terminated
