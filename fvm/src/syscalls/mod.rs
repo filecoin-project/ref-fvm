@@ -6,6 +6,7 @@ mod context;
 mod ipld;
 mod network;
 mod typestate;
+mod validation;
 
 // Binds the syscall handlers so they can handle invocations
 // from the actor code.
@@ -20,5 +21,22 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("ipld", "read", ipld::read)?;
     linker.func_wrap("ipld", "stat", ipld::stat)?;
     linker.func_wrap("ipld", "cid", ipld::cid)?;
+
+    linker.func_wrap(
+        "validation",
+        "accept_any",
+        validation::validate_immediate_caller_accept_any,
+    )?;
+    linker.func_wrap(
+        "validation",
+        "accept_addrs",
+        validation::validate_immediate_caller_addr_one_of,
+    )?;
+    linker.func_wrap(
+        "validation",
+        "accept_types",
+        validation::validate_immediate_caller_type_one_of,
+    )?;
+
     Ok(())
 }
