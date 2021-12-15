@@ -2,24 +2,16 @@ use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
-use derive_getters::Getters;
-use wasmtime::{Engine, Linker, Module, Store};
 
 use blockstore::Blockstore;
-use fvm_shared::address::Protocol;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ActorError;
+use fvm_shared::ActorID;
 
 use crate::call_manager::CallManager;
-use crate::errors::ActorDowncast;
 use crate::externs::Externs;
-use crate::gas::GasTracker;
-use crate::machine::Machine;
 use crate::message::Message;
-use crate::state_tree::{ActorState, StateTree};
-use crate::syscalls::bind_syscalls;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -91,7 +83,7 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
-    fn root(&self) -> Infallible<Cid> {
+    fn root(&self) -> Cid {
         let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree();
 
@@ -103,23 +95,23 @@ where
             .clone()
     }
 
-    fn set_root(&mut self, new: Cid) -> Fallible<()> {
+    fn set_root(&mut self, new: Cid) -> Result<()> {
         let addr = Address::new_id(self.to);
         let state_tree = self.call_manager.state_tree_mut();
 
-        state_tree
-            .mutate_actor(&addr, |actor_state| {
-                actor_state.state = new;
-                Ok(())
-            })
-            .map_err(|e| actor_error!(fatal(e.to_string())))
+        state_tree.mutate_actor(&addr, |actor_state| {
+            actor_state.state = new;
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
-    fn current_balance(&self) -> Fallible<TokenAmount> {
+    fn current_balance(&self) -> Result<TokenAmount> {
         todo!()
     }
 
-    fn self_destruct(&mut self, beneficiary: &Address) -> Fallible<()> {
+    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
         todo!()
     }
 }
@@ -129,7 +121,7 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
-    fn block_open(&mut self, cid: &Cid) -> Fallible<BlockId, BlockError> {
+    fn block_open(&mut self, cid: &Cid) -> StdResult<BlockId, BlockError> {
         let data = self
             .call_manager
             .blockstore()
@@ -141,7 +133,7 @@ where
         self.blocks.put(block)
     }
 
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> Fallible<BlockId, BlockError> {
+    fn block_create(&mut self, codec: u64, data: &[u8]) -> StdResult<BlockId, BlockError> {
         self.blocks.put(Block::new(codec, data))
     }
 
@@ -150,7 +142,7 @@ where
         id: BlockId,
         hash_fun: u64,
         hash_len: u32,
-    ) -> Fallible<Cid, BlockError> {
+    ) -> StdResult<Cid, BlockError> {
         use multihash::MultihashDigest;
         let block = self.blocks.get(id)?;
         let code =
@@ -178,7 +170,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Fallible<u32, BlockError> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> StdResult<u32, BlockError> {
         let data = &self.blocks.get(id)?.data;
         Ok(if offset as usize >= data.len() {
             0
@@ -189,7 +181,7 @@ where
         })
     }
 
-    fn block_stat(&self, id: BlockId) -> Fallible<BlockStat, BlockError> {
+    fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError> {
         self.blocks.get(id).map(|b| BlockStat {
             codec: b.codec(),
             size: b.size(),
@@ -198,25 +190,25 @@ where
 }
 
 impl<B, E> MessageOps for DefaultKernel<B, E> {
-    fn msg_caller(&self) -> Infallible<ActorID> {
+    fn msg_caller(&self) -> ActorID {
         self.from
     }
 
-    fn msg_receiver(&self) -> Infallible<ActorID> {
+    fn msg_receiver(&self) -> ActorID {
         self.to
     }
 
-    fn msg_method_number(&self) -> Infallible<MethodNum> {
+    fn msg_method_number(&self) -> MethodNum {
         self.msg_method_number()
     }
 
     // TODO: Remove this? We're currently passing it to invoke.
-    fn msg_method_params(&self) -> Infallible<BlockId> {
+    fn msg_method_params(&self) -> BlockId {
         // TODO
         0
     }
 
-    fn msg_value_received(&self) -> Infallible<u128> {
+    fn msg_value_received(&self) -> u128 {
         // TODO: we shouldn't have to do this conversion here.
         self.value_received
             .clone()
@@ -249,7 +241,7 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> Fallible<RawBytes> {
+    fn send(&mut self, message: Message) -> Result<RawBytes> {
         self.call_manager.state_tree_mut().begin_transaction();
 
         let res = self.call_manager.send(
@@ -262,7 +254,7 @@ where
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
-        res
+        res.map_err(Into::into)
     }
 }
 
@@ -270,7 +262,7 @@ impl<B, E> CircSupplyOps for DefaultKernel<B, E>
 where
     E: Externs,
 {
-    fn total_fil_circ_supply(&self) -> Fallible<TokenAmount> {
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
         todo!()
     }
 }
@@ -281,11 +273,11 @@ impl<B, E> CryptoOps for DefaultKernel<B, E> {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Fallible<()> {
+    ) -> Result<()> {
         todo!()
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> Fallible<[u8; 32]> {
+    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]> {
         todo!()
     }
 
@@ -293,15 +285,15 @@ impl<B, E> CryptoOps for DefaultKernel<B, E> {
         &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
-    ) -> Fallible<Cid> {
+    ) -> Result<Cid> {
         todo!()
     }
 
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Fallible<()> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()> {
         todo!()
     }
 
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Fallible<()> {
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
         todo!()
     }
 
@@ -310,24 +302,24 @@ impl<B, E> CryptoOps for DefaultKernel<B, E> {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> Fallible<Option<ConsensusFault>> {
+    ) -> Result<Option<ConsensusFault>> {
         todo!()
     }
 
     fn batch_verify_seals(
         &self,
         vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Fallible<HashMap<Address, Vec<bool>>> {
+    ) -> Result<HashMap<Address, Vec<bool>>> {
         todo!()
     }
 
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Fallible<()> {
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()> {
         todo!()
     }
 }
 
 impl<B, E> GasOps for DefaultKernel<B, E> {
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Fallible<()> {
+    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         todo!()
     }
 }
@@ -356,7 +348,7 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Fallible<Randomness> {
+    ) -> Result<Randomness> {
         todo!()
     }
 
@@ -365,21 +357,21 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Fallible<Randomness> {
+    ) -> Result<Randomness> {
         todo!()
     }
 }
 
 impl<B, E> ValidationOps for DefaultKernel<B, E> {
-    fn validate_immediate_caller_accept_any(&mut self) -> Fallible<()> {
+    fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
         todo!()
     }
 
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Fallible<()> {
+    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
         todo!()
     }
 
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Fallible<()> {
+    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()> {
         todo!()
     }
 }
@@ -389,19 +381,19 @@ where
     B: Blockstore,
     E: Externs,
 {
-    fn resolve_address(&self, address: &Address) -> Fallible<Option<Address>> {
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>> {
         todo!()
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Fallible<Option<Cid>> {
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
         todo!()
     }
 
-    fn new_actor_address(&mut self) -> Fallible<Address> {
+    fn new_actor_address(&mut self) -> Result<Address> {
         todo!()
     }
 
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Fallible<()> {
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {
         todo!()
     }
 }

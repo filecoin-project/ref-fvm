@@ -1,9 +1,9 @@
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::result::Result as StdResult;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use cid::Cid;
-use lazy_static::lazy_static;
 use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
@@ -19,19 +19,17 @@ use fvm_shared::{actor_error, ActorID};
 
 use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
-use crate::errors::ActorDowncast;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
+use crate::kernel::{ExecutionError, Result};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
-lazy_static! {
-    pub static ref REWARD_ACTOR_ADDR: Address         = Address::new_id(2);
-    /// Distinguished AccountActor that is the destination of all burnt funds.
-    pub static ref BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
-}
+pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
+/// Distinguished AccountActor that is the destination of all burnt funds.
+pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 
 /// The core of the FVM.
 ///
@@ -39,10 +37,29 @@ lazy_static! {
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<B: 'static, E: 'static>(Box<MachineState<B, E>>);
+//
+// If the inner value is `None` it means the machine got poisend and is unusable.
+#[repr(transparent)]
+pub struct Machine<B: 'static, E: 'static>(Option<Box<InnerMachine<B, E>>>);
 
 #[doc(hidden)]
-pub struct MachineState<B: 'static, E: 'static> {
+impl<B: 'static, E: 'static> Deref for Machine<B, E> {
+    type Target = InnerMachine<B, E>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("machine is poisoned")
+    }
+}
+
+#[doc(hidden)]
+impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("machine is poisoned")
+    }
+}
+
+#[doc(hidden)]
+pub struct InnerMachine<B: 'static, E: 'static> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -59,27 +76,6 @@ pub struct MachineState<B: 'static, E: 'static> {
     state_tree: StateTree<B>,
 }
 
-// These deref impls exist only for internal usage. THere are no public methods or fields on
-// MachineState anyways.
-
-#[doc(hidden)]
-impl<B: 'static, E: 'static> Deref for Machine<B, E> {
-    type Target = MachineState<B, E>;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[doc(hidden)]
-impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
-    #[inline(always)]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl<B, E> Machine<B, E>
 where
     B: Blockstore,
@@ -93,7 +89,7 @@ where
         state_root: Cid,
         blockstore: B,
         externs: E,
-    ) -> anyhow::Result<Machine<B, E>> {
+    ) -> Result<Machine<B, E>> {
         let context = MachineContext::new(
             epoch,
             base_fee,
@@ -107,20 +103,15 @@ where
 
         // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
         //  non-send errors in the state-tree.
-        let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)
-            .map_err(|e| anyhow!(e.to_string()))?;
+        let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)?;
 
-        Ok(Machine::wrap(Box::new(MachineState {
+        Ok(Machine(Some(Box::new(InnerMachine {
             config,
             context,
             engine,
             externs,
             state_tree,
-        })))
-    }
-
-    fn wrap(state: Box<MachineState<B, E>>) -> Self {
-        Machine(state)
+        }))))
     }
 
     pub fn engine(&self) -> &Engine {
@@ -145,32 +136,29 @@ where
 
     /// Creates an uninitialized actor.
     // TODO: Remove
-    pub(crate) fn create_actor(
-        &mut self,
-        addr: &Address,
-        act: ActorState,
-    ) -> Result<ActorID, ActorError> {
+    pub(crate) fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         let state_tree = self.state_tree_mut();
 
         let addr_id = state_tree
             .register_new_address(addr)
-            .map_err(|e| e.downcast_fatal("failed to register new address"))?;
+            .context("failed to register new address")?;
 
         state_tree
             .set_actor(&Address::new_id(addr_id), act)
-            .map_err(|e| e.downcast_fatal("failed to set actor"))?;
+            .context("failed to set actor")?;
         Ok(addr_id)
     }
 
-    pub fn load_module(&self, k: &Cid) -> anyhow::Result<Module> {
+    pub fn load_module(&self, k: &Cid) -> Result<Module> {
         // TODO: cache compiled code, and modules?
         todo!("get the actual code");
-        let bytecode = &[];
-        Module::new(&self.engine, bytecode)
+        // let bytecode = &[];
+        // let module = Module::new(&self.engine, bytecode)?;
+        // Ok(module)
     }
 
     /// This is the entrypoint to execute a message.
-    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet> {
+    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg)? {
             Ok(res) => res,
@@ -194,8 +182,8 @@ where
             // We shouldn't put this here, but this is where we can still account for gas.
             // TODO: Maybe CallManager::finish() should return the GasTracker?
             let result = res.and_then(|ret| {
-                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))
-                    .map(|_| ret)
+                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))?;
+                Ok(ret)
             });
 
             let (gas_used, machine) = cm.finish();
@@ -205,24 +193,29 @@ where
         // Abort or commit the transaction.
         self.state_tree
             .end_transaction(res.is_err())
-            .map_err(|e| anyhow!("failed to end transaction: {}", e))?;
+            .context("failed to end transaction")?;
 
         // END CRITICAL SECTION
 
         // Extract the exit code and build the result of the message application.
-        let (ret_data, exit_code, err) = match res {
-            Ok(ret) => (ret, ExitCode::Ok, None),
-            Err(err) => (Default::default(), err.exit_code(), Some(err)),
-        };
-
-        let receipt = Receipt {
-            exit_code,
-            return_data: ret_data,
-            gas_used,
-        };
-
-        // Finish processing.
-        self.finish_message(msg, receipt, err, gas_cost)
+        match res {
+            Ok(return_data) => {
+                let receipt = Receipt {
+                    exit_code: ExitCode::Ok,
+                    return_data,
+                    gas_used,
+                };
+                self.finish_message(msg, receipt, None, gas_cost)
+            }
+            Err(err) => {
+                let receipt = Receipt {
+                    exit_code: err.exit_code(),
+                    return_data: Default::default(),
+                    gas_used,
+                };
+                self.finish_message(msg, receipt, Some(err), gas_cost)
+            }
+        }
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -234,7 +227,7 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
-    ) -> anyhow::Result<Result<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check()?;
 
@@ -259,28 +252,34 @@ where
         // Load sender actor state.
         let miner_penalty_amount = &self.context.base_fee * msg.gas_limit;
 
-        let sender_id = match self.state_tree.lookup_id(&msg.from) {
-            Ok(Some(id)) => id,
-            Ok(None) => {
+        let sender_id = match self
+            .state_tree
+            .lookup_id(&msg.from)
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+        {
+            Some(id) => id,
+            None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
                     miner_penalty_amount.clone(),
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
-            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
         };
 
-        let sender = match self.state_tree.get_actor(&Address::new_id(sender_id)) {
-            Ok(Some(act)) => act,
-            Ok(None) => {
+        let sender = match self
+            .state_tree
+            .get_actor(&Address::new_id(sender_id))
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+        {
+            Some(act) => act,
+            None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
                     miner_penalty_amount.clone(),
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
-            Err(e) => return Err(anyhow!("failed to lookup actor {}: {}", &msg.from, e)),
         };
 
         // If sender is not an account actor, the message is invalid.
@@ -320,8 +319,7 @@ where
                 act.deduct_funds(&gas_cost)?;
                 act.sequence += 1;
                 Ok(())
-            })
-            .map_err(|e| anyhow!(e.to_string()))?;
+            })?;
 
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
@@ -330,28 +328,34 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        act_err: Option<ActorError>,
+        act_err: Option<ExecutionError>,
         gas_cost: BigInt,
-    ) -> anyhow::Result<ApplyRet> {
+    ) -> Result<ApplyRet> {
         // Make sure the actor error is sane.
-        if let Some(err) = &act_err {
-            if err.is_fatal() {
-                return Err(anyhow!(
-                    "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
-                    msg.from,
-                    msg.to,
-                    msg.sequence,
-                    msg.method_num,
-                    self.context.epoch,
-                    err
-                ));
-            } else if err.is_ok() {
-                return Err(anyhow!(
-                    "message invocation errored with an ok status: {}",
-                    err
-                ));
+        let act_err = match act_err {
+            Some(ExecutionError::Actor(err)) => {
+                if err.is_fatal() {
+                    return Err(anyhow!(
+                        "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
+                        msg.from,
+                        msg.to,
+                        msg.sequence,
+                        msg.method_num,
+                        self.context.epoch,
+                        err
+                    )
+                    .into());
+                } else if err.is_ok() {
+                    return Err(
+                        anyhow!("message invocation errored with an ok status: {}", err).into(),
+                    );
+                } else {
+                    Some(err)
+                }
             }
-        }
+            Some(e @ ExecutionError::SystemError(_)) => return Err(e),
+            None => None,
+        };
 
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -369,9 +373,9 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
+        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> Result<()> {
             if amt.sign() == Sign::Minus {
-                return Err(anyhow!("attempted to transfer negative value into actor"));
+                return Err(anyhow!("attempted to transfer negative value into actor").into());
             }
             if amt.is_zero() {
                 return Ok(());
@@ -382,14 +386,15 @@ where
                     act.deposit_funds(amt);
                     Ok(())
                 })
-                .map_err(|e| anyhow!("failed to lookup actor for transfer: {}", e))
+                .context("failed to lookup actor for transfer")?;
+            Ok(())
         };
 
-        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
 
-        transfer_to_actor(&*REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
 
-        transfer_to_actor(&*BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
 
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;
@@ -397,7 +402,7 @@ where
         if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             // XXX: this _is_ a fatal error in the FVM, at the moment at least.
-            return Err(anyhow!("Gas handling math is wrong"));
+            return Err(anyhow!("Gas handling math is wrong").into());
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
@@ -419,7 +424,7 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        replace_with::replace_with_or_abort_and_return(self, f)
+        replace_with::replace_with_and_return(self, || Machine(None), f)
     }
 }
 

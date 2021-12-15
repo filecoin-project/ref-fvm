@@ -4,6 +4,7 @@
 #![cfg(feature = "json")]
 
 use address::Address;
+use anyhow::Error;
 use crypto::{Signature, Signer};
 use forest_message::signed_message::{
     self,
@@ -17,7 +18,6 @@ use forest_message::unsigned_message::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string};
-use std::error::Error;
 use vm::Serialized;
 
 #[test]
@@ -62,7 +62,7 @@ fn message_json_annotations() {
 
     struct DummySigner;
     impl Signer for DummySigner {
-        fn sign_bytes(&self, _: &[u8], _: &Address) -> Result<Signature, Box<dyn Error>> {
+        fn sign_bytes(&self, _: &[u8], _: &Address) -> Result<Signature, Error> {
             Ok(Signature::new_bls(vec![0u8, 1u8]))
         }
     }

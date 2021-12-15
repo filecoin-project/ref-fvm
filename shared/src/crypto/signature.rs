@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::address::{Address, Error as AddressError, Protocol};
+use crate::address::Error as AddressError;
 use crate::encoding::{de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -104,7 +104,9 @@ impl Signature {
 #[cfg(feature = "crypto")]
 impl Signature {
     /// Checks if a signature is valid given data and address.
-    pub fn verify(&self, data: &[u8], addr: &Address) -> Result<(), String> {
+    pub fn verify(&self, data: &[u8], addr: &crate::address::Address) -> Result<(), String> {
+        use crate::address::Protocol;
+
         match addr.protocol() {
             Protocol::BLS => self::ops::verify_bls_sig(self.bytes(), data, addr),
             Protocol::Secp256k1 => self::ops::verify_secp256k1_sig(self.bytes(), data, addr),
@@ -233,7 +235,7 @@ pub mod ops {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "crypto"))]
 mod tests {
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};

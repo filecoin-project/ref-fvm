@@ -15,7 +15,6 @@ use crate::ActorID;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
-use once_cell::sync::OnceCell;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
 use std::str::FromStr;
@@ -58,7 +57,8 @@ const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
 // TODO pull network from config (probably)
-pub static NETWORK_DEFAULT: OnceCell<Network> = OnceCell::new();
+// TODO: can we do this using build flags?
+pub const NETWORK_DEFAULT: Network = Network::Mainnet;
 
 /// Address is the struct that defines the protocol and data payload conversion from either
 /// a public key or value
@@ -85,18 +85,14 @@ impl Address {
             Err(Error::InvalidLength)
         } else {
             let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
-            Self::new(
-                *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
-                protocol,
-                &bz[1..],
-            )
+            Self::new(NETWORK_DEFAULT, protocol, &bz[1..])
         }
     }
 
     /// Generates new address using ID protocol
-    pub fn new_id(id: u64) -> Self {
+    pub const fn new_id(id: u64) -> Self {
         Self {
-            network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
+            network: NETWORK_DEFAULT,
             payload: Payload::ID(id),
         }
     }
@@ -107,7 +103,7 @@ impl Address {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
-            network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
+            network: NETWORK_DEFAULT,
             payload: Payload::Secp256k1(address_hash(pubkey)),
         })
     }
@@ -115,7 +111,7 @@ impl Address {
     /// Generates new address using the Actor protocol
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
-            network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
+            network: NETWORK_DEFAULT,
             payload: Payload::Actor(address_hash(data)),
         }
     }
@@ -128,7 +124,7 @@ impl Address {
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
         Ok(Self {
-            network: *NETWORK_DEFAULT.get_or_init(|| Network::Mainnet),
+            network: NETWORK_DEFAULT,
             payload: Payload::BLS(key.into()),
         })
     }

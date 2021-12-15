@@ -16,10 +16,8 @@ use crate::state_tree::ActorState;
 const IPLD_RAW: u64 = 0x55;
 
 pub const SYSTEM_ACTOR_ID: u64 = 0;
-
+pub const SYSTEM_ACTOR_ADDR: Address = Address::new_id(SYSTEM_ACTOR_ID);
 lazy_static!(
-    pub static ref SYSTEM_ACTOR_ADDR: Address = Address::new_id(SYSTEM_ACTOR_ID);
-
     // TODO this may need to be versioned with SnapDeals; and maybe a few more
     //  times before account actors are moved to user-land.
     pub static ref ACCOUNT_ACTOR_CODE_ID: Cid = {

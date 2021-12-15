@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::result::Result as StdResult;
 
 use cid::Cid;
 
@@ -11,7 +12,6 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -23,11 +23,8 @@ use fvm_shared::{ActorID, MethodNum};
 mod blocks;
 pub mod default;
 
-// Type aliases to make return values easier to follow.
-// TODO ActorError should be replaced with SystemError (or similar), as these
-//  are _not_ actor errors.
-type Fallible<T, E = ActorError> = anyhow::Result<T, E>;
-type Infallible<T> = T;
+mod error;
+pub use error::{ExecutionError, Result};
 
 pub trait Kernel:
     ActorOps
@@ -51,9 +48,9 @@ pub trait Kernel:
 
 /// Network-related operations.
 pub trait NetworkOps {
-    fn network_curr_epoch(&self) -> Infallible<ChainEpoch>;
-    fn network_version(&self) -> Infallible<NetworkVersion>;
-    fn network_base_fee(&self) -> Infallible<&TokenAmount>;
+    fn network_curr_epoch(&self) -> ChainEpoch;
+    fn network_version(&self) -> NetworkVersion;
+    fn network_base_fee(&self) -> &TokenAmount;
 }
 
 /// Message validation operations.
@@ -61,9 +58,9 @@ pub trait NetworkOps {
 ///
 /// TODO Kernel must track validation status.
 pub trait ValidationOps {
-    fn validate_immediate_caller_accept_any(&mut self) -> Fallible<()>;
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Fallible<()>;
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Fallible<()>;
+    fn validate_immediate_caller_accept_any(&mut self) -> Result<()>;
+    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()>;
+    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()>;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -80,14 +77,14 @@ pub trait BlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
-    fn block_open(&mut self, cid: &Cid) -> Fallible<BlockId, BlockError>;
+    fn block_open(&mut self, cid: &Cid) -> StdResult<BlockId, BlockError>;
 
     /// Create a new block.
     ///
     /// This method will fail if the block is too large (SPEC_AUDIT), the codec is not allowed
     /// (SPEC_AUDIT), the block references unreachable blocks, or the block contains too many links
     /// (SPEC_AUDIT).
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> Fallible<BlockId, BlockError>;
+    fn block_create(&mut self, codec: u64, data: &[u8]) -> StdResult<BlockId, BlockError>;
 
     /// Computes a CID for a block.
     ///
@@ -99,17 +96,17 @@ pub trait BlockOps {
         id: BlockId,
         hash_fun: u64,
         hash_len: u32,
-    ) -> Fallible<Cid, BlockError>;
+    ) -> StdResult<Cid, BlockError>;
 
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Fallible<u32, BlockError>;
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> StdResult<u32, BlockError>;
 
     /// Returns the blocks codec & size.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_stat(&self, id: BlockId) -> Fallible<BlockStat, BlockError>;
+    fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError>;
 
     // TODO: add a way to _flush_ new blocks.
 }
@@ -123,15 +120,15 @@ pub trait SelfOps: BlockOps {
     /// Update the state-root.
     ///
     /// This method will fail if the new state-root isn't reachable.
-    fn set_root(&mut self, root: Cid) -> Fallible<()>;
+    fn set_root(&mut self, root: Cid) -> Result<()>;
 
     /// The balance of the receiver.
-    fn current_balance(&self) -> Fallible<TokenAmount>;
+    fn current_balance(&self) -> Result<TokenAmount>;
 
     /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
     /// Aborts if the beneficiary does not exist.
     /// May only be called by the actor itself.
-    fn self_destruct(&mut self, beneficiary: &Address) -> Fallible<()>;
+    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()>;
 }
 
 /// Actors operations whose scope of action is actors other than the calling
@@ -140,20 +137,20 @@ pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Fallible<Option<Address>>;
+    fn resolve_address(&self, address: &Address) -> Result<Option<Address>>;
 
     /// Look up the code ID at an actor address.
-    fn get_actor_code_cid(&self, addr: &Address) -> Fallible<Option<Cid>>;
+    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
     /// different actor after messages are re-ordered).
     /// Always an ActorExec address.
-    fn new_actor_address(&mut self) -> Fallible<Address>;
+    fn new_actor_address(&mut self) -> Result<Address>;
 
     /// Creates an actor with code `codeID` and address `address`, with empty state.
     /// May only be called by Init actor.
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Fallible<()>;
+    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()>;
 }
 
 /// Operations that query and manipulate the return stack. The return stack is
@@ -174,7 +171,7 @@ pub trait ReturnOps {
 
 /// Operations to send messages to other actors.
 pub trait SendOps {
-    fn send(&mut self, message: Message) -> Fallible<RawBytes>;
+    fn send(&mut self, message: Message) -> Result<RawBytes>;
 }
 
 /// Operations to query the circulating supply.
@@ -187,7 +184,7 @@ pub trait CircSupplyOps {
     /// - funds burnt,
     /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
     /// - deal collateral locked by the storage market actor
-    fn total_fil_circ_supply(&self) -> Fallible<TokenAmount>;
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount>;
 }
 
 /// Operations for explicit gas charging.
@@ -199,7 +196,7 @@ pub trait CircSupplyOps {
 pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Fallible<()>;
+    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<()>;
 }
 
 /// Cryptographic primitives provided by the kernel.
@@ -210,23 +207,23 @@ pub trait CryptoOps {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Fallible<()>;
+    ) -> Result<()>;
 
     /// Hashes input data using blake2b with 256 bit output.
-    fn hash_blake2b(&self, data: &[u8]) -> Fallible<[u8; 32]>;
+    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
         &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
-    ) -> Fallible<Cid>;
+    ) -> Result<Cid>;
 
     /// Verifies a sector seal proof.
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Fallible<()>;
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()>;
 
     /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Fallible<()>;
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()>;
 
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor
@@ -243,14 +240,14 @@ pub trait CryptoOps {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> Fallible<Option<ConsensusFault>>;
+    ) -> Result<Option<ConsensusFault>>;
 
     fn batch_verify_seals(
         &self,
         vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Fallible<HashMap<Address, Vec<bool>>>;
+    ) -> Result<HashMap<Address, Vec<bool>>>;
 
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Fallible<()>;
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()>;
 }
 
 /// Randomness queries.
@@ -263,7 +260,7 @@ pub trait RandomnessOps {
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Fallible<Randomness>;
+    ) -> Result<Randomness>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// beacon from a given epoch and incorporating requisite entropy.
@@ -273,5 +270,5 @@ pub trait RandomnessOps {
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Fallible<Randomness>;
+    ) -> Result<Randomness>;
 }

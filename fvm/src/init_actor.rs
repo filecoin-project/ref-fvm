@@ -7,12 +7,9 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
-use std::error::Error as StdError;
-
 use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::Cid;
-use lazy_static::lazy_static;
 
 use fvm_shared::address::{Address, Payload, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::encoding::tuple::*;
@@ -23,9 +20,9 @@ use ipld_blockstore::BlockStore;
 use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
 
-lazy_static! {
-    pub static ref INIT_ACTOR_ADDR: Address = Address::new_id(1);
-}
+pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
+
+use crate::kernel::Result;
 
 // TODO need to untangle all this init actor mess
 //  In theory, we should go through the actor version multiplexer to decide which
@@ -41,13 +38,11 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    pub fn new<B>(store: B, network_name: String) -> Result<Self, Box<dyn StdError>>
+    pub fn new<B>(store: B, network_name: String) -> Result<Self>
     where
         B: BlockStore,
     {
-        let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
-            .flush()
-            .map_err(|e| format!("failed to create empty map: {}", e))?;
+        let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH).flush()?;
         Ok(Self {
             address_map: empty_map,
             next_id: FIRST_NON_SINGLETON_ADDR,
@@ -56,29 +51,22 @@ impl State {
     }
 
     /// Loads the init actor state with the supplied CID from the underlying store.
-    pub fn load<B>(state_tree: &StateTree<B>) -> anyhow::Result<(Self, ActorState)>
+    pub fn load<B>(state_tree: &StateTree<B>) -> Result<(Self, ActorState)>
     where
         B: Blockstore,
     {
         let init_act = state_tree
-            .get_actor(&INIT_ACTOR_ADDR)
-            .map_err(|e| anyhow::Error::msg(e.to_string()))? // XXX state tree errors don't implement send
-            .ok_or_else(|| anyhow::Error::msg("Init actor address could not be resolved"))?;
+            .get_actor(&INIT_ACTOR_ADDR)?
+            .ok_or_else(|| anyhow!("Init actor address could not be resolved"))?;
 
-        let state = BlockStore::get(state_tree.store(), &init_act.state)
-            // XXX blockstore errors don't implement send
-            .map_err(|e| anyhow::Error::msg(e.to_string()))?
+        let state = BlockStore::get(state_tree.store(), &init_act.state)?
             .ok_or(anyhow!("init actor state not found"))?;
         Ok((state, init_act))
     }
 
     /// Allocates a new ID address and stores a mapping of the argument address to it.
     /// Returns the newly-allocated address.
-    pub fn map_address_to_new_id<B>(
-        &mut self,
-        store: B,
-        addr: &Address,
-    ) -> Result<ActorID, Box<dyn StdError>>
+    pub fn map_address_to_new_id<B>(&mut self, store: B, addr: &Address) -> Result<ActorID>
     where
         B: BlockStore,
     {
@@ -104,11 +92,7 @@ impl State {
     /// Returns an undefined address and `false` if the address was not an ID-address and not found
     /// in the mapping.
     /// Returns an error only if state was inconsistent.
-    pub fn resolve_address<B>(
-        &self,
-        store: B,
-        addr: &Address,
-    ) -> Result<Option<u64>, Box<dyn StdError>>
+    pub fn resolve_address<B>(&self, store: B, addr: &Address) -> Result<Option<u64>>
     where
         B: BlockStore,
     {

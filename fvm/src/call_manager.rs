@@ -1,3 +1,4 @@
+use anyhow::Context;
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
@@ -5,7 +6,6 @@ use fvm_shared::{
     address::{Address, Protocol},
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
-    error::ActorError,
     ActorID, MethodNum,
 };
 use num_traits::Zero;
@@ -14,7 +14,7 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::BlockOps,
+    kernel::{BlockOps, Result},
     machine::Machine,
     syscalls::bind_syscalls,
     DefaultKernel,
@@ -32,8 +32,13 @@ use crate::{
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
+
+#[repr(transparent)]
+pub struct CallManager<B: 'static, E: 'static>(Option<InnerCallManager<B, E>>);
+
+#[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct CallManager<B: 'static, E: 'static> {
+pub struct InnerCallManager<B: 'static, E: 'static> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
@@ -44,6 +49,22 @@ pub struct CallManager<B: 'static, E: 'static> {
     from: ActorID,
 }
 
+#[doc(hidden)]
+impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
+    type Target = InnerCallManager<B, E>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("call manager is poisoned")
+    }
+}
+
+#[doc(hidden)]
+impl<B: 'static, E: 'static> std::ops::DerefMut for CallManager<B, E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("call manager is poisoned")
+    }
+}
+
 impl<B: 'static, E: 'static> CallManager<B, E>
 where
     B: Blockstore,
@@ -51,19 +72,21 @@ where
 {
     /// Construct a new call manager. This should be called by the machine.
     pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
-        CallManager {
+        CallManager(Some(InnerCallManager {
             from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
-        }
+        }))
     }
 
-    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID, ActorError> {
+    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID> {
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
+            // TODO: should this be an actor error?
             return Err(
-                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor"),
+                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
+                    .into(),
             );
         }
 
@@ -73,12 +96,8 @@ where
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = RawBytes::serialize(&addr).map_err(|e| {
-            actor_error!(fatal(
-                "couldn't serialize params for actor construction: {:?}",
-                e
-            ))
-        })?;
+        let params = RawBytes::serialize(&addr)
+            .context("couldn't serialize params for actor construction: {:?}")?;
 
         self.send_explicit(
             crate::account_actor::SYSTEM_ACTOR_ID,
@@ -87,6 +106,7 @@ where
             &params,
             &TokenAmount::from(0u32),
         )?;
+
         Ok(id)
     }
 
@@ -99,21 +119,17 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes> {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
-        let to = match self
-            .state_tree()
-            .lookup_id(&to)
-            .map_err(|e| actor_error!(fatal(e)))?
-        {
+        let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,
             None => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor(&to)?
                 }
-                _ => return Err(actor_error!(fatal("actor not found: {}", to))),
+                _ => return Err(anyhow::anyhow!("actor not found: {}", to).into()),
             },
         };
 
@@ -131,7 +147,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes> {
         // TODO: this is kind of nasty...
         // Maybe just make from explicit?
         let prev_from = self.from;
@@ -149,7 +165,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes, ActorError> {
+    ) -> Result<RawBytes> {
         // 1. Setup the engine/linker. TODO: move these into the machine?
 
         // This is a cheap operation as it doesn't actually clone the struct,
@@ -158,7 +174,7 @@ where
 
         // Create a new linker.
         let mut linker = Linker::new(&engine);
-        bind_syscalls(&mut linker).map_err(|e| actor_error!(fatal(e)))?;
+        bind_syscalls(&mut linker)?;
 
         let to_addr = Address::new_id(to);
 
@@ -168,11 +184,9 @@ where
         let mut state = self
             .state_tree()
             .get_actor(&to_addr)?
-            .ok_or_else(|| actor_error!(fatal("actor does not exist: {}", to)))?;
+            .with_context(|| format!("actor does not exist: {}", to))?;
 
-        let module = self
-            .load_module(&state.code)
-            .map_err(|e| actor_error!(fatal(e)))?;
+        let module = self.load_module(&state.code)?;
 
         // 2. Update balance.
         if !value.is_zero() {
@@ -191,7 +205,7 @@ where
 
             let param_id = match kernel.block_create(DAG_CBOR, params) {
                 Ok(id) => id,
-                Err(e) => return (Err(actor_error!(fatal(e))), kernel.take()),
+                Err(e) => return (Err(e.into()), kernel.take()),
             };
 
             // TODO: BELOW ERROR HANDLING IS BROKEN.
@@ -224,14 +238,18 @@ where
     }
 
     /// Finishes execution, returning the gas used and the machine.
-    pub fn finish(self) -> (i64, Machine<B, E>) {
+    pub fn finish(mut self) -> (i64, Machine<B, E>) {
+        let gas_used = self.gas_used().max(0);
+
+        let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (self.gas_used().max(0), self.machine)
+        (gas_used, inner.machine)
     }
 
     /// Charge gas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), ActorError> {
-        self.gas_tracker.charge_gas(charge)
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
+        self.gas_tracker.charge_gas(charge)?;
+        Ok(())
     }
 
     /// Returns the available gas.
@@ -248,6 +266,6 @@ where
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        replace_with::replace_with_or_abort_and_return(self, f)
+        replace_with::replace_with_and_return(self, || CallManager(None), f)
     }
 }
