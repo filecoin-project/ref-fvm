@@ -42,6 +42,7 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 #[repr(transparent)]
 pub struct Machine<B: 'static, E: 'static>(Option<Box<InnerMachine<B, E>>>);
 
+#[doc(hidden)]
 impl<B: 'static, E: 'static> Deref for Machine<B, E> {
     type Target = InnerMachine<B, E>;
 
@@ -50,6 +51,7 @@ impl<B: 'static, E: 'static> Deref for Machine<B, E> {
     }
 }
 
+#[doc(hidden)]
 impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("machine is poisoned")

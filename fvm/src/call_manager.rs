@@ -49,6 +49,7 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     from: ActorID,
 }
 
+#[doc(hidden)]
 impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
     type Target = InnerCallManager<B, E>;
 
@@ -57,6 +58,7 @@ impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
     }
 }
 
+#[doc(hidden)]
 impl<B: 'static, E: 'static> std::ops::DerefMut for CallManager<B, E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
