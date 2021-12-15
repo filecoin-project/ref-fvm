@@ -3,10 +3,11 @@
 
 use std::error::Error as StdError;
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 use num_traits::{Signed, Zero};
 
+use crate::Array;
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
@@ -17,7 +18,6 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::HAMT_BIT_WIDTH;
-use crate::Array;
 
 use crate::{make_empty_map, ActorDowncast, BalanceTable, Set, SetMultimap};
 

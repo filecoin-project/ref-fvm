@@ -7,10 +7,11 @@ use std::{
 };
 
 use bitfield::{BitField, UnvalidatedBitField, Validate};
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 use num_traits::{Signed, Zero};
 
+use crate::Array;
 use fvm_shared::actor_error;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
@@ -18,7 +19,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorSize, StoragePower};
-use crate::Array;
 
 use crate::miner::{QuantSpec, NO_QUANTIZATION};
 use crate::ActorDowncast;
@@ -72,7 +72,8 @@ pub struct Partition {
 impl Partition {
     pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
         let empty_expiration_array =
-            Array::<Cid, BS>::new_with_bit_width(store, PARTITION_EXPIRATION_AMT_BITWIDTH).flush()?;
+            Array::<Cid, BS>::new_with_bit_width(store, PARTITION_EXPIRATION_AMT_BITWIDTH)
+                .flush()?;
         let empty_early_termination_array = Array::<Cid, BS>::new_with_bit_width(
             store,
             PARTITION_EARLY_TERMINATION_ARRAY_AMT_BITWIDTH,

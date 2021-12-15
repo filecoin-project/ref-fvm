@@ -5,6 +5,7 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
+use crate::Array;
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -13,7 +14,6 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-use crate::Array;
 
 use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
 // TODO rename to actor exit code to be used ambiguously (requires new releases)
@@ -55,11 +55,12 @@ impl Actor {
 
         let from = Self::resolve_account(rt, &params.from)?;
 
-        let empty_arr_cid = Array::<(), _>::new_with_bit_width(rt.store(), LANE_STATES_AMT_BITWIDTH)
-            .flush()
-            .map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to create empty AMT")
-            })?;
+        let empty_arr_cid =
+            Array::<(), _>::new_with_bit_width(rt.store(), LANE_STATES_AMT_BITWIDTH)
+                .flush()
+                .map_err(|e| {
+                    e.downcast_default(ExitCode::ErrIllegalState, "failed to create empty AMT")
+                })?;
 
         rt.create(&State::new(from, to, empty_arr_cid))?;
         Ok(())

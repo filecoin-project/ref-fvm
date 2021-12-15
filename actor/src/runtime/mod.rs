@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 
 use filecoin_proofs_api as proofs;
 use filecoin_proofs_api::seal::compute_comm_d;

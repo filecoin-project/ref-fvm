@@ -3,8 +3,8 @@
 
 use std::error::Error as StdError;
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::address::Address;

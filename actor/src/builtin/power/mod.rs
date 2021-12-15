@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashSet;
-use indexmap::IndexMap;
 use blockstore::Blockstore;
+use indexmap::IndexMap;
 use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};

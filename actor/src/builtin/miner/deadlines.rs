@@ -5,9 +5,9 @@ use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 
+use crate::Array;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::sector::SectorNumber;
-use crate::Array;
 
 use super::policy::*;
 use super::{DeadlineInfo, Deadlines, Partition, QuantSpec};

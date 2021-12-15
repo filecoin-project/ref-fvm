@@ -4,9 +4,9 @@
 use std::error::Error as StdError;
 use std::ops::Neg;
 
+use blockstore::Blockstore;
 use cid::Cid;
 use integer_encoding::VarInt;
-use blockstore::Blockstore;
 use num_traits::Signed;
 
 use fvm_shared::actor_error;
