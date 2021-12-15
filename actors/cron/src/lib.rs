@@ -12,8 +12,10 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ActorError;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 
-use crate::runtime::{ActorCode, Runtime};
-use crate::SYSTEM_ACTOR_ADDR;
+use actors_runtime::{
+    runtime::{ActorCode, Runtime},
+    SYSTEM_ACTOR_ADDR,
+};
 
 pub use self::state::{Entry, State};
 

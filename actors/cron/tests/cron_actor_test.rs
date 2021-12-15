@@ -1,14 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use actors::{
-    cron::{ConstructorParams, Entry, State},
-    CRON_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
-};
-use common::*;
+use actors_runtime::test_utils::*;
+use actors_runtime::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
+
+use fvm_actor_cron::{Actor as CronActor, ConstructorParams, Entry, State};
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {
@@ -139,11 +138,7 @@ fn epoch_tick_with_entries() {
 fn construct_and_verify(rt: &mut MockRuntime, params: &ConstructorParams) {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     let ret = rt
-        .call(
-            &*CRON_ACTOR_CODE_ID,
-            1,
-            &RawBytes::serialize(&params).unwrap(),
-        )
+        .call::<CronActor>(1, &RawBytes::serialize(&params).unwrap())
         .unwrap();
     assert_eq!(RawBytes::default(), ret);
     rt.verify();
@@ -151,9 +146,7 @@ fn construct_and_verify(rt: &mut MockRuntime, params: &ConstructorParams) {
 
 fn epoch_tick_and_verify(rt: &mut MockRuntime) {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
-    let ret = rt
-        .call(&*CRON_ACTOR_CODE_ID, 2, &RawBytes::default())
-        .unwrap();
+    let ret = rt.call::<CronActor>(2, &RawBytes::default()).unwrap();
     assert_eq!(RawBytes::default(), ret);
     rt.verify();
 }
