@@ -68,8 +68,7 @@ pub trait MessageOps {
     fn msg_caller(&self) -> ActorID;
     fn msg_receiver(&self) -> ActorID;
     fn msg_method_number(&self) -> MethodNum;
-    fn msg_method_params(&self) -> BlockId;
-    fn msg_value_received(&self) -> u128;
+    fn msg_value_received(&self) -> TokenAmount;
 }
 
 /// The IPLD subset of the kernel.

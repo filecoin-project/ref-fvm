@@ -297,18 +297,8 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
         self.msg_method_number()
     }
 
-    // TODO: Remove this? We're currently passing it to invoke.
-    fn msg_method_params(&self) -> BlockId {
-        // TODO
-        0
-    }
-
-    fn msg_value_received(&self) -> u128 {
-        // TODO: we shouldn't have to do this conversion here.
-        self.value_received
-            .clone()
-            .try_into()
-            .expect("value received exceeds max filecoin")
+    fn msg_value_received(&self) -> TokenAmount {
+        self.value_received.clone()
     }
 }
 

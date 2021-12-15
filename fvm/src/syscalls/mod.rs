@@ -5,6 +5,7 @@ use crate::{kernel::Result, Kernel};
 mod context;
 mod errors;
 mod ipld;
+mod message;
 mod network;
 mod sself;
 mod typestate;
@@ -47,6 +48,11 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("self", "set_root", sself::set_root)?;
     linker.func_wrap("self", "current_balance", sself::current_balance)?;
     linker.func_wrap("self", "self_destruct", sself::self_destruct)?;
+
+    linker.func_wrap("message", "caller", message::caller)?;
+    linker.func_wrap("message", "receiver", message::receiver)?;
+    linker.func_wrap("message", "method_number", message::method_number)?;
+    linker.func_wrap("message", "value_received", message::value_received)?;
 
     Ok(())
 }
