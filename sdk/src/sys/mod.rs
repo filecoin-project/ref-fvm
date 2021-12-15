@@ -3,7 +3,6 @@ pub mod debug;
 pub mod fvm;
 pub mod gas;
 pub mod ipld;
+pub mod message;
 pub mod network;
-
-mod metadata;
-pub use metadata::METADATA;
+pub mod validation;
