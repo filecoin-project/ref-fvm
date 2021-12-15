@@ -3,7 +3,6 @@
 
 use cid::Cid;
 
-use crate::Array;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
@@ -12,7 +11,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::RegisteredSealProof;
 
-use crate::DealWeight;
+use actors_runtime::{Array, DealWeight};
 
 use super::deal::{ClientDealProposal, DealProposal, DealState};
 

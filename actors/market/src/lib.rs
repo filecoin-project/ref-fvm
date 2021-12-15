@@ -16,7 +16,7 @@ use fvm_shared::clock::EPOCH_UNDEFINED;
 use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
+use fvm_shared::encoding::{to_vec, tuple::*, Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -25,24 +25,43 @@ use fvm_shared::sector::StoragePower;
 use fvm_shared::{actor_error, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
 use actors_runtime::{
-    request_miner_control_addrs,
     runtime::{ActorCode, Runtime},
     ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
     VERIFIED_REGISTRY_ACTOR_ADDR,
 };
-use fvm_actor_power as power;
-use fvm_actor_verifreg::{Method as VerifregMethod, RestoreBytesParams, UseBytesParams};
 
 pub use self::deal::*;
 use self::policy::*;
 pub use self::state::*;
 pub use self::types::*;
 
+// export for testing
 mod deal;
+#[doc(hidden)]
+pub mod ext;
 mod policy;
 mod state;
 mod types;
+
+fn request_miner_control_addrs<BS, RT>(
+    rt: &mut RT,
+    miner_addr: Address,
+) -> Result<(Address, Address, Vec<Address>), ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+{
+    let ret = rt.send(
+        miner_addr,
+        ext::miner::CONTROL_ADDRESSES_METHOD,
+        RawBytes::default(),
+        TokenAmount::zero(),
+    )?;
+    let addrs: ext::miner::GetControlAddressesReturnParams = ret.deserialize()?;
+
+    Ok((addrs.owner, addrs.worker, addrs.control_addresses))
+}
 
 // * Updated to specs-actors commit: e195950ba98adb8ce362030356bf4a3809b7ec77 (v2.3.2)
 
@@ -369,8 +388,8 @@ impl Actor {
                 // * compare the difference in modified deal over copied and modified.
                 rt.send(
                     *VERIFIED_REGISTRY_ACTOR_ADDR,
-                    VerifregMethod::UseBytes as u64,
-                    RawBytes::serialize(&UseBytesParams {
+                    ext::verifreg::USE_BYTES_METHOD,
+                    RawBytes::serialize(&ext::verifreg::UseBytesParams {
                         address: deal.proposal.client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),
                     })?,
@@ -1005,8 +1024,8 @@ impl Actor {
         for d in timed_out_verified_deals {
             let res = rt.send(
                 *VERIFIED_REGISTRY_ACTOR_ADDR,
-                VerifregMethod::RestoreBytes as u64,
-                RawBytes::serialize(RestoreBytesParams {
+                ext::verifreg::RESTORE_BYTES_METHOD,
+                RawBytes::serialize(ext::verifreg::RestoreBytesParams {
                     address: d.client,
                     deal_size: BigInt::from(d.piece_size.0),
                 })?,
@@ -1309,7 +1328,7 @@ where
 {
     let rwret = rt.send(
         *REWARD_ACTOR_ADDR,
-        reward::Method::ThisEpochReward as u64,
+        ext::reward::THIS_EPOCH_REWARD_METHOD,
         RawBytes::default(),
         0.into(),
     )?;
@@ -1328,11 +1347,11 @@ where
 {
     let rwret = rt.send(
         *STORAGE_POWER_ACTOR_ADDR,
-        power::Method::CurrentTotalPower as u64,
+        ext::power::CURRENT_TOTAL_POWER_METHOD,
         RawBytes::default(),
         0.into(),
     )?;
-    let ret: power::CurrentTotalPowerReturn = rwret.deserialize()?;
+    let ret: ext::power::CurrentTotalPowerReturnParams = rwret.deserialize()?;
     Ok((ret.raw_byte_power, ret.quality_adj_power))
 }
 

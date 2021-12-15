@@ -3,17 +3,13 @@
 
 use std::collections::HashMap;
 
-use actors::runtime::Runtime;
-use actors::{
-    make_empty_map,
-    market::{Method, State, WithdrawBalanceParams, PROPOSALS_AMT_BITWIDTH, STATES_AMT_BITWIDTH},
-    miner::{GetControlAddressesReturn, Method as MinerMethod},
-    util::BALANCE_TABLE_BITWIDTH,
-    BalanceTable, SetMultimap, ACCOUNT_ACTOR_CODE_ID, CALLER_TYPES_SIGNABLE, INIT_ACTOR_CODE_ID,
-    MARKET_ACTOR_CODE_ID, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, STORAGE_MARKET_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR,
+use actors_runtime::{
+    make_empty_map, runtime::Runtime, util::BALANCE_TABLE_BITWIDTH, BalanceTable, SetMultimap,
+    ACCOUNT_ACTOR_CODE_ID, CALLER_TYPES_SIGNABLE, INIT_ACTOR_CODE_ID, MINER_ACTOR_CODE_ID,
+    MULTISIG_ACTOR_CODE_ID, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
-use common::*;
+
+use actors_runtime::test_utils::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::clock::EPOCH_UNDEFINED;
@@ -22,6 +18,11 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR, METHOD_SEND};
 use ipld_amt::Amt;
+
+use fvm_actor_market::{
+    ext, Actor as MarketActor, Method, State, WithdrawBalanceParams, PROPOSALS_AMT_BITWIDTH,
+    STATES_AMT_BITWIDTH,
+};
 
 const OWNER_ID: u64 = 101;
 const PROVIDER_ID: u64 = 102;
@@ -69,12 +70,8 @@ fn simple_construction() {
 
     assert_eq!(
         RawBytes::default(),
-        rt.call(
-            &*MARKET_ACTOR_CODE_ID,
-            METHOD_CONSTRUCTOR,
-            &RawBytes::default(),
-        )
-        .unwrap()
+        rt.call::<MarketActor>(METHOD_CONSTRUCTOR, &RawBytes::default(),)
+            .unwrap()
     );
 
     rt.verify();
@@ -130,8 +127,7 @@ fn add_provider_escrow_funds() {
             expect_provider_control_address(&mut rt, provider_addr, owner_addr, worker_addr);
 
             assert!(rt
-                .call(
-                    &MARKET_ACTOR_CODE_ID.clone(),
+                .call::<MarketActor>(
                     Method::AddBalance as u64,
                     &RawBytes::serialize(provider_addr.clone()).unwrap(),
                 )
@@ -163,8 +159,7 @@ fn account_actor_check() {
 
     assert_eq!(
         ExitCode::ErrForbidden,
-        rt.call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        rt.call::<MarketActor>(
             Method::AddBalance as u64,
             &RawBytes::serialize(provider_addr).unwrap(),
         )
@@ -195,8 +190,7 @@ fn add_non_provider_funds() {
             rt.expect_validate_caller_type(CALLER_TYPES_SIGNABLE.to_vec());
 
             assert!(rt
-                .call(
-                    &MARKET_ACTOR_CODE_ID.clone(),
+                .call::<MarketActor>(
                     Method::AddBalance as u64,
                     &RawBytes::serialize(caller_addr.clone()).unwrap(),
                 )
@@ -252,8 +246,7 @@ fn withdraw_provider_to_owner() {
     };
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::WithdrawBalance as u64,
             &RawBytes::serialize(params).unwrap(),
         )
@@ -300,8 +293,7 @@ fn withdraw_non_provider() {
     };
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::WithdrawBalance as u64,
             &RawBytes::serialize(params).unwrap(),
         )
@@ -345,8 +337,7 @@ fn client_withdraw_more_than_available() {
     };
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::WithdrawBalance as u64,
             &RawBytes::serialize(params).unwrap(),
         )
@@ -400,8 +391,7 @@ fn worker_withdraw_more_than_available() {
     };
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::WithdrawBalance as u64,
             &RawBytes::serialize(params).unwrap(),
         )
@@ -423,7 +413,7 @@ fn expect_provider_control_address(
 ) {
     rt.expect_validate_caller_addr(vec![owner, worker]);
 
-    let return_value = GetControlAddressesReturn {
+    let return_value = ext::miner::GetControlAddressesReturnParams {
         owner,
         worker,
         control_addresses: Vec::new(),
@@ -431,7 +421,7 @@ fn expect_provider_control_address(
 
     rt.expect_send(
         provider,
-        MinerMethod::ControlAddresses as u64,
+        ext::miner::CONTROL_ADDRESSES_METHOD,
         RawBytes::default(),
         TokenAmount::from(0u8),
         RawBytes::serialize(return_value).unwrap(),
@@ -452,8 +442,7 @@ fn add_provider_funds(
     expect_provider_control_address(rt, provider, owner, worker);
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::AddBalance as u64,
             &RawBytes::serialize(provider.clone()).unwrap(),
         )
@@ -472,8 +461,7 @@ fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmoun
     rt.expect_validate_caller_type(vec![*ACCOUNT_ACTOR_CODE_ID, *MULTISIG_ACTOR_CODE_ID]);
 
     assert!(rt
-        .call(
-            &MARKET_ACTOR_CODE_ID.clone(),
+        .call::<MarketActor>(
             Method::AddBalance as u64,
             &RawBytes::serialize(addr.clone()).unwrap(),
         )
@@ -488,12 +476,8 @@ fn construct_and_verify(rt: &mut MockRuntime) {
     rt.expect_validate_caller_addr(vec![*SYSTEM_ACTOR_ADDR]);
     assert_eq!(
         RawBytes::default(),
-        rt.call(
-            &*MARKET_ACTOR_CODE_ID,
-            METHOD_CONSTRUCTOR,
-            &RawBytes::default(),
-        )
-        .unwrap()
+        rt.call::<MarketActor>(METHOD_CONSTRUCTOR, &RawBytes::default(),)
+            .unwrap()
     );
     rt.verify();
 }

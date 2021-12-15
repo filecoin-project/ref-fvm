@@ -71,25 +71,6 @@ use fvm_actor_power::{
 };
 use fvm_actor_reward::ThisEpochRewardReturn;
 
-pub fn request_miner_control_addrs<BS, RT>(
-    rt: &mut RT,
-    miner_addr: Address,
-) -> Result<(Address, Address, Vec<Address>), ActorError>
-where
-    BS: Blockstore,
-    RT: Runtime<BS>,
-{
-    let ret = rt.send(
-        miner_addr,
-        Method::ControlAddresses as u64,
-        RawBytes::default(),
-        TokenAmount::zero(),
-    )?;
-    let addrs: GetControlAddressesReturn = ret.deserialize()?;
-
-    Ok((addrs.owner, addrs.worker, addrs.control_addresses))
-}
-
 mod bitfield_queue;
 mod deadline_assignment;
 mod deadline_info;

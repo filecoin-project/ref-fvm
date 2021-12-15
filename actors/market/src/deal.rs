@@ -15,7 +15,7 @@ use fvm_shared::{
     piece::PaddedPieceSize,
 };
 
-use crate::DealWeight;
+use actors_runtime::DealWeight;
 
 /// Cid prefix for piece Cids
 pub fn is_piece_cid(c: &Cid) -> bool {
