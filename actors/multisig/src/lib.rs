@@ -16,10 +16,10 @@ use fvm_shared::encoding::{to_vec, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
-use crate::runtime::{ActorCode, Runtime, Syscalls};
-use crate::{
-    make_empty_map, make_map_with_root, resolve_to_id_addr, ActorDowncast, Map,
-    CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR,
+use actors_runtime::{
+    make_empty_map, make_map_with_root, resolve_to_id_addr,
+    runtime::{ActorCode, Runtime, Syscalls},
+    ActorDowncast, Map, CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR,
 };
 
 pub use self::state::*;
