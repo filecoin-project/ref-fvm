@@ -7,15 +7,10 @@ use std::error::Error as StdError;
 use cid::Cid;
 use derive_builder::Builder;
 
-use actors::{
-    paych::{
-        ConstructorParams, LaneState, Merge, Method, ModVerifyParams, PaymentVerifyParams,
-        SignedVoucher, State as PState, UpdateChannelStateParams, MAX_LANE, SETTLE_DELAY,
-    },
+use actors_runtime::test_utils::*;
+use actors_runtime::{
     ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_ADDR, INIT_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID,
-    PAYCH_ACTOR_CODE_ID,
 };
-use common::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
@@ -25,6 +20,12 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::METHOD_CONSTRUCTOR;
 use ipld_amt::Amt;
+
+use fvm_actor_paych::{
+    Actor as PaychActor, ConstructorParams, LaneState, Merge, Method, ModVerifyParams,
+    PaymentVerifyParams, SignedVoucher, State as PState, UpdateChannelStateParams, MAX_LANE,
+    SETTLE_DELAY,
+};
 
 const PAYCH_ID: u64 = 100;
 const PAYER_ID: u64 = 102;
@@ -40,11 +41,11 @@ struct LaneParams {
 }
 
 fn call(rt: &mut MockRuntime, method_num: u64, ser: &RawBytes) -> RawBytes {
-    rt.call(&*PAYCH_ACTOR_CODE_ID, method_num, ser).unwrap()
+    rt.call::<PaychActor>(method_num, ser).unwrap()
 }
 
 fn expect_error(rt: &mut MockRuntime, method_num: u64, ser: &RawBytes, exp: ExitCode) {
-    let err = rt.call(&*PAYCH_ACTOR_CODE_ID, method_num, ser).unwrap_err();
+    let err = rt.call::<PaychActor>(method_num, ser).unwrap_err();
     assert_eq!(exp, err.exit_code());
 }
 

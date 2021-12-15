@@ -8,9 +8,18 @@ edition = "2018"
 repository = "https://github.com/filecoin-project/fvm"
 
 [dependencies]
+actors-runtime = { path = "../runtime" }
 fvm_shared = { path = "../../shared", default-features = false }
 num-traits = "0.2"
 num-derive = "0.3.0"
+blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
+serde = { version = "1.0", features = ["derive"] }
+cid = { version = "0.7", features = ["serde-codec"] }
+
+[dev-dependencies]
+actors-runtime = { path = "../runtime", features = ["test_utils"] }
+ipld_amt = { path = "../../ipld/amt", features = ["go-interop"]}
+derive_builder = "0.10"
 
 [features]
 default = []

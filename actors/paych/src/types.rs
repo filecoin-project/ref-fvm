@@ -8,7 +8,7 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{error::Error, serde_bytes, to_vec, tuple::*, RawBytes};
 use fvm_shared::MethodNum;
 
-use crate::network::EPOCHS_IN_HOUR;
+use actors_runtime::network::EPOCHS_IN_HOUR;
 
 use super::Merge;
 

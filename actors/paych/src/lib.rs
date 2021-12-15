@@ -5,7 +5,6 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use crate::Array;
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -15,9 +14,11 @@ use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdate
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
-// TODO rename to actor exit code to be used ambiguously (requires new releases)
-use crate::runtime::{ActorCode, Runtime};
+use actors_runtime::{
+    resolve_to_id_addr,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, Array, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID,
+};
 
 pub use self::state::{LaneState, Merge, State};
 pub use self::types::*;
