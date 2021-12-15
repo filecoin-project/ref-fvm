@@ -21,16 +21,16 @@ use std::{collections::HashMap, error::Error as StdError};
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
 #[derive(Debug)]
-pub struct BufferedBlockstore<'bs, BS> {
-    base: &'bs BS,
+pub struct BufferedBlockstore<BS> {
+    base: BS,
     write: RefCell<HashMap<Cid, Vec<u8>>>,
 }
 
-impl<'bs, BS> BufferedBlockstore<'bs, BS>
+impl<BS> BufferedBlockstore<BS>
 where
     BS: Blockstore,
 {
-    pub fn new(base: &'bs BS) -> Self {
+    pub fn new(base: BS) -> Self {
         Self {
             base,
             write: Default::default(),
@@ -43,9 +43,9 @@ where
     pub fn flush(&self, root: &Cid) -> Result<(), Box<dyn StdError + '_>> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
-        copy_rec(self.base, &s, *root, &mut buffer)?;
+        copy_rec(&self.base, &s, *root, &mut buffer)?;
 
-        self.base.put_many(buffer)?;
+        self.base.put_many_keyed(buffer)?;
         *s = Default::default();
 
         Ok(())
@@ -97,18 +97,11 @@ where
     Ok(())
 }
 
-impl<BS> Blockstore for BufferedBlockstore<'_, BS>
+impl<BS> Blockstore for BufferedBlockstore<BS>
 where
     BS: Blockstore,
 {
     type Error = BS::Error;
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
-        if self.write.borrow().contains_key(k) {
-            Ok(true)
-        } else {
-            self.base.has(k)
-        }
-    }
 
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         if let Some(data) = self.write.borrow().get(cid) {
@@ -118,24 +111,28 @@ where
         }
     }
 
-    fn put(&self, cid: &Cid, buf: &[u8]) -> Result<(), Self::Error> {
+    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<(), Self::Error> {
         self.write.borrow_mut().insert(*cid, Vec::from(buf));
         Ok(())
     }
 
-    fn delete(&self, k: &Cid) -> Result<(), Self::Error> {
-        self.write.borrow_mut().remove(k);
-        self.base.delete(k)
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+        if self.write.borrow().contains_key(k) {
+            Ok(true)
+        } else {
+            self.base.has(k)
+        }
     }
 
-    fn put_many<'a, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
     where
         Self: Sized,
-        I: IntoIterator<Item = (Cid, &'a [u8])>,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (Cid, D)>,
     {
         self.write
             .borrow_mut()
-            .extend(blocks.into_iter().map(|(k, v)| (k, Vec::from(v))));
+            .extend(blocks.into_iter().map(|(k, v)| (k, v.as_ref().into())));
         Ok(())
     }
 }

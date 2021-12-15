@@ -4,7 +4,11 @@ use cid::Cid;
 
 pub mod buffered;
 mod memory;
+pub mod tracking;
 pub use memory::MemoryBlockstore;
+
+mod block;
+pub use block::*;
 
 #[cfg(feature = "cgo")]
 pub mod cgo;
@@ -16,81 +20,158 @@ pub trait Blockstore {
     /// The concrete error type that the implementation will throw.
     type Error: std::error::Error + Send + Sync + 'static;
 
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error>;
+    /// Gets the block from the blockstore.
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error>;
-    fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error>;
-    fn delete(&self, k: &Cid) -> Result<(), Self::Error>;
 
-    fn put_many<'a, I>(&self, blocks: I) -> Result<(), Self::Error>
+    /// Put a block with a pre-computed cid.
+    ///
+    /// If you don't yet know the CID, use put. Some blockstores will re-compute the CID internally
+    /// even if you provide it.
+    ///
+    /// If you _do_ already know the CID, use this method as some blockstores _won't_ recompute it.
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error>;
+
+    /// Checks if the blockstore has the specified block.
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+        Ok(self.get(k)?.is_some())
+    }
+
+    /// Puts the block into the blockstore, computing the hash with the specified multicodec.
+    ///
+    /// By default, this defers to put.
+    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid, Self::Error>
     where
         Self: Sized,
-        I: IntoIterator<Item = (Cid, &'a [u8])>,
+        D: AsRef<[u8]>,
     {
-        for (k, b) in blocks {
-            self.put(&k, b)?;
+        let k = block.cid(mh_code);
+        self.put_keyed(&k, block.as_ref())?;
+        Ok(k)
+    }
+
+    /// Bulk put blocks into the blockstore.
+    ///
+    ///
+    /// ```rust
+    /// use multihash::Code::Sha2_256;
+    /// use blockstore::{Blockstore, MemoryBlockstore, Block};
+    ///
+    /// let bs = MemoryBlockstore::default();
+    /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];
+    /// bs.put_many(blocks.iter().map(|b| (Sha2_256, b.into()))).unwrap();
+    /// ```
+    fn put_many<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+    {
+        self.put_many_keyed(blocks.into_iter().map(|(mc, b)| (b.cid(mc), b)))?;
+        Ok(())
+    }
+
+    /// Bulk-put pre-keyed blocks into the blockstore.
+    ///
+    /// By default, this defers to put_keyed.
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (Cid, D)>,
+    {
+        for (c, b) in blocks {
+            self.put_keyed(&c, b.as_ref())?
         }
         Ok(())
     }
 }
 
-impl<B> Blockstore for &B
+impl<BS> Blockstore for &BS
 where
-    B: Blockstore,
+    BS: Blockstore,
 {
-    type Error = B::Error;
-
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
-        (*self).has(k)
-    }
+    type Error = BS::Error;
 
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         (*self).get(k)
     }
 
-    fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
-        (*self).put(k, block)
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
+        (*self).put_keyed(k, block)
     }
 
-    fn delete(&self, k: &Cid) -> Result<(), Self::Error> {
-        (*self).delete(k)
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+        (*self).has(k)
     }
 
-    fn put_many<'a, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid, Self::Error>
     where
         Self: Sized,
-        I: IntoIterator<Item = (Cid, &'a [u8])>,
+        D: AsRef<[u8]>,
+    {
+        (*self).put(mh_code, block)
+    }
+
+    fn put_many<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
     {
         (*self).put_many(blocks)
     }
+
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (Cid, D)>,
+    {
+        (*self).put_many_keyed(blocks)
+    }
 }
 
-impl<B> Blockstore for Rc<B>
+impl<BS> Blockstore for Rc<BS>
 where
-    B: Blockstore,
+    BS: Blockstore,
 {
-    type Error = B::Error;
-
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
-        (**self).has(k)
-    }
+    type Error = BS::Error;
 
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         (**self).get(k)
     }
 
-    fn put(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
-        (**self).put(k, block)
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
+        (**self).put_keyed(k, block)
     }
 
-    fn delete(&self, k: &Cid) -> Result<(), Self::Error> {
-        (**self).delete(k)
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+        (**self).has(k)
     }
 
-    fn put_many<'a, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid, Self::Error>
     where
         Self: Sized,
-        I: IntoIterator<Item = (Cid, &'a [u8])>,
+        D: AsRef<[u8]>,
+    {
+        (**self).put(mh_code, block)
+    }
+
+    fn put_many<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
     {
         (**self).put_many(blocks)
+    }
+
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+        D: AsRef<[u8]>,
+        I: IntoIterator<Item = (Cid, D)>,
+    {
+        (**self).put_many_keyed(blocks)
     }
 }

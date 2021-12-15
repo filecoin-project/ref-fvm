@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::error::Error as StdError;
 
 use ahash::AHashMap;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
@@ -64,7 +64,7 @@ pub struct Actor;
 impl Actor {
     pub fn constructor<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
@@ -79,7 +79,7 @@ impl Actor {
     /// Deposits the received value into the balance held in escrow.
     fn add_balance<BS, RT>(rt: &mut RT, provider_or_client: Address) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let msg_value = rt.message().value_received().clone();
@@ -134,7 +134,7 @@ impl Actor {
         params: WithdrawBalanceParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         if params.amount < TokenAmount::from(0) {
@@ -205,7 +205,7 @@ impl Actor {
         mut params: PublishStorageDealsParams,
     ) -> Result<PublishStorageDealsReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // Deal message must have a From field identical to the provider of all the deals.
@@ -395,7 +395,7 @@ impl Actor {
         params: VerifyDealsForActivationParams,
     ) -> Result<VerifyDealsForActivationReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -436,7 +436,7 @@ impl Actor {
     /// update the market's internal state accordingly.
     fn activate_deals<BS, RT>(rt: &mut RT, params: ActivateDealsParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -564,7 +564,7 @@ impl Actor {
         params: OnMinerSectorsTerminateParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -656,7 +656,7 @@ impl Actor {
         params: ComputeDataCommitmentParams,
     ) -> Result<ComputeDataCommitmentReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
@@ -702,7 +702,7 @@ impl Actor {
 
     fn cron_tick<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*CRON_ACTOR_ADDR))?;
@@ -1046,7 +1046,7 @@ pub fn validate_deals_for_activation<BS>(
     curr_epoch: ChainEpoch,
 ) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     let proposals = DealArray::load(&st.proposals, store)?;
 
@@ -1061,7 +1061,7 @@ pub fn validate_and_compute_deal_weight<BS>(
     sector_activation: ChainEpoch,
 ) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     let mut seen_deal_ids = HashSet::new();
     let mut total_deal_space = 0;
@@ -1158,7 +1158,7 @@ fn validate_deal<BS, RT>(
     baseline_power: &StoragePower,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     deal_proposal_is_internally_valid(rt, deal)?;
@@ -1254,7 +1254,7 @@ fn deal_proposal_is_internally_valid<BS, RT>(
     proposal: &ClientDealProposal,
 ) -> Result<(), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // Generate unsigned bytes
@@ -1278,7 +1278,7 @@ fn escrow_address<BS, RT>(
     addr: &Address,
 ) -> Result<(Address, Address, Vec<Address>), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     // Resolve the provided address to the canonical form against which the balance is held.
@@ -1302,7 +1302,7 @@ where
 /// Requests the current epoch target block reward from the reward actor.
 fn request_current_baseline_power<BS, RT>(rt: &mut RT) -> Result<StoragePower, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let rwret = rt.send(
@@ -1321,7 +1321,7 @@ fn request_current_network_power<BS, RT>(
     rt: &mut RT,
 ) -> Result<(StoragePower, StoragePower), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let rwret = rt.send(
@@ -1341,7 +1341,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

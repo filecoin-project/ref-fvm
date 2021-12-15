@@ -6,8 +6,9 @@ extern crate lazy_static;
 // workaround for a compiler bug, see https://github.com/rust-lang/rust/issues/55779
 extern crate serde;
 
+use blockstore::Blockstore;
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use ipld_amt::Amt;
 use serde::{de::DeserializeOwned, Serialize};
 use unsigned_varint::decode::Error as UVarintError;
 
@@ -30,8 +31,11 @@ mod builtin;
 pub mod runtime;
 pub mod util;
 
-/// Map type to be used within actors. The underlying type is a hamt.
-pub type Map<'bs, BS, V> = Hamt<'bs, BS, V, BytesKey>;
+/// Map type to be used within actors. The underlying type is a HAMT.
+pub type Map<'bs, BS, V> = Hamt<&'bs BS, V, BytesKey>;
+
+/// Array type used within actors. The underlying type is an AMT.
+pub type Array<'bs, V, BS> = Amt<V, &'bs BS>;
 
 /// Deal weight
 pub type DealWeight = BigInt;
@@ -40,7 +44,7 @@ pub type DealWeight = BigInt;
 #[inline]
 pub fn make_empty_map<BS, V>(store: &'_ BS, bitwidth: u32) -> Map<'_, BS, V>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::new_with_bit_width(store, bitwidth)
@@ -53,7 +57,7 @@ pub fn make_map_with_root<'bs, BS, V>(
     store: &'bs BS,
 ) -> Result<Map<'bs, BS, V>, HamtError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::load_with_bit_width(root, store, HAMT_BIT_WIDTH)
@@ -67,7 +71,7 @@ pub fn make_map_with_root_and_bitwidth<'bs, BS, V>(
     bitwidth: u32,
 ) -> Result<Map<'bs, BS, V>, HamtError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     V: DeserializeOwned + Serialize,
 {
     Map::<_, V>::load_with_bit_width(root, store, bitwidth)
@@ -91,7 +95,7 @@ pub fn invoke_code<RT, BS>(
     params: &RawBytes,
 ) -> Option<Result<RawBytes, ActorError>>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     if code == &*SYSTEM_ACTOR_CODE_ID {

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use bitfield::BitField;
+use blockstore::Blockstore;
 use cid::Cid;
-use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 use std::convert::TryInto;
 use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
@@ -13,10 +13,11 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
-use ipld_amt::{Amt, Error as AmtError, ValueMut};
+use ipld_amt::{Error as AmtError, ValueMut};
 
 use crate::miner::{QuantSpec, ADDRESSED_SECTORS_MAX};
 use crate::ActorDowncast;
+use crate::Array;
 
 use super::{power_for_sector, PowerPair, SectorOnChainInfo};
 
@@ -153,18 +154,18 @@ impl ExpirationSet {
 /// Wraps an AMT[ChainEpoch]*ExpirationSet.
 /// Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.
 pub struct ExpirationQueue<'db, BS> {
-    pub amt: Amt<'db, ExpirationSet, BS>,
+    pub amt: Array<'db, ExpirationSet, BS>,
     pub quant: QuantSpec,
 }
 
-impl<'db, BS: BlockStore> ExpirationQueue<'db, BS> {
+impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
     /// Loads a queue root.
     ///
     /// Epochs provided to subsequent method calls will be quantized upwards to quanta mod offsetSeed before being
     /// written to/read from queue entries.
     pub fn new(store: &'db BS, root: &Cid, quant: QuantSpec) -> Result<Self, AmtError> {
         Ok(Self {
-            amt: Amt::load(root, store)?,
+            amt: Array::load(root, store)?,
             quant,
         })
     }

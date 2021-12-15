@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -40,7 +40,7 @@ impl Actor {
     /// Init actor constructor
     pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let sys_ref: &Address = &SYSTEM_ACTOR_ADDR;
@@ -60,7 +60,7 @@ impl Actor {
     /// Exec init actor
     pub fn exec<BS, RT>(rt: &mut RT, params: ExecParams) -> Result<ExecReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -121,7 +121,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

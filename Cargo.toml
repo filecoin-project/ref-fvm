@@ -9,7 +9,6 @@ members = [
     "examples/blockstore-cgo/user",
 
     "ipld",
-    "ipld/blockstore",
     "ipld/hamt",
     "ipld/amt",
 ]
@@ -32,7 +31,6 @@ default-members = [
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
 cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
 forest_ipld = { path = "./ipld" }
-ipld_blockstore = { path = "./ipld/blockstore" }
 ipld_hamt = { path = "./ipld/hamt" }
 ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }

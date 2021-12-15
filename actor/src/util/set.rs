@@ -4,7 +4,7 @@
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_hamt::Error;
@@ -15,7 +15,7 @@ use crate::{make_empty_map, make_map_with_root, BytesKey, Map};
 #[derive(Debug)]
 pub struct Set<'a, BS>(Map<'a, BS, ()>);
 
-impl<'a, BS: BlockStore> PartialEq for Set<'a, BS> {
+impl<'a, BS: Blockstore> PartialEq for Set<'a, BS> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -23,7 +23,7 @@ impl<'a, BS: BlockStore> PartialEq for Set<'a, BS> {
 
 impl<'a, BS> Set<'a, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     /// Initializes a new empty Set with the default bitwidth.
     pub fn new(bs: &'a BS) -> Self {

@@ -8,7 +8,7 @@ use std::{
 
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::actor_error;
@@ -18,7 +18,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorSize, StoragePower};
-use ipld_amt::Amt;
+use crate::Array;
 
 use crate::miner::{QuantSpec, NO_QUANTIZATION};
 use crate::ActorDowncast;
@@ -70,10 +70,10 @@ pub struct Partition {
 }
 
 impl Partition {
-    pub fn new<BS: BlockStore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
         let empty_expiration_array =
-            Amt::<Cid, BS>::new_with_bit_width(store, PARTITION_EXPIRATION_AMT_BITWIDTH).flush()?;
-        let empty_early_termination_array = Amt::<Cid, BS>::new_with_bit_width(
+            Array::<Cid, BS>::new_with_bit_width(store, PARTITION_EXPIRATION_AMT_BITWIDTH).flush()?;
+        let empty_early_termination_array = Array::<Cid, BS>::new_with_bit_width(
             store,
             PARTITION_EARLY_TERMINATION_ARRAY_AMT_BITWIDTH,
         )
@@ -113,7 +113,7 @@ impl Partition {
     /// AddSectors adds new sectors to the partition.
     /// The sectors are "live", neither faulty, recovering, nor terminated.
     /// Each new sector's expiration is scheduled shortly after its target expiration epoch.
-    pub fn add_sectors<BS: BlockStore>(
+    pub fn add_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         proven: bool,
@@ -155,7 +155,7 @@ impl Partition {
     }
 
     /// marks a set of sectors faulty
-    pub fn add_faults<BS: BlockStore>(
+    pub fn add_faults<BS: Blockstore>(
         &mut self,
         store: &BS,
         sector_numbers: &BitField,
@@ -212,7 +212,7 @@ impl Partition {
     /// - The sectors' expirations are rescheduled to the fault expiration epoch, as "early" (if not expiring earlier).
     ///
     /// Returns the power of the now-faulty sectors.
-    pub fn record_faults<BS: BlockStore>(
+    pub fn record_faults<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -265,7 +265,7 @@ impl Partition {
     /// The sectors are removed from the Faults and Recovering bitfields, and FaultyPower and RecoveringPower reduced.
     /// The sectors are re-scheduled for expiration shortly after their target expiration epoch.
     /// Returns the power of the now-recovered sectors.
-    pub fn recover_faults<BS: BlockStore>(
+    pub fn recover_faults<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -312,7 +312,7 @@ impl Partition {
     }
 
     /// Declares sectors as recovering. Non-faulty and already recovering sectors will be skipped.
-    pub fn declare_faults_recovered<BS: BlockStore>(
+    pub fn declare_faults_recovered<BS: Blockstore>(
         &mut self,
         sectors: &Sectors<'_, BS>,
         sector_size: SectorSize,
@@ -371,7 +371,7 @@ impl Partition {
     ///
     /// Note: see the docs on State.RescheduleSectorExpirations for details on why we
     /// skip sectors/partitions we can't find.
-    pub fn reschedule_expirations<BS: BlockStore>(
+    pub fn reschedule_expirations<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -408,7 +408,7 @@ impl Partition {
     /// If the same sector is both removed and added, this permits rescheduling *with a change in power*,
     /// unlike RescheduleExpirations.
     /// Returns the delta to power and pledge requirement.
-    pub fn replace_sectors<BS: BlockStore>(
+    pub fn replace_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         old_sectors: &[SectorOnChainInfo],
@@ -454,7 +454,7 @@ impl Partition {
     }
 
     /// Record the epoch of any sectors expiring early, for termination fee calculation later.
-    pub fn record_early_termination<BS: BlockStore>(
+    pub fn record_early_termination<BS: Blockstore>(
         &mut self,
         store: &BS,
         epoch: ChainEpoch,
@@ -479,7 +479,7 @@ impl Partition {
     /// Marks a collection of sectors as terminated.
     /// The sectors are removed from Faults and Recoveries.
     /// The epoch of termination is recorded for future termination fee calculation.
-    pub fn terminate_sectors<BS: BlockStore>(
+    pub fn terminate_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -545,7 +545,7 @@ impl Partition {
     /// PopExpiredSectors traverses the expiration queue up to and including some epoch, and marks all expiring
     /// sectors as terminated.
     /// Returns the expired sector aggregates.
-    pub fn pop_expired_sectors<BS: BlockStore>(
+    pub fn pop_expired_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         until: ChainEpoch,
@@ -601,7 +601,7 @@ impl Partition {
     /// Marks all non-faulty sectors in the partition as faulty and clears recoveries, updating power memos appropriately.
     /// All sectors' expirations are rescheduled to the fault expiration, as "early" (if not expiring earlier)
     /// Returns the power of the newly faulty and failed recovery sectors.
-    pub fn record_missed_post<BS: BlockStore>(
+    pub fn record_missed_post<BS: Blockstore>(
         &mut self,
         store: &BS,
         fault_expiration: ChainEpoch,
@@ -643,7 +643,7 @@ impl Partition {
         Ok((power_delta, penalized_power, new_faulty_power))
     }
 
-    pub fn pop_early_terminations<BS: BlockStore>(
+    pub fn pop_early_terminations<BS: Blockstore>(
         &mut self,
         store: &BS,
         max_sectors: u64,
@@ -721,7 +721,7 @@ impl Partition {
     ///
     /// - Skipped faults that are not in the provided partition triggers an error.
     /// - Skipped faults that are already declared (but not delcared recovered) are ignored.
-    pub fn record_skipped_faults<BS: BlockStore>(
+    pub fn record_skipped_faults<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,

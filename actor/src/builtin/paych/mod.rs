@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -13,7 +13,7 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-use ipld_amt::Amt;
+use crate::Array;
 
 use crate::{resolve_to_id_addr, ActorDowncast, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
 // TODO rename to actor exit code to be used ambiguously (requires new releases)
@@ -43,7 +43,7 @@ impl Actor {
     /// Constructor for Payment channel actor
     pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         // Only InitActor can create a payment channel actor. It creates the actor on
@@ -55,7 +55,7 @@ impl Actor {
 
         let from = Self::resolve_account(rt, &params.from)?;
 
-        let empty_arr_cid = Amt::<(), _>::new_with_bit_width(rt.store(), LANE_STATES_AMT_BITWIDTH)
+        let empty_arr_cid = Array::<(), _>::new_with_bit_width(rt.store(), LANE_STATES_AMT_BITWIDTH)
             .flush()
             .map_err(|e| {
                 e.downcast_default(ExitCode::ErrIllegalState, "failed to create empty AMT")
@@ -68,7 +68,7 @@ impl Actor {
     /// Resolves an address to a canonical ID address and requires it to address an account actor.
     fn resolve_account<BS, RT>(rt: &mut RT, raw: &Address) -> Result<Address, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let resolved = resolve_to_id_addr(rt, raw).map_err(|e| {
@@ -100,7 +100,7 @@ impl Actor {
         params: UpdateChannelStateParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let st: State = rt.state()?;
@@ -190,7 +190,7 @@ impl Actor {
         }
 
         rt.transaction(|st: &mut State, rt| {
-            let mut l_states = Amt::load(&st.lane_states, rt.store()).map_err(|e| {
+            let mut l_states = Array::load(&st.lane_states, rt.store()).map_err(|e| {
                 e.downcast_default(ExitCode::ErrIllegalState, "failed to load lane states")
             })?;
 
@@ -290,7 +290,7 @@ impl Actor {
 
     pub fn settle<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.transaction(|st: &mut State, rt| {
@@ -311,7 +311,7 @@ impl Actor {
 
     pub fn collect<BS, RT>(rt: &mut RT) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let st: State = rt.state()?;
@@ -334,11 +334,11 @@ impl Actor {
 
 #[inline]
 fn find_lane<'a, BS>(
-    ls: &'a Amt<LaneState, BS>,
+    ls: &'a Array<LaneState, BS>,
     id: usize,
 ) -> Result<Option<&'a LaneState>, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     if id > MAX_LANE as usize {
         return Err(actor_error!(ErrIllegalArgument; "maximum lane ID is 2^63-1"));
@@ -359,7 +359,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

@@ -12,10 +12,9 @@ use blockstore::Blockstore;
 use cid::Cid;
 
 use fvm_shared::address::{Address, Payload, FIRST_NON_SINGLETON_ADDR};
-use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
+use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
-use ipld_blockstore::BlockStore;
 
 use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
@@ -40,7 +39,7 @@ impl Cbor for State {}
 impl State {
     pub fn new<B>(store: B, network_name: String) -> Result<Self>
     where
-        B: BlockStore,
+        B: Blockstore,
     {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH).flush()?;
         Ok(Self {
@@ -59,7 +58,9 @@ impl State {
             .get_actor(&INIT_ACTOR_ADDR)?
             .ok_or_else(|| anyhow!("Init actor address could not be resolved"))?;
 
-        let state = BlockStore::get(state_tree.store(), &init_act.state)?
+        let state = state_tree
+            .store()
+            .get_cbor(&init_act.state)?
             .ok_or(anyhow!("init actor state not found"))?;
         Ok((state, init_act))
     }
@@ -68,7 +69,7 @@ impl State {
     /// Returns the newly-allocated address.
     pub fn map_address_to_new_id<B>(&mut self, store: B, addr: &Address) -> Result<ActorID>
     where
-        B: BlockStore,
+        B: Blockstore,
     {
         let id = self.next_id;
         self.next_id += 1;
@@ -94,7 +95,7 @@ impl State {
     /// Returns an error only if state was inconsistent.
     pub fn resolve_address<B>(&self, store: B, addr: &Address) -> Result<Option<u64>>
     where
-        B: BlockStore,
+        B: Blockstore,
     {
         if let &Payload::ID(id) = addr.payload() {
             return Ok(Some(id));

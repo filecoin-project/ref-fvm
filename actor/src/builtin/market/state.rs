@@ -4,7 +4,7 @@
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::actor_error;
@@ -17,7 +17,7 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::HAMT_BIT_WIDTH;
-use ipld_amt::Amt;
+use crate::Array;
 
 use crate::{make_empty_map, ActorDowncast, BalanceTable, Set, SetMultimap};
 
@@ -27,13 +27,13 @@ use super::{policy::*, types::*, DealProposal, DealState, DEAL_UPDATES_INTERVAL}
 #[derive(Default, Serialize_tuple, Deserialize_tuple)]
 pub struct State {
     /// Proposals are deals that have been proposed and not yet cleaned up after expiry or termination.
-    /// Amt<DealID, DealProposal>
+    /// Array<DealID, DealProposal>
     pub proposals: Cid,
 
     // States contains state for deals that have been activated and not yet cleaned up after expiry or termination.
     // After expiration, the state exists until the proposal is cleaned up too.
     // Invariant: keys(States) ⊆ keys(Proposals).
-    /// Amt<DealID, DealState>
+    /// Array<DealID, DealState>
     pub states: Cid,
 
     /// PendingProposals tracks dealProposals that have not yet reached their deal start date.
@@ -68,12 +68,12 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: BlockStore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
         let empty_proposals_array =
-            Amt::<(), BS>::new_with_bit_width(store, PROPOSALS_AMT_BITWIDTH)
+            Array::<(), BS>::new_with_bit_width(store, PROPOSALS_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| format!("Failed to create empty proposals array: {}", e))?;
-        let empty_states_array = Amt::<(), BS>::new_with_bit_width(store, STATES_AMT_BITWIDTH)
+        let empty_states_array = Array::<(), BS>::new_with_bit_width(store, STATES_AMT_BITWIDTH)
             .flush()
             .map_err(|e| format!("Failed to create empty states array: {}", e))?;
 
@@ -109,7 +109,7 @@ impl State {
             + &self.total_client_storage_fee
     }
 
-    pub(super) fn mutator<'bs, BS: BlockStore>(
+    pub(super) fn mutator<'bs, BS: Blockstore>(
         &mut self,
         store: &'bs BS,
     ) -> MarketStateMutation<'bs, '_, BS> {
@@ -190,7 +190,7 @@ pub(super) struct MarketStateMutation<'bs, 's, BS> {
 
 impl<'bs, 's, BS> MarketStateMutation<'bs, 's, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     pub(super) fn new(st: &'s mut State, store: &'bs BS) -> Self {
         Self {
@@ -517,7 +517,7 @@ where
         state: &DealState,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
     {
         if state.sector_start_epoch == EPOCH_UNDEFINED {
             return Err(actor_error!(

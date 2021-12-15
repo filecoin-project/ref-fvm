@@ -5,27 +5,28 @@ use std::collections::HashMap;
 use std::error::Error as StdError;
 
 use bitfield::BitField;
+use blockstore::Blockstore;
 use cid::Cid;
-use ipld_blockstore::BlockStore;
 
 use fvm_shared::clock::ChainEpoch;
-use ipld_amt::{Amt, Error as AmtError};
+use ipld_amt::Error as AmtError;
 
 use crate::ActorDowncast;
+use crate::Array;
 
 use super::QuantSpec;
 
 /// Wrapper for working with an AMT[ChainEpoch]*Bitfield functioning as a queue, bucketed by epoch.
 /// Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.
 pub struct BitFieldQueue<'db, BS> {
-    pub amt: Amt<'db, BitField, BS>,
+    pub amt: Array<'db, BitField, BS>,
     quant: QuantSpec,
 }
 
-impl<'db, BS: BlockStore> BitFieldQueue<'db, BS> {
+impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     pub fn new(store: &'db BS, root: &Cid, quant: QuantSpec) -> Result<Self, AmtError> {
         Ok(Self {
-            amt: Amt::load(root, store)?,
+            amt: Array::load(root, store)?,
             quant,
         })
     }

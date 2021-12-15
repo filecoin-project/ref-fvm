@@ -3,17 +3,51 @@
 
 use std::{ops::Deref, rc::Rc};
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
 use super::errors::Error;
-use crate::encoding::{from_slice, to_vec, CodecProtocol};
-use cid::{multihash, Cid};
+use crate::encoding::{de, from_slice, ser, to_vec, CodecProtocol};
+use blockstore::{Block, Blockstore};
+use cid::{
+    multihash::{self, Code},
+    Cid,
+};
+use serde::{Deserialize, Serialize};
 
 // TODO find something to reference.
 pub const DAG_CBOR: u64 = 0x71;
 
+/// Wrapper for database to handle inserting and retrieving ipld data with Cids
+pub trait CborStore: Blockstore + Sized {
+    /// Get typed object from block store by Cid.
+    fn get_cbor<T>(&self, cid: &Cid) -> Result<Option<T>, Box<dyn std::error::Error>>
+    where
+        T: de::DeserializeOwned,
+    {
+        match self.get(cid)? {
+            Some(bz) => Ok(Some(from_slice(&bz)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Put an object in the block store and return the Cid identifier.
+    fn put_cbor<S>(&self, obj: &S, code: Code) -> Result<Cid, Box<dyn std::error::Error>>
+    where
+        S: ser::Serialize,
+    {
+        let bytes = to_vec(obj)?;
+        Ok(self.put(
+            code,
+            &Block {
+                codec: DAG_CBOR,
+                data: &bytes,
+            },
+        )?)
+    }
+}
+
+impl<T: Blockstore> CborStore for T {}
+
 /// Cbor utility functions for serializable objects
-pub trait Cbor: Serialize + DeserializeOwned {
+pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes
     fn marshal_cbor(&self) -> Result<Vec<u8>, Error> {
         Ok(to_vec(&self)?)
@@ -93,7 +127,7 @@ impl RawBytes {
     }
 
     /// Deserializes the serialized bytes into a defined type.
-    pub fn deserialize<O: DeserializeOwned>(&self) -> Result<O, Error> {
+    pub fn deserialize<O: de::DeserializeOwned>(&self) -> Result<O, Error> {
         Ok(from_slice(&self.bytes)?)
     }
 }

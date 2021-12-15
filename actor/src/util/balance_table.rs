@@ -4,7 +4,7 @@
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::address::Address;
@@ -20,7 +20,7 @@ pub const BALANCE_TABLE_BITWIDTH: u32 = 6;
 pub struct BalanceTable<'a, BS>(Map<'a, BS, BigIntDe>);
 impl<'a, BS> BalanceTable<'a, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     /// Initializes a new empty balance table
     pub fn new(bs: &'a BS) -> Self {

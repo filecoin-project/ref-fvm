@@ -5,7 +5,7 @@ use std::error::Error as StdError;
 
 use cid::Cid;
 use indexmap::IndexMap;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_traits::Zero;
 
 use fvm_shared::address::Address;
@@ -72,7 +72,7 @@ impl State {
 
     /// Iterates all pending transactions and removes an address from each list of approvals,
     /// if present.  If an approval list becomes empty, the pending transaction is deleted.
-    pub fn purge_approvals<BS: BlockStore>(
+    pub fn purge_approvals<BS: Blockstore>(
         &mut self,
         store: &BS,
         addr: &Address,

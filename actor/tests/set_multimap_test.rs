@@ -3,7 +3,7 @@
 
 use forest_actor::{u64_key, SetMultimap};
 use fvm_shared::clock::ChainEpoch;
-use ipld_blockstore::MemoryBlockstore;
+use blockstore::MemoryBlockstore;
 
 #[test]
 fn put_remove() {

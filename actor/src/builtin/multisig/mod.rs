@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::error::Error as StdError;
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
@@ -51,7 +51,7 @@ impl Actor {
     /// Constructor for Multisig actor
     pub fn constructor<BS, RT>(rt: &mut RT, params: ConstructorParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*INIT_ACTOR_ADDR))?;
@@ -132,7 +132,7 @@ impl Actor {
     /// Multisig actor propose function
     pub fn propose<BS, RT>(rt: &mut RT, params: ProposeParams) -> Result<ProposeReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
@@ -199,7 +199,7 @@ impl Actor {
     /// Multisig actor approve function
     pub fn approve<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<ApproveReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
@@ -239,7 +239,7 @@ impl Actor {
     /// Multisig actor cancel function
     pub fn cancel<BS, RT>(rt: &mut RT, params: TxnIDParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
@@ -305,7 +305,7 @@ impl Actor {
     /// Multisig actor function to add signers to multisig
     pub fn add_signer<BS, RT>(rt: &mut RT, params: AddSignerParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let receiver = *rt.message().receiver();
@@ -346,7 +346,7 @@ impl Actor {
     /// Multisig actor function to remove signers to multisig
     pub fn remove_signer<BS, RT>(rt: &mut RT, params: RemoveSignerParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let receiver = *rt.message().receiver();
@@ -411,7 +411,7 @@ impl Actor {
     /// Multisig actor function to swap signers to multisig
     pub fn swap_signer<BS, RT>(rt: &mut RT, params: SwapSignerParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let receiver = *rt.message().receiver();
@@ -465,7 +465,7 @@ impl Actor {
         params: ChangeNumApprovalsThresholdParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let receiver = *rt.message().receiver();
@@ -488,7 +488,7 @@ impl Actor {
     /// Multisig actor function to change number of approvals needed
     pub fn lock_balance<BS, RT>(rt: &mut RT, params: LockBalanceParams) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         let receiver = *rt.message().receiver();
@@ -528,7 +528,7 @@ impl Actor {
         mut txn: Transaction,
     ) -> Result<(bool, RawBytes, ExitCode), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         for previous_approver in &txn.approved {
@@ -582,7 +582,7 @@ fn execute_transaction_if_approved<BS, RT>(
     txn: &Transaction,
 ) -> Result<(bool, RawBytes, ExitCode), ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let mut out = RawBytes::default();
@@ -642,7 +642,7 @@ fn get_transaction<'bs, 'm, BS, RT>(
     check_hash: bool,
 ) -> Result<&'m Transaction, ActorError>
 where
-    BS: BlockStore,
+    BS: Blockstore,
     RT: Runtime<BS>,
 {
     let txn = ptx
@@ -702,7 +702,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

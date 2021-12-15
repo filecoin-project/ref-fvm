@@ -6,26 +6,27 @@ use std::error::Error as StdError;
 
 use ahash::AHashSet;
 use bitfield::BitField;
+use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::actor_error;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
-use ipld_blockstore::BlockStore;
 
-use ipld_amt::{Amt, Error as AmtError};
+use ipld_amt::Error as AmtError;
 
+use crate::Array;
 use crate::{ActorDowncast, ActorError};
 
 use super::SectorOnChainInfo;
 
 pub struct Sectors<'db, BS> {
-    pub amt: Amt<'db, SectorOnChainInfo, BS>,
+    pub amt: Array<'db, SectorOnChainInfo, BS>,
 }
 
-impl<'db, BS: BlockStore> Sectors<'db, BS> {
+impl<'db, BS: Blockstore> Sectors<'db, BS> {
     pub fn load(store: &'db BS, root: &Cid) -> Result<Self, AmtError> {
         Ok(Self {
-            amt: Amt::load(root, store)?,
+            amt: Array::load(root, store)?,
         })
     }
 

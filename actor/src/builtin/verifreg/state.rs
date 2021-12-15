@@ -4,7 +4,7 @@
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use fvm_shared::address::Address;
 use fvm_shared::encoding::{tuple::*, Cbor};
@@ -20,7 +20,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: BlockStore>(store: &BS, root_key: Address) -> Result<State, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS, root_key: Address) -> Result<State, Box<dyn StdError>> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| format!("Failed to create empty map: {}", e))?;

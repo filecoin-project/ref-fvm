@@ -4,18 +4,18 @@
 use std::{cmp, collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use bitfield::BitField;
+use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use ipld_blockstore::BlockStore;
 use num_traits::{Signed, Zero};
 
 use crate::ActorDowncast;
+use crate::Array;
 use fvm_shared::actor_error;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
 use fvm_shared::sector::{PoStProof, SectorSize};
-use ipld_amt::Amt;
 
 use super::QuantSpec;
 use super::{
@@ -49,7 +49,7 @@ impl Deadlines {
         }
     }
 
-    pub fn load_deadline<BS: BlockStore>(
+    pub fn load_deadline<BS: Blockstore>(
         &self,
         store: &BS,
         deadline_idx: usize,
@@ -62,7 +62,7 @@ impl Deadlines {
             )));
         }
 
-        Ok(store.get(&self.due[deadline_idx])?.ok_or_else(|| {
+        Ok(store.get_cbor(&self.due[deadline_idx])?.ok_or_else(|| {
             Box::new(actor_error!(
                 ErrIllegalState,
                 "failed to lookup deadline {}",
@@ -71,7 +71,7 @@ impl Deadlines {
         })?)
     }
 
-    pub fn for_each<BS: BlockStore>(
+    pub fn for_each<BS: Blockstore>(
         &self,
         store: &BS,
         mut f: impl FnMut(usize, Deadline) -> Result<(), Box<dyn StdError>>,
@@ -84,7 +84,7 @@ impl Deadlines {
         Ok(())
     }
 
-    pub fn update_deadline<BS: BlockStore>(
+    pub fn update_deadline<BS: Blockstore>(
         &mut self,
         store: &BS,
         deadline_idx: usize,
@@ -96,7 +96,7 @@ impl Deadlines {
 
         deadline.validate_state()?;
 
-        self.due[deadline_idx as usize] = store.put(deadline, Code::Blake2b256)?;
+        self.due[deadline_idx as usize] = store.put_cbor(deadline, Code::Blake2b256)?;
         Ok(())
     }
 }
@@ -176,16 +176,16 @@ pub struct DisputeInfo {
 }
 
 impl Deadline {
-    pub fn new<BS: BlockStore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
         let empty_partitions_array =
-            Amt::<(), BS>::new_with_bit_width(store, DEADLINE_PARTITIONS_AMT_BITWIDTH)
+            Array::<(), BS>::new_with_bit_width(store, DEADLINE_PARTITIONS_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| e.downcast_wrap("Failed to create empty states array"))?;
         let empty_deadline_expiration_array =
-            Amt::<(), BS>::new_with_bit_width(store, DEADLINE_EXPIRATIONS_AMT_BITWIDTH)
+            Array::<(), BS>::new_with_bit_width(store, DEADLINE_EXPIRATIONS_AMT_BITWIDTH)
                 .flush()
                 .map_err(|e| e.downcast_wrap("Failed to create empty states array"))?;
-        let empty_post_submissions_array = Amt::<(), BS>::new_with_bit_width(
+        let empty_post_submissions_array = Array::<(), BS>::new_with_bit_width(
             store,
             DEADLINE_OPTIMISTIC_POST_SUBMISSIONS_AMT_BITWIDTH,
         )
@@ -205,43 +205,43 @@ impl Deadline {
         })
     }
 
-    pub fn partitions_amt<'db, BS: BlockStore>(
+    pub fn partitions_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Amt<'db, Partition, BS>, Box<dyn StdError>> {
-        Ok(Amt::load(&self.partitions, store)?)
+    ) -> Result<Array<'db, Partition, BS>, Box<dyn StdError>> {
+        Ok(Array::load(&self.partitions, store)?)
     }
 
-    pub fn optimistic_proofs_amt<'db, BS: BlockStore>(
+    pub fn optimistic_proofs_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Amt<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
-        Ok(Amt::load(&self.optimistic_post_submissions, store)?)
+    ) -> Result<Array<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
+        Ok(Array::load(&self.optimistic_post_submissions, store)?)
     }
 
-    pub fn partitions_snapshot_amt<'db, BS: BlockStore>(
+    pub fn partitions_snapshot_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Amt<'db, Partition, BS>, Box<dyn StdError>> {
-        Ok(Amt::load(&self.partitions_snapshot, store)?)
+    ) -> Result<Array<'db, Partition, BS>, Box<dyn StdError>> {
+        Ok(Array::load(&self.partitions_snapshot, store)?)
     }
 
-    pub fn optimistic_proofs_snapshot_amt<'db, BS: BlockStore>(
+    pub fn optimistic_proofs_snapshot_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Amt<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
-        Ok(Amt::load(
+    ) -> Result<Array<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
+        Ok(Array::load(
             &self.optimistic_post_submissions_snapshot,
             store,
         )?)
     }
 
-    pub fn load_partition<BS: BlockStore>(
+    pub fn load_partition<BS: Blockstore>(
         &self,
         store: &BS,
         partition_idx: usize,
     ) -> Result<Partition, Box<dyn StdError>> {
-        let partitions = Amt::<Partition, _>::load(&self.partitions, store)?;
+        let partitions = Array::<Partition, _>::load(&self.partitions, store)?;
 
         let partition = partitions
             .get(partition_idx)
@@ -256,12 +256,12 @@ impl Deadline {
         Ok(partition.clone())
     }
 
-    pub fn load_partition_snapshot<BS: BlockStore>(
+    pub fn load_partition_snapshot<BS: Blockstore>(
         &self,
         store: &BS,
         partition_idx: usize,
     ) -> Result<Partition, Box<dyn StdError>> {
-        let partitions = Amt::<Partition, _>::load(&self.partitions_snapshot, store)?;
+        let partitions = Array::<Partition, _>::load(&self.partitions_snapshot, store)?;
 
         let partition = partitions
             .get(partition_idx)
@@ -277,7 +277,7 @@ impl Deadline {
     }
 
     /// Adds some partition numbers to the set expiring at an epoch.
-    pub fn add_expiration_partitions<BS: BlockStore>(
+    pub fn add_expiration_partitions<BS: Blockstore>(
         &mut self,
         store: &BS,
         expiration_epoch: ChainEpoch,
@@ -304,7 +304,7 @@ impl Deadline {
 
     /// PopExpiredSectors terminates expired sectors from all partitions.
     /// Returns the expired sector aggregates.
-    pub fn pop_expired_sectors<BS: BlockStore>(
+    pub fn pop_expired_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         until: ChainEpoch,
@@ -387,7 +387,7 @@ impl Deadline {
     /// that this deadline isn't currently "open" (i.e., being proved at this point
     /// in time).
     /// The sectors are assumed to be non-faulty.
-    pub fn add_sectors<BS: BlockStore>(
+    pub fn add_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         partition_size: u64,
@@ -471,7 +471,7 @@ impl Deadline {
         Ok(total_power)
     }
 
-    pub fn pop_early_terminations<BS: BlockStore>(
+    pub fn pop_early_terminations<BS: Blockstore>(
         &mut self,
         store: &BS,
         max_partitions: u64,
@@ -532,7 +532,7 @@ impl Deadline {
         Ok((result, !no_early_terminations))
     }
 
-    pub fn pop_expired_partitions<BS: BlockStore>(
+    pub fn pop_expired_partitions<BS: Blockstore>(
         &mut self,
         store: &BS,
         until: ChainEpoch,
@@ -550,7 +550,7 @@ impl Deadline {
         Ok((popped, modified))
     }
 
-    pub fn terminate_sectors<BS: BlockStore>(
+    pub fn terminate_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -616,7 +616,7 @@ impl Deadline {
     ///
     /// Returns an error if any of the partitions contained faulty sectors or early
     /// terminations.
-    pub fn remove_partitions<BS: BlockStore>(
+    pub fn remove_partitions<BS: Blockstore>(
         &mut self,
         store: &BS,
         to_remove: &BitField,
@@ -658,7 +658,7 @@ impl Deadline {
         }
 
         let mut new_partitions =
-            Amt::<Partition, BS>::new_with_bit_width(store, DEADLINE_PARTITIONS_AMT_BITWIDTH);
+            Array::<Partition, BS>::new_with_bit_width(store, DEADLINE_PARTITIONS_AMT_BITWIDTH);
         let mut all_dead_sectors = Vec::<BitField>::with_capacity(to_remove_set.len());
         let mut all_live_sectors = Vec::<BitField>::with_capacity(to_remove_set.len());
         let mut removed_power = PowerPair::zero();
@@ -737,7 +737,7 @@ impl Deadline {
         Ok((live, dead, removed_power))
     }
 
-    pub fn record_faults<BS: BlockStore>(
+    pub fn record_faults<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -815,7 +815,7 @@ impl Deadline {
         Ok(power_delta)
     }
 
-    pub fn declare_faults_recovered<BS: BlockStore>(
+    pub fn declare_faults_recovered<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -860,7 +860,7 @@ impl Deadline {
     /// Processes all PoSt submissions, marking unproven sectors as
     /// faulty and clearing failed recoveries. It returns the power delta, and any
     /// power that should be penalized (new faults and failed recoveries).
-    pub fn process_deadline_end<BS: BlockStore>(
+    pub fn process_deadline_end<BS: Blockstore>(
         &mut self,
         store: &BS,
         quant: QuantSpec,
@@ -960,7 +960,7 @@ impl Deadline {
         self.partitions_posted = BitField::new();
         self.partitions_snapshot = self.partitions;
         self.optimistic_post_submissions_snapshot = self.optimistic_post_submissions;
-        self.optimistic_post_submissions = Amt::<(), BS>::new_with_bit_width(
+        self.optimistic_post_submissions = Array::<(), BS>::new_with_bit_width(
             store,
             DEADLINE_OPTIMISTIC_POST_SUBMISSIONS_AMT_BITWIDTH,
         )
@@ -973,7 +973,7 @@ impl Deadline {
         })?;
         Ok((power_delta, penalized_power))
     }
-    pub fn for_each<BS: BlockStore>(
+    pub fn for_each<BS: Blockstore>(
         &self,
         store: &BS,
         f: impl FnMut(usize, &Partition) -> Result<(), Box<dyn StdError>>,
@@ -994,7 +994,7 @@ impl Deadline {
         Ok(())
     }
 
-    pub fn load_partitions_for_dispute<BS: BlockStore>(
+    pub fn load_partitions_for_dispute<BS: Blockstore>(
         &self,
         store: &BS,
         partitions: BitField,
@@ -1095,7 +1095,7 @@ impl Deadline {
     /// NOTE: This function does not actually _verify_ any proofs. The returned
     /// `sectors` and `ignored_sectors` must subsequently be validated against the PoSt
     /// submitted by the miner.
-    pub fn record_proven_sectors<BS: BlockStore>(
+    pub fn record_proven_sectors<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,
@@ -1240,7 +1240,7 @@ impl Deadline {
 
     // RecordPoStProofs records a set of optimistically accepted PoSt proofs
     // (usually one), associating them with the given partitions.
-    pub fn record_post_proofs<BS: BlockStore>(
+    pub fn record_post_proofs<BS: Blockstore>(
         &mut self,
         store: &BS,
         partitions: &BitField,
@@ -1269,7 +1269,7 @@ impl Deadline {
     // TakePoStProofs removes and returns a PoSt proof by index, along with the
     // associated partitions. This method takes the PoSt from the PoSt submissions
     // snapshot.
-    pub fn take_post_proofs<BS: BlockStore>(
+    pub fn take_post_proofs<BS: Blockstore>(
         &mut self,
         store: &BS,
         idx: u64,
@@ -1299,7 +1299,7 @@ impl Deadline {
     ///
     /// Note: see the docs on State.RescheduleSectorExpirations for details on why we
     /// skip sectors/partitions we can't find.
-    pub fn reschedule_sector_expirations<BS: BlockStore>(
+    pub fn reschedule_sector_expirations<BS: Blockstore>(
         &mut self,
         store: &BS,
         sectors: &Sectors<'_, BS>,

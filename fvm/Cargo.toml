@@ -19,7 +19,6 @@ multihash = { version = "0.15", features = ["identity", "default"] }
 wasmtime = "0.31.0"
 fvm_shared = { path = "../shared" }
 ipld_hamt = { path = "../ipld/hamt"}
-ipld_blockstore = { path = "../ipld/blockstore"}
 ipld_amt = { path = "../ipld/amt"}
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"

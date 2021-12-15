@@ -1,23 +1,26 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use blockstore::{
+    tracking::{BSStats, TrackingBlockstore},
+    Blockstore,
+};
 use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, BytesDe};
 use ipld_amt::{Amt, Error, MAX_INDEX};
-use ipld_blockstore::{BSStats, BlockStore, TrackingBlockStore};
 use std::fmt::Debug;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: usize, v: &V)
 where
     V: Serialize + DeserializeOwned + PartialEq + Debug,
-    BS: BlockStore,
+    BS: Blockstore,
 {
     assert_eq!(a.get(i).unwrap().unwrap(), v);
 }
 
 #[test]
 fn basic_get_set() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     a.set(2, tbytes(b"foo")).unwrap();
@@ -40,8 +43,8 @@ fn basic_get_set() {
 
 #[test]
 fn out_of_range() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     let res = a.set(MAX_INDEX, tbytes(b"what is up"));
@@ -67,8 +70,8 @@ fn out_of_range() {
 
 #[test]
 fn expand() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     a.set(2, tbytes(b"foo")).unwrap();
@@ -100,8 +103,8 @@ fn expand() {
 
 #[test]
 fn bulk_insert() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     let iterations: usize = 5000;
@@ -135,8 +138,8 @@ fn bulk_insert() {
 
 #[test]
 fn flush_read() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     let iterations: usize = 100;
@@ -163,8 +166,8 @@ fn flush_read() {
 
 #[test]
 fn delete() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     a.set(0, tbytes(b"cat")).unwrap();
     a.set(1, tbytes(b"cat")).unwrap();
@@ -211,8 +214,8 @@ fn delete() {
 
 #[test]
 fn delete_fail_check() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     a.set(1, "one".to_owned()).unwrap();
@@ -230,8 +233,8 @@ fn delete_fail_check() {
 
 #[test]
 fn delete_first_entry() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     a.set(0, tbytes(b"cat")).unwrap();
@@ -260,8 +263,8 @@ fn delete_first_entry() {
 
 #[test]
 fn delete_reduce_height() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     a.set(1, tbytes(b"thing")).unwrap();
@@ -291,8 +294,8 @@ fn delete_reduce_height() {
 
 #[test]
 fn for_each() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     let mut indexes = Vec::new();
@@ -358,8 +361,8 @@ fn for_each() {
 
 #[test]
 fn for_each_mutate() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
     let indexes = [1, 9, 66, 74, 82, 515];
@@ -396,8 +399,8 @@ fn for_each_mutate() {
 
 #[test]
 fn delete_bug_test() {
-    let mem = ipld_blockstore::MemoryBlockstore::default();
-    let db = TrackingBlockStore::new(&mem);
+    let mem = blockstore::MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     let empty_cid = a.flush().unwrap();
 

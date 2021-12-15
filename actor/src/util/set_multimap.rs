@@ -4,8 +4,8 @@
 use std::borrow::Borrow;
 use std::error::Error as StdError;
 
+use blockstore::Blockstore;
 use cid::Cid;
-use ipld_blockstore::BlockStore;
 
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
@@ -21,7 +21,7 @@ use super::Set;
 pub struct SetMultimap<'a, BS>(Map<'a, BS, Cid>);
 impl<'a, BS> SetMultimap<'a, BS>
 where
-    BS: BlockStore,
+    BS: Blockstore,
 {
     /// Initializes a new empty SetMultimap.
     pub fn new(bs: &'a BS) -> Self {
@@ -79,7 +79,7 @@ where
     #[inline]
     pub fn get(&self, key: ChainEpoch) -> Result<Option<Set<'a, BS>>, Box<dyn StdError>> {
         match self.0.get(&u64_key(key as u64))? {
-            Some(cid) => Ok(Some(Set::from_root(self.0.store(), cid)?)),
+            Some(cid) => Ok(Some(Set::from_root(*self.0.store(), cid)?)),
             None => Ok(None),
         }
     }

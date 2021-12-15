@@ -11,10 +11,9 @@ use cid::{multihash, Cid};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::ActorID;
-use ipld_blockstore::BlockStore;
 
 use crate::adt::Map;
 use crate::init_actor::State as InitActorState;
@@ -187,8 +186,7 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
-                let cid =
-                    BlockStore::put(&store, &StateInfo0::default(), multihash::Code::Blake2b256)?;
+                let cid = store.put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)?;
                 Some(cid)
             }
         };
@@ -211,7 +209,7 @@ where
             version,
             info,
             actors,
-        })) = BlockStore::get(&store, c)
+        })) = store.get_cbor(c)
         {
             (version, Some(info), actors)
         } else {
@@ -335,7 +333,7 @@ where
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = BlockStore::put(self.store(), &state, multihash::Code::Blake2b256)?;
+        actor.state = self.store().put_cbor(&state, multihash::Code::Blake2b256)?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -391,7 +389,7 @@ where
                     actors: root,
                     info: cid,
                 };
-                let root = BlockStore::put(self.store(), obj, multihash::Code::Blake2b256)?;
+                let root = self.store().put_cbor(obj, multihash::Code::Blake2b256)?;
                 Ok(root)
             }
         }
@@ -400,7 +398,6 @@ where
     pub fn for_each<F>(&self, mut f: F) -> Result<()>
     where
         F: FnMut(Address, &ActorState) -> std::result::Result<(), Box<dyn std::error::Error>>,
-        S: BlockStore,
     {
         self.hamt.for_each(|k, v| {
             let addr = Address::from_bytes(&k.0)?;

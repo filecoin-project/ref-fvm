@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 use log::{error, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
@@ -54,7 +54,7 @@ impl Actor {
         curr_realized_power: Option<StoragePower>,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
@@ -85,7 +85,7 @@ impl Actor {
         params: AwardBlockRewardParams,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
@@ -201,7 +201,7 @@ impl Actor {
     /// is the reward value as calculated at the last non-null epoch.
     fn this_epoch_reward<BS, RT>(rt: &mut RT) -> Result<ThisEpochRewardReturn, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
@@ -220,7 +220,7 @@ impl Actor {
         curr_realized_power: Option<StoragePower>,
     ) -> Result<(), ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*STORAGE_POWER_ACTOR_ADDR))?;
@@ -251,7 +251,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {

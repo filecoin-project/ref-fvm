@@ -3,9 +3,9 @@
 
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use fvm_shared::encoding::{serde_bytes, BytesSer};
-use ipld_blockstore::BlockStore;
+use fvm_shared::encoding::{serde_bytes, BytesSer, CborStore};
 use once_cell::unsync::OnceCell;
 use serde::{
     de::{self, DeserializeOwned},
@@ -185,7 +185,7 @@ where
     }
 
     /// Flushes cache for node, replacing any cached values with a Cid variant
-    pub(super) fn flush<DB: BlockStore>(&mut self, bs: &DB) -> Result<(), Error> {
+    pub(super) fn flush<DB: Blockstore>(&mut self, bs: &DB) -> Result<(), Error> {
         if let Node::Link { links } = self {
             for link in links.iter_mut().flatten() {
                 // links should only be flushed if the bitmap is set.
@@ -194,7 +194,7 @@ where
                     n.flush(bs)?;
 
                     // Puts node in blockstore and and retrieves it's CID
-                    let cid = bs.put(n, Code::Blake2b256)?;
+                    let cid = bs.put_cbor(n, Code::Blake2b256)?;
 
                     // Replace the data with some arbitrary node to move without requiring clone
                     let existing = std::mem::replace(n, Box::new(Node::empty()));
@@ -234,7 +234,7 @@ where
     }
 
     /// Gets value at given index of Amt given height
-    pub(super) fn get<DB: BlockStore>(
+    pub(super) fn get<DB: Blockstore>(
         &self,
         bs: &DB,
         height: usize,
@@ -248,7 +248,7 @@ where
             Node::Link { links, .. } => match links.get(sub_i).map(|v| v.as_ref()).flatten() {
                 Some(Link::Cid { cid, cache }) => {
                     let cached_node = cache.get_or_try_init(|| {
-                        bs.get::<CollapsedNode<V>>(cid)?
+                        bs.get_cbor::<CollapsedNode<V>>(cid)?
                             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                             .expand(bit_width)
                             .map(Box::new)
@@ -273,7 +273,7 @@ where
     }
 
     /// Set value in node
-    pub(super) fn set<DB: BlockStore>(
+    pub(super) fn set<DB: Blockstore>(
         &mut self,
         bs: &DB,
         height: usize,
@@ -298,7 +298,7 @@ where
                         sn
                     } else {
                         // Only retrieve sub node if not found in cache
-                        bs.get::<CollapsedNode<V>>(cid)?
+                        bs.get_cbor::<CollapsedNode<V>>(cid)?
                             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                             .expand(bit_width)
                             .map(Box::new)?
@@ -343,7 +343,7 @@ where
     }
 
     /// Delete value in Amt by index
-    pub(super) fn delete<DB: BlockStore>(
+    pub(super) fn delete<DB: Blockstore>(
         &mut self,
         bs: &DB,
         height: usize,
@@ -378,7 +378,7 @@ where
                     Some(Link::Cid { cid, cache }) => {
                         // Take cache, will be replaced if no nodes deleted
                         cache.get_or_try_init(|| {
-                            bs.get::<CollapsedNode<V>>(cid)?
+                            bs.get_cbor::<CollapsedNode<V>>(cid)?
                                 .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                 .expand(bit_width)
                                 .map(Box::new)
@@ -425,7 +425,7 @@ where
     ) -> Result<bool, Box<dyn StdError>>
     where
         F: FnMut(usize, &V) -> Result<bool, Box<dyn StdError>>,
-        S: BlockStore,
+        S: Blockstore,
     {
         match self {
             Node::Leaf { vals } => {
@@ -449,7 +449,7 @@ where
                             }
                             Link::Cid { cid, cache } => {
                                 let cached_node = cache.get_or_try_init(|| {
-                                    bs.get::<CollapsedNode<V>>(cid)?
+                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
                                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)
@@ -484,7 +484,7 @@ where
     ) -> Result<(bool, bool), Box<dyn StdError>>
     where
         F: FnMut(usize, &mut ValueMut<'_, V>) -> Result<bool, Box<dyn StdError>>,
-        S: BlockStore,
+        S: Blockstore,
     {
         let mut did_mutate = false;
 
@@ -513,7 +513,7 @@ where
                             }
                             Link::Cid { cid, cache } => {
                                 cache.get_or_try_init(|| {
-                                    bs.get::<CollapsedNode<V>>(cid)?
+                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
                                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)

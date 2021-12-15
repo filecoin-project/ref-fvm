@@ -6,7 +6,7 @@ use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
 
 use cid::Cid;
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use filecoin_proofs_api as proofs;
 use filecoin_proofs_api::seal::compute_comm_d;
@@ -38,7 +38,7 @@ pub use sdk::ActorBlockstore;
 
 /// Runtime is the VM's internal runtime object.
 /// this is everything that is accessible to actors, beyond parameters.
-pub trait Runtime<BS: BlockStore>: Syscalls {
+pub trait Runtime<BS: Blockstore>: Syscalls {
     /// The network protocol version number at the current epoch.
     fn network_version(&self) -> NetworkVersion;
 

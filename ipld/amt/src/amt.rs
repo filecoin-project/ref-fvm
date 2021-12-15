@@ -7,9 +7,9 @@ use crate::{
     node::{CollapsedNode, Link},
     nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
+use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize};
-use ipld_blockstore::BlockStore;
+use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, CborStore};
 use itertools::sorted;
 use std::error::Error as StdError;
 
@@ -21,7 +21,7 @@ use std::error::Error as StdError;
 /// ```
 /// use ipld_amt::Amt;
 ///
-/// let db = ipld_blockstore::MemoryBlockstore::default();
+/// let db = blockstore::MemoryBlockstore::default();
 /// let mut amt = Amt::new(&db);
 ///
 /// // Insert or remove any serializable values
@@ -40,7 +40,7 @@ pub struct Amt<V, BS> {
     block_store: BS,
 }
 
-impl<V: PartialEq, BS: BlockStore> PartialEq for Amt<V, BS> {
+impl<V: PartialEq, BS: Blockstore> PartialEq for Amt<V, BS> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
@@ -49,7 +49,7 @@ impl<V: PartialEq, BS: BlockStore> PartialEq for Amt<V, BS> {
 impl<V, BS> Amt<V, BS>
 where
     V: DeserializeOwned + Serialize,
-    BS: BlockStore,
+    BS: Blockstore,
 {
     /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
@@ -72,7 +72,7 @@ where
     pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
         // Load root bytes from database
         let root: Root<V> = block_store
-            .get(cid)?
+            .get_cbor(cid)?
             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?;
 
         // Sanity check, this should never be possible.
@@ -213,7 +213,7 @@ where
                             } else {
                                 // Only retrieve sub node if not found in cache
                                 self.block_store
-                                    .get::<CollapsedNode<V>>(cid)?
+                                    .get_cbor::<CollapsedNode<V>>(cid)?
                                     .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                     .expand(self.root.bit_width)?
                             }
@@ -261,7 +261,7 @@ where
     /// flush root and return Cid used as key in block store
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.node.flush(&self.block_store)?;
-        Ok(self.block_store.put(&self.root, Code::Blake2b256)?)
+        Ok(self.block_store.put_cbor(&self.root, Code::Blake2b256)?)
     }
 
     /// Iterates over each value in the Amt and runs a function on the values.
@@ -274,7 +274,7 @@ where
     /// ```
     /// use ipld_amt::Amt;
     ///
-    /// let store = ipld_blockstore::MemoryBlockstore::default();
+    /// let store = blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Amt<String, _> = Amt::new(&store);
     /// map.set(1, "One".to_owned()).unwrap();

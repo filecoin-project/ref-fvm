@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ipld_blockstore::BlockStore;
+use blockstore::Blockstore;
 
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ActorError;
@@ -19,6 +19,6 @@ pub(crate) trait ActorCode {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: BlockStore,
+        BS: Blockstore,
         RT: Runtime<BS>;
 }
