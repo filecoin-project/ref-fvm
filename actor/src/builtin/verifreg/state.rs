@@ -3,8 +3,8 @@
 
 use std::error::Error as StdError;
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 
 use fvm_shared::address::Address;
 use fvm_shared::encoding::{tuple::*, Cbor};

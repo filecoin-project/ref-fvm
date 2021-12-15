@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use blockstore::MemoryBlockstore;
 use forest_actor::{u64_key, SetMultimap};
 use fvm_shared::clock::ChainEpoch;
-use blockstore::MemoryBlockstore;
 
 #[test]
 fn put_remove() {

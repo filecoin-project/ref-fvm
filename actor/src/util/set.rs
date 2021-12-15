@@ -3,8 +3,8 @@
 
 use std::error::Error as StdError;
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_hamt::Error;

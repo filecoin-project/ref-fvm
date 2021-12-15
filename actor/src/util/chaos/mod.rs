@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Cid;
 use blockstore::Blockstore;
+use cid::Cid;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 

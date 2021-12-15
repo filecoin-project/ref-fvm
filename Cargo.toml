@@ -5,7 +5,7 @@ members = [
     "shared",
     "lib/*",
     "actor",
-    "examples/*",
+    "examples/actor",
     "examples/blockstore-cgo/user",
 
     "ipld",

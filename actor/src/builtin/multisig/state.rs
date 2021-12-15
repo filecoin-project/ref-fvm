@@ -3,9 +3,9 @@
 
 use std::error::Error as StdError;
 
+use blockstore::Blockstore;
 use cid::Cid;
 use indexmap::IndexMap;
-use blockstore::Blockstore;
 use num_traits::Zero;
 
 use fvm_shared::address::Address;

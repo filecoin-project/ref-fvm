@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use blockstore::MemoryBlockstore;
 use forest_actor::BalanceTable;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use blockstore::MemoryBlockstore;
 
 // Ported test from specs-actors
 #[test]

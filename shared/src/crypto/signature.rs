@@ -240,6 +240,7 @@ mod tests {
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
     use crate::encoding::blake2b_256;
+    use crate::Address;
     use bls_signatures::{PrivateKey, Serialize, Signature as BlsSignature};
     use libsecp256k1::{sign, Message, PublicKey, SecretKey};
     use rand::{Rng, SeedableRng};
