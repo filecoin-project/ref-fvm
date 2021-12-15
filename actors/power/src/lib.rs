@@ -3,6 +3,7 @@
 
 use ahash::AHashSet;
 use blockstore::Blockstore;
+use ext::init;
 use indexmap::IndexMap;
 use log::{debug, error};
 use num_derive::FromPrimitive;
@@ -24,14 +25,12 @@ use actors_runtime::{
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 
-use fvm_actor_init as init;
-use fvm_actor_miner::{self as miner, MinerConstructorParams};
-use fvm_actor_reward::Method as RewardMethod;
-
 pub use self::policy::*;
 pub use self::state::*;
 pub use self::types::*;
 
+#[doc(hidden)]
+pub mod ext;
 mod policy;
 mod state;
 mod types;
@@ -100,13 +99,13 @@ impl Actor {
             control_addresses: Default::default(),
         })?;
 
-        let init::ExecReturn {
+        let ext::init::ExecReturn {
             id_address,
             robust_address,
         } = rt
             .send(
                 *INIT_ACTOR_ADDR,
-                init::Method::Exec as u64,
+                ext::init::EXEC_METHOD,
                 RawBytes::serialize(init::ExecParams {
                     code_cid: *MINER_ACTOR_CODE_ID,
                     constructor_params,
@@ -272,7 +271,7 @@ impl Actor {
         // Update network KPA in reward actor
         rt.send(
             *REWARD_ACTOR_ADDR,
-            RewardMethod::UpdateNetworkKPI as MethodNum,
+            ext::reward::UPDATE_NETWORK_KPI,
             this_epoch_raw_byte_power?,
             TokenAmount::from(0),
         )
@@ -487,8 +486,8 @@ impl Actor {
             if !successful.is_empty() {
                 let _ = rt.send(
                     *m,
-                    miner::Method::ConfirmSectorProofsValid as MethodNum,
-                    RawBytes::serialize(&miner::ConfirmSectorProofsParams {
+                    ext::miner::CONFIRM_SECTOR_PROOFS_VALID_METHOD,
+                    RawBytes::serialize(&ext::miner::ConfirmSectorProofsParams {
                         sectors: successful,
                     })?,
                     Default::default(),
