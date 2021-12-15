@@ -15,13 +15,17 @@ pub mod clock;
 pub mod commcid;
 pub mod consensus;
 pub mod crypto;
+pub mod deadlines;
 pub mod deal;
 pub mod econ;
 pub mod encoding;
 pub mod error;
+pub mod math;
 pub mod piece;
 pub mod randomness;
+pub mod reward;
 pub mod sector;
+pub mod smooth;
 pub mod state;
 pub mod version;
 

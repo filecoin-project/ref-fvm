@@ -54,6 +54,10 @@ jobs:
           at: "."
       - restore_rustup_cache
       - run:
+          name: install wasm32 target
+          command: |
+            rustup target add wasm32-unknown-unknown
+      - run:
           name: make dummy example wasm module
           command: |
             # otherwise the include_bytes! macro fails because this file hasn't been generated
