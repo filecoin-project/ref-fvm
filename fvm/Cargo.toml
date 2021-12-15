@@ -28,6 +28,18 @@ derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
 
-# actors = { path = "../actor" }
+actors-runtime = { path = "../actors/runtime" }
+fvm_actor_account = { path = "../actors/account" }
+fvm_actor_cron = { path = "../actors/cron" }
+fvm_actor_init = { path = "../actors/init" }
+fvm_actor_market = { path = "../actors/market" }
+fvm_actor_miner = { path = "../actors/miner" }
+fvm_actor_multisig = { path = "../actors/multisig" }
+fvm_actor_paych = { path = "../actors/paych" }
+fvm_actor_power = { path = "../actors/power" }
+fvm_actor_reward = { path = "../actors/reward" }
+fvm_actor_system = { path = "../actors/system" }
+fvm_actor_verifreg = { path = "../actors/verifreg" }
 
 [features]
+default = []

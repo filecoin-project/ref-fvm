@@ -28,6 +28,23 @@ pub use self::logic::*;
 pub use self::state::{Reward, State, VestingFunction};
 pub use self::types::*;
 
+/// Export the wasm binary
+#[cfg(not(feature = "runtime-wasm"))]
+pub mod wasm {
+    include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_wasm_binaries() {
+            assert!(WASM_BINARY.unwrap().len() > 0);
+            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+        }
+    }
+}
+
 pub(crate) mod expneg;
 mod logic;
 mod state;

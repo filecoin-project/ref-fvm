@@ -63,6 +63,23 @@ use fvm_shared::smooth::FilterEstimate;
 
 use crate::Code::Blake2b256;
 
+/// Export the wasm binary
+#[cfg(not(feature = "runtime-wasm"))]
+pub mod wasm {
+    include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_wasm_binaries() {
+            assert!(WASM_BINARY.unwrap().len() > 0);
+            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+        }
+    }
+}
+
 mod bitfield_queue;
 mod deadline_assignment;
 mod deadline_info;

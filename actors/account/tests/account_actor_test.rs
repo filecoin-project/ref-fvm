@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use actors_runtime::builtin::{ACCOUNT_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
+use actors_runtime::builtin::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
 use actors_runtime::test_utils::*;
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;

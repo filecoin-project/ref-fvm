@@ -151,36 +151,35 @@ where
 
     pub fn load_module(&self, code: &Cid) -> Result<Module> {
         // TODO: cache compiled code, and modules?
-        todo!()
-        // if code == &*SYSTEM_ACTOR_CODE_ID {
-        //     Some(system::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*INIT_ACTOR_CODE_ID {
-        //     Some(init::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*CRON_ACTOR_CODE_ID {
-        //     Some(cron::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*ACCOUNT_ACTOR_CODE_ID {
-        //     Some(account::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*POWER_ACTOR_CODE_ID {
-        //     Some(power::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*MINER_ACTOR_CODE_ID {
-        //     Some(miner::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*MARKET_ACTOR_CODE_ID {
-        //     Some(market::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*PAYCH_ACTOR_CODE_ID {
-        //     Some(paych::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*MULTISIG_ACTOR_CODE_ID {
-        //     Some(multisig::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*REWARD_ACTOR_CODE_ID {
-        //     Some(reward::Actor::invoke_method(rt, method_num, params))
-        // } else if code == &*VERIFREG_ACTOR_CODE_ID {
-        //     Some(verifreg::Actor::invoke_method(rt, method_num, params))
-        // } else {
-        //     None
-        // }
+        let binary = if code == &*actors_runtime::SYSTEM_ACTOR_CODE_ID {
+            fvm_actor_system::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::INIT_ACTOR_CODE_ID {
+            fvm_actor_init::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::CRON_ACTOR_CODE_ID {
+            fvm_actor_cron::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::ACCOUNT_ACTOR_CODE_ID {
+            fvm_actor_account::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::POWER_ACTOR_CODE_ID {
+            fvm_actor_power::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::MINER_ACTOR_CODE_ID {
+            fvm_actor_miner::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::MARKET_ACTOR_CODE_ID {
+            fvm_actor_market::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::PAYCH_ACTOR_CODE_ID {
+            fvm_actor_paych::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::MULTISIG_ACTOR_CODE_ID {
+            fvm_actor_multisig::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::REWARD_ACTOR_CODE_ID {
+            fvm_actor_reward::wasm::WASM_BINARY
+        } else if code == &*actors_runtime::VERIFREG_ACTOR_CODE_ID {
+            fvm_actor_verifreg::wasm::WASM_BINARY
+        } else {
+            None
+        };
 
-        // let bytecode = actors::wasm::WASM_BINARY.context("missing wasm binary")?;
-        // let module = Module::new(&self.engine, bytecode)?;
-        // Ok(module)
+        let binary = binary.context("missing wasm binary")?;
+        let module = Module::new(&self.engine, binary)?;
+        Ok(module)
     }
 
     /// This is the entrypoint to execute a message.
