@@ -267,7 +267,7 @@ impl State {
                 sector_expiry,
                 curr_epoch,
             )
-                        .map(|(deal_st, verified_st, _)| (deal_st, verified_st)),
+            .map(|(deal_st, verified_st, _)| (deal_st, verified_st)),
 
             State::V6(st) => actorv6::market::validate_deals_for_activation(
                 st,

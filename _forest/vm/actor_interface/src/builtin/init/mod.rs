@@ -78,7 +78,7 @@ impl State {
             State::V3(st) => Ok(st.map_address_to_new_id(store, addr)?),
             State::V4(st) => Ok(st.map_address_to_new_id(store, addr)?),
             State::V5(st) => Ok(st.map_address_to_new_id(store, addr)?),
-        State::V6(st) => Ok(st.map_address_to_new_id(store, addr)?),
+            State::V6(st) => Ok(st.map_address_to_new_id(store, addr)?),
         }
     }
 

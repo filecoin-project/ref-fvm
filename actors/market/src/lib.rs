@@ -398,7 +398,6 @@ impl Actor {
 
             deal.proposal.provider = provider;
             deal.proposal.client = client;
-            // TODO resolved_addr add
             let pcid = deal.proposal.cid().map_err(|e| {
                 ActorError::from(e).wrap(format!("failed to take cid of proposal {}", di))
             })?;
