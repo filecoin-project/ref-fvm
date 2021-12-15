@@ -1,10 +1,10 @@
 use cid::Cid;
 
-/// The maximum supported CID size. (SPEC_AUDIT)
-pub const MAX_CID_LEN: usize = 100;
-
 /// The unit/void object.
 pub const UNIT: u32 = crate::sys::ipld::UNIT;
+
+/// The maximum supported CID size. (SPEC_AUDIT)
+pub const MAX_CID_LEN: usize = 100;
 
 /// Get the IPLD root CID.
 pub fn get_root() -> Cid {

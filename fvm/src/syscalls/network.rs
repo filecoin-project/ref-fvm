@@ -16,7 +16,7 @@ pub fn version(caller: Caller<'_, impl Kernel>) -> Result<u32, Trap> {
 
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(caller: Caller<'_, impl Kernel>) -> Result<(u64, u64), Trap> {
-    let mut ctx = Context::new(caller).with_memory()?;
+    let mut ctx = Context::new(caller);
     let base_fee = ctx.data().network_base_fee();
     let mut iter = base_fee.iter_u64_digits();
     Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
