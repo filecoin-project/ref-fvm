@@ -4,7 +4,6 @@
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
 use cid::Cid;
-use fvm_shared::encoding::CborStore;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::ser;

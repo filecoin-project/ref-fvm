@@ -4,7 +4,7 @@ members = [
     "sdk",
     "shared",
     "lib/*",
-    "actor",
+    "actors/*",
     "examples/actor",
     "examples/blockstore-cgo/user",
 
@@ -21,7 +21,7 @@ default-members = [
     "sdk",
     "shared",
     "lib/*",
-    "actor",
+    "actors/*",
     # don't build the examples by default, as they require a specific target and profile.
     # build them with cargo make examples
     # "examples/*"
