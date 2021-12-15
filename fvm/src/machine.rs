@@ -40,7 +40,7 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 //
 // If the inner value is `None` it means the machine got poisend and is unusable.
 #[repr(transparent)]
-pub struct Machine<B: 'static, E: 'static>(Option<InnerMachine<B, E>>);
+pub struct Machine<B: 'static, E: 'static>(Option<Box<InnerMachine<B, E>>>);
 
 impl<B: 'static, E: 'static> Deref for Machine<B, E> {
     type Target = InnerMachine<B, E>;
@@ -103,13 +103,13 @@ where
         //  non-send errors in the state-tree.
         let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)?;
 
-        Ok(Machine(Some(InnerMachine {
+        Ok(Machine(Some(Box::new(InnerMachine {
             config,
             context,
             engine,
             externs,
             state_tree,
-        })))
+        }))))
     }
 
     pub fn engine(&self) -> &Engine {
