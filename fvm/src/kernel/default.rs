@@ -26,6 +26,7 @@ use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
 use crate::kernel::error::SyscallError;
+use crate::kernel::ExecutionError::Syscall;
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
 use filecoin_proofs_api::{
@@ -414,10 +415,59 @@ where
 
     fn compute_unsealed_sector_cid(
         &mut self,
-        reg: RegisteredSealProof,
+        proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_compute_unsealed_sector_cid(proof_type, pieces);
+        self.call_manager.charge_gas(charge)?;
+
+        let ssize = proof_type.sector_size().map_err(SyscallError::from)? as u64;
+
+        let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+
+        let pssize = PaddedPieceSize(ssize);
+        if pieces.is_empty() {
+            all_pieces.push(proofs::PieceInfo {
+                size: pssize.unpadded().into(),
+                commitment: zero_piece_commitment(pssize),
+            })
+        } else {
+            // pad remaining space with 0 piece commitments
+            let mut sum = PaddedPieceSize(0);
+            let pad_to = |pads: Vec<PaddedPieceSize>,
+                          all_pieces: &mut Vec<proofs::PieceInfo>,
+                          sum: &mut PaddedPieceSize| {
+                for p in pads {
+                    all_pieces.push(proofs::PieceInfo {
+                        size: p.unpadded().into(),
+                        commitment: zero_piece_commitment(p),
+                    });
+
+                    sum.0 += p.0;
+                }
+            };
+            for p in pieces {
+                let (ps, _) = get_required_padding(sum, p.size);
+                pad_to(ps, &mut all_pieces, &mut sum);
+
+                all_pieces.push(proofs::PieceInfo::try_from(p).map_err(SyscallError::from)?);
+                sum.0 += p.size.0;
+            }
+
+            let (ps, _) = get_required_padding(sum, pssize);
+            pad_to(ps, &mut all_pieces, &mut sum);
+        }
+
+        let comm_d = compute_comm_d(
+            proof_type.try_into().map_err(SyscallError::from)?,
+            &all_pieces,
+        )?;
+
+        Ok(data_commitment_v1_to_cid(&comm_d).map_err(SyscallError::from)?)
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
