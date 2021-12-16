@@ -217,10 +217,10 @@ where
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
-        // self.call_manager
-        //     .blockstore()
-        //     .put(&k, block.data())
-        //     .map_err(|e| BlockError::Internal(Box::new(e)))?;
+        self.call_manager
+            .blockstore()
+            .put_keyed(&k, block.data())
+            .map_err(|e| anyhow!(e))?;
         Ok(k)
     }
 
