@@ -11,7 +11,7 @@ jobs:
     steps:
       - checkout
       - rust/install:
-          version: nightly
+          version: "1.57"
       - run:
           # we don't check the lockfile in; this is needed for cache restoration/saving
           name: generate lockfile
@@ -76,7 +76,7 @@ jobs:
           at: "."
       - restore_rustup_cache
       - rust/format:
-          nightly-toolchain: true
+          nightly-toolchain: false
           with_cache: false
 
 commands:
