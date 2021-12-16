@@ -6,7 +6,7 @@ use fvm_shared::{
     address::{Address, Protocol},
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
-    ActorID, MethodNum,
+    ActorID, MethodNum, METHOD_SEND,
 };
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
@@ -45,8 +45,6 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
-    /// The sender of the message.
-    from: ActorID,
 }
 
 #[doc(hidden)]
@@ -71,9 +69,8 @@ where
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
+    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64) -> Self {
         CallManager(Some(InnerCallManager {
-            from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
         }))
@@ -83,7 +80,6 @@ where
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            // TODO: should this be an actor error?
             return Err(
                 actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
                     .into(),
@@ -97,9 +93,10 @@ where
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
         let params = RawBytes::serialize(&addr)
-            .context("couldn't serialize params for actor construction: {:?}")?;
+            // TODO this should be a Sys actor error, but we're copying ltous here.
+            .map_err(|e| actor_error!(ErrSerialization; "failed to serialize params: {}", e))?;
 
-        self.send_explicit(
+        self.send_resolved(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
@@ -115,6 +112,7 @@ where
     /// This method does not create any transactions, that's the caller's responsibility.
     pub fn send(
         &mut self,
+        from: ActorID,
         to: Address,
         method: MethodNum,
         params: &RawBytes,
@@ -129,18 +127,21 @@ where
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor(&to)?
                 }
-                _ => return Err(anyhow::anyhow!("actor not found: {}", to).into()),
+                _ => {
+                    return Err(
+                        actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to).into(),
+                    )
+                }
             },
         };
 
         // Do the actual send.
 
-        self.send_resolved(to, method, &params, &value)
+        self.send_resolved(from, to, method, &params, &value)
     }
 
-    /// Send with an explicit from. Used when we need to do an internal send with a different
-    /// "from".
-    fn send_explicit(
+    /// Send with resolved addresses.
+    fn send_resolved(
         &mut self,
         from: ActorID,
         to: ActorID,
@@ -148,25 +149,32 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<RawBytes> {
-        // TODO: this is kind of nasty...
-        // Maybe just make from explicit?
-        let prev_from = self.from;
-        self.from = from;
-        let res = self.send_resolved(to, method, params, value);
-        self.from = prev_from;
+        // 1. Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(to)?
+            .ok_or_else(|| actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
-        res
-    }
+        // 2. Charge the method gas. Not sure why this comes second, but it does.
+        self.charge_gas(
+            self.context()
+                .price_list()
+                .on_method_invocation(value, method),
+        )?;
 
-    /// Send with resolved addresses.
-    fn send_resolved(
-        &mut self,
-        to: ActorID,
-        method: MethodNum,
-        params: &RawBytes,
-        value: &TokenAmount,
-    ) -> Result<RawBytes> {
-        // 1. Setup the engine/linker. TODO: move these into the machine?
+        // 3. Transfer, if necessary.
+        if !value.is_zero() {
+            self.machine.transfer(from, to, &value)?;
+        }
+
+        // 4. Abort early if we have a send.
+        if method == METHOD_SEND {
+            return Ok(RawBytes::default());
+        }
+
+        // 3. Finally, handle the code.
+
+        let module = self.load_module(&state.code)?;
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
@@ -176,64 +184,28 @@ where
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker)?;
 
-        let to_addr = Address::new_id(to);
-
-        // 2. Lookup the actor.
-        // TODO: should we let the kernel do this? We could _ask_ the kernel for the code to
-        //  execute?
-        let mut state = self
-            .state_tree()
-            .get_actor(&to_addr)?
-            .with_context(|| format!("actor does not exist: {}", to))?;
-
-        let module = self.load_module(&state.code)?;
-
-        // 2. Update balance.
-        if !value.is_zero() {
-            state.balance += value.clone();
-            self.state_tree_mut().set_actor(&to_addr, state)?;
-        }
-
-        // 3. Construct a kernel.
-
-        // TODO: Make the kernel pluggable.
         self.map_mut(|cm| {
-            let from = cm.from.clone();
-            let mut kernel = DefaultKernel::new(cm, from, to, method, value.clone());
-
-            // 4. Load parameters.
-
-            let param_id = match kernel.block_create(DAG_CBOR, params) {
-                Ok(id) => id,
-                Err(e) => return (Err(e.into()), kernel.take()),
-            };
-
-            // TODO: BELOW ERROR HANDLING IS BROKEN.
-            // We should put it in a new function.
-
-            // 3. Instantiate the module.
+            // Make the kernel/store.
+            let kernel = DefaultKernel::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, kernel);
-            // TODO error handling.
-            let instance = linker.instantiate(&mut store, &module).unwrap();
 
-            // 4. Invoke it.
-            // TODO error handling.
-            let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
-            // TODO error handling.
-            let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,)).unwrap();
+            let result = (|| {
+                // Load parameters.
+                let param_id = store.data_mut().block_create(DAG_CBOR, params)?;
 
-            // 5. Recover return value.
-            let kernel = store.into_data();
+                // Instantiate the module.
+                let instance = linker.instantiate(&mut store, &module)?;
 
-            // TODO: this is a nasty API. We should have a nicer way to just "get a block".
-            // TODO error handling.
-            let ret_stat = kernel.block_stat(return_block_id).unwrap();
-            let mut ret = vec![0; ret_stat.size as usize];
-            // TODO error handling.
-            let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
-            ret.truncate(read as usize);
+                // Invoke it.
+                let invoke = instance.get_typed_func(&mut store, "invoke")?;
+                let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,))?;
 
-            (Ok(RawBytes::new(ret)), kernel.take())
+                let (code, ret) = store.data().block_get(return_block_id)?;
+                debug_assert_eq!(code, DAG_CBOR);
+                Ok(RawBytes::new(ret))
+            })();
+
+            (result, store.into_data().take())
         })
     }
 

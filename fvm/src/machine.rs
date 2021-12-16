@@ -4,7 +4,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
-use num_traits::Zero;
+use num_traits::{Signed, Zero};
 use wasmtime::{Engine, Module};
 
 use blockstore::Blockstore;
@@ -192,7 +192,7 @@ where
 
         // Apply the message.
         let (res, gas_used) = self.map_mut(|machine| {
-            let mut cm = CallManager::new(machine, sender_id, msg.gas_limit);
+            let mut cm = CallManager::new(machine, msg.gas_limit);
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().1);
             }
@@ -201,7 +201,7 @@ where
             cm.state_tree.begin_transaction();
 
             // Invoke the message.
-            let mut res = cm.send(msg.to, msg.method_num, &msg.params, &msg.value);
+            let mut res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
 
             // Charge for including the result.
             // We shouldn't put this here, but this is where we can still account for gas.
@@ -435,6 +435,44 @@ where
             penalty: miner_penalty,
             miner_tip,
         })
+    }
+
+    pub fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+        if from == to {
+            return Ok(());
+        }
+        if value.is_negative() {
+            return Err(actor_error!(SysErrForbidden;
+                "attempted to transfer negative transfer value {}", value)
+            .into());
+        }
+
+        let mut from_actor = self.state_tree.get_actor_id(from)?.ok_or_else(|| {
+            actor_error!(fatal(
+                "sender actor does not exist in state during transfer"
+            ))
+        })?;
+
+        let mut to_actor = self.state_tree.get_actor_id(to)?.ok_or_else(|| {
+            actor_error!(fatal(
+                "receiver actor does not exist in state during transfer"
+            ))
+        })?;
+
+        from_actor.deduct_funds(value).map_err(|e| {
+            actor_error!(SysErrInsufficientFunds;
+                "transfer failed when deducting funds ({}): {}", value, e)
+        })?;
+        to_actor.deposit_funds(value);
+
+        // TODO turn failures into fatal errors
+        self.state_tree.set_actor_id(from, from_actor)?;
+        // .map_err(|e| e.downcast_fatal("failed to set from actor"))?;
+        // TODO turn failures into fatal errors
+        self.state_tree.set_actor_id(to, to_actor)?;
+        //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
+
+        Ok(())
     }
 
     pub fn context(&self) -> &MachineContext {

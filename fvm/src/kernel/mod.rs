@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::result::Result as StdResult;
 
 use cid::Cid;
 
 use crate::message::Message;
+use crate::receipt::Receipt;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -76,36 +76,43 @@ pub trait BlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
-    fn block_open(&mut self, cid: &Cid) -> StdResult<BlockId, BlockError>;
+    fn block_open(&mut self, cid: &Cid) -> Result<BlockId>;
 
     /// Create a new block.
     ///
     /// This method will fail if the block is too large (SPEC_AUDIT), the codec is not allowed
     /// (SPEC_AUDIT), the block references unreachable blocks, or the block contains too many links
     /// (SPEC_AUDIT).
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> StdResult<BlockId, BlockError>;
+    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId>;
 
     /// Computes a CID for a block.
     ///
     /// This is the only way to add a new block to the "reachable" set.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_link(
-        &mut self,
-        id: BlockId,
-        hash_fun: u64,
-        hash_len: u32,
-    ) -> StdResult<Cid, BlockError>;
+    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid>;
 
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> StdResult<u32, BlockError>;
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32>;
 
     /// Returns the blocks codec & size.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError>;
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat>;
+
+    /// Returns a codec and a block as an owned buffer, given an ID.
+    ///
+    /// This method will fail if the block handle is invalid.
+    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+        let stat = self.block_stat(id)?;
+        let mut ret = vec![0; stat.size as usize];
+        // TODO error handling.
+        let read = self.block_read(id, 0, &mut ret)?;
+        debug_assert_eq!(stat.size, read, "didn't read expected bytes");
+        Ok((stat.codec, ret))
+    }
 
     // TODO: add a way to _flush_ new blocks.
 }
@@ -170,7 +177,7 @@ pub trait ReturnOps {
 
 /// Operations to send messages to other actors.
 pub trait SendOps {
-    fn send(&mut self, message: Message) -> Result<RawBytes>;
+    fn send(&mut self, message: Message) -> Result<Receipt>;
 }
 
 /// Operations to query the circulating supply.

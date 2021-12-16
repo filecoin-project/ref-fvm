@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Context;
+use fvm_shared::error::ExitCode;
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
@@ -18,9 +19,11 @@ use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::init_actor::State;
 use crate::message::Message;
+use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
 use super::blocks::{Block, BlockRegistry};
+use super::error::Result;
 use super::*;
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -95,47 +98,6 @@ where
         self.caller_validated = true;
         Ok(())
     }
-
-    /// Transfer funds out of the executing actor.
-    fn transfer(&mut self, recipient: ActorID, value: &TokenAmount) -> Result<()> {
-        let from = self.to;
-        if from == recipient {
-            return Ok(());
-        }
-        if value.is_negative() {
-            return Err(actor_error!(SysErrForbidden;
-                "attempted to transfer negative transfer value {}", value)
-            .into());
-        }
-
-        let mut state_tree = self.call_manager.state_tree_mut();
-        let mut from_actor = state_tree.get_actor_id(from)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "sender actor does not exist in state during transfer"
-            ))
-        })?;
-
-        let mut to_actor = state_tree.get_actor_id(recipient)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "receiver actor does not exist in state during transfer"
-            ))
-        })?;
-
-        from_actor.deduct_funds(value).map_err(|e| {
-            actor_error!(SysErrInsufficientFunds;
-                "transfer failed when deducting funds ({}): {}", value, e)
-        })?;
-        to_actor.deposit_funds(value);
-
-        // TODO turn failures into fatal errors
-        state_tree.set_actor_id(from, from_actor)?;
-        // .map_err(|e| e.downcast_fatal("failed to set from actor"))?;
-        // TODO turn failures into fatal errors
-        state_tree.set_actor_id(recipient, to_actor)?;
-        //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
-
-        Ok(())
-    }
 }
 
 impl<B, E> SelfOps for DefaultKernel<B, E>
@@ -202,7 +164,8 @@ where
             }
 
             // Transfer the entirety of funds to beneficiary.
-            self.transfer(beneficiary_id, &balance)?;
+            self.call_manager
+                .transfer(self.from, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
@@ -216,28 +179,25 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
-    fn block_open(&mut self, cid: &Cid) -> StdResult<BlockId, BlockError> {
+    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
         let data = self
             .call_manager
             .blockstore()
             .get(cid)
-            .map_err(|e| BlockError::Internal(e.into()))?
+            .map_err(|e| anyhow!(e))?
             .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;
 
         let block = Block::new(cid.codec(), data);
-        self.blocks.put(block)
+        Ok(self.blocks.put(block)?)
     }
 
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> StdResult<BlockId, BlockError> {
-        self.blocks.put(Block::new(codec, data))
+    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        Ok(self.blocks.put(Block::new(codec, data))?)
     }
 
-    fn block_link(
-        &mut self,
-        id: BlockId,
-        hash_fun: u64,
-        hash_len: u32,
-    ) -> StdResult<Cid, BlockError> {
+    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
+        // TODO: check hash function & length against allow list.
+
         use multihash::MultihashDigest;
         let block = self.blocks.get(id)?;
         let code =
@@ -253,19 +213,20 @@ where
             return Err(BlockError::InvalidMultihashSpec {
                 code: hash_fun,
                 length: hash_len,
-            });
+            }
+            .into());
         }
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
-        // self.call_manager
-        //     .blockstore()
-        //     .put(&k, block.data())
-        //     .map_err(|e| BlockError::Internal(Box::new(e)))?;
+        self.call_manager
+            .blockstore()
+            .put_keyed(&k, block.data())
+            .map_err(|e| anyhow!(e))?;
         Ok(k)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> StdResult<u32, BlockError> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         let data = &self.blocks.get(id)?.data;
         Ok(if offset as usize >= data.len() {
             0
@@ -276,8 +237,9 @@ where
         })
     }
 
-    fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError> {
-        self.blocks.get(id).map(|b| BlockStat {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+        let b = self.blocks.get(id)?;
+        Ok(BlockStat {
             codec: b.codec(),
             size: b.size(),
         })
@@ -326,10 +288,11 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> Result<RawBytes> {
+    fn send(&mut self, message: Message) -> Result<Receipt> {
         self.call_manager.state_tree_mut().begin_transaction();
 
         let res = self.call_manager.send(
+            self.from,
             message.to,
             message.method_num,
             &message.params,
@@ -339,7 +302,34 @@ where
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
-        res.map_err(Into::into)
+
+        // We convert the error into a receipt because we _dont'_ want to trap.
+        // TODO: we need to log the error message int he machine somehow.
+        res.map(|v| Receipt {
+            exit_code: ExitCode::Ok,
+            return_data: v,
+            gas_used: 0, // fill in?
+        })
+        .or_else(|e| match e {
+            ExecutionError::Actor(e) => {
+                // These cases shouldn't be possible, but we can't yet statically rule them out and
+                // I don't trust auto-conversion magic.
+                if e.is_fatal() {
+                    Err(ExecutionError::SystemError(anyhow!(e.msg().to_string())))
+                } else if e.exit_code().is_success() {
+                    Err(ExecutionError::SystemError(anyhow!(
+                        "got an error with a success code"
+                    )))
+                } else {
+                    Ok(Receipt {
+                        exit_code: e.exit_code(),
+                        return_data: RawBytes::default(),
+                        gas_used: 0,
+                    })
+                }
+            }
+            err => Err(err),
+        })
     }
 }
 
