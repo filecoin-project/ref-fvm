@@ -1,6 +1,5 @@
 use crate::syscalls::context::Context;
-use crate::syscalls::errors::into_trap;
-use crate::Kernel;
+use crate::{kernel::ExecutionError, Kernel};
 use cid::Cid;
 use fvm_shared::address::Address;
 use wasmtime::{Caller, Trap};
@@ -8,8 +7,8 @@ use wasmtime::{Caller, Trap};
 pub fn validate_immediate_caller_accept_any(caller: Caller<'_, impl Kernel>) -> Result<(), Trap> {
     Context::new(caller)
         .data_mut()
-        .validate_immediate_caller_accept_any()
-        .map_err(into_trap)
+        .validate_immediate_caller_accept_any()?;
+    Ok(())
 }
 
 pub fn validate_immediate_caller_addr_one_of(
@@ -21,10 +20,11 @@ pub fn validate_immediate_caller_addr_one_of(
     let bytes = ctx.try_slice(addrs_offset, addrs_len)?;
     // TODO sugar for enveloping unboxed errors into traps.
     let addrs: Vec<Address> =
-        fvm_shared::encoding::from_slice(bytes).map_err(|e| Trap::from(Box::from(e)))?;
+        fvm_shared::encoding::from_slice(bytes).map_err(ExecutionError::from)?;
     ctx.data_mut()
-        .validate_immediate_caller_addr_one_of(addrs.as_slice())
-        .map_err(into_trap)
+        .validate_immediate_caller_addr_one_of(addrs.as_slice())?;
+
+    Ok(())
 }
 
 pub fn validate_immediate_caller_type_one_of(
@@ -34,9 +34,9 @@ pub fn validate_immediate_caller_type_one_of(
 ) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let bytes = ctx.try_slice(cids_offset, cids_len)?;
-    let cids: Vec<Cid> =
-        fvm_shared::encoding::from_slice(bytes).map_err(|e| Trap::from(Box::from(e)))?;
+    let cids: Vec<Cid> = fvm_shared::encoding::from_slice(bytes).map_err(ExecutionError::from)?;
+
     ctx.data_mut()
-        .validate_immediate_caller_type_one_of(cids.as_slice())
-        .map_err(into_trap)
+        .validate_immediate_caller_type_one_of(cids.as_slice())?;
+    Ok(())
 }

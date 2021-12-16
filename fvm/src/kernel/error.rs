@@ -1,7 +1,7 @@
 use std::{cell::Cell, sync::Mutex};
 
 use derive_more::Display;
-use fvm_shared::{actor_error, encoding, error::ActorError, error::ExitCode};
+use fvm_shared::{actor_error, address, encoding, error::ActorError, error::ExitCode};
 use wasmtime::Trap;
 
 use crate::kernel::blocks;
@@ -32,6 +32,12 @@ impl From<encoding::Error> for ExecutionError {
     }
 }
 
+impl From<encoding::error::Error> for ExecutionError {
+    fn from(e: encoding::error::Error) -> Self {
+        ExecutionError::SystemError(e.into())
+    }
+}
+
 impl From<blocks::BlockError> for ExecutionError {
     fn from(e: blocks::BlockError) -> Self {
         use blocks::BlockError::*;
@@ -53,6 +59,18 @@ impl From<ipld_hamt::Error> for ExecutionError {
     fn from(e: ipld_hamt::Error) -> Self {
         // TODO: box dyn error is pervasive..
         ExecutionError::SystemError(anyhow::anyhow!("{:?}", e))
+    }
+}
+
+impl From<cid::Error> for ExecutionError {
+    fn from(e: cid::Error) -> Self {
+        ExecutionError::SystemError(e.into())
+    }
+}
+
+impl From<address::Error> for ExecutionError {
+    fn from(e: address::Error) -> Self {
+        ExecutionError::SystemError(e.into())
     }
 }
 
