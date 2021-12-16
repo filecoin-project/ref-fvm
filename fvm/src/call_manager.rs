@@ -6,7 +6,7 @@ use fvm_shared::{
     address::{Address, Protocol},
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
-    ActorID, MethodNum,
+    ActorID, MethodNum, METHOD_SEND,
 };
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
@@ -45,8 +45,6 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
-    /// The sender of the message.
-    from: ActorID,
 }
 
 #[doc(hidden)]
@@ -71,9 +69,8 @@ where
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<B, E>, from: ActorID, gas_limit: i64) -> Self {
+    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64) -> Self {
         CallManager(Some(InnerCallManager {
-            from,
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
         }))
@@ -99,7 +96,7 @@ where
         let params = RawBytes::serialize(&addr)
             .context("couldn't serialize params for actor construction: {:?}")?;
 
-        self.send_explicit(
+        self.send_resolved(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
@@ -115,6 +112,7 @@ where
     /// This method does not create any transactions, that's the caller's responsibility.
     pub fn send(
         &mut self,
+        from: ActorID,
         to: Address,
         method: MethodNum,
         params: &RawBytes,
@@ -135,12 +133,11 @@ where
 
         // Do the actual send.
 
-        self.send_resolved(to, method, &params, &value)
+        self.send_resolved(from, to, method, &params, &value)
     }
 
-    /// Send with an explicit from. Used when we need to do an internal send with a different
-    /// "from".
-    fn send_explicit(
+    /// Send with resolved addresses.
+    fn send_resolved(
         &mut self,
         from: ActorID,
         to: ActorID,
@@ -148,25 +145,32 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<RawBytes> {
-        // TODO: this is kind of nasty...
-        // Maybe just make from explicit?
-        let prev_from = self.from;
-        self.from = from;
-        let res = self.send_resolved(to, method, params, value);
-        self.from = prev_from;
+        // 1. Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(to)?
+            .with_context(|| format!("actor does not exist: {}", to))?;
 
-        res
-    }
+        // 2. Charge the method gas. Not sure why this comes second, but it does.
+        self.charge_gas(
+            self.context()
+                .price_list()
+                .on_method_invocation(value, method),
+        )?;
 
-    /// Send with resolved addresses.
-    fn send_resolved(
-        &mut self,
-        to: ActorID,
-        method: MethodNum,
-        params: &RawBytes,
-        value: &TokenAmount,
-    ) -> Result<RawBytes> {
-        // 1. Setup the engine/linker. TODO: move these into the machine?
+        // 3. Transfer, if necessary.
+        if !value.is_zero() {
+            self.machine.transfer(from, to, &value)?;
+        }
+
+        // 4. Abort early if we have a send.
+        if method == METHOD_SEND {
+            return Ok(RawBytes::default());
+        }
+
+        // 3. Finally, handle the code.
+
+        let module = self.load_module(&state.code)?;
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
@@ -176,29 +180,8 @@ where
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker)?;
 
-        let to_addr = Address::new_id(to);
-
-        // 2. Lookup the actor.
-        // TODO: should we let the kernel do this? We could _ask_ the kernel for the code to
-        //  execute?
-        let mut state = self
-            .state_tree()
-            .get_actor(&to_addr)?
-            .with_context(|| format!("actor does not exist: {}", to))?;
-
-        let module = self.load_module(&state.code)?;
-
-        // 2. Update balance.
-        if !value.is_zero() {
-            state.balance += value.clone();
-            self.state_tree_mut().set_actor(&to_addr, state)?;
-        }
-
-        // 3. Construct a kernel.
-
-        // TODO: Make the kernel pluggable.
         self.map_mut(|cm| {
-            let from = cm.from.clone();
+            // TODO: Make the kernel pluggable.
             let mut kernel = DefaultKernel::new(cm, from, to, method, value.clone());
 
             // 4. Load parameters.

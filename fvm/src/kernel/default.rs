@@ -95,47 +95,6 @@ where
         self.caller_validated = true;
         Ok(())
     }
-
-    /// Transfer funds out of the executing actor.
-    fn transfer(&mut self, recipient: ActorID, value: &TokenAmount) -> Result<()> {
-        let from = self.to;
-        if from == recipient {
-            return Ok(());
-        }
-        if value.is_negative() {
-            return Err(actor_error!(SysErrForbidden;
-                "attempted to transfer negative transfer value {}", value)
-            .into());
-        }
-
-        let mut state_tree = self.call_manager.state_tree_mut();
-        let mut from_actor = state_tree.get_actor_id(from)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "sender actor does not exist in state during transfer"
-            ))
-        })?;
-
-        let mut to_actor = state_tree.get_actor_id(recipient)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "receiver actor does not exist in state during transfer"
-            ))
-        })?;
-
-        from_actor.deduct_funds(value).map_err(|e| {
-            actor_error!(SysErrInsufficientFunds;
-                "transfer failed when deducting funds ({}): {}", value, e)
-        })?;
-        to_actor.deposit_funds(value);
-
-        // TODO turn failures into fatal errors
-        state_tree.set_actor_id(from, from_actor)?;
-        // .map_err(|e| e.downcast_fatal("failed to set from actor"))?;
-        // TODO turn failures into fatal errors
-        state_tree.set_actor_id(recipient, to_actor)?;
-        //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
-
-        Ok(())
-    }
 }
 
 impl<B, E> SelfOps for DefaultKernel<B, E>
@@ -202,7 +161,8 @@ where
             }
 
             // Transfer the entirety of funds to beneficiary.
-            self.transfer(beneficiary_id, &balance)?;
+            self.call_manager
+                .transfer(self.from, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
@@ -330,6 +290,7 @@ where
         self.call_manager.state_tree_mut().begin_transaction();
 
         let res = self.call_manager.send(
+            self.from,
             message.to,
             message.method_num,
             &message.params,
