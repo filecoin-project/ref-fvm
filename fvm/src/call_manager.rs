@@ -80,7 +80,6 @@ where
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            // TODO: should this be an actor error?
             return Err(
                 actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
                     .into(),
@@ -94,7 +93,8 @@ where
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
         let params = RawBytes::serialize(&addr)
-            .context("couldn't serialize params for actor construction: {:?}")?;
+            // TODO this should be a Sys actor error, but we're copying ltous here.
+            .map_err(|e| actor_error!(ErrSerialization; "failed to serialize params: {}", e))?;
 
         self.send_resolved(
             crate::account_actor::SYSTEM_ACTOR_ID,
@@ -127,7 +127,11 @@ where
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor(&to)?
                 }
-                _ => return Err(anyhow::anyhow!("actor not found: {}", to).into()),
+                _ => {
+                    return Err(
+                        actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to).into(),
+                    )
+                }
             },
         };
 
@@ -149,7 +153,7 @@ where
         let state = self
             .state_tree()
             .get_actor_id(to)?
-            .with_context(|| format!("actor does not exist: {}", to))?;
+            .ok_or_else(|| actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
         // 2. Charge the method gas. Not sure why this comes second, but it does.
         self.charge_gas(
