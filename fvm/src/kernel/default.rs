@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use anyhow::Context;
-use fvm_shared::error::ExitCode;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::convert::{TryFrom, TryInto};
+use std::error::Error as StdError;
 
 use cid::Cid;
 use num_traits::Signed;
@@ -15,6 +15,7 @@ use fvm_shared::commcid::{
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
+use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
 use fvm_shared::{actor_error, ActorID};
 
@@ -40,6 +41,8 @@ use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
+
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Tracks data accessed and modified during the execution of a message.
 ///
@@ -399,7 +402,7 @@ where
             .verify(plaintext, &signing_addr)
             // TODO raising as a system error but this is NOT a fatal error;
             //  this should be a SyscallError type with no associated exit code.
-            .map_err(|s| ExecutionError::SystemError(anyhow!(s)))?)
+            .map_err(SyscallError::from)?)
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
@@ -516,7 +519,74 @@ where
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<()> {
-        todo!()
+        if aggregate.infos.is_empty() {
+            return Err(SyscallError("no seal verify infos".to_owned(), None).into());
+        }
+        let spt: proofs::RegisteredSealProof = aggregate
+            .seal_proof
+            .try_into()
+            .map_err(SyscallError::from)?;
+        let prover_id = prover_id_from_u64(aggregate.miner);
+        struct AggregationInputs {
+            // replica
+            commr: [u8; 32],
+            // data
+            commd: [u8; 32],
+            sector_id: SectorId,
+            ticket: [u8; 32],
+            seed: [u8; 32],
+        }
+        let inputs: Vec<AggregationInputs> = aggregate
+            .infos
+            .iter()
+            .map(|info| {
+                let commr = cid_to_replica_commitment_v1(&info.sealed_cid)?;
+                let commd = cid_to_data_commitment_v1(&info.unsealed_cid)?;
+                Ok(AggregationInputs {
+                    commr,
+                    commd,
+                    ticket: bytes_32(&info.randomness.0),
+                    seed: bytes_32(&info.interactive_randomness.0),
+                    sector_id: SectorId::from(info.sector_number),
+                })
+            })
+            .collect::<core::result::Result<Vec<_>, &'static str>>()
+            .map_err(SyscallError::from)?;
+
+        let inp: Vec<Vec<_>> = inputs
+            .par_iter()
+            .map(|input| {
+                seal::get_seal_inputs(
+                    spt,
+                    input.commr,
+                    input.commd,
+                    prover_id,
+                    input.sector_id,
+                    input.ticket,
+                    input.seed,
+                )
+            })
+            .try_reduce(Vec::new, |mut acc, current| {
+                acc.extend(current);
+                Ok(acc)
+            })?;
+        let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
+        let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
+        if !verify_aggregate_seal_commit_proofs(
+            spt,
+            aggregate
+                .aggregate_proof
+                .try_into()
+                .map_err(SyscallError::from)?,
+            aggregate.proof.clone(),
+            &commrs,
+            &seeds,
+            inp,
+        )? {
+            Err(SyscallError("Invalid Aggregate Seal proof".to_owned(), None).into())
+        } else {
+            Ok(())
+        }
     }
 }
 
