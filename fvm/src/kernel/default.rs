@@ -37,13 +37,18 @@ use filecoin_proofs_api::{
 use fvm_shared::address::Protocol;
 use fvm_shared::consensus::ConsensusFaultType;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use lazy_static::lazy_static;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
 
 use fvm_shared::sector::SectorInfo;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+lazy_static! {
+    static ref NUM_CPUS: usize = num_cpus::get();
+}
 
 /// Tracks data accessed and modified during the execution of a message.
 ///
@@ -548,7 +553,40 @@ where
         &mut self,
         vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Result<HashMap<Address, Vec<bool>>> {
-        todo!()
+        log::debug!("batch verify seals start");
+        let out = vis
+            .par_iter()
+            .with_min_len(vis.len() / *NUM_CPUS)
+            .map(|(&addr, seals)| {
+                let results = seals
+                    .par_iter()
+                    .map(|s| {
+                        let verify_seal_result = std::panic::catch_unwind(|| self.verify_seal(s));
+                        match verify_seal_result {
+                            Ok(res) => {
+                                if let Err(err) = res {
+                                    log::debug!(
+                                        "seal verify in batch failed (miner: {}) (err: {})",
+                                        addr,
+                                        err
+                                    );
+                                    false
+                                } else {
+                                    true
+                                }
+                            }
+                            Err(_) => {
+                                log::error!("seal verify internal fail (miner: {})", addr);
+                                false
+                            }
+                        }
+                    })
+                    .collect();
+                (addr, results)
+            })
+            .collect();
+        log::debug!("batch verify seals end");
+        Ok(out)
     }
 
     fn verify_aggregate_seals(
