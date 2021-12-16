@@ -10,7 +10,7 @@ use num_traits::Signed;
 use blockstore::Blockstore;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
+use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
 use fvm_shared::{actor_error, ActorID};
@@ -342,9 +342,13 @@ where
     }
 }
 
-impl<B, E> CryptoOps for DefaultKernel<B, E> {
+impl<B, E> CryptoOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn verify_signature(
-        &self,
+        &mut self,
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
@@ -352,28 +356,29 @@ impl<B, E> CryptoOps for DefaultKernel<B, E> {
         todo!()
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]> {
+    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
         todo!()
     }
 
     fn compute_unsealed_sector_cid(
-        &self,
-        proof_type: RegisteredSealProof,
+        &mut self,
+        reg: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
         todo!()
     }
 
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()> {
+    /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
         todo!()
     }
 
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
         todo!()
     }
 
     fn verify_consensus_fault(
-        &self,
+        &mut self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
@@ -382,13 +387,16 @@ impl<B, E> CryptoOps for DefaultKernel<B, E> {
     }
 
     fn batch_verify_seals(
-        &self,
+        &mut self,
         vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Result<HashMap<Address, Vec<bool>>> {
         todo!()
     }
 
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()> {
+    fn verify_aggregate_seals(
+        &mut self,
+        aggregate: &AggregateSealVerifyProofAndInfos,
+    ) -> Result<()> {
         todo!()
     }
 }
