@@ -111,6 +111,24 @@ where
         self.caller_validated = true;
         Ok(())
     }
+
+    pub fn resolve_to_key_addr(&self, addr: &Address) -> Result<Address> {
+        if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
+            return Ok(*addr);
+        }
+
+        let state_tree = self.call_manager.state_tree();
+        let act = state_tree
+            .get_actor(addr)?
+            .ok_or(anyhow!("state tree doesn't contain actor"))?;
+
+        let state: crate::account_actor::State = state_tree
+            .store()
+            .get_cbor(&act.state)?
+            .ok_or(anyhow!("account actor state not found"))?;
+
+        Ok(state.address)
+    }
 }
 
 impl<B, E> SelfOps for DefaultKernel<B, E>
@@ -366,7 +384,20 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<()> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_signature(signature.signature_type());
+        self.call_manager.charge_gas(charge)?;
+
+        // Resolve to key address before verifying signature.
+        let signing_addr = self.resolve_to_key_addr(signer)?;
+        Ok(signature
+            .verify(plaintext, &signing_addr)
+            // TODO raising as a system error but this is NOT a fatal error;
+            //  this should be a SyscallError type with no associated exit code.
+            .map_err(|s| ExecutionError::SystemError(anyhow!(s)))?)
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
