@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Context;
+use fvm_shared::error::ExitCode;
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
@@ -18,6 +19,7 @@ use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::init_actor::State;
 use crate::message::Message;
+use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
 use super::blocks::{Block, BlockRegistry};
@@ -286,7 +288,7 @@ where
 {
     /// XXX: is message the right argument? Most of the fields are unused and unchecked.
     /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> Result<RawBytes> {
+    fn send(&mut self, message: Message) -> Result<Receipt> {
         self.call_manager.state_tree_mut().begin_transaction();
 
         let res = self.call_manager.send(
@@ -300,7 +302,34 @@ where
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
-        res.map_err(Into::into)
+
+        // We convert the error into a receipt because we _dont'_ want to trap.
+        // TODO: we need to log the error message int he machine somehow.
+        res.map(|v| Receipt {
+            exit_code: ExitCode::Ok,
+            return_data: v,
+            gas_used: 0, // fill in?
+        })
+        .or_else(|e| match e {
+            ExecutionError::Actor(e) => {
+                // These cases shouldn't be possible, but we can't yet statically rule them out and
+                // I don't trust auto-conversion magic.
+                if e.is_fatal() {
+                    Err(ExecutionError::SystemError(anyhow!(e.msg().to_string())))
+                } else if e.exit_code().is_success() {
+                    Err(ExecutionError::SystemError(anyhow!(
+                        "got an error with a success code"
+                    )))
+                } else {
+                    Ok(Receipt {
+                        exit_code: e.exit_code(),
+                        return_data: RawBytes::default(),
+                        gas_used: 0,
+                    })
+                }
+            }
+            err => Err(err),
+        })
     }
 }
 
