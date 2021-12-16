@@ -28,6 +28,9 @@ derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "10", features = ["opencl"], default_features = false }
+rayon = "1"
+num_cpus = "1.13.0"
+log = "0.4.14"
 
 actors-runtime = { path = "../actors/runtime" }
 fvm_actor_account = { path = "../actors/account" }
