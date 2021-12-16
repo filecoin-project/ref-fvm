@@ -6,7 +6,7 @@ use std::error::Error as StdError;
 
 use ahash::AHashMap;
 use bitfield::BitField;
-use blockstore::BlockStore;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
@@ -24,6 +24,8 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{actor_error, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+
+use crate::ext::verifreg::UseBytesParams;
 
 use actors_runtime::{
     runtime::{ActorCode, Runtime},
@@ -430,7 +432,7 @@ impl Actor {
                 // So instead of mutably calling, we queue the rt.send() params as a struct, see Deal struct
                 method_queue.push(Deal {
                     to: *VERIFIED_REGISTRY_ACTOR_ADDR,
-                    method: crate::verifreg::Method::UseBytes as u64,
+                    method: crate::ext::verifreg::Method::UseBytes as u64,
                     params: RawBytes::serialize(UseBytesParams {
                         address: client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),
@@ -587,7 +589,10 @@ impl Actor {
             }
         }
 
-        Ok(PublishStorageDealsReturn { ids: new_deal_ids, valid_deals: valid_input_bf })
+        Ok(PublishStorageDealsReturn {
+            ids: new_deal_ids,
+            valid_deals: valid_input_bf,
+        })
     }
 
     /// Verify that a given set of storage deals is valid for a sector currently being PreCommitted

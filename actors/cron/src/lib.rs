@@ -1,8 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::BlockStore;
-use log::error;
+use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -92,7 +91,7 @@ impl Actor {
                 TokenAmount::from(0u8),
             );
             if let Err(e) = res {
-                error!(
+                log::error!(
                     "cron failed to send entry to {}, send error code {}",
                     entry.receiver, e
                 );

@@ -5,23 +5,24 @@ use ahash::AHashSet;
 use blockstore::Blockstore;
 use ext::init;
 use indexmap::IndexMap;
-use blockstore::BlockStore;
 use log::{debug, error, info};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
-use fvm_shared::actor_error;
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::sector::SealVerifyInfo;
-use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+use fvm_shared::{
+    actor_error,
+    address::Address,
+    bigint::bigint_ser::{BigIntDe, BigIntSer},
+    econ::TokenAmount,
+    encoding::RawBytes,
+    error::{ActorError, ExitCode},
+    sector::SealVerifyInfo,
+    MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR,
+    reward::ThisEpochRewardReturn,
+    miner::{DeferredCronEventParams, MinerConstructorParams},
+};
 
 use actors_runtime::{
-    miner::{DeferredCronEventParams, MinerConstructorParams}
-    reward::ThisEpochRewardReturn,
     make_map_with_root_and_bitwidth,
     runtime::{ActorCode, Runtime},
     ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
@@ -275,7 +276,7 @@ impl Actor {
         let rewret: ThisEpochRewardReturn = rt
             .send(
                 *REWARD_ACTOR_ADDR,
-                crate::reward::Method::ThisEpochReward as MethodNum,
+                fvm_shared::reward::Method::ThisEpochReward as MethodNum,
                 RawBytes::default(),
                 TokenAmount::zero(),
             )

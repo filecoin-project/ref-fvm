@@ -14,7 +14,7 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
 use fvm_shared::error::{ActorError, ExitCode};
-use fvm_shared::piece::{PaddedPieceSize, PieceInfo};
+use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -264,27 +264,27 @@ pub enum ConsensusFaultType {
     TimeOffsetMining = 3,
 }
 
-fn get_required_padding(
-    old_length: PaddedPieceSize,
-    new_piece_length: PaddedPieceSize,
-) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
-    let mut sum = 0;
+// fn get_required_padding(
+//     old_length: PaddedPieceSize,
+//     new_piece_length: PaddedPieceSize,
+// ) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
+//     let mut sum = 0;
 
-    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
-    let n = to_fill.count_ones();
-    let mut pad_pieces = Vec::with_capacity(n as usize);
-    for _ in 0..n {
-        let next = to_fill.trailing_zeros();
-        let p_size = 1 << next;
-        to_fill ^= p_size;
+//     let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
+//     let n = to_fill.count_ones();
+//     let mut pad_pieces = Vec::with_capacity(n as usize);
+//     for _ in 0..n {
+//         let next = to_fill.trailing_zeros();
+//         let p_size = 1 << next;
+//         to_fill ^= p_size;
 
-        let padded = PaddedPieceSize(p_size);
-        pad_pieces.push(padded);
-        sum += padded.0;
-    }
+//         let padded = PaddedPieceSize(p_size);
+//         pad_pieces.push(padded);
+//         sum += padded.0;
+//     }
 
-    (pad_pieces, PaddedPieceSize(sum))
-}
+//     (pad_pieces, PaddedPieceSize(sum))
+// }
 
 /// Computes sector [Cid] from proof type and pieces for verification.
 pub fn compute_unsealed_sector_cid(

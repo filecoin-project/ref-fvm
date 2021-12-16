@@ -15,7 +15,7 @@ use fvm_shared::sector::{
     PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StoragePower,
 };
 
-use actors_runtime::{smooth::FilterEstimate, DealWeight};
+use fvm_shared::{smooth::FilterEstimate, DealWeight};
 
 pub type CronEvent = i64;
 pub const CRON_EVENT_WORKER_KEY_CHANGE: CronEvent = 0;
