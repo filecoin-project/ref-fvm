@@ -39,15 +39,13 @@ derive_builder = "0.10"
 hex = "0.4.2"
 
 [features]
-# TODO remove this
-default = ["fvm_actor"]
+default = []
 devnet = []
 interopnet = []
-fvm_actor = ["fvm_sdk"]
 test_utils = ["hex"]
 
 # This feature is set when building wasm
-runtime-wasm = []
+runtime-wasm = ["fvm_sdk"]
 
 [build-dependencies]
 wasm-builder = "3.0.1"
