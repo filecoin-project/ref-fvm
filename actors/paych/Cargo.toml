@@ -25,7 +25,7 @@ derive_builder = "0.10"
 default = []
 
 # This feature is set when building wasm
-runtime-wasm = []
+runtime-wasm = ["actors-runtime/runtime-wasm"]
 
 
 [build-dependencies]

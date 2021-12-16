@@ -25,10 +25,10 @@ use fvm_shared::MethodNum;
 pub use self::actor_code::*;
 mod actor_code;
 
-#[cfg(feature = "fvm_actor")]
+#[cfg(feature = "runtime-wasm")]
 mod sdk;
 
-#[cfg(feature = "fvm_actor")]
+#[cfg(feature = "runtime-wasm")]
 pub use sdk::ActorBlockstore;
 
 /// Runtime is the VM's internal runtime object.

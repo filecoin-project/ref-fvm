@@ -23,7 +23,7 @@ ipld_hamt = { path = "../../ipld/hamt" }
 default = []
 
 # This feature is set when building wasm
-runtime-wasm = []
+runtime-wasm = ["actors-runtime/runtime-wasm"]
 
 
 [build-dependencies]
