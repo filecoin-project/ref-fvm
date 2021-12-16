@@ -194,10 +194,7 @@ where
 
                 // Invoke it.
                 let invoke = instance.get_typed_func(&mut store, "invoke")?;
-                // TODO: Proper error handling
-                let (return_block_id,): (u32,) = invoke
-                    .call(&mut store, (param_id,))
-                    .map_err(|e| anyhow::anyhow!(e))?;
+                let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,))?;
 
                 let (code, ret) = store.data().block_get(return_block_id)?;
                 debug_assert_eq!(code, DAG_CBOR);
