@@ -9,6 +9,9 @@ use num_traits::Signed;
 
 use blockstore::Blockstore;
 use fvm_shared::bigint::Zero;
+use fvm_shared::commcid::{
+    cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
@@ -21,6 +24,16 @@ use crate::init_actor::State;
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
+
+use filecoin_proofs_api::seal::compute_comm_d;
+use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
+use filecoin_proofs_api::{
+    post, seal::verify_aggregate_seal_commit_proofs, seal::verify_seal as proofs_verify_seal,
+    PublicReplicaInfo,
+};
+use fvm_shared::address::Protocol;
+use fvm_shared::consensus::ConsensusFaultType;
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -357,7 +370,14 @@ where
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_hashing(data.len());
+        self.call_manager.charge_gas(charge)?;
+
+        Ok(blake2b_256(data))
     }
 
     fn compute_unsealed_sector_cid(
@@ -520,4 +540,33 @@ impl Into<ActorError> for BlockError {
     fn into(self) -> ActorError {
         ActorError::new_fatal(self.to_string())
     }
+}
+
+fn prover_id_from_u64(id: u64) -> ProverId {
+    let mut prover_id = ProverId::default();
+    let prover_bytes = Address::new_id(id).payload().to_raw_bytes();
+    prover_id[..prover_bytes.len()].copy_from_slice(&prover_bytes);
+    prover_id
+}
+
+fn get_required_padding(
+    old_length: PaddedPieceSize,
+    new_piece_length: PaddedPieceSize,
+) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
+    let mut sum = 0;
+
+    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
+    let n = to_fill.count_ones();
+    let mut pad_pieces = Vec::with_capacity(n as usize);
+    for _ in 0..n {
+        let next = to_fill.trailing_zeros();
+        let p_size = 1 << next;
+        to_fill ^= p_size;
+
+        let padded = PaddedPieceSize(p_size);
+        pad_pieces.push(padded);
+        sum += padded.0;
+    }
+
+    (pad_pieces, PaddedPieceSize(sum))
 }
