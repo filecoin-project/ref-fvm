@@ -27,7 +27,7 @@ use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
 use crate::kernel::error::SyscallError;
-use crate::kernel::ExecutionError::Syscall;
+use crate::kernel::ExecutionError::{Syscall, SystemError};
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
 use filecoin_proofs_api::{
@@ -42,6 +42,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
 
+use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -496,7 +497,42 @@ where
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_post(verify_info);
+        self.call_manager.charge_gas(charge)?;
+
+        let WindowPoStVerifyInfo {
+            ref proofs,
+            ref challenged_sectors,
+            prover,
+            ..
+        } = verify_info;
+
+        let Randomness(mut randomness) = verify_info.randomness.clone();
+
+        // Necessary to be valid bls12 381 element.
+        randomness[31] &= 0x3f;
+
+        // Convert sector info into public replica
+        let replicas = to_fil_public_replica_infos(challenged_sectors, ProofType::Window)?;
+
+        // Convert PoSt proofs into proofs-api format
+        let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs
+            .iter()
+            .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
+            .collect::<core::result::Result<_, String>>()
+            .map_err(SyscallError::from)?;
+
+        // Generate prover bytes from ID
+        let prover_id = prover_id_from_u64(*prover);
+
+        // Verify Proof
+        post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
+            .map_err(|e| ExecutionError::Syscall(SyscallError::from(e.to_string())))
+            .map(|_| ())
     }
 
     fn verify_consensus_fault(
@@ -711,6 +747,12 @@ impl Into<ActorError> for BlockError {
     }
 }
 
+/// PoSt proof variants.
+enum ProofType {
+    Winning,
+    Window,
+}
+
 fn prover_id_from_u64(id: u64) -> ProverId {
     let mut prover_id = ProverId::default();
     let prover_bytes = Address::new_id(id).payload().to_raw_bytes();
@@ -738,4 +780,26 @@ fn get_required_padding(
     }
 
     (pad_pieces, PaddedPieceSize(sum))
+}
+
+fn to_fil_public_replica_infos(
+    src: &[SectorInfo],
+    typ: ProofType,
+) -> Result<BTreeMap<SectorId, PublicReplicaInfo>> {
+    let replicas = src
+        .iter()
+        .map::<core::result::Result<(SectorId, PublicReplicaInfo), String>, _>(
+            |sector_info: &SectorInfo| {
+                let commr = cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
+                let proof = match typ {
+                    ProofType::Winning => sector_info.proof.registered_winning_post_proof()?,
+                    ProofType::Window => sector_info.proof.registered_window_post_proof()?,
+                };
+                let replica = PublicReplicaInfo::new(proof.try_into()?, commr);
+                Ok((SectorId::from(sector_info.sector_number), replica))
+            },
+        )
+        .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
+        .map_err(SyscallError::from)?;
+    Ok(replicas)
 }
