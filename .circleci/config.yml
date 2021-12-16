@@ -54,18 +54,18 @@ jobs:
           at: "."
       - restore_rustup_cache
       - run:
-          name: install wasm32 target
+          name: install rust
           command: |
-            rustup target add wasm32-unknown-unknown
+            rustup toolchain install nightly
+            rustup target add wasm32-unknown-unknown --toolchain nightly
       - run:
           name: make dummy example wasm module
           command: |
             # otherwise the include_bytes! macro fails because this file hasn't been generated
             touch examples/fvm/fvm_example_actor.wasm
-      - rust/clippy:
-          with_cache: false
-          flags: |
-            --all --all-targets
+      - run:
+          name: clippy
+          command: cargo +nightly clippy --all --all-targets
 
   rustfmt:
     executor:
