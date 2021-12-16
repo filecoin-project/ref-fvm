@@ -107,6 +107,18 @@ pub trait BlockOps {
     /// This method will fail if the block handle is invalid.
     fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError>;
 
+    /// Returns a codec and a block as an owned buffer, given an ID.
+    ///
+    /// This method will fail if the block handle is invalid.
+    fn block_get(&self, id: BlockId) -> StdResult<(u64, Vec<u8>), BlockError> {
+        let stat = self.block_stat(id)?;
+        let mut ret = vec![0; stat.size as usize];
+        // TODO error handling.
+        let read = self.block_read(id, 0, &mut ret)?;
+        debug_assert_eq!(stat.size, read, "didn't read expected bytes");
+        Ok((stat.codec, ret))
+    }
+
     // TODO: add a way to _flush_ new blocks.
 }
 

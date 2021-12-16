@@ -181,42 +181,30 @@ where
         bind_syscalls(&mut linker)?;
 
         self.map_mut(|cm| {
-            // TODO: Make the kernel pluggable.
-            let mut kernel = DefaultKernel::new(cm, from, to, method, value.clone());
-
-            // 4. Load parameters.
-
-            let param_id = match kernel.block_create(DAG_CBOR, params) {
-                Ok(id) => id,
-                Err(e) => return (Err(e.into()), kernel.take()),
-            };
-
-            // TODO: BELOW ERROR HANDLING IS BROKEN.
-            // We should put it in a new function.
-
-            // 3. Instantiate the module.
+            // Make the kernel/store.
+            let kernel = DefaultKernel::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, kernel);
-            // TODO error handling.
-            let instance = linker.instantiate(&mut store, &module).unwrap();
 
-            // 4. Invoke it.
-            // TODO error handling.
-            let invoke = instance.get_typed_func(&mut store, "invoke").unwrap();
-            // TODO error handling.
-            let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,)).unwrap();
+            let result = (|| {
+                // Load parameters.
+                let param_id = store.data_mut().block_create(DAG_CBOR, params)?;
 
-            // 5. Recover return value.
-            let kernel = store.into_data();
+                // Instantiate the module.
+                let instance = linker.instantiate(&mut store, &module)?;
 
-            // TODO: this is a nasty API. We should have a nicer way to just "get a block".
-            // TODO error handling.
-            let ret_stat = kernel.block_stat(return_block_id).unwrap();
-            let mut ret = vec![0; ret_stat.size as usize];
-            // TODO error handling.
-            let read = kernel.block_read(return_block_id, 0, &mut ret).unwrap();
-            ret.truncate(read as usize);
+                // Invoke it.
+                let invoke = instance.get_typed_func(&mut store, "invoke")?;
+                // TODO: Proper error handling
+                let (return_block_id,): (u32,) = invoke
+                    .call(&mut store, (param_id,))
+                    .map_err(|e| anyhow::anyhow!(e))?;
 
-            (Ok(RawBytes::new(ret)), kernel.take())
+                let (code, ret) = store.data().block_get(return_block_id)?;
+                debug_assert_eq!(code, DAG_CBOR);
+                Ok(RawBytes::new(ret))
+            })();
+
+            (result, store.into_data().take())
         })
     }
 

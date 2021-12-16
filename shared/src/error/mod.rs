@@ -27,10 +27,10 @@ pub enum ExitCode {
     /// Used for catching panics currently. (marked as unused/SysErrReserved1 in go impl though)
     SysErrActorPanic = 4,
 
-    /// Indicates a message sender has insufficient funds for a message's execution.
+    /// Indicates that the receiver of a message is not valid (and cannot be implicitly created).
     SysErrInvalidReceiver = 5,
 
-    /// Indicates a message invocation out of sequence.
+    /// Indicates a message sender has insufficient funds for a message's execution.
     SysErrInsufficientFunds = 6,
 
     /// Indicates message execution (including subcalls) used more gas than the specified limit.
