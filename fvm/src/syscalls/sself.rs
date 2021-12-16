@@ -1,7 +1,6 @@
 use super::MAX_CID_LEN;
-use crate::syscalls::context::Context;
-use crate::syscalls::errors::into_trap;
 use crate::Kernel;
+use crate::{kernel::ExecutionError, syscalls::context::Context};
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -11,13 +10,16 @@ pub fn root(caller: Caller<'_, impl Kernel>, obuf_off: u32) -> Result<(), Trap> 
     let mut ctx = Context::new(caller).with_memory()?;
     let (mut obuf, k) = ctx.try_slice_and_runtime(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
     let cid = k.root();
-    cid.write_bytes(&mut obuf[..MAX_CID_LEN]).map_err(into_trap)
+    cid.write_bytes(&mut obuf[..MAX_CID_LEN])
+        .map_err(ExecutionError::from)?;
+    Ok(())
 }
 
 pub fn set_root(caller: Caller<'_, impl Kernel>, cid_off: u32) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let cid = ctx.read_cid(cid_off)?;
-    ctx.data_mut().set_root(cid).map_err(into_trap)
+    ctx.data_mut().set_root(cid)?;
+    Ok(())
 }
 
 pub fn current_balance(caller: Caller<'_, impl Kernel>) -> Result<(u64, u64), Trap> {
@@ -35,6 +37,7 @@ pub fn self_destruct(
 ) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
     let bytes = ctx.try_slice(addr_off, addr_len)?;
-    let addr = Address::from_bytes(bytes).map_err(into_trap)?;
-    ctx.data_mut().self_destruct(&addr).map_err(From::from)
+    let addr = Address::from_bytes(bytes).map_err(ExecutionError::from)?;
+    ctx.data_mut().self_destruct(&addr)?;
+    Ok(())
 }
