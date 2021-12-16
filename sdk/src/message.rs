@@ -41,16 +41,14 @@ pub fn params_raw(id: BlockId) -> (Codec, Vec<u8>) {
 /// Fetches the input parameters as raw bytes, and decodes them locally
 /// into type T using cbor serde. Failing to decode will abort execution.
 pub fn params_cbor<T: Cbor>(id: BlockId) -> T {
-    unsafe {
-        let (codec, raw) = params_raw(id);
-        debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");
-        match fvm_shared::encoding::from_slice(raw.as_slice()) {
-            Ok(v) => v,
-            Err(e) => crate::abort(
-                ExitCode::ErrSerialization as u32,
-                Some(format!("could not deserialize parameters as cbor: {:?}", e).as_str()),
-            ),
-        }
+    let (codec, raw) = params_raw(id);
+    debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");
+    match fvm_shared::encoding::from_slice(raw.as_slice()) {
+        Ok(v) => v,
+        Err(e) => abort(
+            ExitCode::ErrSerialization as u32,
+            Some(format!("could not deserialize parameters as cbor: {:?}", e).as_str()),
+        ),
     }
 }
 

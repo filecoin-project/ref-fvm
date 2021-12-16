@@ -8,5 +8,6 @@ extern "C" {
 
     /// Gets the base fee for the epoch as little-Endian
     /// tuple of u64 values to be concatenated in a u128.
+    #[allow(improper_ctypes)]
     pub fn base_fee() -> (u64, u64);
 }

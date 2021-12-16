@@ -11,5 +11,6 @@ extern "C" {
 
     /// Returns the value that was received, as little-Endian
     /// tuple of u64 values to be concatenated in a u128.
+    #[allow(improper_ctypes)]
     pub fn value_received() -> (u64, u64);
 }
