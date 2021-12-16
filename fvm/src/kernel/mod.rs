@@ -68,8 +68,7 @@ pub trait MessageOps {
     fn msg_caller(&self) -> ActorID;
     fn msg_receiver(&self) -> ActorID;
     fn msg_method_number(&self) -> MethodNum;
-    fn msg_method_params(&self) -> BlockId;
-    fn msg_value_received(&self) -> u128;
+    fn msg_value_received(&self) -> TokenAmount;
 }
 
 /// The IPLD subset of the kernel.
@@ -137,7 +136,7 @@ pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>>;
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
 
     /// Look up the code ID at an actor address.
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>>;

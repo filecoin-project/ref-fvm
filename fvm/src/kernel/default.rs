@@ -1,17 +1,24 @@
+use anyhow::anyhow;
+use anyhow::Context;
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
+use num_traits::Signed;
 
 use blockstore::Blockstore;
+use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ActorError;
-use fvm_shared::ActorID;
+use fvm_shared::error::ExitCode::SysErrIllegalArgument;
+use fvm_shared::{actor_error, ActorID};
 
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
+use crate::init_actor::State;
 use crate::message::Message;
+use crate::state_tree::StateTree;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -37,6 +44,7 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     blocks: BlockRegistry,
     /// Return stack where values returned by syscalls are stored for consumption.
     return_stack: VecDeque<Vec<u8>>,
+    caller_validated: bool,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -70,11 +78,63 @@ where
             to,
             method,
             value_received,
+            caller_validated: false,
         }
     }
 
     pub fn take(self) -> CallManager<B, E> {
         self.call_manager
+    }
+
+    fn assert_not_validated(&mut self) -> Result<()> {
+        if self.caller_validated {
+            return Err(actor_error!(SysErrIllegalActor;
+                    "Method must validate caller identity exactly once")
+            .into());
+        }
+        self.caller_validated = true;
+        Ok(())
+    }
+
+    /// Transfer funds out of the executing actor.
+    fn transfer(&mut self, recipient: ActorID, value: &TokenAmount) -> Result<()> {
+        let from = self.to;
+        if from == recipient {
+            return Ok(());
+        }
+        if value.is_negative() {
+            return Err(actor_error!(SysErrForbidden;
+                "attempted to transfer negative transfer value {}", value)
+            .into());
+        }
+
+        let mut state_tree = self.call_manager.state_tree_mut();
+        let mut from_actor = state_tree.get_actor_id(from)?.ok_or_else(|| {
+            actor_error!(fatal(
+                "sender actor does not exist in state during transfer"
+            ))
+        })?;
+
+        let mut to_actor = state_tree.get_actor_id(recipient)?.ok_or_else(|| {
+            actor_error!(fatal(
+                "receiver actor does not exist in state during transfer"
+            ))
+        })?;
+
+        from_actor.deduct_funds(value).map_err(|e| {
+            actor_error!(SysErrInsufficientFunds;
+                "transfer failed when deducting funds ({}): {}", value, e)
+        })?;
+        to_actor.deposit_funds(value);
+
+        // TODO turn failures into fatal errors
+        state_tree.set_actor_id(from, from_actor)?;
+        // .map_err(|e| e.downcast_fatal("failed to set from actor"))?;
+        // TODO turn failures into fatal errors
+        state_tree.set_actor_id(recipient, to_actor)?;
+        //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
+
+        Ok(())
     }
 }
 
@@ -108,11 +168,46 @@ where
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        todo!()
+        let addr = Address::new_id(self.to);
+        let balance = self
+            .call_manager
+            .state_tree()
+            .get_actor(&addr)?
+            .ok_or(anyhow!("state tree doesn't contain current actor"))?
+            .balance;
+        Ok(balance)
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        todo!()
+        let gas_charge = self.call_manager.context().price_list().on_delete_actor();
+        // TODO abort with internal error instead of returning.
+        self.call_manager.charge_gas(gas_charge)?;
+
+        let balance = self.current_balance()?;
+        if balance != TokenAmount::zero() {
+            // Starting from network version v7, the runtime checks if the beneficiary
+            // exists; if missing, it fails the self destruct.
+            //
+            // In FVM we check unconditionally, since we only support nv13+.
+            let beneficiary_id = self.resolve_address(beneficiary)?.ok_or_else(||
+                // TODO this should not be an actor error, but a system error with an exit code.
+                actor_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
+
+            if beneficiary_id == self.to {
+                return Err(actor_error!(
+                    SysErrIllegalArgument,
+                    "benefactor cannot be beneficiary"
+                )
+                .into());
+            }
+
+            // Transfer the entirety of funds to beneficiary.
+            self.transfer(beneficiary_id, &balance)?;
+        }
+
+        // Delete the executing actor
+        // TODO errors here are FATAL errors
+        self.call_manager.state_tree_mut().delete_actor_id(self.to)
     }
 }
 
@@ -202,18 +297,8 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
         self.msg_method_number()
     }
 
-    // TODO: Remove this? We're currently passing it to invoke.
-    fn msg_method_params(&self) -> BlockId {
-        // TODO
-        0
-    }
-
-    fn msg_value_received(&self) -> u128 {
-        // TODO: we shouldn't have to do this conversion here.
-        self.value_received
-            .clone()
-            .try_into()
-            .expect("value received exceeds max filecoin")
+    fn msg_value_received(&self) -> TokenAmount {
+        self.value_received.clone()
     }
 }
 
@@ -362,17 +447,41 @@ where
     }
 }
 
-impl<B, E> ValidationOps for DefaultKernel<B, E> {
+impl<B, E> ValidationOps for DefaultKernel<B, E>
+where
+    B: 'static + Blockstore,
+    E: 'static + Externs,
+{
     fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
-        todo!()
+        self.assert_not_validated()
     }
 
     fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
-        todo!()
+        self.assert_not_validated()?;
+
+        let caller_addr = Address::new_id(self.from);
+        if !allowed.iter().any(|a| *a == caller_addr) {
+            return Err(actor_error!(SysErrForbidden;
+                "caller {} is not one of supported", caller_addr
+            )
+            .into());
+        }
+        Ok(())
     }
 
     fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()> {
-        todo!()
+        self.assert_not_validated()?;
+
+        let caller_cid = self
+            .get_actor_code_cid(&Address::new_id(self.from))?
+            .ok_or_else(|| actor_error!(fatal("failed to lookup code cid for caller")))?;
+
+        if !allowed.iter().any(|c| *c == caller_cid) {
+            return Err(actor_error!(SysErrForbidden;
+                    "caller cid type {} not one of supported", caller_cid)
+            .into());
+        }
+        Ok(())
     }
 }
 
@@ -381,12 +490,18 @@ where
     B: Blockstore,
     E: Externs,
 {
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>> {
-        todo!()
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+        self.call_manager.state_tree().lookup_id(address)
     }
 
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
-        todo!()
+        Ok(self
+            .call_manager
+            .state_tree()
+            .get_actor(addr)?
+            // TODO fatal error
+            //.map_err(|e| e.downcast_fatal("failed to get actor"))?
+            .map(|act| act.code))
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {

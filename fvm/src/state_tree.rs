@@ -247,7 +247,11 @@ where
             Some(id) => id,
             None => return Ok(None),
         };
+        self.get_actor_id(id)
+    }
 
+    /// Get actor state from an actor ID.
+    pub fn get_actor_id(&self, id: ActorID) -> Result<Option<ActorState>> {
         // Check cache for actor state
         if let Some(actor_state) = self.snaps.get_actor(id) {
             return Ok(Some(actor_state));
@@ -270,6 +274,11 @@ where
             .lookup_id(addr)?
             .with_context(|| format!("Resolution lookup failed for {}", addr))?;
 
+        self.set_actor_id(id, actor)
+    }
+
+    /// Set actor state with an actor ID.
+    pub fn set_actor_id(&mut self, id: ActorID, actor: ActorState) -> Result<()> {
         self.snaps.set_actor(id, actor)
     }
 
@@ -300,12 +309,17 @@ where
 
     /// Delete actor for an address. Will resolve to ID address to delete.
     pub fn delete_actor(&mut self, addr: &Address) -> Result<()> {
-        let addr = self
+        let id = self
             .lookup_id(addr)?
             .with_context(|| format!("Resolution lookup failed for {}", addr))?;
 
+        self.delete_actor_id(id)
+    }
+
+    /// Delete actor identified by the supplied ID.
+    pub fn delete_actor_id(&mut self, id: ActorID) -> Result<()> {
         // Remove value from cache
-        self.snaps.delete_actor(addr)?;
+        self.snaps.delete_actor(id)?;
 
         Ok(())
     }
@@ -432,6 +446,7 @@ impl ActorState {
         }
     }
     /// Safely deducts funds from an Actor
+    /// TODO return a system error with exit code "insufficient funds"
     pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<()> {
         if &self.balance < amt {
             return Err(anyhow!("Not enough funds").into());

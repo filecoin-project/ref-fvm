@@ -1,4 +1,5 @@
 use fvm_shared::{encoding, error::ActorError, error::ExitCode};
+use wasmtime::Trap;
 
 use crate::kernel::blocks;
 
@@ -45,5 +46,11 @@ impl From<Box<dyn std::error::Error>> for ExecutionError {
     fn from(e: Box<dyn std::error::Error>) -> Self {
         // TODO: make better
         ExecutionError::SystemError(anyhow::anyhow!(e.to_string()))
+    }
+}
+
+impl From<ExecutionError> for Trap {
+    fn from(e: ExecutionError) -> Self {
+        Trap::from(Box::from(e))
     }
 }
