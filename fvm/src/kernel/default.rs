@@ -481,24 +481,7 @@ where
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
-        let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
-        let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
-        let prover_id = prover_id_from_u64(vi.sector_id.miner);
-
-        if !proofs_verify_seal(
-            vi.registered_proof.try_into().map_err(SyscallError::from)?,
-            commr,
-            commd,
-            prover_id,
-            SectorId::from(vi.sector_id.number),
-            bytes_32(&vi.randomness.0),
-            bytes_32(&vi.interactive_randomness.0),
-            &vi.proof,
-        )? {
-            Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
-        } else {
-            Ok(())
-        }
+        verify_seal(vi)
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
@@ -561,7 +544,7 @@ where
                 let results = seals
                     .par_iter()
                     .map(|s| {
-                        let verify_seal_result = std::panic::catch_unwind(|| self.verify_seal(s));
+                        let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
                         match verify_seal_result {
                             Ok(res) => {
                                 if let Err(err) = res {
@@ -840,4 +823,25 @@ fn to_fil_public_replica_infos(
         .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
         .map_err(SyscallError::from)?;
     Ok(replicas)
+}
+
+fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
+    let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
+    let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
+    let prover_id = prover_id_from_u64(vi.sector_id.miner);
+
+    if !proofs_verify_seal(
+        vi.registered_proof.try_into().map_err(SyscallError::from)?,
+        commr,
+        commd,
+        prover_id,
+        SectorId::from(vi.sector_id.number),
+        bytes_32(&vi.randomness.0),
+        bytes_32(&vi.interactive_randomness.0),
+        &vi.proof,
+    )? {
+        Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
+    } else {
+        Ok(())
+    }
 }
