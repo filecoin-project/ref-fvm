@@ -21,6 +21,7 @@ use crate::message::Message;
 use crate::state_tree::StateTree;
 
 use super::blocks::{Block, BlockRegistry};
+use super::error::Result;
 use super::*;
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -176,28 +177,25 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
-    fn block_open(&mut self, cid: &Cid) -> StdResult<BlockId, BlockError> {
+    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
         let data = self
             .call_manager
             .blockstore()
             .get(cid)
-            .map_err(|e| BlockError::Internal(e.into()))?
+            .map_err(|e| anyhow!(e))?
             .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;
 
         let block = Block::new(cid.codec(), data);
-        self.blocks.put(block)
+        Ok(self.blocks.put(block)?)
     }
 
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> StdResult<BlockId, BlockError> {
-        self.blocks.put(Block::new(codec, data))
+    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        Ok(self.blocks.put(Block::new(codec, data))?)
     }
 
-    fn block_link(
-        &mut self,
-        id: BlockId,
-        hash_fun: u64,
-        hash_len: u32,
-    ) -> StdResult<Cid, BlockError> {
+    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
+        // TODO: check hash function & length against allow list.
+
         use multihash::MultihashDigest;
         let block = self.blocks.get(id)?;
         let code =
@@ -213,7 +211,8 @@ where
             return Err(BlockError::InvalidMultihashSpec {
                 code: hash_fun,
                 length: hash_len,
-            });
+            }
+            .into());
         }
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
@@ -225,7 +224,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> StdResult<u32, BlockError> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         let data = &self.blocks.get(id)?.data;
         Ok(if offset as usize >= data.len() {
             0
@@ -236,8 +235,9 @@ where
         })
     }
 
-    fn block_stat(&self, id: BlockId) -> StdResult<BlockStat, BlockError> {
-        self.blocks.get(id).map(|b| BlockStat {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+        let b = self.blocks.get(id)?;
+        Ok(BlockStat {
             codec: b.codec(),
             size: b.size(),
         })

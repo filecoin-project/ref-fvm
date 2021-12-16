@@ -1,4 +1,4 @@
-use fvm_shared::{encoding, error::ActorError, error::ExitCode};
+use fvm_shared::{actor_error, encoding, error::ActorError, error::ExitCode};
 use wasmtime::Trap;
 
 use crate::kernel::blocks;
@@ -31,7 +31,18 @@ impl From<encoding::Error> for ExecutionError {
 
 impl From<blocks::BlockError> for ExecutionError {
     fn from(e: blocks::BlockError) -> Self {
-        ExecutionError::SystemError(e.into())
+        use blocks::BlockError::*;
+        match e {
+            Unreachable(..)
+            | InvalidHandle(..)
+            | InvalidMultihashSpec { .. }
+            | InvalidCodec(..) => {
+                ExecutionError::Actor(actor_error!(SysErrIllegalArgument; e.to_string()))
+            }
+            // TODO: Not quite the correct error but we don't have a better oen for now.
+            TooManyBlocks => ExecutionError::Actor(actor_error!(SysErrIllegalActor; e.to_string())),
+            MissingState(k) => ExecutionError::SystemError(anyhow::anyhow!("missing block: {}", k)),
+        }
     }
 }
 
