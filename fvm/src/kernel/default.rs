@@ -399,17 +399,21 @@ impl<B, E> GasOps for DefaultKernel<B, E> {
     }
 }
 
-impl<B, E> NetworkOps for DefaultKernel<B, E> {
-    fn network_curr_epoch(&self) -> ChainEpoch {
-        todo!()
+impl<B, E> NetworkOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
+    fn network_epoch(&self) -> ChainEpoch {
+        self.call_manager.context().epoch()
     }
 
     fn network_version(&self) -> NetworkVersion {
-        todo!()
+        self.call_manager.context().network_version()
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        todo!()
+        self.call_manager.context().base_fee()
     }
 }
 

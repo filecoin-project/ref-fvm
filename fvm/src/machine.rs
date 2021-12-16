@@ -126,6 +126,14 @@ where
         &self.state_tree.store()
     }
 
+    pub fn context(&self) -> &MachineContext {
+        &self.context
+    }
+
+    pub fn externs(&self) -> &E {
+        &self.externs
+    }
+
     pub fn state_tree(&self) -> &StateTree<B> {
         &self.state_tree
     }
@@ -475,14 +483,6 @@ where
         Ok(())
     }
 
-    pub fn context(&self) -> &MachineContext {
-        &self.context
-    }
-
-    pub fn externs(&self) -> &E {
-        &self.externs
-    }
-
     fn map_mut<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(Self) -> (T, Self),
@@ -562,7 +562,7 @@ impl MachineContext {
         }
     }
 
-    pub fn epoch(self) -> ChainEpoch {
+    pub fn epoch(&self) -> ChainEpoch {
         self.epoch
     }
 
@@ -578,7 +578,7 @@ impl MachineContext {
         self.price_list.clone()
     }
 
-    pub fn set_state_root(&mut self, state_root: Cid) {
-        self.initial_state_root = state_root
+    pub fn network_version(&self) -> NetworkVersion {
+        self.network_version
     }
 }

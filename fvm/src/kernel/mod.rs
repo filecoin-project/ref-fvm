@@ -48,7 +48,7 @@ pub trait Kernel:
 
 /// Network-related operations.
 pub trait NetworkOps {
-    fn network_curr_epoch(&self) -> ChainEpoch;
+    fn network_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
     fn network_base_fee(&self) -> &TokenAmount;
 }

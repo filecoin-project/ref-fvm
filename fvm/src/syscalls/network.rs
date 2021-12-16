@@ -2,10 +2,10 @@ use crate::syscalls::context::Context;
 use crate::Kernel;
 use wasmtime::{Caller, Trap};
 
-pub fn curr_epoch(caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
+pub fn epoch(caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
     let ctx = Context::new(caller);
 
-    Ok(ctx.data().network_curr_epoch() as u64)
+    Ok(ctx.data().network_epoch() as u64)
 }
 
 pub fn version(caller: Caller<'_, impl Kernel>) -> Result<u32, Trap> {
