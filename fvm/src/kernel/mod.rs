@@ -24,7 +24,7 @@ mod blocks;
 pub mod default;
 
 mod error;
-pub use error::{ExecutionError, Result};
+pub use error::{ExecutionError, Result, SyscallError};
 
 pub trait Kernel:
     ActorOps

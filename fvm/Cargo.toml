@@ -17,7 +17,7 @@ num-derive = "0.3.3"
 cid = { version = "0.7", features = ["serde-codec"] }
 multihash = { version = "0.15", features = ["identity", "default"] }
 wasmtime = "0.31.0"
-fvm_shared = { path = "../shared" }
+fvm_shared = { path = "../shared", features = ["crypto"] }
 ipld_hamt = { path = "../ipld/hamt"}
 ipld_amt = { path = "../ipld/amt"}
 serde = { version = "1.0", features = ["derive"] }
@@ -27,6 +27,7 @@ lazy_static = "1.4.0"
 derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
+filecoin-proofs-api = { version = "10", features = ["opencl"], default_features = false }
 
 actors-runtime = { path = "../actors/runtime" }
 fvm_actor_account = { path = "../actors/account" }

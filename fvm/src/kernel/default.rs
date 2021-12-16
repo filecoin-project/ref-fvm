@@ -25,6 +25,7 @@ use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
+use crate::kernel::error::SyscallError;
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
 use filecoin_proofs_api::{
@@ -421,7 +422,24 @@ where
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
-        todo!()
+        let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
+        let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
+        let prover_id = prover_id_from_u64(vi.sector_id.miner);
+
+        if !proofs_verify_seal(
+            vi.registered_proof.try_into().map_err(SyscallError::from)?,
+            commr,
+            commd,
+            prover_id,
+            SectorId::from(vi.sector_id.number),
+            bytes_32(&vi.randomness.0),
+            bytes_32(&vi.interactive_randomness.0),
+            &vi.proof,
+        )? {
+            Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
+        } else {
+            Ok(())
+        }
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {

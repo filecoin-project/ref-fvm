@@ -1,6 +1,8 @@
+use std::error::Error;
 use std::{cell::Cell, sync::Mutex};
 
 use derive_more::Display;
+use fvm_shared::error::ExitCode::ErrPlaceholder;
 use fvm_shared::{actor_error, address, encoding, error::ActorError, error::ExitCode};
 use wasmtime::Trap;
 
@@ -13,16 +15,44 @@ pub type Result<T> = std::result::Result<T, ExecutionError>;
 pub enum ExecutionError {
     #[error("{0:?}")]
     Actor(#[from] ActorError),
+    #[error(transparent)]
+    Syscall(#[from] SyscallError),
     #[error("{0:?}")]
     SystemError(#[from] anyhow::Error),
 }
+
+/// Represents an error from a syscall. It can optionally contain a
+/// syscall-advised exit code for the kind of error that was raised.
+/// We may want to add an optional source error here.
+///
+/// Automatic conversions from String are provided, with no advised exit code.
+///
+/// TODO Many usages of ActorError should migrate to this type.
+#[derive(thiserror::Error, Debug)]
+#[error("syscall error: {0} (exit_code={1:?})")]
+pub struct SyscallError(pub String, pub Option<ExitCode>);
 
 impl ExecutionError {
     pub fn exit_code(&self) -> ExitCode {
         match self {
             ExecutionError::Actor(e) => e.exit_code(),
             ExecutionError::SystemError(_) => ExitCode::ErrPlaceholder, // same as fatal before
+            ExecutionError::Syscall(SyscallError(_, exit_code)) => {
+                exit_code.unwrap_or(ExitCode::ErrPlaceholder)
+            }
         }
+    }
+}
+
+impl From<String> for SyscallError {
+    fn from(s: String) -> Self {
+        SyscallError(s, None)
+    }
+}
+
+impl From<&str> for SyscallError {
+    fn from(s: &str) -> Self {
+        SyscallError(s.to_owned(), None)
     }
 }
 

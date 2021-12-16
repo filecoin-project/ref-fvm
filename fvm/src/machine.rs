@@ -21,7 +21,8 @@ use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-use crate::kernel::{ExecutionError, Result};
+use crate::kernel::ExecutionError::Syscall;
+use crate::kernel::{ExecutionError, Result, SyscallError};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
@@ -385,6 +386,12 @@ where
                 } else {
                     Some(err)
                 }
+            }
+            Some(ExecutionError::Syscall(SyscallError(msg, exit_code))) => {
+                return Err(ExecutionError::Actor(ActorError::new(
+                    exit_code.unwrap_or(ExitCode::ErrPlaceholder),
+                    msg,
+                )));
             }
             Some(e @ ExecutionError::SystemError(_)) => return Err(e),
             None => None,
