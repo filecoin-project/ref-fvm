@@ -24,7 +24,7 @@ mod blocks;
 pub mod default;
 
 mod error;
-pub use error::{ExecutionError, Result};
+pub use error::{ExecutionError, Result, SyscallError};
 
 pub trait Kernel:
     ActorOps
@@ -48,7 +48,7 @@ pub trait Kernel:
 
 /// Network-related operations.
 pub trait NetworkOps {
-    fn network_curr_epoch(&self) -> ChainEpoch;
+    fn network_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
     fn network_base_fee(&self) -> &TokenAmount;
 }
@@ -209,27 +209,27 @@ pub trait GasOps {
 pub trait CryptoOps {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
-        &self,
+        &mut self,
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<()>;
 
     /// Hashes input data using blake2b with 256 bit output.
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]>;
+    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
-        &self,
+        &mut self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid>;
 
     /// Verifies a sector seal proof.
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()>;
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()>;
 
     /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()>;
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()>;
 
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor
@@ -242,18 +242,21 @@ pub trait CryptoOps {
     /// blocks in the parent of h2 (i.e. h2's grandparent).
     /// Returns nil and an error if the headers don't prove a fault.
     fn verify_consensus_fault(
-        &self,
+        &mut self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>>;
 
     fn batch_verify_seals(
-        &self,
+        &mut self,
         vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Result<HashMap<Address, Vec<bool>>>;
 
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()>;
+    fn verify_aggregate_seals(
+        &mut self,
+        aggregate: &AggregateSealVerifyProofAndInfos,
+    ) -> Result<()>;
 }
 
 /// Randomness queries.

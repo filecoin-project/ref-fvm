@@ -21,7 +21,8 @@ use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-use crate::kernel::{ExecutionError, Result};
+use crate::kernel::ExecutionError::Syscall;
+use crate::kernel::{ExecutionError, Result, SyscallError};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
@@ -124,6 +125,14 @@ where
 
     pub fn blockstore(&self) -> &B {
         &self.state_tree.store()
+    }
+
+    pub fn context(&self) -> &MachineContext {
+        &self.context
+    }
+
+    pub fn externs(&self) -> &E {
+        &self.externs
     }
 
     pub fn state_tree(&self) -> &StateTree<B> {
@@ -378,6 +387,12 @@ where
                     Some(err)
                 }
             }
+            Some(ExecutionError::Syscall(SyscallError(msg, exit_code))) => {
+                return Err(ExecutionError::Actor(ActorError::new(
+                    exit_code.unwrap_or(ExitCode::ErrPlaceholder),
+                    msg,
+                )));
+            }
             Some(e @ ExecutionError::SystemError(_)) => return Err(e),
             None => None,
         };
@@ -475,14 +490,6 @@ where
         Ok(())
     }
 
-    pub fn context(&self) -> &MachineContext {
-        &self.context
-    }
-
-    pub fn externs(&self) -> &E {
-        &self.externs
-    }
-
     fn map_mut<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(Self) -> (T, Self),
@@ -562,7 +569,7 @@ impl MachineContext {
         }
     }
 
-    pub fn epoch(self) -> ChainEpoch {
+    pub fn epoch(&self) -> ChainEpoch {
         self.epoch
     }
 
@@ -578,7 +585,7 @@ impl MachineContext {
         self.price_list.clone()
     }
 
-    pub fn set_state_root(&mut self, state_root: Cid) {
-        self.initial_state_root = state_root
+    pub fn network_version(&self) -> NetworkVersion {
+        self.network_version
     }
 }

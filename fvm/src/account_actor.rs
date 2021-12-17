@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, DAG_CBOR};
+use fvm_shared::encoding::{to_vec, tuple::*, Cbor, DAG_CBOR};
 
 use crate::state_tree::ActorState;
 
@@ -37,6 +37,14 @@ lazy_static!(
         balance: TokenAmount::zero(),
     };
 );
+
+/// State specifies the key address for the actor.
+#[derive(Serialize_tuple, Deserialize_tuple)]
+pub struct State {
+    pub address: Address,
+}
+
+impl Cbor for State {}
 
 /// Returns true if the code belongs to an account actor.
 pub fn is_account_actor(code: &Cid) -> bool {

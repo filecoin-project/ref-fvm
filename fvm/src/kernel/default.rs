@@ -1,17 +1,21 @@
 use anyhow::anyhow;
 use anyhow::Context;
-use fvm_shared::error::ExitCode;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::convert::{TryFrom, TryInto};
+use std::error::Error as StdError;
 
 use cid::Cid;
 use num_traits::Signed;
 
 use blockstore::Blockstore;
 use fvm_shared::bigint::Zero;
+use fvm_shared::commcid::{
+    cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
+};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
+use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
+use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
 use fvm_shared::{actor_error, ActorID};
 
@@ -22,9 +26,29 @@ use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::StateTree;
 
+use crate::kernel::error::SyscallError;
+use crate::kernel::ExecutionError::{Syscall, SystemError};
+use filecoin_proofs_api::seal::compute_comm_d;
+use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
+use filecoin_proofs_api::{
+    post, seal::verify_aggregate_seal_commit_proofs, seal::verify_seal as proofs_verify_seal,
+    PublicReplicaInfo,
+};
+use fvm_shared::address::Protocol;
+use fvm_shared::consensus::ConsensusFaultType;
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use lazy_static::lazy_static;
+
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
+
+use fvm_shared::sector::SectorInfo;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+lazy_static! {
+    static ref NUM_CPUS: usize = num_cpus::get();
+}
 
 /// Tracks data accessed and modified during the execution of a message.
 ///
@@ -97,6 +121,24 @@ where
         }
         self.caller_validated = true;
         Ok(())
+    }
+
+    pub fn resolve_to_key_addr(&self, addr: &Address) -> Result<Address> {
+        if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
+            return Ok(*addr);
+        }
+
+        let state_tree = self.call_manager.state_tree();
+        let act = state_tree
+            .get_actor(addr)?
+            .ok_or(anyhow!("state tree doesn't contain actor"))?;
+
+        let state: crate::account_actor::State = state_tree
+            .store()
+            .get_cbor(&act.state)?
+            .ok_or(anyhow!("account actor state not found"))?;
+
+        Ok(state.address)
     }
 }
 
@@ -342,54 +384,278 @@ where
     }
 }
 
-impl<B, E> CryptoOps for DefaultKernel<B, E> {
+impl<B, E> CryptoOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn verify_signature(
-        &self,
+        &mut self,
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<()> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_signature(signature.signature_type());
+        self.call_manager.charge_gas(charge)?;
+
+        // Resolve to key address before verifying signature.
+        let signing_addr = self.resolve_to_key_addr(signer)?;
+        Ok(signature
+            .verify(plaintext, &signing_addr)
+            // TODO raising as a system error but this is NOT a fatal error;
+            //  this should be a SyscallError type with no associated exit code.
+            .map_err(SyscallError::from)?)
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32]> {
-        todo!()
+    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_hashing(data.len());
+        self.call_manager.charge_gas(charge)?;
+
+        Ok(blake2b_256(data))
     }
 
     fn compute_unsealed_sector_cid(
-        &self,
+        &mut self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_compute_unsealed_sector_cid(proof_type, pieces);
+        self.call_manager.charge_gas(charge)?;
+
+        let ssize = proof_type.sector_size().map_err(SyscallError::from)? as u64;
+
+        let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+
+        let pssize = PaddedPieceSize(ssize);
+        if pieces.is_empty() {
+            all_pieces.push(proofs::PieceInfo {
+                size: pssize.unpadded().into(),
+                commitment: zero_piece_commitment(pssize),
+            })
+        } else {
+            // pad remaining space with 0 piece commitments
+            let mut sum = PaddedPieceSize(0);
+            let pad_to = |pads: Vec<PaddedPieceSize>,
+                          all_pieces: &mut Vec<proofs::PieceInfo>,
+                          sum: &mut PaddedPieceSize| {
+                for p in pads {
+                    all_pieces.push(proofs::PieceInfo {
+                        size: p.unpadded().into(),
+                        commitment: zero_piece_commitment(p),
+                    });
+
+                    sum.0 += p.0;
+                }
+            };
+            for p in pieces {
+                let (ps, _) = get_required_padding(sum, p.size);
+                pad_to(ps, &mut all_pieces, &mut sum);
+
+                all_pieces.push(proofs::PieceInfo::try_from(p).map_err(SyscallError::from)?);
+                sum.0 += p.size.0;
+            }
+
+            let (ps, _) = get_required_padding(sum, pssize);
+            pad_to(ps, &mut all_pieces, &mut sum);
+        }
+
+        let comm_d = compute_comm_d(
+            proof_type.try_into().map_err(SyscallError::from)?,
+            &all_pieces,
+        )?;
+
+        Ok(data_commitment_v1_to_cid(&comm_d).map_err(SyscallError::from)?)
     }
 
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<()> {
-        todo!()
+    /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
+        verify_seal(vi)
     }
 
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
-        todo!()
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_post(verify_info);
+        self.call_manager.charge_gas(charge)?;
+
+        let WindowPoStVerifyInfo {
+            ref proofs,
+            ref challenged_sectors,
+            prover,
+            ..
+        } = verify_info;
+
+        let Randomness(mut randomness) = verify_info.randomness.clone();
+
+        // Necessary to be valid bls12 381 element.
+        randomness[31] &= 0x3f;
+
+        // Convert sector info into public replica
+        let replicas = to_fil_public_replica_infos(challenged_sectors, ProofType::Window)?;
+
+        // Convert PoSt proofs into proofs-api format
+        let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs
+            .iter()
+            .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
+            .collect::<core::result::Result<_, String>>()
+            .map_err(SyscallError::from)?;
+
+        // Generate prover bytes from ID
+        let prover_id = prover_id_from_u64(*prover);
+
+        // Verify Proof
+        post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
+            .map_err(|e| ExecutionError::Syscall(SyscallError::from(e.to_string())))
+            .map(|_| ())
     }
 
     fn verify_consensus_fault(
-        &self,
+        &mut self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_consensus_fault();
+        self.call_manager.charge_gas(charge)?;
+
+        // This syscall cannot be resolved inside the FVM, so we need to traverse
+        // the node boundary through an extern.
+        Ok(self
+            .call_manager
+            .externs()
+            .verify_consensus_fault(h1, h2, extra)?)
     }
 
     fn batch_verify_seals(
-        &self,
+        &mut self,
         vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Result<HashMap<Address, Vec<bool>>> {
-        todo!()
+        log::debug!("batch verify seals start");
+        let out = vis
+            .par_iter()
+            .with_min_len(vis.len() / *NUM_CPUS)
+            .map(|(&addr, seals)| {
+                let results = seals
+                    .par_iter()
+                    .map(|s| {
+                        let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
+                        match verify_seal_result {
+                            Ok(res) => {
+                                if let Err(err) = res {
+                                    log::debug!(
+                                        "seal verify in batch failed (miner: {}) (err: {})",
+                                        addr,
+                                        err
+                                    );
+                                    false
+                                } else {
+                                    true
+                                }
+                            }
+                            Err(_) => {
+                                log::error!("seal verify internal fail (miner: {})", addr);
+                                false
+                            }
+                        }
+                    })
+                    .collect();
+                (addr, results)
+            })
+            .collect();
+        log::debug!("batch verify seals end");
+        Ok(out)
     }
 
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<()> {
-        todo!()
+    fn verify_aggregate_seals(
+        &mut self,
+        aggregate: &AggregateSealVerifyProofAndInfos,
+    ) -> Result<()> {
+        if aggregate.infos.is_empty() {
+            return Err(SyscallError("no seal verify infos".to_owned(), None).into());
+        }
+        let spt: proofs::RegisteredSealProof = aggregate
+            .seal_proof
+            .try_into()
+            .map_err(SyscallError::from)?;
+        let prover_id = prover_id_from_u64(aggregate.miner);
+        struct AggregationInputs {
+            // replica
+            commr: [u8; 32],
+            // data
+            commd: [u8; 32],
+            sector_id: SectorId,
+            ticket: [u8; 32],
+            seed: [u8; 32],
+        }
+        let inputs: Vec<AggregationInputs> = aggregate
+            .infos
+            .iter()
+            .map(|info| {
+                let commr = cid_to_replica_commitment_v1(&info.sealed_cid)?;
+                let commd = cid_to_data_commitment_v1(&info.unsealed_cid)?;
+                Ok(AggregationInputs {
+                    commr,
+                    commd,
+                    ticket: bytes_32(&info.randomness.0),
+                    seed: bytes_32(&info.interactive_randomness.0),
+                    sector_id: SectorId::from(info.sector_number),
+                })
+            })
+            .collect::<core::result::Result<Vec<_>, &'static str>>()
+            .map_err(SyscallError::from)?;
+
+        let inp: Vec<Vec<_>> = inputs
+            .par_iter()
+            .map(|input| {
+                seal::get_seal_inputs(
+                    spt,
+                    input.commr,
+                    input.commd,
+                    prover_id,
+                    input.sector_id,
+                    input.ticket,
+                    input.seed,
+                )
+            })
+            .try_reduce(Vec::new, |mut acc, current| {
+                acc.extend(current);
+                Ok(acc)
+            })?;
+        let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
+        let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
+        if !verify_aggregate_seal_commit_proofs(
+            spt,
+            aggregate
+                .aggregate_proof
+                .try_into()
+                .map_err(SyscallError::from)?,
+            aggregate.proof.clone(),
+            &commrs,
+            &seeds,
+            inp,
+        )? {
+            Err(SyscallError("Invalid Aggregate Seal proof".to_owned(), None).into())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -399,17 +665,21 @@ impl<B, E> GasOps for DefaultKernel<B, E> {
     }
 }
 
-impl<B, E> NetworkOps for DefaultKernel<B, E> {
-    fn network_curr_epoch(&self) -> ChainEpoch {
-        todo!()
+impl<B, E> NetworkOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
+    fn network_epoch(&self) -> ChainEpoch {
+        self.call_manager.context().epoch()
     }
 
     fn network_version(&self) -> NetworkVersion {
-        todo!()
+        self.call_manager.context().network_version()
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        todo!()
+        self.call_manager.context().base_fee()
     }
 }
 
@@ -507,5 +777,83 @@ where
 impl Into<ActorError> for BlockError {
     fn into(self) -> ActorError {
         ActorError::new_fatal(self.to_string())
+    }
+}
+
+/// PoSt proof variants.
+enum ProofType {
+    Winning,
+    Window,
+}
+
+fn prover_id_from_u64(id: u64) -> ProverId {
+    let mut prover_id = ProverId::default();
+    let prover_bytes = Address::new_id(id).payload().to_raw_bytes();
+    prover_id[..prover_bytes.len()].copy_from_slice(&prover_bytes);
+    prover_id
+}
+
+fn get_required_padding(
+    old_length: PaddedPieceSize,
+    new_piece_length: PaddedPieceSize,
+) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
+    let mut sum = 0;
+
+    let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
+    let n = to_fill.count_ones();
+    let mut pad_pieces = Vec::with_capacity(n as usize);
+    for _ in 0..n {
+        let next = to_fill.trailing_zeros();
+        let p_size = 1 << next;
+        to_fill ^= p_size;
+
+        let padded = PaddedPieceSize(p_size);
+        pad_pieces.push(padded);
+        sum += padded.0;
+    }
+
+    (pad_pieces, PaddedPieceSize(sum))
+}
+
+fn to_fil_public_replica_infos(
+    src: &[SectorInfo],
+    typ: ProofType,
+) -> Result<BTreeMap<SectorId, PublicReplicaInfo>> {
+    let replicas = src
+        .iter()
+        .map::<core::result::Result<(SectorId, PublicReplicaInfo), String>, _>(
+            |sector_info: &SectorInfo| {
+                let commr = cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
+                let proof = match typ {
+                    ProofType::Winning => sector_info.proof.registered_winning_post_proof()?,
+                    ProofType::Window => sector_info.proof.registered_window_post_proof()?,
+                };
+                let replica = PublicReplicaInfo::new(proof.try_into()?, commr);
+                Ok((SectorId::from(sector_info.sector_number), replica))
+            },
+        )
+        .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
+        .map_err(SyscallError::from)?;
+    Ok(replicas)
+}
+
+fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
+    let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
+    let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
+    let prover_id = prover_id_from_u64(vi.sector_id.miner);
+
+    if !proofs_verify_seal(
+        vi.registered_proof.try_into().map_err(SyscallError::from)?,
+        commr,
+        commd,
+        prover_id,
+        SectorId::from(vi.sector_id.number),
+        bytes_32(&vi.randomness.0),
+        bytes_32(&vi.interactive_randomness.0),
+        &vi.proof,
+    )? {
+        Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
+    } else {
+        Ok(())
     }
 }

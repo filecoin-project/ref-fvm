@@ -17,7 +17,7 @@ pub trait Consensus {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> anyhow::Result<ConsensusFault>;
+    ) -> anyhow::Result<Option<ConsensusFault>>;
 }
 
 /// Randomness provider trait

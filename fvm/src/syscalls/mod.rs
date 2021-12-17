@@ -53,5 +53,9 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("message", "method_number", message::method_number)?;
     linker.func_wrap("message", "value_received", message::value_received)?;
 
+    linker.func_wrap("network", "base_fee", network::base_fee)?;
+    linker.func_wrap("network", "version", network::version)?;
+    linker.func_wrap("network", "epoch", network::epoch)?;
+
     Ok(())
 }
