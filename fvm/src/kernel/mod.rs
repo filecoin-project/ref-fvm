@@ -229,7 +229,7 @@ pub trait CryptoOps {
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool>;
 
     /// Verifies a window proof of spacetime.
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()>;
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
 
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor

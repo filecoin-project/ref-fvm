@@ -480,7 +480,7 @@ where
         verify_seal(vi)
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self
             .call_manager
             .context()
@@ -516,7 +516,6 @@ where
         // Verify Proof
         post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
             .map_err(|e| ExecutionError::Syscall(SyscallError::from(e.to_string())))
-            .map(|_| ())
     }
 
     fn verify_consensus_fault(

@@ -59,7 +59,7 @@ fn hash_blake2b(
 fn compute_unsealed_sector_cid(
     caller: Caller<'_, impl Kernel>,
     proof_type: i64, // RegisteredSealProof,
-    pieces_off: u32, // &[PieceInfo]
+    pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
 ) -> Result<Cid, Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
@@ -73,7 +73,7 @@ fn compute_unsealed_sector_cid(
 /// Verifies a sector seal proof.
 fn verify_seal(
     caller: Caller<'_, impl Kernel>,
-    info_off: u32, // &SealVerifyInfo
+    info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<bool, Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
@@ -87,10 +87,15 @@ fn verify_seal(
 /// Verifies a window proof of spacetime.
 fn verify_post(
     caller: Caller<'_, impl Kernel>,
-    info_off: u32, // &WindowPoStVerifyInfo,
+    info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<bool, Trap> {
-    todo!()
+    let mut ctx = Context::new(caller).with_memory()?;
+    let info = ctx.read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
+    ctx.data_mut()
+        .verify_post(&info)
+        .map_err(ExecutionError::from)
+        .map_err(Trap::from)
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
