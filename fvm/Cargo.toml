@@ -14,9 +14,8 @@ num-traits = "0.2"
 derive_builder = "0.10"
 ahash = "0.7"
 num-derive = "0.3.3"
-cid = { version = "0.7", features = ["serde-codec"] }
-multihash = { version = "0.15", features = ["identity", "default"] }
-wasmtime = "0.31.0"
+cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
+multihash = { version = "0.15", default-features = false, features = ["identity"] }
 fvm_shared = { path = "../shared", features = ["crypto"] }
 ipld_hamt = { path = "../ipld/hamt"}
 ipld_amt = { path = "../ipld/amt"}
@@ -44,6 +43,11 @@ fvm_actor_power = { path = "../actors/power" }
 fvm_actor_reward = { path = "../actors/reward" }
 fvm_actor_system = { path = "../actors/system" }
 fvm_actor_verifreg = { path = "../actors/verifreg" }
+
+[dependencies.wasmtime]
+version = "0.32.0"
+default-features = false
+features = ["cranelift", "pooling-allocator", "cache", "parallel-compilation"]
 
 [features]
 default = []

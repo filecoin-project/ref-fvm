@@ -10,4 +10,4 @@ blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
 cid = "0.7.0"
 fvm = { path = "../../fvm" }
 multihash = "0.15.0"
-wasmtime = "0.31.0"
+wasmtime = "0.32.0"
