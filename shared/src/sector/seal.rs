@@ -7,7 +7,7 @@ use crate::randomness::Randomness;
 use crate::sector::{RegisteredAggregateProof, RegisteredSealProof, SectorID, SectorNumber};
 use crate::ActorID;
 
-use crate::encoding::{serde_bytes, tuple::*};
+use crate::encoding::{serde_bytes, tuple::*, Cbor};
 use cid::Cid;
 use clock::ChainEpoch;
 
@@ -30,6 +30,9 @@ pub struct SealVerifyInfo {
     pub sealed_cid: Cid,   // Commr
     pub unsealed_cid: Cid, // Commd
 }
+
+// For syscall marshalling.
+impl Cbor for SealVerifyInfo {}
 
 /// SealVerifyParams is the structure of information that must be sent with
 /// a message to commit a sector. Most of this information is not needed in the
@@ -67,3 +70,6 @@ pub struct AggregateSealVerifyProofAndInfos {
     pub proof: Vec<u8>,
     pub infos: Vec<AggregateSealVerifyInfo>,
 }
+
+// For syscall marshalling.
+impl Cbor for AggregateSealVerifyProofAndInfos {}

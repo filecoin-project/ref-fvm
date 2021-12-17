@@ -307,6 +307,13 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
 }
 
 impl<B, E> ReturnOps for DefaultKernel<B, E> {
+    fn return_push<T: Cbor>(&mut self, obj: T) -> Result<usize> {
+        let bytes = obj.marshal_cbor()?;
+        let len = bytes.len();
+        self.return_stack.push_back(bytes);
+        Ok(len)
+    }
+
     fn return_size(&self) -> u64 {
         self.return_stack.back().map(Vec::len).unwrap_or(0) as u64
     }
@@ -394,7 +401,7 @@ where
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let charge = self
             .call_manager
             .context()
@@ -404,11 +411,7 @@ where
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer)?;
-        Ok(signature
-            .verify(plaintext, &signing_addr)
-            // TODO raising as a system error but this is NOT a fatal error;
-            //  this should be a SyscallError type with no associated exit code.
-            .map_err(SyscallError::from)?)
+        Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
@@ -480,11 +483,11 @@ where
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         verify_seal(vi)
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self
             .call_manager
             .context()
@@ -520,7 +523,6 @@ where
         // Verify Proof
         post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
             .map_err(|e| ExecutionError::Syscall(SyscallError::from(e.to_string())))
-            .map(|_| ())
     }
 
     fn verify_consensus_fault(
@@ -559,17 +561,26 @@ where
                         let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
                         match verify_seal_result {
                             Ok(res) => {
-                                if let Err(err) = res {
-                                    log::debug!(
+                                match res {
+                                    Ok(correct) => {
+                                        if !correct {
+                                            log::debug!(
+                                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                            addr,
+                                            );
+                                        }
+                                        return correct; // all ok
+                                    }
+                                    Err(err) => {
+                                        log::debug!(
                                         "seal verify in batch failed (miner: {}) (err: {})",
                                         addr,
                                         err
                                     );
-                                    false
-                                } else {
-                                    true
+                                        false
+                                    }
                                 }
-                            }
+                            },
                             Err(_) => {
                                 log::error!("seal verify internal fail (miner: {})", addr);
                                 false
@@ -587,7 +598,7 @@ where
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if aggregate.infos.is_empty() {
             return Err(SyscallError("no seal verify infos".to_owned(), None).into());
         }
@@ -641,7 +652,7 @@ where
             })?;
         let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
         let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
-        if !verify_aggregate_seal_commit_proofs(
+        Ok(verify_aggregate_seal_commit_proofs(
             spt,
             aggregate
                 .aggregate_proof
@@ -651,11 +662,7 @@ where
             &commrs,
             &seeds,
             inp,
-        )? {
-            Err(SyscallError("Invalid Aggregate Seal proof".to_owned(), None).into())
-        } else {
-            Ok(())
-        }
+        )?)
     }
 }
 
@@ -837,12 +844,12 @@ fn to_fil_public_replica_infos(
     Ok(replicas)
 }
 
-fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
+fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
     let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
     let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
     let prover_id = prover_id_from_u64(vi.sector_id.miner);
 
-    if !proofs_verify_seal(
+    proofs_verify_seal(
         vi.registered_proof.try_into().map_err(SyscallError::from)?,
         commr,
         commd,
@@ -851,9 +858,6 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
         bytes_32(&vi.randomness.0),
         bytes_32(&vi.interactive_randomness.0),
         &vi.proof,
-    )? {
-        Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
-    } else {
-        Ok(())
-    }
+    )
+    .map_err(ExecutionError::from)
 }
