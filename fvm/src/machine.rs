@@ -589,7 +589,4 @@ impl MachineContext {
         self.price_list.clone()
     }
 
-    pub fn network_version(&self) -> NetworkVersion {
-        self.network_version
-    }
 }
