@@ -588,5 +588,4 @@ impl MachineContext {
     pub fn price_list(&self) -> Rc<PriceList> {
         self.price_list.clone()
     }
-
 }
