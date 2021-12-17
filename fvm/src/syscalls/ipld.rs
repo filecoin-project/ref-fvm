@@ -104,7 +104,8 @@ pub fn read(
 }
 
 pub fn stat(mut caller: Caller<'_, impl Kernel>, id: u32) -> Result<(u64, u32), Trap> {
-    Ok(caller.kernel()
+    Ok(caller
+        .kernel()
         .block_stat(id)
         .map(|stat| (stat.codec, stat.size))?)
 }
