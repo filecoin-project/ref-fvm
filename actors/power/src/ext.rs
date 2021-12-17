@@ -4,6 +4,8 @@ use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, RawBytes};
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, StoragePower};
 use fvm_shared::smooth::FilterEstimate;
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::METHOD_CONSTRUCTOR;
+use num_derive::FromPrimitive;
 
 pub mod init {
     use super::*;
@@ -52,8 +54,27 @@ pub mod miner {
         pub peer_id: Vec<u8>,
         pub multi_addresses: Vec<BytesDe>,
     }
+
+    #[derive(Serialize_tuple, Deserialize_tuple)]
+    pub struct DeferredCronEventParams {
+        #[serde(with = "serde_bytes")]
+        pub event_payload: Vec<u8>,
+        pub reward_smoothed: FilterEstimate,
+        pub quality_adj_power_smoothed: FilterEstimate,
+    }
 }
 
 pub mod reward {
+    use super::*;
+    
     pub const UPDATE_NETWORK_KPI: u64 = 4;
+
+    #[derive(FromPrimitive)]
+    #[repr(u64)]
+    pub enum Method {
+        Constructor = METHOD_CONSTRUCTOR,
+        AwardBlockReward = 2,
+        ThisEpochReward = 3,
+        UpdateNetworkKPI = 4,
+    }
 }

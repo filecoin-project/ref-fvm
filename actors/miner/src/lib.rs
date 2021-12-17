@@ -1251,7 +1251,7 @@ impl Actor {
                 params.sectors.len()
             ));
         }
-        let mut fee_to_burn = TokenAmount::from(0);
+        let mut fee_to_burn = TokenAmount::from(0_u32);
         let mut needs_cron = false;
         rt.transaction(|state: &mut State, rt|{
             // Aggregate fee applies only when batching.

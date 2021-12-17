@@ -17,7 +17,7 @@ use fvm_shared::clock::EPOCH_UNDEFINED;
 use fvm_shared::deadlines::QuantSpec;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, tuple::*, Cbor, RawBytes};
+use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -432,7 +432,7 @@ impl Actor {
                 // So instead of mutably calling, we queue the rt.send() params as a struct, see Deal struct
                 method_queue.push(Deal {
                     to: *VERIFIED_REGISTRY_ACTOR_ADDR,
-                    method: crate::ext::verifreg::Method::UseBytes as u64,
+                    method: crate::ext::verifreg::USE_BYTES_METHOD as u64,
                     params: RawBytes::serialize(UseBytesParams {
                         address: client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),

@@ -38,7 +38,7 @@ pub mod verifreg {
 }
 
 pub mod reward {
-    use super::*;
+    //use super::*;
 
     pub const THIS_EPOCH_REWARD_METHOD: u64 = 3;
 }

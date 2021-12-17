@@ -8,7 +8,6 @@ use fvm_shared::{
     address::Address,
     bigint::bigint_ser,
     clock::ChainEpoch,
-    commcid,
     crypto::signature::Signature,
     econ::TokenAmount,
     encoding::{tuple::*, Cbor},

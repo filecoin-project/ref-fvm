@@ -19,7 +19,6 @@ use fvm_shared::{
     sector::SealVerifyInfo,
     MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR,
     reward::ThisEpochRewardReturn,
-    miner::{DeferredCronEventParams, MinerConstructorParams},
 };
 
 use actors_runtime::{
@@ -276,7 +275,7 @@ impl Actor {
         let rewret: ThisEpochRewardReturn = rt
             .send(
                 *REWARD_ACTOR_ADDR,
-                fvm_shared::reward::Method::ThisEpochReward as MethodNum,
+                ext::reward::Method::ThisEpochReward as MethodNum,
                 RawBytes::default(),
                 TokenAmount::zero(),
             )
@@ -645,7 +644,7 @@ impl Actor {
 
         let mut failed_miner_crons = Vec::new();
         for event in cron_events {
-            let params = RawBytes::serialize(DeferredCronEventParams {
+            let params = RawBytes::serialize(ext::miner::DeferredCronEventParams {
                 event_payload: event.callback_payload.bytes().to_owned(),
                 reward_smoothed: rewret.this_epoch_reward_smoothed.clone(),
                 quality_adj_power_smoothed: st.this_epoch_qa_power_smoothed.clone(),

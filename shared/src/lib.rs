@@ -21,7 +21,6 @@ pub mod econ;
 pub mod encoding;
 pub mod error;
 pub mod math;
-pub mod miner;
 pub mod piece;
 pub mod randomness;
 pub mod reward;
