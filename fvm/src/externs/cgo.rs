@@ -75,12 +75,12 @@ impl Consensus for CgoExterns {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> anyhow::Result<ConsensusFault> {
-        Ok(ConsensusFault {
+    ) -> anyhow::Result<Option<ConsensusFault>> {
+        Ok(Some(ConsensusFault {
             target: Address::new_id(0),
             epoch: 0 as ChainEpoch,
             fault_type: ConsensusFaultType::DoubleForkMining,
-        })
+        }))
     }
 }
 
