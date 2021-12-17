@@ -2,13 +2,15 @@ use wasmtime::Linker;
 
 use crate::{kernel::Result, Kernel};
 
-mod context;
+mod caller;
 mod crypto;
+
+pub(self) use caller::{get_kernel, get_kernel_and_memory, Memory};
+
 mod ipld;
 mod message;
 mod network;
 mod sself;
-mod typestate;
 mod validation;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
