@@ -108,6 +108,8 @@ fn verify_post(
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
+///
+/// This returns
 fn verify_consensus_fault(
     caller: Caller<'_, impl Kernel>,
     h1_off: u32,
@@ -116,8 +118,32 @@ fn verify_consensus_fault(
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<Option<ConsensusFault>, Trap> {
-    todo!()
+) -> Result<bool, Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    // Need to take slices as mut because data is borrowed as mut too.
+    // TODO copying into owned vectors to later borrow immutable references is
+    //  a workaround because the Context considers the slices borrowed, and Rust
+    //  complains about the mutable borrow of the kernel later.
+    let mut h1 = ctx.try_slice(h1_off, h1_len)?.to_owned();
+    let mut h2 = ctx.try_slice(h2_off, h2_len)?.to_owned();
+    let mut extra = ctx.try_slice(extra_off, extra_len)?.to_owned();
+
+    // TODO the extern should only signal an error in case there was an internal
+    //  interrupting error evaluating the consensus fault. If the outcome is
+    //  "no consensus fault was found", the extern should not error, as doing so
+    //  would interrupt execution via the Trap (at least currently).
+    let k = ctx.data_mut();
+    let ret = k
+        .verify_consensus_fault(h1.as_slice(), h2.as_slice(), extra.as_slice())
+        .map_err(ExecutionError::from)
+        .map_err(Trap::from)?;
+
+    match ret {
+        // Consensus fault detected, push payload onto return stack, and return true.
+        Some(fault) => k.return_push(fault).map(|_| true).map_err(Trap::from),
+        // No consensus fault.
+        None => Ok(false),
+    }
 }
 
 fn batch_verify_seals(

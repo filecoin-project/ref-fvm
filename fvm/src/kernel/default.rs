@@ -307,6 +307,13 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
 }
 
 impl<B, E> ReturnOps for DefaultKernel<B, E> {
+    fn return_push<T: Cbor>(&mut self, obj: T) -> Result<usize> {
+        let bytes = obj.marshal_cbor()?;
+        let len = bytes.len();
+        self.return_stack.push_back(bytes);
+        Ok(len)
+    }
+
     fn return_size(&self) -> u64 {
         self.return_stack.back().map(Vec::len).unwrap_or(0) as u64
     }

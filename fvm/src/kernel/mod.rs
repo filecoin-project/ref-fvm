@@ -11,7 +11,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
+use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -162,6 +162,10 @@ pub trait ActorOps {
 /// Operations that query and manipulate the return stack. The return stack is
 /// how the kernel delivers variable-length return values to the caller.
 pub trait ReturnOps {
+    /// Pushes a CBOR serializable object onto the return stack. For raw data,
+    /// use RawBytes. This method returns the number of bytes written.
+    fn return_push<T: Cbor>(&mut self, obj: T) -> Result<usize>;
+
     /// Returns the size of the top element in the return stack.
     /// 0 means non-existent, otherwise the length is returned.
     fn return_size(&self) -> u64;
