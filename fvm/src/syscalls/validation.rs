@@ -1,42 +1,41 @@
-use crate::syscalls::context::Context;
 use crate::{kernel::ExecutionError, Kernel};
 use cid::Cid;
 use fvm_shared::address::Address;
 use wasmtime::{Caller, Trap};
 
-pub fn validate_immediate_caller_accept_any(caller: Caller<'_, impl Kernel>) -> Result<(), Trap> {
-    Context::new(caller)
-        .data_mut()
-        .validate_immediate_caller_accept_any()?;
+use super::Context;
+
+pub fn validate_immediate_caller_accept_any(
+    mut caller: Caller<'_, impl Kernel>,
+) -> Result<(), Trap> {
+    caller.kernel().validate_immediate_caller_accept_any()?;
     Ok(())
 }
 
 pub fn validate_immediate_caller_addr_one_of(
-    caller: Caller<'_, impl Kernel>,
+    mut caller: Caller<'_, impl Kernel>,
     addrs_offset: u32,
     addrs_len: u32,
 ) -> Result<(), Trap> {
-    let mut ctx = Context::new(caller).with_memory()?;
-    let bytes = ctx.try_slice(addrs_offset, addrs_len)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
+    let bytes = memory.try_slice(addrs_offset, addrs_len)?;
     // TODO sugar for enveloping unboxed errors into traps.
     let addrs: Vec<Address> =
         fvm_shared::encoding::from_slice(bytes).map_err(ExecutionError::from)?;
-    ctx.data_mut()
-        .validate_immediate_caller_addr_one_of(addrs.as_slice())?;
+    kernel.validate_immediate_caller_addr_one_of(addrs.as_slice())?;
 
     Ok(())
 }
 
 pub fn validate_immediate_caller_type_one_of(
-    caller: Caller<'_, impl Kernel>,
+    mut caller: Caller<'_, impl Kernel>,
     cids_offset: u32,
     cids_len: u32,
 ) -> Result<(), Trap> {
-    let mut ctx = Context::new(caller).with_memory()?;
-    let bytes = ctx.try_slice(cids_offset, cids_len)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
+    let bytes = memory.try_slice(cids_offset, cids_len)?;
     let cids: Vec<Cid> = fvm_shared::encoding::from_slice(bytes).map_err(ExecutionError::from)?;
 
-    ctx.data_mut()
-        .validate_immediate_caller_type_one_of(cids.as_slice())?;
+    kernel.validate_immediate_caller_type_one_of(cids.as_slice())?;
     Ok(())
 }
