@@ -21,7 +21,8 @@ data-encoding = "2.3.2"
 data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
-cid = { version = "0.7", features = ["serde-codec"] }
+cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
+multihash = { version = "0.15", default-features = false, features = ["blake2b"] }
 unsigned-varint = "0.7.1"
 
 ## non-wasm dependencies; these dependencies and the respective code is

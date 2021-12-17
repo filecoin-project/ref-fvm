@@ -1,6 +1,9 @@
 //#![cfg(feature = "tracking")]
 
-use cid::{multihash::Code, Cid};
+use cid::{
+    multihash::{self, Code},
+    Cid,
+};
 use std::cell::RefCell;
 
 use crate::{Block, Blockstore};
