@@ -598,7 +598,7 @@ where
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if aggregate.infos.is_empty() {
             return Err(SyscallError("no seal verify infos".to_owned(), None).into());
         }
@@ -652,7 +652,7 @@ where
             })?;
         let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
         let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
-        if !verify_aggregate_seal_commit_proofs(
+        Ok(verify_aggregate_seal_commit_proofs(
             spt,
             aggregate
                 .aggregate_proof
@@ -662,11 +662,7 @@ where
             &commrs,
             &seeds,
             inp,
-        )? {
-            Err(SyscallError("Invalid Aggregate Seal proof".to_owned(), None).into())
-        } else {
-            Ok(())
-        }
+        )?)
     }
 }
 

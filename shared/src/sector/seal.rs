@@ -31,6 +31,7 @@ pub struct SealVerifyInfo {
     pub unsealed_cid: Cid, // Commd
 }
 
+// For syscall marshalling.
 impl Cbor for SealVerifyInfo {}
 
 /// SealVerifyParams is the structure of information that must be sent with
@@ -69,3 +70,6 @@ pub struct AggregateSealVerifyProofAndInfos {
     pub proof: Vec<u8>,
     pub infos: Vec<AggregateSealVerifyInfo>,
 }
+
+// For syscall marshalling.
+impl Cbor for AggregateSealVerifyProofAndInfos {}

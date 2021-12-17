@@ -21,4 +21,5 @@ pub enum ConsensusFaultType {
     TimeOffsetMining = 3,
 }
 
+// For syscall marshalling.
 impl Cbor for ConsensusFault {}

@@ -146,17 +146,22 @@ fn verify_consensus_fault(
     }
 }
 
+fn verify_aggregate_seals(
+    caller: Caller<'_, impl Kernel>,
+    agg_off: u32, // AggregateSealVerifyProofAndInfos
+    agg_len: u32,
+) -> Result<bool, Trap> {
+    let mut ctx = Context::new(caller).with_memory()?;
+    let info = ctx.read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
+    ctx.data_mut()
+        .verify_aggregate_seals(&info)
+        .map_err(ExecutionError::from)
+        .map_err(Trap::from)
+}
+
 fn batch_verify_seals(
     caller: Caller<'_, impl Kernel>,
     vis: &[(&Address, &[SealVerifyInfo])],
 ) -> Result<HashMap<Address, Vec<bool>>, Trap> {
-    todo!()
-}
-
-fn verify_aggregate_seals(
-    caller: Caller<'_, impl Kernel>,
-    agg_off: u32, // &AggregateSealVerifyProofAndInfos
-    agg_len: u32,
-) -> Result<bool, Trap> {
     todo!()
 }

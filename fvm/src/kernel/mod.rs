@@ -260,7 +260,7 @@ pub trait CryptoOps {
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<()>;
+    ) -> Result<bool>;
 }
 
 /// Randomness queries.
