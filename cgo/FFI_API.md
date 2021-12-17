@@ -1,12 +1,10 @@
 Lotus -> FVM: Create a Machine.
     + Input
-        - Config
         - Blockstore
-        - state tree
+        - state tree root CID
         - epoch
         - basefee
         - initial state root
-        - pricelist
         - network version
     + Output
         - VM on which any number of messages can be executed
