@@ -8,12 +8,13 @@ use cid::Cid;
 use num_traits::Signed;
 
 use blockstore::Blockstore;
+use byteorder::{BigEndian, WriteBytesExt};
 use fvm_shared::bigint::Zero;
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
+use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
@@ -772,7 +773,15 @@ where
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {
-        todo!()
+        let oa = self.resolve_to_key_addr(&self.call_manager.origin())?;
+        // FATAL ERR: "Could not serialize address in new_actor_address: {}",
+        let mut b = to_vec(&oa)?;
+        // FATAL ERR: "Writing nonce into a buffer: {}", e)))?;
+        b.write_u64::<BigEndian>(self.call_manager.nonce())?;
+        // FATAL ERR: "Writing actor index in buffer: {}", e)))?;
+        b.write_u64::<BigEndian>(self.call_manager.next_actor_idx())?;
+        let addr = Address::new_actor(&b);
+        Ok(addr)
     }
 
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {

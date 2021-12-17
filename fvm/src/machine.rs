@@ -199,7 +199,7 @@ where
 
         // Apply the message.
         let (res, gas_used) = self.map_mut(|machine| {
-            let mut cm = CallManager::new(machine, msg.gas_limit);
+            let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().1);
             }
