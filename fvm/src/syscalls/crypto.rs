@@ -1,5 +1,4 @@
 use crate::kernel::ExecutionError;
-use crate::syscalls::get_kernel_and_memory;
 use crate::Kernel;
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -11,6 +10,8 @@ use fvm_shared::sector::{
 use std::collections::HashMap;
 use wasmtime::{Caller, Trap};
 
+use super::Context;
+
 /// Verifies that a signature is valid for an address and plaintext.
 fn verify_signature(
     mut caller: Caller<'_, impl Kernel>,
@@ -21,7 +22,7 @@ fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<bool, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let sig: Signature = memory.read_cbor(sig_off, sig_len)?;
     let addr: Address = memory.read_address(addr_off, addr_len)?;
     // plaintext doesn't need to be a mutable borrow, but otherwise we would be
@@ -44,7 +45,7 @@ fn hash_blake2b(
 ) -> Result<(), Trap> {
     const HASH_LEN: usize = 32;
 
-    let (kernel, mut memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let hash = {
         let data = memory.try_slice(data_len, data_off)?;
         kernel.hash_blake2b(data)?
@@ -63,7 +64,7 @@ fn compute_unsealed_sector_cid(
     pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
 ) -> Result<Cid, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let pieces: Vec<PieceInfo> = memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
     Ok(kernel.compute_unsealed_sector_cid(typ, pieces.as_slice())?)
@@ -75,7 +76,7 @@ fn verify_seal(
     info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<bool, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<SealVerifyInfo>(info_off, info_len)?;
     kernel
         .verify_seal(&info)
@@ -89,7 +90,7 @@ fn verify_post(
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<bool, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
     kernel
         .verify_post(&info)
@@ -118,7 +119,7 @@ fn verify_consensus_fault(
     extra_off: u32,
     extra_len: u32,
 ) -> Result<bool, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
 
     let h1 = memory.try_slice(h1_off, h1_len)?;
     let h2 = memory.try_slice(h2_off, h2_len)?;
@@ -146,7 +147,7 @@ fn verify_aggregate_seals(
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
 ) -> Result<bool, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
     kernel
         .verify_aggregate_seals(&info)

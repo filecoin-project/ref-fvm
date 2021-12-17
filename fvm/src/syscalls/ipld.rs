@@ -3,7 +3,7 @@ use wasmtime::{self, Caller, Trap};
 
 use crate::{kernel::ExecutionError, Kernel};
 
-use super::{get_kernel, get_kernel_and_memory};
+use super::Context;
 
 // Computes the encoded size of a varint.
 // TODO: move this to the varint crate.
@@ -28,7 +28,7 @@ pub fn get_root(
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32, Trap> {
-    let (kernel, mut memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, mut memory) = caller.kernel_and_memory()?;
 
     let root = kernel.root();
     let size = encoded_cid_size(&root);
@@ -45,14 +45,14 @@ pub fn get_root(
 }
 
 pub fn set_root(mut caller: Caller<'_, impl Kernel>, cid: u32) -> Result<(), Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let cid = memory.read_cid(cid)?;
     kernel.set_root(cid)?;
     Ok(())
 }
 
 pub fn open(mut caller: Caller<'_, impl Kernel>, cid: u32) -> Result<u32, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let cid = memory.read_cid(cid)?;
     Ok(kernel.block_open(&cid)?)
 }
@@ -63,7 +63,7 @@ pub fn create(
     data_off: u32,
     data_len: u32,
 ) -> Result<u32, Trap> {
-    let (kernel, memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice(data_off, data_len)?;
     Ok(kernel.block_create(codec, data)?)
 }
@@ -76,7 +76,7 @@ pub fn cid(
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32, Trap> {
-    let (kernel, mut memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let cid = kernel.block_link(id, hash_fun, hash_len)?;
 
     let size = encoded_cid_size(&cid);
@@ -98,13 +98,13 @@ pub fn read(
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<u32, Trap> {
-    let (kernel, mut memory) = get_kernel_and_memory(&mut caller)?;
+    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice_mut(obuf_off, obuf_len)?;
     Ok(kernel.block_read(id, offset, data)?)
 }
 
 pub fn stat(mut caller: Caller<'_, impl Kernel>, id: u32) -> Result<(u64, u32), Trap> {
-    Ok(get_kernel(&mut caller)
+    Ok(caller.kernel()
         .block_stat(id)
         .map(|stat| (stat.codec, stat.size))?)
 }

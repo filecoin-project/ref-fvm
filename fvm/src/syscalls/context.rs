@@ -7,19 +7,30 @@ use wasmtime::{Caller, Trap};
 
 use crate::kernel::ExecutionError;
 
-pub fn get_kernel<'a, 'b, K>(mut caller: &'a mut Caller<'b, K>) -> &'a mut K {
-    caller.data_mut()
+pub trait Context {
+    type Kernel: crate::kernel::Kernel;
+    fn kernel(&mut self) -> &mut Self::Kernel;
+    fn kernel_and_memory(&mut self) -> Result<(&mut Self::Kernel, Memory<'_>), Trap>;
 }
 
-pub fn get_kernel_and_memory<'a, 'b, K>(
-    caller: &'a mut Caller<'b, K>,
-) -> Result<(&'a mut K, Memory<'a>), Trap> {
-    let (mem, data) = caller
-        .get_export("memory")
-        .and_then(|m| m.into_memory())
-        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
-        .data_and_store_mut(caller);
-    Ok((data, Memory { memory: mem }))
+impl<'a, K> Context for Caller<'a, K>
+where
+    K: crate::kernel::Kernel,
+{
+    type Kernel = K;
+
+    fn kernel(&mut self) -> &mut Self::Kernel {
+        self.data_mut()
+    }
+
+    fn kernel_and_memory(&mut self) -> Result<(&mut Self::Kernel, Memory<'_>), Trap> {
+        let (mem, data) = self
+            .get_export("memory")
+            .and_then(|m| m.into_memory())
+            .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
+            .data_and_store_mut(self);
+        Ok((data, Memory { memory: mem }))
+    }
 }
 
 pub struct Memory<'a> {
