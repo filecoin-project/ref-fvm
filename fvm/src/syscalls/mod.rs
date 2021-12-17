@@ -3,6 +3,7 @@ use wasmtime::Linker;
 use crate::{kernel::Result, Kernel};
 
 mod context;
+mod crypto;
 mod ipld;
 mod message;
 mod network;

@@ -213,7 +213,7 @@ pub trait CryptoOps {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<()>;
+    ) -> Result<bool>;
 
     /// Hashes input data using blake2b with 256 bit output.
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]>;

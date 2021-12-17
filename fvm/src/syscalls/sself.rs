@@ -36,8 +36,7 @@ pub fn self_destruct(
     addr_len: u32,
 ) -> Result<(), Trap> {
     let mut ctx = Context::new(caller).with_memory()?;
-    let bytes = ctx.try_slice(addr_off, addr_len)?;
-    let addr = Address::from_bytes(bytes).map_err(ExecutionError::from)?;
+    let addr = ctx.read_address(addr_off, addr_len)?;
     ctx.data_mut().self_destruct(&addr)?;
     Ok(())
 }

@@ -394,7 +394,7 @@ where
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let charge = self
             .call_manager
             .context()
@@ -404,11 +404,7 @@ where
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer)?;
-        Ok(signature
-            .verify(plaintext, &signing_addr)
-            // TODO raising as a system error but this is NOT a fatal error;
-            //  this should be a SyscallError type with no associated exit code.
-            .map_err(SyscallError::from)?)
+        Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {

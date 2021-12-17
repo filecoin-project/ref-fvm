@@ -1,4 +1,7 @@
+use crate::kernel::ExecutionError;
 use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::encoding::{from_slice, Cbor};
 use wasmtime::{Caller, Trap};
 
 use super::typestate;
@@ -106,5 +109,19 @@ where
             .get(offset as usize..)
             .ok_or_else(|| Trap::new(format!("buffer {} out of bounds", offset)))?;
         Cid::read_bytes(&*memory).map_err(|err| Trap::new(format!("failed to parse CID: {}", err)))
+    }
+
+    pub fn read_address(&self, offset: u32, len: u32) -> Result<Address, Trap> {
+        let bytes = self.try_slice(offset, len)?;
+        Address::from_bytes(bytes)
+            .map_err(ExecutionError::from)
+            .map_err(Trap::from)
+    }
+
+    pub fn read_cbor<T: Cbor>(&self, offset: u32, len: u32) -> Result<T, Trap> {
+        let bytes = self.try_slice(offset, len)?;
+        from_slice(bytes)
+            .map_err(ExecutionError::from)
+            .map_err(Trap::from)
     }
 }
