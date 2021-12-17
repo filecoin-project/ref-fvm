@@ -1,5 +1,4 @@
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Context};
@@ -21,7 +20,6 @@ use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-use crate::kernel::ExecutionError::Syscall;
 use crate::kernel::{ExecutionError, Result, SyscallError};
 use crate::message::Message;
 use crate::receipt::Receipt;
@@ -547,7 +545,7 @@ pub struct MachineContext {
     /// The initial state root.
     initial_state_root: Cid,
     /// The price list.
-    price_list: Rc<PriceList>,
+    price_list: PriceList,
     /// The network version at epoch
     network_version: NetworkVersion,
 }
@@ -564,7 +562,7 @@ impl MachineContext {
             epoch,
             base_fee,
             initial_state_root: state_root,
-            price_list: Rc::new(price_list),
+            price_list: price_list,
             network_version,
         }
     }
@@ -585,7 +583,7 @@ impl MachineContext {
         self.network_version
     }
 
-    pub fn price_list(&self) -> Rc<PriceList> {
-        self.price_list.clone()
+    pub fn price_list(&self) -> &PriceList {
+        &self.price_list
     }
 }
