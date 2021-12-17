@@ -84,6 +84,7 @@ where
         config: Config,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
+        base_circ_supply: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
         blockstore: B,
@@ -92,6 +93,7 @@ where
         let context = MachineContext::new(
             epoch,
             base_fee,
+            base_circ_supply,
             state_root,
             price_list_by_epoch(epoch),
             network_version,
@@ -542,6 +544,8 @@ pub struct MachineContext {
     epoch: ChainEpoch,
     /// The base fee that's in effect when the Machine runs.
     base_fee: TokenAmount,
+    /// The circulating supply at the start of the epoch-- does not get updated during message execution.
+    base_circ_supply: TokenAmount,
     /// The initial state root.
     initial_state_root: Cid,
     /// The price list.
@@ -554,6 +558,7 @@ impl MachineContext {
     fn new(
         epoch: ChainEpoch,
         base_fee: TokenAmount,
+        base_circ_supply: TokenAmount,
         state_root: Cid,
         price_list: PriceList,
         network_version: NetworkVersion,
@@ -561,6 +566,7 @@ impl MachineContext {
         MachineContext {
             epoch,
             base_fee,
+            base_circ_supply,
             initial_state_root: state_root,
             price_list: price_list,
             network_version,
@@ -573,6 +579,10 @@ impl MachineContext {
 
     pub fn base_fee(&self) -> &TokenAmount {
         &self.base_fee
+    }
+
+    pub fn base_circ_supply(&self) -> &TokenAmount {
+        &self.base_circ_supply
     }
 
     pub fn state_root(&self) -> Cid {
