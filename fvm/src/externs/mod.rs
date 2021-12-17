@@ -5,7 +5,7 @@ use fvm_shared::{
     clock::ChainEpoch, consensus::ConsensusFault, crypto::randomness::DomainSeparationTag,
 };
 
-mod cgo;
+pub mod cgo;
 
 pub trait Externs: Rand + Consensus + Blockstore {}
 
