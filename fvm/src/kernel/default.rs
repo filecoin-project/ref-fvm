@@ -476,7 +476,7 @@ where
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         verify_seal(vi)
     }
 
@@ -555,17 +555,26 @@ where
                         let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
                         match verify_seal_result {
                             Ok(res) => {
-                                if let Err(err) = res {
-                                    log::debug!(
+                                match res {
+                                    Ok(correct) => {
+                                        if !correct {
+                                            log::debug!(
+                                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                            addr,
+                                            );
+                                        }
+                                        return correct; // all ok
+                                    }
+                                    Err(err) => {
+                                        log::debug!(
                                         "seal verify in batch failed (miner: {}) (err: {})",
                                         addr,
                                         err
                                     );
-                                    false
-                                } else {
-                                    true
+                                        false
+                                    }
                                 }
-                            }
+                            },
                             Err(_) => {
                                 log::error!("seal verify internal fail (miner: {})", addr);
                                 false
@@ -833,12 +842,12 @@ fn to_fil_public_replica_infos(
     Ok(replicas)
 }
 
-fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
+fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
     let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
     let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
     let prover_id = prover_id_from_u64(vi.sector_id.miner);
 
-    if !proofs_verify_seal(
+    proofs_verify_seal(
         vi.registered_proof.try_into().map_err(SyscallError::from)?,
         commr,
         commd,
@@ -847,9 +856,6 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
         bytes_32(&vi.randomness.0),
         bytes_32(&vi.interactive_randomness.0),
         &vi.proof,
-    )? {
-        Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
-    } else {
-        Ok(())
-    }
+    )
+    .map_err(ExecutionError::from)
 }

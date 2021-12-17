@@ -25,6 +25,8 @@ fn verify_signature(
     let mut ctx = Context::new(caller).with_memory()?;
     let sig: Signature = ctx.read_cbor(sig_off, sig_len)?;
     let addr: Address = ctx.read_address(addr_off, addr_len)?;
+    // plaintext doesn't need to be a mutable borrow, but otherwise we would be
+    // borrowing the ctx both immutably and mutably.
     let (plaintext, k) = ctx.try_slice_and_runtime(plaintext_len, plaintext_off)?;
     k.verify_signature(&sig, &addr, plaintext)
         .map_err(ExecutionError::from)
@@ -42,6 +44,8 @@ fn hash_blake2b(
 ) -> Result<(), Trap> {
     const HASH_LEN: usize = 32;
     let mut ctx = Context::new(caller).with_memory()?;
+    // data doesn't need to be a mutable borrow, but otherwise we would be
+    // borrowing the ctx both immutably and mutably.
     let (data, k) = ctx.try_slice_and_runtime(data_len, data_off)?;
     let hash = k.hash_blake2b(data)?;
     assert_eq!(hash.len(), 32);
@@ -72,7 +76,12 @@ fn verify_seal(
     info_off: u32, // &SealVerifyInfo
     info_len: u32,
 ) -> Result<bool, Trap> {
-    todo!()
+    let mut ctx = Context::new(caller).with_memory()?;
+    let info = ctx.read_cbor::<SealVerifyInfo>(info_off, info_len)?;
+    ctx.data_mut()
+        .verify_seal(&info)
+        .map_err(ExecutionError::from)
+        .map_err(Trap::from)
 }
 
 /// Verifies a window proof of spacetime.
