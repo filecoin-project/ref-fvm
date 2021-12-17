@@ -16,9 +16,9 @@ use fvm_shared::{
     econ::TokenAmount,
     encoding::RawBytes,
     error::{ActorError, ExitCode},
+    reward::ThisEpochRewardReturn,
     sector::SealVerifyInfo,
     MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR,
-    reward::ThisEpochRewardReturn,
 };
 
 use actors_runtime::{

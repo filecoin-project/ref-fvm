@@ -6,11 +6,7 @@ use std::error::Error as StdError;
 
 use ahash::AHashMap;
 use bitfield::BitField;
-<<<<<<< HEAD
 use blockstore::Blockstore;
-=======
-use blockstore::BlockStore;
->>>>>>> 3920f12 (market actor changes)
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
@@ -323,11 +319,7 @@ impl Actor {
         struct Deal<'a> {
             to: Address,
             method: u64,
-<<<<<<< HEAD
             params: RawBytes,
-=======
-            params: Serialized,
->>>>>>> 3920f12 (market actor changes)
             value: TokenAmount,
             di: usize,
             deal: &'a mut deal::ClientDealProposal,
@@ -408,10 +400,6 @@ impl Actor {
 
             deal.proposal.provider = provider;
             deal.proposal.client = client;
-<<<<<<< HEAD
-=======
-            // TODO resolved_addr add
->>>>>>> 3920f12 (market actor changes)
             let pcid = deal.proposal.cid().map_err(|e| {
                 ActorError::from(e).wrap(format!("failed to take cid of proposal {}", di))
             })?;
@@ -444,13 +432,8 @@ impl Actor {
                 // So instead of mutably calling, we queue the rt.send() params as a struct, see Deal struct
                 method_queue.push(Deal {
                     to: *VERIFIED_REGISTRY_ACTOR_ADDR,
-<<<<<<< HEAD
                     method: crate::ext::verifreg::USE_BYTES_METHOD as u64,
                     params: RawBytes::serialize(UseBytesParams {
-=======
-                    method: crate::verifreg::Method::UseBytes as u64,
-                    params: Serialized::serialize(UseBytesParams {
->>>>>>> 3920f12 (market actor changes)
                         address: client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),
                     })?,
@@ -534,11 +517,7 @@ impl Actor {
             // This should only fail on programmer error because all expected invalid conditions should be filtered in the first set of checks.
 
             // TODO: Check if we neeed to make the previous look non mut
-<<<<<<< HEAD
             for (vid, valid_deal) in valid_deals.iter().enumerate() {
-=======
-            for (vid, valid_deal) in params.deals.iter_mut().enumerate() {
->>>>>>> 3920f12 (market actor changes)
                 msm.lock_client_and_provider_balances(&valid_deal.proposal)?;
 
                 let id = msm.generate_storage_deal_id();
@@ -1562,11 +1541,7 @@ impl ActorCode for Actor {
             }
             Some(Method::WithdrawBalance) => {
                 let res = Self::withdraw_balance(rt, rt.deserialize_params(params)?)?;
-<<<<<<< HEAD
                 Ok(RawBytes::serialize(res)?)
-=======
-                Ok(Serialized::serialize(res)?)
->>>>>>> 3920f12 (market actor changes)
             }
             Some(Method::PublishStorageDeals) => {
                 let res = Self::publish_storage_deals(rt, rt.deserialize_params(params)?)?;

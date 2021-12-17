@@ -93,7 +93,8 @@ impl Actor {
             if let Err(e) = res {
                 log::error!(
                     "cron failed to send entry to {}, send error code {}",
-                    entry.receiver, e
+                    entry.receiver,
+                    e
                 );
             }
         }
