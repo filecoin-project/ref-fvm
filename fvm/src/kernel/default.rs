@@ -529,7 +529,19 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        todo!()
+        let charge = self
+            .call_manager
+            .context()
+            .price_list()
+            .on_verify_consensus_fault();
+        self.call_manager.charge_gas(charge)?;
+
+        // This syscall cannot be resolved inside the FVM, so we need to traverse
+        // the node boundary through an extern.
+        Ok(self
+            .call_manager
+            .externs()
+            .verify_consensus_fault(h1, h2, extra)?)
     }
 
     fn batch_verify_seals(
