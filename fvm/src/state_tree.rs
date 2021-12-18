@@ -293,7 +293,7 @@ where
             return Ok(Some(res_address));
         }
 
-        let (state, _) = InitActorState::load(&self)?;
+        let (state, _) = InitActorState::load(self)?;
 
         let a = match state
             .resolve_address(self.store(), addr)
@@ -343,7 +343,7 @@ where
 
     /// Register a new address through the init actor.
     pub fn register_new_address(&mut self, addr: &Address) -> Result<ActorID> {
-        let (mut state, mut actor) = InitActorState::load(&self)?;
+        let (mut state, mut actor) = InitActorState::load(self)?;
 
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 

@@ -59,7 +59,7 @@ where
     }
     fn has(&self, cid: &Cid) -> Result<bool, Self::Error> {
         self.stats.borrow_mut().r += 1;
-        Ok(self.base.has(cid)?)
+        self.base.has(cid)
     }
 
     fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid, Self::Error>

@@ -4,14 +4,16 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 
-pub unsafe fn curr_epoch() -> ChainEpoch {
-    crate::sys::network::curr_epoch() as ChainEpoch
+pub fn curr_epoch() -> ChainEpoch {
+    unsafe { crate::sys::network::curr_epoch() as ChainEpoch }
 }
 
-pub unsafe fn version() -> NetworkVersion {
-    crate::sys::network::version()
-        .try_into()
-        .expect("invalid version")
+pub fn version() -> NetworkVersion {
+    unsafe {
+        crate::sys::network::version()
+            .try_into()
+            .expect("invalid version")
+    }
 }
 
 pub fn base_fee() -> TokenAmount {

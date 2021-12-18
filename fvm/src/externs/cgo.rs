@@ -76,7 +76,7 @@ impl Consensus for CgoExterns {
     ) -> anyhow::Result<Option<ConsensusFault>> {
         Ok(Some(ConsensusFault {
             target: Address::new_id(0),
-            epoch: 0 as ChainEpoch,
+            epoch: 0,
             fault_type: ConsensusFaultType::DoubleForkMining,
         }))
     }

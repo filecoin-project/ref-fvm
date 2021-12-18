@@ -152,7 +152,6 @@ where
             .unwrap()
             .expect("expected actor to exist")
             .state
-            .clone()
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
@@ -246,7 +245,7 @@ where
                     length: hash_len,
                 })?;
 
-        let hash = code.digest(&block.data());
+        let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
             return Err(BlockError::InvalidMultihashSpec {
                 code: hash_fun,
@@ -315,7 +314,7 @@ impl<B, E> ReturnOps for DefaultKernel<B, E> {
     }
 
     fn return_pop(&mut self, into: &mut [u8]) -> u64 {
-        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or(Vec::new());
+        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or_default();
         let len = into.len().min(ret.len());
         into.copy_from_slice(&ret[..len]);
         len as u64
@@ -561,7 +560,7 @@ where
                                             addr,
                                             );
                                         }
-                                        return correct; // all ok
+                                        correct // all ok
                                     }
                                     Err(err) => {
                                         log::debug!(
@@ -811,9 +810,9 @@ where
 }
 
 // TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
-impl Into<ActorError> for BlockError {
-    fn into(self) -> ActorError {
-        ActorError::new_fatal(self.to_string())
+impl From<BlockError> for ActorError {
+    fn from(e: BlockError) -> ActorError {
+        ActorError::new_fatal(e.to_string())
     }
 }
 

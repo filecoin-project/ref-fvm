@@ -312,7 +312,7 @@ pub(crate) fn to_leb_bytes(id: u64) -> Result<Vec<u8>, Error> {
 pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
     // write id to buffer in leb128 format
     let (id, remaining) = unsigned_varint::decode::u64(bz)?;
-    if remaining.len() > 0 {
+    if !remaining.is_empty() {
         return Err(Error::InvalidPayload);
     }
     Ok(id)

@@ -45,8 +45,8 @@ fn generate_validate_checksum() {
     let other_data = [1, 4, 3, 6, 7, 1, 2];
     let cksm = checksum(&data);
     assert_eq!(cksm.len(), 4);
-    assert_eq!(validate_checksum(&data, cksm.clone()), true);
-    assert_eq!(validate_checksum(&other_data, cksm), false);
+    assert!(validate_checksum(&data, cksm.clone()));
+    assert!(!validate_checksum(&other_data, cksm));
 }
 
 struct AddressTestVec<'a> {
@@ -329,7 +329,7 @@ fn invalid_string_addresses() {
         let res = Address::from_str(t.input);
         match res {
             Err(e) => assert_eq!(e, t.expected),
-            _ => assert!(false, "Addresses should have errored"),
+            _ => panic!("Addresses should have errored"),
         };
     }
 }
@@ -403,7 +403,7 @@ fn invalid_byte_addresses() {
         let res = Address::from_bytes(&t.input);
         match res {
             Err(e) => assert_eq!(e, t.expected),
-            _ => assert!(false, "Addresses should have errored"),
+            _ => panic!("Addresses should have errored"),
         };
     }
 }

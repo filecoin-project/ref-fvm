@@ -75,7 +75,7 @@ where
     use libipld::cbor::DagCborCodec;
     use libipld::{codec::Codec, Ipld};
     let mut references = Vec::new();
-    DagCborCodec.references::<Ipld, _>(&block, &mut references)?;
+    DagCborCodec.references::<Ipld, _>(block, &mut references)?;
 
     for link in &references {
         if link.codec() != DAG_CBOR {
@@ -84,7 +84,7 @@ where
 
         // DB reads are expensive. So we check if it exists in the cache.
         // If it doesnt exist in the DB, which is likely, we proceed with using the cache.
-        if !cache.contains_key(&link) {
+        if !cache.contains_key(link) {
             continue;
         }
 
