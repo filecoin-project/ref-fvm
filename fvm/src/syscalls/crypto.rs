@@ -18,9 +18,9 @@ use super::Context;
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_signature(
     mut caller: Caller<'_, impl Kernel>,
     sig_off: u32, // Signature
@@ -40,7 +40,7 @@ pub fn verify_signature(
         .verify_signature(&sig, &addr, plaintext)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Hashes input data using blake2b with 256 bit output.
@@ -90,9 +90,9 @@ pub fn compute_unsealed_sector_cid(
 
 /// Verifies a sector seal proof.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_seal(
     mut caller: Caller<'_, impl Kernel>,
     info_off: u32, // SealVerifyInfo
@@ -104,14 +104,14 @@ pub fn verify_seal(
         .verify_seal(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies a window proof of spacetime.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_post(
     mut caller: Caller<'_, impl Kernel>,
     info_off: u32, // WindowPoStVerifyInfo,
@@ -123,7 +123,7 @@ pub fn verify_post(
         .verify_post(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -137,9 +137,10 @@ pub fn verify_post(
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: consensus fault recognized, along with the block id where to find the
+///       ConsensusFault report.
+///  - -1: no consensus fault recognized.
 pub fn verify_consensus_fault(
     mut caller: Caller<'_, impl Kernel>,
     h1_off: u32,
@@ -178,9 +179,9 @@ pub fn verify_consensus_fault(
     }
 }
 
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_aggregate_seals(
     mut caller: Caller<'_, impl Kernel>,
     agg_off: u32, // AggregateSealVerifyProofAndInfos
@@ -192,7 +193,7 @@ pub fn verify_aggregate_seals(
         .verify_aggregate_seals(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 // TODO implement
