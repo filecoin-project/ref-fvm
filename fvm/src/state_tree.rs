@@ -15,14 +15,15 @@ use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::ActorID;
 
-use crate::adt::Map;
+use ipld_hamt::Hamt;
+
 use crate::init_actor::State as InitActorState;
 use crate::kernel::Result;
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
 pub struct StateTree<S> {
-    hamt: Map<S, ActorState>,
+    hamt: Hamt<S, ActorState>,
 
     version: StateTreeVersion,
     info: Option<Cid>,
@@ -193,7 +194,7 @@ where
 
         // TODO: restore multiple version support? Or drop it entirely?
         //let hamt = Map::new(store, ActorVersion::from(version));
-        let hamt = Map::new(store);
+        let hamt = Hamt::new(store);
         Ok(Self {
             hamt,
             version,
@@ -224,7 +225,7 @@ where
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
                 // TODO: use the version.
-                let hamt = Map::load(&actors, store)?;
+                let hamt = Hamt::load(&actors, store)?;
 
                 Ok(Self {
                     hamt,
