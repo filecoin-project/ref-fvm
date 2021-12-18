@@ -784,9 +784,6 @@ where
             )));
         }
 
-        // TODO don't like taking a mut here when in reality we don't need
-        //  it until later
-
         let state_tree = self.call_manager.state_tree();
         if let Ok(Some(_)) = state_tree.get_actor(address) {
             return Err(ExecutionError::from(SyscallError(
@@ -794,7 +791,6 @@ where
                 Some(SysErrIllegalArgument),
             )));
         }
-        drop(state_tree);
 
         self.call_manager
             .charge_gas(|price_list| price_list.on_create_actor())?;
