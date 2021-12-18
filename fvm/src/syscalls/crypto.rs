@@ -166,7 +166,7 @@ pub fn verify_consensus_fault(
         .map_err(Trap::from)?;
 
     match ret {
-        // Consensus fault detected, push payload onto return stack, and return true.
+        // Consensus fault detected; return the actor as a block.
         Some(fault) => {
             let ser = fault.marshal_cbor().map_err(ExecutionError::from)?;
             kernel
