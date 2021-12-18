@@ -791,6 +791,7 @@ where
         Ok(addr)
     }
 
+    // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {
         if !is_builtin_actor(&code_id) {
             return Err(ExecutionError::from(SyscallError(
