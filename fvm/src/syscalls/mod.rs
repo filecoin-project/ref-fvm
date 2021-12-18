@@ -4,6 +4,7 @@ use crate::{kernel::Result, Kernel};
 
 mod context;
 mod crypto;
+mod gas;
 mod ipld;
 mod message;
 mod network;
@@ -84,6 +85,8 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
 
     linker.func_wrap("rand", "get_chain_randomness", rand::get_chain_randomness)?;
     linker.func_wrap("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
+
+    linker.func_wrap("gas", "charge_gas", gas::charge_gas)?;
 
     Ok(())
 }

@@ -206,7 +206,7 @@ pub trait CircSupplyOps {
 pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<()>;
+    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
 }
 
 /// Cryptographic primitives provided by the kernel.

@@ -259,7 +259,7 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
-    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check()?;
 

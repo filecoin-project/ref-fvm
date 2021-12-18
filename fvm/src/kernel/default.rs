@@ -39,6 +39,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
 
+use crate::gas::GasCharge;
 use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
@@ -657,9 +658,14 @@ where
     }
 }
 
-impl<B, E> GasOps for DefaultKernel<B, E> {
-    fn charge_gas(&mut self, _name: &str, _compute: i64) -> Result<()> {
-        todo!()
+impl<B, E> GasOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
+    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
+        let charge = GasCharge::new(name, compute, 0);
+        Ok(self.call_manager.charge_gas(charge)?)
     }
 }
 
