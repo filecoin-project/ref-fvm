@@ -693,7 +693,11 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness> {
-        todo!()
+        self.call_manager
+            .externs()
+            .get_chain_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .map(|r| Randomness(r.to_vec()))
+            .map_err(ExecutionError::from)
     }
 
     #[allow(unused)]
@@ -703,7 +707,12 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness> {
-        todo!()
+        // Hyperdrive and above only.
+        self.call_manager
+            .externs()
+            .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .map(|r| Randomness(r.to_vec()))
+            .map_err(ExecutionError::from)
     }
 }
 
