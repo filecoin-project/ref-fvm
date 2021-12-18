@@ -27,7 +27,7 @@ pub fn get_actor_code_cid(
     let addr = mem.read_address(addr_off, addr_len)?;
     match k.get_actor_code_cid(&addr)? {
         Some(typ) => {
-            let mut obuf = mem.try_slice_mut(obuf_off, obuf_len)?;
+            let obuf = mem.try_slice_mut(obuf_off, obuf_len)?;
             typ.write_bytes(obuf).map_err(ExecutionError::from)?;
             Ok(0)
         }
@@ -67,7 +67,7 @@ pub fn new_actor_address(
         .into());
     }
 
-    let mut obuf = mem.try_slice_mut(obuf_off, obuf_len)?;
+    let obuf = mem.try_slice_mut(obuf_off, obuf_len)?;
     obuf[..len].copy_from_slice(bytes.as_slice());
     Ok(len as u32)
 }
