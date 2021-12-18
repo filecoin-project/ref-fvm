@@ -2,7 +2,7 @@
 //! auto-creation (on first transfer). This coupling between the FVM and a
 //! concrete actor must eventually go. (TODO)
 
-use cid::{multihash::Code, multihash::MultihashDigest, Cid};
+use cid::Cid;
 use lazy_static::lazy_static;
 
 use fvm_shared::address::Address;
@@ -14,7 +14,6 @@ use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID};
 use crate::state_tree::ActorState;
 
 pub const SYSTEM_ACTOR_ID: u64 = 0;
-pub const SYSTEM_ACTOR_ADDR: Address = Address::new_id(SYSTEM_ACTOR_ID);
 
 lazy_static! {
     pub static ref ZERO_STATE: ActorState = ActorState {

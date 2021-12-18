@@ -1,11 +1,8 @@
 use anyhow::anyhow;
-use anyhow::Context;
 use std::collections::{BTreeMap, VecDeque};
 use std::convert::{TryFrom, TryInto};
-use std::error::Error as StdError;
 
 use cid::Cid;
-use num_traits::Signed;
 
 use blockstore::Blockstore;
 use byteorder::{BigEndian, WriteBytesExt};
@@ -23,12 +20,10 @@ use fvm_shared::{actor_error, ActorID};
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
-use crate::init_actor::State;
 use crate::kernel::error::SyscallError;
-use crate::kernel::ExecutionError::{Syscall, SystemError};
 use crate::message::Message;
 use crate::receipt::Receipt;
-use crate::state_tree::{ActorState, StateTree};
+use crate::state_tree::ActorState;
 
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
@@ -37,7 +32,6 @@ use filecoin_proofs_api::{
     PublicReplicaInfo,
 };
 use fvm_shared::address::Protocol;
-use fvm_shared::consensus::ConsensusFaultType;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use lazy_static::lazy_static;
 
@@ -158,7 +152,6 @@ where
             .unwrap()
             .expect("expected actor to exist")
             .state
-            .clone()
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
@@ -252,7 +245,7 @@ where
                     length: hash_len,
                 })?;
 
-        let hash = code.digest(&block.data());
+        let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
             return Err(BlockError::InvalidMultihashSpec {
                 code: hash_fun,
@@ -282,11 +275,7 @@ where
     }
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
-        let b = self.blocks.get(id)?;
-        Ok(BlockStat {
-            codec: b.codec(),
-            size: b.size(),
-        })
+        Ok(self.blocks.stat(id)?)
     }
 }
 
@@ -300,7 +289,7 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
     }
 
     fn msg_method_number(&self) -> MethodNum {
-        self.msg_method_number()
+        self.method
     }
 
     fn msg_value_received(&self) -> TokenAmount {
@@ -325,7 +314,7 @@ impl<B, E> ReturnOps for DefaultKernel<B, E> {
     }
 
     fn return_pop(&mut self, into: &mut [u8]) -> u64 {
-        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or(Vec::new());
+        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or_default();
         let len = into.len().min(ret.len());
         into.copy_from_slice(&ret[..len]);
         len as u64
@@ -490,11 +479,6 @@ where
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_post(verify_info);
         self.call_manager.charge_gas(
             self.call_manager
                 .context()
@@ -576,7 +560,7 @@ where
                                             addr,
                                             );
                                         }
-                                        return correct; // all ok
+                                        correct // all ok
                                     }
                                     Err(err) => {
                                         log::debug!(
@@ -674,7 +658,7 @@ where
 }
 
 impl<B, E> GasOps for DefaultKernel<B, E> {
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
+    fn charge_gas(&mut self, _name: &str, _compute: i64) -> Result<()> {
         todo!()
     }
 }
@@ -702,6 +686,7 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
+    #[allow(unused)]
     fn get_randomness_from_tickets(
         &self,
         personalization: DomainSeparationTag,
@@ -711,6 +696,7 @@ where
         todo!()
     }
 
+    #[allow(unused)]
     fn get_randomness_from_beacon(
         &self,
         personalization: DomainSeparationTag,
@@ -824,14 +810,15 @@ where
 }
 
 // TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
-impl Into<ActorError> for BlockError {
-    fn into(self) -> ActorError {
-        ActorError::new_fatal(self.to_string())
+impl From<BlockError> for ActorError {
+    fn from(e: BlockError) -> ActorError {
+        ActorError::new_fatal(e.to_string())
     }
 }
 
 /// PoSt proof variants.
 enum ProofType {
+    #[allow(unused)]
     Winning,
     Window,
 }

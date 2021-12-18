@@ -15,7 +15,6 @@ pub mod clock;
 pub mod commcid;
 pub mod consensus;
 pub mod crypto;
-pub mod deadlines;
 pub mod deal;
 pub mod econ;
 pub mod encoding;

@@ -122,7 +122,7 @@ where
     }
 
     pub fn blockstore(&self) -> &B {
-        &self.state_tree.store()
+        self.state_tree.store()
     }
 
     pub fn context(&self) -> &MachineContext {
@@ -208,7 +208,7 @@ where
             cm.state_tree.begin_transaction();
 
             // Invoke the message.
-            let mut res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
+            let res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
 
             // Charge for including the result.
             // We shouldn't put this here, but this is where we can still account for gas.
@@ -293,7 +293,7 @@ where
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
-                    miner_penalty_amount.clone(),
+                    miner_penalty_amount,
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
@@ -308,7 +308,7 @@ where
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
-                    miner_penalty_amount.clone(),
+                    miner_penalty_amount,
                     Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
@@ -335,7 +335,7 @@ where
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
+        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderStateInvalid,
@@ -561,9 +561,9 @@ impl MachineContext {
         MachineContext {
             epoch,
             base_fee,
-            initial_state_root: state_root,
-            price_list: price_list,
+            price_list,
             network_version,
+            initial_state_root: state_root,
         }
     }
 

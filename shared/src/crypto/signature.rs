@@ -268,17 +268,15 @@ mod tests {
             .map(|x| private_keys[x].sign(data[x]))
             .collect();
 
-        let mut public_keys_slice: Vec<&[u8]> = vec![];
-        for i in 0..num_sigs {
-            public_keys_slice.push(&public_keys[i]);
-        }
+        let public_keys_slice: Vec<&[u8]> = public_keys.iter().map(|x| &**x).collect();
 
         let calculated_bls_agg =
             Signature::new_bls(bls_signatures::aggregate(&signatures).unwrap().as_bytes());
-        assert_eq!(
-            verify_bls_aggregate(&data, &public_keys_slice, &calculated_bls_agg),
-            true
-        );
+        assert!(verify_bls_aggregate(
+            &data,
+            &public_keys_slice,
+            &calculated_bls_agg
+        ),);
     }
 
     #[test]

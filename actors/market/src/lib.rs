@@ -11,12 +11,10 @@ use num_traits::{FromPrimitive, Signed, Zero};
 
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::clock::EPOCH_UNDEFINED;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, tuple::*, Cbor, RawBytes};
+use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;

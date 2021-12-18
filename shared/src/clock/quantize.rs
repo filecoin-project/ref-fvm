@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::clock::ChainEpoch;
+use super::ChainEpoch;
 
 /// Constant defining the [QuantSpec] which performs no quantization.
 pub const NO_QUANTIZATION: QuantSpec = QuantSpec { unit: 1, offset: 0 };
 
-/// A spec for quantization.
+/// A spec for epoch quantization.
 #[derive(Copy, Clone)]
 pub struct QuantSpec {
     /// The unit of quantization

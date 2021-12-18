@@ -22,7 +22,6 @@ pub use expiration_queue::*;
 
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
-use fvm_shared::deadlines::DeadlineInfo;
 use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
 use fvm_shared::{
     actor_error,

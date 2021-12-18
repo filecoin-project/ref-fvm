@@ -103,8 +103,8 @@ impl BlockRegistry {
             .and_then(|idx: usize| self.blocks.get(idx))
             .ok_or(BlockError::InvalidHandle(id))
             .map(|b| BlockStat {
-                codec: b.codec,
-                size: b.data.len() as u32,
+                codec: b.codec(),
+                size: b.size(),
             })
     }
 }

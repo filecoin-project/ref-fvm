@@ -1,4 +1,3 @@
-use anyhow::Context;
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
@@ -11,7 +10,6 @@ use fvm_shared::{
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
-use crate::gas::PriceList;
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
@@ -147,7 +145,7 @@ where
 
         // Do the actual send.
 
-        self.send_resolved(from, to, method, &params, &value)
+        self.send_resolved(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.
@@ -174,7 +172,7 @@ where
 
         // 3. Transfer, if necessary.
         if !value.is_zero() {
-            self.machine.transfer(from, to, &value)?;
+            self.machine.transfer(from, to, value)?;
         }
 
         // 4. Abort early if we have a send.

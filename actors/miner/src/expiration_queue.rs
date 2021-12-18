@@ -9,8 +9,7 @@ use std::convert::TryInto;
 use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
