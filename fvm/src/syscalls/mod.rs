@@ -2,14 +2,15 @@ use wasmtime::Linker;
 
 use crate::{kernel::Result, Kernel};
 
+mod context;
 mod crypto;
+mod gas;
 mod ipld;
 mod message;
 mod network;
 mod sself;
 mod validation;
 
-mod context;
 pub(self) use context::Context;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
@@ -58,6 +59,8 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("network", "base_fee", network::base_fee)?;
     linker.func_wrap("network", "version", network::version)?;
     linker.func_wrap("network", "epoch", network::epoch)?;
+
+    linker.func_wrap("gas", "charge_gas", gas::charge_gas)?;
 
     Ok(())
 }
