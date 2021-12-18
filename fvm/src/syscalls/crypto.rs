@@ -1,11 +1,12 @@
 // TODO: remove this when we hookup these syscalls.
 #![allow(unused)]
 
-use crate::kernel::ExecutionError;
+use crate::kernel::{BlockId, ExecutionError};
 use crate::Kernel;
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::Signature;
+use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -147,7 +148,7 @@ pub fn verify_consensus_fault(
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<(i32, BlockId), Trap> {
     let (kernel, memory) = caller.kernel_and_memory()?;
 
     let h1 = memory.try_slice(h1_off, h1_len)?;
@@ -165,9 +166,15 @@ pub fn verify_consensus_fault(
 
     match ret {
         // Consensus fault detected, push payload onto return stack, and return true.
-        Some(fault) => kernel.return_push(fault).map(|_| 1).map_err(Trap::from),
+        Some(fault) => {
+            let ser = fault.marshal_cbor().map_err(ExecutionError::from)?;
+            kernel
+                .block_create(DAG_CBOR, ser.as_slice())
+                .map(|bid| (1, bid))
+                .map_err(Trap::from)
+        }
         // No consensus fault.
-        None => Ok(0),
+        None => Ok((0, 0)),
     }
 }
 

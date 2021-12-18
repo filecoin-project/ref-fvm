@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
@@ -66,8 +66,6 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
-    /// Return stack where values returned by syscalls are stored for consumption.
-    return_stack: VecDeque<Vec<u8>>,
     caller_validated: bool,
 }
 
@@ -97,7 +95,6 @@ where
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
-            return_stack: Default::default(),
             from,
             to,
             method,
@@ -295,30 +292,6 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
 
     fn msg_value_received(&self) -> TokenAmount {
         self.value_received.clone()
-    }
-}
-
-impl<B, E> ReturnOps for DefaultKernel<B, E> {
-    fn return_push<T: Cbor>(&mut self, obj: T) -> Result<usize> {
-        let bytes = obj.marshal_cbor()?;
-        let len = bytes.len();
-        self.return_stack.push_back(bytes);
-        Ok(len)
-    }
-
-    fn return_size(&self) -> u64 {
-        self.return_stack.back().map(Vec::len).unwrap_or(0) as u64
-    }
-
-    fn return_discard(&mut self) {
-        self.return_stack.pop_back();
-    }
-
-    fn return_pop(&mut self, into: &mut [u8]) -> u64 {
-        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or_default();
-        let len = into.len().min(ret.len());
-        into.copy_from_slice(&ret[..len]);
-        len as u64
     }
 }
 

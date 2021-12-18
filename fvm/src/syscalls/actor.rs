@@ -1,8 +1,6 @@
 use crate::kernel::{ExecutionError, SyscallError};
 use crate::syscalls::context::Context;
-use crate::syscalls::ipld::cid;
 use crate::Kernel;
-use std::str;
 use wasmtime::{Caller, Trap};
 
 pub fn resolve_address(
