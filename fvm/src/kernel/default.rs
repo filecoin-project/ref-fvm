@@ -187,7 +187,7 @@ where
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
         // TODO abort with internal error instead of returning.
         self.call_manager
-            .charge_gas(|price_list| price_list.on_delete_actor())?;
+            .charge_gas(self.call_manager.context().price_list().on_delete_actor())?;
 
         let balance = self.current_balance()?;
         if balance != TokenAmount::zero() {
@@ -404,8 +404,12 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager
-            .charge_gas(|price_list| price_list.on_verify_signature(signature.signature_type()))?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_signature(signature.signature_type()),
+        )?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer)?;
@@ -413,8 +417,12 @@ where
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        self.call_manager
-            .charge_gas(|price_list| price_list.on_hashing(data.len()))?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_hashing(data.len()),
+        )?;
 
         Ok(blake2b_256(data))
     }
@@ -424,8 +432,12 @@ where
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        self.call_manager
-            .charge_gas(|price_list| price_list.on_compute_unsealed_sector_cid(proof_type, pieces));
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_compute_unsealed_sector_cid(proof_type, pieces),
+        )?;
 
         let ssize = proof_type.sector_size().map_err(SyscallError::from)? as u64;
 
@@ -483,8 +495,12 @@ where
             .context()
             .price_list()
             .on_verify_post(verify_info);
-        self.call_manager
-            .charge_gas(|price_list| price_list.on_verify_post(verify_info))?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_post(verify_info),
+        )?;
 
         let WindowPoStVerifyInfo {
             ref proofs,
@@ -522,8 +538,12 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        self.call_manager
-            .charge_gas(|price_list| price_list.on_verify_consensus_fault())?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_consensus_fault(),
+        )?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
@@ -793,7 +813,7 @@ where
         }
 
         self.call_manager
-            .charge_gas(|price_list| price_list.on_create_actor())?;
+            .charge_gas(self.call_manager.context().price_list().on_create_actor())?;
 
         let state_tree = self.call_manager.state_tree_mut();
         state_tree.set_actor(

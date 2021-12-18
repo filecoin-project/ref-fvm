@@ -87,7 +87,7 @@ where
     }
 
     fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID> {
-        self.charge_gas(|price_list| price_list.on_create_actor())?;
+        self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
             return Err(
@@ -166,7 +166,11 @@ where
             .ok_or_else(|| actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
         // 2. Charge the method gas. Not sure why this comes second, but it does.
-        self.charge_gas(|price_list| price_list.on_method_invocation(value, method))?;
+        self.charge_gas(
+            self.context()
+                .price_list()
+                .on_method_invocation(value, method),
+        )?;
 
         // 3. Transfer, if necessary.
         if !value.is_zero() {
@@ -225,11 +229,7 @@ where
     }
 
     /// Charge gas.
-    pub fn charge_gas<F>(&mut self, pricer: F) -> Result<()>
-    where
-        F: FnOnce(&PriceList) -> GasCharge,
-    {
-        let charge = pricer(self.machine.context().price_list());
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         self.gas_tracker.charge_gas(charge)?;
         Ok(())
     }

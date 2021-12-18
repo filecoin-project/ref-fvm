@@ -200,7 +200,7 @@ where
         // Apply the message.
         let (res, gas_used) = self.map_mut(|machine| {
             let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
-            if let Err(e) = cm.charge_gas(|_| inclusion_cost) {
+            if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().1);
             }
 
@@ -214,7 +214,7 @@ where
             // We shouldn't put this here, but this is where we can still account for gas.
             // TODO: Maybe CallManager::finish() should return the GasTracker?
             let result = res.and_then(|ret| {
-                cm.charge_gas(|price_list| price_list.on_chain_return_value(ret.len()))?;
+                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))?;
                 Ok(ret)
             });
 
