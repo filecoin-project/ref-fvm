@@ -11,6 +11,7 @@ use fvm_shared::{
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
+use crate::gas::PriceList;
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
@@ -45,6 +46,12 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The original sender of the chain message that initiated this call stack.
+    origin: Address,
+    /// The nonce of the chain message that initiated this call stack.
+    nonce: u64,
+    /// Number of actors created in this call stack.
+    num_actors_created: u64,
 }
 
 #[doc(hidden)]
@@ -69,10 +76,13 @@ where
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64) -> Self {
+    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         CallManager(Some(InnerCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
+            origin,
+            nonce,
+            num_actors_created: 0,
         }))
     }
 
@@ -232,6 +242,23 @@ where
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
         self.gas_tracker.gas_used()
+    }
+
+    /// Getter for origin actor.
+    pub fn origin(&self) -> Address {
+        self.origin
+    }
+
+    /// Getter for message nonce.
+    pub fn nonce(&self) -> u64 {
+        self.nonce
+    }
+
+    /// Gets and increment the call-stack actor creation index.
+    pub fn next_actor_idx(&mut self) -> u64 {
+        let ret = self.num_actors_created;
+        self.num_actors_created += 1;
+        ret
     }
 
     fn map_mut<F, T>(&mut self, f: F) -> T

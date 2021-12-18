@@ -158,27 +158,27 @@ where
 
     pub fn load_module(&self, code: &Cid) -> Result<Module> {
         // TODO: cache compiled code, and modules?
-        let binary = if code == &*actors_runtime::SYSTEM_ACTOR_CODE_ID {
+        let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
             fvm_actor_system::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::INIT_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
             fvm_actor_init::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::CRON_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::CRON_ACTOR_CODE_ID {
             fvm_actor_cron::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::ACCOUNT_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::ACCOUNT_ACTOR_CODE_ID {
             fvm_actor_account::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::POWER_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::POWER_ACTOR_CODE_ID {
             fvm_actor_power::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MINER_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MINER_ACTOR_CODE_ID {
             fvm_actor_miner::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MARKET_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MARKET_ACTOR_CODE_ID {
             fvm_actor_market::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::PAYCH_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::PAYCH_ACTOR_CODE_ID {
             fvm_actor_paych::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MULTISIG_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MULTISIG_ACTOR_CODE_ID {
             fvm_actor_multisig::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::REWARD_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::REWARD_ACTOR_CODE_ID {
             fvm_actor_reward::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::VERIFREG_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::VERIFREG_ACTOR_CODE_ID {
             fvm_actor_verifreg::wasm::WASM_BINARY
         } else {
             None
@@ -199,7 +199,7 @@ where
 
         // Apply the message.
         let (res, gas_used) = self.map_mut(|machine| {
-            let mut cm = CallManager::new(machine, msg.gas_limit);
+            let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().1);
             }

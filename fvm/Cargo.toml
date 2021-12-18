@@ -30,8 +30,8 @@ filecoin-proofs-api = { version = "10", features = ["opencl"], default_features 
 rayon = "1"
 num_cpus = "1.13.0"
 log = "0.4.14"
+byteorder = "1.4.3"
 
-actors-runtime = { path = "../actors/runtime" }
 fvm_actor_account = { path = "../actors/account" }
 fvm_actor_cron = { path = "../actors/cron" }
 fvm_actor_init = { path = "../actors/init" }

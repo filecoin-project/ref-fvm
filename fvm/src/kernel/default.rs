@@ -8,26 +8,28 @@ use cid::Cid;
 use num_traits::Signed;
 
 use blockstore::Blockstore;
+use byteorder::{BigEndian, WriteBytesExt};
 use fvm_shared::bigint::Zero;
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
+use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
 use fvm_shared::{actor_error, ActorID};
 
+use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::init_actor::State;
-use crate::message::Message;
-use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
-
 use crate::kernel::error::SyscallError;
 use crate::kernel::ExecutionError::{Syscall, SystemError};
+use crate::message::Message;
+use crate::receipt::Receipt;
+use crate::state_tree::{ActorState, StateTree};
+
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
 use filecoin_proofs_api::{
@@ -183,9 +185,9 @@ where
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        let gas_charge = self.call_manager.context().price_list().on_delete_actor();
         // TODO abort with internal error instead of returning.
-        self.call_manager.charge_gas(gas_charge)?;
+        self.call_manager
+            .charge_gas(self.call_manager.context().price_list().on_delete_actor())?;
 
         let balance = self.current_balance()?;
         if balance != TokenAmount::zero() {
@@ -402,12 +404,12 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_signature(signature.signature_type());
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_signature(signature.signature_type()),
+        )?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer)?;
@@ -415,12 +417,12 @@ where
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_hashing(data.len());
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_hashing(data.len()),
+        )?;
 
         Ok(blake2b_256(data))
     }
@@ -430,12 +432,12 @@ where
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_compute_unsealed_sector_cid(proof_type, pieces);
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_compute_unsealed_sector_cid(proof_type, pieces),
+        )?;
 
         let ssize = proof_type.sector_size().map_err(SyscallError::from)? as u64;
 
@@ -493,7 +495,12 @@ where
             .context()
             .price_list()
             .on_verify_post(verify_info);
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_post(verify_info),
+        )?;
 
         let WindowPoStVerifyInfo {
             ref proofs,
@@ -531,12 +538,12 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_consensus_fault();
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_consensus_fault(),
+        )?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
@@ -772,11 +779,47 @@ where
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {
-        todo!()
+        let oa = self.resolve_to_key_addr(&self.call_manager.origin())?;
+        // FATAL ERR: "Could not serialize address in new_actor_address: {}",
+        let mut b = to_vec(&oa)?;
+        // FATAL ERR: "Writing nonce into a buffer: {}", e)))?;
+        b.write_u64::<BigEndian>(self.call_manager.nonce())?;
+        // FATAL ERR: "Writing actor index in buffer: {}", e)))?;
+        b.write_u64::<BigEndian>(self.call_manager.next_actor_idx())?;
+        let addr = Address::new_actor(&b);
+        Ok(addr)
     }
 
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {
-        todo!()
+        if !is_builtin_actor(&code_id) {
+            return Err(ExecutionError::from(SyscallError(
+                String::from("Can only create built-in actors"),
+                Some(SysErrIllegalArgument),
+            )));
+        }
+        if is_singleton_actor(&code_id) {
+            return Err(ExecutionError::from(SyscallError(
+                String::from("Can only have one instance of singleton actors"),
+                Some(SysErrIllegalArgument),
+            )));
+        }
+
+        let state_tree = self.call_manager.state_tree();
+        if let Ok(Some(_)) = state_tree.get_actor(address) {
+            return Err(ExecutionError::from(SyscallError(
+                String::from("Actor address already exists"),
+                Some(SysErrIllegalArgument),
+            )));
+        }
+
+        self.call_manager
+            .charge_gas(self.call_manager.context().price_list().on_create_actor())?;
+
+        let state_tree = self.call_manager.state_tree_mut();
+        state_tree.set_actor(
+            address,
+            ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
+        )
     }
 }
 

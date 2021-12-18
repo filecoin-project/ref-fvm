@@ -68,6 +68,12 @@ impl From<encoding::error::Error> for ExecutionError {
     }
 }
 
+impl From<std::io::Error> for ExecutionError {
+    fn from(e: std::io::Error) -> Self {
+        ExecutionError::SystemError(e.into())
+    }
+}
+
 impl From<blocks::BlockError> for ExecutionError {
     fn from(e: blocks::BlockError) -> Self {
         use blocks::BlockError::*;
