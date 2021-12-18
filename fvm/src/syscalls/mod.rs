@@ -8,6 +8,7 @@ mod gas;
 mod ipld;
 mod message;
 mod network;
+mod rand;
 mod sself;
 mod validation;
 
@@ -59,6 +60,31 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("network", "base_fee", network::base_fee)?;
     linker.func_wrap("network", "version", network::version)?;
     linker.func_wrap("network", "epoch", network::epoch)?;
+
+    linker.func_wrap("crypto", "verify_signature", crypto::verify_signature)?;
+    linker.func_wrap("crypto", "hash_blake2b", crypto::hash_blake2b)?;
+    linker.func_wrap("crypto", "verify_seal", crypto::verify_seal)?;
+    linker.func_wrap("crypto", "verify_post", crypto::verify_post)?;
+    linker.func_wrap(
+        "crypto",
+        "compute_unsealed_sector_cid",
+        crypto::compute_unsealed_sector_cid,
+    )?;
+    linker.func_wrap(
+        "crypto",
+        "verify_consensus_fault",
+        crypto::verify_consensus_fault,
+    )?;
+    linker.func_wrap(
+        "crypto",
+        "verify_aggregate_seals",
+        crypto::verify_aggregate_seals,
+    )?;
+    // TODO implement
+    // linker.func_wrap("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
+
+    linker.func_wrap("rand", "get_chain_randomness", rand::get_chain_randomness)?;
+    linker.func_wrap("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
 
     linker.func_wrap("gas", "charge_gas", gas::charge_gas)?;
 
