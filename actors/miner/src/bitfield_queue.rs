@@ -9,8 +9,7 @@ use blockstore::Blockstore;
 use cid::Cid;
 
 use actors_runtime::{ActorDowncast, Array};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use ipld_amt::Error as AmtError;
 
 /// Wrapper for working with an AMT[ChainEpoch]*Bitfield functioning as a queue, bucketed by epoch.

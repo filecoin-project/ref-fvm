@@ -6,12 +6,11 @@ use std::error::Error as StdError;
 use blockstore::Blockstore;
 
 use actors_runtime::Array;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::{DeadlineInfo, QuantSpec};
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::sector::SectorNumber;
 
 use super::policy::*;
-use super::{Deadlines, Partition};
+use super::{DeadlineInfo, Deadlines, Partition};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,
