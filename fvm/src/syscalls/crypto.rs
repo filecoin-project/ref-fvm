@@ -1,3 +1,6 @@
+// TODO: remove this when we hookup these syscalls.
+#![allow(unused)]
+
 use crate::kernel::ExecutionError;
 use crate::Kernel;
 use cid::Cid;
@@ -51,7 +54,7 @@ fn hash_blake2b(
         kernel.hash_blake2b(data)?
     };
     assert_eq!(hash.len(), 32);
-    let mut obuf = memory.try_slice_mut(obuf_off, HASH_LEN as u32)?;
+    let obuf = memory.try_slice_mut(obuf_off, HASH_LEN as u32)?;
     obuf.copy_from_slice(&hash[..HASH_LEN]);
     Ok(())
 }

@@ -1,4 +1,3 @@
-use anyhow::Context;
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
@@ -11,7 +10,6 @@ use fvm_shared::{
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
-use crate::gas::PriceList;
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},

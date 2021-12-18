@@ -1,8 +1,6 @@
-use std::error::Error;
-use std::{cell::Cell, sync::Mutex};
+use std::sync::Mutex;
 
 use derive_more::Display;
-use fvm_shared::error::ExitCode::ErrPlaceholder;
 use fvm_shared::{actor_error, address, encoding, error::ActorError, error::ExitCode};
 use wasmtime::Trap;
 
