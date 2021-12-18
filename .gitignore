@@ -3,3 +3,4 @@ Cargo.lock
 *.wat
 *.wasm
 .idea/
+.vscode
