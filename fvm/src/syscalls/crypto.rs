@@ -1,11 +1,12 @@
 // TODO: remove this when we hookup these syscalls.
 #![allow(unused)]
 
-use crate::kernel::ExecutionError;
+use crate::kernel::{BlockId, ExecutionError};
 use crate::Kernel;
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::Signature;
+use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -17,9 +18,9 @@ use super::Context;
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_signature(
     mut caller: Caller<'_, impl Kernel>,
     sig_off: u32, // Signature
@@ -39,7 +40,7 @@ pub fn verify_signature(
         .verify_signature(&sig, &addr, plaintext)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Hashes input data using blake2b with 256 bit output.
@@ -89,9 +90,9 @@ pub fn compute_unsealed_sector_cid(
 
 /// Verifies a sector seal proof.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_seal(
     mut caller: Caller<'_, impl Kernel>,
     info_off: u32, // SealVerifyInfo
@@ -103,14 +104,14 @@ pub fn verify_seal(
         .verify_seal(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies a window proof of spacetime.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_post(
     mut caller: Caller<'_, impl Kernel>,
     info_off: u32, // WindowPoStVerifyInfo,
@@ -122,7 +123,7 @@ pub fn verify_post(
         .verify_post(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -136,9 +137,10 @@ pub fn verify_post(
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
 ///
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: consensus fault recognized, along with the block id where to find the
+///       ConsensusFault report.
+///  - -1: no consensus fault recognized.
 pub fn verify_consensus_fault(
     mut caller: Caller<'_, impl Kernel>,
     h1_off: u32,
@@ -147,7 +149,7 @@ pub fn verify_consensus_fault(
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<(i32, BlockId), Trap> {
     let (kernel, memory) = caller.kernel_and_memory()?;
 
     let h1 = memory.try_slice(h1_off, h1_len)?;
@@ -165,15 +167,21 @@ pub fn verify_consensus_fault(
 
     match ret {
         // Consensus fault detected, push payload onto return stack, and return true.
-        Some(fault) => kernel.return_push(fault).map(|_| 1).map_err(Trap::from),
+        Some(fault) => {
+            let ser = fault.marshal_cbor().map_err(ExecutionError::from)?;
+            kernel
+                .block_create(DAG_CBOR, ser.as_slice())
+                .map(|bid| (1, bid))
+                .map_err(Trap::from)
+        }
         // No consensus fault.
-        None => Ok(0),
+        None => Ok((0, 0)),
     }
 }
 
-/// The returned value should be treated as a boolean answer:
-///  - 0: verification failed.
-///  - 1: verification ok.
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
 pub fn verify_aggregate_seals(
     mut caller: Caller<'_, impl Kernel>,
     agg_off: u32, // AggregateSealVerifyProofAndInfos
@@ -185,7 +193,7 @@ pub fn verify_aggregate_seals(
         .verify_aggregate_seals(&info)
         .map_err(ExecutionError::from)
         .map_err(Trap::from)
-        .map(|v| if v { 1 } else { 0 })
+        .map(|v| if v { 0 } else { -1 })
 }
 
 // TODO implement

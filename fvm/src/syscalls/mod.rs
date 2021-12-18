@@ -2,6 +2,7 @@ use wasmtime::Linker;
 
 use crate::{kernel::Result, Kernel};
 
+mod actor;
 mod context;
 mod crypto;
 mod gas;
@@ -60,6 +61,11 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("network", "base_fee", network::base_fee)?;
     linker.func_wrap("network", "version", network::version)?;
     linker.func_wrap("network", "epoch", network::epoch)?;
+
+    linker.func_wrap("actor", "resolve_address", actor::resolve_address)?;
+    linker.func_wrap("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
+    linker.func_wrap("actor", "new_actor_address", actor::new_actor_address)?;
+    linker.func_wrap("actor", "create_actor", actor::create_actor)?;
 
     linker.func_wrap("crypto", "verify_signature", crypto::verify_signature)?;
     linker.func_wrap("crypto", "hash_blake2b", crypto::hash_blake2b)?;
