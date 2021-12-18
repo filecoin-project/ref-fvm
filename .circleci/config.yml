@@ -43,7 +43,7 @@ jobs:
       - run:
           name: build
           command: |
-            make
+            make RUSTFLAGS="-D warnings"
 
   clippy:
     executor:
