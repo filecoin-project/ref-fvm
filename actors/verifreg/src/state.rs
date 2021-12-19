@@ -1,8 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
 use blockstore::Blockstore;
 use cid::Cid;
 
@@ -20,10 +18,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: Blockstore>(store: &BS, root_key: Address) -> Result<State, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS, root_key: Address) -> anyhow::Result<State> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
-            .map_err(|e| format!("Failed to create empty map: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to create empty map: {}", e))?;
 
         Ok(State {
             root_key,

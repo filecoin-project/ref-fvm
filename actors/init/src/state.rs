@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
+use anyhow::anyhow;
 
 use blockstore::Blockstore;
 use cid::Cid;
@@ -22,13 +22,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: Blockstore>(
-        store: &BS,
-        network_name: String,
-    ) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS, network_name: String) -> anyhow::Result<Self> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
-            .map_err(|e| format!("failed to create empty map: {}", e))?;
+            .map_err(|e| anyhow!("failed to create empty map: {}", e))?;
         Ok(Self {
             address_map: empty_map,
             next_id: FIRST_NON_SINGLETON_ADDR,
@@ -67,7 +64,7 @@ impl State {
         &self,
         store: &BS,
         addr: &Address,
-    ) -> Result<Option<Address>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Option<Address>> {
         if addr.protocol() == Protocol::ID {
             return Ok(Some(*addr));
         }

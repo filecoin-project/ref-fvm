@@ -12,7 +12,6 @@ use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Borrow;
-use std::error::Error as StdError;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -134,9 +133,9 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Box<dyn StdError>>
+    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
     where
-        F: FnMut(&K, &V) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
         S: Blockstore,
     {
         for p in &self.pointers {
@@ -149,7 +148,7 @@ where
                             node
                         } else {
                             #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()).into());
+                            return Err(Error::CidNotFound(cid.to_string()));
 
                             #[cfg(feature = "ignore-dead-links")]
                             continue;

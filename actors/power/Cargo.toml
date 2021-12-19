@@ -21,6 +21,7 @@ integer-encoding = { version = "3.0", default-features = false }
 lazy_static = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
 ipld_hamt = { path = "../../ipld/hamt" }
+anyhow = "1.0.51"
 
 [features]
 default = []

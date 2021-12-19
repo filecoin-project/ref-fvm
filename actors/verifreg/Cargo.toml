@@ -16,6 +16,7 @@ num-derive = "0.3.0"
 blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
 cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
 lazy_static = "1.4"
+anyhow = "1.0.51"
 
 [features]
 default = []

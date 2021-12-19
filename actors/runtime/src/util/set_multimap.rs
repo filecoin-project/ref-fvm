@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Borrow;
-use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 use cid::Cid;
@@ -40,7 +39,7 @@ where
     }
 
     /// Puts the DealID in the hash set of the key.
-    pub fn put(&mut self, key: ChainEpoch, value: DealID) -> Result<(), Box<dyn StdError>> {
+    pub fn put(&mut self, key: ChainEpoch, value: DealID) -> Result<(), Error> {
         // Get construct amt from retrieved cid or create new
         let mut set = self.get(key)?.unwrap_or_else(|| Set::new(self.0.store()));
 
@@ -55,11 +54,7 @@ where
     }
 
     /// Puts slice of DealIDs in the hash set of the key.
-    pub fn put_many(
-        &mut self,
-        key: ChainEpoch,
-        values: &[DealID],
-    ) -> Result<(), Box<dyn StdError>> {
+    pub fn put_many(&mut self, key: ChainEpoch, values: &[DealID]) -> Result<(), Error> {
         // Get construct amt from retrieved cid or create new
         let mut set = self.get(key)?.unwrap_or_else(|| Set::new(self.0.store()));
 
@@ -77,7 +72,7 @@ where
 
     /// Gets the set at the given index of the `SetMultimap`
     #[inline]
-    pub fn get(&self, key: ChainEpoch) -> Result<Option<Set<'a, BS>>, Box<dyn StdError>> {
+    pub fn get(&self, key: ChainEpoch) -> Result<Option<Set<'a, BS>>, Error> {
         match self.0.get(&u64_key(key as u64))? {
             Some(cid) => Ok(Some(Set::from_root(*self.0.store(), cid)?)),
             None => Ok(None),
@@ -86,7 +81,7 @@ where
 
     /// Removes a DealID from a key hash set.
     #[inline]
-    pub fn remove(&mut self, key: ChainEpoch, v: DealID) -> Result<(), Box<dyn StdError>> {
+    pub fn remove(&mut self, key: ChainEpoch, v: DealID) -> Result<(), Error> {
         // Get construct amt from retrieved cid and return if no set exists
         let mut set = match self.get(key)? {
             Some(s) => s,
@@ -103,7 +98,7 @@ where
 
     /// Removes set at index.
     #[inline]
-    pub fn remove_all(&mut self, key: ChainEpoch) -> Result<(), Box<dyn StdError>> {
+    pub fn remove_all(&mut self, key: ChainEpoch) -> Result<(), Error> {
         // Remove entry from table
         self.0.delete(&u64_key(key as u64))?;
 
@@ -111,9 +106,9 @@ where
     }
 
     /// Iterates through keys and converts them to a DealID to call a function on each.
-    pub fn for_each<F>(&self, key: ChainEpoch, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each<F>(&self, key: ChainEpoch, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(DealID) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(DealID) -> Result<(), Error>,
     {
         // Get construct amt from retrieved cid and return if no set exists
         let set = match self.get(key)? {
@@ -123,10 +118,10 @@ where
 
         set.for_each(|k| {
             let v = parse_uint_key(k)
-                .map_err(|e| format!("Could not parse key: {:?}, ({})", &k.0, e))?;
+                .map_err(|e| anyhow::anyhow!("Could not parse key: {:?}, ({})", &k.0, e))?;
 
             // Run function on all parsed keys
-            f(v)
+            Ok(f(v)?)
         })
     }
 }

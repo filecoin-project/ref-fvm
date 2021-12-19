@@ -1,21 +1,21 @@
-use crate::Kernel;
-use wasmtime::{Caller, Trap};
+use crate::kernel::{Kernel, Result};
+use wasmtime::Caller;
 
 use super::Context;
 
-pub fn caller(mut caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
+pub fn caller(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
     Ok(caller.kernel().msg_caller())
 }
 
-pub fn receiver(mut caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
+pub fn receiver(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
     Ok(caller.kernel().msg_receiver())
 }
 
-pub fn method_number(mut caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
+pub fn method_number(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
     Ok(caller.kernel().msg_method_number())
 }
 
-pub fn value_received(mut caller: Caller<'_, impl Kernel>) -> Result<(u64, u64), Trap> {
+pub fn value_received(caller: &mut Caller<'_, impl Kernel>) -> Result<(u64, u64)> {
     let kernel = caller.kernel();
     let value = kernel.msg_value_received();
     let mut iter = value.iter_u64_digits();

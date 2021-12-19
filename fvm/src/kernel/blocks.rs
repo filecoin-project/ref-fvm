@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use cid::Cid;
 use thiserror::Error;
-use wasmtime::Trap;
 
 #[derive(Default)]
 pub(crate) struct BlockRegistry {
@@ -61,12 +60,6 @@ pub enum BlockError {
     InvalidCodec(u64),
     #[error("state {0} is missing from the local datastore")]
     MissingState(Box<Cid>), // boxed because CIDs are potentially large.
-}
-
-impl From<BlockError> for Trap {
-    fn from(e: BlockError) -> Trap {
-        Trap::new(e.to_string())
-    }
 }
 
 impl BlockRegistry {

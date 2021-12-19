@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
+use anyhow::anyhow;
 
 use fvm_shared::encoding::{error::Error as CborError, Error as EncodingError};
 use fvm_shared::error::{ActorError, ExitCode};
@@ -19,10 +19,10 @@ pub trait ActorDowncast {
     fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError;
 
     /// Wrap the error with a message, without overwriting an exit code.
-    fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError>;
+    fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error;
 }
 
-impl ActorDowncast for Box<dyn StdError> {
+impl ActorDowncast for anyhow::Error {
     fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError {
         match downcast_util(self) {
             Ok(actor_error) => actor_error.wrap(msg),
@@ -37,10 +37,10 @@ impl ActorDowncast for Box<dyn StdError> {
             Err(other) => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
+    fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {
         match downcast_util(self) {
-            Ok(actor_error) => Box::new(actor_error.wrap(msg)),
-            Err(other) => format!("{}: {}", msg.as_ref(), other).into(),
+            Ok(actor_error) => anyhow!(actor_error.wrap(msg)),
+            Err(other) => anyhow!("{}: {}", msg.as_ref(), other),
         }
     }
 }
@@ -58,10 +58,10 @@ impl ActorDowncast for AmtError {
             other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
+    fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {
         match self {
             AmtError::Dynamic(e) => e.downcast_wrap(msg),
-            other => format!("{}: {}", msg.as_ref(), other).into(),
+            other => anyhow!("{}: {}", msg.as_ref(), other),
         }
     }
 }
@@ -79,10 +79,10 @@ impl ActorDowncast for HamtError {
             other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_wrap(self, msg: impl AsRef<str>) -> Box<dyn StdError> {
+    fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {
         match self {
             HamtError::Dynamic(e) => e.downcast_wrap(msg),
-            other => format!("{}: {}", msg.as_ref(), other).into(),
+            other => anyhow!("{}: {}", msg.as_ref(), other),
         }
     }
 }
@@ -90,10 +90,10 @@ impl ActorDowncast for HamtError {
 /// Attempts to downcast a `Box<dyn std::error::Error>` into an actor error.
 /// Returns `Ok` with the actor error if it can be downcasted automatically
 /// and returns `Err` with the original error if it cannot.
-fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdError>> {
+fn downcast_util(error: anyhow::Error) -> anyhow::Result<ActorError> {
     // Check if error is ActorError, return as such
     let error = match error.downcast::<ActorError>() {
-        Ok(actor_err) => return Ok(*actor_err),
+        Ok(actor_err) => return Ok(actor_err),
         Err(other) => other,
     };
 
@@ -122,22 +122,22 @@ fn downcast_util(error: Box<dyn StdError>) -> Result<ActorError, Box<dyn StdErro
 
     // Dynamic errors can come from Array and Hamt through blockstore usages, check them.
     let error = match error.downcast::<AmtError>() {
-        Ok(amt_err) => match *amt_err {
+        Ok(amt_err) => match amt_err {
             AmtError::Dynamic(de) => match downcast_util(de) {
                 Ok(a) => return Ok(a),
                 Err(other) => other,
             },
-            other => Box::new(other),
+            other => anyhow!(other),
         },
         Err(other) => other,
     };
     let error = match error.downcast::<HamtError>() {
-        Ok(amt_err) => match *amt_err {
+        Ok(amt_err) => match amt_err {
             HamtError::Dynamic(de) => match downcast_util(de) {
                 Ok(a) => return Ok(a),
                 Err(other) => other,
             },
-            other => Box::new(other),
+            other => anyhow!(other),
         },
         Err(other) => other,
     };

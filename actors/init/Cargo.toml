@@ -16,6 +16,7 @@ num-derive = "0.3.0"
 cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
 ipld_hamt = { path = "../../ipld/hamt" }
 blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
+anyhow = "1.0.51"
 
 [dev-dependencies]
 actors-runtime = { path = "../runtime", features = ["test_utils"] }
