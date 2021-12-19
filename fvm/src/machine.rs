@@ -13,6 +13,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
@@ -21,7 +22,6 @@ use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
-use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
@@ -272,7 +272,7 @@ where
         msg: &Message,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
-        msg.check()?;
+        msg.check().or_fatal()?;
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.

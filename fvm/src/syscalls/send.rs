@@ -1,13 +1,10 @@
 use crate::kernel::BlockId;
-use crate::message::Message;
 use crate::{
     kernel::{ClassifyResult, Result},
     Kernel,
 };
-use anyhow::Context as _;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::encoding::{from_slice, to_vec, DAG_CBOR};
-use num_traits::FromPrimitive;
+use fvm_shared::encoding::{to_vec, DAG_CBOR};
+use fvm_shared::message::Message;
 use wasmtime::Caller;
 
 use super::Context;
@@ -26,7 +23,7 @@ pub fn send(
     msg_off: u32, // Message
     msg_len: u32,
 ) -> Result<BlockId> {
-    let (k, mut mem) = caller.kernel_and_memory()?;
+    let (k, mem) = caller.kernel_and_memory()?;
     let msg: Message = mem.read_cbor(msg_off, msg_len)?;
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.

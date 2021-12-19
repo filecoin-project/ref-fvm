@@ -20,6 +20,7 @@ pub mod econ;
 pub mod encoding;
 pub mod error;
 pub mod math;
+pub mod message;
 pub mod piece;
 pub mod randomness;
 pub mod reward;

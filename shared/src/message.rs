@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
-use derive_builder::Builder;
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{
+use crate::address::Address;
+use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
+use crate::econ::TokenAmount;
+use crate::encoding::{
     de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
     Cbor, RawBytes,
 };
-use fvm_shared::MethodNum;
-
-use crate::kernel::{ClassifyResult, Result};
+use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
-#[derive(PartialEq, Clone, Debug, Hash, Eq, Builder)]
+#[derive(PartialEq, Clone, Debug, Hash, Eq)]
 pub struct Message {
     pub version: i64,
     pub from: Address,
@@ -31,6 +28,8 @@ pub struct Message {
     pub gas_premium: TokenAmount,
 }
 
+impl Cbor for Message {}
+
 impl Message {
     /// Helper function to convert the message into signing bytes.
     /// This function returns the message `Cid` bytes.
@@ -40,12 +39,12 @@ impl Message {
     }
 
     /// Does some basic checks on the Message to see if the fields are valid.
-    pub fn check(self: &Message) -> Result<()> {
+    pub fn check(self: &Message) -> anyhow::Result<()> {
         if self.gas_limit == 0 {
-            return Err(anyhow!("Message has no gas limit set")).or_fatal();
+            return Err(anyhow!("Message has no gas limit set"));
         }
         if self.gas_limit < 0 {
-            return Err(anyhow!("Message has negative gas limit")).or_fatal();
+            return Err(anyhow!("Message has negative gas limit"));
         }
         Ok(())
     }
@@ -103,5 +102,3 @@ impl<'de> Deserialize<'de> for Message {
         })
     }
 }
-
-impl Cbor for Message {}
