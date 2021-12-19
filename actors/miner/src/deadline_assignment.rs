@@ -3,6 +3,8 @@
 
 use std::{cmp::Ordering, collections::BinaryHeap};
 
+use anyhow::anyhow;
+
 use super::{Deadline, SectorOnChainInfo};
 
 fn div_rounding_up(dividend: u64, divisor: u64) -> u64 {
@@ -135,7 +137,7 @@ pub fn assign_deadlines(
     partition_size: u64,
     deadlines: &[Option<Deadline>],
     sectors: Vec<SectorOnChainInfo>,
-) -> Result<Vec<Vec<SectorOnChainInfo>>, String> {
+) -> anyhow::Result<Vec<Vec<SectorOnChainInfo>>> {
     struct Entry {
         partition_size: u64,
         info: DeadlineAssignmentInfo,
@@ -184,7 +186,7 @@ pub fn assign_deadlines(
         let info = &mut heap.peek_mut().unwrap().info;
 
         if info.max_partitions_reached(partition_size, max_partitions) {
-            return Err(format!(
+            return Err(anyhow!(
                 "max partitions limit {} reached for all deadlines",
                 max_partitions
             ));

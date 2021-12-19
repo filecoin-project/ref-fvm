@@ -129,7 +129,7 @@ fn add_provider_escrow_funds() {
             assert!(rt
                 .call::<MarketActor>(
                     Method::AddBalance as u64,
-                    &RawBytes::serialize(provider_addr.clone()).unwrap(),
+                    &RawBytes::serialize(provider_addr).unwrap(),
                 )
                 .is_ok());
             rt.verify();
@@ -192,7 +192,7 @@ fn add_non_provider_funds() {
             assert!(rt
                 .call::<MarketActor>(
                     Method::AddBalance as u64,
-                    &RawBytes::serialize(caller_addr.clone()).unwrap(),
+                    &RawBytes::serialize(*caller_addr).unwrap(),
                 )
                 .is_ok());
 
@@ -326,7 +326,7 @@ fn client_withdraw_more_than_available() {
         client_addr,
         METHOD_SEND,
         RawBytes::default(),
-        amount.clone(),
+        amount,
         RawBytes::default(),
         ExitCode::Ok,
     );
@@ -380,7 +380,7 @@ fn worker_withdraw_more_than_available() {
         owner_addr,
         METHOD_SEND,
         RawBytes::default(),
-        amount.clone(),
+        amount,
         RawBytes::default(),
         ExitCode::Ok,
     );
@@ -444,7 +444,7 @@ fn add_provider_funds(
     assert!(rt
         .call::<MarketActor>(
             Method::AddBalance as u64,
-            &RawBytes::serialize(provider.clone()).unwrap(),
+            &RawBytes::serialize(provider).unwrap(),
         )
         .is_ok());
 
@@ -463,7 +463,7 @@ fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmoun
     assert!(rt
         .call::<MarketActor>(
             Method::AddBalance as u64,
-            &RawBytes::serialize(addr.clone()).unwrap(),
+            &RawBytes::serialize(addr).unwrap(),
         )
         .is_ok());
 

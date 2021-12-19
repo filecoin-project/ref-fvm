@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
 use std::ops::Neg;
 
+use anyhow::{anyhow, Context};
 use blockstore::Blockstore;
 use cid::Cid;
 use integer_encoding::VarInt;
@@ -75,10 +75,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: Blockstore>(store: &BS) -> Result<State, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> anyhow::Result<State> {
         let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
-            .map_err(|e| format!("Failed to create empty map: {}", e))?;
+            .map_err(|e| anyhow!("Failed to create empty map: {}", e))?;
 
         let empty_mmap = Multimap::new(store, CRON_QUEUE_HAMT_BITWIDTH, CRON_QUEUE_AMT_BITWIDTH)
             .root()
@@ -108,15 +108,15 @@ impl State {
         &self,
         s: &BS,
         miner: &Address,
-    ) -> Result<bool, Box<dyn StdError>> {
+    ) -> anyhow::Result<bool> {
         let claims = make_map_with_root_and_bitwidth(&self.claims, s, HAMT_BIT_WIDTH)?;
 
         let claim =
-            get_claim(&claims, miner)?.ok_or_else(|| format!("no claim for actor: {}", miner))?;
+            get_claim(&claims, miner)?.ok_or_else(|| anyhow!("no claim for actor: {}", miner))?;
 
         let miner_nominal_power = &claim.raw_byte_power;
         let miner_min_power = consensus_miner_min_power(claim.window_post_proof_type)
-            .map_err(|e| format!("could not get miner min power from proof type: {}", e))?;
+            .context("could not get miner min power from proof type: {}")?;
 
         if miner_nominal_power >= &miner_min_power {
             // If miner is larger than min power requirement, valid
@@ -134,7 +134,7 @@ impl State {
         &self,
         s: &BS,
         miner: &Address,
-    ) -> Result<Option<Claim>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Option<Claim>> {
         let claims = make_map_with_root(&self.claims, s)?;
         get_claim(&claims, miner).map(|s| s.cloned())
     }
@@ -145,7 +145,7 @@ impl State {
         miner: &Address,
         power: &StoragePower,
         qa_power: &StoragePower,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let old_claim = get_claim(claims, miner)?
             .ok_or_else(|| actor_error!(ErrNotFound, "no claim for actor {}", miner))?;
 
@@ -185,21 +185,21 @@ impl State {
         }
 
         if new_claim.raw_byte_power.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalState,
                 "negative claimed raw byte power: {}",
                 new_claim.raw_byte_power
             )));
         }
         if new_claim.quality_adj_power.is_negative() {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalState,
                 "negative claimed quality adjusted power: {}",
                 new_claim.quality_adj_power
             )));
         }
         if self.miner_above_min_power_count < 0 {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalState,
                 "negative amount of miners lather than min: {}",
                 self.miner_above_min_power_count
@@ -218,7 +218,7 @@ impl State {
         events: &mut Multimap<BS>,
         epoch: ChainEpoch,
         event: CronEvent,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if epoch < self.first_cron_epoch {
             self.first_cron_epoch = epoch;
         }
@@ -258,7 +258,7 @@ impl State {
     pub(super) fn update_stats_for_new_miner(
         &mut self,
         window_post_proof: RegisteredPoStProof,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         let min_power = consensus_miner_min_power(window_post_proof)?;
 
         if !min_power.is_positive() {
@@ -296,7 +296,7 @@ impl State {
         &self,
         store: &BS,
         miner: &Address,
-    ) -> Result<Option<Claim>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Option<Claim>> {
         let claims =
             make_map_with_root_and_bitwidth::<_, Claim>(&self.claims, store, HAMT_BIT_WIDTH)
                 .map_err(|e| {
@@ -311,7 +311,7 @@ impl State {
         &mut self,
         claims: &mut Map<BS, Claim>,
         miner: &Address,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let (rbp, qap) =
             match get_claim(claims, miner).map_err(|e| e.downcast_wrap("failed to get claim"))? {
                 None => {
@@ -330,7 +330,7 @@ impl State {
         claims
             .delete(&miner.to_bytes())
             .map_err(|e| e.downcast_wrap(format!("failed to delete claim for address {}", miner)))?
-            .ok_or("failed to delete claim for address: doesn't exist")?;
+            .ok_or_else(|| anyhow!("failed to delete claim for address: doesn't exist"))?;
         Ok(())
     }
 }
@@ -338,7 +338,7 @@ impl State {
 pub(super) fn load_cron_events<BS: Blockstore>(
     mmap: &Multimap<BS>,
     epoch: ChainEpoch,
-) -> Result<Vec<CronEvent>, Box<dyn StdError>> {
+) -> anyhow::Result<Vec<CronEvent>> {
     let mut events = Vec::new();
 
     mmap.for_each(&epoch_key(epoch), |_, v: &CronEvent| {
@@ -353,7 +353,7 @@ pub(super) fn load_cron_events<BS: Blockstore>(
 fn get_claim<'m, BS: Blockstore>(
     claims: &'m Map<BS, Claim>,
     a: &Address,
-) -> Result<Option<&'m Claim>, Box<dyn StdError>> {
+) -> anyhow::Result<Option<&'m Claim>> {
     claims
         .get(&a.to_bytes())
         .map_err(|e| e.downcast_wrap(format!("failed to get claim for address {}", a)))
@@ -363,16 +363,16 @@ pub fn set_claim<BS: Blockstore>(
     claims: &mut Map<BS, Claim>,
     a: &Address,
     claim: Claim,
-) -> Result<(), Box<dyn StdError>> {
+) -> anyhow::Result<()> {
     if claim.raw_byte_power.is_negative() {
-        return Err(Box::new(actor_error!(
+        return Err(anyhow!(actor_error!(
             ErrIllegalState,
             "negative claim raw power {}",
             claim.raw_byte_power
         )));
     }
     if claim.quality_adj_power.is_negative() {
-        return Err(Box::new(actor_error!(
+        return Err(anyhow!(actor_error!(
             ErrIllegalState,
             "negative claim quality-adjusted power {}",
             claim.quality_adj_power

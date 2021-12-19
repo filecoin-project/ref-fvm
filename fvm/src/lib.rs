@@ -10,7 +10,6 @@ pub mod syscalls;
 mod account_actor;
 mod builtin;
 mod call_manager;
-mod errors;
 mod gas;
 mod init_actor;
 mod state_tree;

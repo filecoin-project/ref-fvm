@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashSet;
-use std::error::Error as StdError;
 
 use ahash::AHashMap;
 use blockstore::Blockstore;
@@ -53,8 +52,8 @@ pub mod wasm {
 
         #[test]
         fn test_wasm_binaries() {
-            assert!(WASM_BINARY.unwrap().len() > 0);
-            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+            assert!(!WASM_BINARY.unwrap().is_empty());
+            assert!(!WASM_BINARY_BLOATY.unwrap().is_empty());
         }
     }
 }
@@ -1080,7 +1079,7 @@ pub fn validate_deals_for_activation<BS>(
     miner_addr: &Address,
     sector_expiry: ChainEpoch,
     curr_epoch: ChainEpoch,
-) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
+) -> anyhow::Result<(BigInt, BigInt, u64)>
 where
     BS: Blockstore,
 {
@@ -1095,7 +1094,7 @@ pub fn validate_and_compute_deal_weight<BS>(
     miner_addr: &Address,
     sector_expiry: ChainEpoch,
     sector_activation: ChainEpoch,
-) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
+) -> anyhow::Result<(BigInt, BigInt, u64)>
 where
     BS: Blockstore,
 {

@@ -1,13 +1,13 @@
-use crate::kernel::{ExecutionError, SyscallError};
+use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
-use crate::Kernel;
-use wasmtime::{Caller, Trap};
+use crate::{syscall_error, Kernel};
+use wasmtime::Caller;
 
 pub fn resolve_address(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
-) -> Result<(i32, u64), Trap> {
+) -> Result<(i32, u64)> {
     let (k, mem) = caller.kernel_and_memory()?;
     let addr = mem.read_address(addr_off, addr_len)?;
     match k.resolve_address(&addr)? {
@@ -17,18 +17,19 @@ pub fn resolve_address(
 }
 
 pub fn get_actor_code_cid(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
     obuf_off: u32, // Cid
     obuf_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<i32> {
     let (k, mut mem) = caller.kernel_and_memory()?;
     let addr = mem.read_address(addr_off, addr_len)?;
     match k.get_actor_code_cid(&addr)? {
         Some(typ) => {
             let obuf = mem.try_slice_mut(obuf_off, obuf_len)?;
-            typ.write_bytes(obuf).map_err(ExecutionError::from)?;
+            // TODO: This isn't always an illegal argument error, only when the buffer is too small.
+            typ.write_bytes(obuf).or_illegal_argument()?;
             Ok(0)
         }
         None => Ok(-1),
@@ -43,15 +44,14 @@ pub fn get_actor_code_cid(
 ///
 /// TODO this method will be merged with create_actor in the near future.
 pub fn new_actor_address(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     obuf_off: u32, // Address (out)
     obuf_len: u32,
-) -> Result<u32, Trap> {
+) -> Result<u32> {
     if obuf_len < 21 {
-        return Err(ExecutionError::from(SyscallError::from(
-            "output buffer must have a minimum capacity of 21 bytes",
-        ))
-        .into());
+        return Err(
+            syscall_error!(SysErrIllegalArgument; "output buffer must have a minimum capacity of 21 bytes").into(),
+        );
     }
 
     let (k, mut mem) = caller.kernel_and_memory()?;
@@ -60,10 +60,10 @@ pub fn new_actor_address(
 
     let len = bytes.len();
     if len > obuf_len as usize {
-        return Err(ExecutionError::from(SyscallError::from(format!(
+        return Err(syscall_error!(SysErrIllegalArgument;
             "insufficient output buffer capacity; {} (new address) > {} (buffer capacity)",
             len, obuf_len
-        )))
+        )
         .into());
     }
 
@@ -73,15 +73,13 @@ pub fn new_actor_address(
 }
 
 pub fn create_actor(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
     typ_off: u32, // Cid
-) -> Result<(), Trap> {
+) -> Result<()> {
     let (k, mem) = caller.kernel_and_memory()?;
     let addr = mem.read_address(addr_off, addr_len)?;
     let typ = mem.read_cid(typ_off)?;
     k.create_actor(typ, &addr)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
 }

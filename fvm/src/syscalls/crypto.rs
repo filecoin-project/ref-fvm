@@ -1,8 +1,9 @@
 // TODO: remove this when we hookup these syscalls.
 #![allow(unused)]
 
-use crate::kernel::{BlockId, ExecutionError};
+use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result};
 use crate::Kernel;
+use anyhow::Context as _;
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::Signature;
@@ -22,14 +23,14 @@ use super::Context;
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_signature(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     sig_off: u32, // Signature
     sig_len: u32,
     addr_off: u32, // Address
     addr_len: u32,
     plaintext_off: u32,
     plaintext_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<i32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let sig: Signature = memory.read_cbor(sig_off, sig_len)?;
     let addr: Address = memory.read_address(addr_off, addr_len)?;
@@ -38,8 +39,6 @@ pub fn verify_signature(
     let plaintext = memory.try_slice(plaintext_len, plaintext_off)?;
     kernel
         .verify_signature(&sig, &addr, plaintext)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
         .map(|v| if v { 0 } else { -1 })
 }
 
@@ -47,11 +46,11 @@ pub fn verify_signature(
 ///
 /// The output buffer must be sized to 32 bytes.
 pub fn hash_blake2b(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     data_off: u32,
     data_len: u32,
     obuf_off: u32,
-) -> Result<(), Trap> {
+) -> Result<()> {
     const HASH_LEN: usize = 32;
 
     let (kernel, mut memory) = caller.kernel_and_memory()?;
@@ -70,22 +69,20 @@ pub fn hash_blake2b(
 ///
 /// Writes the CID in the provided output buffer.
 pub fn compute_unsealed_sector_cid(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     proof_type: i64, // RegisteredSealProof,
     pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
     cid_off: u32,
     cid_len: u32,
-) -> Result<(), Trap> {
+) -> Result<()> {
     let (kernel, mut memory) = caller.kernel_and_memory()?;
     let pieces: Vec<PieceInfo> = memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
     let cid = kernel.compute_unsealed_sector_cid(typ, pieces.as_slice())?;
     let mut out_slice = memory.try_slice_mut(cid_off, cid_len)?;
 
-    cid.write_bytes(&mut out_slice)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
+    cid.write_bytes(&mut out_slice).or_fatal()
 }
 
 /// Verifies a sector seal proof.
@@ -94,17 +91,13 @@ pub fn compute_unsealed_sector_cid(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_seal(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     info_off: u32, // SealVerifyInfo
     info_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<i32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<SealVerifyInfo>(info_off, info_len)?;
-    kernel
-        .verify_seal(&info)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
-        .map(|v| if v { 0 } else { -1 })
+    kernel.verify_seal(&info).map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies a window proof of spacetime.
@@ -113,17 +106,13 @@ pub fn verify_seal(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_post(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<i32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
-    kernel
-        .verify_post(&info)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
-        .map(|v| if v { 0 } else { -1 })
+    kernel.verify_post(&info).map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -142,14 +131,14 @@ pub fn verify_post(
 ///       ConsensusFault report.
 ///  - -1: no consensus fault recognized.
 pub fn verify_consensus_fault(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     h1_off: u32,
     h1_len: u32,
     h2_off: u32,
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<(i32, BlockId), Trap> {
+) -> Result<(i32, BlockId)> {
     let (kernel, memory) = caller.kernel_and_memory()?;
 
     let h1 = memory.try_slice(h1_off, h1_len)?;
@@ -160,19 +149,19 @@ pub fn verify_consensus_fault(
     //  interrupting error evaluating the consensus fault. If the outcome is
     //  "no consensus fault was found", the extern should not error, as doing so
     //  would interrupt execution via the Trap (at least currently).
-    let ret = kernel
-        .verify_consensus_fault(h1, h2, extra)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)?;
+    let ret = kernel.verify_consensus_fault(h1, h2, extra)?;
 
     match ret {
         // Consensus fault detected; return the actor as a block.
         Some(fault) => {
-            let ser = fault.marshal_cbor().map_err(ExecutionError::from)?;
+            let ser = fault
+                .marshal_cbor()
+                .context("failed to marshal consensus fault result")
+                .or_fatal()?;
             kernel
                 .block_create(DAG_CBOR, ser.as_slice())
                 .map(|bid| (1, bid))
-                .map_err(Trap::from)
+                .or_illegal_argument() // TODO: not quite the correct error...
         }
         // No consensus fault.
         None => Ok((0, 0)),
@@ -183,16 +172,14 @@ pub fn verify_consensus_fault(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_aggregate_seals(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
-) -> Result<i32, Trap> {
+) -> Result<i32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
     kernel
         .verify_aggregate_seals(&info)
-        .map_err(ExecutionError::from)
-        .map_err(Trap::from)
         .map(|v| if v { 0 } else { -1 })
 }
 
@@ -200,6 +187,6 @@ pub fn verify_aggregate_seals(
 fn batch_verify_seals(
     caller: Caller<'_, impl Kernel>,
     vis: &[(&Address, &[SealVerifyInfo])],
-) -> Result<HashMap<Address, Vec<i32>>, Trap> {
+) -> Result<HashMap<Address, Vec<i32>>> {
     todo!()
 }

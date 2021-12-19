@@ -31,6 +31,7 @@ blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
 getrandom = { version = "0.2", features = ["js"] }
 
 hex = { version = "0.4.2", optional = true }
+anyhow = "1.0.51"
 
 [dev-dependencies]
 derive_builder = "0.10"

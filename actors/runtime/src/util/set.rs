@@ -1,8 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
 use blockstore::Blockstore;
 use cid::Cid;
 
@@ -70,9 +68,9 @@ where
     }
 
     /// Iterates through all keys in the set.
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(&BytesKey) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(&BytesKey) -> anyhow::Result<()>,
     {
         // Calls the for each function on the hamt with ignoring the value
         self.0.for_each(|s, _: &()| f(s))
