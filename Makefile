@@ -30,12 +30,12 @@ build:
 
 go-arch-alignment:
 mismatch = 
-ifneq ($(OS), $(GO_OS))
-mismatch = yes
-endif 
+ifeq ($(OS), darwin)
 ifneq ($(ARCH), $(GO_ARCH))
 mismatch = yes
 endif
+endif
+
 ifdef mismatch
 $(info $(GO_MISMATCH_ERROR))
 $(error Please change your go binary)
