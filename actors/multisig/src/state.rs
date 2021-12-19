@@ -1,8 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::Cid;
 use indexmap::IndexMap;
@@ -76,7 +75,7 @@ impl State {
         &mut self,
         store: &BS,
         addr: &Address,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut txns = make_map_with_root(&self.pending_txs, store)?;
 
         // Identify transactions that need updating
@@ -111,17 +110,18 @@ impl State {
         balance: TokenAmount,
         amount_to_spend: &TokenAmount,
         curr_epoch: ChainEpoch,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         if amount_to_spend < &0.into() {
-            return Err(format!(
+            return Err(anyhow!(
                 "amount to spend {} less than zero",
                 amount_to_spend
             ));
         }
         if &balance < amount_to_spend {
-            return Err(format!(
+            return Err(anyhow!(
                 "current balance {} less than amount to spend {}",
-                balance, amount_to_spend
+                balance,
+                amount_to_spend
             ));
         }
 
@@ -134,9 +134,11 @@ impl State {
         let remaining_balance = balance - amount_to_spend;
         let amount_locked = self.amount_locked(curr_epoch - self.start_epoch);
         if remaining_balance < amount_locked {
-            return Err(format!(
+            return Err(anyhow!(
                 "actor balance {} if spent {} would be less than required locked amount {}",
-                remaining_balance, amount_to_spend, amount_locked
+                remaining_balance,
+                amount_to_spend,
+                amount_locked
             ));
         }
         Ok(())

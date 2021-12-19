@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::anyhow;
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 
@@ -80,7 +81,7 @@ pub fn is_principal(code: &Cid) -> bool {
 }
 
 /// Given an actor code Cid, returns the name of the actor.
-pub fn actor_name_by_code(code: &Cid) -> Result<&str, String> {
+pub fn actor_name_by_code(code: &Cid) -> anyhow::Result<&str> {
     match code {
         x if x == &*SYSTEM_ACTOR_CODE_ID => Ok(SYSTEM_ACTOR_CODE_ID_NAME),
         x if x == &*INIT_ACTOR_CODE_ID => Ok(INIT_ACTOR_CODE_ID_NAME),
@@ -94,6 +95,6 @@ pub fn actor_name_by_code(code: &Cid) -> Result<&str, String> {
         x if x == &*REWARD_ACTOR_CODE_ID => Ok(REWARD_ACTOR_CODE_ID_NAME),
         x if x == &*VERIFREG_ACTOR_CODE_ID => Ok(VERIFREG_ACTOR_CODE_ID_NAME),
         x if x == &*CHAOS_ACTOR_CODE_ID => Ok(CHAOS_ACTOR_CODE_ID_NAME),
-        _ => Err(format!("{} is not a valid code", code)),
+        _ => Err(anyhow!("{} is not a valid code", code)),
     }
 }

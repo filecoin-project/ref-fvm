@@ -18,7 +18,7 @@ pub const DAG_CBOR: u64 = 0x71;
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
 pub trait CborStore: Blockstore + Sized {
     /// Get typed object from block store by Cid.
-    fn get_cbor<T>(&self, cid: &Cid) -> Result<Option<T>, Box<dyn std::error::Error>>
+    fn get_cbor<T>(&self, cid: &Cid) -> anyhow::Result<Option<T>>
     where
         T: de::DeserializeOwned,
     {
@@ -29,7 +29,7 @@ pub trait CborStore: Blockstore + Sized {
     }
 
     /// Put an object in the block store and return the Cid identifier.
-    fn put_cbor<S>(&self, obj: &S, code: Code) -> Result<Cid, Box<dyn std::error::Error>>
+    fn put_cbor<S>(&self, obj: &S, code: Code) -> anyhow::Result<Cid>
     where
         S: ser::Serialize,
     {

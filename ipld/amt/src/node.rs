@@ -3,6 +3,7 @@
 
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{serde_bytes, BytesSer, CborStore};
@@ -11,7 +12,6 @@ use serde::{
     de::{self, DeserializeOwned},
     ser, Deserialize, Serialize,
 };
-use std::error::Error as StdError;
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -125,11 +125,12 @@ impl<V> CollapsedNode<V> {
         }
 
         if bmap_bytes(bit_width) != bmap.len() {
-            return Err(Error::Other(format!(
+            return Err(anyhow!(
                 "expected bitfield of length {}, found bitfield with length {}",
                 bmap_bytes(bit_width),
                 bmap.len()
-            )));
+            )
+            .into());
         }
 
         if !links.is_empty() {
@@ -138,16 +139,12 @@ impl<V> CollapsedNode<V> {
             for (i, v) in links.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(Link::from(links_iter.next().ok_or_else(|| {
-                        Error::Other(
-                            "Bitmap contained more set bits than links provided".to_string(),
-                        )
+                        anyhow!("Bitmap contained more set bits than links provided",)
                     })?))
                 }
             }
             if links_iter.next().is_some() {
-                return Err(Error::Other(
-                    "Bitmap contained less set bits than links provided".to_string(),
-                ));
+                return Err(anyhow!("Bitmap contained less set bits than links provided",).into());
             }
             Ok(Node::Link { links })
         } else {
@@ -156,16 +153,12 @@ impl<V> CollapsedNode<V> {
             for (i, v) in vals.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(val_iter.next().ok_or_else(|| {
-                        Error::Other(
-                            "Bitmap contained more set bits than values provided".to_string(),
-                        )
+                        anyhow!("Bitmap contained more set bits than values provided")
                     })?)
                 }
             }
             if val_iter.next().is_some() {
-                return Err(Error::Other(
-                    "Bitmap contained less set bits than values provided".to_string(),
-                ));
+                return Err(anyhow!("Bitmap contained less set bits than values provided").into());
             }
             Ok(Node::Leaf { vals })
         }
@@ -422,9 +415,9 @@ where
         bit_width: usize,
         offset: usize,
         f: &mut F,
-    ) -> Result<bool, Box<dyn StdError>>
+    ) -> Result<bool, Error>
     where
-        F: FnMut(usize, &V) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &V) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         match self {
@@ -481,9 +474,9 @@ where
         bit_width: usize,
         offset: usize,
         f: &mut F,
-    ) -> Result<(bool, bool), Box<dyn StdError>>
+    ) -> Result<(bool, bool), Error>
     where
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         let mut did_mutate = false;

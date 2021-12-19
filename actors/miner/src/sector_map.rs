@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use serde::{Deserialize, Serialize};
 
@@ -20,22 +21,24 @@ impl DeadlineSectorMap {
     /// Check validates all bitfields and counts the number of partitions & sectors
     /// contained within the map, and returns an error if they exceed the given
     /// maximums.
-    pub fn check(&mut self, max_partitions: u64, max_sectors: u64) -> Result<(), String> {
+    pub fn check(&mut self, max_partitions: u64, max_sectors: u64) -> anyhow::Result<()> {
         let (partition_count, sector_count) = self
             .count()
-            .map_err(|e| format!("failed to count sectors: {:?}", e))?;
+            .map_err(|e| anyhow!("failed to count sectors: {:?}", e))?;
 
         if partition_count > max_partitions {
-            return Err(format!(
+            return Err(anyhow!(
                 "too many partitions {}, max {}",
-                partition_count, max_partitions
+                partition_count,
+                max_partitions
             ));
         }
 
         if sector_count > max_sectors {
-            return Err(format!(
+            return Err(anyhow!(
                 "too many sectors {}, max {}",
-                sector_count, max_sectors
+                sector_count,
+                max_sectors
             ));
         }
 
@@ -43,20 +46,20 @@ impl DeadlineSectorMap {
     }
 
     /// Counts the number of partitions & sectors within the map.
-    pub fn count(&mut self) -> Result<(/* partitions */ u64, /* sectors */ u64), String> {
+    pub fn count(&mut self) -> anyhow::Result<(/* partitions */ u64, /* sectors */ u64)> {
         self.0.iter_mut().try_fold(
             (0_u64, 0_u64),
             |(partitions, sectors), (deadline_idx, pm)| {
                 let (partition_count, sector_count) = pm
                     .count()
-                    .map_err(|e| format!("when counting deadline {}: {:?}", deadline_idx, e))?;
+                    .map_err(|e| anyhow!("when counting deadline {}: {:?}", deadline_idx, e))?;
                 Ok((
                     partitions
                         .checked_add(partition_count)
-                        .ok_or_else(|| "integer overflow when counting partitions".to_string())?,
+                        .ok_or_else(|| anyhow!("integer overflow when counting partitions"))?,
                     sectors
                         .checked_add(sector_count)
-                        .ok_or_else(|| "integer overflow when counting sectors".to_string())?,
+                        .ok_or_else(|| anyhow!("integer overflow when counting sectors"))?,
                 ))
             },
         )
@@ -68,9 +71,9 @@ impl DeadlineSectorMap {
         deadline_idx: usize,
         partition_idx: usize,
         sector_numbers: UnvalidatedBitField,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
-            return Err(format!("invalid deadline {}", deadline_idx));
+            return Err(anyhow!("invalid deadline {}", deadline_idx));
         }
 
         self.0
@@ -85,7 +88,7 @@ impl DeadlineSectorMap {
         deadline_idx: usize,
         partition_idx: usize,
         sector_numbers: &[u64],
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         self.add(
             deadline_idx,
             partition_idx,
@@ -122,7 +125,7 @@ impl PartitionSectorMap {
         &mut self,
         partition_idx: usize,
         sector_numbers: Vec<u64>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         self.add(
             partition_idx,
             sector_numbers
@@ -138,15 +141,15 @@ impl PartitionSectorMap {
         &mut self,
         partition_idx: usize,
         mut sector_numbers: UnvalidatedBitField,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         match self.0.get_mut(&partition_idx) {
             Some(old_sector_numbers) => {
                 let old = old_sector_numbers
                     .validate_mut()
-                    .map_err(|e| format!("failed to validate sector bitfield: {}", e))?;
+                    .map_err(|e| anyhow!("failed to validate sector bitfield: {}", e))?;
                 let new = sector_numbers
                     .validate()
-                    .map_err(|e| format!("failed to validate new sector bitfield: {}", e))?;
+                    .map_err(|e| anyhow!("failed to validate new sector bitfield: {}", e))?;
                 *old |= new;
             }
             None => {
@@ -157,20 +160,21 @@ impl PartitionSectorMap {
     }
 
     /// Counts the number of partitions & sectors within the map.
-    pub fn count(&mut self) -> Result<(/* partitions */ u64, /* sectors */ u64), String> {
+    pub fn count(&mut self) -> anyhow::Result<(/* partitions */ u64, /* sectors */ u64)> {
         let sectors = self
             .0
             .iter_mut()
             .try_fold(0_u64, |sectors, (partition_idx, bf)| {
                 let validated = bf.validate().map_err(|e| {
-                    format!(
+                    anyhow!(
                         "failed to parse bitmap for partition {}: {}",
-                        partition_idx, e
+                        partition_idx,
+                        e
                     )
                 })?;
                 sectors
                     .checked_add(validated.len() as u64)
-                    .ok_or_else(|| "integer overflow when counting sectors".to_string())
+                    .ok_or_else(|| anyhow!("integer overflow when counting sectors"))
             })?;
         Ok((self.0.len() as u64, sectors))
     }

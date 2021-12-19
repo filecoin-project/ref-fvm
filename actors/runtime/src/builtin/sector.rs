@@ -4,7 +4,7 @@
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
 
 /// Returns the minimum storage power required for each seal proof types.
-pub fn consensus_miner_min_power(p: RegisteredPoStProof) -> Result<StoragePower, String> {
+pub fn consensus_miner_min_power(p: RegisteredPoStProof) -> anyhow::Result<StoragePower> {
     use RegisteredPoStProof::*;
     match p {
         StackedDRGWinning2KiBV1
@@ -26,6 +26,6 @@ pub fn consensus_miner_min_power(p: RegisteredPoStProof) -> Result<StoragePower,
 
             Ok(StoragePower::from(10u64 << 40))
         }
-        Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+        Invalid(i) => Err(anyhow::anyhow!("unsupported proof type: {}", i)),
     }
 }

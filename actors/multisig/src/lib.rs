@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashSet;
-use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 use num_derive::FromPrimitive;
@@ -695,10 +694,7 @@ where
 
 /// Computes a digest of a proposed transaction. This digest is used to confirm identity
 /// of the transaction associated with an ID, which might change under chain re-orgs.
-fn compute_proposal_hash(
-    txn: &Transaction,
-    sys: &dyn Syscalls,
-) -> Result<[u8; 32], Box<dyn StdError>> {
+fn compute_proposal_hash(txn: &Transaction, sys: &dyn Syscalls) -> anyhow::Result<[u8; 32]> {
     let proposal_hash = ProposalHashData {
         requester: txn.approved.get(0),
         to: &txn.to,

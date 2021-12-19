@@ -9,7 +9,6 @@ use forest_hash_utils::BytesKey;
 use fvm_shared::encoding::CborStore;
 use serde::{de::DeserializeOwned, Serialize, Serializer};
 use std::borrow::Borrow;
-use std::error::Error as StdError;
 use std::marker::PhantomData;
 
 /// Implementation of the HAMT data structure for IPLD.
@@ -303,10 +302,10 @@ where
     /// assert_eq!(total, 3);
     /// ```
     #[inline]
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
         V: DeserializeOwned,
-        F: FnMut(&K, &V) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
     }

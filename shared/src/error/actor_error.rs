@@ -1,5 +1,3 @@
-use std::error::Error as StdError;
-
 use thiserror::Error;
 
 use super::ExitCode;
@@ -83,16 +81,15 @@ impl From<crate::encoding::error::Error> for ActorError {
     }
 }
 
+/*
 // TODO: is this the right way to do this?
-impl From<Box<dyn StdError>> for ActorError {
-    fn from(e: Box<dyn StdError>) -> Self {
-        Self {
-            fatal: true,
-            exit_code: ExitCode::ErrPlaceholder,
-            msg: e.to_string(),
-        }
+impl From<anyhow::Error> for ActorError {
+    fn from(e: anyhow::Error) -> Self {
+        // TODO
+        e.downcast_fatal("failed")
     }
 }
+*/
 
 /// Convenience macro for generating Actor Errors
 /// TODO: Delete this. It exists so the code can compile.

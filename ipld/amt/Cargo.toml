@@ -16,6 +16,7 @@ ahash = { version = "0.7", optional = true }
 itertools = "0.10"
 fvm_shared = { path = "../../shared" }
 blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
+anyhow = "1.0.51"
 
 [features]
 go-interop = ["ahash"]

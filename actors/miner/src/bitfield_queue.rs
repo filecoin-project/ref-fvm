@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
-use std::error::Error as StdError;
 
 use bitfield::BitField;
 use blockstore::Blockstore;
@@ -28,11 +27,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     }
 
     /// Adds values to the queue entry for an epoch.
-    pub fn add_to_queue(
-        &mut self,
-        raw_epoch: ChainEpoch,
-        values: &BitField,
-    ) -> Result<(), Box<dyn StdError>> {
+    pub fn add_to_queue(&mut self, raw_epoch: ChainEpoch, values: &BitField) -> anyhow::Result<()> {
         if values.is_empty() {
             // nothing to do.
             return Ok(());
@@ -58,7 +53,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
         &mut self,
         epoch: ChainEpoch,
         values: &[usize],
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if values.is_empty() {
             Ok(())
         } else {
@@ -70,7 +65,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     /// shifting other bits down and removing any newly empty entries.
     ///
     /// See the docs on `BitField::cut` to better understand what it does.
-    pub fn cut(&mut self, to_cut: &BitField) -> Result<(), Box<dyn StdError>> {
+    pub fn cut(&mut self, to_cut: &BitField) -> anyhow::Result<()> {
         let mut epochs_to_remove = Vec::<usize>::new();
 
         self.amt
@@ -97,7 +92,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     pub fn add_many_to_queue_values(
         &mut self,
         values: &HashMap<ChainEpoch, Vec<usize>>,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // Update each epoch in-order to be deterministic.
         // Pre-quantize to reduce the number of updates.
 
@@ -124,7 +119,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
 
     /// Removes and returns all values with keys less than or equal to until.
     /// Modified return value indicates whether this structure has been changed by the call.
-    pub fn pop_until(&mut self, until: ChainEpoch) -> Result<(BitField, bool), Box<dyn StdError>> {
+    pub fn pop_until(&mut self, until: ChainEpoch) -> anyhow::Result<(BitField, bool)> {
         let mut popped_values = BitField::new();
         let mut popped_keys = Vec::<usize>::new();
 
