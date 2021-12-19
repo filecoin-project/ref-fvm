@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::encoding::tuple::{Deserialize_tuple, Serialize_tuple};
-use fvm_shared::encoding::{Cbor, RawBytes};
-use fvm_shared::error::ExitCode;
+use crate::encoding::{
+    tuple::{Deserialize_tuple, Serialize_tuple},
+    {Cbor, RawBytes},
+};
+use crate::error::ExitCode;
 
 /// Result of a state transition from a message
 #[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use cid::Cid;
 
-use crate::receipt::Receipt;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -13,6 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };

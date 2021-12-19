@@ -14,6 +14,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
@@ -22,7 +23,6 @@ use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
-use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
 use crate::Config;
