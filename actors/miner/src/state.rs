@@ -312,7 +312,7 @@ impl State {
                     e.downcast_wrap(format!("failed to store precommitment for {:?}", sector_no,))
                 })?;
             if !modified {
-                return Err(anyhow!("sector {} already pre-commited", sector_no).into());
+                return Err(anyhow!("sector {} already pre-commited", sector_no));
             }
         }
 
@@ -779,7 +779,7 @@ impl State {
         spec: &VestSpec,
     ) -> anyhow::Result<TokenAmount> {
         if vesting_sum.is_negative() {
-            return Err(anyhow!("negative vesting sum {}", vesting_sum).into());
+            return Err(anyhow!("negative vesting sum {}", vesting_sum));
         }
 
         let mut vesting_funds = self.load_vesting_funds(store)?;
@@ -792,8 +792,7 @@ impl State {
                 "negative locked funds {} after unlocking {}",
                 self.locked_funds,
                 amount_unlocked
-            )
-            .into());
+            ));
         }
         // add locked funds now
         vesting_funds.add_locked_funds(current_epoch, vesting_sum, self.proving_period_start, spec);
@@ -879,8 +878,7 @@ impl State {
                 "negative locked funds {} after unlocking {}",
                 self.locked_funds,
                 amount_unlocked
-            )
-            .into());
+            ));
         }
 
         self.save_vesting_funds(store, &vesting_funds)?;
@@ -905,8 +903,7 @@ impl State {
             return Err(anyhow!(
                 "vesting cause locked funds to become negative: {}",
                 self.locked_funds,
-            )
-            .into());
+            ));
         }
 
         self.save_vesting_funds(store, &vesting_funds)?;
@@ -1064,8 +1061,7 @@ impl State {
             return Err(anyhow!(
                 "pre-commit clean up caused negative deposits: {}",
                 self.pre_commit_deposits
-            )
-            .into());
+            ));
         }
 
         Ok(deposit_to_burn)

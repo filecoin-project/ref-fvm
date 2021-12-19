@@ -61,13 +61,13 @@ impl Deadlines {
             )));
         }
 
-        Ok(store.get_cbor(&self.due[deadline_idx])?.ok_or_else(|| {
+        store.get_cbor(&self.due[deadline_idx])?.ok_or_else(|| {
             anyhow!(actor_error!(
                 ErrIllegalState,
                 "failed to lookup deadline {}",
                 deadline_idx
             ))
-        })?)
+        })
     }
 
     pub fn for_each<BS: Blockstore>(

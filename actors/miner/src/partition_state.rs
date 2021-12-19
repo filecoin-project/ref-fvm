@@ -442,8 +442,7 @@ impl Partition {
                 "refusing to replace inactive sectors in {:?} (active: {:?})",
                 old_sector_numbers,
                 active
-            )
-            .into());
+            ));
         }
 
         // Update partition metadata.

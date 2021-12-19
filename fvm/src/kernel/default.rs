@@ -280,7 +280,7 @@ where
     }
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
-        Ok(self.blocks.stat(id).or_illegal_argument()?)
+        self.blocks.stat(id).or_illegal_argument()
     }
 }
 
@@ -423,7 +423,7 @@ where
         let comm_d = compute_comm_d(proof_type.try_into().or_illegal_argument()?, &all_pieces)
             .or_illegal_argument()?;
 
-        Ok(data_commitment_v1_to_cid(&comm_d).or_illegal_argument()?)
+        data_commitment_v1_to_cid(&comm_d).or_illegal_argument()
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
@@ -617,7 +617,7 @@ where
 {
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
-        Ok(self.call_manager.charge_gas(charge)?)
+        self.call_manager.charge_gas(charge)
     }
 }
 

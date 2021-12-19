@@ -87,16 +87,14 @@ impl ExpirationSet {
                 "removing on-time sectors {:?} not contained in {:?}",
                 on_time_sectors,
                 self.on_time_sectors
-            )
-            .into());
+            ));
         }
         if !self.early_sectors.contains_all(early_sectors) {
             return Err(anyhow!(
                 "removing early sectors {:?} not contained in {:?}",
                 early_sectors,
                 self.early_sectors
-            )
-            .into());
+            ));
         }
 
         self.on_time_sectors -= on_time_sectors;
@@ -107,10 +105,10 @@ impl ExpirationSet {
 
         // Check underflow.
         if self.on_time_pledge.is_negative() {
-            return Err(anyhow!("expiration set pledge underflow: {:?}", self).into());
+            return Err(anyhow!("expiration set pledge underflow: {:?}", self));
         }
         if self.active_power.qa.is_negative() || self.faulty_power.qa.is_negative() {
-            return Err(anyhow!("expiration set power underflow: {:?}", self).into());
+            return Err(anyhow!("expiration set power underflow: {:?}", self));
         }
         self.validate_state()?;
         Ok(())
@@ -434,7 +432,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining).into());
+            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining));
         }
 
         // Re-schedule the removed sectors to their target expiration.
@@ -589,7 +587,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining).into());
+            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining));
         }
 
         Ok((removed, recovering_power))

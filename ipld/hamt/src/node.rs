@@ -148,7 +148,7 @@ where
                             node
                         } else {
                             #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()).into());
+                            return Err(Error::CidNotFound(cid.to_string()));
 
                             #[cfg(feature = "ignore-dead-links")]
                             continue;

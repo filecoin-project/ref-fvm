@@ -55,7 +55,7 @@ pub fn set_root(caller: &mut Caller<'_, impl Kernel>, cid: u32) -> Result<()> {
 pub fn open(caller: &mut Caller<'_, impl Kernel>, cid: u32) -> Result<u32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let cid = memory.read_cid(cid)?;
-    Ok(kernel.block_open(&cid)?)
+    kernel.block_open(&cid)
 }
 
 pub fn create(
@@ -66,7 +66,7 @@ pub fn create(
 ) -> Result<u32> {
     let (kernel, memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice(data_off, data_len)?;
-    Ok(kernel.block_create(codec, data)?)
+    kernel.block_create(codec, data)
 }
 
 pub fn cid(
@@ -102,12 +102,12 @@ pub fn read(
 ) -> Result<u32> {
     let (kernel, mut memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice_mut(obuf_off, obuf_len)?;
-    Ok(kernel.block_read(id, offset, data)?)
+    kernel.block_read(id, offset, data)
 }
 
 pub fn stat(caller: &mut Caller<'_, impl Kernel>, id: u32) -> Result<(u64, u32)> {
-    Ok(caller
+    caller
         .kernel()
         .block_stat(id)
-        .map(|stat| (stat.codec, stat.size))?)
+        .map(|stat| (stat.codec, stat.size))
 }

@@ -160,7 +160,7 @@ pub(crate) fn select_sectors(
     }
 
     if !to_include.is_empty() {
-        return Err(anyhow!("failed to find {} expected sectors", to_include.len()).into());
+        return Err(anyhow!("failed to find {} expected sectors", to_include.len()));
     }
 
     Ok(included)
