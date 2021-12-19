@@ -432,7 +432,10 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining));
+            return Err(anyhow!(
+                "sectors not found in expiration queue: {:?}",
+                remaining
+            ));
         }
 
         // Re-schedule the removed sectors to their target expiration.
@@ -587,7 +590,10 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(anyhow!("sectors not found in expiration queue: {:?}", remaining));
+            return Err(anyhow!(
+                "sectors not found in expiration queue: {:?}",
+                remaining
+            ));
         }
 
         Ok((removed, recovering_power))

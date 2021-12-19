@@ -122,6 +122,7 @@ pub fn trap_from_error(e: anyhow::Error) -> Trap {
     )
 }
 
+#[allow(unused)]
 pub fn trap_from_code(code: ExitCode) -> Trap {
     Trap::i32_exit(code as i32)
 }
