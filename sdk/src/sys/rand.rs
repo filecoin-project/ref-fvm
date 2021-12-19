@@ -9,7 +9,7 @@ extern "C" {
         round: i64,
         entropy_offset: *const u8,
         entropy_len: u32,
-        obuf: *const u8,
+        obuf: *mut u8,
     );
 
     /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -21,6 +21,6 @@ extern "C" {
         round: i64,
         entropy_offset: *const u8,
         entropy_len: u32,
-        obuf: *const u8,
+        obuf: *mut u8,
     );
 }
