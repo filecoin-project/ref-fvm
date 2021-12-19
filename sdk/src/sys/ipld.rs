@@ -26,15 +26,6 @@ pub const UNIT: u32 = 0;
 #[link(wasm_import_module = "ipld")]
 #[allow(improper_ctypes)]
 extern "C" {
-    /// Gets the current root.
-    ///
-    /// If the CID doesn't fit in the specified maximum length (and/or the length is 0), this
-    /// function returns the required size and does not update the cid buffer.
-    pub fn get_root(cid: *mut u8, cid_max_len: u32) -> u32;
-
-    /// Sets the root CID. The new root must be in the reachable set.
-    pub fn set_root(cid: *const u8);
-
     /// Opens a block from the "reachable" set, returning an ID for the block, its codec, and its
     /// size in bytes.
     ///

@@ -11,7 +11,7 @@ pub fn get_root() -> Cid {
     // I really hate this CID interface. Why can't I just have bytes?
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let len = crate::sys::ipld::get_root(buf.as_mut_ptr(), buf.len() as u32) as usize;
+        let len = crate::sys::sself::get_root(buf.as_mut_ptr(), buf.len() as u32) as usize;
         if len > buf.len() {
             // TODO: re-try with a larger buffer?
             panic!("CID too big: {} > {}", len, buf.len())
@@ -25,7 +25,7 @@ pub fn set_root(cid: &Cid) {
     let mut buf = [0u8; MAX_CID_LEN];
     cid.write_bytes(&mut buf[..])
         .expect("CID encoding should not fail");
-    unsafe { crate::sys::ipld::set_root(buf.as_ptr()) }
+    unsafe { crate::sys::sself::set_root(buf.as_ptr()) }
 }
 
 /// Store a block. The block will only be persisted in the state-tree if the CID is "linked in" to
