@@ -50,6 +50,14 @@ pub trait IntoSyscallResult: Sized {
     fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap>;
 }
 
+// Implementation for syscalls that want to trap directly.
+impl<T> IntoSyscallResult for Result<T, Trap> {
+    type Value = T;
+    fn into<K: Kernel>(self, _k: &mut K) -> Result<Self::Value, Trap> {
+        self
+    }
+}
+
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {

@@ -15,7 +15,7 @@ use super::{
 };
 
 pub fn abort(
-    mut caller: Caller<'_, impl Kernel>,
+    caller: &mut Caller<'_, impl Kernel>,
     code: u32,
     message_off: u32,
     message_len: u32,
