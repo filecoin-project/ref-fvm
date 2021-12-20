@@ -18,14 +18,15 @@ extern "C" {
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.
     ///
-    /// Writes the CID in the provided output buffer.
+    /// Writes the CID in the provided output buffer, and returns the length of
+    /// the written CID.
     pub fn compute_unsealed_sector_cid(
         proof_type: i64,
         pieces_off: *const u8,
         pieces_len: u32,
         cid_off: *mut u8,
         cid_len: u32,
-    );
+    ) -> u32;
 
     /// Verifies a sector seal proof.
     pub fn verify_seal(info_off: *const u8, info_len: u32) -> i32;
@@ -49,5 +50,5 @@ extern "C" {
     ) -> (i32, u32);
 
     /// Verifies an aggregated batch of sector seal proofs.
-    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32);
+    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> i32;
 }

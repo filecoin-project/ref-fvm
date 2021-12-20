@@ -4,6 +4,9 @@ use cid::Cid;
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;
 
+pub(crate) type BlockId = u32;
+pub(crate) type Codec = u64;
+
 /// Store a block. The block will only be persisted in the state-tree if the CID is "linked in" to
 /// the actor's state-tree before the end of the current invocation.
 pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> Cid {
@@ -36,12 +39,24 @@ pub fn get(cid: &Cid) -> Vec<u8> {
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
         let (id, _, size) = sys::ipld::open(cid_buf.as_mut_ptr());
-        let mut block = Vec::with_capacity(size as usize);
+        get_block(id, Some(size))
+    }
+}
+
+/// Gets the data of the block referenced by BlockId. If the caller knows the
+/// size, this function will avoid statting the block.
+pub(crate) fn get_block(id: BlockId, size: Option<u32>) -> Vec<u8> {
+    let size = size.unwrap_or_else(|| unsafe {
+        let (_codec, size) = sys::ipld::stat(id);
+        size
+    });
+    let mut block = Vec::with_capacity(size as usize);
+    unsafe {
         let bytes_read = sys::ipld::read(id, 0, block.as_mut_ptr(), size);
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         block.set_len(size as usize);
-        block
     }
+    block
 }
 
 // Transform the IPLD DAG.

@@ -1,13 +1,14 @@
 // TODO: remove this when we hookup these syscalls.
 #![allow(unused)]
 
-use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result};
-use crate::Kernel;
+use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result, SyscallError};
+use crate::{syscall_error, Kernel};
 use anyhow::Context as _;
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
+use fvm_shared::error::ExitCode::SysErrIllegalArgument;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -80,9 +81,20 @@ pub fn compute_unsealed_sector_cid(
     let pieces: Vec<PieceInfo> = memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
     let cid = kernel.compute_unsealed_sector_cid(typ, pieces.as_slice())?;
-    let mut out_slice = memory.try_slice_mut(cid_off, cid_len)?;
+    let mut out = memory.try_slice_mut(cid_off, cid_len)?;
 
-    cid.write_bytes(&mut out_slice).or_fatal()
+    // The CID lib should really return the number of bytes written...
+    // cid.write_bytes(&mut out).or_fatal()
+    let bytes = cid.to_bytes();
+    let len = bytes.len();
+    if len > out.len() {
+        return Err(syscall_error!(
+            SysErrIllegalArgument;
+            "output buffer too small; CID length: {}, buffer length: {}", len, out.len())
+        .into());
+    }
+    out[..bytes.len()].copy_from_slice(bytes.as_slice());
+    Ok(())
 }
 
 /// Verifies a sector seal proof.

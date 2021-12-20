@@ -4,9 +4,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::abort;
-
-type BlockId = u32;
-type Codec = u64;
+use crate::ipld::{BlockId, Codec};
 
 /// Returns the ID address of the caller.
 #[inline(always)]
