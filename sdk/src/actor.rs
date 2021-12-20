@@ -20,30 +20,29 @@ pub fn resolve_address(addr: Address) -> Option<ActorID> {
 pub fn get_actor_code_cid(addr: Address) -> Option<Cid> {
     let bytes = addr.to_bytes();
     let mut buf = [0u8; MAX_CID_LEN];
-    let mut ret = 0;
     unsafe {
-        ret = sys::actor::get_actor_code_cid(
+        let ok = sys::actor::get_actor_code_cid(
             bytes.as_ptr(),
             bytes.len() as u32,
             buf.as_mut_ptr(),
             MAX_CID_LEN as u32,
-        )
+        );
+        if ok == 0 {
+            // Cid::read_bytes won't read until the end, just the bytes it needs.
+            return Some(Cid::read_bytes(&buf[..MAX_CID_LEN]).expect("invalid cid returned"));
+        }
     }
-    if ret == 0 {
-        // Cid::read_bytes won't read until the end, just the bytes it needs.
-        Some(Cid::read_bytes(&buf[..MAX_CID_LEN]).expect("invalid cid returned"))
-    } else {
-        None
-    }
+    None
 }
 
 /// Generates a new actor address for an actor deployed
 /// by the calling actor.
 pub fn new_actor_address() -> Address {
     let mut buf = [0u8; MAX_ACTOR_ADDR_LEN];
-    let mut len = 0;
-    unsafe { len = sys::actor::new_actor_address(buf.as_mut_ptr(), MAX_ACTOR_ADDR_LEN as u32) }
-    Address::from_bytes(&buf[..len as usize]).expect("syscall returned invalid address")
+    unsafe {
+        let len = sys::actor::new_actor_address(buf.as_mut_ptr(), MAX_ACTOR_ADDR_LEN as u32);
+        Address::from_bytes(&buf[..len as usize]).expect("syscall returned invalid address")
+    }
 }
 
 /// Creates a new actor of the specified type in the state tree, under

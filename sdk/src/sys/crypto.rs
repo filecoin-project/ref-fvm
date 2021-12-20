@@ -38,6 +38,7 @@ extern "C" {
     /// Returns a 0 status if a consensus fault was recognized, along with the
     /// BlockId containing the fault details. Otherwise, a -1 status is returned,
     /// and the second result parameter must be ignored.
+    #[allow(improper_ctypes)]
     pub fn verify_consensus_fault(
         h1_off: *const u8,
         h1_len: u32,

@@ -6,6 +6,7 @@ pub mod ipld;
 pub mod message;
 pub mod network;
 pub mod rand;
+pub mod send;
 pub mod sself;
 pub mod sys;
 pub mod validation;
