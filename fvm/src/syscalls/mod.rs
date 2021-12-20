@@ -13,6 +13,7 @@ mod network;
 mod rand;
 mod sself;
 mod validation;
+mod vm;
 
 pub(self) use context::Context;
 
@@ -35,6 +36,11 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
 
     }
     */
+
+    // Link-in the abort method using the normal `func_wrap` instead of `bind` as we need to
+    // explicitly trap.
+    linker.func_wrap("vm", "abort", vm::abort)?;
+
     linker.bind("ipld", "get_root", ipld::get_root)?;
     linker.bind("ipld", "set_root", ipld::set_root)?;
     linker.bind("ipld", "open", ipld::open)?;
