@@ -1,4 +1,4 @@
-use crate::MAX_CID_LEN;
+use crate::{sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -8,7 +8,7 @@ pub fn get_root() -> Cid {
     // I really hate this CID interface. Why can't I just have bytes?
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let len = crate::sys::sself::get_root(buf.as_mut_ptr(), buf.len() as u32) as usize;
+        let len = sys::sself::get_root(buf.as_mut_ptr(), buf.len() as u32) as usize;
         if len > buf.len() {
             // TODO: re-try with a larger buffer?
             panic!("CID too big: {} > {}", len, buf.len())
@@ -22,14 +22,14 @@ pub fn set_root(cid: &Cid) {
     let mut buf = [0u8; MAX_CID_LEN];
     cid.write_bytes(&mut buf[..])
         .expect("CID encoding should not fail");
-    unsafe { crate::sys::sself::set_root(buf.as_ptr()) }
+    unsafe { sys::sself::set_root(buf.as_ptr()) }
 }
 
 /// Gets the current balance for the calling actor.
 #[inline(always)]
 pub fn current_balance() -> TokenAmount {
     unsafe {
-        let (lo, hi) = crate::sys::sself::current_balance();
+        let (lo, hi) = sys::sself::current_balance();
         // TODO not sure if this is the correct endianness.
         TokenAmount::from(hi) << 64 | TokenAmount::from(lo)
     }
@@ -39,5 +39,5 @@ pub fn current_balance() -> TokenAmount {
 /// to the supplied address, which cannot be itself.
 pub fn self_destruct(beneficiary: Address) {
     let bytes = beneficiary.to_bytes();
-    unsafe { crate::sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32) }
+    unsafe { sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32) }
 }
