@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
-use fvm_shared::deadlines::QuantSpec;
 use serde::{Deserialize, Serialize};
 
 /// Deadline calculations with respect to a current epoch.

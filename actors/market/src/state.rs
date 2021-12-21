@@ -562,7 +562,7 @@ where
         &self,
         addr: Address,
         amount_to_lock: &TokenAmount,
-    ) -> Result<bool, Box<dyn StdError>> {
+    ) -> anyhow::Result<bool> {
         let prev_locked = self
             .locked_table
             .as_ref()

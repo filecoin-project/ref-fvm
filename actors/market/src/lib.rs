@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::{HashMap, HashSet};
-use std::error::Error as StdError;
 
 use ahash::AHashMap;
 use bitfield::BitField;

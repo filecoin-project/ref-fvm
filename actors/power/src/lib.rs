@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashSet;
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use ext::init;
 use indexmap::IndexMap;
@@ -475,13 +476,13 @@ impl Actor {
                 let addr = match Address::from_bytes(&k.0) {
                     Ok(addr) => addr,
                     Err(e) => {
-                        return Err(format!("failed to parse address key: {}", e).into());
+                        return Err(anyhow!("failed to parse address key: {}", e));
                     }
                 };
 
                 let contains_claim = match claims.contains_key(&addr.to_bytes()) {
                     Ok(contains_claim) => contains_claim,
-                    Err(e) => return Err(format!("failed to look up claim: {}", e).into()),
+                    Err(e) => return Err(anyhow!("failed to look up clain: {}", e)),
                 };
 
                 if !contains_claim {
@@ -495,9 +496,10 @@ impl Actor {
                     Ok(())
                 })
                 .map_err(|e| {
-                    format!(
+                    anyhow!(
                         "failed to iterate over proof verify array for miner {}: {}",
-                        addr, e
+                        addr,
+                        e
                     )
                 })?;
 
