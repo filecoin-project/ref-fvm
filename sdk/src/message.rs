@@ -42,7 +42,6 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 pub fn value_received() -> SyscallResult<TokenAmount> {
     unsafe {
         let (lo, hi) = sys::message::value_received().into_syscall_result()?;
-        // TODO not sure if this is the correct endianness.
         Ok(TokenAmount::from(hi) << 64 | TokenAmount::from(lo))
     }
 }

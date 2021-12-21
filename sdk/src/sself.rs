@@ -32,7 +32,6 @@ pub fn set_root(cid: &Cid) -> SyscallResult<()> {
 pub fn current_balance() -> SyscallResult<TokenAmount> {
     unsafe {
         let (lo, hi) = sys::sself::current_balance().into_syscall_result()?;
-        // TODO not sure if this is the correct endianness.
         Ok(TokenAmount::from(hi) << 64 | TokenAmount::from(lo))
     }
 }
