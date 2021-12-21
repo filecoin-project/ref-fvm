@@ -1,9 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{cmp, error::Error as StdError};
+use std::cmp;
 use std::{collections::HashMap, ops::Neg};
 
+use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
@@ -11,8 +12,7 @@ use num_traits::{Signed, Zero};
 
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
-use fvm_shared::deadlines::{DeadlineInfo, QuantSpec};
+use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
@@ -28,8 +28,8 @@ use actors_runtime::{
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,
     new_deadline_info_from_offset_and_epoch, policy::*, quant_spec_for_deadline, types::*,
-    BitFieldQueue, Deadline, DeadlineSectorMap, Deadlines, PowerPair, Sectors, TerminationResult,
-    VestingFunds,
+    BitFieldQueue, Deadline, DeadlineInfo, DeadlineSectorMap, Deadlines, PowerPair, Sectors,
+    TerminationResult, VestingFunds,
 };
 
 const PRECOMMIT_EXPIRY_AMT_BITWIDTH: usize = 6;
@@ -123,7 +123,7 @@ impl State {
         info_cid: Cid,
         period_start: ChainEpoch,
         deadline_idx: usize,
-    ) -> Result<Self, Box<dyn StdError>> {
+    ) -> anyhow::Result<Self> {
         let empty_precommit_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
             .map_err(|e| {
@@ -207,7 +207,7 @@ impl State {
         })
     }
 
-    pub fn get_info<BS: Blockstore>(&self, store: &BS) -> Result<MinerInfo, Box<dyn StdError>> {
+    pub fn get_info<BS: Blockstore>(&self, store: &BS) -> anyhow::Result<MinerInfo> {
         match store.get_cbor(&self.info) {
             Ok(Some(info)) => Ok(info),
             Ok(None) => Err(actor_error!(ErrNotFound, "failed to get miner info").into()),
@@ -219,7 +219,7 @@ impl State {
         &mut self,
         store: &BS,
         info: &MinerInfo,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let cid = store.put_cbor(&info, Code::Blake2b256)?;
         self.info = cid;
         Ok(())
@@ -301,7 +301,7 @@ impl State {
         &mut self,
         store: &BS,
         precommits: Vec<SectorPreCommitOnChainInfo>,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut precommitted =
             make_map_with_root_and_bitwidth(&self.pre_committed_sectors, store, HAMT_BIT_WIDTH)?;
         for precommit in precommits.into_iter() {
@@ -312,7 +312,7 @@ impl State {
                     e.downcast_wrap(format!("failed to store precommitment for {:?}", sector_no,))
                 })?;
             if !modified {
-                return Err(format!("sector {} already pre-commited", sector_no).into());
+                return Err(anyhow!("sector {} already pre-commited", sector_no));
             }
         }
 
@@ -335,7 +335,7 @@ impl State {
         &self,
         store: &BS,
         sector_numbers: &[SectorNumber],
-    ) -> Result<Vec<SectorPreCommitOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorPreCommitOnChainInfo>> {
         let precommitted = make_map_with_root_and_bitwidth::<_, SectorPreCommitOnChainInfo>(
             &self.pre_committed_sectors,
             store,
@@ -383,7 +383,7 @@ impl State {
         &self,
         store: &BS,
         sector_num: SectorNumber,
-    ) -> Result<bool, Box<dyn StdError>> {
+    ) -> anyhow::Result<bool> {
         let sectors = Sectors::load(store, &self.sectors)?;
         Ok(sectors.get(sector_num)?.is_some())
     }
@@ -392,7 +392,7 @@ impl State {
         &mut self,
         store: &BS,
         new_sectors: Vec<SectorOnChainInfo>,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut sectors = Sectors::load(store, &self.sectors)
             .map_err(|e| e.downcast_wrap("failed to load sectors"))?;
 
@@ -410,7 +410,7 @@ impl State {
         &self,
         store: &BS,
         sector_num: SectorNumber,
-    ) -> Result<Option<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Option<SectorOnChainInfo>> {
         let sectors = Sectors::load(store, &self.sectors)?;
         sectors.get(sector_num)
     }
@@ -433,16 +433,13 @@ impl State {
         Ok(())
     }
 
-    pub fn for_each_sector<BS: Blockstore, F>(
-        &self,
-        store: &BS,
-        mut f: F,
-    ) -> Result<(), Box<dyn StdError>>
+    pub fn for_each_sector<BS: Blockstore, F>(&self, store: &BS, mut f: F) -> anyhow::Result<()>
     where
-        F: FnMut(&SectorOnChainInfo) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(&SectorOnChainInfo) -> anyhow::Result<()>,
     {
         let sectors = Sectors::load(store, &self.sectors)?;
-        sectors.amt.for_each(|_, v| f(v))
+        sectors.amt.for_each(|_, v| f(v))?;
+        Ok(())
     }
 
     /// Returns the deadline and partition index for a sector number.
@@ -450,7 +447,7 @@ impl State {
         &self,
         store: &BS,
         sector_number: SectorNumber,
-    ) -> Result<(usize, usize), Box<dyn StdError>> {
+    ) -> anyhow::Result<(usize, usize)> {
         let deadlines = self.load_deadlines(store)?;
         deadlines.find_sector(store, sector_number)
     }
@@ -470,7 +467,7 @@ impl State {
         current_epoch: ChainEpoch,
         sector_size: SectorSize,
         mut deadline_sectors: DeadlineSectorMap,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
         let mut deadlines = self.load_deadlines(store)?;
         let sectors = Sectors::load(store, &self.sectors)?;
 
@@ -511,7 +508,7 @@ impl State {
         mut sectors: Vec<SectorOnChainInfo>,
         partition_size: u64,
         sector_size: SectorSize,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut deadlines = self.load_deadlines(store)?;
 
         // Sort sectors by number to get better runs in partition bitfields.
@@ -575,7 +572,7 @@ impl State {
         store: &BS,
         max_partitions: u64,
         max_sectors: u64,
-    ) -> Result<(TerminationResult, /* has more */ bool), Box<dyn StdError>> {
+    ) -> anyhow::Result<(TerminationResult, /* has more */ bool)> {
         // Anything to do? This lets us avoid loading the deadlines if there's nothing to do.
         if self.early_terminations.is_empty() {
             return Ok((Default::default(), false));
@@ -641,7 +638,7 @@ impl State {
         deadline_idx: usize,
         partition_idx: usize,
         sector_number: SectorNumber,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let deadlines = self.load_deadlines(store)?;
         let deadline = deadlines.load_deadline(store, deadline_idx)?;
         let partition = deadline.load_partition(store, partition_idx)?;
@@ -681,7 +678,7 @@ impl State {
         &self,
         store: &BS,
         sectors: &BitField,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
         Ok(Sectors::load(store, &self.sectors)?.load_sector(sectors)?)
     }
 
@@ -698,16 +695,13 @@ impl State {
         &mut self,
         store: &BS,
         deadlines: Deadlines,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         self.deadlines = store.put_cbor(&deadlines, Code::Blake2b256)?;
         Ok(())
     }
 
     /// Loads the vesting funds table from the store.
-    pub fn load_vesting_funds<BS: Blockstore>(
-        &self,
-        store: &BS,
-    ) -> Result<VestingFunds, Box<dyn StdError>> {
+    pub fn load_vesting_funds<BS: Blockstore>(&self, store: &BS) -> anyhow::Result<VestingFunds> {
         Ok(store
             .get_cbor(&self.vesting_funds)
             .map_err(|e| {
@@ -723,7 +717,7 @@ impl State {
         &mut self,
         store: &BS,
         funds: &VestingFunds,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         self.vesting_funds = store.put_cbor(funds, Code::Blake2b256)?;
         Ok(())
     }
@@ -739,33 +733,37 @@ impl State {
     // Funds and vesting
     //
 
-    pub fn add_pre_commit_deposit(&mut self, amount: &TokenAmount) -> Result<(), String> {
+    pub fn add_pre_commit_deposit(&mut self, amount: &TokenAmount) -> anyhow::Result<()> {
         let new_total = &self.pre_commit_deposits + amount;
         if new_total.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "negative pre-commit deposit {} after adding {} to prior {}",
-                new_total, amount, self.pre_commit_deposits
+                new_total,
+                amount,
+                self.pre_commit_deposits
             ));
         }
         self.pre_commit_deposits = new_total;
         Ok(())
     }
 
-    pub fn add_initial_pledge(&mut self, amount: &TokenAmount) -> Result<(), String> {
+    pub fn add_initial_pledge(&mut self, amount: &TokenAmount) -> anyhow::Result<()> {
         let new_total = &self.initial_pledge + amount;
         if new_total.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "negative initial pledge requirement {} after adding {} to prior {}",
-                new_total, amount, self.initial_pledge
+                new_total,
+                amount,
+                self.initial_pledge
             ));
         }
         self.initial_pledge = new_total;
         Ok(())
     }
 
-    pub fn apply_penalty(&mut self, penalty: &TokenAmount) -> Result<(), String> {
+    pub fn apply_penalty(&mut self, penalty: &TokenAmount) -> anyhow::Result<()> {
         if penalty.is_negative() {
-            Err(format!("applying negative penalty {} not allowed", penalty))
+            Err(anyhow!("applying negative penalty {} not allowed", penalty))
         } else {
             self.fee_debt += penalty;
             Ok(())
@@ -779,9 +777,9 @@ impl State {
         current_epoch: ChainEpoch,
         vesting_sum: &TokenAmount,
         spec: &VestSpec,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    ) -> anyhow::Result<TokenAmount> {
         if vesting_sum.is_negative() {
-            return Err(format!("negative vesting sum {}", vesting_sum).into());
+            return Err(anyhow!("negative vesting sum {}", vesting_sum));
         }
 
         let mut vesting_funds = self.load_vesting_funds(store)?;
@@ -790,11 +788,11 @@ impl State {
         let amount_unlocked = vesting_funds.unlock_vested_funds(current_epoch);
         self.locked_funds -= &amount_unlocked;
         if self.locked_funds.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "negative locked funds {} after unlocking {}",
-                self.locked_funds, amount_unlocked
-            )
-            .into());
+                self.locked_funds,
+                amount_unlocked
+            ));
         }
         // add locked funds now
         vesting_funds.add_locked_funds(current_epoch, vesting_sum, self.proving_period_start, spec);
@@ -820,7 +818,7 @@ impl State {
             TokenAmount, // from vesting
             TokenAmount, // from balance
         ),
-        Box<dyn StdError>,
+        anyhow::Error,
     > {
         let unlocked_balance = self.get_unlocked_balance(curr_balance)?;
 
@@ -829,9 +827,9 @@ impl State {
 
         // * It may be possible the go implementation catches a potential panic here
         if from_vesting > self.fee_debt {
-            return Err("should never unlock more than the debt we need to repay"
-                .to_owned()
-                .into());
+            return Err(anyhow!(
+                "should never unlock more than the debt we need to repay"
+            ));
         }
         self.fee_debt -= &from_vesting;
 
@@ -845,10 +843,7 @@ impl State {
     /// burnt and an error if there are not sufficient funds to cover repayment.
     /// Miner state repays from unlocked funds and fails if unlocked funds are insufficient to cover fee debt.
     /// FeeDebt will be zero after a successful call.
-    pub fn repay_debts(
-        &mut self,
-        curr_balance: &TokenAmount,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    pub fn repay_debts(&mut self, curr_balance: &TokenAmount) -> anyhow::Result<TokenAmount> {
         let unlocked_balance = self.get_unlocked_balance(curr_balance)?;
         if unlocked_balance < self.fee_debt {
             return Err(actor_error!(
@@ -870,7 +865,7 @@ impl State {
         store: &BS,
         current_epoch: ChainEpoch,
         target: &TokenAmount,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    ) -> anyhow::Result<TokenAmount> {
         if target.is_zero() || self.locked_funds.is_zero() {
             return Ok(TokenAmount::zero());
         }
@@ -879,11 +874,11 @@ impl State {
         let amount_unlocked = vesting_funds.unlock_unvested_funds(current_epoch, target);
         self.locked_funds -= &amount_unlocked;
         if self.locked_funds.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "negative locked funds {} after unlocking {}",
-                self.locked_funds, amount_unlocked
-            )
-            .into());
+                self.locked_funds,
+                amount_unlocked
+            ));
         }
 
         self.save_vesting_funds(store, &vesting_funds)?;
@@ -896,7 +891,7 @@ impl State {
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    ) -> anyhow::Result<TokenAmount> {
         if self.locked_funds.is_zero() {
             return Ok(TokenAmount::zero());
         }
@@ -905,11 +900,10 @@ impl State {
         let amount_unlocked = vesting_funds.unlock_vested_funds(current_epoch);
         self.locked_funds -= &amount_unlocked;
         if self.locked_funds.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "vesting cause locked funds to become negative: {}",
                 self.locked_funds,
-            )
-            .into());
+            ));
         }
 
         self.save_vesting_funds(store, &vesting_funds)?;
@@ -921,7 +915,7 @@ impl State {
         &self,
         store: &BS,
         current_epoch: ChainEpoch,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    ) -> anyhow::Result<TokenAmount> {
         let vesting_funds = self.load_vesting_funds(store)?;
         Ok(vesting_funds
             .funds
@@ -931,11 +925,11 @@ impl State {
     }
 
     /// Unclaimed funds that are not locked -- includes funds used to cover initial pledge requirement.
-    pub fn get_unlocked_balance(&self, actor_balance: &TokenAmount) -> Result<TokenAmount, String> {
+    pub fn get_unlocked_balance(&self, actor_balance: &TokenAmount) -> anyhow::Result<TokenAmount> {
         let unlocked_balance =
             actor_balance - &self.locked_funds - &self.pre_commit_deposits - &self.initial_pledge;
         if unlocked_balance.is_negative() {
-            return Err(format!("negative unlocked balance {}", unlocked_balance));
+            return Err(anyhow!("negative unlocked balance {}", unlocked_balance));
         }
         Ok(unlocked_balance)
     }
@@ -945,34 +939,34 @@ impl State {
     pub fn get_available_balance(
         &self,
         actor_balance: &TokenAmount,
-    ) -> Result<TokenAmount, String> {
+    ) -> anyhow::Result<TokenAmount> {
         // (actor_balance - &self.locked_funds) - &self.pre_commit_deposit
         Ok(self.get_unlocked_balance(actor_balance)? - &self.fee_debt)
     }
 
-    pub fn check_balance_invariants(&self, balance: &TokenAmount) -> Result<(), String> {
+    pub fn check_balance_invariants(&self, balance: &TokenAmount) -> anyhow::Result<()> {
         if self.pre_commit_deposits.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "pre-commit deposit is negative: {}",
                 self.pre_commit_deposits
             ));
         }
         if self.locked_funds.is_negative() {
-            return Err(format!("locked funds is negative: {}", self.locked_funds));
+            return Err(anyhow!("locked funds is negative: {}", self.locked_funds));
         }
         if self.initial_pledge.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "initial pledge is negative: {}",
                 self.initial_pledge
             ));
         }
         if self.fee_debt.is_negative() {
-            return Err(format!("fee debt is negative: {}", self.fee_debt));
+            return Err(anyhow!("fee debt is negative: {}", self.fee_debt));
         }
 
         let min_balance = &self.pre_commit_deposits + &self.locked_funds + &self.initial_pledge;
         if balance < &min_balance {
-            return Err(format!("fee debt is negative: {}", self.fee_debt));
+            return Err(anyhow!("fee debt is negative: {}", self.fee_debt));
         }
 
         Ok(())
@@ -990,7 +984,7 @@ impl State {
         &mut self,
         store: &BS,
         cleanup_events: HashMap<ChainEpoch, Vec<u64>>,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // Load BitField Queue for sector expiry
         let quant = self.quant_spec_every_deadline();
         let mut queue =
@@ -1023,7 +1017,7 @@ impl State {
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
-    ) -> Result<TokenAmount, Box<dyn StdError>> {
+    ) -> anyhow::Result<TokenAmount> {
         let mut deposit_to_burn = TokenAmount::zero();
 
         // cleanup expired pre-committed sectors
@@ -1064,11 +1058,10 @@ impl State {
 
         self.pre_commit_deposits -= &deposit_to_burn;
         if self.pre_commit_deposits.is_negative() {
-            return Err(format!(
+            return Err(anyhow!(
                 "pre-commit clean up caused negative deposits: {}",
                 self.pre_commit_deposits
-            )
-            .into());
+            ));
         }
 
         Ok(deposit_to_burn)
@@ -1078,7 +1071,7 @@ impl State {
         &mut self,
         store: &BS,
         current_epoch: ChainEpoch,
-    ) -> Result<AdvanceDeadlineResult, Box<dyn StdError>> {
+    ) -> anyhow::Result<AdvanceDeadlineResult> {
         let mut pledge_delta = TokenAmount::zero();
 
         let dl_info = self.deadline_info(current_epoch);
@@ -1161,7 +1154,7 @@ impl State {
         &self,
         store: &BS,
         sector_nos: &BitField,
-    ) -> Result<Vec<SectorPreCommitOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorPreCommitOnChainInfo>> {
         let mut precommits = Vec::new();
         let precommitted =
             make_map_with_root_and_bitwidth(&self.pre_committed_sectors, store, HAMT_BIT_WIDTH)?;

@@ -12,18 +12,19 @@ use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::ActorID;
 
 use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-use crate::kernel::{ExecutionError, Result, SyscallError};
+use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
+use crate::syscall_error;
 use crate::Config;
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
@@ -88,7 +89,7 @@ where
         state_root: Cid,
         blockstore: B,
         externs: E,
-    ) -> Result<Machine<B, E>> {
+    ) -> anyhow::Result<Machine<B, E>> {
         let context = MachineContext::new(
             epoch,
             base_fee,
@@ -122,7 +123,7 @@ where
     }
 
     pub fn blockstore(&self) -> &B {
-        &self.state_tree.store()
+        self.state_tree.store()
     }
 
     pub fn context(&self) -> &MachineContext {
@@ -148,49 +149,51 @@ where
 
         let addr_id = state_tree
             .register_new_address(addr)
-            .context("failed to register new address")?;
+            .context("failed to register new address")
+            .or_fatal()?;
 
         state_tree
             .set_actor(&Address::new_id(addr_id), act)
-            .context("failed to set actor")?;
+            .context("failed to set actor")
+            .or_fatal()?;
         Ok(addr_id)
     }
 
     pub fn load_module(&self, code: &Cid) -> Result<Module> {
         // TODO: cache compiled code, and modules?
-        let binary = if code == &*actors_runtime::SYSTEM_ACTOR_CODE_ID {
+        let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
             fvm_actor_system::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::INIT_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
             fvm_actor_init::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::CRON_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::CRON_ACTOR_CODE_ID {
             fvm_actor_cron::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::ACCOUNT_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::ACCOUNT_ACTOR_CODE_ID {
             fvm_actor_account::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::POWER_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::POWER_ACTOR_CODE_ID {
             fvm_actor_power::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MINER_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MINER_ACTOR_CODE_ID {
             fvm_actor_miner::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MARKET_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MARKET_ACTOR_CODE_ID {
             fvm_actor_market::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::PAYCH_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::PAYCH_ACTOR_CODE_ID {
             fvm_actor_paych::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::MULTISIG_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::MULTISIG_ACTOR_CODE_ID {
             fvm_actor_multisig::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::REWARD_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::REWARD_ACTOR_CODE_ID {
             fvm_actor_reward::wasm::WASM_BINARY
-        } else if code == &*actors_runtime::VERIFREG_ACTOR_CODE_ID {
+        } else if code == &*crate::builtin::VERIFREG_ACTOR_CODE_ID {
             fvm_actor_verifreg::wasm::WASM_BINARY
         } else {
             None
         };
 
-        let binary = binary.context("missing wasm binary")?;
-        let module = Module::new(&self.engine, binary)?;
+        let binary = binary.context("missing wasm binary").or_fatal()?;
+        let module = Module::new(&self.engine, binary).or_fatal()?;
         Ok(module)
     }
 
     /// This is the entrypoint to execute a message.
-    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> Result<ApplyRet> {
+    pub fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg)? {
             Ok(res) => res,
@@ -199,7 +202,7 @@ where
 
         // Apply the message.
         let (res, gas_used) = self.map_mut(|machine| {
-            let mut cm = CallManager::new(machine, msg.gas_limit);
+            let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().1);
             }
@@ -208,13 +211,17 @@ where
             cm.state_tree.begin_transaction();
 
             // Invoke the message.
-            let mut res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
+            let res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
 
             // Charge for including the result.
             // We shouldn't put this here, but this is where we can still account for gas.
             // TODO: Maybe CallManager::finish() should return the GasTracker?
             let result = res.and_then(|ret| {
-                cm.charge_gas(cm.context().price_list().on_chain_return_value(ret.len()))?;
+                cm.charge_gas(
+                    cm.context()
+                        .price_list()
+                        .on_chain_return_value(ret.return_data.len()),
+                )?;
                 Ok(ret)
             });
 
@@ -225,28 +232,32 @@ where
         // Abort or commit the transaction.
         self.state_tree
             .end_transaction(res.is_err())
-            .context("failed to end transaction")?;
+            .context("failed to end transaction")
+            .or_fatal()?;
 
         // END CRITICAL SECTION
 
         // Extract the exit code and build the result of the message application.
         match res {
-            Ok(return_data) => {
+            Ok(receipt) => self.finish_message(msg, receipt, None, gas_cost),
+            Err(ExecutionError::Syscall(SyscallError(errmsg, exit_code))) => {
+                if exit_code.is_success() {
+                    return Err(anyhow!(
+                        "message invocation errored with an ok status: {}",
+                        errmsg
+                    ));
+                }
                 let receipt = Receipt {
-                    exit_code: ExitCode::Ok,
-                    return_data,
-                    gas_used,
-                };
-                self.finish_message(msg, receipt, None, gas_cost)
-            }
-            Err(err) => {
-                let receipt = Receipt {
-                    exit_code: err.exit_code(),
+                    exit_code,
                     return_data: Default::default(),
                     gas_used,
                 };
-                self.finish_message(msg, receipt, Some(err), gas_cost)
+                self.finish_message(msg, receipt, Some(errmsg), gas_cost)
             }
+            Err(ExecutionError::Fatal(e)) => Err(e.context(format!(
+                "[from={}, to={}, seq={}, m={}, h={}] fatal error",
+                msg.from, msg.to, msg.sequence, msg.method_num, self.context.epoch
+            ))),
         }
     }
 
@@ -259,14 +270,17 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
-    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check()?;
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context.price_list;
-        let ser_msg = msg.marshal_cbor()?;
+        let ser_msg = msg
+            .marshal_cbor()
+            .context("failed to re-marshal message")
+            .or_fatal()?;
         let inclusion_cost = pl.on_chain_message(ser_msg.len());
         let inclusion_total = inclusion_cost.total();
 
@@ -276,7 +290,7 @@ where
                 ExitCode::SysErrOutOfGas,
                 &self.context.base_fee * inclusion_total,
                 Some(
-                    actor_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
+                    syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                 ),
             )));
         }
@@ -293,8 +307,8 @@ where
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
-                    miner_penalty_amount.clone(),
-                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                    miner_penalty_amount,
+                    Some(syscall_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
         };
@@ -308,8 +322,8 @@ where
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SysErrSenderInvalid,
-                    miner_penalty_amount.clone(),
-                    Some(actor_error!(SysErrSenderInvalid; "Sender invalid")),
+                    miner_penalty_amount,
+                    Some(syscall_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
         };
@@ -319,7 +333,7 @@ where
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderInvalid,
                 miner_penalty_amount,
-                Some(actor_error!(SysErrSenderInvalid; "send not from account actor")),
+                Some(syscall_error!(SysErrSenderInvalid; "send not from account actor")),
             )));
         };
 
@@ -329,18 +343,18 @@ where
                 ExitCode::SysErrSenderStateInvalid,
                 miner_penalty_amount,
                 Some(
-                    actor_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
+                    syscall_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
                 ),
             )));
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit.clone();
+        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderStateInvalid,
                 miner_penalty_amount,
-                Some(actor_error!(SysErrSenderStateInvalid;
+                Some(syscall_error!(SysErrSenderStateInvalid;
                     "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
             )));
         }
@@ -360,41 +374,9 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        act_err: Option<ExecutionError>,
+        act_err: Option<String>,
         gas_cost: BigInt,
-    ) -> Result<ApplyRet> {
-        // Make sure the actor error is sane.
-        let act_err = match act_err {
-            Some(ExecutionError::Actor(err)) => {
-                if err.is_fatal() {
-                    return Err(anyhow!(
-                        "[from={}, to={}, seq={}, m={}, h={}] fatal error: {}",
-                        msg.from,
-                        msg.to,
-                        msg.sequence,
-                        msg.method_num,
-                        self.context.epoch,
-                        err
-                    )
-                    .into());
-                } else if err.is_ok() {
-                    return Err(
-                        anyhow!("message invocation errored with an ok status: {}", err).into(),
-                    );
-                } else {
-                    Some(err)
-                }
-            }
-            Some(ExecutionError::Syscall(SyscallError(msg, exit_code))) => {
-                return Err(ExecutionError::Actor(ActorError::new(
-                    exit_code.unwrap_or(ExitCode::ErrPlaceholder),
-                    msg,
-                )));
-            }
-            Some(e @ ExecutionError::SystemError(_)) => return Err(e),
-            None => None,
-        };
-
+    ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
             base_fee_burn,
@@ -411,9 +393,9 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> Result<()> {
+        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
             if amt.sign() == Sign::Minus {
-                return Err(anyhow!("attempted to transfer negative value into actor").into());
+                return Err(anyhow!("attempted to transfer negative value into actor"));
             }
             if amt.is_zero() {
                 return Ok(());
@@ -439,8 +421,7 @@ where
 
         if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
-            // XXX: this _is_ a fatal error in the FVM, at the moment at least.
-            return Err(anyhow!("Gas handling math is wrong").into());
+            return Err(anyhow!("Gas handling math is wrong"));
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
@@ -455,25 +436,26 @@ where
             return Ok(());
         }
         if value.is_negative() {
-            return Err(actor_error!(SysErrForbidden;
+            return Err(syscall_error!(SysErrForbidden;
                 "attempted to transfer negative transfer value {}", value)
             .into());
         }
 
-        let mut from_actor = self.state_tree.get_actor_id(from)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "sender actor does not exist in state during transfer"
-            ))
-        })?;
+        // TODO: make sure these are actually fatal.
+        let mut from_actor = self
+            .state_tree
+            .get_actor_id(from)?
+            .ok_or_else(|| anyhow!("sender actor does not exist in state during transfer"))
+            .or_fatal()?;
 
-        let mut to_actor = self.state_tree.get_actor_id(to)?.ok_or_else(|| {
-            actor_error!(fatal(
-                "receiver actor does not exist in state during transfer"
-            ))
-        })?;
+        let mut to_actor = self
+            .state_tree
+            .get_actor_id(to)?
+            .ok_or_else(|| anyhow!("receiver actor does not exist in state during transfer"))
+            .or_fatal()?;
 
         from_actor.deduct_funds(value).map_err(|e| {
-            actor_error!(SysErrInsufficientFunds;
+            syscall_error!(SysErrInsufficientFunds;
                 "transfer failed when deducting funds ({}): {}", value, e)
         })?;
         to_actor.deposit_funds(value);
@@ -502,7 +484,7 @@ pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
     /// Actor error from the transaction, if one exists.
-    pub act_error: Option<ActorError>,
+    pub act_error: Option<String>,
     /// Gas penalty from transaction, if any.
     pub penalty: BigInt,
     /// Tip given to miner from message.
@@ -511,10 +493,10 @@ pub struct ApplyRet {
 
 impl ApplyRet {
     #[inline]
-    pub fn prevalidation_fail(
+    pub fn prevalidation_fail<D: std::fmt::Display>(
         exit_code: ExitCode,
         miner_penalty: BigInt,
-        error: Option<ActorError>,
+        error: Option<D>,
     ) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
@@ -523,7 +505,7 @@ impl ApplyRet {
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            act_error: error,
+            act_error: error.map(|e| e.to_string()),
             miner_tip: BigInt::zero(),
         }
     }
@@ -561,9 +543,9 @@ impl MachineContext {
         MachineContext {
             epoch,
             base_fee,
-            initial_state_root: state_root,
-            price_list: price_list,
+            price_list,
             network_version,
+            initial_state_root: state_root,
         }
     }
 

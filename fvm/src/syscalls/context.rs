@@ -1,110 +1,81 @@
+use anyhow::Context as _;
 use cid::Cid;
-use wasmtime::{Caller, Trap};
+use fvm_shared::{
+    address::Address,
+    encoding::{from_slice, Cbor},
+    error::ExitCode,
+};
+use wasmtime::Caller;
 
-use super::typestate;
+use crate::kernel::{ClassifyResult as _, Context as _, Result};
 
-pub struct Context<'a, R, F = dyn ContextFeatures<Memory = typestate::False>>
-where
-    F: ContextFeatures + ?Sized,
-{
-    pub caller: Caller<'a, R>,
-    memory: <F::Memory as typestate::Select<wasmtime::Memory, ()>>::Type,
+pub trait Context {
+    type Kernel: crate::kernel::Kernel;
+    fn kernel(&mut self) -> &mut Self::Kernel;
+    fn kernel_and_memory(&mut self) -> Result<(&mut Self::Kernel, Memory<'_>)>;
 }
 
-impl<'a, R, F> std::ops::Deref for Context<'a, R, F>
+impl<'a, K> Context for Caller<'a, K>
 where
-    F: ContextFeatures + ?Sized,
+    K: crate::kernel::Kernel,
 {
-    type Target = Caller<'a, R>;
-    fn deref(&self) -> &Self::Target {
-        &self.caller
+    type Kernel = K;
+
+    fn kernel(&mut self) -> &mut Self::Kernel {
+        self.data_mut()
     }
-}
 
-impl<'a, R, F> std::ops::DerefMut for Context<'a, R, F>
-where
-    F: ContextFeatures + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.caller
-    }
-}
-
-pub trait ContextFeatures {
-    type Memory: typestate::Select<wasmtime::Memory, ()>;
-}
-
-impl<'a, R> Context<'a, R, dyn ContextFeatures<Memory = typestate::False>> {
-    pub fn new(caller: Caller<'a, R>) -> Self {
-        Context { caller, memory: () }
-    }
-}
-
-impl<'a, R, F> Context<'a, R, F>
-where
-    F: ContextFeatures<Memory = typestate::False> + ?Sized,
-{
-    pub fn with_memory(
-        mut self,
-    ) -> Result<Context<'a, R, dyn ContextFeatures<Memory = typestate::True>>, Trap> {
-        let mem = self
-            .caller
+    fn kernel_and_memory(&mut self) -> Result<(&mut Self::Kernel, Memory<'_>)> {
+        let (mem, data) = self
             .get_export("memory")
             .and_then(|m| m.into_memory())
-            .ok_or_else(|| Trap::new("failed to lookup actor memory"))?;
-
-        Ok(Context {
-            caller: self.caller,
-            memory: mem,
-        })
+            .context("failed to lookup actor memory")
+            .or_fatal()?
+            .data_and_store_mut(self);
+        Ok((data, Memory { memory: mem }))
     }
 }
 
-impl<'a, R, F> Context<'a, R, F>
-where
-    F: ContextFeatures<Memory = typestate::True> + ?Sized,
-{
-    pub fn try_slice_mut(&mut self, offset: u32, len: u32) -> Result<&mut [u8], Trap> {
+pub struct Memory<'a> {
+    memory: &'a mut [u8],
+}
+
+impl<'a> Memory<'a> {
+    pub fn try_slice_mut(&mut self, offset: u32, len: u32) -> Result<&mut [u8]> {
         self.memory
-            .data_mut(&mut self.caller)
             .get_mut(offset as usize..)
             .and_then(|data| data.get_mut(..len as usize))
-            .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
+            .ok_or_else(|| format!("buffer {} (length {}) out of bounds", offset, len))
+            .or_error(ExitCode::SysErrIllegalArgument)
     }
 
-    #[allow(dead_code)]
-    pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8], Trap> {
+    pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8]> {
         self.memory
-            .data(&self.caller)
             .get(offset as usize..)
             .and_then(|data| data.get(..len as usize))
-            .ok_or_else(|| Trap::new(format!("buffer {} (length {}) out of bounds", offset, len)))
+            .ok_or_else(|| format!("buffer {} (length {}) out of bounds", offset, len))
+            .or_error(ExitCode::SysErrIllegalArgument)
     }
 
-    // Ew. Let's consider just returning a memory + runtime as separate objects so we don't need to
-    // do this.
-    pub fn try_slice_and_runtime(
-        &mut self,
-        offset: u32,
-        len: u32,
-    ) -> Result<(&mut [u8], &mut R), Trap> {
-        let (data, rt) = self.memory.data_and_store_mut(&mut self.caller);
-        let slice = data
-            .get_mut(offset as usize..)
-            .and_then(|data| data.get_mut(..len as usize))
-            .ok_or_else(|| {
-                Trap::new(format!("buffer {} (length {}) out of bounds", offset, len))
-            })?;
-        Ok((slice, rt))
-    }
-
-    pub fn read_cid(&self, offset: u32) -> Result<Cid, Trap> {
+    pub fn read_cid(&self, offset: u32) -> Result<Cid> {
         // TODO: max CID length
         let memory = self
             .memory
-            .data(&self.caller)
             .get(offset as usize..)
-            .ok_or_else(|| Trap::new(format!("buffer {} out of bounds", offset)))?;
-        Cid::read_bytes(&*memory).map_err(|err| Trap::new(format!("failed to parse CID: {}", err)))
+            .ok_or_else(|| format!("buffer {} out of bounds", offset))
+            .or_error(ExitCode::SysErrIllegalArgument)?;
+        Cid::read_bytes(memory)
+            .or_error(ExitCode::SysErrIllegalArgument)
+            .context("failed to parse CID")
+    }
+
+    pub fn read_address(&self, offset: u32, len: u32) -> Result<Address> {
+        let bytes = self.try_slice(offset, len)?;
+        Address::from_bytes(bytes).or_error(ExitCode::SysErrIllegalArgument)
+    }
+
+    pub fn read_cbor<T: Cbor>(&self, offset: u32, len: u32) -> Result<T> {
+        let bytes = self.try_slice(offset, len)?;
+        from_slice(bytes).or_error(ExitCode::SysErrIllegalArgument)
     }
 }

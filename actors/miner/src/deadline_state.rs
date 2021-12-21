@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{cmp, collections::HashMap, collections::HashSet, error::Error as StdError};
+use std::{cmp, collections::HashMap, collections::HashSet};
 
+use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
@@ -10,8 +11,7 @@ use num_traits::{Signed, Zero};
 
 use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::actor_error;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::error::{ActorError, ExitCode};
@@ -52,29 +52,29 @@ impl Deadlines {
         &self,
         store: &BS,
         deadline_idx: usize,
-    ) -> Result<Deadline, Box<dyn StdError>> {
+    ) -> anyhow::Result<Deadline> {
         if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalArgument,
                 "invalid deadline {}",
                 deadline_idx
             )));
         }
 
-        Ok(store.get_cbor(&self.due[deadline_idx])?.ok_or_else(|| {
-            Box::new(actor_error!(
+        store.get_cbor(&self.due[deadline_idx])?.ok_or_else(|| {
+            anyhow!(actor_error!(
                 ErrIllegalState,
                 "failed to lookup deadline {}",
                 deadline_idx
             ))
-        })?)
+        })
     }
 
     pub fn for_each<BS: Blockstore>(
         &self,
         store: &BS,
-        mut f: impl FnMut(usize, Deadline) -> Result<(), Box<dyn StdError>>,
-    ) -> Result<(), Box<dyn StdError>> {
+        mut f: impl FnMut(usize, Deadline) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         for i in 0..self.due.len() {
             let index = i;
             let deadline = self.load_deadline(store, index)?;
@@ -88,9 +88,9 @@ impl Deadlines {
         store: &BS,
         deadline_idx: usize,
         deadline: &Deadline,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
-            return Err(format!("invalid deadline {}", deadline_idx).into());
+            return Err(anyhow!("invalid deadline {}", deadline_idx));
         }
 
         deadline.validate_state()?;
@@ -175,7 +175,7 @@ pub struct DisputeInfo {
 }
 
 impl Deadline {
-    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> anyhow::Result<Self> {
         let empty_partitions_array =
             Array::<(), BS>::new_with_bit_width(store, DEADLINE_PARTITIONS_AMT_BITWIDTH)
                 .flush()
@@ -207,28 +207,28 @@ impl Deadline {
     pub fn partitions_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Array<'db, Partition, BS>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Array<'db, Partition, BS>> {
         Ok(Array::load(&self.partitions, store)?)
     }
 
     pub fn optimistic_proofs_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Array<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Array<'db, WindowedPoSt, BS>> {
         Ok(Array::load(&self.optimistic_post_submissions, store)?)
     }
 
     pub fn partitions_snapshot_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Array<'db, Partition, BS>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Array<'db, Partition, BS>> {
         Ok(Array::load(&self.partitions_snapshot, store)?)
     }
 
     pub fn optimistic_proofs_snapshot_amt<'db, BS: Blockstore>(
         &self,
         store: &'db BS,
-    ) -> Result<Array<'db, WindowedPoSt, BS>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Array<'db, WindowedPoSt, BS>> {
         Ok(Array::load(
             &self.optimistic_post_submissions_snapshot,
             store,
@@ -239,7 +239,7 @@ impl Deadline {
         &self,
         store: &BS,
         partition_idx: usize,
-    ) -> Result<Partition, Box<dyn StdError>> {
+    ) -> anyhow::Result<Partition> {
         let partitions = Array::<Partition, _>::load(&self.partitions, store)?;
 
         let partition = partitions
@@ -259,7 +259,7 @@ impl Deadline {
         &self,
         store: &BS,
         partition_idx: usize,
-    ) -> Result<Partition, Box<dyn StdError>> {
+    ) -> anyhow::Result<Partition> {
         let partitions = Array::<Partition, _>::load(&self.partitions_snapshot, store)?;
 
         let partition = partitions
@@ -282,7 +282,7 @@ impl Deadline {
         expiration_epoch: ChainEpoch,
         partitions: &[usize],
         quant: QuantSpec,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // Avoid doing any work if there's nothing to reschedule.
         if partitions.is_empty() {
             return Ok(());
@@ -308,7 +308,7 @@ impl Deadline {
         store: &BS,
         until: ChainEpoch,
         quant: QuantSpec,
-    ) -> Result<ExpirationSet, Box<dyn StdError>> {
+    ) -> anyhow::Result<ExpirationSet> {
         let (expired_partitions, modified) = self.pop_expired_partitions(store, until, quant)?;
 
         if !modified {
@@ -331,7 +331,7 @@ impl Deadline {
             let mut partition = partitions
                 .get(partition_idx)?
                 .cloned()
-                .ok_or_else(|| format!("missing expected partition {}", partition_idx))?;
+                .ok_or_else(|| anyhow!("missing expected partition {}", partition_idx))?;
 
             let partition_expiration =
                 partition
@@ -394,7 +394,7 @@ impl Deadline {
         mut sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut total_power = PowerPair::zero();
         if sectors.is_empty() {
             return Ok(total_power);
@@ -475,7 +475,7 @@ impl Deadline {
         store: &BS,
         max_partitions: u64,
         max_sectors: u64,
-    ) -> Result<(TerminationResult, /* has more */ bool), Box<dyn StdError>> {
+    ) -> anyhow::Result<(TerminationResult, /* has more */ bool)> {
         let mut partitions = self.partitions_amt(store)?;
 
         let mut partitions_finished = Vec::<usize>::new();
@@ -536,7 +536,7 @@ impl Deadline {
         store: &BS,
         until: ChainEpoch,
         quant: QuantSpec,
-    ) -> Result<(BitField, bool), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, bool)> {
         let mut expirations = BitFieldQueue::new(store, &self.expirations_epochs, quant)?;
         let (popped, modified) = expirations
             .pop_until(until)
@@ -557,7 +557,7 @@ impl Deadline {
         partition_sectors: &mut PartitionSectorMap,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut partitions = self.partitions_amt(store)?;
 
         let mut power_lost = PowerPair::zero();
@@ -626,7 +626,7 @@ impl Deadline {
             BitField,  // dead
             PowerPair, // removed power
         ),
-        Box<dyn StdError>,
+        anyhow::Error,
     > {
         let old_partitions = self
             .partitions_amt(store)
@@ -653,7 +653,9 @@ impl Deadline {
 
         // Should already be checked earlier, but we might as well check again.
         if !self.early_terminations.is_empty() {
-            return Err("cannot remove partitions from deadline with early terminations".into());
+            return Err(
+                actor_error!(ErrIllegalArgument; "cannot remove partitions from deadline with early terminations").into(),
+            );
         }
 
         let mut new_partitions =
@@ -744,7 +746,7 @@ impl Deadline {
         quant: QuantSpec,
         fault_expiration_epoch: ChainEpoch,
         partition_sectors: &mut PartitionSectorMap,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut partitions = self.partitions_amt(store)?;
 
         // Record partitions with some fault, for subsequently indexing in the deadline.
@@ -820,7 +822,7 @@ impl Deadline {
         sectors: &Sectors<'_, BS>,
         sector_size: SectorSize,
         partition_sectors: &mut PartitionSectorMap,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut partitions = self.partitions_amt(store)?;
 
         for (partition_idx, sector_numbers) in partition_sectors.iter() {
@@ -975,19 +977,20 @@ impl Deadline {
     pub fn for_each<BS: Blockstore>(
         &self,
         store: &BS,
-        f: impl FnMut(usize, &Partition) -> Result<(), Box<dyn StdError>>,
-    ) -> Result<(), Box<dyn StdError>> {
+        f: impl FnMut(usize, &Partition) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         let parts = self.partitions_amt(store)?;
-        parts.for_each(f)
+        parts.for_each(f)?;
+        Ok(())
     }
 
-    pub fn validate_state(&self) -> Result<(), &'static str> {
+    pub fn validate_state(&self) -> anyhow::Result<()> {
         if self.live_sectors > self.total_sectors {
-            return Err("deadline left with more live sectors than total");
+            return Err(anyhow!("deadline left with more live sectors than total"));
         }
 
         if self.faulty_power.raw.is_negative() || self.faulty_power.qa.is_negative() {
-            return Err("deadline left with negative faulty power");
+            return Err(anyhow!("deadline left with negative faulty power"));
         }
 
         Ok(())
@@ -997,7 +1000,7 @@ impl Deadline {
         &self,
         store: &BS,
         partitions: BitField,
-    ) -> Result<DisputeInfo, Box<dyn StdError>> {
+    ) -> anyhow::Result<DisputeInfo> {
         let partitions_snapshot = self
             .partitions_snapshot_amt(store)
             .map_err(|e| e.downcast_wrap("failed to load partitions {}"))?;
@@ -1009,7 +1012,7 @@ impl Deadline {
         for part_idx in partitions.iter() {
             let partition_snapshot = partitions_snapshot
                 .get(part_idx)?
-                .ok_or_else(|| format!("failed to find partition {}", part_idx))?;
+                .ok_or_else(|| anyhow!("failed to find partition {}", part_idx))?;
 
             // Record sectors for proof verification
             all_sectors.push(partition_snapshot.sectors.clone());
@@ -1102,7 +1105,7 @@ impl Deadline {
         quant: QuantSpec,
         fault_expiration: ChainEpoch,
         post_partitions: &mut [PoStPartition],
-    ) -> Result<PoStResult, Box<dyn StdError>> {
+    ) -> anyhow::Result<PoStResult> {
         let mut partition_indexes = BitField::new();
         for p in post_partitions.iter() {
             partition_indexes.set(p.index);
@@ -1110,7 +1113,7 @@ impl Deadline {
 
         let num_partitions = partition_indexes.len();
         if num_partitions != post_partitions.len() {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalArgument,
                 "duplicate partitions proven"
             )));
@@ -1120,7 +1123,7 @@ impl Deadline {
         // This is faster than checking one by one.
         let already_proven = &self.partitions_posted & &partition_indexes;
         if !already_proven.is_empty() {
-            return Err(Box::new(actor_error!(
+            return Err(anyhow!(actor_error!(
                 ErrIllegalArgument,
                 "parition already proven: {:?}",
                 already_proven
@@ -1244,7 +1247,7 @@ impl Deadline {
         store: &BS,
         partitions: &BitField,
         proofs: &[PoStProof],
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut proof_arr = self
             .optimistic_proofs_amt(store)
             .map_err(|e| e.downcast_wrap("failed to load post proofs"))?;
@@ -1272,7 +1275,7 @@ impl Deadline {
         &mut self,
         store: &BS,
         idx: u64,
-    ) -> Result<(BitField, Vec<PoStProof>), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, Vec<PoStProof>)> {
         let mut proof_arr = self
             .optimistic_proofs_snapshot_amt(store)
             .map_err(|e| e.downcast_wrap("failed to load post proofs snapshot amt"))?;
@@ -1306,7 +1309,7 @@ impl Deadline {
         partition_sectors: &mut PartitionSectorMap,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
         let mut partitions = self.partitions_amt(store)?;
 
         // track partitions with moved expirations.

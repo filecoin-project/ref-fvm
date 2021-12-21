@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
-use std::error::Error as StdError;
 
+use anyhow::anyhow;
 use cid::Cid;
 use derive_builder::Builder;
 
@@ -313,7 +313,7 @@ mod create_lane_tests {
 
             if test_case.sig.is_some() && test_case.secret_preimage.is_empty() {
                 let exp_exit_code = if !test_case.verify_sig {
-                    Err(Box::<dyn StdError>::from("bad signature".to_string()))
+                    Err(anyhow!("bad signature"))
                 } else {
                     Ok(())
                 };

@@ -1,8 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
@@ -67,25 +66,25 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> anyhow::Result<Self> {
         let empty_proposals_array =
             Array::<(), BS>::new_with_bit_width(store, PROPOSALS_AMT_BITWIDTH)
                 .flush()
-                .map_err(|e| format!("Failed to create empty proposals array: {}", e))?;
+                .map_err(|e| anyhow!("Failed to create empty proposals array: {}", e))?;
         let empty_states_array = Array::<(), BS>::new_with_bit_width(store, STATES_AMT_BITWIDTH)
             .flush()
-            .map_err(|e| format!("Failed to create empty states array: {}", e))?;
+            .map_err(|e| anyhow!("Failed to create empty states array: {}", e))?;
 
         let empty_pending_proposals_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
-            .map_err(|e| format!("Failed to create empty pending proposals map state: {}", e))?;
+            .map_err(|e| anyhow!("Failed to create empty pending proposals map state: {}", e))?;
         let empty_balance_table = BalanceTable::new(store)
             .root()
-            .map_err(|e| format!("Failed to create empty balance table map: {}", e))?;
+            .map_err(|e| anyhow!("Failed to create empty balance table map: {}", e))?;
 
         let empty_deal_ops_hamt = SetMultimap::new(store)
             .root()
-            .map_err(|e| format!("Failed to create empty multiset: {}", e))?;
+            .map_err(|e| anyhow!("Failed to create empty multiset: {}", e))?;
         Ok(Self {
             proposals: empty_proposals_array,
             states: empty_states_array,
@@ -214,7 +213,7 @@ where
         }
     }
 
-    pub(super) fn build(&mut self) -> Result<&mut Self, Box<dyn StdError>> {
+    pub(super) fn build(&mut self) -> anyhow::Result<&mut Self> {
         if self.proposal_permit != Permission::Invalid {
             self.deal_proposals = Some(DealArray::load(&self.st.proposals, self.store)?);
         }
@@ -282,7 +281,7 @@ where
         self
     }
 
-    pub(super) fn commit_state(&mut self) -> Result<(), Box<dyn StdError>> {
+    pub(super) fn commit_state(&mut self) -> anyhow::Result<()> {
         if self.proposal_permit == Permission::Write {
             if let Some(s) = &mut self.deal_proposals {
                 self.st.proposals = s
@@ -648,13 +647,9 @@ where
         addr: &Address,
         amount: &TokenAmount,
         lock_reason: Reason,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if amount.is_negative() {
-            return Err(Box::new(actor_error!(
-                ErrIllegalState,
-                "unlock negative amount: {}",
-                amount
-            )));
+            return Err(actor_error!(ErrIllegalState, "unlock negative amount: {}", amount).into());
         }
         self.locked_table
             .as_mut()
@@ -716,13 +711,11 @@ where
         addr: &Address,
         amount: &TokenAmount,
         lock_reason: Reason,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if amount.is_negative() {
-            return Err(Box::new(actor_error!(
-                ErrIllegalState,
-                "negative amount to slash: {}",
-                amount
-            )));
+            return Err(
+                actor_error!(ErrIllegalState, "negative amount to slash: {}", amount).into(),
+            );
         }
 
         // Subtract from locked and escrow tables

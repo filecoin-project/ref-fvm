@@ -7,11 +7,11 @@ use crate::{
     node::{CollapsedNode, Link},
     nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, CborStore};
 use itertools::sorted;
-use std::error::Error as StdError;
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
 ///
@@ -248,10 +248,7 @@ where
         for i in sorted(iter) {
             let found = self.delete(i)?.is_none();
             if strict && found {
-                return Err(Error::Other(format!(
-                    "no such index {} in Amt for batch delete",
-                    i
-                )));
+                return Err(anyhow!("no such index {} in Amt for batch delete", i).into());
             }
             modified |= found;
         }
@@ -288,9 +285,9 @@ where
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
     /// ```
     #[inline]
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(usize, &V) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(usize, &V) -> anyhow::Result<()>,
     {
         self.for_each_while(|i, x| {
             f(i, x)?;
@@ -300,9 +297,9 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
-    pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(usize, &V) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &V) -> anyhow::Result<bool>,
     {
         self.root
             .node
@@ -318,10 +315,10 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value.
-    pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Error>
     where
         V: Clone,
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> Result<(), Box<dyn StdError>>,
+        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<()>,
     {
         self.for_each_while_mut(|i, x| {
             f(i, x)?;
@@ -331,12 +328,12 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value, for as long as that function keeps returning `true`.
-    pub fn for_each_while_mut<F>(&mut self, mut f: F) -> Result<(), Box<dyn StdError>>
+    pub fn for_each_while_mut<F>(&mut self, mut f: F) -> Result<(), Error>
     where
         // TODO remove clone bound when go-interop doesn't require it.
         // (If needed without, this bound can be removed by duplicating function signatures)
         V: Clone,
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
     {
         #[cfg(not(feature = "go-interop"))]
         {

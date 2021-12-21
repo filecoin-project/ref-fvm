@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use cid::Cid;
 use thiserror::Error;
-use wasmtime::Trap;
 
 #[derive(Default)]
 pub(crate) struct BlockRegistry {
@@ -63,12 +62,6 @@ pub enum BlockError {
     MissingState(Box<Cid>), // boxed because CIDs are potentially large.
 }
 
-impl From<BlockError> for Trap {
-    fn from(e: BlockError) -> Trap {
-        Trap::new(e.to_string())
-    }
-}
-
 impl BlockRegistry {
     pub(crate) fn new() -> Self {
         Self { blocks: Vec::new() }
@@ -103,8 +96,8 @@ impl BlockRegistry {
             .and_then(|idx: usize| self.blocks.get(idx))
             .ok_or(BlockError::InvalidHandle(id))
             .map(|b| BlockStat {
-                codec: b.codec,
-                size: b.data.len() as u32,
+                codec: b.codec(),
+                size: b.size(),
             })
     }
 }

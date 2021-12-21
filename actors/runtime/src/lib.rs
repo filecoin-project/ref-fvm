@@ -12,8 +12,8 @@ pub mod wasm {
 
         #[test]
         fn test_wasm_binaries() {
-            assert!(WASM_BINARY.unwrap().len() > 0);
-            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+            assert!(!WASM_BINARY.unwrap().is_empty());
+            assert!(!WASM_BINARY_BLOATY.unwrap().is_empty());
         }
     }
 }

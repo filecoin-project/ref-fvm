@@ -1,8 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
 use blockstore::Blockstore;
 
 use fvm_shared::address::Address;
@@ -15,10 +13,7 @@ pub const HAMT_BIT_WIDTH: u32 = 5;
 /// ResolveToIDAddr resolves the given address to it's ID address form.
 /// If an ID address for the given address dosen't exist yet, it tries to create one by sending
 /// a zero balance to the given address.
-pub fn resolve_to_id_addr<BS, RT>(
-    rt: &mut RT,
-    address: &Address,
-) -> Result<Address, Box<dyn StdError>>
+pub fn resolve_to_id_addr<BS, RT>(rt: &mut RT, address: &Address) -> anyhow::Result<Address>
 where
     BS: Blockstore,
     RT: Runtime<BS>,
@@ -43,10 +38,9 @@ where
     })?;
 
     rt.resolve_address(address)?.ok_or_else(|| {
-        format!(
+        anyhow::anyhow!(
             "failed to resolve address {} to ID address even after sending zero balance",
             address,
         )
-        .into()
     })
 }

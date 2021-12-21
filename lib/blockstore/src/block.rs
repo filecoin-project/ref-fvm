@@ -29,6 +29,7 @@ where
         Cid::new_v1(self.codec, mh_code.digest(self.data.as_ref()))
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.data.as_ref().len()
     }

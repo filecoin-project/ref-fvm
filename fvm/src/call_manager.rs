@@ -1,11 +1,10 @@
-use anyhow::Context;
 use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
-    actor_error,
     address::{Address, Protocol},
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
+    error::ExitCode,
     ActorID, MethodNum, METHOD_SEND,
 };
 use num_traits::Zero;
@@ -14,9 +13,11 @@ use wasmtime::{Linker, Store};
 use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{BlockOps, Result},
+    kernel::{BlockOps, ClassifyResult, Result, SyscallError},
     machine::Machine,
-    syscalls::bind_syscalls,
+    receipt::Receipt,
+    syscall_error,
+    syscalls::{bind_syscalls, error::unwrap_trap},
     DefaultKernel,
 };
 
@@ -45,6 +46,12 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     machine: Machine<B, E>,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The original sender of the chain message that initiated this call stack.
+    origin: Address,
+    /// The nonce of the chain message that initiated this call stack.
+    nonce: u64,
+    /// Number of actors created in this call stack.
+    num_actors_created: u64,
 }
 
 #[doc(hidden)]
@@ -69,10 +76,13 @@ where
     E: Externs,
 {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64) -> Self {
+    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         CallManager(Some(InnerCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
+            origin,
+            nonce,
+            num_actors_created: 0,
         }))
     }
 
@@ -80,10 +90,11 @@ where
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            return Err(
-                actor_error!(SysErrIllegalArgument; "cannot create the bls zero address actor")
-                    .into(),
-            );
+            return Err(SyscallError::new(
+                ExitCode::SysErrIllegalArgument,
+                "cannot create the bls zero address actor",
+            )
+            .into());
         }
 
         // Create the actor in the state tree.
@@ -94,7 +105,7 @@ where
         // instantiate a new kernel to invoke the constructor.
         let params = RawBytes::serialize(&addr)
             // TODO this should be a Sys actor error, but we're copying ltous here.
-            .map_err(|e| actor_error!(ErrSerialization; "failed to serialize params: {}", e))?;
+            .map_err(|e| syscall_error!(ErrSerialization; "failed to serialize params: {}", e))?;
 
         self.send_resolved(
             crate::account_actor::SYSTEM_ACTOR_ID,
@@ -117,7 +128,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes> {
+    ) -> Result<Receipt> {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
         let to = match self.state_tree().lookup_id(&to)? {
@@ -129,7 +140,8 @@ where
                 }
                 _ => {
                     return Err(
-                        actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to).into(),
+                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
+                            .into(),
                     )
                 }
             },
@@ -137,7 +149,7 @@ where
 
         // Do the actual send.
 
-        self.send_resolved(from, to, method, &params, &value)
+        self.send_resolved(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.
@@ -148,12 +160,12 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<RawBytes> {
+    ) -> Result<Receipt> {
         // 1. Lookup the actor.
         let state = self
             .state_tree()
             .get_actor_id(to)?
-            .ok_or_else(|| actor_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
+            .ok_or_else(|| syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
         // 2. Charge the method gas. Not sure why this comes second, but it does.
         self.charge_gas(
@@ -164,12 +176,16 @@ where
 
         // 3. Transfer, if necessary.
         if !value.is_zero() {
-            self.machine.transfer(from, to, &value)?;
+            self.machine.transfer(from, to, value)?;
         }
 
         // 4. Abort early if we have a send.
         if method == METHOD_SEND {
-            return Ok(RawBytes::default());
+            return Ok(Receipt {
+                exit_code: ExitCode::Ok,
+                return_data: Default::default(),
+                gas_used: 0,
+            });
         }
 
         // 3. Finally, handle the code.
@@ -182,7 +198,7 @@ where
 
         // Create a new linker.
         let mut linker = Linker::new(&engine);
-        bind_syscalls(&mut linker)?;
+        bind_syscalls(&mut linker).or_fatal()?;
 
         self.map_mut(|cm| {
             // Make the kernel/store.
@@ -194,15 +210,22 @@ where
                 let param_id = store.data_mut().block_create(DAG_CBOR, params)?;
 
                 // Instantiate the module.
-                let instance = linker.instantiate(&mut store, &module)?;
+                let instance = linker.instantiate(&mut store, &module).or_fatal()?;
 
                 // Invoke it.
-                let invoke = instance.get_typed_func(&mut store, "invoke")?;
-                let (return_block_id,): (u32,) = invoke.call(&mut store, (param_id,))?;
+                let invoke = instance.get_typed_func(&mut store, "invoke").or_fatal()?;
+                let return_block_id: u32 = match invoke.call(&mut store, (param_id,)) {
+                    Ok((block,)) => block,
+                    Err(e) => return unwrap_trap(e),
+                };
 
                 let (code, ret) = store.data().block_get(return_block_id)?;
                 debug_assert_eq!(code, DAG_CBOR);
-                Ok(RawBytes::new(ret))
+                Ok(Receipt {
+                    return_data: RawBytes::new(ret),
+                    exit_code: ExitCode::Ok,
+                    gas_used: 0,
+                })
             })();
 
             (result, store.into_data().take())
@@ -232,6 +255,23 @@ where
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
         self.gas_tracker.gas_used()
+    }
+
+    /// Getter for origin actor.
+    pub fn origin(&self) -> Address {
+        self.origin
+    }
+
+    /// Getter for message nonce.
+    pub fn nonce(&self) -> u64 {
+        self.nonce
+    }
+
+    /// Gets and increment the call-stack actor creation index.
+    pub fn next_actor_idx(&mut self) -> u64 {
+        let ret = self.num_actors_created;
+        self.num_actors_created += 1;
+        ret
     }
 
     fn map_mut<F, T>(&mut self, f: F) -> T

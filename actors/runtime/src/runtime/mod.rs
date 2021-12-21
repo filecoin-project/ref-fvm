@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
-use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 use cid::Cid;
@@ -192,9 +191,9 @@ pub trait Syscalls {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<(), Box<dyn StdError>>;
+    ) -> Result<(), anyhow::Error>;
     /// Hashes input data using blake2b with 256 bit output.
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Box<dyn StdError>> {
+    fn hash_blake2b(&self, data: &[u8]) -> anyhow::Result<[u8; 32]> {
         Ok(blake2b_256(data))
     }
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
@@ -202,14 +201,14 @@ pub trait Syscalls {
         &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
-    ) -> Result<Cid, Box<dyn StdError>> {
+    ) -> anyhow::Result<Cid> {
         compute_unsealed_sector_cid(proof_type, pieces)
     }
     /// Verifies a sector seal proof.
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), Box<dyn StdError>>;
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), anyhow::Error>;
 
     /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<(), Box<dyn StdError>>;
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<(), anyhow::Error>;
 
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor
@@ -226,12 +225,12 @@ pub trait Syscalls {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> Result<Option<ConsensusFault>, Box<dyn StdError>>;
+    ) -> Result<Option<ConsensusFault>, anyhow::Error>;
 
     fn batch_verify_seals(
         &self,
         vis: &[(&Address, &Vec<SealVerifyInfo>)],
-    ) -> Result<HashMap<Address, Vec<bool>>, Box<dyn StdError>> {
+    ) -> anyhow::Result<HashMap<Address, Vec<bool>>> {
         let mut verified = HashMap::new();
         for (&addr, s) in vis.iter() {
             let vals = s.iter().map(|si| self.verify_seal(si).is_ok()).collect();
@@ -242,7 +241,7 @@ pub trait Syscalls {
     fn verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<(), Box<dyn StdError>>;
+    ) -> Result<(), anyhow::Error>;
 }
 
 /// Result of checking two headers for a consensus fault.
@@ -269,7 +268,6 @@ pub enum ConsensusFaultType {
 //     new_piece_length: PaddedPieceSize,
 // ) -> (Vec<PaddedPieceSize>, PaddedPieceSize) {
 //     let mut sum = 0;
-
 //     let mut to_fill = 0u64.wrapping_sub(old_length.0) % new_piece_length.0;
 //     let n = to_fill.count_ones();
 //     let mut pad_pieces = Vec::with_capacity(n as usize);
@@ -277,12 +275,10 @@ pub enum ConsensusFaultType {
 //         let next = to_fill.trailing_zeros();
 //         let p_size = 1 << next;
 //         to_fill ^= p_size;
-
 //         let padded = PaddedPieceSize(p_size);
 //         pad_pieces.push(padded);
 //         sum += padded.0;
 //     }
-
 //     (pad_pieces, PaddedPieceSize(sum))
 // }
 
@@ -290,7 +286,7 @@ pub enum ConsensusFaultType {
 pub fn compute_unsealed_sector_cid(
     _proof_type: RegisteredSealProof,
     _pieces: &[PieceInfo],
-) -> Result<Cid, Box<dyn StdError>> {
+) -> anyhow::Result<Cid> {
     todo!("syscall?")
     // let ssize = proof_type.sector_size()? as u64;
 

@@ -1,23 +1,23 @@
-use crate::kernel::BlockId;
-use crate::syscalls::context::Context;
-use crate::Kernel;
-use wasmtime::{Caller, Trap};
+use crate::kernel::{Kernel, Result};
+use wasmtime::Caller;
 
-pub fn caller(caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
-    Ok(Context::new(caller).data().msg_caller())
+use super::Context;
+
+pub fn caller(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
+    Ok(caller.kernel().msg_caller())
 }
 
-pub fn receiver(caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
-    Ok(Context::new(caller).data().msg_receiver())
+pub fn receiver(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
+    Ok(caller.kernel().msg_receiver())
 }
 
-pub fn method_number(caller: Caller<'_, impl Kernel>) -> Result<u64, Trap> {
-    Ok(Context::new(caller).data().msg_method_number())
+pub fn method_number(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
+    Ok(caller.kernel().msg_method_number())
 }
 
-pub fn value_received(caller: Caller<'_, impl Kernel>) -> Result<(u64, u64), Trap> {
-    let ctx = Context::new(caller);
-    let value = ctx.data().msg_value_received();
+pub fn value_received(caller: &mut Caller<'_, impl Kernel>) -> Result<(u64, u64)> {
+    let kernel = caller.kernel();
+    let value = kernel.msg_value_received();
     let mut iter = value.iter_u64_digits();
     Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
 }

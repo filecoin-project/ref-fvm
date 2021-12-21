@@ -1,33 +1,28 @@
 use anyhow::anyhow;
-use anyhow::Context;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
-use std::error::Error as StdError;
 
 use cid::Cid;
-use num_traits::Signed;
 
 use blockstore::Blockstore;
+use byteorder::{BigEndian, WriteBytesExt};
 use fvm_shared::bigint::Zero;
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, CborStore, RawBytes};
-use fvm_shared::error::ActorError;
+use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore};
 use fvm_shared::error::ExitCode;
-use fvm_shared::error::ExitCode::SysErrIllegalArgument;
-use fvm_shared::{actor_error, ActorID};
+use fvm_shared::ActorID;
 
+use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
-use crate::init_actor::State;
 use crate::message::Message;
 use crate::receipt::Receipt;
-use crate::state_tree::StateTree;
+use crate::state_tree::ActorState;
+use crate::syscall_error;
 
-use crate::kernel::error::SyscallError;
-use crate::kernel::ExecutionError::{Syscall, SystemError};
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
 use filecoin_proofs_api::{
@@ -35,7 +30,6 @@ use filecoin_proofs_api::{
     PublicReplicaInfo,
 };
 use fvm_shared::address::Protocol;
-use fvm_shared::consensus::ConsensusFaultType;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use lazy_static::lazy_static;
 
@@ -43,6 +37,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
 
+use crate::gas::GasCharge;
 use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
@@ -69,8 +64,6 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
-    /// Return stack where values returned by syscalls are stored for consumption.
-    return_stack: VecDeque<Vec<u8>>,
     caller_validated: bool,
 }
 
@@ -100,7 +93,6 @@ where
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
-            return_stack: Default::default(),
             from,
             to,
             method,
@@ -115,8 +107,10 @@ where
 
     fn assert_not_validated(&mut self) -> Result<()> {
         if self.caller_validated {
-            return Err(actor_error!(SysErrIllegalActor;
-                    "Method must validate caller identity exactly once")
+            return Err(syscall_error!(
+                SysErrIllegalActor,
+                "Method must validate caller identity exactly once"
+            )
             .into());
         }
         self.caller_validated = true;
@@ -131,12 +125,15 @@ where
         let state_tree = self.call_manager.state_tree();
         let act = state_tree
             .get_actor(addr)?
-            .ok_or(anyhow!("state tree doesn't contain actor"))?;
+            .ok_or(anyhow!("state tree doesn't contain actor"))
+            .or_error(ExitCode::ErrIllegalArgument)?;
 
         let state: crate::account_actor::State = state_tree
             .store()
-            .get_cbor(&act.state)?
-            .ok_or(anyhow!("account actor state not found"))?;
+            .get_cbor(&act.state)
+            .or_fatal()?
+            .ok_or(anyhow!("account actor state not found"))
+            .or_fatal()?;
 
         Ok(state.address)
     }
@@ -156,7 +153,6 @@ where
             .unwrap()
             .expect("expected actor to exist")
             .state
-            .clone()
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
@@ -176,16 +172,19 @@ where
         let balance = self
             .call_manager
             .state_tree()
-            .get_actor(&addr)?
-            .ok_or(anyhow!("state tree doesn't contain current actor"))?
+            .get_actor(&addr)
+            .or_fatal()
+            .context("error when finding current actor")?
+            .ok_or(anyhow!("state tree doesn't contain current actor"))
+            .or_fatal()?
             .balance;
         Ok(balance)
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        let gas_charge = self.call_manager.context().price_list().on_delete_actor();
         // TODO abort with internal error instead of returning.
-        self.call_manager.charge_gas(gas_charge)?;
+        self.call_manager
+            .charge_gas(self.call_manager.context().price_list().on_delete_actor())?;
 
         let balance = self.current_balance()?;
         if balance != TokenAmount::zero() {
@@ -195,10 +194,10 @@ where
             // In FVM we check unconditionally, since we only support nv13+.
             let beneficiary_id = self.resolve_address(beneficiary)?.ok_or_else(||
                 // TODO this should not be an actor error, but a system error with an exit code.
-                actor_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
+                syscall_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
 
             if beneficiary_id == self.to {
-                return Err(actor_error!(
+                return Err(syscall_error!(
                     SysErrIllegalArgument,
                     "benefactor cannot be beneficiary"
                 )
@@ -226,37 +225,38 @@ where
             .call_manager
             .blockstore()
             .get(cid)
-            .map_err(|e| anyhow!(e))?
-            .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;
+            .or_fatal()?
+            .ok_or_else(|| anyhow!("missing state: {}", cid))
+            // Missing state is a fatal error because it means we have a bug. Once we do
+            // reachability checking (for user actors) we won't get here unless the block is known
+            // to be in the state-tree.
+            .or_fatal()?;
 
         let block = Block::new(cid.codec(), data);
-        Ok(self.blocks.put(block)?)
+        // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
+        self.blocks.put(block).or_illegal_argument()
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
-        Ok(self.blocks.put(Block::new(codec, data))?)
+        self.blocks
+            .put(Block::new(codec, data))
+            .or_illegal_argument()
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
         // TODO: check hash function & length against allow list.
 
         use multihash::MultihashDigest;
-        let block = self.blocks.get(id)?;
-        let code =
-            multihash::Code::try_from(hash_fun)
-                .ok()
-                .ok_or(BlockError::InvalidMultihashSpec {
-                    code: hash_fun,
-                    length: hash_len,
-                })?;
+        let block = self.blocks.get(id).or_illegal_argument()?;
+        let code = multihash::Code::try_from(hash_fun)
+            .or_illegal_argument()
+            .context(format_args!("invalid hash code: {}", hash_fun))?;
 
-        let hash = code.digest(&block.data());
+        let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
-            return Err(BlockError::InvalidMultihashSpec {
-                code: hash_fun,
-                length: hash_len,
-            }
-            .into());
+            return Err(
+                syscall_error!(SysErrIllegalArgument; "invalid hash length: {}", hash_len).into(),
+            );
         }
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
@@ -264,12 +264,12 @@ where
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
-            .map_err(|e| anyhow!(e))?;
+            .or_fatal()?;
         Ok(k)
     }
 
     fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        let data = &self.blocks.get(id)?.data;
+        let data = &self.blocks.get(id).or_illegal_argument()?.data;
         Ok(if offset as usize >= data.len() {
             0
         } else {
@@ -280,11 +280,7 @@ where
     }
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
-        let b = self.blocks.get(id)?;
-        Ok(BlockStat {
-            codec: b.codec(),
-            size: b.size(),
-        })
+        self.blocks.stat(id).or_illegal_argument()
     }
 }
 
@@ -298,28 +294,11 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
     }
 
     fn msg_method_number(&self) -> MethodNum {
-        self.msg_method_number()
+        self.method
     }
 
     fn msg_value_received(&self) -> TokenAmount {
         self.value_received.clone()
-    }
-}
-
-impl<B, E> ReturnOps for DefaultKernel<B, E> {
-    fn return_size(&self) -> u64 {
-        self.return_stack.back().map(Vec::len).unwrap_or(0) as u64
-    }
-
-    fn return_discard(&mut self) {
-        self.return_stack.pop_back();
-    }
-
-    fn return_pop(&mut self, into: &mut [u8]) -> u64 {
-        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or(Vec::new());
-        let len = into.len().min(ret.len());
-        into.copy_from_slice(&ret[..len]);
-        len as u64
     }
 }
 
@@ -345,33 +324,7 @@ where
             .state_tree_mut()
             .end_transaction(res.is_err())?;
 
-        // We convert the error into a receipt because we _dont'_ want to trap.
-        // TODO: we need to log the error message int he machine somehow.
-        res.map(|v| Receipt {
-            exit_code: ExitCode::Ok,
-            return_data: v,
-            gas_used: 0, // fill in?
-        })
-        .or_else(|e| match e {
-            ExecutionError::Actor(e) => {
-                // These cases shouldn't be possible, but we can't yet statically rule them out and
-                // I don't trust auto-conversion magic.
-                if e.is_fatal() {
-                    Err(ExecutionError::SystemError(anyhow!(e.msg().to_string())))
-                } else if e.exit_code().is_success() {
-                    Err(ExecutionError::SystemError(anyhow!(
-                        "got an error with a success code"
-                    )))
-                } else {
-                    Ok(Receipt {
-                        exit_code: e.exit_code(),
-                        return_data: RawBytes::default(),
-                        gas_used: 0,
-                    })
-                }
-            }
-            err => Err(err),
-        })
+        res
     }
 }
 
@@ -394,30 +347,26 @@ where
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<()> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_signature(signature.signature_type());
-        self.call_manager.charge_gas(charge)?;
+    ) -> Result<bool> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_signature(signature.signature_type()),
+        )?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer)?;
-        Ok(signature
-            .verify(plaintext, &signing_addr)
-            // TODO raising as a system error but this is NOT a fatal error;
-            //  this should be a SyscallError type with no associated exit code.
-            .map_err(SyscallError::from)?)
+        Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_hashing(data.len());
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_hashing(data.len()),
+        )?;
 
         Ok(blake2b_256(data))
     }
@@ -427,14 +376,14 @@ where
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_compute_unsealed_sector_cid(proof_type, pieces);
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_compute_unsealed_sector_cid(proof_type, pieces),
+        )?;
 
-        let ssize = proof_type.sector_size().map_err(SyscallError::from)? as u64;
+        let ssize = proof_type.sector_size().or_illegal_argument()? as u64;
 
         let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
 
@@ -463,7 +412,7 @@ where
                 let (ps, _) = get_required_padding(sum, p.size);
                 pad_to(ps, &mut all_pieces, &mut sum);
 
-                all_pieces.push(proofs::PieceInfo::try_from(p).map_err(SyscallError::from)?);
+                all_pieces.push(proofs::PieceInfo::try_from(p).or_illegal_argument()?);
                 sum.0 += p.size.0;
             }
 
@@ -471,26 +420,24 @@ where
             pad_to(ps, &mut all_pieces, &mut sum);
         }
 
-        let comm_d = compute_comm_d(
-            proof_type.try_into().map_err(SyscallError::from)?,
-            &all_pieces,
-        )?;
+        let comm_d = compute_comm_d(proof_type.try_into().or_illegal_argument()?, &all_pieces)
+            .or_illegal_argument()?;
 
-        Ok(data_commitment_v1_to_cid(&comm_d).map_err(SyscallError::from)?)
+        data_commitment_v1_to_cid(&comm_d).or_illegal_argument()
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()> {
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         verify_seal(vi)
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_post(verify_info);
-        self.call_manager.charge_gas(charge)?;
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_post(verify_info),
+        )?;
 
         let WindowPoStVerifyInfo {
             ref proofs,
@@ -512,15 +459,14 @@ where
             .iter()
             .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
             .collect::<core::result::Result<_, String>>()
-            .map_err(SyscallError::from)?;
+            .or_illegal_argument()?;
 
         // Generate prover bytes from ID
         let prover_id = prover_id_from_u64(*prover);
 
         // Verify Proof
         post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
-            .map_err(|e| ExecutionError::Syscall(SyscallError::from(e.to_string())))
-            .map(|_| ())
+            .or_illegal_argument()
     }
 
     fn verify_consensus_fault(
@@ -529,19 +475,20 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        let charge = self
-            .call_manager
-            .context()
-            .price_list()
-            .on_verify_consensus_fault();
-        self.call_manager.charge_gas(charge)?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .context()
+                .price_list()
+                .on_verify_consensus_fault(),
+        )?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        Ok(self
-            .call_manager
+        self.call_manager
             .externs()
-            .verify_consensus_fault(h1, h2, extra)?)
+            .verify_consensus_fault(h1, h2, extra)
+            .or_illegal_argument()
+            .context("fault not verified")
     }
 
     fn batch_verify_seals(
@@ -559,17 +506,26 @@ where
                         let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
                         match verify_seal_result {
                             Ok(res) => {
-                                if let Err(err) = res {
-                                    log::debug!(
+                                match res {
+                                    Ok(correct) => {
+                                        if !correct {
+                                            log::debug!(
+                                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                            addr,
+                                            );
+                                        }
+                                        correct // all ok
+                                    }
+                                    Err(err) => {
+                                        log::debug!(
                                         "seal verify in batch failed (miner: {}) (err: {})",
                                         addr,
                                         err
                                     );
-                                    false
-                                } else {
-                                    true
+                                        false
+                                    }
                                 }
-                            }
+                            },
                             Err(_) => {
                                 log::error!("seal verify internal fail (miner: {})", addr);
                                 false
@@ -587,14 +543,12 @@ where
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if aggregate.infos.is_empty() {
-            return Err(SyscallError("no seal verify infos".to_owned(), None).into());
+            return Err(syscall_error!(SysErrIllegalArgument; "no seal verify infos").into());
         }
-        let spt: proofs::RegisteredSealProof = aggregate
-            .seal_proof
-            .try_into()
-            .map_err(SyscallError::from)?;
+        let spt: proofs::RegisteredSealProof =
+            aggregate.seal_proof.try_into().or_illegal_argument()?;
         let prover_id = prover_id_from_u64(aggregate.miner);
         struct AggregationInputs {
             // replica
@@ -620,7 +574,7 @@ where
                 })
             })
             .collect::<core::result::Result<Vec<_>, &'static str>>()
-            .map_err(SyscallError::from)?;
+            .or_illegal_argument()?;
 
         let inp: Vec<Vec<_>> = inputs
             .par_iter()
@@ -638,30 +592,32 @@ where
             .try_reduce(Vec::new, |mut acc, current| {
                 acc.extend(current);
                 Ok(acc)
-            })?;
+            })
+            .or_illegal_argument()?;
+
         let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
         let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
-        if !verify_aggregate_seal_commit_proofs(
+
+        verify_aggregate_seal_commit_proofs(
             spt,
-            aggregate
-                .aggregate_proof
-                .try_into()
-                .map_err(SyscallError::from)?,
+            aggregate.aggregate_proof.try_into().or_illegal_argument()?,
             aggregate.proof.clone(),
             &commrs,
             &seeds,
             inp,
-        )? {
-            Err(SyscallError("Invalid Aggregate Seal proof".to_owned(), None).into())
-        } else {
-            Ok(())
-        }
+        )
+        .or_illegal_argument()
     }
 }
 
-impl<B, E> GasOps for DefaultKernel<B, E> {
+impl<B, E> GasOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
-        todo!()
+        let charge = GasCharge::new(name, compute, 0);
+        self.call_manager.charge_gas(charge)
     }
 }
 
@@ -688,22 +644,35 @@ where
     B: Blockstore,
     E: 'static + Externs,
 {
+    #[allow(unused)]
     fn get_randomness_from_tickets(
         &self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness> {
-        todo!()
+        // TODO: Check error code
+        self.call_manager
+            .externs()
+            .get_chain_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .map(|r| Randomness(r.to_vec()))
+            .or_illegal_argument()
     }
 
+    #[allow(unused)]
     fn get_randomness_from_beacon(
         &self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness> {
-        todo!()
+        // TODO: Check error code
+        // Hyperdrive and above only.
+        self.call_manager
+            .externs()
+            .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .map(|r| Randomness(r.to_vec()))
+            .or_illegal_argument()
     }
 }
 
@@ -721,7 +690,7 @@ where
 
         let caller_addr = Address::new_id(self.from);
         if !allowed.iter().any(|a| *a == caller_addr) {
-            return Err(actor_error!(SysErrForbidden;
+            return Err(syscall_error!(SysErrForbidden;
                 "caller {} is not one of supported", caller_addr
             )
             .into());
@@ -734,10 +703,11 @@ where
 
         let caller_cid = self
             .get_actor_code_cid(&Address::new_id(self.from))?
-            .ok_or_else(|| actor_error!(fatal("failed to lookup code cid for caller")))?;
+            .ok_or_else(|| anyhow!("failed to lookup code cid for caller"))
+            .or_fatal()?;
 
         if !allowed.iter().any(|c| *c == caller_cid) {
-            return Err(actor_error!(SysErrForbidden;
+            return Err(syscall_error!(SysErrForbidden;
                     "caller cid type {} not one of supported", caller_cid)
             .into());
         }
@@ -758,30 +728,65 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor(addr)?
-            // TODO fatal error
-            //.map_err(|e| e.downcast_fatal("failed to get actor"))?
+            .get_actor(addr)
+            .context("failed to lookup actor to get code CID")
+            .or_fatal()?
             .map(|act| act.code))
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {
-        todo!()
+        let oa = self
+            .resolve_to_key_addr(&self.call_manager.origin())
+            // This is already an execution error, but we're _making_ it fatal.
+            .or_fatal()?;
+
+        let mut b = to_vec(&oa)
+            .or_fatal()
+            .context("could not serialize address in new_actor_address")?;
+        b.write_u64::<BigEndian>(self.call_manager.nonce())
+            .or_fatal()
+            .context("writing nonce into a buffer")?;
+        b.write_u64::<BigEndian>(self.call_manager.next_actor_idx())
+            .or_fatal()
+            .context("writing actor index in buffer")?;
+        let addr = Address::new_actor(&b);
+        Ok(addr)
     }
 
+    // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {
-        todo!()
-    }
-}
+        if !is_builtin_actor(&code_id) {
+            return Err(
+                syscall_error!(SysErrIllegalArgument; "Can only create built-in actors").into(),
+            );
+        }
+        if is_singleton_actor(&code_id) {
+            return Err(
+                syscall_error!(SysErrIllegalArgument; "can only have one instance of singleton actors").into(),
+            );
+        }
 
-// TODO provisional, remove once we fix https://github.com/filecoin-project/fvm/issues/107
-impl Into<ActorError> for BlockError {
-    fn into(self) -> ActorError {
-        ActorError::new_fatal(self.to_string())
+        let state_tree = self.call_manager.state_tree();
+        if let Ok(Some(_)) = state_tree.get_actor(address) {
+            return Err(
+                syscall_error!(SysErrIllegalArgument; "Actor address already exists").into(),
+            );
+        }
+
+        self.call_manager
+            .charge_gas(self.call_manager.context().price_list().on_create_actor())?;
+
+        let state_tree = self.call_manager.state_tree_mut();
+        state_tree.set_actor(
+            address,
+            ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
+        )
     }
 }
 
 /// PoSt proof variants.
 enum ProofType {
+    #[allow(unused)]
     Winning,
     Window,
 }
@@ -833,17 +838,20 @@ fn to_fil_public_replica_infos(
             },
         )
         .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
-        .map_err(SyscallError::from)?;
+        .or_illegal_argument()?;
     Ok(replicas)
 }
 
-fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
-    let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).map_err(SyscallError::from)?;
-    let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).map_err(SyscallError::from)?;
+fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
+    let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).or_illegal_argument()?;
+    let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).or_illegal_argument()?;
     let prover_id = prover_id_from_u64(vi.sector_id.miner);
 
-    if !proofs_verify_seal(
-        vi.registered_proof.try_into().map_err(SyscallError::from)?,
+    proofs_verify_seal(
+        vi.registered_proof
+            .try_into()
+            .or_illegal_argument()
+            .context(format_args!("invalid proof type {:?}", vi.registered_proof))?,
         commr,
         commd,
         prover_id,
@@ -851,9 +859,7 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<()> {
         bytes_32(&vi.randomness.0),
         bytes_32(&vi.interactive_randomness.0),
         &vi.proof,
-    )? {
-        Err(SyscallError("Invalid Seal proof".to_owned(), None).into())
-    } else {
-        Ok(())
-    }
+    )
+    .or_fatal()
+    .context("failed to verify seal proof") // TODO: Verify that this is actually a fatal error.
 }

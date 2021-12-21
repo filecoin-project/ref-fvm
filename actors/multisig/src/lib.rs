@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashSet;
-use std::error::Error as StdError;
 
 use blockstore::Blockstore;
 use num_derive::FromPrimitive;
@@ -36,8 +35,8 @@ pub mod wasm {
 
         #[test]
         fn test_wasm_binaries() {
-            assert!(WASM_BINARY.unwrap().len() > 0);
-            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+            assert!(!WASM_BINARY.unwrap().is_empty());
+            assert!(!WASM_BINARY_BLOATY.unwrap().is_empty());
         }
     }
 }
@@ -694,10 +693,7 @@ where
 
 /// Computes a digest of a proposed transaction. This digest is used to confirm identity
 /// of the transaction associated with an ID, which might change under chain re-orgs.
-fn compute_proposal_hash(
-    txn: &Transaction,
-    sys: &dyn Syscalls,
-) -> Result<[u8; 32], Box<dyn StdError>> {
+fn compute_proposal_hash(txn: &Transaction, sys: &dyn Syscalls) -> anyhow::Result<[u8; 32]> {
     let proposal_hash = ProposalHashData {
         requester: txn.approved.get(0),
         to: &txn.to,

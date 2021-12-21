@@ -1,17 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
 use blockstore::Blockstore;
 
 use actors_runtime::Array;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::{DeadlineInfo, QuantSpec};
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::sector::SectorNumber;
 
 use super::policy::*;
-use super::{Deadlines, Partition};
+use super::{DeadlineInfo, Deadlines, Partition};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,
@@ -37,7 +34,7 @@ impl Deadlines {
         &self,
         store: &BS,
         sector_number: SectorNumber,
-    ) -> Result<(usize, usize), Box<dyn StdError>> {
+    ) -> anyhow::Result<(usize, usize)> {
         for i in 0..self.due.len() {
             let deadline_idx = i;
             let deadline = self.load_deadline(store, deadline_idx)?;
@@ -59,7 +56,10 @@ impl Deadlines {
             }
         }
 
-        Err(format!("sector {} not due at any deadline", sector_number).into())
+        Err(anyhow::anyhow!(
+            "sector {} not due at any deadline",
+            sector_number
+        ))
     }
 }
 

@@ -3,6 +3,7 @@
 
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use fvm_shared::encoding::{serde_bytes, BytesSer, CborStore};
@@ -11,7 +12,6 @@ use serde::{
     de::{self, DeserializeOwned},
     ser, Deserialize, Serialize,
 };
-use std::error::Error as StdError;
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -125,11 +125,12 @@ impl<V> CollapsedNode<V> {
         }
 
         if bmap_bytes(bit_width) != bmap.len() {
-            return Err(Error::Other(format!(
+            return Err(anyhow!(
                 "expected bitfield of length {}, found bitfield with length {}",
                 bmap_bytes(bit_width),
                 bmap.len()
-            )));
+            )
+            .into());
         }
 
         if !links.is_empty() {
@@ -138,16 +139,12 @@ impl<V> CollapsedNode<V> {
             for (i, v) in links.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(Link::from(links_iter.next().ok_or_else(|| {
-                        Error::Other(
-                            "Bitmap contained more set bits than links provided".to_string(),
-                        )
+                        anyhow!("Bitmap contained more set bits than links provided",)
                     })?))
                 }
             }
             if links_iter.next().is_some() {
-                return Err(Error::Other(
-                    "Bitmap contained less set bits than links provided".to_string(),
-                ));
+                return Err(anyhow!("Bitmap contained less set bits than links provided",).into());
             }
             Ok(Node::Link { links })
         } else {
@@ -156,16 +153,12 @@ impl<V> CollapsedNode<V> {
             for (i, v) in vals.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(val_iter.next().ok_or_else(|| {
-                        Error::Other(
-                            "Bitmap contained more set bits than values provided".to_string(),
-                        )
+                        anyhow!("Bitmap contained more set bits than values provided")
                     })?)
                 }
             }
             if val_iter.next().is_some() {
-                return Err(Error::Other(
-                    "Bitmap contained less set bits than values provided".to_string(),
-                ));
+                return Err(anyhow!("Bitmap contained less set bits than values provided").into());
             }
             Ok(Node::Leaf { vals })
         }
@@ -215,7 +208,7 @@ where
         match self {
             Node::Link { links } => {
                 // Check if first index is a link and all other values are empty.
-                links.get(0).map(|l| l.as_ref()).flatten().is_some()
+                links.get(0).and_then(|l| l.as_ref()).is_some()
                     && links
                         .get(1..)
                         .map(|l| l.iter().all(|l| l.is_none()))
@@ -244,8 +237,8 @@ where
         let sub_i = i / nodes_for_height(bit_width, height);
 
         match self {
-            Node::Leaf { vals, .. } => Ok(vals.get(i).map(|v| v.as_ref()).flatten()),
-            Node::Link { links, .. } => match links.get(sub_i).map(|v| v.as_ref()).flatten() {
+            Node::Leaf { vals, .. } => Ok(vals.get(i).and_then(|v| v.as_ref())),
+            Node::Link { links, .. } => match links.get(sub_i).and_then(|v| v.as_ref()) {
                 Some(Link::Cid { cid, cache }) => {
                     let cached_node = cache.get_or_try_init(|| {
                         bs.get_cbor::<CollapsedNode<V>>(cid)?
@@ -353,7 +346,7 @@ where
         let sub_i = i / nodes_for_height(bit_width, height);
 
         match self {
-            Self::Leaf { vals } => Ok(vals.get_mut(i).map(std::mem::take).flatten()),
+            Self::Leaf { vals } => Ok(vals.get_mut(i).and_then(std::mem::take)),
             Self::Link { links } => {
                 let (deleted, replace) = match &mut links[sub_i] {
                     Some(Link::Dirty(n)) => {
@@ -422,9 +415,9 @@ where
         bit_width: usize,
         offset: usize,
         f: &mut F,
-    ) -> Result<bool, Box<dyn StdError>>
+    ) -> Result<bool, Error>
     where
-        F: FnMut(usize, &V) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &V) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         match self {
@@ -481,9 +474,9 @@ where
         bit_width: usize,
         offset: usize,
         f: &mut F,
-    ) -> Result<(bool, bool), Box<dyn StdError>>
+    ) -> Result<(bool, bool), Error>
     where
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> Result<bool, Box<dyn StdError>>,
+        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         let mut did_mutate = false;

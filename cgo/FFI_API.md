@@ -41,7 +41,6 @@ FVM -> Lotus: CircSupply
     + Output
         - CircSupply
 
-// I think this can live in the FVM, but I'm not sure?
 FVM -> Lotus: VerifyConsensusFault
     + Input
         - faulty blocks

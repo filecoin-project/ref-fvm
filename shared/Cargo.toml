@@ -32,6 +32,7 @@ filecoin-proofs-api = { version = "10", features = ["opencl"], default_features 
 libsecp256k1 = { version = "0.7", optional = true }
 bls-signatures = { version = "0.11", default-features = false, optional = true }
 blockstore = { version = "0.1.0", path = "../lib/blockstore" }
+anyhow = "1.0.51"
 
 [dev-dependencies]
 rand = "0.8"

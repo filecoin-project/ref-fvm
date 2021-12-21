@@ -271,6 +271,7 @@ pub struct PriceList {
     /// Compute gas charge multiplier
     // * This multiplier is not currently applied to anything, but is matching lotus.
     // * If the possible values are non 1 or if Lotus adds, we should change also.
+    #[allow(unused)]
     pub(crate) compute_gas_multiplier: i64,
     /// Storage gas charge multiplier
     pub(crate) storage_gas_multiplier: i64,
@@ -342,6 +343,7 @@ pub struct PriceList {
 
     pub(crate) compute_unsealed_sector_cid_base: i64,
     pub(crate) verify_seal_base: i64,
+    #[allow(unused)]
     pub(crate) verify_aggregate_seal_base: i64,
     pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, i64>,
     pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
@@ -354,7 +356,7 @@ pub struct PriceList {
 impl PriceList {
     /// Returns the gas required for storing a message of a given size in the chain.
     #[inline]
-    pub fn on_chain_message(&self, msg_size: usize) -> GasCharge {
+    pub fn on_chain_message(&self, msg_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnChainMessage",
             self.on_chain_message_compute_base,
@@ -365,7 +367,7 @@ impl PriceList {
     }
     /// Returns the gas required for storing the response of a message in the chain.
     #[inline]
-    pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge {
+    pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnChainReturnValue",
             0,
@@ -374,7 +376,11 @@ impl PriceList {
     }
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(&self, value: &TokenAmount, method_num: MethodNum) -> GasCharge {
+    pub fn on_method_invocation(
+        &self,
+        value: &TokenAmount,
+        method_num: MethodNum,
+    ) -> GasCharge<'static> {
         let mut ret = self.send_base;
         if value != &TokenAmount::zero() {
             ret += self.send_transfer_funds;
@@ -389,12 +395,12 @@ impl PriceList {
     }
     /// Returns the gas required for storing an object.
     #[inline]
-    pub fn on_ipld_get(&self) -> GasCharge {
+    pub fn on_ipld_get(&self) -> GasCharge<'static> {
         GasCharge::new("OnIpldGet", self.ipld_get_base, 0)
     }
     /// Returns the gas required for storing an object.
     #[inline]
-    pub fn on_ipld_put(&self, data_size: usize) -> GasCharge {
+    pub fn on_ipld_put(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnIpldPut",
             self.ipld_put_base,
@@ -403,7 +409,7 @@ impl PriceList {
     }
     /// Returns the gas required for creating an actor.
     #[inline]
-    pub fn on_create_actor(&self) -> GasCharge {
+    pub fn on_create_actor(&self) -> GasCharge<'static> {
         GasCharge::new(
             "OnCreateActor",
             self.create_actor_compute,
@@ -412,7 +418,7 @@ impl PriceList {
     }
     /// Returns the gas required for deleting an actor.
     #[inline]
-    pub fn on_delete_actor(&self) -> GasCharge {
+    pub fn on_delete_actor(&self) -> GasCharge<'static> {
         GasCharge::new(
             "OnDeleteActor",
             0,
@@ -421,7 +427,7 @@ impl PriceList {
     }
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge {
+    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge<'static> {
         let val = match sig_type {
             SignatureType::BLS => self.bls_sig_cost,
             SignatureType::Secp256k1 => self.secp256k1_sig_cost,
@@ -430,7 +436,7 @@ impl PriceList {
     }
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _: usize) -> GasCharge {
+    pub fn on_hashing(&self, _: usize) -> GasCharge<'static> {
         GasCharge::new("OnHashing", self.hashing_base, 0)
     }
     /// Returns gas required for computing unsealed sector Cid.
@@ -439,7 +445,7 @@ impl PriceList {
         &self,
         _proof: RegisteredSealProof,
         _pieces: &[PieceInfo],
-    ) -> GasCharge {
+    ) -> GasCharge<'static> {
         GasCharge::new(
             "OnComputeUnsealedSectorCid",
             self.compute_unsealed_sector_cid_base,
@@ -448,14 +454,14 @@ impl PriceList {
     }
     /// Returns gas required for seal verification.
     #[inline]
-    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge {
+    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge<'static> {
         GasCharge::new("OnVerifySeal", self.verify_seal_base, 0)
     }
     #[inline]
     pub fn on_verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> GasCharge {
+    ) -> GasCharge<'static> {
         let proof_type = aggregate.seal_proof;
         let per_proof = self
             .verify_aggregate_seal_per
@@ -488,7 +494,7 @@ impl PriceList {
     }
     /// Returns gas required for PoSt verification.
     #[inline]
-    pub fn on_verify_post(&self, info: &WindowPoStVerifyInfo) -> GasCharge {
+    pub fn on_verify_post(&self, info: &WindowPoStVerifyInfo) -> GasCharge<'static> {
         let p_proof = info
             .proofs
             .first()
@@ -509,7 +515,7 @@ impl PriceList {
     }
     /// Returns gas required for verifying consensus fault.
     #[inline]
-    pub fn on_verify_consensus_fault(&self) -> GasCharge {
+    pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
     }
 }

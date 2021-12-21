@@ -1,7 +1,8 @@
 use super::{Address, ChainEpoch};
+use crate::encoding::{repr::*, tuple::*, Cbor};
 
 /// Result of checking two headers for a consensus fault.
-#[derive(Clone)]
+#[derive(Clone, Serialize_tuple, Deserialize_tuple)]
 pub struct ConsensusFault {
     /// Address of the miner at fault (always an ID address).
     pub target: Address,
@@ -12,9 +13,13 @@ pub struct ConsensusFault {
 }
 
 /// Consensus fault types in VM.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum ConsensusFaultType {
     DoubleForkMining = 1,
     ParentGrinding = 2,
     TimeOffsetMining = 3,
 }
+
+// For syscall marshalling.
+impl Cbor for ConsensusFault {}

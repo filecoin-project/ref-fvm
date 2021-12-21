@@ -3,9 +3,9 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
-use std::error::Error as StdError;
 
 use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Runtime, Syscalls};
+use anyhow::anyhow;
 use blockstore::MemoryBlockstore;
 use cid::{multihash::Code, Cid};
 
@@ -122,7 +122,7 @@ pub struct ExpectedVerifySig {
     pub sig: Signature,
     pub signer: Address,
     pub plaintext: Vec<u8>,
-    pub result: Result<(), Box<dyn StdError>>,
+    pub result: Result<(), anyhow::Error>,
 }
 
 #[derive(Clone, Debug)]
@@ -654,7 +654,7 @@ impl Syscalls for MockRuntime {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if self.expect_verify_sigs.borrow().is_empty() {
             panic!(
                 "Unexpected signature verification sig: {:?}, signer: {}, plaintext: {}",
@@ -690,73 +690,73 @@ impl Syscalls for MockRuntime {
         Ok(())
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Box<dyn StdError>> {
+    fn hash_blake2b(&self, data: &[u8]) -> anyhow::Result<[u8; 32]> {
         Ok(blake2b_256(data))
     }
     fn compute_unsealed_sector_cid(
         &self,
         reg: RegisteredSealProof,
         pieces: &[PieceInfo],
-    ) -> Result<Cid, Box<dyn StdError>> {
+    ) -> anyhow::Result<Cid> {
         let exp = self
             .expect_compute_unsealed_sector_cid
             .replace(None)
-            .ok_or_else(|| {
-                Box::new(actor_error!(ErrIllegalState;
-                     "Unexpected syscall to ComputeUnsealedSectorCID"
-                ))
-            })?;
+            .ok_or_else(
+                || actor_error!(ErrIllegalState; "Unexpected syscall to ComputeUnsealedSectorCID"),
+            )?;
 
         if exp.reg != reg {
-            return Err(Box::new(actor_error!(ErrIllegalState;
+            return Err(anyhow!(actor_error!(ErrIllegalState;
                 "Unexpected compute_unsealed_sector_cid : reg mismatch"
             )));
         }
 
         if exp.pieces[..].eq(pieces) {
-            return Err(Box::new(actor_error!(ErrIllegalState;
+            return Err(anyhow!(actor_error!(ErrIllegalState;
                 "Unexpected compute_unsealed_sector_cid : pieces mismatch"
             )));
         }
 
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(anyhow!(ActorError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
         }
         Ok(exp.cid)
     }
-    fn verify_seal(&self, seal: &SealVerifyInfo) -> Result<(), Box<dyn StdError>> {
-        let exp = self.expect_verify_seal.replace(None).ok_or_else(|| {
-            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"))
-        })?;
+    fn verify_seal(&self, seal: &SealVerifyInfo) -> anyhow::Result<()> {
+        let exp = self
+            .expect_verify_seal
+            .replace(None)
+            .ok_or_else(|| actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"))?;
 
         if exp.seal != *seal {
-            return Err(Box::new(
+            return Err(anyhow!(
                 actor_error!(ErrIllegalState; "Unexpected seal verification"),
             ));
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(anyhow!(ActorError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
         }
         Ok(())
     }
-    fn verify_post(&self, post: &WindowPoStVerifyInfo) -> Result<(), Box<dyn StdError>> {
-        let exp = self.expect_verify_post.replace(None).ok_or_else(|| {
-            Box::new(actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))
-        })?;
+    fn verify_post(&self, post: &WindowPoStVerifyInfo) -> anyhow::Result<()> {
+        let exp = self
+            .expect_verify_post
+            .replace(None)
+            .ok_or_else(|| actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))?;
 
         if exp.post != *post {
-            return Err(Box::new(
+            return Err(anyhow!(
                 actor_error!(ErrIllegalState; "Unexpected PoSt verification"),
             ));
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(anyhow!(ActorError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
@@ -768,30 +768,28 @@ impl Syscalls for MockRuntime {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> Result<Option<ConsensusFault>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Option<ConsensusFault>> {
         let exp = self
             .expect_verify_consensus_fault
             .replace(None)
-            .ok_or_else(|| {
-                Box::new(
-                    actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
-                )
-            })?;
+            .ok_or_else(
+                || actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
+            )?;
         if exp.require_correct_input {
             if exp.block_header_1 != h1 {
-                return Err(Box::new(actor_error!(ErrIllegalState; "Header 1 mismatch")));
+                return Err(anyhow!(actor_error!(ErrIllegalState; "Header 1 mismatch")));
             }
             if exp.block_header_2 != h2 {
-                return Err(Box::new(actor_error!(ErrIllegalState; "Header 2 mismatch")));
+                return Err(anyhow!(actor_error!(ErrIllegalState; "Header 2 mismatch")));
             }
             if exp.block_header_extra != extra {
-                return Err(Box::new(
+                return Err(anyhow!(
                     actor_error!(ErrIllegalState; "Header extra mismatch"),
                 ));
             }
         }
         if exp.exit_code != ExitCode::Ok {
-            return Err(Box::new(ActorError::new(
+            return Err(anyhow!(ActorError::new(
                 exp.exit_code,
                 "Expected Failure".to_string(),
             )));
@@ -801,7 +799,7 @@ impl Syscalls for MockRuntime {
     fn verify_aggregate_seals(
         &self,
         _aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // TODO: Implement this if we need it. Currently don't have a need.
         todo!()
     }

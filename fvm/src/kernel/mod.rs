@@ -11,7 +11,6 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -24,7 +23,7 @@ mod blocks;
 pub mod default;
 
 mod error;
-pub use error::{ExecutionError, Result, SyscallError};
+pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 pub trait Kernel:
     ActorOps
@@ -35,7 +34,6 @@ pub trait Kernel:
     + MessageOps
     + NetworkOps
     + RandomnessOps
-    + ReturnOps
     + SelfOps
     + SendOps
     + ValidationOps
@@ -159,22 +157,6 @@ pub trait ActorOps {
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()>;
 }
 
-/// Operations that query and manipulate the return stack. The return stack is
-/// how the kernel delivers variable-length return values to the caller.
-pub trait ReturnOps {
-    /// Returns the size of the top element in the return stack.
-    /// 0 means non-existent, otherwise the length is returned.
-    fn return_size(&self) -> u64;
-
-    /// Discards the top element in the return stack.
-    fn return_discard(&mut self);
-
-    /// Pops the top element off the return stack, and copies it into the
-    /// specified buffer. This buffer must be appropriately sized according to
-    /// return_size. This method returns the amount of bytes copied.
-    fn return_pop(&mut self, into: &mut [u8]) -> u64;
-}
-
 /// Operations to send messages to other actors.
 pub trait SendOps {
     fn send(&mut self, message: Message) -> Result<Receipt>;
@@ -202,7 +184,7 @@ pub trait CircSupplyOps {
 pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<()>;
+    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
 }
 
 /// Cryptographic primitives provided by the kernel.
@@ -213,7 +195,7 @@ pub trait CryptoOps {
         signature: &Signature,
         signer: &Address,
         plaintext: &[u8],
-    ) -> Result<()>;
+    ) -> Result<bool>;
 
     /// Hashes input data using blake2b with 256 bit output.
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]>;
@@ -226,10 +208,10 @@ pub trait CryptoOps {
     ) -> Result<Cid>;
 
     /// Verifies a sector seal proof.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<()>;
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool>;
 
     /// Verifies a window proof of spacetime.
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<()>;
+    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
 
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor
@@ -256,7 +238,7 @@ pub trait CryptoOps {
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<()>;
+    ) -> Result<bool>;
 }
 
 /// Randomness queries.

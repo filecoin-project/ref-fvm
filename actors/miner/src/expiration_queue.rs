@@ -1,16 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryInto;
+use std::{collections::HashMap, collections::HashSet};
+
+use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
-use std::convert::TryInto;
-use std::{collections::HashMap, collections::HashSet, error::Error as StdError};
 
 use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::{SectorNumber, SectorSize};
@@ -60,7 +61,7 @@ impl ExpirationSet {
         on_time_pledge: &TokenAmount,
         active_power: &PowerPair,
         faulty_power: &PowerPair,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         self.on_time_sectors |= on_time_sectors;
         self.early_sectors |= early_sectors;
         self.on_time_pledge += on_time_pledge;
@@ -79,21 +80,21 @@ impl ExpirationSet {
         on_time_pledge: &TokenAmount,
         active_power: &PowerPair,
         faulty_power: &PowerPair,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // Check for sector intersection. This could be cheaper with a combined intersection/difference method used below.
         if !self.on_time_sectors.contains_all(on_time_sectors) {
-            return Err(format!(
+            return Err(anyhow!(
                 "removing on-time sectors {:?} not contained in {:?}",
-                on_time_sectors, self.on_time_sectors
-            )
-            .into());
+                on_time_sectors,
+                self.on_time_sectors
+            ));
         }
         if !self.early_sectors.contains_all(early_sectors) {
-            return Err(format!(
+            return Err(anyhow!(
                 "removing early sectors {:?} not contained in {:?}",
-                early_sectors, self.early_sectors
-            )
-            .into());
+                early_sectors,
+                self.early_sectors
+            ));
         }
 
         self.on_time_sectors -= on_time_sectors;
@@ -104,10 +105,10 @@ impl ExpirationSet {
 
         // Check underflow.
         if self.on_time_pledge.is_negative() {
-            return Err(format!("expiration set pledge underflow: {:?}", self).into());
+            return Err(anyhow!("expiration set pledge underflow: {:?}", self));
         }
         if self.active_power.qa.is_negative() || self.faulty_power.qa.is_negative() {
-            return Err(format!("expiration set power underflow: {:?}", self).into());
+            return Err(anyhow!("expiration set power underflow: {:?}", self));
         }
         self.validate_state()?;
         Ok(())
@@ -125,25 +126,25 @@ impl ExpirationSet {
     }
 
     /// validates a set of assertions that must hold for expiration sets
-    pub fn validate_state(&self) -> Result<(), &'static str> {
+    pub fn validate_state(&self) -> anyhow::Result<()> {
         if self.on_time_pledge.is_negative() {
-            return Err("ExpirationSet left with negative pledge");
+            return Err(anyhow!("ExpirationSet left with negative pledge"));
         }
 
         if self.active_power.raw.is_negative() {
-            return Err("ExpirationSet left with negative raw active power");
+            return Err(anyhow!("ExpirationSet left with negative raw active power"));
         }
 
         if self.active_power.qa.is_negative() {
-            return Err("ExpirationSet left with negative qa active power");
+            return Err(anyhow!("ExpirationSet left with negative qa active power"));
         }
 
         if self.faulty_power.raw.is_negative() {
-            return Err("ExpirationSet left with negative raw faulty power");
+            return Err(anyhow!("ExpirationSet left with negative raw faulty power"));
         }
 
         if self.faulty_power.qa.is_negative() {
-            return Err("ExpirationSet left with negative qa faulty power");
+            return Err(anyhow!("ExpirationSet left with negative qa faulty power"));
         }
 
         Ok(())
@@ -177,7 +178,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &mut self,
         sectors: impl IntoIterator<Item = &'a SectorOnChainInfo>,
         sector_size: SectorSize,
-    ) -> Result<(BitField, PowerPair, TokenAmount), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, PowerPair, TokenAmount)> {
         let mut total_power = PowerPair::zero();
         let mut total_pledge = TokenAmount::zero();
         let mut total_sectors = Vec::<BitField>::new();
@@ -213,7 +214,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         new_expiration: ChainEpoch,
         sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if sectors.is_empty() {
             return Ok(());
         }
@@ -244,7 +245,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         new_expiration: ChainEpoch,
         sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut sectors_total = Vec::new();
         let mut expiring_power = PowerPair::zero();
         let mut rescheduled_power = PowerPair::zero();
@@ -299,10 +300,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
     }
 
     /// Re-schedules *all* sectors to expire at an early expiration epoch, if they wouldn't expire before then anyway.
-    pub fn reschedule_all_as_faults(
-        &mut self,
-        fault_expiration: ChainEpoch,
-    ) -> Result<(), Box<dyn StdError>> {
+    pub fn reschedule_all_as_faults(&mut self, fault_expiration: ChainEpoch) -> anyhow::Result<()> {
         let mut rescheduled_epochs = Vec::<usize>::new();
         let mut rescheduled_sectors = BitField::new();
         let mut rescheduled_power = PowerPair::zero();
@@ -324,9 +322,9 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
                 rescheduled_epochs.push(epoch as usize);
                 // sanity check to make sure we're not trying to re-schedule already faulty sectors.
                 if !expiration_set.early_sectors.is_empty() {
-                    return Err(
-                        "attempted to re-schedule early expirations to an earlier epoch".into(),
-                    );
+                    return Err(anyhow!(
+                        "attempted to re-schedule early expirations to an earlier epoch"
+                    ));
                 }
                 rescheduled_sectors |= &expiration_set.on_time_sectors;
                 rescheduled_power += &expiration_set.active_power;
@@ -372,7 +370,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &mut self,
         sectors: Vec<SectorOnChainInfo>,
         sector_size: SectorSize,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut remaining: HashSet<SectorNumber> =
             sectors.iter().map(|sector| sector.sector_number).collect();
 
@@ -385,13 +383,15 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         self.iter_while_mut(|_epoch, expiration_set| {
             let on_time_sectors: HashSet<SectorNumber> = expiration_set
                 .on_time_sectors
-                .bounded_iter(ENTRY_SECTORS_MAX)?
+                .bounded_iter(ENTRY_SECTORS_MAX)
+                .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
             let early_sectors: HashSet<SectorNumber> = expiration_set
                 .early_sectors
-                .bounded_iter(ENTRY_SECTORS_MAX)?
+                .bounded_iter(ENTRY_SECTORS_MAX)
+                .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
@@ -432,7 +432,10 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(format!("sectors not found in expiration queue: {:?}", remaining).into());
+            return Err(anyhow!(
+                "sectors not found in expiration queue: {:?}",
+                remaining
+            ));
         }
 
         // Re-schedule the removed sectors to their target expiration.
@@ -450,7 +453,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         old_sectors: &[SectorOnChainInfo],
         new_sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
-    ) -> Result<(BitField, BitField, PowerPair, TokenAmount), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, BitField, PowerPair, TokenAmount)> {
         let (old_sector_numbers, old_power, old_pledge) = self
             .remove_active_sectors(old_sectors, sector_size)
             .map_err(|e| e.downcast_wrap("failed to remove replaced sectors"))?;
@@ -477,19 +480,19 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         faults: &BitField,
         recovering: &BitField,
         sector_size: SectorSize,
-    ) -> Result<(ExpirationSet, PowerPair), Box<dyn StdError>> {
+    ) -> anyhow::Result<(ExpirationSet, PowerPair)> {
         let mut remaining: HashSet<_> = sectors.iter().map(|sector| sector.sector_number).collect();
 
         // ADDRESSED_SECTORS_MAX is defined as 25000, so this will not error.
         let faults_map: HashSet<_> = faults
             .bounded_iter(ADDRESSED_SECTORS_MAX.try_into().unwrap())
-            .map_err(|e| format!("failed to expand faults: {}", e))?
+            .map_err(|e| anyhow!("failed to expand faults: {}", e))?
             .map(|i| i as SectorNumber)
             .collect();
 
         let recovering_map: HashSet<_> = recovering
             .bounded_iter(ADDRESSED_SECTORS_MAX.try_into().unwrap())
-            .map_err(|e| format!("failed to expand recoveries: {}", e))?
+            .map_err(|e| anyhow!("failed to expand recoveries: {}", e))?
             .map(|i| i as SectorNumber)
             .collect();
 
@@ -530,13 +533,15 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         self.iter_while_mut(|_epoch, expiration_set| {
             let on_time_sectors: HashSet<SectorNumber> = expiration_set
                 .on_time_sectors
-                .bounded_iter(ENTRY_SECTORS_MAX)?
+                .bounded_iter(ENTRY_SECTORS_MAX)
+                .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
             let early_sectors: HashSet<SectorNumber> = expiration_set
                 .early_sectors
-                .bounded_iter(ENTRY_SECTORS_MAX)?
+                .bounded_iter(ENTRY_SECTORS_MAX)
+                .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
@@ -585,14 +590,17 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         })?;
 
         if !remaining.is_empty() {
-            return Err(format!("sectors not found in expiration queue: {:?}", remaining).into());
+            return Err(anyhow!(
+                "sectors not found in expiration queue: {:?}",
+                remaining
+            ));
         }
 
         Ok((removed, recovering_power))
     }
 
     /// Removes and aggregates entries from the queue up to and including some epoch.
-    pub fn pop_until(&mut self, until: ChainEpoch) -> Result<ExpirationSet, Box<dyn StdError>> {
+    pub fn pop_until(&mut self, until: ChainEpoch) -> anyhow::Result<ExpirationSet> {
         let mut on_time_sectors = BitField::new();
         let mut early_sectors = BitField::new();
         let mut active_power = PowerPair::zero();
@@ -634,7 +642,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         active_power: &PowerPair,
         faulty_power: &PowerPair,
         pledge: &TokenAmount,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let epoch = self.quant.quantize_up(raw_epoch);
         let mut expiration_set = self.may_get(epoch)?;
 
@@ -646,7 +654,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
                 active_power,
                 faulty_power,
             )
-            .map_err(|e| format!("failed to add expiration values for epoch {}: {}", epoch, e))?;
+            .map_err(|e| anyhow!("failed to add expiration values for epoch {}: {}", epoch, e))?;
 
         self.must_update(epoch, expiration_set)?;
         Ok(())
@@ -660,13 +668,13 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         active_power: &PowerPair,
         faulty_power: &PowerPair,
         pledge: &TokenAmount,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let epoch = self.quant.quantize_up(raw_epoch);
         let mut expiration_set = self
             .amt
             .get(epoch as usize)
             .map_err(|e| e.downcast_wrap(format!("failed to lookup queue epoch {}", epoch)))?
-            .ok_or_else(|| format!("missing expected expiration set at epoch {}", epoch))?
+            .ok_or_else(|| anyhow!("missing expected expiration set at epoch {}", epoch))?
             .clone();
         expiration_set
             .remove(
@@ -677,9 +685,10 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
                 faulty_power,
             )
             .map_err(|e| {
-                format!(
+                anyhow!(
                     "failed to remove expiration values for queue epoch {}: {}",
-                    epoch, e
+                    epoch,
+                    e
                 )
             })?;
 
@@ -691,7 +700,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &mut self,
         sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
-    ) -> Result<(BitField, PowerPair, TokenAmount), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, PowerPair, TokenAmount)> {
         let mut removed_sector_numbers = BitField::new();
         let mut removed_power = PowerPair::zero();
         let mut removed_pledge = TokenAmount::zero();
@@ -733,8 +742,8 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         mut f: impl FnMut(
             ChainEpoch,
             &mut ValueMut<'_, ExpirationSet>,
-        ) -> Result</* keep going */ bool, Box<dyn StdError>>,
-    ) -> Result<(), Box<dyn StdError>> {
+        ) -> anyhow::Result</* keep going */ bool>,
+    ) -> anyhow::Result<()> {
         let mut epochs_emptied = Vec::<ChainEpoch>::new();
 
         self.amt.for_each_while_mut(|e, expiration_set| {
@@ -756,7 +765,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         Ok(())
     }
 
-    fn may_get(&self, key: ChainEpoch) -> Result<ExpirationSet, Box<dyn StdError>> {
+    fn may_get(&self, key: ChainEpoch) -> anyhow::Result<ExpirationSet> {
         Ok(self
             .amt
             .get(key as usize)
@@ -769,7 +778,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &mut self,
         epoch: ChainEpoch,
         expiration_set: ExpirationSet,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         self.amt
             .set(epoch as usize, expiration_set)
             .map_err(|e| e.downcast_wrap(format!("failed to set queue epoch {}", epoch)))
@@ -780,7 +789,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &mut self,
         epoch: ChainEpoch,
         expiration_set: ExpirationSet,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         if expiration_set.is_empty() {
             self.amt
                 .delete(epoch as usize)
@@ -803,7 +812,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         &self,
         sector_size: SectorSize,
         sectors: &[SectorOnChainInfo],
-    ) -> Result<Vec<SectorExpirationSet>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorExpirationSet>> {
         let mut declared_expirations = HashMap::<ChainEpoch, bool>::with_capacity(sectors.len());
         let mut sectors_by_number =
             HashMap::<u64, &SectorOnChainInfo>::with_capacity(sectors.len());
@@ -867,7 +876,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         }
 
         if !all_remaining.is_empty() {
-            return Err("some sectors not found in expiration queue".into());
+            return Err(anyhow!("some sectors not found in expiration queue"));
         }
 
         expiration_groups.sort_unstable_by_key(|g| g.sector_epoch_set.epoch);
@@ -970,10 +979,10 @@ fn group_expiration_set(
 }
 
 /// Checks for invalid overlap between bitfield and a set's early sectors.
-fn check_no_early_sectors(set: &HashSet<u64>, es: &ExpirationSet) -> Result<(), String> {
+fn check_no_early_sectors(set: &HashSet<u64>, es: &ExpirationSet) -> anyhow::Result<()> {
     for u in es.early_sectors.iter() {
         if set.contains(&(u as u64)) {
-            return Err(format!(
+            return Err(anyhow!(
                 "Invalid attempt to group sector {} with an early expiration",
                 u
             ));

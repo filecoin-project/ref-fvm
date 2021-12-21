@@ -1,25 +1,25 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{
-    error::Error as StdError,
-    ops::{self, Neg},
-};
+use std::ops::{self, Neg};
 
+use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
 
 use actors_runtime::{ActorDowncast, Array};
-use fvm_shared::actor_error;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deadlines::{QuantSpec, NO_QUANTIZATION};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorSize, StoragePower};
+use fvm_shared::{
+    actor_error,
+    clock::{QuantSpec, NO_QUANTIZATION},
+};
 
 use super::{
     power_for_sectors, select_sectors, validate_partition_contains_sectors, BitFieldQueue,
@@ -68,7 +68,7 @@ pub struct Partition {
 }
 
 impl Partition {
-    pub fn new<BS: Blockstore>(store: &BS) -> Result<Self, Box<dyn StdError>> {
+    pub fn new<BS: Blockstore>(store: &BS) -> anyhow::Result<Self> {
         let empty_expiration_array =
             Array::<Cid, BS>::new_with_bit_width(store, PARTITION_EXPIRATION_AMT_BITWIDTH)
                 .flush()?;
@@ -119,7 +119,7 @@ impl Partition {
         sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         let mut expirations = ExpirationQueue::new(store, &self.expirations_epochs, quant)
             .map_err(|e| e.downcast_wrap("failed to load sector expirations"))?;
 
@@ -133,7 +133,7 @@ impl Partition {
             .map_err(|e| e.downcast_wrap("failed to store sector expirations"))?;
 
         if self.sectors.contains_any(&sector_numbers) {
-            return Err("not all added sectors are new".into());
+            return Err(anyhow!("not all added sectors are new"));
         }
 
         // Update other metadata using the calculated totals.
@@ -162,7 +162,7 @@ impl Partition {
         fault_expiration: ChainEpoch,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<(PowerPair, PowerPair), Box<dyn StdError>> {
+    ) -> anyhow::Result<(PowerPair, PowerPair)> {
         // Load expiration queue
         let mut queue = ExpirationQueue::new(store, &self.expirations_epochs, quant)
             .map_err(|e| e.downcast_wrap("failed to load partition queue"))?;
@@ -219,13 +219,13 @@ impl Partition {
         fault_expiration_epoch: ChainEpoch,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<(BitField, PowerPair, PowerPair), Box<dyn StdError>> {
+    ) -> anyhow::Result<(BitField, PowerPair, PowerPair)> {
         validate_partition_contains_sectors(self, sector_numbers)
             .map_err(|e| actor_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
 
         let sector_numbers = sector_numbers
             .validate()
-            .map_err(|e| format!("failed to intersect sectors with recoveries: {}", e))?;
+            .map_err(|e| anyhow!("failed to intersect sectors with recoveries: {}", e))?;
 
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         let retracted_recoveries = &self.recoveries & sector_numbers;
@@ -270,7 +270,7 @@ impl Partition {
         sectors: &Sectors<'_, BS>,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<PowerPair, Box<dyn StdError>> {
+    ) -> anyhow::Result<PowerPair> {
         // Process recoveries, assuming the proof will be successful.
         // This similarly updates state.
         let recovered_sectors = sectors
@@ -279,7 +279,7 @@ impl Partition {
 
         // Load expiration queue
         let mut queue = ExpirationQueue::new(store, &self.expirations_epochs, quant)
-            .map_err(|e| format!("failed to load partition queue: {:?}", e))?;
+            .map_err(|e| anyhow!("failed to load partition queue: {:?}", e))?;
 
         // Reschedule recovered
         let power = queue
@@ -316,14 +316,14 @@ impl Partition {
         sectors: &Sectors<'_, BS>,
         sector_size: SectorSize,
         sector_numbers: &mut UnvalidatedBitField,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         // Check that the declared sectors are actually assigned to the partition.
         validate_partition_contains_sectors(self, sector_numbers)
             .map_err(|e| actor_error!(ErrIllegalArgument; "failed fault declaration: {}", e))?;
 
         let sector_numbers = sector_numbers
             .validate()
-            .map_err(|e| format!("failed to validate recoveries: {}", e))?;
+            .map_err(|e| anyhow!("failed to validate recoveries: {}", e))?;
 
         // Ignore sectors not faulty or already declared recovered
         let mut recoveries = sector_numbers & &self.faults;
@@ -378,8 +378,14 @@ impl Partition {
         sector_numbers: &mut UnvalidatedBitField,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
-        let sector_numbers = sector_numbers.validate()?;
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
+        let sector_numbers = sector_numbers.validate().map_err(|e| {
+            actor_error!(
+                ErrIllegalArgument,
+                "failed to validate rescheduled sectors: {}",
+                e
+            )
+        })?;
 
         // Ensure these sectors actually belong to this partition.
         let present = &*sector_numbers & &self.sectors;
@@ -414,7 +420,7 @@ impl Partition {
         new_sectors: &[SectorOnChainInfo],
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<(PowerPair, TokenAmount), Box<dyn StdError>> {
+    ) -> anyhow::Result<(PowerPair, TokenAmount)> {
         let mut expirations = ExpirationQueue::new(store, &self.expirations_epochs, quant)
             .map_err(|e| e.downcast_wrap("failed to load sector expirations"))?;
 
@@ -432,11 +438,11 @@ impl Partition {
         let all_active = active.contains_all(&old_sector_numbers);
 
         if !all_active {
-            return Err(format!(
+            return Err(anyhow!(
                 "refusing to replace inactive sectors in {:?} (active: {:?})",
-                old_sector_numbers, active
-            )
-            .into());
+                old_sector_numbers,
+                active
+            ));
         }
 
         // Update partition metadata.
@@ -458,7 +464,7 @@ impl Partition {
         store: &BS,
         epoch: ChainEpoch,
         sectors: &BitField,
-    ) -> Result<(), Box<dyn StdError>> {
+    ) -> anyhow::Result<()> {
         let mut early_termination_queue =
             BitFieldQueue::new(store, &self.early_terminated, NO_QUANTIZATION)
                 .map_err(|e| e.downcast_wrap("failed to load early termination queue"))?;
@@ -486,7 +492,7 @@ impl Partition {
         sector_numbers: &mut UnvalidatedBitField,
         sector_size: SectorSize,
         quant: QuantSpec,
-    ) -> Result<ExpirationSet, Box<dyn StdError>> {
+    ) -> anyhow::Result<ExpirationSet> {
         let live_sectors = self.live_sectors();
         let sector_numbers = sector_numbers.validate().map_err(|e| {
             actor_error!(
@@ -549,11 +555,13 @@ impl Partition {
         store: &BS,
         until: ChainEpoch,
         quant: QuantSpec,
-    ) -> Result<ExpirationSet, Box<dyn StdError>> {
+    ) -> anyhow::Result<ExpirationSet> {
         // This is a sanity check to make sure we handle proofs _before_
         // handling sector expirations.
         if !self.unproven.is_empty() {
-            return Err("Cannot pop expired sectors from a partition with unproven sectors".into());
+            return Err(anyhow!(
+                "Cannot pop expired sectors from a partition with unproven sectors"
+            ));
         }
 
         let mut expirations = ExpirationQueue::new(store, &self.expirations_epochs, quant)
@@ -570,15 +578,19 @@ impl Partition {
         // and all recoveries retracted.
         // No recoveries may be posted until the deadline is closed.
         if !self.recoveries.is_empty() {
-            return Err("unexpected recoveries while processing expirations".into());
+            return Err(anyhow!(
+                "unexpected recoveries while processing expirations"
+            ));
         }
         if !self.recovering_power.is_zero() {
-            return Err("unexpected recovering power while processing expirations".into());
+            return Err(anyhow!(
+                "unexpected recovering power while processing expirations"
+            ));
         }
 
         // Nothing expiring now should have already terminated.
         if self.terminated.contains_any(&expired_sectors) {
-            return Err("expiring sectors already terminated".into());
+            return Err(anyhow!("expiring sectors already terminated"));
         }
 
         // Mark the sectors as terminated and subtract sector power.
@@ -605,7 +617,7 @@ impl Partition {
         store: &BS,
         fault_expiration: ChainEpoch,
         quant: QuantSpec,
-    ) -> Result<(PowerPair, PowerPair, PowerPair), Box<dyn StdError>> {
+    ) -> anyhow::Result<(PowerPair, PowerPair, PowerPair)> {
         // Collapse tail of queue into the last entry, and mark all power faulty.
         // Load expiration queue
         let mut queue = ExpirationQueue::new(store, &self.expirations_epochs, quant)
@@ -646,7 +658,7 @@ impl Partition {
         &mut self,
         store: &BS,
         max_sectors: u64,
-    ) -> Result<(TerminationResult, /* has more */ bool), Box<dyn StdError>> {
+    ) -> anyhow::Result<(TerminationResult, /* has more */ bool)> {
         // Load early terminations.
         let mut early_terminated_queue =
             BitFieldQueue::new(store, &self.early_terminated, NO_QUANTIZATION)?;
@@ -666,7 +678,7 @@ impl Partition {
                 let to_process = if limit < count {
                     let to_process = sectors
                         .slice(0, limit as usize)
-                        .map_err(|e| format!("failed to slice early terminations: {}", e))?;
+                        .map_err(|e| anyhow!("failed to slice early terminations: {}", e))?;
                     let rest = sectors - &to_process;
                     remaining = Some((rest, epoch));
                     result.sectors_processed += limit;
@@ -728,7 +740,7 @@ impl Partition {
         quant: QuantSpec,
         fault_expiration: ChainEpoch,
         skipped: &mut UnvalidatedBitField,
-    ) -> Result<(PowerPair, PowerPair, PowerPair, bool), Box<dyn StdError>> {
+    ) -> anyhow::Result<(PowerPair, PowerPair, PowerPair, bool)> {
         let skipped = skipped.validate().map_err(|e| {
             actor_error!(
                 ErrIllegalArgument,
@@ -797,59 +809,61 @@ impl Partition {
     }
 
     /// Test invariants about the partition power are valid.
-    pub fn validate_power_state(&self) -> Result<(), &'static str> {
+    pub fn validate_power_state(&self) -> anyhow::Result<()> {
         if self.live_power.raw.is_negative() || self.live_power.qa.is_negative() {
-            return Err("Partition left with negative live power");
+            return Err(anyhow!("Partition left with negative live power"));
         }
         if self.unproven_power.raw.is_negative() || self.unproven_power.qa.is_negative() {
-            return Err("Partition left with negative unproven power");
+            return Err(anyhow!("Partition left with negative unproven power"));
         }
         if self.faulty_power.raw.is_negative() || self.faulty_power.qa.is_negative() {
-            return Err("Partition left with negative faulty power");
+            return Err(anyhow!("Partition left with negative faulty power"));
         }
         if self.recovering_power.raw.is_negative() || self.recovering_power.qa.is_negative() {
-            return Err("Partition left with negative recovering power");
+            return Err(anyhow!("Partition left with negative recovering power"));
         }
         if self.unproven_power.raw > self.live_power.raw {
-            return Err("Partition left with invalid unproven power");
+            return Err(anyhow!("Partition left with invalid unproven power"));
         }
         if self.faulty_power.raw > self.live_power.raw {
-            return Err("Partition left with invalid faulty power");
+            return Err(anyhow!("Partition left with invalid faulty power"));
         }
         // The first half of this conditional shouldn't matter, keeping for readability
         if self.recovering_power.raw > self.live_power.raw
             || self.recovering_power.raw > self.faulty_power.raw
         {
-            return Err("Partition left with invalid recovering power");
+            return Err(anyhow!("Partition left with invalid recovering power"));
         }
 
         Ok(())
     }
 
-    pub fn validate_bf_state(&self) -> Result<(), &'static str> {
+    pub fn validate_bf_state(&self) -> anyhow::Result<()> {
         let mut merge = &self.unproven | &self.faults;
 
         // Unproven or faulty sectors should not be in terminated
         if self.terminated.contains_any(&merge) {
-            return Err("Partition left with terminated sectors in multiple states");
+            return Err(anyhow!(
+                "Partition left with terminated sectors in multiple states"
+            ));
         }
 
         merge |= &self.terminated;
 
         // All merged sectors should exist in partition sectors
         if !self.sectors.contains_all(&merge) {
-            return Err("Partition left with invalid sector state");
+            return Err(anyhow!("Partition left with invalid sector state"));
         }
 
         // All recoveries should exist in partition faults
         if !self.faults.contains_all(&self.recoveries) {
-            return Err("Partition left with invalid recovery state");
+            return Err(anyhow!("Partition left with invalid recovery state"));
         }
 
         Ok(())
     }
 
-    pub fn validate_state(&self) -> Result<(), String> {
+    pub fn validate_state(&self) -> anyhow::Result<()> {
         self.validate_power_state()?;
         self.validate_bf_state()?;
         Ok(())

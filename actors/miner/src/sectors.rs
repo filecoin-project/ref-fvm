@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashSet;
-use std::error::Error as StdError;
 
 use actors_runtime::{ActorDowncast, Array};
 use ahash::AHashSet;
+use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::Cid;
@@ -60,10 +60,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         Ok(sector_infos)
     }
 
-    pub fn get(
-        &self,
-        sector_number: SectorNumber,
-    ) -> Result<Option<SectorOnChainInfo>, Box<dyn StdError>> {
+    pub fn get(&self, sector_number: SectorNumber) -> anyhow::Result<Option<SectorOnChainInfo>> {
         Ok(self
             .amt
             .get(sector_number as usize)
@@ -71,12 +68,12 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
             .cloned())
     }
 
-    pub fn store(&mut self, infos: Vec<SectorOnChainInfo>) -> Result<(), Box<dyn StdError>> {
+    pub fn store(&mut self, infos: Vec<SectorOnChainInfo>) -> anyhow::Result<()> {
         for info in infos {
             let sector_number = info.sector_number;
 
             if sector_number > MAX_SECTOR_NUMBER {
-                return Err(format!("sector number {} out of range", info.sector_number).into());
+                return Err(anyhow!("sector number {} out of range", info.sector_number));
             }
 
             self.amt.set(sector_number as usize, info).map_err(|e| {
@@ -87,12 +84,9 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         Ok(())
     }
 
-    pub fn must_get(
-        &self,
-        sector_number: SectorNumber,
-    ) -> Result<SectorOnChainInfo, Box<dyn StdError>> {
+    pub fn must_get(&self, sector_number: SectorNumber) -> anyhow::Result<SectorOnChainInfo> {
         self.get(sector_number)?
-            .ok_or_else(|| format!("sector {} not found", sector_number).into())
+            .ok_or_else(|| anyhow!("sector {} not found", sector_number))
     }
 
     /// Loads info for a set of sectors to be proven.
@@ -102,7 +96,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         &self,
         proven_sectors: &BitField,
         expected_faults: &BitField,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
         let non_faults = proven_sectors - expected_faults;
 
         if non_faults.is_empty() {
@@ -125,7 +119,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         sectors: &BitField,
         faults: &BitField,
         fault_stand_in: SectorNumber,
-    ) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+    ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
         let stand_in_info = self.must_get(fault_stand_in)?;
 
         // Expand faults into a map for quick lookups.
@@ -152,7 +146,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
 pub(crate) fn select_sectors(
     sectors: &[SectorOnChainInfo],
     field: &BitField,
-) -> Result<Vec<SectorOnChainInfo>, Box<dyn StdError>> {
+) -> anyhow::Result<Vec<SectorOnChainInfo>> {
     let mut to_include: AHashSet<_> = field.iter().collect();
 
     let mut included = Vec::with_capacity(to_include.len());
@@ -166,7 +160,10 @@ pub(crate) fn select_sectors(
     }
 
     if !to_include.is_empty() {
-        return Err(format!("failed to find {} expected sectors", to_include.len()).into());
+        return Err(anyhow!(
+            "failed to find {} expected sectors",
+            to_include.len()
+        ));
     }
 
     Ok(included)

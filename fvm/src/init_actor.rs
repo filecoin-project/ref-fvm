@@ -7,21 +7,24 @@
 //!
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
-use anyhow::anyhow;
+use anyhow::Context;
 use blockstore::Blockstore;
 use cid::Cid;
 
-use fvm_shared::address::{Address, Payload, FIRST_NON_SINGLETON_ADDR};
+use fvm_shared::address::{Address, Payload};
 use fvm_shared::encoding::Cbor;
 use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
+use ipld_hamt::Hamt;
 
-use crate::adt::{make_empty_map, make_map_with_root_and_bitwidth};
 use crate::state_tree::{ActorState, StateTree};
 
 pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
 
-use crate::kernel::Result;
+use crate::kernel::{ClassifyResult, Result};
+
+// TODO: should this module really ExecutionError? Or should it just return anyhow errors.
+// Everything is "fatal".
 
 // TODO need to untangle all this init actor mess
 //  In theory, we should go through the actor version multiplexer to decide which
@@ -37,18 +40,6 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    pub fn new<B>(store: B, network_name: String) -> Result<Self>
-    where
-        B: Blockstore,
-    {
-        let empty_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH).flush()?;
-        Ok(Self {
-            address_map: empty_map,
-            next_id: FIRST_NON_SINGLETON_ADDR,
-            network_name,
-        })
-    }
-
     /// Loads the init actor state with the supplied CID from the underlying store.
     pub fn load<B>(state_tree: &StateTree<B>) -> Result<(Self, ActorState)>
     where
@@ -56,12 +47,15 @@ impl State {
     {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)?
-            .ok_or_else(|| anyhow!("Init actor address could not be resolved"))?;
+            .context("Init actor address could not be resolved")
+            .or_fatal()?;
 
         let state = state_tree
             .store()
-            .get_cbor(&init_act.state)?
-            .ok_or(anyhow!("init actor state not found"))?;
+            .get_cbor(&init_act.state)
+            .or_fatal()?
+            .context("init actor state not found")
+            .or_fatal()?;
         Ok((state, init_act))
     }
 
@@ -74,9 +68,10 @@ impl State {
         let id = self.next_id;
         self.next_id += 1;
 
-        let mut map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
-        map.set(addr.to_bytes().into(), id)?;
-        self.address_map = map.flush()?;
+        let mut map = Hamt::<B, _>::load_with_bit_width(&self.address_map, store, HAMT_BIT_WIDTH)
+            .or_fatal()?;
+        map.set(addr.to_bytes().into(), id).or_fatal()?;
+        self.address_map = map.flush().or_fatal()?;
 
         Ok(id)
     }
@@ -101,8 +96,9 @@ impl State {
             return Ok(Some(id));
         }
 
-        let map = make_map_with_root_and_bitwidth(&self.address_map, store, HAMT_BIT_WIDTH)?;
+        let map = Hamt::<B, _>::load_with_bit_width(&self.address_map, store, HAMT_BIT_WIDTH)
+            .or_fatal()?;
 
-        Ok(map.get(&addr.to_bytes())?.copied())
+        Ok(map.get(&addr.to_bytes()).or_fatal()?.copied())
     }
 }

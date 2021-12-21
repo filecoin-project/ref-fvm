@@ -1,6 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+mod quantize;
+pub use quantize::*;
+
 const _ISO_FORMAT: &str = "%FT%X.%.9F";
 
 /// Duration of each tipset epoch.

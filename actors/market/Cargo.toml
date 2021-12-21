@@ -18,6 +18,7 @@ ahash = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
 log = "0.4.8"
+anyhow = "1.0.51"
 
 [dev-dependencies]
 actors-runtime = { path = "../runtime", features = ["test_utils"] }

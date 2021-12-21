@@ -4,7 +4,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context as _};
 use blockstore::Blockstore;
 use cid::{multihash, Cid};
 
@@ -15,14 +15,16 @@ use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::ActorID;
 
-use crate::adt::Map;
+use ipld_hamt::Hamt;
+
 use crate::init_actor::State as InitActorState;
-use crate::kernel::Result;
+use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
+use crate::syscall_error;
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
 pub struct StateTree<S> {
-    hamt: Map<S, ActorState>,
+    hamt: Hamt<S, ActorState>,
 
     version: StateTreeVersion,
     info: Option<Cid>,
@@ -56,12 +58,15 @@ impl StateSnapshots {
     }
 
     fn drop_layer(&mut self) -> Result<()> {
-        self.layers.pop().with_context(|| {
-            format!(
-                "drop layer failed to index snapshot layer at index {}",
-                &self.layers.len() - 1
-            )
-        })?;
+        self.layers
+            .pop()
+            .with_context(|| {
+                format!(
+                    "drop layer failed to index snapshot layer at index {}",
+                    &self.layers.len() - 1
+                )
+            })
+            .or_fatal()?;
 
         Ok(())
     }
@@ -74,7 +79,8 @@ impl StateSnapshots {
                     "merging layers failed to index snapshot layer at index: {}",
                     &self.layers.len() - 2
                 )
-            })?
+            })
+            .or_fatal()?
             .actors
             .borrow_mut()
             .extend(
@@ -91,7 +97,8 @@ impl StateSnapshots {
                     "merging layers failed to index snapshot layer at index: {}",
                     &self.layers.len() - 2
                 )
-            })?
+            })
+            .or_fatal()?
             .resolve_cache
             .borrow_mut()
             .extend(
@@ -125,7 +132,8 @@ impl StateSnapshots {
                     "caching address failed to index snapshot layer at index: {}",
                     &self.layers.len() - 1
                 )
-            })?
+            })
+            .or_fatal()?
             .resolve_cache
             .borrow_mut()
             .insert(addr, id);
@@ -151,7 +159,8 @@ impl StateSnapshots {
                     "set actor failed to index snapshot layer at index: {}",
                     &self.layers.len() - 1
                 )
-            })?
+            })
+            .or_fatal()?
             .actors
             .borrow_mut()
             .insert(id, Some(actor));
@@ -166,7 +175,8 @@ impl StateSnapshots {
                     "delete actor failed to index snapshot layer at index: {}",
                     &self.layers.len() - 1
                 )
-            })?
+            })
+            .or_fatal()?
             .actors
             .borrow_mut()
             .insert(id, None);
@@ -186,14 +196,17 @@ where
             | StateTreeVersion::V2
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
-                let cid = store.put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)?;
+                let cid = store
+                    .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
+                    .context("failed to put state info")
+                    .or_fatal()?;
                 Some(cid)
             }
         };
 
         // TODO: restore multiple version support? Or drop it entirely?
         //let hamt = Map::new(store, ActorVersion::from(version));
-        let hamt = Map::new(store);
+        let hamt = Hamt::new(store);
         Ok(Self {
             hamt,
             version,
@@ -224,7 +237,9 @@ where
             | StateTreeVersion::V3
             | StateTreeVersion::V4 => {
                 // TODO: use the version.
-                let hamt = Map::load(&actors, store)?;
+                let hamt = Hamt::load(&actors, store)
+                    .context("failed to load state tree")
+                    .or_fatal()?;
 
                 Ok(Self {
                     hamt,
@@ -258,7 +273,12 @@ where
         }
 
         // if state doesn't exist, find using hamt
-        let act = self.hamt.get(&Address::new_id(id).to_bytes())?.cloned();
+        let act = self
+            .hamt
+            .get(&Address::new_id(id).to_bytes())
+            .with_context(|| format!("failed to lookup actor {}", id))
+            .or_fatal()?
+            .cloned();
 
         // Update cache if state was found
         if let Some(act_s) = &act {
@@ -272,7 +292,8 @@ where
     pub fn set_actor(&mut self, addr: &Address, actor: ActorState) -> Result<()> {
         let id = self
             .lookup_id(addr)?
-            .with_context(|| format!("Resolution lookup failed for {}", addr))?;
+            .with_context(|| format!("Resolution lookup failed for {}", addr))
+            .or_fatal()?;
 
         self.set_actor_id(id, actor)
     }
@@ -292,11 +313,12 @@ where
             return Ok(Some(res_address));
         }
 
-        let (state, _) = InitActorState::load(&self)?;
+        let (state, _) = InitActorState::load(self)?;
 
         let a = match state
             .resolve_address(self.store(), addr)
-            .map_err(|e| anyhow!("Could not resolve address: {:?}", e))?
+            .context("Could not resolve address")
+            .or_fatal()?
         {
             Some(a) => a,
             None => return Ok(None),
@@ -311,7 +333,8 @@ where
     pub fn delete_actor(&mut self, addr: &Address) -> Result<()> {
         let id = self
             .lookup_id(addr)?
-            .with_context(|| format!("Resolution lookup failed for {}", addr))?;
+            .with_context(|| format!("Resolution lookup failed for {}", addr))
+            .or_fatal()?;
 
         self.delete_actor_id(id)
     }
@@ -332,7 +355,8 @@ where
         // Retrieve actor state from address
         let mut act: ActorState = self
             .get_actor(addr)?
-            .with_context(|| format!("Actor for address: {} does not exist", addr))?;
+            .with_context(|| format!("Actor for address: {} does not exist", addr))
+            .or_fatal()?;
 
         // Apply function of actor state
         mutate(&mut act)?;
@@ -342,12 +366,15 @@ where
 
     /// Register a new address through the init actor.
     pub fn register_new_address(&mut self, addr: &Address) -> Result<ActorID> {
-        let (mut state, mut actor) = InitActorState::load(&self)?;
+        let (mut state, mut actor) = InitActorState::load(self)?;
 
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
-        actor.state = self.store().put_cbor(&state, multihash::Code::Blake2b256)?;
+        actor.state = self
+            .store()
+            .put_cbor(&state, multihash::Code::Blake2b256)
+            .or_fatal()?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -371,26 +398,27 @@ where
     /// Flush state tree and return Cid root.
     pub fn flush(&mut self) -> Result<Cid> {
         if self.snaps.layers.len() != 1 {
-            return Err(anyhow!(
+            return Err(ExecutionError::Fatal(anyhow!(
                 "tried to flush state tree with snapshots on the stack: {:?}",
                 self.snaps.layers.len()
-            )
-            .into());
+            )));
         }
 
         for (&id, sto) in self.snaps.layers[0].actors.borrow().iter() {
             let addr = Address::new_id(id);
             match sto {
                 None => {
-                    self.hamt.delete(&addr.to_bytes())?;
+                    self.hamt.delete(&addr.to_bytes()).or_fatal()?;
                 }
                 Some(ref state) => {
-                    self.hamt.set(addr.to_bytes().into(), state.clone())?;
+                    self.hamt
+                        .set(addr.to_bytes().into(), state.clone())
+                        .or_fatal()?;
                 }
             }
         }
 
-        let root = self.hamt.flush()?;
+        let root = self.hamt.flush().or_fatal()?;
 
         match self.version {
             StateTreeVersion::V0 => Ok(root),
@@ -403,15 +431,18 @@ where
                     actors: root,
                     info: cid,
                 };
-                let root = self.store().put_cbor(obj, multihash::Code::Blake2b256)?;
+                let root = self
+                    .store()
+                    .put_cbor(obj, multihash::Code::Blake2b256)
+                    .or_fatal()?;
                 Ok(root)
             }
         }
     }
 
-    pub fn for_each<F>(&self, mut f: F) -> Result<()>
+    pub fn for_each<F>(&self, mut f: F) -> anyhow::Result<()>
     where
-        F: FnMut(Address, &ActorState) -> std::result::Result<(), Box<dyn std::error::Error>>,
+        F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
     {
         self.hamt.for_each(|k, v| {
             let addr = Address::from_bytes(&k.0)?;
@@ -449,7 +480,7 @@ impl ActorState {
     /// TODO return a system error with exit code "insufficient funds"
     pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<()> {
         if &self.balance < amt {
-            return Err(anyhow!("Not enough funds").into());
+            return Err(syscall_error!(SysErrInsufficientFunds; "not enough funds").into());
         }
         self.balance -= amt;
 

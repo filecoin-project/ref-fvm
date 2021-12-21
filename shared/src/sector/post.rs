@@ -5,6 +5,7 @@ use cid::Cid;
 use serde_tuple::*;
 
 use super::*;
+use crate::encoding::Cbor;
 use crate::randomness::Randomness;
 use crate::ActorID;
 
@@ -53,3 +54,9 @@ pub struct WindowPoStVerifyInfo {
 pub struct OnChainWindowPoStVerifyInfo {
     pub proofs: Vec<PoStProof>,
 }
+
+impl Cbor for WindowPoStVerifyInfo {}
+
+impl Cbor for PoStProof {}
+
+impl Cbor for SectorInfo {}

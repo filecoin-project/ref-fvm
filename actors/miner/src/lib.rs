@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::{hash_map::Entry, HashMap};
-use std::error::Error as StdError;
 use std::{iter, ops::Neg};
 
+use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
 use blockstore::Blockstore;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
@@ -74,8 +74,8 @@ pub mod wasm {
 
         #[test]
         fn test_wasm_binaries() {
-            assert!(WASM_BINARY.unwrap().len() > 0);
-            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+            assert!(!WASM_BINARY.unwrap().is_empty());
+            assert!(!WASM_BINARY_BLOATY.unwrap().is_empty());
         }
     }
 }
@@ -3845,8 +3845,8 @@ where
 fn assign_proving_period_offset(
     addr: Address,
     current_epoch: ChainEpoch,
-    blake2b: impl FnOnce(&[u8]) -> Result<[u8; 32], Box<dyn StdError>>,
-) -> Result<ChainEpoch, Box<dyn StdError>> {
+    blake2b: impl FnOnce(&[u8]) -> anyhow::Result<[u8; 32]>,
+) -> anyhow::Result<ChainEpoch> {
     let mut my_addr = addr.marshal_cbor()?;
     my_addr.write_i64::<BigEndian>(current_epoch)?;
 
@@ -3885,11 +3885,12 @@ fn declaration_deadline_info(
     period_start: ChainEpoch,
     deadline_idx: usize,
     current_epoch: ChainEpoch,
-) -> Result<DeadlineInfo, String> {
+) -> anyhow::Result<DeadlineInfo> {
     if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
-        return Err(format!(
+        return Err(anyhow!(
             "invalid deadline {}, must be < {}",
-            deadline_idx, WPOST_PERIOD_DEADLINES
+            deadline_idx,
+            WPOST_PERIOD_DEADLINES
         ));
     }
 
@@ -3898,9 +3899,9 @@ fn declaration_deadline_info(
 }
 
 /// Checks that a fault or recovery declaration at a specific deadline is outside the exclusion window for the deadline.
-fn validate_fr_declaration_deadline(deadline: &DeadlineInfo) -> Result<(), String> {
+fn validate_fr_declaration_deadline(deadline: &DeadlineInfo) -> anyhow::Result<()> {
     if deadline.fault_cutoff_passed() {
-        Err("late fault or recovery declaration".to_string())
+        Err(anyhow!("late fault or recovery declaration"))
     } else {
         Ok(())
     }
@@ -3910,16 +3911,16 @@ fn validate_fr_declaration_deadline(deadline: &DeadlineInfo) -> Result<(), Strin
 fn validate_partition_contains_sectors(
     partition: &Partition,
     sectors: &mut UnvalidatedBitField,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let sectors = sectors
         .validate()
-        .map_err(|e| format!("failed to check sectors: {}", e))?;
+        .map_err(|e| anyhow!("failed to check sectors: {}", e))?;
 
     // Check that the declared sectors are actually assigned to the partition.
     if partition.sectors.contains_all(sectors) {
         Ok(())
     } else {
-        Err("not all sectors are assigned to the partition".to_string())
+        Err(anyhow!("not all sectors are assigned to the partition"))
     }
 }
 

@@ -1,15 +1,13 @@
+#![allow(unused)] // TODO: remove this when we implement these
 use cid::Cid;
 
-use std::error;
-
-use anyhow::{Error, Result};
+use anyhow::Result;
 use blockstore::cgo::CgoBlockstore;
 use fvm_shared::{
     address::Address,
     clock::ChainEpoch,
     consensus::{ConsensusFault, ConsensusFaultType},
     crypto::randomness::DomainSeparationTag,
-    econ::TokenAmount,
 };
 
 use crate::externs::{Blockstore, Consensus, Externs, Rand};
@@ -78,7 +76,7 @@ impl Consensus for CgoExterns {
     ) -> anyhow::Result<Option<ConsensusFault>> {
         Ok(Some(ConsensusFault {
             target: Address::new_id(0),
-            epoch: 0 as ChainEpoch,
+            epoch: 0,
             fault_type: ConsensusFaultType::DoubleForkMining,
         }))
     }

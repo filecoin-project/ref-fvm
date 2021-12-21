@@ -12,9 +12,7 @@ use num_traits::{FromPrimitive, Signed, Zero};
 
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::clock::EPOCH_UNDEFINED;
-use fvm_shared::deadlines::QuantSpec;
+use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
@@ -59,8 +57,8 @@ pub mod wasm {
 
         #[test]
         fn test_wasm_binaries() {
-            assert!(WASM_BINARY.unwrap().len() > 0);
-            assert!(WASM_BINARY_BLOATY.unwrap().len() > 0);
+            assert!(!WASM_BINARY.unwrap().is_empty());
+            assert!(!WASM_BINARY_BLOATY.unwrap().is_empty());
         }
     }
 }
@@ -1230,7 +1228,7 @@ pub fn validate_deals_for_activation<BS>(
     miner_addr: &Address,
     sector_expiry: ChainEpoch,
     curr_epoch: ChainEpoch,
-) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
+) -> anyhow::Result<(BigInt, BigInt, u64)>
 where
     BS: Blockstore,
 {
@@ -1245,7 +1243,7 @@ pub fn validate_and_compute_deal_weight<BS>(
     miner_addr: &Address,
     sector_expiry: ChainEpoch,
     sector_activation: ChainEpoch,
-) -> Result<(BigInt, BigInt, u64), Box<dyn StdError>>
+) -> anyhow::Result<(BigInt, BigInt, u64)>
 where
     BS: Blockstore,
 {

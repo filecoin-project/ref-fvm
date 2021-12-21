@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::{tracking::BSStats, tracking::TrackingBlockstore, Blockstore, MemoryBlockstore};
+use blockstore::{tracking::BSStats, tracking::TrackingBlockstore, MemoryBlockstore};
 use cid::multihash::Code;
 use fvm_shared::encoding::CborStore;
 use ipld_hamt::BytesKey;
