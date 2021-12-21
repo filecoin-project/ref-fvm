@@ -11,8 +11,8 @@ use fvm_actor_reward::{
 
 use actors_runtime::test_utils::*;
 use actors_runtime::{
-    BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
+    ActorError, BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR,
+    STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
 
 use fvm_shared::address::Address;
