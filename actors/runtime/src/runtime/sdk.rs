@@ -1,6 +1,5 @@
 use cid::{multihash::Code, Cid};
 use fvm_sdk::ipld;
-use fvm_shared::error::ExitCode;
 use std::convert::TryFrom;
 
 use crate::{actor_error, ActorError};
