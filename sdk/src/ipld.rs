@@ -81,13 +81,9 @@ mod tests {
     #[test]
     pub fn test_transaction() {
         transaction(|c| {
-            let data = get(&c);
-            Some(put(
-                c.hash().code(),
-                c.hash().size() as u32,
-                c.codec(),
-                &data,
-            ))
+            let data = get(&c).unwrap();
+            Some(put(c.hash().code(), c.hash().size() as u32, c.codec(), &data).unwrap())
         })
+        .unwrap()
     }
 }
