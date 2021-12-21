@@ -1,8 +1,9 @@
 use cid::{multihash::Code, Cid};
 use fvm_sdk::ipld;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use std::convert::TryFrom;
 
+use crate::ActorError;
 use blockstore::{Block, Blockstore};
 
 /// A blockstore suitable for use within actors.
@@ -12,7 +13,7 @@ impl Blockstore for ActorBlockstore {
     type Error = ActorError;
 
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
-        Ok(Some(ipld::get(cid)))
+        Ok(Some(ipld::get(cid)?))
     }
 
     fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid, Self::Error>
@@ -27,7 +28,7 @@ impl Blockstore for ActorBlockstore {
             SIZE,
             block.codec,
             block.data.as_ref(),
-        ))
+        )?)
     }
 
     fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {

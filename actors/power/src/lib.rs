@@ -9,15 +9,15 @@ use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::sector::SealVerifyInfo;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
+use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{
     make_map_with_root_and_bitwidth,
     runtime::{ActorCode, Runtime},

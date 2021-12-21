@@ -13,7 +13,7 @@ use actors_runtime::{
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use fvm_actor_init::{
