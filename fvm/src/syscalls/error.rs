@@ -3,11 +3,11 @@ use std::sync::Mutex;
 use anyhow::Context;
 use derive_more::Display;
 use fvm_shared::error::ExitCode;
+use fvm_shared::receipt::Receipt;
 use num_traits::FromPrimitive;
 use wasmtime::{Caller, Linker, Trap, WasmRet, WasmTy};
 
 use crate::kernel::{ClassifyResult, ExecutionError, SyscallError};
-use crate::receipt::Receipt;
 use crate::Kernel;
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of

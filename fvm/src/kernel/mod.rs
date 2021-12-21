@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use cid::Cid;
 use fvm_shared::error::ExitCode;
 
-use crate::message::Message;
-use crate::receipt::Receipt;
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -12,8 +10,10 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::message::Message;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
