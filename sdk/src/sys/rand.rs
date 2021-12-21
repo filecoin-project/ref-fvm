@@ -10,7 +10,7 @@ extern "C" {
         entropy_offset: *const u8,
         entropy_len: u32,
         obuf: *mut u8,
-    );
+    ) -> u32;
 
     /// Gets 32 bytes of randomness from the beacon system (currently Drand).
     /// The supplied output buffer must have at least 32 bytes of capacity.
@@ -22,5 +22,5 @@ extern "C" {
         entropy_offset: *const u8,
         entropy_len: u32,
         obuf: *mut u8,
-    );
+    ) -> u32;
 }

@@ -2,6 +2,7 @@ use core::ptr;
 
 pub mod actor;
 pub mod crypto;
+pub mod error;
 pub mod gas;
 pub mod ipld;
 pub mod message;
@@ -43,6 +44,7 @@ pub fn abort(code: u32, message: Option<&str>) -> ! {
 }
 
 // TODO: provide a custom panic handler?
+
 #[inline]
 pub(crate) fn status_code_to_bool(code: i32) -> bool {
     code == 0
