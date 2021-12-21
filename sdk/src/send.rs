@@ -1,17 +1,32 @@
 use crate::sys;
+use fvm_shared::address::Address;
 // no_std
 use crate::error::{IntoSyscallResult, SyscallResult};
-use fvm_shared::encoding::{from_slice, to_vec};
-use fvm_shared::message::Message;
+use fvm_shared::encoding::{from_slice, RawBytes, DAG_CBOR};
 use fvm_shared::receipt::Receipt;
 
 /// Sends a message to another actor.
-/// TODO https://github.com/filecoin-project/fvm/issues/178
-pub fn send(msg: Message) -> SyscallResult<Receipt> {
-    let bytes = to_vec(&msg).expect("failed to serialize message");
+pub fn send(
+    to: Address,
+    method: u64,
+    params: RawBytes,
+    value_hi: u64,
+    value_lo: u64,
+) -> SyscallResult<Receipt> {
+    let recipient = to.to_bytes();
     unsafe {
         // Send the message.
-        let id = sys::send::send(bytes.as_ptr(), bytes.len() as u32).into_syscall_result()?;
+        let params_id = sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)
+            .into_syscall_result()?;
+        let id = sys::send::send(
+            recipient.as_ptr(),
+            recipient.len() as u32,
+            method,
+            params_id,
+            value_hi,
+            value_lo,
+        )
+        .into_syscall_result()?;
         // Allocate a buffer to read the result.
         let (_, length) = sys::ipld::stat(id).into_syscall_result()?;
         let mut bytes = Vec::with_capacity(length as usize);
