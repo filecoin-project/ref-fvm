@@ -63,7 +63,7 @@ fn compute_unsealed_sector_cid(proof_type: RegisteredSealProof, pieces: &[PieceI
 
 /// Verifies a sector seal proof.
 #[allow(unused)]
-fn verify_seal(info: &SealVerifyInfo) -> bool {
+pub fn verify_seal(info: &SealVerifyInfo) -> bool {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal seal verification input");
@@ -72,7 +72,7 @@ fn verify_seal(info: &SealVerifyInfo) -> bool {
 
 /// Verifies a window proof of spacetime.
 #[allow(unused)]
-fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
+pub fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal PoSt verification input");
@@ -90,7 +90,7 @@ fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
 #[allow(unused)]
-fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<ConsensusFault> {
+pub fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<ConsensusFault> {
     unsafe {
         let (ok, id) = sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
@@ -110,7 +110,7 @@ fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<Consensu
 }
 
 #[allow(unused)]
-fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> bool {
+pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> bool {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal aggregate seal verification input");

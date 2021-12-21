@@ -13,6 +13,7 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
+use fvm_shared::message::Message;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{AggregateSealVerifyProofAndInfos, SealVerifyInfo, WindowPoStVerifyInfo};
 use fvm_shared::version::NetworkVersion;
@@ -25,7 +26,7 @@ pub struct SdkRuntime;
 
 impl<B> Runtime<B> for SdkRuntime {
     fn network_version(&self) -> NetworkVersion {
-        todo!()
+        fvm_sdk::network::version()
     }
 
     fn message(&self) -> &dyn MessageInfo {
@@ -33,37 +34,45 @@ impl<B> Runtime<B> for SdkRuntime {
     }
 
     fn curr_epoch(&self) -> ChainEpoch {
-        todo!()
+        fvm_sdk::network::curr_epoch()
     }
 
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
-        todo!()
+        // TOOD: I don't think I understand the error handling: the underlying method CAN
+        // return an error (eg. already validated), but that disappears before it gets here
+        // - Where is it intercepted and handled?
+        // - Is it correct to treat this as an "always Ok" because an error has bubbled up already?
+        Ok(fvm_sdk::validation::validate_immediate_caller_accept_any())
     }
 
     fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), ActorError>
     where
         I: IntoIterator<Item = &'a Address>,
     {
-        todo!()
+        Ok(fvm_sdk::validation::validate_immediate_caller_addr_one_of(
+            addresses.into_iter().collect(),
+        ))
     }
 
     fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), ActorError>
     where
         I: IntoIterator<Item = &'a Cid>,
     {
-        todo!()
+        Ok(fvm_sdk::validation::validate_immediate_caller_type_one_of(
+            types.into_iter().collect(),
+        ))
     }
 
     fn current_balance(&self) -> Result<TokenAmount, ActorError> {
-        todo!()
+        Ok(fvm_sdk::sself::current_balance())
     }
 
     fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
-        todo!()
+        Ok(fvm_sdk::actor::resolve_address(*address).map(Address::new_id))
     }
 
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
-        todo!()
+        Ok(fvm_sdk::actor::get_actor_code_cid(*addr))
     }
 
     fn get_randomness_from_tickets(
@@ -72,7 +81,11 @@ impl<B> Runtime<B> for SdkRuntime {
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        todo!()
+        Ok(fvm_sdk::rand::get_chain_randomness(
+            personalization,
+            rand_epoch,
+            entropy,
+        ))
     }
 
     fn get_randomness_from_beacon(
@@ -81,7 +94,11 @@ impl<B> Runtime<B> for SdkRuntime {
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        fvm_sdk::rand::get_beacon_randomness(personalization, rand_epoch, entropy)
+        Ok(fvm_sdk::rand::get_beacon_randomness(
+            personalization,
+            rand_epoch,
+            entropy,
+        ))
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
@@ -100,7 +117,7 @@ impl<B> Runtime<B> for SdkRuntime {
         todo!()
     }
 
-    fn store(&self) -> &ß {
+    fn store(&self) -> &B {
         todo!()
     }
 
@@ -111,7 +128,20 @@ impl<B> Runtime<B> for SdkRuntime {
         params: RawBytes,
         value: TokenAmount,
     ) -> Result<RawBytes, ActorError> {
-        todo!()
+        // TODO: Aaaaahh, what about the other fields aaaaahhh
+        Ok(fvm_sdk::send::send(Message {
+            version: 0,
+            from: *self.message().caller(),
+            to,
+            sequence: 0,
+            value,
+            method_num: method,
+            params,
+            gas_limit: 0,
+            gas_fee_cap: Default::default(),
+            gas_premium: Default::default(),
+        })
+        .return_data)
     }
 
     fn new_actor_address(&mut self) -> Result<Address, ActorError> {
@@ -119,14 +149,15 @@ impl<B> Runtime<B> for SdkRuntime {
     }
 
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
-        todo!()
+        Ok(fvm_sdk::actor::create_actor(*address, code_id))
     }
 
     fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
-        todo!()
+        Ok(fvm_sdk::sself::self_destruct(*beneficiary))
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
+        // TODO: Why hasn't Aayush done this yet, very disappointing
         todo!()
     }
 
@@ -146,15 +177,21 @@ impl Syscalls for SdkRuntime {
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<(), Error> {
-        todo!()
+        fvm_sdk::crypto::verify_signature(signature, signer, plaintext)
+            .then(|| ())
+            .ok_or(Error::new("invalid signature"))
     }
 
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), Error> {
-        todo!()
+        fvm_sdk::crypto::verify_seal(vi)
+            .then(|| ())
+            .ok_or(Error::new("invalid seal"))
     }
 
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<(), Error> {
-        todo!()
+        fvm_sdk::crypto::verify_post(verify_info)
+            .then(|| ())
+            .ok_or(Error::new("invalid post"))
     }
 
     fn verify_consensus_fault(
@@ -163,14 +200,18 @@ impl Syscalls for SdkRuntime {
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>, Error> {
-        todo!()
+        fvm_sdk::crypto::verify_consensus_fault(h1, h2, extra)
+            .then(|| ())
+            .ok_or(Error::new("no fault"))
     }
 
     fn verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Error> {
-        todo!()
+        fvm_sdk::crypto::verify_aggregate_seals(aggregate)
+            .then(|| ())
+            .ok_or(Error::new("invalid aggregate"))
     }
 }
 
