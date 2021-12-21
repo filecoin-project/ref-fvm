@@ -182,12 +182,11 @@ where
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
-        // TODO: Why hasn't Aayush done this yet, very disappointing
         todo!()
     }
 
     fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError> {
-        todo!()
+        Ok(fvm::gas::charge(name, compute as u64))
     }
 
     fn base_fee(&self) -> &TokenAmount {
