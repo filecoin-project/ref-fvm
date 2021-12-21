@@ -1,9 +1,8 @@
 use cid::{multihash::Code, Cid};
 use fvm_sdk::ipld;
-use fvm_shared::actor_error;
-use fvm_shared::error::ActorError;
 use std::convert::TryFrom;
 
+use crate::{actor_error, ActorError};
 use blockstore::{Block, Blockstore};
 
 /// A blockstore suitable for use within actors.

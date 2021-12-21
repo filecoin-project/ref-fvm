@@ -35,7 +35,7 @@ pub fn abort(
                 .or_illegal_argument()?
                 .to_owned()
         };
-        kernel.push_actor_error(code, message.to_owned());
+        kernel.push_actor_error(code, message);
         Ok(())
     })() {
         Err(ExecutionError::Syscall(e)) => {

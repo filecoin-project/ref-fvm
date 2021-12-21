@@ -24,7 +24,6 @@ use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
 use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
 use fvm_shared::{
-    actor_error,
     address::{Address, Payload, Protocol},
     bigint::BigInt,
     clock::ChainEpoch,
@@ -52,10 +51,11 @@ pub use types::*;
 pub use vesting_state::*;
 
 use actors_runtime::{
-    is_principal,
+    actor_error, is_principal,
     runtime::{ActorCode, Runtime},
-    ActorDowncast, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE,
-    INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
+    ActorDowncast, ActorError, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR,
+    CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR,
+    STORAGE_POWER_ACTOR_ADDR,
 };
 use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::smooth::FilterEstimate;
