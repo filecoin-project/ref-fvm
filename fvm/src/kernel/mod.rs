@@ -40,10 +40,6 @@ pub trait Kernel:
 {
 }
 
-// TODO @raulk: most of these methods should NOT generate an ActorError, since
-//  the errors raised by the impls of these traits are system errors. We need to
-//  segregate the monolithic ActorError into a system error, actor error, and more.
-
 /// Network-related operations.
 pub trait NetworkOps {
     fn network_epoch(&self) -> ChainEpoch;
