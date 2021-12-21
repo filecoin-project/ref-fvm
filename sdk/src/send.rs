@@ -4,7 +4,8 @@ use fvm_shared::encoding::{from_slice, to_vec};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 
-/// Resolves the ID address of an actor.
+/// Sends a message to another actor.
+/// TODO https://github.com/filecoin-project/fvm/issues/178
 pub fn send(msg: Message) -> Receipt {
     let bytes = to_vec(&msg).expect("failed to serialize message");
     unsafe {

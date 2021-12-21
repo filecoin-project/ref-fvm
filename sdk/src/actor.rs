@@ -28,7 +28,7 @@ pub fn get_actor_code_cid(addr: Address) -> Option<Cid> {
         );
         if ok == 0 {
             // Cid::read_bytes won't read until the end, just the bytes it needs.
-            return Some(Cid::read_bytes(&buf[..MAX_CID_LEN]).expect("invalid cid returned"));
+            return Some(Cid::read_bytes(&buf[..]).expect("invalid cid returned"));
         }
     }
     None
