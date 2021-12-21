@@ -43,6 +43,7 @@ impl<T> IntoSyscallResult for (u32, T) {
 // Multiple results.
 macro_rules! impl_into_syscall_result {
     ($($t:ident)+) => {
+        #[allow(non_snake_case)]
         impl<$($t),+> IntoSyscallResult for (u32 $(, $t)+) {
             type Value = ($($t),+);
             fn into_syscall_result(self) -> SyscallResult<Self::Value> {

@@ -39,10 +39,13 @@ pub fn verify_signature(
 
 /// Hashes input data using blake2b with 256 bit output.
 #[allow(unused)]
-pub fn hash_blake2b(data: &[u8]) -> Randomness {
+pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Randomness> {
     let mut ret = Vec::with_capacity(RANDOMNESS_LENGTH);
-    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr()) }
-    Randomness(ret)
+    unsafe {
+        sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())
+            .into_syscall_result()?
+    }
+    Ok(Randomness(ret))
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
@@ -123,14 +126,17 @@ fn verify_consensus_fault(
             h2.len() as u32,
             extra.as_ptr(),
             extra.len() as u32,
-        )?;
+        )
+        .into_syscall_result()?;
         if status_code_to_bool(ok) {
-            let data = ipld::get_block(id, None);
+            let data = ipld::get_block(id, None)?;
             let data = data.as_slice();
-            return Some(from_slice(data).expect("failed to unmarshal ConsensusFault"));
+            return Ok(Some(
+                from_slice(data).expect("failed to unmarshal ConsensusFault"),
+            ));
         }
     }
-    None
+    Ok(None)
 }
 
 #[allow(unused)]
