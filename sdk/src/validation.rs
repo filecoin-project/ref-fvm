@@ -1,11 +1,13 @@
-use crate::sys;
+use crate::{error::IntoSyscallResult, sys};
 use cid::Cid;
 use fvm_shared::address::Address;
 
 /// Signals that this actor accepts calls from any other actor.
 pub fn validate_immediate_caller_accept_any() {
     unsafe {
-        sys::validation::validate_immediate_caller_accept_any();
+        sys::validation::validate_immediate_caller_accept_any()
+            .into_syscall_result()
+            .unwrap()
     }
 }
 
@@ -22,6 +24,8 @@ pub fn validate_immediate_caller_addr_one_of(addrs: &[Address]) {
             encoded.as_ptr(),
             encoded.len() as u32,
         )
+        .into_syscall_result()
+        .unwrap()
     }
 }
 
@@ -38,5 +42,7 @@ pub fn validate_immediate_caller_type_one_of(cids: &[Cid]) {
             encoded.as_ptr(),
             encoded.len() as u32,
         )
+        .into_syscall_result()
+        .unwrap()
     }
 }

@@ -1,3 +1,4 @@
+use crate::error::{IntoSyscallResult, SyscallResult};
 use crate::{ipld, status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -23,14 +24,16 @@ pub fn verify_signature(
         .expect("failed to marshal signature");
     let signer = signer.marshal_cbor().expect("failed to marshal address");
     unsafe {
-        status_code_to_bool(sys::crypto::verify_signature(
+        sys::crypto::verify_signature(
             signature.as_ptr(),
             signature.len() as u32,
             signer.as_ptr(),
             signer.len() as u32,
             plaintext.as_ptr(),
             plaintext.len() as u32,
-        ))
+        )
+        .into_syscall_result()
+        .map(status_code_to_bool)
     }
 }
 
@@ -44,7 +47,10 @@ pub fn hash_blake2b(data: &[u8]) -> Randomness {
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
 #[allow(unused)]
-fn compute_unsealed_sector_cid(proof_type: RegisteredSealProof, pieces: &[PieceInfo]) -> Cid {
+fn compute_unsealed_sector_cid(
+    proof_type: RegisteredSealProof,
+    pieces: &[PieceInfo],
+) -> SyscallResult<Cid> {
     let pieces = to_vec(&pieces.to_vec()).expect("failed to marshal piece infos");
     let pieces = pieces.as_slice();
     let mut out = [0u8; MAX_CID_LEN];
@@ -55,33 +61,42 @@ fn compute_unsealed_sector_cid(proof_type: RegisteredSealProof, pieces: &[PieceI
             pieces.len() as u32,
             out.as_mut_ptr(),
             out.len() as u32,
-        );
+        )
+        .into_syscall_result()?;
         assert!(
             len <= out.len() as u32,
             "CID too large: {} > {}",
             len,
             out.len()
         );
-        Cid::read_bytes(&out[..len as usize]).expect("runtime returned an invalid CID")
+        Ok(Cid::read_bytes(&out[..len as usize]).expect("runtime returned an invalid CID"))
     }
 }
 
 /// Verifies a sector seal proof.
 #[allow(unused)]
-fn verify_seal(info: &SealVerifyInfo) -> bool {
+fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal seal verification input");
-    unsafe { status_code_to_bool(sys::crypto::verify_seal(info.as_ptr(), info.len() as u32)) }
+    unsafe {
+        sys::crypto::verify_seal(info.as_ptr(), info.len() as u32)
+            .into_syscall_result()
+            .map(status_code_to_bool)
+    }
 }
 
 /// Verifies a window proof of spacetime.
 #[allow(unused)]
-fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
+fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal PoSt verification input");
-    unsafe { status_code_to_bool(sys::crypto::verify_post(info.as_ptr(), info.len() as u32)) }
+    unsafe {
+        sys::crypto::verify_post(info.as_ptr(), info.len() as u32)
+            .into_syscall_result()
+            .map(status_code_to_bool)
+    }
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -95,7 +110,11 @@ fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
 #[allow(unused)]
-fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<ConsensusFault> {
+fn verify_consensus_fault(
+    h1: &[u8],
+    h2: &[u8],
+    extra: &[u8],
+) -> SyscallResult<Option<ConsensusFault>> {
     unsafe {
         let (ok, id) = sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
@@ -104,7 +123,7 @@ fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<Consensu
             h2.len() as u32,
             extra.as_ptr(),
             extra.len() as u32,
-        );
+        )?;
         if status_code_to_bool(ok) {
             let data = ipld::get_block(id, None);
             let data = data.as_slice();
@@ -115,15 +134,14 @@ fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<Consensu
 }
 
 #[allow(unused)]
-fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> bool {
+fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal aggregate seal verification input");
     unsafe {
-        status_code_to_bool(sys::crypto::verify_aggregate_seals(
-            info.as_ptr(),
-            info.len() as u32,
-        ))
+        sys::crypto::verify_aggregate_seals(info.as_ptr(), info.len() as u32)
+            .into_syscall_result()
+            .map(status_code_to_bool)
     }
 }
 

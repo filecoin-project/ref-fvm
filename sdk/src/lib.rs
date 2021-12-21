@@ -1,5 +1,4 @@
 use core::ptr;
-use fvm_shared::error::ExitCode;
 
 pub mod actor;
 pub mod crypto;
