@@ -1,6 +1,7 @@
 use core::ptr;
 
 pub mod actor;
+pub mod blockstore;
 pub mod crypto;
 pub mod gas;
 pub mod ipld;

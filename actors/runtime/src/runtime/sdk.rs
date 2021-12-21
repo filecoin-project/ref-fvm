@@ -3,6 +3,7 @@ use cid::{multihash::Code, Cid};
 use fvm::ipld;
 use fvm_shared::error::{ActorError, ExitCode};
 use std::convert::TryFrom;
+use std::ops::Add;
 
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
 use crate::Runtime;
@@ -58,10 +59,7 @@ where
     }
 
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
-        // TOOD: I don't think I understand the error handling: the underlying method CAN
-        // return an error (eg. already validated), but that disappears before it gets here
-        // - Where is it intercepted and handled?
-        // - Is it correct to treat this as an "always Ok" because an error has bubbled up already?
+        // TODO rethrow error
         Ok(fvm::validation::validate_immediate_caller_accept_any())
     }
 
@@ -69,6 +67,7 @@ where
     where
         I: IntoIterator<Item = &'a Address>,
     {
+        // TODO rethrow error
         Ok(fvm::validation::validate_immediate_caller_addr_one_of(
             addresses.into_iter().collect(),
         ))
@@ -78,20 +77,24 @@ where
     where
         I: IntoIterator<Item = &'a Cid>,
     {
+        // TODO rethrow error
         Ok(fvm::validation::validate_immediate_caller_type_one_of(
             types.into_iter().collect(),
         ))
     }
 
     fn current_balance(&self) -> Result<TokenAmount, ActorError> {
+        // TODO rethrow error
         Ok(fvm::sself::current_balance())
     }
 
     fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
+        // TODO rethrow error
         Ok(fvm::actor::resolve_address(*address).map(Address::new_id))
     }
 
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
+        // TODO rethrow error
         Ok(fvm::actor::get_actor_code_cid(*addr))
     }
 
@@ -101,6 +104,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
+        // TODO rethrow error
         Ok(fvm::rand::get_chain_randomness(
             personalization,
             rand_epoch,
@@ -114,6 +118,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
+        // TODO rethrow error
         Ok(fvm::rand::get_beacon_randomness(
             personalization,
             rand_epoch,
@@ -138,7 +143,7 @@ where
     }
 
     fn store(&self) -> &B {
-        todo!()
+        &fvm::blockstore::Blockstore
     }
 
     fn send(
