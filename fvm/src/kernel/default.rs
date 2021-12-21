@@ -13,13 +13,13 @@ use fvm_shared::commcid::{
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore};
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
-use crate::message::Message;
-use crate::receipt::Receipt;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 

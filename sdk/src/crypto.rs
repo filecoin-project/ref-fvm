@@ -1,40 +1,82 @@
-use std::collections::HashMap;
-use fvm_shared::*;
-use fvm_shared::encoding::{de::StdError, Cbor};
+use crate::{ipld, status_code_to_bool, sys, MAX_CID_LEN};
+use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::encoding::{from_slice, to_vec, Cbor};
+use fvm_shared::piece::PieceInfo;
+use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
 
 /// Verifies that a signature is valid for an address and plaintext.
-pub fn verify_signature(
-    signature: &crypto::signature::Signature,
-    signer: &address::Address,
-    plaintext: &[u8],
-) -> Result<(), Box<dyn StdError>> {
-    let signature = signature.marshal_cbor();
-    let signer = signer.marshal_cbor();
-
+#[allow(unused)]
+pub fn verify_signature(signature: &Signature, signer: &Address, plaintext: &[u8]) -> bool {
+    let signature = signature
+        .marshal_cbor()
+        .expect("failed to marshal signature");
+    let signer = signer.marshal_cbor().expect("failed to marshal address");
+    unsafe {
+        status_code_to_bool(sys::crypto::verify_signature(
+            signature.as_ptr(),
+            signature.len() as u32,
+            signer.as_ptr(),
+            signer.len() as u32,
+            plaintext.as_ptr(),
+            plaintext.len() as u32,
+        ))
+    }
 }
 
 /// Hashes input data using blake2b with 256 bit output.
-pub fn hash_blake2b(data: &[u8]) -> Result<[u8; 32], Box<dyn StdError>> {
-    Ok(blake2b_256(data))
+#[allow(unused)]
+pub fn hash_blake2b(data: &[u8]) -> Randomness {
+    let mut ret = Vec::with_capacity(RANDOMNESS_LENGTH);
+    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr()) }
+    Randomness(ret)
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
-fn compute_unsealed_sector_cid(
-    proof_type: sector::RegisteredSealProof,
-    pieces: &[sector::PieceInfo],
-) -> Result<cid::Cid, Box<dyn StdError>> {
-    compute_unsealed_sector_cid(proof_type, pieces);
+#[allow(unused)]
+fn compute_unsealed_sector_cid(proof_type: RegisteredSealProof, pieces: &[PieceInfo]) -> Cid {
+    let pieces = to_vec(&pieces.to_vec()).expect("failed to marshal piece infos");
+    let pieces = pieces.as_slice();
+    let mut out = [0u8; MAX_CID_LEN];
+    unsafe {
+        let len = sys::crypto::compute_unsealed_sector_cid(
+            i64::from(proof_type),
+            pieces.as_ptr(),
+            pieces.len() as u32,
+            out.as_mut_ptr(),
+            out.len() as u32,
+        );
+        assert!(
+            len <= out.len() as u32,
+            "CID too large: {} > {}",
+            len,
+            out.len()
+        );
+        Cid::read_bytes(&out[..len as usize]).expect("runtime returned an invalid CID")
+    }
 }
 
 /// Verifies a sector seal proof.
-fn verify_seal(vi: &sector::SealVerifyInfo) -> Result<(), Box<dyn StdError>> {
-
+#[allow(unused)]
+fn verify_seal(info: &SealVerifyInfo) -> bool {
+    let info = info
+        .marshal_cbor()
+        .expect("failed to marshal seal verification input");
+    unsafe { status_code_to_bool(sys::crypto::verify_seal(info.as_ptr(), info.len() as u32)) }
 }
 
 /// Verifies a window proof of spacetime.
-fn verify_post(verify_info: &sector::WindowPoStVerifyInfo) -> Result<(), Box<dyn StdError>> {
-    serialize
-
+#[allow(unused)]
+fn verify_post(info: &WindowPoStVerifyInfo) -> bool {
+    let info = info
+        .marshal_cbor()
+        .expect("failed to marshal PoSt verification input");
+    unsafe { status_code_to_bool(sys::crypto::verify_post(info.as_ptr(), info.len() as u32)) }
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -47,29 +89,42 @@ fn verify_post(verify_info: &sector::WindowPoStVerifyInfo) -> Result<(), Box<dyn
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
-fn verify_consensus_fault(
-    h1: &[u8],
-    h2: &[u8],
-    extra: &[u8],
-) -> Result<Option<ConsensusFault>, Box<dyn StdError>> {
-
-}
-
-fn batch_verify_seals(
-    vis: &[(&address::Address, &Vec<sector::SealVerifyInfo>)],
-) -> Result<HashMap<address::Address, Vec<bool>>, Box<dyn StdError>> {
-    let mut verified = HashMap::new();
-    for (&addr, s) in vis.iter() {
-        let vals = s.iter().map(|si| self.verify_seal(si).is_ok()).collect();
-        verified.insert(addr, vals);
+#[allow(unused)]
+fn verify_consensus_fault(h1: &[u8], h2: &[u8], extra: &[u8]) -> Option<ConsensusFault> {
+    unsafe {
+        let (ok, id) = sys::crypto::verify_consensus_fault(
+            h1.as_ptr(),
+            h1.len() as u32,
+            h2.as_ptr(),
+            h2.len() as u32,
+            extra.as_ptr(),
+            extra.len() as u32,
+        );
+        if status_code_to_bool(ok) {
+            let data = ipld::get_block(id, None);
+            let data = data.as_slice();
+            return Some(from_slice(data).expect("failed to unmarshal ConsensusFault"));
+        }
     }
-    Ok(verified)
+    None
 }
 
-fn verify_aggregate_seals(
-    aggregate: &sector::AggregateSealVerifyProofAndInfos,
-) -> Result<(), Box<dyn StdError>> {
+#[allow(unused)]
+fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> bool {
+    let info = info
+        .marshal_cbor()
+        .expect("failed to marshal aggregate seal verification input");
+    unsafe {
+        status_code_to_bool(sys::crypto::verify_aggregate_seals(
+            info.as_ptr(),
+            info.len() as u32,
+        ))
+    }
+}
 
+#[allow(unused)]
+fn batch_verify_seals(vis: &[(&Address, &Vec<SealVerifyInfo>)]) -> ! {
+    todo!()
 }
 
 // TODO implement verify_replica_update

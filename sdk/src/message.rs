@@ -3,36 +3,34 @@ use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::abort;
-
-type BlockId = u32;
-type Codec = u64;
+use crate::ipld::{BlockId, Codec};
+use crate::{abort, sys};
 
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> ActorID {
-    unsafe { crate::sys::message::caller() }
+    unsafe { sys::message::caller() }
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> ActorID {
-    unsafe { crate::sys::message::receiver() }
+    unsafe { sys::message::receiver() }
 }
 
 /// Returns the message's method number.
 #[inline(always)]
 pub fn method_number() -> MethodNum {
-    unsafe { crate::sys::message::method_number() }
+    unsafe { sys::message::method_number() }
 }
 
 /// Returns the message codec and parameters.
 pub fn params_raw(id: BlockId) -> (Codec, Vec<u8>) {
     unsafe {
-        let (codec, size) = crate::sys::ipld::stat(id);
+        let (codec, size) = sys::ipld::stat(id);
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
-        let bytes_read = crate::sys::ipld::read(id, 0, ptr, size);
+        let bytes_read = sys::ipld::read(id, 0, ptr, size);
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         (codec, buf)
     }
@@ -56,7 +54,7 @@ pub fn params_cbor<T: Cbor>(id: BlockId) -> T {
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
     unsafe {
-        let (lo, hi) = crate::sys::message::value_received();
+        let (lo, hi) = sys::message::value_received();
         // TODO not sure if this is the correct endianness.
         TokenAmount::from(hi) << 64 | TokenAmount::from(lo)
     }

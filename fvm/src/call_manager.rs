@@ -5,6 +5,7 @@ use fvm_shared::{
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
     error::ExitCode,
+    receipt::Receipt,
     ActorID, MethodNum, METHOD_SEND,
 };
 use num_traits::Zero;
@@ -15,7 +16,6 @@ use crate::{
     gas::{GasCharge, GasTracker},
     kernel::{BlockOps, ClassifyResult, Result, SyscallError},
     machine::Machine,
-    receipt::Receipt,
     syscall_error,
     syscalls::{bind_syscalls, error::unwrap_trap},
     DefaultKernel,

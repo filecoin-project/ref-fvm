@@ -4,7 +4,7 @@ extern "C" {
     // We could also _not_ feed that through to the outside?
 
     /// Charge gas.
-    pub fn charge(amount: u64);
+    pub fn charge(name_off: *const u8, name_len: u32, amount: u64);
 
     /// Returns the amount of gas remaining.
     pub fn remaining() -> u64;
