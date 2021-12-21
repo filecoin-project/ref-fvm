@@ -24,13 +24,32 @@ pub struct ActorBlockstore;
 
 pub struct SdkRuntime;
 
-impl<B> Runtime<B> for SdkRuntime {
+struct FvmMessage;
+
+impl MessageInfo for FvmMessage {
+    fn caller(&self) -> &Address {
+        &Address::new_id(fvm_sdk::message::caller())
+    }
+
+    fn receiver(&self) -> &Address {
+        &Address::new_id(fvm_sdk::message::receiver())
+    }
+
+    fn value_received(&self) -> &TokenAmount {
+        &fvm_sdk::message::value_received()
+    }
+}
+
+impl<B> Runtime<B> for SdkRuntime
+where
+    B: Blockstore,
+{
     fn network_version(&self) -> NetworkVersion {
         fvm_sdk::network::version()
     }
 
     fn message(&self) -> &dyn MessageInfo {
-        todo!()
+        &FvmMessage
     }
 
     fn curr_epoch(&self) -> ChainEpoch {
