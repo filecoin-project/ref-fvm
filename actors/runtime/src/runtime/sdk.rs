@@ -1,12 +1,13 @@
 use anyhow::Error;
 use cid::{multihash::Code, Cid};
-use fvm_sdk::ipld;
+use fvm::ipld;
 use fvm_shared::error::{ActorError, ExitCode};
 use std::convert::TryFrom;
 
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
 use crate::Runtime;
 use blockstore::{Block, Blockstore};
+use fvm_sdk as fvm;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -28,15 +29,15 @@ struct FvmMessage;
 
 impl MessageInfo for FvmMessage {
     fn caller(&self) -> &Address {
-        &Address::new_id(fvm_sdk::message::caller())
+        &Address::new_id(fvm::message::caller())
     }
 
     fn receiver(&self) -> &Address {
-        &Address::new_id(fvm_sdk::message::receiver())
+        &Address::new_id(fvm::message::receiver())
     }
 
     fn value_received(&self) -> &TokenAmount {
-        &fvm_sdk::message::value_received()
+        &fvm::message::value_received()
     }
 }
 
@@ -45,7 +46,7 @@ where
     B: Blockstore,
 {
     fn network_version(&self) -> NetworkVersion {
-        fvm_sdk::network::version()
+        fvm::network::version()
     }
 
     fn message(&self) -> &dyn MessageInfo {
@@ -53,7 +54,7 @@ where
     }
 
     fn curr_epoch(&self) -> ChainEpoch {
-        fvm_sdk::network::curr_epoch()
+        fvm::network::curr_epoch()
     }
 
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
@@ -61,14 +62,14 @@ where
         // return an error (eg. already validated), but that disappears before it gets here
         // - Where is it intercepted and handled?
         // - Is it correct to treat this as an "always Ok" because an error has bubbled up already?
-        Ok(fvm_sdk::validation::validate_immediate_caller_accept_any())
+        Ok(fvm::validation::validate_immediate_caller_accept_any())
     }
 
     fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), ActorError>
     where
         I: IntoIterator<Item = &'a Address>,
     {
-        Ok(fvm_sdk::validation::validate_immediate_caller_addr_one_of(
+        Ok(fvm::validation::validate_immediate_caller_addr_one_of(
             addresses.into_iter().collect(),
         ))
     }
@@ -77,21 +78,21 @@ where
     where
         I: IntoIterator<Item = &'a Cid>,
     {
-        Ok(fvm_sdk::validation::validate_immediate_caller_type_one_of(
+        Ok(fvm::validation::validate_immediate_caller_type_one_of(
             types.into_iter().collect(),
         ))
     }
 
     fn current_balance(&self) -> Result<TokenAmount, ActorError> {
-        Ok(fvm_sdk::sself::current_balance())
+        Ok(fvm::sself::current_balance())
     }
 
     fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
-        Ok(fvm_sdk::actor::resolve_address(*address).map(Address::new_id))
+        Ok(fvm::actor::resolve_address(*address).map(Address::new_id))
     }
 
     fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
-        Ok(fvm_sdk::actor::get_actor_code_cid(*addr))
+        Ok(fvm::actor::get_actor_code_cid(*addr))
     }
 
     fn get_randomness_from_tickets(
@@ -100,7 +101,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        Ok(fvm_sdk::rand::get_chain_randomness(
+        Ok(fvm::rand::get_chain_randomness(
             personalization,
             rand_epoch,
             entropy,
@@ -113,7 +114,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        Ok(fvm_sdk::rand::get_beacon_randomness(
+        Ok(fvm::rand::get_beacon_randomness(
             personalization,
             rand_epoch,
             entropy,
@@ -148,7 +149,7 @@ where
         value: TokenAmount,
     ) -> Result<RawBytes, ActorError> {
         // TODO: Aaaaahh, what about the other fields aaaaahhh
-        Ok(fvm_sdk::send::send(Message {
+        Ok(fvm::send::send(Message {
             version: 0,
             from: *self.message().caller(),
             to,
@@ -168,11 +169,11 @@ where
     }
 
     fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
-        Ok(fvm_sdk::actor::create_actor(*address, code_id))
+        Ok(fvm::actor::create_actor(*address, code_id))
     }
 
     fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
-        Ok(fvm_sdk::sself::self_destruct(*beneficiary))
+        Ok(fvm::sself::self_destruct(*beneficiary))
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
@@ -185,7 +186,7 @@ where
     }
 
     fn base_fee(&self) -> &TokenAmount {
-        &fvm_sdk::network::base_fee()
+        &fvm::network::base_fee()
     }
 }
 
@@ -196,19 +197,19 @@ impl Syscalls for SdkRuntime {
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<(), Error> {
-        fvm_sdk::crypto::verify_signature(signature, signer, plaintext)
+        fvm::crypto::verify_signature(signature, signer, plaintext)
             .then(|| ())
             .ok_or(Error::new("invalid signature"))
     }
 
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), Error> {
-        fvm_sdk::crypto::verify_seal(vi)
+        fvm::crypto::verify_seal(vi)
             .then(|| ())
             .ok_or(Error::new("invalid seal"))
     }
 
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<(), Error> {
-        fvm_sdk::crypto::verify_post(verify_info)
+        fvm::crypto::verify_post(verify_info)
             .then(|| ())
             .ok_or(Error::new("invalid post"))
     }
@@ -219,7 +220,7 @@ impl Syscalls for SdkRuntime {
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>, Error> {
-        fvm_sdk::crypto::verify_consensus_fault(h1, h2, extra)
+        fvm::crypto::verify_consensus_fault(h1, h2, extra)
             .then(|| ())
             .ok_or(Error::new("no fault"))
     }
@@ -228,7 +229,7 @@ impl Syscalls for SdkRuntime {
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), Error> {
-        fvm_sdk::crypto::verify_aggregate_seals(aggregate)
+        fvm::crypto::verify_aggregate_seals(aggregate)
             .then(|| ())
             .ok_or(Error::new("invalid aggregate"))
     }
