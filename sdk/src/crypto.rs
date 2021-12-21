@@ -4,6 +4,7 @@ use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{from_slice, to_vec, Cbor};
+use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
@@ -12,7 +13,11 @@ use fvm_shared::sector::{
 
 /// Verifies that a signature is valid for an address and plaintext.
 #[allow(unused)]
-pub fn verify_signature(signature: &Signature, signer: &Address, plaintext: &[u8]) -> bool {
+pub fn verify_signature(
+    signature: &Signature,
+    signer: &Address,
+    plaintext: &[u8],
+) -> Result<bool, ExitCode> {
     let signature = signature
         .marshal_cbor()
         .expect("failed to marshal signature");

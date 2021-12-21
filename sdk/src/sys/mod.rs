@@ -2,6 +2,7 @@ pub mod actor;
 pub mod crypto;
 #[cfg(feature = "debug")]
 pub mod debug;
+pub mod error;
 pub mod fvm;
 pub mod gas;
 pub mod ipld;

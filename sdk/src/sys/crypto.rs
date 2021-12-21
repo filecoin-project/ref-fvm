@@ -1,4 +1,5 @@
 #[link(wasm_import_module = "crypto")]
+#[allow(improper_ctypes)]
 extern "C" {
     /// Verifies that a signature is valid for an address and plaintext.
     pub fn verify_signature(
@@ -8,12 +9,12 @@ extern "C" {
         addr_len: u32,
         plaintext_off: *const u8,
         plaintext_len: u32,
-    ) -> i32;
+    ) -> (u32, i32);
 
     /// Hashes input data using blake2b with 256 bit output.
     ///
     /// The output buffer must be sized to a minimum of 32 bytes.
-    pub fn hash_blake2b(data_off: *const u8, data_len: u32, obuf_off: *mut u8);
+    pub fn hash_blake2b(data_off: *const u8, data_len: u32, obuf_off: *mut u8) -> u32;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.
@@ -26,20 +27,19 @@ extern "C" {
         pieces_len: u32,
         cid_off: *mut u8,
         cid_len: u32,
-    ) -> u32;
+    ) -> (u32, u32);
 
     /// Verifies a sector seal proof.
-    pub fn verify_seal(info_off: *const u8, info_len: u32) -> i32;
+    pub fn verify_seal(info_off: *const u8, info_len: u32) -> (u32, i32);
 
     /// Verifies a window proof of spacetime.
-    pub fn verify_post(info_off: *const u8, info_len: u32) -> i32;
+    pub fn verify_post(info_off: *const u8, info_len: u32) -> (u32, i32);
 
     /// Verifies that two block headers provide proof of a consensus fault.
     ///
     /// Returns a 0 status if a consensus fault was recognized, along with the
     /// BlockId containing the fault details. Otherwise, a -1 status is returned,
     /// and the second result parameter must be ignored.
-    #[allow(improper_ctypes)]
     pub fn verify_consensus_fault(
         h1_off: *const u8,
         h1_len: u32,
@@ -47,8 +47,8 @@ extern "C" {
         h2_len: u32,
         extra_off: *const u8,
         extra_len: u32,
-    ) -> (i32, u32);
+    ) -> (u32, i32, u32);
 
     /// Verifies an aggregated batch of sector seal proofs.
-    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> i32;
+    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> (u32, i32);
 }
