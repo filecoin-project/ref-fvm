@@ -29,16 +29,8 @@ pub const MAX_CID_LEN: usize = 100;
 // TODO try to fix the static lifetime here. I want to tell the compiler that
 //  the Kernel will live as long as the Machine and the Linker.
 pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Result<()> {
-    /*
-    macro_rules! bind {
-        ($module:ident :: $func:ident) => {
-            linker.func_wrap(stringify!($module), stringify!($func), || $module::$func
-        }
-
-    }
-    */
-
-    linker.bind("vm", "abort", vm::abort)?;
+    // Wrap this manually as bind will clear the error before invoking the syscall.
+    linker.func_wrap("vm", "abort", vm::abort)?;
 
     linker.bind("ipld", "get_root", ipld::get_root)?;
     linker.bind("ipld", "set_root", ipld::set_root)?;

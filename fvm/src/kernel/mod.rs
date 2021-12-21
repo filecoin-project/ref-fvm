@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cid::Cid;
+use fvm_shared::error::ExitCode;
 
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::address::Address;
@@ -30,6 +31,7 @@ pub trait Kernel:
     + BlockOps
     + CircSupplyOps
     + CryptoOps
+    + DebugOps
     + GasOps
     + MessageOps
     + NetworkOps
@@ -39,10 +41,6 @@ pub trait Kernel:
     + ValidationOps
 {
 }
-
-// TODO @raulk: most of these methods should NOT generate an ActorError, since
-//  the errors raised by the impls of these traits are system errors. We need to
-//  segregate the monolithic ActorError into a system error, actor error, and more.
 
 /// Network-related operations.
 pub trait NetworkOps {
@@ -262,4 +260,22 @@ pub trait RandomnessOps {
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness>;
+}
+
+/// Debugging APIs.
+pub trait DebugOps {
+    /// Log a syscall error, adding it to the current error trace.
+    ///
+    /// Call this after a failed syscall.
+    fn push_syscall_error(&mut self, code: ExitCode, message: String);
+
+    /// Log an actor error, adding it to the current error trace.
+    ///
+    /// Call this on abort.
+    fn push_actor_error(&mut self, code: ExitCode, message: String);
+
+    /// Clear the current error trace.
+    ///
+    /// Call this before any syscall except abort.
+    fn clear_error(&mut self);
 }
