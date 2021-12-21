@@ -45,6 +45,12 @@ struct StateSnapLayer {
     resolve_cache: RefCell<HashMap<Address, ActorID>>,
 }
 
+enum StateCacheResult {
+    Uncached,
+    Exists(ActorState),
+    Deleted,
+}
+
 impl StateSnapshots {
     /// State snapshot constructor
     fn new() -> Self {
@@ -141,14 +147,18 @@ impl StateSnapshots {
         Ok(())
     }
 
-    fn get_actor(&self, id: ActorID) -> Option<ActorState> {
+    /// Returns the actor if present in the snapshots.
+    fn get_actor(&self, id: ActorID) -> StateCacheResult {
         for layer in self.layers.iter().rev() {
             if let Some(state) = layer.actors.borrow().get(&id) {
-                return state.clone();
+                return state
+                    .clone()
+                    .map(StateCacheResult::Exists)
+                    .unwrap_or(StateCacheResult::Deleted);
             }
         }
 
-        None
+        StateCacheResult::Uncached
     }
 
     fn set_actor(&self, id: ActorID, actor: ActorState) -> Result<()> {
@@ -268,24 +278,26 @@ where
     /// Get actor state from an actor ID.
     pub fn get_actor_id(&self, id: ActorID) -> Result<Option<ActorState>> {
         // Check cache for actor state
-        if let Some(actor_state) = self.snaps.get_actor(id) {
-            return Ok(Some(actor_state));
-        }
+        Ok(match self.snaps.get_actor(id) {
+            StateCacheResult::Exists(state) => Some(state),
+            StateCacheResult::Deleted => None,
+            StateCacheResult::Uncached => {
+                // if state doesn't exist, find using hamt
+                let act = self
+                    .hamt
+                    .get(&Address::new_id(id).to_bytes())
+                    .with_context(|| format!("failed to lookup actor {}", id))
+                    .or_fatal()?
+                    .cloned();
 
-        // if state doesn't exist, find using hamt
-        let act = self
-            .hamt
-            .get(&Address::new_id(id).to_bytes())
-            .with_context(|| format!("failed to lookup actor {}", id))
-            .or_fatal()?
-            .cloned();
+                // Update cache if state was found
+                if let Some(act_s) = &act {
+                    self.snaps.set_actor(id, act_s.clone())?;
+                }
 
-        // Update cache if state was found
-        if let Some(act_s) = &act {
-            self.snaps.set_actor(id, act_s.clone())?;
-        }
-
-        Ok(act)
+                act
+            }
+        })
     }
 
     /// Set actor state for an address. Will set state at ID address.
