@@ -72,6 +72,7 @@ macro_rules! impl_bind_syscalls {
         {
             fn bind(&mut self, module: &str, name: &str, syscall: Func) -> anyhow::Result<&mut Self> {
                 self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
+                    caller.data_mut().clear_error();
                     syscall(&mut caller $(, $t)*).into(caller.data_mut())
                 })
             }
@@ -83,11 +84,13 @@ macro_rules! impl_bind_syscalls {
             $($t: Default + WasmTy,)*
         {
             type Value = (u32, $($t),*);
-            fn into<K: Kernel>(self, _k: &mut K) -> Result<Self::Value, Trap> {
-                // TODO: log the message here with the kernel.
+            fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
                 match self {
                     Ok(($($t,)*)) => Ok((ExitCode::Ok as u32, $($t),*)),
-                    Err(ExecutionError::Syscall(SyscallError(_msg, code))) => Ok((code as u32, $($t::default()),*)),
+                    Err(ExecutionError::Syscall(SyscallError(msg, code))) => {
+                        k.push_syscall_error(code, msg);
+                        Ok((code as u32, $($t::default()),*))
+                    },
                     Err(ExecutionError::Fatal(e)) => Err(trap_from_error(e)),
                 }
             }
@@ -111,10 +114,13 @@ macro_rules! impl_bind_syscalls_single_return {
         $(
             impl IntoSyscallResult for crate::kernel::Result<$t> {
                 type Value = (u32, $t);
-                fn into<K: Kernel>(self, _k: &mut K) -> Result<Self::Value, Trap> {
+                fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
                     match self {
                         Ok(v) => Ok((ExitCode::Ok as u32, v)),
-                        Err(ExecutionError::Syscall(SyscallError(_msg, code))) => Ok((code as u32, Default::default())),
+                        Err(ExecutionError::Syscall(SyscallError(msg, code))) => {
+                            k.push_syscall_error(code, msg);
+                            Ok((code as u32, Default::default()))
+                        }
                         Err(ExecutionError::Fatal(e)) => Err(trap_from_error(e)),
                     }
                 }

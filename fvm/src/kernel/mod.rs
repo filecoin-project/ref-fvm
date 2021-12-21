@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cid::Cid;
+use fvm_shared::error::ExitCode;
 
 use crate::message::Message;
 use crate::receipt::Receipt;
@@ -30,6 +31,7 @@ pub trait Kernel:
     + BlockOps
     + CircSupplyOps
     + CryptoOps
+    + DebugOps
     + GasOps
     + MessageOps
     + NetworkOps
@@ -258,4 +260,22 @@ pub trait RandomnessOps {
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness>;
+}
+
+/// Debugging APIs.
+pub trait DebugOps {
+    /// Log a syscall error, adding it to the current error trace.
+    ///
+    /// Call this after a failed syscall.
+    fn push_syscall_error(&mut self, code: ExitCode, message: String);
+
+    /// Log an actor error, adding it to the current error trace.
+    ///
+    /// Call this on abort.
+    fn push_actor_error(&mut self, code: ExitCode, message: String);
+
+    /// Clear the current error trace.
+    ///
+    /// Call this before any syscall except abort.
+    fn clear_error(&mut self);
 }

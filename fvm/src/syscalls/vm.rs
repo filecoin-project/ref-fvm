@@ -15,33 +15,42 @@ use super::{
 };
 
 pub fn abort(
-    caller: &mut Caller<'_, impl Kernel>,
+    mut caller: Caller<'_, impl Kernel>,
     code: u32,
     message_off: u32,
     message_len: u32,
 ) -> Result<(), Trap> {
-    if message_len != 0 {
-        match (|| {
-            let (_kernel, memory) = caller.kernel_and_memory()?;
-            let _message = std::str::from_utf8(memory.try_slice(message_off, message_len)?)
+    // Get the error and convert it into a "system illegal argument error" if it's invalid.
+    let code = ExitCode::from_u32(code)
+        .filter(|c| !c.is_system_error())
+        .unwrap_or(ExitCode::SysErrIllegalArgument);
+
+    match (|| {
+        let (kernel, memory) = caller.kernel_and_memory()?;
+        let message = if message_len == 0 {
+            "actor aborted".to_owned()
+        } else {
+            std::str::from_utf8(memory.try_slice(message_off, message_len)?)
                 .context("error message was not utf8")
-                .or_illegal_argument()?;
-            // Log the message here...
-            Ok(())
-        })() {
-            Err(ExecutionError::Syscall(_e)) => {
-                // TODO: record that we failed to read the message.
-                // But don't return an error. The only way out of this function is an abort.
-            }
-            Err(ExecutionError::Fatal(e)) => return Err(trap_from_error(e)),
-            Ok(_) => (),
+                .or_illegal_argument()?
+                .to_owned()
+        };
+        kernel.push_actor_error(code, message.to_owned());
+        Ok(())
+    })() {
+        Err(ExecutionError::Syscall(e)) => {
+            // We're logging the actor error here, not the syscall error.
+            caller.kernel().push_actor_error(
+                code,
+                format!(
+                    "actor aborted with an invalid message: {} (code={:?})",
+                    e.0, e.1
+                ),
+            )
         }
+        Err(ExecutionError::Fatal(e)) => return Err(trap_from_error(e)),
+        Ok(_) => (),
     }
 
-    // TODO:
-    // 1. Figure out the right fallback. Probably wants to be some "illegal error" error?
-    // 2. Check to make sure the actor is can only raise actor errors.
-    Err(trap_from_code(
-        ExitCode::from_u32(code).unwrap_or(ExitCode::SysErrIllegalArgument),
-    ))
+    Err(trap_from_code(code))
 }

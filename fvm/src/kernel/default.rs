@@ -18,6 +18,7 @@ use fvm_shared::ActorID;
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
 use crate::externs::Externs;
+use crate::machine::CallError;
 use crate::message::Message;
 use crate::receipt::Receipt;
 use crate::state_tree::ActorState;
@@ -781,6 +782,30 @@ where
             address,
             ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
         )
+    }
+}
+
+impl<B, E> DebugOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
+    fn push_syscall_error(&mut self, code: ExitCode, message: String) {
+        self.call_manager.push_error(CallError {
+            source: 0,
+            code,
+            message,
+        })
+    }
+    fn push_actor_error(&mut self, code: ExitCode, message: String) {
+        self.call_manager.push_error(CallError {
+            source: self.to,
+            code,
+            message,
+        })
+    }
+    fn clear_error(&mut self) {
+        self.call_manager.clear_error();
     }
 }
 
