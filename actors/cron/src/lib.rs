@@ -5,7 +5,7 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use actors_runtime::actor_error;
+use actors_runtime::{actor_error, wasm_trampoline};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::RawBytes;
@@ -37,6 +37,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 

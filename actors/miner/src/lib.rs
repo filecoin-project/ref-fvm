@@ -53,7 +53,7 @@ pub use vesting_state::*;
 use actors_runtime::{
     actor_error, is_principal,
     runtime::{ActorCode, Runtime},
-    ActorDowncast, ActorError, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR,
+    wasm_trampoline, ActorDowncast, ActorError, ACCOUNT_ACTOR_CODE_ID, BURNT_FUNDS_ACTOR_ADDR,
     CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR,
     STORAGE_POWER_ACTOR_ADDR,
 };
@@ -78,6 +78,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 mod bitfield_queue;
 mod deadline_assignment;

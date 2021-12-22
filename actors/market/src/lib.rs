@@ -20,7 +20,7 @@ use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use actors_runtime::{actor_error, ActorError};
+use actors_runtime::{actor_error, wasm_trampoline, ActorError};
 use actors_runtime::{
     runtime::{ActorCode, Runtime},
     ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
@@ -57,6 +57,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 fn request_miner_control_addrs<BS, RT>(
     rt: &mut RT,

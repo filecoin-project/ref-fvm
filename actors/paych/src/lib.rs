@@ -13,7 +13,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
-use actors_runtime::{actor_error, ActorError};
+use actors_runtime::{actor_error, wasm_trampoline, ActorError};
 use actors_runtime::{
     resolve_to_id_addr,
     runtime::{ActorCode, Runtime},
@@ -39,6 +39,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 mod state;
 mod types;

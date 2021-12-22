@@ -7,7 +7,7 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use actors_runtime::{actor_error, ActorError};
+use actors_runtime::{actor_error, wasm_trampoline, ActorError};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Sign;
 use fvm_shared::econ::TokenAmount;
@@ -40,6 +40,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 mod state;
 mod types;

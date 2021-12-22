@@ -302,15 +302,33 @@ where
     }
 }
 
-/// A convenience function that actors can delegate to to execute their logic
-/// within the FVM.
-/// TODO error handling
+/// A convenience function that built-in actors can delegate their execution to.
+///
+/// The trampoline takes care of boilerplate:
+///
+/// 1.  Obtains the parameter data from the FVM by fetching the parameters block.
+/// 2.  Obtains the method number for the invocation.
+/// 3.  Creates an FVM runtime shim.
+/// 4.  Invokes the target method.
+/// 5a. In case of error, aborts the execution with the emitted exit code, or
+/// 5b. In case of success, stores the return data as a block and returns the latter.
 pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     let method = fvm::message::method_number().expect("no method number");
-    let (_, params) = fvm::message::params_raw(params).expect("no params");
+    let params = if params > 0 {
+        let params = fvm::message::params_raw(params)
+            .expect("params block invalid")
+            .1;
+        RawBytes::new(params)
+    } else {
+        RawBytes::default()
+    };
+    // Construct a new runtime.
     let mut rt = FvmRuntime::default();
-    match C::invoke_method(&mut rt, method, &RawBytes::new(params)) {
+    // Invoke the method, aborting if the actor returns an errored exit code, or
+    // handling the return data appropriately otherwise.
+    match C::invoke_method(&mut rt, method, &params) {
         Err(err) => fvm::abort(err.exit_code() as u32, Some(err.msg())),
+        Ok(ret) if ret.len() == 0 => 0,
         Ok(ret) => fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result"),
     }
 }

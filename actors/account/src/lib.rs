@@ -5,7 +5,7 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use actors_runtime::actor_error;
+use actors_runtime::{actor_error, wasm_trampoline};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
@@ -37,11 +37,7 @@ pub mod wasm {
     }
 }
 
-#[no_mangle]
-#[cfg(feature = "runtime-wasm")]
-pub extern "C" fn invoke(param: u32) -> u32 {
-    actors_runtime::runtime::fvm::trampoline::<Actor>(param)
-}
+wasm_trampoline!(Actor);
 
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 
