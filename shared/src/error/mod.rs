@@ -5,12 +5,8 @@ use num_derive::FromPrimitive;
 
 use crate::encoding::repr::*;
 
-pub mod actor_error;
-
-pub use actor_error::*;
-
 /// ExitCode defines the exit code from the VM execution.
-#[repr(u64)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy, FromPrimitive, Serialize_repr, Deserialize_repr)]
 pub enum ExitCode {
     Ok = 0,
@@ -76,8 +72,13 @@ pub enum ExitCode {
 }
 
 impl ExitCode {
-    /// returns true if the exit code was a success
+    /// Returns true if the exit code was a success
     pub fn is_success(self) -> bool {
-        matches!(self, ExitCode::Ok)
+        self == ExitCode::Ok
+    }
+
+    /// Returns true if the error code is a system error.
+    pub fn is_system_error(self) -> bool {
+        (self as u32) < (ExitCode::ErrIllegalArgument as u32)
     }
 }

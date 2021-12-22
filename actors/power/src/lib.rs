@@ -11,21 +11,20 @@ use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
 use fvm_shared::{
-    actor_error,
     address::Address,
     bigint::bigint_ser::{BigIntDe, BigIntSer},
     econ::TokenAmount,
     encoding::RawBytes,
-    error::{ActorError, ExitCode},
+    error::ExitCode,
     reward::ThisEpochRewardReturn,
     sector::SealVerifyInfo,
     MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR,
 };
 
 use actors_runtime::{
-    make_map_with_root_and_bitwidth,
+    actor_error, make_map_with_root_and_bitwidth,
     runtime::{ActorCode, Runtime},
-    ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
+    ActorDowncast, ActorError, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 

@@ -6,14 +6,14 @@ use serde::Serialize;
 
 use actors_runtime::test_utils::*;
 use actors_runtime::{
-    Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, MINER_ACTOR_CODE_ID,
+    ActorError, Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, MINER_ACTOR_CODE_ID,
     MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID, STORAGE_POWER_ACTOR_ADDR,
     SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use fvm_actor_init::{

@@ -6,7 +6,7 @@ use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
 
-use fvm_shared::actor_error;
+use actors_runtime::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
@@ -14,10 +14,12 @@ use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::HAMT_BIT_WIDTH;
 
-use actors_runtime::{make_empty_map, ActorDowncast, Array, BalanceTable, Set, SetMultimap};
+use actors_runtime::{
+    make_empty_map, ActorDowncast, ActorError, Array, BalanceTable, Set, SetMultimap,
+};
 
 use super::{policy::*, types::*, DealProposal, DealState, DEAL_UPDATES_INTERVAL};
 

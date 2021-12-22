@@ -13,6 +13,8 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
@@ -21,8 +23,6 @@ use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
-use crate::message::Message;
-use crate::receipt::Receipt;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
 use crate::Config;
@@ -201,10 +201,10 @@ where
         };
 
         // Apply the message.
-        let (res, gas_used) = self.map_mut(|machine| {
+        let (res, gas_used, mut backtrace) = self.map_mut(|machine| {
             let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             if let Err(e) = cm.charge_gas(inclusion_cost) {
-                return (Err(e), cm.finish().1);
+                return (Err(e), cm.finish().2);
             }
 
             // BEGIN CRITICAL SECTION: Do not return an error after this line
@@ -225,8 +225,8 @@ where
                 Ok(ret)
             });
 
-            let (gas_used, machine) = cm.finish();
-            (Ok((result, gas_used)), machine)
+            let (gas_used, backtrace, machine) = cm.finish();
+            (Ok((result, gas_used, backtrace)), machine)
         })?;
 
         // Abort or commit the transaction.
@@ -238,8 +238,11 @@ where
         // END CRITICAL SECTION
 
         // Extract the exit code and build the result of the message application.
-        match res {
-            Ok(receipt) => self.finish_message(msg, receipt, None, gas_cost),
+        let receipt = match res {
+            Ok(receipt) => {
+                backtrace.clear();
+                receipt
+            }
             Err(ExecutionError::Syscall(SyscallError(errmsg, exit_code))) => {
                 if exit_code.is_success() {
                     return Err(anyhow!(
@@ -247,18 +250,25 @@ where
                         errmsg
                     ));
                 }
-                let receipt = Receipt {
+                backtrace.push(CallError {
+                    source: 0,
+                    code: exit_code,
+                    message: errmsg,
+                });
+                Receipt {
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
-                };
-                self.finish_message(msg, receipt, Some(errmsg), gas_cost)
+                }
             }
-            Err(ExecutionError::Fatal(e)) => Err(e.context(format!(
-                "[from={}, to={}, seq={}, m={}, h={}] fatal error",
-                msg.from, msg.to, msg.sequence, msg.method_num, self.context.epoch
-            ))),
-        }
+            Err(ExecutionError::Fatal(e)) => {
+                return Err(e.context(format!(
+                    "[from={}, to={}, seq={}, m={}, h={}] fatal error",
+                    msg.from, msg.to, msg.sequence, msg.method_num, self.context.epoch
+                )))
+            }
+        };
+        self.finish_message(msg, receipt, backtrace, gas_cost)
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -272,7 +282,7 @@ where
         msg: &Message,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
-        msg.check()?;
+        msg.check().or_fatal()?;
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
@@ -287,11 +297,8 @@ where
         // Verify the cost of the message is not over the message gas limit.
         if inclusion_total > msg.gas_limit {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrOutOfGas,
+                syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                 &self.context.base_fee * inclusion_total,
-                Some(
-                    syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                ),
             )));
         }
 
@@ -306,9 +313,8 @@ where
             Some(id) => id,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    syscall_error!(SysErrSenderInvalid; "Sender invalid"),
                     miner_penalty_amount,
-                    Some(syscall_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
         };
@@ -321,9 +327,8 @@ where
             Some(act) => act,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    syscall_error!(SysErrSenderInvalid; "Sender invalid"),
                     miner_penalty_amount,
-                    Some(syscall_error!(SysErrSenderInvalid; "Sender invalid")),
                 )))
             }
         };
@@ -331,20 +336,16 @@ where
         // If sender is not an account actor, the message is invalid.
         if !is_account_actor(&sender.code) {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderInvalid,
+                syscall_error!(SysErrSenderInvalid; "send not from account actor"),
                 miner_penalty_amount,
-                Some(syscall_error!(SysErrSenderInvalid; "send not from account actor")),
             )));
         };
 
         // Check sequence is correct
         if msg.sequence != sender.sequence {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                syscall_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
                 miner_penalty_amount,
-                Some(
-                    syscall_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
-                ),
             )));
         };
 
@@ -352,10 +353,9 @@ where
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                syscall_error!(SysErrSenderStateInvalid;
+                    "actor balance less than needed: {} < {}", sender.balance, gas_cost),
                 miner_penalty_amount,
-                Some(syscall_error!(SysErrSenderStateInvalid;
-                    "actor balance less than needed: {} < {}", sender.balance, gas_cost)),
             )));
         }
 
@@ -374,7 +374,7 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        act_err: Option<String>,
+        backtrace: Vec<CallError>,
         gas_cost: BigInt,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
@@ -425,7 +425,7 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            act_error: act_err,
+            backtrace,
             penalty: miner_penalty,
             miner_tip,
         })
@@ -478,13 +478,24 @@ where
     }
 }
 
+/// An error included in a message's backtrace on failure.
+#[derive(Clone, Debug)]
+pub struct CallError {
+    /// The source of the error or 0 for a syscall error.
+    pub source: ActorID,
+    /// The error code.
+    pub code: ExitCode,
+    /// The error message.
+    pub message: String,
+}
+
 /// Apply message return data.
 #[derive(Clone, Debug)]
 pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
-    /// Actor error from the transaction, if one exists.
-    pub act_error: Option<String>,
+    /// A backtrace for the transaction, if it failed.
+    pub backtrace: Vec<CallError>,
     /// Gas penalty from transaction, if any.
     pub penalty: BigInt,
     /// Tip given to miner from message.
@@ -493,19 +504,19 @@ pub struct ApplyRet {
 
 impl ApplyRet {
     #[inline]
-    pub fn prevalidation_fail<D: std::fmt::Display>(
-        exit_code: ExitCode,
-        miner_penalty: BigInt,
-        error: Option<D>,
-    ) -> ApplyRet {
+    pub fn prevalidation_fail(error: SyscallError, miner_penalty: BigInt) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
-                exit_code,
+                exit_code: error.1,
                 return_data: RawBytes::default(),
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            act_error: error.map(|e| e.to_string()),
+            backtrace: vec![CallError {
+                source: 0,
+                code: error.1,
+                message: error.0,
+            }],
             miner_tip: BigInt::zero(),
         }
     }
