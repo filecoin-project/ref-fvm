@@ -6,7 +6,7 @@ use cid::{
 use std::convert::TryInto;
 
 use crate::runtime::actor_blockstore::ActorBlockstore;
-use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
+use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Syscalls};
 use crate::Runtime;
 use crate::{actor_error, ActorError};
 use blockstore::Blockstore;
@@ -34,11 +34,20 @@ lazy_static! {
 }
 
 /// A runtime that bridges to the FVM environment through the FVM SDK.
-pub struct FvmRuntime<B> {
+pub struct FvmRuntime<B = ActorBlockstore> {
     blockstore: B,
     /// Indicates whether we are in a state transaction. During such, sending
     /// messages is prohibited.
     in_transaction: bool,
+}
+
+impl Default for FvmRuntime {
+    fn default() -> Self {
+        FvmRuntime {
+            blockstore: ActorBlockstore,
+            in_transaction: false,
+        }
+    }
 }
 
 /// A stub MessageInfo implementation performing FVM syscalls to obtain its fields.
@@ -298,5 +307,18 @@ where
             Ok(true) => Ok(()),
             Ok(false) | Err(_) => Err(Error::msg("invalid aggregate")),
         }
+    }
+}
+
+/// A convenience function that actors can delegate to to execute their logic
+/// within the FVM.
+/// TODO error handling
+pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
+    let method = fvm::message::method_number().expect("no method number");
+    let (_, params) = fvm::message::params_raw(params).expect("no params");
+    let mut rt = FvmRuntime::default();
+    match C::invoke_method(&mut rt, method, &RawBytes::new(params)) {
+        Err(err) => fvm::abort(err.exit_code() as u32, Some(err.msg())),
+        Ok(ret) => fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result"),
     }
 }

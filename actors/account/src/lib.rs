@@ -37,6 +37,12 @@ pub mod wasm {
     }
 }
 
+#[no_mangle]
+#[cfg(feature = "runtime-wasm")]
+pub extern "C" fn invoke(param: u32) -> u32 {
+    actors_runtime::runtime::fvm::trampoline::<Actor>(param)
+}
+
 // * Updated to specs-actors commit: 845089a6d2580e46055c24415a6c32ee688e5186 (v3.0.0)
 
 /// Account actor methods available
