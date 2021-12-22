@@ -1,10 +1,11 @@
 //#![cfg(feature = "tracking")]
 
+use std::cell::RefCell;
+
 use cid::{
     multihash::{self, Code},
     Cid,
 };
-use std::cell::RefCell;
 
 use crate::{Block, Blockstore};
 
@@ -111,10 +112,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::MemoryBlockstore;
-
     use super::*;
-    use crate::Block;
+    use crate::{Block, MemoryBlockstore};
 
     #[test]
     fn basic_tracking_store() {

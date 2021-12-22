@@ -1,15 +1,20 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::{ipld, status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::Signature;
-use fvm_shared::encoding::{from_slice, to_vec, Cbor};
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
-use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+use fvm_shared::{
+    address::Address,
+    consensus::ConsensusFault,
+    crypto::signature::Signature,
+    encoding::{from_slice, to_vec, Cbor},
+    error::ExitCode,
+    piece::PieceInfo,
+    randomness::{Randomness, RANDOMNESS_LENGTH},
+    sector::{
+        AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    },
+};
+
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    ipld, status_code_to_bool, sys, MAX_CID_LEN,
 };
 
 /// Verifies that a signature is valid for an address and plaintext.

@@ -1,6 +1,9 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::{sself, sys, MAX_CID_LEN};
 use cid::Cid;
+
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    sself, sys, MAX_CID_LEN,
+};
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;

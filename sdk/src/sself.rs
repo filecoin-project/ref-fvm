@@ -1,8 +1,10 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::{sys, MAX_CID_LEN};
 use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::{address::Address, econ::TokenAmount};
+
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    sys, MAX_CID_LEN,
+};
 
 /// Get the IPLD root CID.
 pub fn get_root() -> SyscallResult<Cid> {

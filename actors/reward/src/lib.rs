@@ -1,29 +1,29 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use actors_runtime::{
+    actor_error,
+    runtime::{ActorCode, Runtime},
+    ActorError, BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,
+    SYSTEM_ACTOR_ADDR,
+};
 use blockstore::Blockstore;
+use fvm_shared::{
+    bigint::{bigint_ser::BigIntDe, Integer, Sign},
+    econ::TokenAmount,
+    encoding::RawBytes,
+    sector::StoragePower,
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
 use log::{error, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use actors_runtime::actor_error;
-use fvm_shared::bigint::Sign;
-use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::sector::StoragePower;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-
-use actors_runtime::ActorError;
-use actors_runtime::{
-    runtime::{ActorCode, Runtime},
-    BURNT_FUNDS_ACTOR_ADDR, EXPECTED_LEADERS_PER_EPOCH, STORAGE_POWER_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR,
+pub use self::{
+    logic::*,
+    state::{Reward, State, VestingFunction},
+    types::*,
 };
-
-pub use self::logic::*;
-pub use self::state::{Reward, State, VestingFunction};
-pub use self::types::*;
 
 /// Export the wasm binary
 #[cfg(not(feature = "runtime-wasm"))]

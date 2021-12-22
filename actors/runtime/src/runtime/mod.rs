@@ -5,25 +5,24 @@ use std::collections::HashMap;
 
 use blockstore::Blockstore;
 use cid::Cid;
-
-use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, de, Cbor, RawBytes};
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+use fvm_shared::{
+    address::Address,
+    clock::ChainEpoch,
+    crypto::{randomness::DomainSeparationTag, signature::Signature},
+    econ::TokenAmount,
+    encoding::{blake2b_256, de, Cbor, RawBytes},
+    error::ExitCode,
+    piece::PieceInfo,
+    randomness::Randomness,
+    sector::{
+        AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    },
+    version::NetworkVersion,
+    MethodNum,
 };
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::MethodNum;
-
-use crate::ActorError;
 
 pub use self::actor_code::*;
+use crate::ActorError;
 mod actor_code;
 
 #[cfg(feature = "runtime-wasm")]

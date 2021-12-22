@@ -1,14 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::Blockstore;
-
 use actors_runtime::Array;
-use fvm_shared::clock::{ChainEpoch, QuantSpec};
-use fvm_shared::sector::SectorNumber;
+use blockstore::Blockstore;
+use fvm_shared::{
+    clock::{ChainEpoch, QuantSpec},
+    sector::SectorNumber,
+};
 
-use super::policy::*;
-use super::{DeadlineInfo, Deadlines, Partition};
+use super::{policy::*, DeadlineInfo, Deadlines, Partition};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,

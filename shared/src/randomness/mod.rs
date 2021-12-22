@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::encoding::{BytesDe, BytesSer};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use crate::encoding::{BytesDe, BytesSer};
 
 /// String of random bytes usually generated from a randomness beacon or from tickets on chain.
 #[derive(PartialEq, Eq, Default, Clone, Debug)]

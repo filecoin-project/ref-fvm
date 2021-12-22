@@ -1,15 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use num_traits::sign::Signed;
-
 use actors_runtime::EPOCHS_IN_DAY;
-use fvm_shared::bigint::{BigInt, Integer};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::math::{poly_parse, PRECISION};
-use fvm_shared::sector::StoragePower;
-use fvm_shared::smooth::extrapolated_cum_sum_of_ratio as ecsor;
-use fvm_shared::smooth::*;
+use fvm_shared::{
+    bigint::{BigInt, Integer},
+    clock::ChainEpoch,
+    math::{poly_parse, PRECISION},
+    sector::StoragePower,
+    smooth::{extrapolated_cum_sum_of_ratio as ecsor, *},
+};
+use num_traits::sign::Signed;
 
 const ERR_BOUND: u64 = 350;
 

@@ -5,9 +5,7 @@ use cid::Cid;
 use serde_tuple::*;
 
 use super::*;
-use crate::encoding::Cbor;
-use crate::randomness::Randomness;
-use crate::ActorID;
+use crate::{encoding::Cbor, randomness::Randomness, ActorID};
 
 /// Randomness type used for generating PoSt proof randomness.
 pub type PoStRandomness = Randomness;

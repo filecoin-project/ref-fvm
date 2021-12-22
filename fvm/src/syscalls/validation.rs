@@ -1,9 +1,9 @@
-use crate::kernel::{ClassifyResult, Kernel, Result};
 use cid::Cid;
 use fvm_shared::address::Address;
 use wasmtime::Caller;
 
 use super::Context;
+use crate::kernel::{ClassifyResult, Kernel, Result};
 
 pub fn validate_immediate_caller_accept_any(caller: &mut Caller<'_, impl Kernel>) -> Result<()> {
     caller.kernel().validate_immediate_caller_accept_any()?;

@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::fmt::Debug;
+
 use blockstore::{
     tracking::{BSStats, TrackingBlockstore},
     Blockstore,
 };
 use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, BytesDe};
 use ipld_amt::{Amt, Error, MAX_INDEX};
-use std::fmt::Debug;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: usize, v: &V)
 where

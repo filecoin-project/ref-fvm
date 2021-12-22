@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use blockstore::Blockstore;
+use fvm_shared::{encoding::RawBytes, MethodNum};
 
-use crate::ActorError;
-use crate::Runtime;
-
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::MethodNum;
+use crate::{ActorError, Runtime};
 
 /// Interface for invoking methods on an Actor
 pub trait ActorCode {

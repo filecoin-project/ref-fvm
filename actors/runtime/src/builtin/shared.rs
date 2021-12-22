@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use blockstore::Blockstore;
-
-use fvm_shared::address::Address;
-use fvm_shared::METHOD_SEND;
+use fvm_shared::{address::Address, METHOD_SEND};
 
 use crate::runtime::Runtime;
 

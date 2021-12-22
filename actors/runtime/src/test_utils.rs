@@ -1,30 +1,35 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, VecDeque};
+use std::{
+    cell::{Cell, RefCell},
+    collections::{HashMap, VecDeque},
+};
 
 use anyhow::anyhow;
 use blockstore::MemoryBlockstore;
 use cid::{multihash::Code, Cid};
-
-use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Runtime, Syscalls};
-use crate::{actor_error, ActorError};
-use fvm_shared::address::{Address, Protocol};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::de::DeserializeOwned;
-use fvm_shared::encoding::{blake2b_256, Cbor, CborStore, RawBytes};
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+use fvm_shared::{
+    address::{Address, Protocol},
+    clock::ChainEpoch,
+    crypto::{randomness::DomainSeparationTag, signature::Signature},
+    econ::TokenAmount,
+    encoding::{blake2b_256, de::DeserializeOwned, Cbor, CborStore, RawBytes},
+    error::ExitCode,
+    piece::PieceInfo,
+    randomness::Randomness,
+    sector::{
+        AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    },
+    version::NetworkVersion,
+    MethodNum,
 };
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::MethodNum;
+
+use crate::{
+    actor_error,
+    runtime::{ActorCode, ConsensusFault, MessageInfo, Runtime, Syscalls},
+    ActorError,
+};
 
 pub struct MockRuntime {
     pub epoch: ChainEpoch,

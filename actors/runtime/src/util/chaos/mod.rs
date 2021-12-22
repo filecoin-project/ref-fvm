@@ -3,18 +3,19 @@
 
 use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::{
+    address::Address, encoding::RawBytes, error::ExitCode, MethodNum, METHOD_CONSTRUCTOR,
+};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-
-use fvm_shared::address::Address;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 pub use state::*;
 pub use types::*;
 
-use crate::runtime::{ActorCode, Runtime};
-use crate::{actor_error, ActorError};
+use crate::{
+    actor_error,
+    runtime::{ActorCode, Runtime},
+    ActorError,
+};
 
 mod state;
 mod types;

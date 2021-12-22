@@ -3,12 +3,9 @@
 
 use blockstore::Blockstore;
 use cid::Cid;
-use num_traits::{Signed, Zero};
-
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser::BigIntDe;
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::{address::Address, bigint::bigint_ser::BigIntDe, econ::TokenAmount};
 use ipld_hamt::Error;
+use num_traits::{Signed, Zero};
 
 use crate::{make_empty_map, make_map_with_root_and_bitwidth, Map};
 

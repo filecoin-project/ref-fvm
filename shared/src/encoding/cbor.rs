@@ -3,14 +3,15 @@
 
 use std::{ops::Deref, rc::Rc};
 
-use super::errors::Error;
-use crate::encoding::{de, from_slice, ser, to_vec, CodecProtocol};
 use blockstore::{Block, Blockstore};
 use cid::{
     multihash::{self, Code},
     Cid,
 };
 use serde::{Deserialize, Serialize};
+
+use super::errors::Error;
+use crate::encoding::{de, from_slice, ser, to_vec, CodecProtocol};
 
 // TODO find something to reference.
 pub const DAG_CBOR: u64 = 0x71;

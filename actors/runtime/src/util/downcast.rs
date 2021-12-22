@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
-
-use crate::ActorError;
-use fvm_shared::encoding::{error::Error as CborError, Error as EncodingError};
-use fvm_shared::error::ExitCode;
+use fvm_shared::{
+    encoding::{error::Error as CborError, Error as EncodingError},
+    error::ExitCode,
+};
 use ipld_amt::Error as AmtError;
 use ipld_hamt::Error as HamtError;
+
+use crate::ActorError;
 
 /// Trait to allow multiple error types to be able to be downcasted into an `ActorError`.
 pub trait ActorDowncast {

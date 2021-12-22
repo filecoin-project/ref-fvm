@@ -1,8 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::hash::Hasher;
-use std::{mem, slice};
+use std::{hash::Hasher, mem, slice};
 
 /// Custom trait to avoid issues like https://github.com/rust-lang/rust/issues/27108.
 pub trait Hash {

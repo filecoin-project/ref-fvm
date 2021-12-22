@@ -3,8 +3,7 @@
 
 use actors_runtime::Multimap;
 use blockstore::MemoryBlockstore;
-use fvm_shared::address::Address;
-use fvm_shared::HAMT_BIT_WIDTH;
+use fvm_shared::{address::Address, HAMT_BIT_WIDTH};
 use ipld_amt::Amt;
 
 #[test]

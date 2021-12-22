@@ -1,7 +1,7 @@
-use crate::kernel::{Kernel, Result};
 use wasmtime::Caller;
 
 use super::Context;
+use crate::kernel::{Kernel, Result};
 
 pub fn caller(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
     Ok(caller.kernel().msg_caller())

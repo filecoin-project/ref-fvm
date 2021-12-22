@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{Error, HashedKey};
 use std::cmp::Ordering;
+
+use crate::{Error, HashedKey};
 
 /// Helper struct which indexes and allows returning bits from a hashed key
 #[derive(Debug, Clone, Copy)]

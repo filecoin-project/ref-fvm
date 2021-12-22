@@ -4,18 +4,18 @@
 use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::{
+    address::Address,
+    bigint::{bigint_ser, Integer},
+    clock::ChainEpoch,
+    econ::TokenAmount,
+    encoding::{tuple::*, Cbor},
+};
 use indexmap::IndexMap;
 use num_traits::Zero;
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::{bigint_ser, Integer};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor};
-
-use crate::make_map_with_root;
-
 use super::{types::Transaction, TxnID};
+use crate::make_map_with_root;
 
 /// Multisig actor state
 #[derive(Serialize_tuple, Deserialize_tuple, Clone)]

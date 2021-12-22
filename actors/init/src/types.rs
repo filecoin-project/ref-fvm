@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-
-use fvm_shared::address::Address;
-use fvm_shared::encoding::{tuple::*, Cbor, RawBytes};
+use fvm_shared::{
+    address::Address,
+    encoding::{tuple::*, Cbor, RawBytes},
+};
 
 /// Init actor Constructor parameters
 #[derive(Serialize_tuple, Deserialize_tuple)]

@@ -1,11 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{init_sized_vec, node::CollapsedNode, Node};
 use serde::{
     de::{self, Deserialize},
     ser::{self, Serialize},
 };
+
+use crate::{init_sized_vec, node::CollapsedNode, Node};
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
 #[derive(PartialEq, Debug)]
@@ -62,8 +63,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use fvm_shared::encoding::{from_slice, to_vec};
+
+    use super::*;
 
     #[test]
     fn serialize_symmetric() {

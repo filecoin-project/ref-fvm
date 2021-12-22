@@ -1,25 +1,26 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use anyhow::{anyhow, Context as _};
 use blockstore::Blockstore;
 use cid::{multihash, Cid};
-
-use fvm_shared::address::{Address, Payload};
-use fvm_shared::bigint::bigint_ser;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, CborStore};
-use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use fvm_shared::ActorID;
-
+use fvm_shared::{
+    address::{Address, Payload},
+    bigint::bigint_ser,
+    econ::TokenAmount,
+    encoding::{tuple::*, CborStore},
+    state::{StateInfo0, StateRoot, StateTreeVersion},
+    ActorID,
+};
 use ipld_hamt::Hamt;
 
-use crate::init_actor::State as InitActorState;
-use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
-use crate::syscall_error;
+use crate::{
+    init_actor::State as InitActorState,
+    kernel::{ClassifyResult, Context as _, ExecutionError, Result},
+    syscall_error,
+};
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
@@ -510,9 +511,8 @@ pub mod json {
 
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-    use crate::TokenAmount;
-
     use super::*;
+    use crate::TokenAmount;
 
     /// Wrapper for serializing and deserializing a SignedMessage from JSON.
     #[derive(Deserialize, Serialize)]

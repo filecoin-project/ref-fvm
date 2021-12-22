@@ -1,11 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{fmt, hash::Hash, u64};
+
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::fmt;
-use std::hash::Hash;
-use std::u64;
 
 /// Protocol defines the addressing protocol used to derive data to an address
 #[derive(PartialEq, Eq, Copy, Clone, FromPrimitive, Debug, Hash)]

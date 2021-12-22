@@ -1,24 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use actors_runtime::{
+    actor_error,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, ActorError, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
+    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
+};
 use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::{
+    address::Address, encoding::RawBytes, error::ExitCode, MethodNum, METHOD_CONSTRUCTOR,
+};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use actors_runtime::{actor_error, ActorError};
-use actors_runtime::{
-    runtime::{ActorCode, Runtime},
-    ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
-    POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
-};
-use fvm_shared::address::Address;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
-
-pub use self::state::State;
-pub use self::types::*;
+pub use self::{state::State, types::*};
 
 mod state;
 mod types;

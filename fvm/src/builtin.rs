@@ -1,4 +1,7 @@
-use cid::{multihash::Code, multihash::MultihashDigest, Cid};
+use cid::{
+    multihash::{Code, MultihashDigest},
+    Cid,
+};
 use fvm_shared::encoding::{to_vec, DAG_CBOR};
 use lazy_static::lazy_static;
 

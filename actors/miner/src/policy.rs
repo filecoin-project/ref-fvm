@@ -1,19 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::{Cid, Version};
 use std::cmp;
 
-use fvm_shared::bigint::{BigInt, Integer};
-use fvm_shared::clock::{ChainEpoch, EPOCH_DURATION_SECONDS};
-use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, POSEIDON_BLS12_381_A1_FC1};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::sector::{
-    RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize, StoragePower,
-};
-use fvm_shared::version::NetworkVersion;
-
 use actors_runtime::{network::*, DealWeight, EXPECTED_LEADERS_PER_EPOCH};
+use cid::{Cid, Version};
+use fvm_shared::{
+    bigint::{BigInt, Integer},
+    clock::{ChainEpoch, EPOCH_DURATION_SECONDS},
+    commcid::{FIL_COMMITMENT_SEALED, POSEIDON_BLS12_381_A1_FC1},
+    econ::TokenAmount,
+    sector::{RegisteredPoStProof, RegisteredSealProof, SectorQuality, SectorSize, StoragePower},
+    version::NetworkVersion,
+};
 
 use super::{types::SectorOnChainInfo, PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
 

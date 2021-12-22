@@ -1,27 +1,27 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use actors_runtime::{
+    actor_error, resolve_to_id_addr,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, ActorError, Array, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID,
+};
 use blockstore::Blockstore;
+use fvm_shared::{
+    address::Address,
+    bigint::{BigInt, Sign},
+    econ::TokenAmount,
+    encoding::RawBytes,
+    error::{ExitCode, ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled},
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-
-use actors_runtime::{actor_error, ActorError};
-use actors_runtime::{
-    resolve_to_id_addr,
-    runtime::{ActorCode, Runtime},
-    ActorDowncast, Array, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID,
+pub use self::{
+    state::{LaneState, Merge, State},
+    types::*,
 };
-
-pub use self::state::{LaneState, Merge, State};
-pub use self::types::*;
 
 /// Export the wasm binary
 #[cfg(not(feature = "runtime-wasm"))]

@@ -1,11 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{kernel::SyscallError, syscall_error};
-
-pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
-pub use self::price_list::{price_list_by_epoch, PriceList};
+pub use self::{
+    charge::GasCharge,
+    price_list::{price_list_by_epoch, PriceList},
+};
+use crate::{kernel::SyscallError, syscall_error};
 
 mod charge;
 mod outputs;

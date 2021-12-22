@@ -1,7 +1,10 @@
-use crate::error::SyscallResult;
-use crate::{error::IntoSyscallResult, sys};
 use cid::Cid;
 use fvm_shared::address::Address;
+
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    sys,
+};
 
 /// Signals that this actor accepts calls from any other actor.
 pub fn validate_immediate_caller_accept_any() -> SyscallResult<()> {

@@ -1,9 +1,14 @@
-use crate::sys;
+use fvm_shared::{
+    encoding::{from_slice, to_vec},
+    message::Message,
+    receipt::Receipt,
+};
+
 // no_std
-use crate::error::{IntoSyscallResult, SyscallResult};
-use fvm_shared::encoding::{from_slice, to_vec};
-use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    sys,
+};
 
 /// Sends a message to another actor.
 /// TODO https://github.com/filecoin-project/fvm/issues/178

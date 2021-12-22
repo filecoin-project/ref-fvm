@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::bigint::{BigInt, Integer};
-use crate::clock::ChainEpoch;
-
-use crate::math::{poly_parse, poly_val, PRECISION};
-
 use super::alpha_beta_filter::*;
+use crate::{
+    bigint::{BigInt, Integer},
+    clock::ChainEpoch,
+    math::{poly_parse, poly_val, PRECISION},
+};
 
 lazy_static! {
     pub static ref NUM: Vec<BigInt> = poly_parse(&[

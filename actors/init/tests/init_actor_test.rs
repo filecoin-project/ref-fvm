@@ -1,24 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Cid;
-use serde::Serialize;
-
-use actors_runtime::test_utils::*;
 use actors_runtime::{
-    ActorError, Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR, MINER_ACTOR_CODE_ID,
-    MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID, STORAGE_POWER_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
+    test_utils::*, ActorError, Multimap, ACCOUNT_ACTOR_CODE_ID, FIRST_NON_SINGLETON_ADDR,
+    MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID,
+    STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-use fvm_shared::{HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
-
+use cid::Cid;
 use fvm_actor_init::{
     Actor as InitActor, ConstructorParams, ExecParams, ExecReturn, Method, State,
 };
+use fvm_shared::{
+    address::Address, econ::TokenAmount, encoding::RawBytes, error::ExitCode, HAMT_BIT_WIDTH,
+    METHOD_CONSTRUCTOR,
+};
+use serde::Serialize;
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {

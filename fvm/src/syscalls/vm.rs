@@ -1,17 +1,15 @@
-use num_traits::FromPrimitive;
-
 use anyhow::Context as _;
 use fvm_shared::error::ExitCode;
+use num_traits::FromPrimitive;
 use wasmtime::{Caller, Trap};
-
-use crate::{
-    kernel::{ClassifyResult, ExecutionError},
-    Kernel,
-};
 
 use super::{
     error::{trap_from_code, trap_from_error},
     Context as _,
+};
+use crate::{
+    kernel::{ClassifyResult, ExecutionError},
+    Kernel,
 };
 
 pub fn abort(

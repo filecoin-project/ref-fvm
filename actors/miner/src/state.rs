@@ -1,30 +1,29 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::cmp;
-use std::{collections::HashMap, ops::Neg};
-
-use anyhow::anyhow;
-use bitfield::BitField;
-use blockstore::Blockstore;
-use cid::{multihash::Code, Cid};
-use num_traits::{Signed, Zero};
-
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore};
-use fvm_shared::error::ExitCode;
-use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
-use fvm_shared::HAMT_BIT_WIDTH;
-use ipld_amt::Error as AmtError;
-use ipld_hamt::Error as HamtError;
+use std::{cmp, collections::HashMap, ops::Neg};
 
 use actors_runtime::{
     actor_error, make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast,
     ActorError, Array,
 };
+use anyhow::anyhow;
+use bitfield::BitField;
+use blockstore::Blockstore;
+use cid::{multihash::Code, Cid};
+use fvm_shared::{
+    address::Address,
+    bigint::bigint_ser,
+    clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED},
+    econ::TokenAmount,
+    encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore},
+    error::ExitCode,
+    sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER},
+    HAMT_BIT_WIDTH,
+};
+use ipld_amt::Error as AmtError;
+use ipld_hamt::Error as HamtError;
+use num_traits::{Signed, Zero};
 
 use super::{
     assign_deadlines, deadline_is_mutable, deadlines::new_deadline_info,

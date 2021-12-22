@@ -1,12 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{
+    convert::TryInto,
+    fmt,
+    hash::{Hash, Hasher},
+    ops::Deref,
+    u64,
+};
+
 use super::{from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
-use std::convert::TryInto;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::u64;
 
 /// Public key struct used as BLS Address data.
 /// This type is only needed to be able to implement traits on it due to limitations on

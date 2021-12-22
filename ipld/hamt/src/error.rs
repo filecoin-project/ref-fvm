@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::encoding::Error as EncodingError;
 use std::error::Error as StdError;
+
+use fvm_shared::encoding::Error as EncodingError;
 use thiserror::Error;
 
 /// HAMT Error

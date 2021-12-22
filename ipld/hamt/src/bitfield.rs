@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::u64;
+
 use byteorder::{BigEndian, ByteOrder};
 use fvm_shared::encoding::{
     de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
     serde_bytes,
 };
-use std::u64;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);
@@ -143,8 +144,9 @@ impl std::fmt::Binary for Bitfield {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use fvm_shared::encoding::{from_slice, to_vec};
+
+    use super::*;
 
     #[test]
     fn test_bitfield() {

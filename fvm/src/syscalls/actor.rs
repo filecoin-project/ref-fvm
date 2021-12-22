@@ -1,7 +1,11 @@
-use crate::kernel::{ClassifyResult, Result};
-use crate::syscalls::context::Context;
-use crate::{syscall_error, Kernel};
 use wasmtime::Caller;
+
+use crate::{
+    kernel::{ClassifyResult, Result},
+    syscall_error,
+    syscalls::context::Context,
+    Kernel,
+};
 
 pub fn resolve_address(
     caller: &mut Caller<'_, impl Kernel>,

@@ -3,15 +3,18 @@
 //! concrete actor must eventually go. (TODO)
 
 use cid::Cid;
+use fvm_shared::{
+    address::Address,
+    bigint::Zero,
+    econ::TokenAmount,
+    encoding::{tuple::*, Cbor},
+};
 use lazy_static::lazy_static;
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::Zero;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor};
-
-use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID};
-use crate::state_tree::ActorState;
+use crate::{
+    builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID},
+    state_tree::ActorState,
+};
 
 pub const SYSTEM_ACTOR_ID: u64 = 0;
 

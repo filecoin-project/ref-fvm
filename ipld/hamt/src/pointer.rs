@@ -1,15 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::node::Node;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use std::{cmp::Ordering, convert::TryFrom};
+
 use cid::Cid;
 use once_cell::unsync::OnceCell;
-use serde::de::DeserializeOwned;
-use serde::ser;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::cmp::Ordering;
-use std::convert::TryFrom;
+use serde::{de::DeserializeOwned, ser, Deserialize, Deserializer, Serialize, Serializer};
+
+use super::{node::Node, Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]

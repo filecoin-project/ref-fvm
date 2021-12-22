@@ -3,35 +3,33 @@
 
 use std::collections::HashSet;
 
-use ahash::AHashMap;
-use blockstore::Blockstore;
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-
-use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
-use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
-use fvm_shared::deal::DealID;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::reward::ThisEpochRewardReturn;
-use fvm_shared::sector::StoragePower;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-
-use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{
+    actor_error,
     runtime::{ActorCode, Runtime},
-    ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
+    ActorDowncast, ActorError, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
     MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
     VERIFIED_REGISTRY_ACTOR_ADDR,
 };
+use ahash::AHashMap;
+use blockstore::Blockstore;
+use fvm_shared::{
+    address::Address,
+    bigint::BigInt,
+    clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED},
+    deal::DealID,
+    econ::TokenAmount,
+    encoding::{to_vec, Cbor, RawBytes},
+    error::ExitCode,
+    piece::PieceInfo,
+    reward::ThisEpochRewardReturn,
+    sector::StoragePower,
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
 
-pub use self::deal::*;
 use self::policy::*;
-pub use self::state::*;
-pub use self::types::*;
+pub use self::{deal::*, state::*, types::*};
 
 // export for testing
 mod deal;

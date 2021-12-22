@@ -1,17 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::anyhow;
+use blockstore::Blockstore;
+use cid::{multihash::Code, Cid};
+use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, CborStore};
+use itertools::sorted;
+
 use super::ValueMut;
 use crate::{
     init_sized_vec,
     node::{CollapsedNode, Link},
     nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
-use anyhow::anyhow;
-use blockstore::Blockstore;
-use cid::{multihash::Code, Cid};
-use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, CborStore};
-use itertools::sorted;
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
 ///

@@ -1,31 +1,35 @@
-use std::ops::{Deref, DerefMut};
-use std::result::Result as StdResult;
+use std::{
+    ops::{Deref, DerefMut},
+    result::Result as StdResult,
+};
 
 use anyhow::{anyhow, Context};
+use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::{
+    address::Address,
+    bigint::{BigInt, Sign},
+    clock::ChainEpoch,
+    econ::TokenAmount,
+    encoding::{Cbor, RawBytes},
+    error::ExitCode,
+    message::Message,
+    receipt::Receipt,
+    version::NetworkVersion,
+    ActorID,
+};
 use num_traits::{Signed, Zero};
 use wasmtime::{Engine, Module};
 
-use blockstore::Blockstore;
-use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, RawBytes};
-use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
-
-use crate::account_actor::is_account_actor;
-use crate::call_manager::CallManager;
-use crate::externs::Externs;
-use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
-use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
-use crate::state_tree::{ActorState, StateTree};
-use crate::syscall_error;
-use crate::Config;
+use crate::{
+    account_actor::is_account_actor,
+    call_manager::CallManager,
+    externs::Externs,
+    gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList},
+    kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError},
+    state_tree::{ActorState, StateTree},
+    syscall_error, Config,
+};
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
 /// Distinguished AccountActor that is the destination of all burnt funds.

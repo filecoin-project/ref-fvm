@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
-use cid::multihash;
-use cid::Cid;
+use cid::{multihash, Cid};
 
 pub mod buffered;
 mod memory;

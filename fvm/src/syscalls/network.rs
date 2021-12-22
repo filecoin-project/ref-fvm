@@ -1,8 +1,7 @@
 use wasmtime::Caller;
 
-use crate::kernel::{Kernel, Result};
-
 use super::Context;
+use crate::kernel::{Kernel, Result};
 
 pub fn epoch(caller: &mut Caller<'_, impl Kernel>) -> Result<u64> {
     Ok(caller.kernel().network_epoch() as u64)

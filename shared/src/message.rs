@@ -3,15 +3,17 @@
 
 use anyhow::anyhow;
 
-use crate::address::Address;
-use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use crate::econ::TokenAmount;
-use crate::encoding::{
-    de::{Deserialize, Deserializer},
-    ser::{Serialize, Serializer},
-    Cbor, RawBytes,
+use crate::{
+    address::Address,
+    bigint::bigint_ser::{BigIntDe, BigIntSer},
+    econ::TokenAmount,
+    encoding::{
+        de::{Deserialize, Deserializer},
+        ser::{Serialize, Serializer},
+        Cbor, RawBytes,
+    },
+    MethodNum,
 };
-use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[derive(PartialEq, Clone, Debug, Hash, Eq)]

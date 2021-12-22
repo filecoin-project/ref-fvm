@@ -1,8 +1,12 @@
-use crate::kernel::{ClassifyResult, Result};
-use crate::syscalls::context::Context;
-use crate::Kernel;
 use std::str;
+
 use wasmtime::Caller;
+
+use crate::{
+    kernel::{ClassifyResult, Result},
+    syscalls::context::Context,
+    Kernel,
+};
 
 pub fn charge_gas(
     caller: &mut Caller<'_, impl Kernel>,

@@ -1,11 +1,12 @@
+use core::option::Option; // no_std
+
+use cid::Cid;
+use fvm_shared::{address::Address, ActorID};
+
 use crate::{
     error::{IntoSyscallResult, SyscallResult},
     sys, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN,
 };
-use cid::Cid;
-use core::option::Option; // no_std
-use fvm_shared::address::Address;
-use fvm_shared::ActorID;
 
 /// Resolves the ID address of an actor.
 pub fn resolve_address(addr: Address) -> SyscallResult<Option<ActorID>> {

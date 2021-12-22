@@ -1,13 +1,13 @@
-use crate::{
-    kernel::{ClassifyResult, Result},
-    Kernel,
-};
 use anyhow::Context as _;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use num_traits::FromPrimitive;
 use wasmtime::Caller;
 
 use super::Context;
+use crate::{
+    kernel::{ClassifyResult, Result},
+    Kernel,
+};
 
 const RAND_LEN: usize = 32;
 

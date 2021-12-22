@@ -1,24 +1,24 @@
 use std::collections::HashMap;
 
-use cid::Cid;
-use fvm_shared::error::ExitCode;
-
 pub use blocks::{BlockError, BlockId, BlockStat};
-use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::message::Message;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::Randomness;
-use fvm_shared::receipt::Receipt;
-use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+use cid::Cid;
+use fvm_shared::{
+    address::Address,
+    clock::ChainEpoch,
+    consensus::ConsensusFault,
+    crypto::{randomness::DomainSeparationTag, signature::Signature},
+    econ::TokenAmount,
+    error::ExitCode,
+    message::Message,
+    piece::PieceInfo,
+    randomness::Randomness,
+    receipt::Receipt,
+    sector::{
+        AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    },
+    version::NetworkVersion,
+    ActorID, MethodNum,
 };
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum};
 
 mod blocks;
 pub mod default;

@@ -1,12 +1,14 @@
 use actors_runtime::DealWeight;
 use cid::Cid;
-use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::deal::DealID;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, RawBytes};
-use fvm_shared::sector::{RegisteredSealProof, StoragePower};
-use fvm_shared::smooth::FilterEstimate;
+use fvm_shared::{
+    bigint::bigint_ser,
+    clock::ChainEpoch,
+    deal::DealID,
+    econ::TokenAmount,
+    encoding::{tuple::*, RawBytes},
+    sector::{RegisteredSealProof, StoragePower},
+    smooth::FilterEstimate,
+};
 
 pub mod account {
     pub const PUBKEY_ADDRESS_METHOD: u64 = 2;

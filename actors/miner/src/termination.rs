@@ -4,7 +4,6 @@
 use std::{collections::HashMap, ops::AddAssign};
 
 use bitfield::BitField;
-
 use fvm_shared::clock::ChainEpoch;
 
 #[derive(Default)]

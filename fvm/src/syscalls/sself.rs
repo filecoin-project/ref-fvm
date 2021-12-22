@@ -1,6 +1,7 @@
+use wasmtime::Caller;
+
 use super::{Context, MAX_CID_LEN};
 use crate::kernel::{ClassifyResult, Kernel, Result};
-use wasmtime::Caller;
 
 pub fn root(caller: &mut Caller<'_, impl Kernel>, obuf_off: u32) -> Result<()> {
     let (kernel, mut memory) = caller.kernel_and_memory()?;

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-
-use fvm_shared::address::Address;
-use fvm_shared::bigint::{bigint_ser, BigInt};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::encoding::Cbor;
+use fvm_shared::{
+    address::Address,
+    bigint::{bigint_ser, BigInt},
+    clock::ChainEpoch,
+    econ::TokenAmount,
+    encoding::{tuple::*, Cbor},
+};
 
 /// A given payment channel actor is established by `from`
 /// to enable off-chain microtransactions to `to` address

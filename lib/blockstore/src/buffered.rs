@@ -1,8 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::Blockstore;
 use cid::Cid;
+
+use super::Blockstore;
 
 // TODO: figure out where to put this.
 const DAG_CBOR: u64 = 0x71;
@@ -72,8 +73,7 @@ where
         .get(&root)
         .ok_or_else(|| format!("Invalid link ({}) in flushing buffered store", root))?;
 
-    use libipld::cbor::DagCborCodec;
-    use libipld::{codec::Codec, Ipld};
+    use libipld::{cbor::DagCborCodec, codec::Codec, Ipld};
     let mut references = Vec::new();
     DagCborCodec.references::<Ipld, _>(block, &mut references)?;
 
@@ -140,10 +140,11 @@ where
 #[cfg(test)]
 #[cfg(disabled)]
 mod tests {
-    use super::*;
     use cid::multihash::{Code, MultihashDigest};
     use forest_ipld::{ipld, Ipld};
     use fvm_shared::commcid::commitment_to_cid;
+
+    use super::*;
 
     const RAW: u64 = 0x55;
 

@@ -1,8 +1,7 @@
-use super::*;
-use std::cell::RefCell;
-use std::collections::HashMap;
 // TODO: move to ! someday. https://doc.rust-lang.org/std/convert/enum.Infallible.html#future-compatibility
-use std::convert::Infallible;
+use std::{cell::RefCell, collections::HashMap, convert::Infallible};
+
+use super::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct MemoryBlockstore {

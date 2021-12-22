@@ -1,33 +1,30 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use actors_runtime::{
+    actor_error, make_map_with_root_and_bitwidth,
+    runtime::{ActorCode, Runtime},
+    ActorDowncast, ActorError, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
+    MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
+};
 use ahash::AHashSet;
 use blockstore::Blockstore;
 use ext::init;
+use fvm_shared::{
+    address::Address,
+    bigint::bigint_ser::{BigIntDe, BigIntSer},
+    econ::TokenAmount,
+    encoding::RawBytes,
+    error::ExitCode,
+    sector::SealVerifyInfo,
+    MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR,
+};
 use indexmap::IndexMap;
 use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-use fvm_shared::sector::SealVerifyInfo;
-use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
-
-use actors_runtime::{actor_error, ActorError};
-use actors_runtime::{
-    make_map_with_root_and_bitwidth,
-    runtime::{ActorCode, Runtime},
-    ActorDowncast, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
-    MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
-};
-
-pub use self::policy::*;
-pub use self::state::*;
-pub use self::types::*;
+pub use self::{policy::*, state::*, types::*};
 
 /// Export the wasm binary
 #[cfg(not(feature = "runtime-wasm"))]

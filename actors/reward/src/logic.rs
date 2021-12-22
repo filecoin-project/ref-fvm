@@ -3,14 +3,15 @@
 
 use std::str::FromStr;
 
+use fvm_shared::{
+    bigint::{BigInt, Integer},
+    clock::ChainEpoch,
+    econ::TokenAmount,
+    math::PRECISION,
+    sector::StoragePower,
+    FILECOIN_PRECISION,
+};
 use lazy_static::lazy_static;
-
-use fvm_shared::bigint::{BigInt, Integer};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::math::PRECISION;
-use fvm_shared::sector::StoragePower;
-use fvm_shared::FILECOIN_PRECISION;
 
 use super::expneg::expneg;
 

@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::bigint::{bigint_ser, BigInt, Integer};
-use crate::clock::ChainEpoch;
-use crate::encoding::tuple::*;
-use crate::encoding::Cbor;
-
-use crate::math::PRECISION;
+use crate::{
+    bigint::{bigint_ser, BigInt, Integer},
+    clock::ChainEpoch,
+    encoding::{tuple::*, Cbor},
+    math::PRECISION,
+};
 
 #[derive(Default, Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq)]
 pub struct FilterEstimate {
@@ -74,8 +74,10 @@ impl<'a, 'b, 'f> AlphaBetaFilter<'a, 'b, 'f> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{DEFAULT_ALPHA, DEFAULT_BETA};
-    use super::*;
+    use super::{
+        super::{DEFAULT_ALPHA, DEFAULT_BETA},
+        *,
+    };
 
     #[test]
     fn rounding() {

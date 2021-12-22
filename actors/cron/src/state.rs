@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::address::Address;
-use fvm_shared::encoding::{tuple::*, Cbor};
-use fvm_shared::MethodNum;
+use fvm_shared::{
+    address::Address,
+    encoding::{tuple::*, Cbor},
+    MethodNum,
+};
 
 /// Cron actor state which holds entries to call during epoch tick
 #[derive(Default, Serialize_tuple, Deserialize_tuple)]

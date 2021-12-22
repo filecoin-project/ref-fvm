@@ -1,20 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::Blockstore;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-
-use actors_runtime::actor_error;
-use fvm_shared::address::{Address, Protocol};
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
-
-use actors_runtime::ActorError;
 use actors_runtime::{
+    actor_error,
     builtin::singletons::SYSTEM_ACTOR_ADDR,
     runtime::{ActorCode, Runtime},
+    ActorError,
 };
+use blockstore::Blockstore;
+use fvm_shared::{
+    address::{Address, Protocol},
+    encoding::RawBytes,
+    MethodNum, METHOD_CONSTRUCTOR,
+};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 
 pub use self::state::State;
 

@@ -1,13 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use actors_runtime::builtin::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
-use actors_runtime::test_utils::*;
-use fvm_shared::address::Address;
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
-
+use actors_runtime::{
+    builtin::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID},
+    test_utils::*,
+};
 use fvm_actor_account::{Actor as AccountActor, State};
+use fvm_shared::{address::Address, encoding::RawBytes, error::ExitCode};
 
 macro_rules! account_tests {
     ($($name:ident: $value:expr,)*) => {

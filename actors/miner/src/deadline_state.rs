@@ -1,21 +1,24 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{cmp, collections::HashMap, collections::HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
+use actors_runtime::{actor_error, ActorDowncast, ActorError, Array};
 use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
+use fvm_shared::{
+    clock::{ChainEpoch, QuantSpec},
+    econ::TokenAmount,
+    encoding::{tuple::*, CborStore},
+    error::ExitCode,
+    sector::{PoStProof, SectorSize},
+};
 use num_traits::{Signed, Zero};
-
-use actors_runtime::{actor_error, ActorError};
-use actors_runtime::{ActorDowncast, Array};
-use fvm_shared::clock::{ChainEpoch, QuantSpec};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, CborStore};
-use fvm_shared::error::ExitCode;
-use fvm_shared::sector::{PoStProof, SectorSize};
 
 use super::{
     BitFieldQueue, ExpirationSet, Partition, PartitionSectorMap, PoStPartition, PowerPair,

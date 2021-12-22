@@ -1,46 +1,49 @@
+use std::{
+    collections::BTreeMap,
+    convert::{TryFrom, TryInto},
+};
+
 use anyhow::anyhow;
-use std::collections::BTreeMap;
-use std::convert::{TryFrom, TryInto};
-
-use cid::Cid;
-
 use blockstore::Blockstore;
 use byteorder::{BigEndian, WriteBytesExt};
-use fvm_shared::bigint::Zero;
-use fvm_shared::commcid::{
-    cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
-};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore};
-use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
-use fvm_shared::ActorID;
-
-use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
-use crate::call_manager::CallManager;
-use crate::externs::Externs;
-use crate::machine::CallError;
-use crate::state_tree::ActorState;
-use crate::syscall_error;
-
-use filecoin_proofs_api::seal::compute_comm_d;
-use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
+use cid::Cid;
 use filecoin_proofs_api::{
-    post, seal::verify_aggregate_seal_commit_proofs, seal::verify_seal as proofs_verify_seal,
-    PublicReplicaInfo,
+    self as proofs, post, seal,
+    seal::{
+        compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
+    },
+    ProverId, PublicReplicaInfo, SectorId,
 };
-use fvm_shared::address::Protocol;
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use fvm_shared::{
+    address::Protocol,
+    bigint::Zero,
+    commcid::{cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid},
+    econ::TokenAmount,
+    encoding::{blake2b_256, bytes_32, to_vec, CborStore},
+    error::ExitCode,
+    message::Message,
+    piece::{zero_piece_commitment, PaddedPieceSize},
+    receipt::Receipt,
+    sector::SectorInfo,
+    ActorID,
+};
 use lazy_static::lazy_static;
-
-use super::blocks::{Block, BlockRegistry};
-use super::error::Result;
-use super::*;
-
-use crate::gas::GasCharge;
-use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+use super::{
+    blocks::{Block, BlockRegistry},
+    error::Result,
+    *,
+};
+use crate::{
+    builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID},
+    call_manager::CallManager,
+    externs::Externs,
+    gas::GasCharge,
+    machine::CallError,
+    state_tree::ActorState,
+    syscall_error,
+};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();

@@ -3,8 +3,9 @@
 
 mod combine;
 
-use combine::{Combine, Cut, Difference, Intersection, SymmetricDifference, Union};
 use std::{iter, ops::Range};
+
+use combine::{Combine, Cut, Difference, Intersection, SymmetricDifference, Union};
 
 /// A trait for iterators over `Range<usize>`.
 ///

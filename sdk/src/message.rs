@@ -1,11 +1,16 @@
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, DAG_CBOR};
-use fvm_shared::error::ExitCode;
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::{
+    econ::TokenAmount,
+    encoding::{Cbor, DAG_CBOR},
+    error::ExitCode,
+    ActorID, MethodNum,
+};
 
-use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::ipld::{BlockId, Codec};
-use crate::{abort, sys};
+use crate::{
+    abort,
+    error::{IntoSyscallResult, SyscallResult},
+    ipld::{BlockId, Codec},
+    sys,
+};
 
 /// Returns the ID address of the caller.
 #[inline(always)]

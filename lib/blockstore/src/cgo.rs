@@ -12,11 +12,9 @@ extern "C" {
     pub fn cgobs_has(store: i32, k: *const u8, k_len: i32) -> i32;
 }
 
-use cid::Cid;
-use std::ptr;
+use std::{error, fmt, ptr};
 
-use std::error;
-use std::fmt;
+use cid::Cid;
 
 use super::Blockstore;
 

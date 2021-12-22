@@ -5,20 +5,23 @@ mod errors;
 mod network;
 mod payload;
 mod protocol;
-pub use self::errors::Error;
-pub use self::network::Network;
-pub use self::payload::{BLSPublicKey, Payload};
-pub use self::protocol::Protocol;
+use std::{borrow::Cow, fmt, hash::Hash, str::FromStr};
 
-use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
-use crate::ActorID;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use std::hash::Hash;
-use std::str::FromStr;
-use std::{borrow::Cow, fmt};
+
+pub use self::{
+    errors::Error,
+    network::Network,
+    payload::{BLSPublicKey, Payload},
+    protocol::Protocol,
+};
+use crate::{
+    encoding::{blake2b_variable, serde_bytes, Cbor},
+    ActorID,
+};
 
 /// defines the encoder for base32 encoding with the provided string with no padding
 const ADDRESS_ENCODER: Encoding = new_encoding! {
@@ -321,8 +324,7 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
 #[cfg(test)]
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
-    use crate::address::errors::Error;
-    use crate::address::{from_leb_bytes, to_leb_bytes};
+    use crate::address::{errors::Error, from_leb_bytes, to_leb_bytes};
 
     #[test]
     fn test_from_leb_bytes_passing() {

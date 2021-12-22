@@ -2,12 +2,11 @@ use anyhow::Context as _;
 use cid::{self, Cid};
 use wasmtime::{self, Caller};
 
+use super::Context as _;
 use crate::{
     kernel::{ClassifyResult, Result},
     Kernel,
 };
-
-use super::Context as _;
 
 // Computes the encoded size of a varint.
 // TODO: move this to the varint crate.

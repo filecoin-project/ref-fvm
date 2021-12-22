@@ -1,6 +1,4 @@
-use fvm_shared::bigint::bigint_ser;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
+use fvm_shared::{bigint::bigint_ser, econ::TokenAmount, encoding::tuple::*};
 
 pub mod miner {
     use super::*;

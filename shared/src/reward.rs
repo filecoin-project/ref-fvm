@@ -1,8 +1,6 @@
 use serde_tuple::*;
 
-use crate::bigint::bigint_ser;
-use crate::sector::StoragePower;
-use crate::smooth::FilterEstimate;
+use crate::{bigint::bigint_ser, sector::StoragePower, smooth::FilterEstimate};
 
 #[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
 pub struct ThisEpochRewardReturn {

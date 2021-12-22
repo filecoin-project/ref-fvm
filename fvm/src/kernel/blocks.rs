@@ -1,5 +1,4 @@
-use std::convert::TryInto;
-use std::rc::Rc;
+use std::{convert::TryInto, rc::Rc};
 
 use cid::Cid;
 use thiserror::Error;

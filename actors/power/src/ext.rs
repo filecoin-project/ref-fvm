@@ -1,7 +1,9 @@
 use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, RawBytes};
-use fvm_shared::sector::{RegisteredPoStProof, SectorNumber};
+use fvm_shared::{
+    address::Address,
+    encoding::{serde_bytes, tuple::*, BytesDe, RawBytes},
+    sector::{RegisteredPoStProof, SectorNumber},
+};
 
 pub mod init {
     use super::*;

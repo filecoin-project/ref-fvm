@@ -1,54 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{hash_map::Entry, HashMap};
-use std::{iter, ops::Neg};
-
-use anyhow::anyhow;
-use bitfield::{BitField, UnvalidatedBitField, Validate};
-use blockstore::Blockstore;
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use cid::{multihash::Code, Cid};
-use log::{error, info, warn};
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-
-pub use bitfield_queue::*;
-pub use deadline_assignment::*;
-pub use deadline_info::*;
-pub use deadline_state::*;
-pub use deadlines::*;
-pub use expiration_queue::*;
-
-use fvm_shared::bigint::bigint_ser::BigIntSer;
-use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
-use fvm_shared::encoding::{BytesDe, Cbor, CborStore};
-use fvm_shared::{
-    address::{Address, Payload, Protocol},
-    bigint::BigInt,
-    clock::ChainEpoch,
-    crypto::randomness::*,
-    deal::DealID,
-    econ::TokenAmount,
-    encoding::RawBytes,
-    error::*,
-    randomness::*,
-    sector::*,
-    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    iter,
+    ops::Neg,
 };
-// The following errors are particular cases of illegal state.
-// They're not expected to ever happen, but if they do, distinguished codes can help us
-// diagnose the problem.
-use fvm_shared::error::ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
-pub use monies::*;
-pub use partition_state::*;
-pub use policy::*;
-pub use sector_map::*;
-pub use sectors::*;
-pub use state::*;
-pub use termination::*;
-pub use types::*;
-pub use vesting_state::*;
 
 use actors_runtime::{
     actor_error, is_principal,
@@ -57,8 +14,48 @@ use actors_runtime::{
     CALLER_TYPES_SIGNABLE, INIT_ACTOR_ADDR, REWARD_ACTOR_ADDR, STORAGE_MARKET_ACTOR_ADDR,
     STORAGE_POWER_ACTOR_ADDR,
 };
-use fvm_shared::reward::ThisEpochRewardReturn;
-use fvm_shared::smooth::FilterEstimate;
+use anyhow::anyhow;
+use bitfield::{BitField, UnvalidatedBitField, Validate};
+pub use bitfield_queue::*;
+use blockstore::Blockstore;
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use cid::{multihash::Code, Cid};
+pub use deadline_assignment::*;
+pub use deadline_info::*;
+pub use deadline_state::*;
+pub use deadlines::*;
+pub use expiration_queue::*;
+// The following errors are particular cases of illegal state.
+// They're not expected to ever happen, but if they do, distinguished codes can help us
+// diagnose the problem.
+use fvm_shared::error::ExitCode::ErrPlaceholder as ErrBalanceInvariantBroken;
+use fvm_shared::{
+    address::{Address, Payload, Protocol},
+    bigint::{bigint_ser::BigIntSer, BigInt},
+    clock::ChainEpoch,
+    crypto::randomness::{DomainSeparationTag::WindowedPoStChallengeSeed, *},
+    deal::DealID,
+    econ::TokenAmount,
+    encoding::{BytesDe, Cbor, CborStore, RawBytes},
+    error::*,
+    randomness::*,
+    reward::ThisEpochRewardReturn,
+    sector::*,
+    smooth::FilterEstimate,
+    MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND,
+};
+use log::{error, info, warn};
+pub use monies::*;
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
+pub use partition_state::*;
+pub use policy::*;
+pub use sector_map::*;
+pub use sectors::*;
+pub use state::*;
+pub use termination::*;
+pub use types::*;
+pub use vesting_state::*;
 
 use crate::Code::Blake2b256;
 

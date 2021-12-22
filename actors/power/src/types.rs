@@ -1,13 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::bigint_ser;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, RawBytes};
-use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
-use fvm_shared::smooth::FilterEstimate;
+use fvm_shared::{
+    address::Address,
+    bigint::bigint_ser,
+    clock::ChainEpoch,
+    econ::TokenAmount,
+    encoding::{serde_bytes, tuple::*, BytesDe, Cbor, RawBytes},
+    sector::{RegisteredPoStProof, StoragePower},
+    smooth::FilterEstimate,
+};
 
 pub type SectorTermination = i64;
 

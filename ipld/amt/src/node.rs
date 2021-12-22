@@ -1,8 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 use anyhow::anyhow;
 use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
@@ -12,6 +10,9 @@ use serde::{
     de::{self, DeserializeOwned},
     ser, Deserialize, Serialize,
 };
+
+use super::ValueMut;
+use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -544,8 +545,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use fvm_shared::encoding::{from_slice, to_vec};
+
+    use super::*;
 
     #[test]
     fn serialize_node_symmetric() {

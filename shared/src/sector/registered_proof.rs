@@ -1,13 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::SectorSize;
-use crate::clock;
-use crate::version::NetworkVersion;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 #[cfg(feature = "proofs")]
 use std::convert::TryFrom;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use super::SectorSize;
+use crate::{clock, version::NetworkVersion};
 
 /// Seal proof type which defines the version and sector size.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]

@@ -1,7 +1,8 @@
-use blockstore::cgo::CgoBlockstore;
-use blockstore::{Block, Blockstore as _};
-use cid::multihash::{Code, MultihashDigest};
-use cid::Cid;
+use blockstore::{cgo::CgoBlockstore, Block, Blockstore as _};
+use cid::{
+    multihash::{Code, MultihashDigest},
+    Cid,
+};
 
 #[no_mangle]
 pub extern "C" fn write_blocks(store: i32, count: i32) -> i32 {

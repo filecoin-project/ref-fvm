@@ -1,8 +1,7 @@
 #![allow(unused)] // TODO: remove this when we implement these
-use cid::Cid;
-
 use anyhow::Result;
 use blockstore::cgo::CgoBlockstore;
+use cid::Cid;
 use fvm_shared::{
     address::Address,
     clock::ChainEpoch,

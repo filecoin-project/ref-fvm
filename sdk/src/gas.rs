@@ -1,5 +1,7 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::sys;
+use crate::{
+    error::{IntoSyscallResult, SyscallResult},
+    sys,
+};
 
 /// Charge gas for the operation identified by name.
 pub fn charge(name: &str, compute: u64) -> SyscallResult<()> {

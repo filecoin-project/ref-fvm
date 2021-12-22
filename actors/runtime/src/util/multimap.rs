@@ -3,12 +3,10 @@
 
 use blockstore::Blockstore;
 use cid::Cid;
+use ipld_hamt::Error;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::Array;
-use ipld_hamt::Error;
-
-use crate::{make_empty_map, make_map_with_root_and_bitwidth, BytesKey, Map};
+use crate::{make_empty_map, make_map_with_root_and_bitwidth, Array, BytesKey, Map};
 
 /// Multimap stores multiple values per key in a Hamt of Amts.
 /// The order of insertion of values for each key is retained.

@@ -26,23 +26,19 @@ extern crate lazy_static;
 extern crate serde;
 
 use blockstore::Blockstore;
+use builtin::HAMT_BIT_WIDTH;
 use cid::Cid;
+use fvm_shared::bigint::BigInt;
+pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
+pub use ipld_amt;
 use ipld_amt::Amt;
+pub use ipld_hamt;
+use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
 use serde::{de::DeserializeOwned, Serialize};
 use unsigned_varint::decode::Error as UVarintError;
 
+pub use self::{actor_error::*, builtin::*, util::*};
 use crate::runtime::Runtime;
-use builtin::HAMT_BIT_WIDTH;
-pub use ipld_amt;
-pub use ipld_hamt;
-use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
-
-pub use self::actor_error::*;
-pub use self::builtin::*;
-pub use self::util::*;
-
-use fvm_shared::bigint::BigInt;
-pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
 
 pub mod actor_error;
 pub mod builtin;

@@ -1,16 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::{tracking::BSStats, tracking::TrackingBlockstore, MemoryBlockstore};
-use cid::multihash::Code;
-use fvm_shared::encoding::CborStore;
-use ipld_hamt::BytesKey;
-use ipld_hamt::Hamt;
-use serde_bytes::ByteBuf;
 use std::fmt::Display;
 
+use blockstore::{
+    tracking::{BSStats, TrackingBlockstore},
+    MemoryBlockstore,
+};
+use cid::multihash::Code;
+use fvm_shared::encoding::CborStore;
 #[cfg(feature = "identity")]
 use ipld_hamt::Identity;
+use ipld_hamt::{BytesKey, Hamt};
+use serde_bytes::ByteBuf;
 
 // Redeclaring max array size of Hamt to avoid exposing value
 const BUCKET_SIZE: usize = 3;

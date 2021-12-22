@@ -1,13 +1,14 @@
-use crate::kernel::BlockId;
-use crate::{
-    kernel::{ClassifyResult, Result},
-    Kernel,
+use fvm_shared::{
+    encoding::{to_vec, DAG_CBOR},
+    message::Message,
 };
-use fvm_shared::encoding::{to_vec, DAG_CBOR};
-use fvm_shared::message::Message;
 use wasmtime::Caller;
 
 use super::Context;
+use crate::{
+    kernel::{BlockId, ClassifyResult, Result},
+    Kernel,
+};
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.
