@@ -349,22 +349,15 @@ impl Actor {
             };
 
             // drop deals with insufficient lock up to cover costs
-            total_client_lockup
-                .entry(client)
-                .or_insert_with(TokenAmount::zero);
+            let lockup = total_client_lockup.entry(client).or_default();
+            *lockup += deal.proposal.client_balance_requirement();
 
-            if let Some(lockup) = total_client_lockup.get_mut(&client) {
-                *lockup += deal.proposal.client_balance_requirement();
-            }
-            // safe to unwrap here as we just set it right before if it doesnt exist
-            let client_balance_ok = msm
-                .balance_covered(client, total_client_lockup.get(&client).unwrap())
-                .map_err(|e| {
-                    e.downcast_default(
-                        ExitCode::ErrIllegalState,
-                        "failed to check client balance coverage",
-                    )
-                })?;
+            let client_balance_ok = msm.balance_covered(client, lockup).map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalState,
+                    "failed to check client balance coverage",
+                )
+            })?;
 
             if !client_balance_ok {
                 info!(
