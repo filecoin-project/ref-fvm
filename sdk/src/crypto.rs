@@ -7,7 +7,6 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{from_slice, to_vec, Cbor};
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
