@@ -391,7 +391,7 @@ impl Actor {
             deal.proposal.provider = provider;
             deal.proposal.client = client;
             let pcid = deal.proposal.cid().map_err(|e| {
-                ActorError::from(e).wrap(format!("failed to take cid of proposal {}", di))
+                actor_error!(ErrIllegalArgument; "failed to take cid of proposal {}: {}", di, e)
             })?;
 
             // check proposalCids for duplication within message batch
