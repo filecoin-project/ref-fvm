@@ -1,5 +1,6 @@
 use anyhow::Error;
 use cid::Cid;
+use multihash::Code;
 
 use crate::runtime::actor_blockstore::ActorBlockstore;
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
@@ -138,7 +139,23 @@ where
         C: Cbor,
         F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>,
     {
-        todo!()
+        let state_cid = fvm::sself::get_root().map_err(
+            |_| actor_error!(SysErrIllegalArgument; "failed to get actor root state CID"),
+        )?;
+        let mut state = ActorBlockstore
+            .get_cbor::<C>(&state_cid)
+            .map_err(|_| actor_error!(SysErrIllegalArgument; "failed to get actor state"))?
+            .ok_or_else(|| {
+                actor_error!(fatal(
+                    "State does not exist for actor state cid: {}",
+                    state_cid
+                ))
+            })?;
+        let ret = f(&mut state, self)?;
+        let new_root = ActorBlockstore.put_cbor(&state, Code::Blake2b256)
+            .map_err(|e| actor_error!(SysErrIllegalArgument; "failed to write actor state in transaction: {}", e.to_string()))?;
+        fvm::sself::set_root(&new_root)?;
+        Ok(ret)
     }
 
     fn store(&self) -> &B {
