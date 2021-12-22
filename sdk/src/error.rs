@@ -1,5 +1,8 @@
+use std::convert::TryInto;
+
 use fvm_shared::error::ExitCode;
-use num_traits::FromPrimitive;
+
+use crate::sys::SyscallStatus;
 
 /// SDK functions performing a syscall return a SyscallResult type, where the
 /// Error type is an ExitCode. ExitCode::Ok is translated to an Ok result, while
@@ -18,10 +21,13 @@ pub(crate) trait IntoSyscallResult {
 }
 
 // Zero results.
-impl IntoSyscallResult for u32 {
+impl IntoSyscallResult for SyscallStatus {
     type Value = ();
     fn into_syscall_result(self) -> SyscallResult<Self::Value> {
-        match FromPrimitive::from_u32(self).expect("syscall returned unrecognized exit code") {
+        match self
+            .try_into()
+            .expect("syscall returned unrecognized exit code")
+        {
             ExitCode::Ok => Ok(()),
             other => Err(other),
         }
@@ -29,11 +35,14 @@ impl IntoSyscallResult for u32 {
 }
 
 // Single result.
-impl<T> IntoSyscallResult for (u32, T) {
+impl<T> IntoSyscallResult for (SyscallStatus, T) {
     type Value = T;
     fn into_syscall_result(self) -> SyscallResult<Self::Value> {
         let (code, val) = self;
-        match FromPrimitive::from_u32(code).expect("syscall returned unrecognized exit code") {
+        match code
+            .try_into()
+            .expect("syscall returned unrecognized exit code")
+        {
             ExitCode::Ok => Ok(val),
             other => Err(other),
         }
@@ -44,11 +53,11 @@ impl<T> IntoSyscallResult for (u32, T) {
 macro_rules! impl_into_syscall_result {
     ($($t:ident)+) => {
         #[allow(non_snake_case)]
-        impl<$($t),+> IntoSyscallResult for (u32 $(, $t)+) {
+        impl<$($t),+> IntoSyscallResult for (SyscallStatus $(, $t)+) {
             type Value = ($($t),+);
             fn into_syscall_result(self) -> SyscallResult<Self::Value> {
                 let (code $(, $t)+) = self;
-                match FromPrimitive::from_u32(code).expect("syscall returned unrecognized exit code") {
+                match code.try_into().expect("syscall returned unrecognized exit code") {
                     ExitCode::Ok => Ok(($($t),+)),
                     other => Err(other),
                 }

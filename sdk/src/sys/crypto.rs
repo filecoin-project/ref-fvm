@@ -9,12 +9,16 @@ extern "C" {
         addr_len: u32,
         plaintext_off: *const u8,
         plaintext_len: u32,
-    ) -> (u32, i32);
+    ) -> (super::SyscallStatus, i32);
 
     /// Hashes input data using blake2b with 256 bit output.
     ///
     /// The output buffer must be sized to a minimum of 32 bytes.
-    pub fn hash_blake2b(data_off: *const u8, data_len: u32, obuf_off: *mut u8) -> u32;
+    pub fn hash_blake2b(
+        data_off: *const u8,
+        data_len: u32,
+        obuf_off: *mut u8,
+    ) -> super::SyscallStatus;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.
@@ -27,13 +31,13 @@ extern "C" {
         pieces_len: u32,
         cid_off: *mut u8,
         cid_len: u32,
-    ) -> (u32, u32);
+    ) -> (super::SyscallStatus, u32);
 
     /// Verifies a sector seal proof.
-    pub fn verify_seal(info_off: *const u8, info_len: u32) -> (u32, i32);
+    pub fn verify_seal(info_off: *const u8, info_len: u32) -> (super::SyscallStatus, i32);
 
     /// Verifies a window proof of spacetime.
-    pub fn verify_post(info_off: *const u8, info_len: u32) -> (u32, i32);
+    pub fn verify_post(info_off: *const u8, info_len: u32) -> (super::SyscallStatus, i32);
 
     /// Verifies that two block headers provide proof of a consensus fault.
     ///
@@ -47,8 +51,8 @@ extern "C" {
         h2_len: u32,
         extra_off: *const u8,
         extra_len: u32,
-    ) -> (u32, i32, u32);
+    ) -> (super::SyscallStatus, i32, u32);
 
     /// Verifies an aggregated batch of sector seal proofs.
-    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> (u32, i32);
+    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> (super::SyscallStatus, i32);
 }
