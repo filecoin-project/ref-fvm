@@ -51,7 +51,12 @@ extern "C" {
         h2_len: u32,
         extra_off: *const u8,
         extra_len: u32,
-    ) -> (super::SyscallStatus, i32, u32);
+    ) -> (
+        super::SyscallStatus,
+        u32,
+        fvm_shared::clock::ChainEpoch,
+        fvm_shared::ActorID,
+    );
 
     /// Verifies an aggregated batch of sector seal proofs.
     pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> (super::SyscallStatus, i32);
