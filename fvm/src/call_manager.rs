@@ -107,7 +107,7 @@ where
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
         let params = RawBytes::serialize(&addr)
-            // TODO this should be a Sys actor error, but we're copying ltous here.
+            // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
             .map_err(|e| syscall_error!(ErrSerialization; "failed to serialize params: {}", e))?;
 
         self.send_resolved(
@@ -164,25 +164,25 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<Receipt> {
-        // 1. Lookup the actor.
+        // Lookup the actor.
         let state = self
             .state_tree()
             .get_actor_id(to)?
             .ok_or_else(|| syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
-        // 2. Charge the method gas. Not sure why this comes second, but it does.
+        // Charge the method gas. Not sure why this comes second, but it does.
         self.charge_gas(
             self.context()
                 .price_list()
                 .on_method_invocation(value, method),
         )?;
 
-        // 3. Transfer, if necessary.
+        // Transfer, if necessary.
         if !value.is_zero() {
             self.machine.transfer(from, to, value)?;
         }
 
-        // 4. Abort early if we have a send.
+        // Abort early if we have a send.
         if method == METHOD_SEND {
             return Ok(Receipt {
                 exit_code: ExitCode::Ok,
@@ -191,8 +191,7 @@ where
             });
         }
 
-        // 3. Finally, handle the code.
-
+        // Finally, handle the code.
         let module = self.load_module(&state.code)?;
 
         // This is a cheap operation as it doesn't actually clone the struct,
@@ -290,5 +289,20 @@ where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || CallManager(None), f)
+    }
+
+    /// Wrap a send closure in a transaction. The transaction will be reverted if the send closure
+    /// returns either an error or a receipt with a non-zero exit code.
+    pub fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<Receipt>,
+    ) -> Result<Receipt> {
+        self.state_tree_mut().begin_transaction();
+        let (revert, res) = match f(self) {
+            Ok(v) => (v.exit_code != ExitCode::Ok, Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+        self.state_tree_mut().end_transaction(revert)?;
+        res
     }
 }
