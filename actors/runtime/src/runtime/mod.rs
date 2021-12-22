@@ -28,7 +28,7 @@ pub use self::actor_code::*;
 mod actor_code;
 
 #[cfg(feature = "runtime-wasm")]
-mod sdk;
+mod fvm;
 
 #[cfg(feature = "runtime-wasm")]
 mod actor_blockstore;
