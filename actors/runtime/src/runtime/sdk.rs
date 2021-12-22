@@ -22,6 +22,7 @@ use fvm_shared::MethodNum;
 
 pub struct SdkRuntime<B> {
     blockstore: B,
+    in_transaction: bool,
 }
 
 struct FvmMessage;
@@ -151,7 +152,12 @@ where
                     state_cid
                 ))
             })?;
-        let ret = f(&mut state, self)?;
+
+        self.in_transaction = true;
+        let result = f(&mut state, self);
+        self.in_transaction = false;
+
+        let ret = result?;
         let new_root = ActorBlockstore.put_cbor(&state, Code::Blake2b256)
             .map_err(|e| actor_error!(SysErrIllegalArgument; "failed to write actor state in transaction: {}", e.to_string()))?;
         fvm::sself::set_root(&new_root)?;
@@ -169,6 +175,9 @@ where
         params: RawBytes,
         value: TokenAmount,
     ) -> Result<RawBytes, ActorError> {
+        if self.in_transaction {
+            return Err(actor_error!(SysErrIllegalActor; "runtime.send() is not allowed"));
+        }
         Ok(fvm::send::send(&to, method, params, value)?.return_data)
     }
 
