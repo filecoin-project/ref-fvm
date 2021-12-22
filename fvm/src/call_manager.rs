@@ -291,10 +291,18 @@ where
         replace_with::replace_with_and_return(self, || CallManager(None), f)
     }
 
-    pub fn with_transaction<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+    /// Wrap a send closure in a transaction. The transaction will be reverted if the send closure
+    /// returns either an error or a receipt with a non-zero exit code.
+    pub fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<Receipt>,
+    ) -> Result<Receipt> {
         self.state_tree_mut().begin_transaction();
-        let res = f(self);
-        self.state_tree_mut().end_transaction(res.is_err())?;
+        let (revert, res) = match f(self) {
+            Ok(v) => (v.exit_code != ExitCode::Ok, Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+        self.state_tree_mut().end_transaction(revert)?;
         res
     }
 }

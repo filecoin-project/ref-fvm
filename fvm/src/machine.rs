@@ -203,22 +203,24 @@ where
         // Apply the message.
         let (res, gas_used, mut backtrace) = self.map_mut(|machine| {
             let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
+            // This error is fatal because it should have already been acounted for inside
+            // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().2);
             }
 
             let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)
-                    .and_then(|ret| {
-                        // Charge for including the result (before we end the transaction).
-                        cm.charge_gas(
-                            cm.context()
-                                .price_list()
-                                .on_chain_return_value(ret.return_data.len()),
-                        )?;
-                        Ok(ret)
-                    })
+                let ret = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
+
+                // Charge for including the result (before we end the transaction).
+                cm.charge_gas(
+                    cm.context()
+                        .price_list()
+                        .on_chain_return_value(ret.return_data.len()),
+                )?;
+
+                Ok(ret)
             });
             let (gas_used, backtrace, machine) = cm.finish();
             (Ok((result, gas_used, backtrace)), machine)
