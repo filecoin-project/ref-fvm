@@ -1,8 +1,9 @@
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
 };
+use std::convert::TryInto;
 
 use crate::runtime::actor_blockstore::ActorBlockstore;
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
@@ -16,8 +17,11 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, CborStore, RawBytes, DAG_CBOR};
+use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{AggregateSealVerifyProofAndInfos, SealVerifyInfo, WindowPoStVerifyInfo};
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MethodNum;
 
@@ -217,7 +221,6 @@ where
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
-        // TODO: Why hasn't Aayush done this yet, very disappointing
         todo!()
     }
 
@@ -244,6 +247,24 @@ where
             Ok(true) => Ok(()),
             Ok(false) | Err(_) => Err(Error::msg("invalid signature")),
         }
+    }
+
+    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Error> {
+        fvm::crypto::hash_blake2b(data)
+            .map_err(|e| anyhow!("failed to compute blake2b hash; exit code: {}", e))?
+            .try_into()
+            .map_err(|v: Vec<u8>| anyhow!("unexpected hash length; expected 32, got: {}", v.len()))
+    }
+
+    fn compute_unsealed_sector_cid(
+        &self,
+        proof_type: RegisteredSealProof,
+        pieces: &[PieceInfo],
+    ) -> Result<Cid, Error> {
+        // The only actor that invokes this (market actor) is generating the
+        // exit code ErrIllegalArgument. We should probably move that here, or to the syscall itself.
+        fvm::crypto::compute_unsealed_sector_cid(proof_type, pieces)
+            .map_err(|e| anyhow!("failed to compute unsealed sector CID; exit code: {}", e))
     }
 
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<(), Error> {
