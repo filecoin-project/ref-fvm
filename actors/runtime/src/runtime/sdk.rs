@@ -1,12 +1,12 @@
 use anyhow::Error;
 use cid::Cid;
 
+use crate::runtime::actor_blockstore::ActorBlockstore;
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
 use crate::Runtime;
 use crate::{actor_error, ActorError};
 use blockstore::Blockstore;
 use fvm_sdk as fvm;
-use fvm_sdk::blockstore::ActorBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -125,7 +125,9 @@ where
         let root = fvm::sself::get_root()?;
         Ok(ActorBlockstore
             .get_cbor(&root)
-            .map_err(|_| ExitCode::SysErrIllegalArgument)? // "failed to get actor for Readonly state",
+            .map_err(
+                |_| actor_error!(SysErrIllegalArgument; "failed to get actor for Readonly state"),
+            )?
             .ok_or(actor_error!(fatal(
                 "State does not exist for actor state root"
             )))?)

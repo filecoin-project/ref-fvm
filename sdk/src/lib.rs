@@ -1,7 +1,6 @@
 use core::ptr;
 
 pub mod actor;
-pub mod blockstore;
 pub mod crypto;
 pub mod error;
 pub mod gas;

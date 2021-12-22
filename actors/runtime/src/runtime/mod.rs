@@ -30,6 +30,9 @@ mod actor_code;
 #[cfg(feature = "runtime-wasm")]
 mod sdk;
 
+#[cfg(feature = "runtime-wasm")]
+mod actor_blockstore;
+
 /// Runtime is the VM's internal runtime object.
 /// this is everything that is accessible to actors, beyond parameters.
 pub trait Runtime<BS: Blockstore>: Syscalls {
