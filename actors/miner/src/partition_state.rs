@@ -9,17 +9,14 @@ use blockstore::Blockstore;
 use cid::Cid;
 use num_traits::{Signed, Zero};
 
-use actors_runtime::{ActorDowncast, Array};
+use actors_runtime::{actor_error, ActorDowncast, Array};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::clock::{QuantSpec, NO_QUANTIZATION};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorSize, StoragePower};
-use fvm_shared::{
-    actor_error,
-    clock::{QuantSpec, NO_QUANTIZATION},
-};
 
 use super::{
     power_for_sectors, select_sectors, validate_partition_contains_sectors, BitFieldQueue,

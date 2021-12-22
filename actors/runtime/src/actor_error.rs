@@ -1,6 +1,5 @@
+use fvm_shared::error::ExitCode;
 use thiserror::Error;
-
-use super::ExitCode;
 
 /// TODO fix error system; actor errors should be transparent to the VM.
 /// The error type that gets returned by actor method calls.
@@ -60,8 +59,8 @@ impl ActorError {
 }
 
 // TODO former EncodingError
-impl From<crate::encoding::Error> for ActorError {
-    fn from(e: crate::encoding::Error) -> Self {
+impl From<fvm_shared::encoding::Error> for ActorError {
+    fn from(e: fvm_shared::encoding::Error) -> Self {
         Self {
             fatal: false,
             exit_code: ExitCode::ErrSerialization,
@@ -71,8 +70,8 @@ impl From<crate::encoding::Error> for ActorError {
 }
 
 // TODO former CborError
-impl From<crate::encoding::error::Error> for ActorError {
-    fn from(e: crate::encoding::error::Error) -> Self {
+impl From<fvm_shared::encoding::error::Error> for ActorError {
+    fn from(e: fvm_shared::encoding::error::Error) -> Self {
         Self {
             fatal: false,
             exit_code: ExitCode::ErrSerialization,
@@ -81,32 +80,33 @@ impl From<crate::encoding::error::Error> for ActorError {
     }
 }
 
-/*
-// TODO: is this the right way to do this?
-impl From<anyhow::Error> for ActorError {
-    fn from(e: anyhow::Error) -> Self {
-        // TODO
-        e.downcast_fatal("failed")
+/// Performs conversions from SyscallResult, whose error type is ExitCode,
+/// to ActorErrors. This facilitates propagation.
+impl From<ExitCode> for ActorError {
+    fn from(e: ExitCode) -> Self {
+        ActorError {
+            fatal: false,
+            exit_code: e,
+            msg: "".to_string(),
+        }
     }
 }
-*/
 
 /// Convenience macro for generating Actor Errors
-/// TODO: Delete this. It exists so the code can compile.
 #[macro_export]
 macro_rules! actor_error {
     // Fatal Errors
-    ( fatal($msg:expr) ) => { $crate::error::ActorError::new_fatal($msg.to_string()) };
+    ( fatal($msg:expr) ) => { $crate::ActorError::new_fatal($msg.to_string()) };
     ( fatal($msg:literal $(, $ex:expr)+) ) => {
-        $crate::error::ActorError::new_fatal(format!($msg, $($ex,)*))
+        $crate::ActorError::new_fatal(format!($msg, $($ex,)*))
     };
 
     // Error with only one stringable expression
-    ( $code:ident; $msg:expr ) => { $crate::error::ActorError::new($crate::error::ExitCode::$code, $msg.to_string()) };
+    ( $code:ident; $msg:expr ) => { $crate::ActorError::new(fvm_shared::error::ExitCode::$code, $msg.to_string()) };
 
     // String with positional arguments
     ( $code:ident; $msg:literal $(, $ex:expr)+ ) => {
-        $crate::error::ActorError::new($crate::error::ExitCode::$code, format!($msg, $($ex,)*))
+        $crate::ActorError::new(fvm_shared::error::ExitCode::$code, format!($msg, $($ex,)*))
     };
 
     // Error with only one stringable expression, with comma separator

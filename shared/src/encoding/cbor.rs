@@ -93,6 +93,12 @@ impl From<RawBytes> for Vec<u8> {
     }
 }
 
+impl From<Vec<u8>> for RawBytes {
+    fn from(v: Vec<u8>) -> RawBytes {
+        RawBytes::new(v)
+    }
+}
+
 impl From<RawBytes> for Rc<[u8]> {
     fn from(b: RawBytes) -> Rc<[u8]> {
         b.bytes.into()

@@ -10,17 +10,17 @@ use integer_encoding::VarInt;
 use lazy_static::lazy_static;
 use num_traits::Signed;
 
+use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{
     consensus_miner_min_power, make_empty_map, make_map_with_root, make_map_with_root_and_bitwidth,
     ActorDowncast, Map, Multimap,
 };
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{bigint_ser, BigInt};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{tuple::*, Cbor, RawBytes};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
 use fvm_shared::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};
 use fvm_shared::HAMT_BIT_WIDTH;

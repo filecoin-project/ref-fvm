@@ -15,14 +15,15 @@ use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, CborStore};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{RegisteredPoStProof, SectorNumber, SectorSize, MAX_SECTOR_NUMBER};
-use fvm_shared::{actor_error, HAMT_BIT_WIDTH};
+use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Error as AmtError;
 use ipld_hamt::Error as HamtError;
 
 use actors_runtime::{
-    make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast, Array,
+    actor_error, make_empty_map, make_map_with_root_and_bitwidth, u64_key, ActorDowncast,
+    ActorError, Array,
 };
 
 use super::{

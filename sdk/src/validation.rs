@@ -1,19 +1,18 @@
-use crate::sys;
+use crate::error::SyscallResult;
+use crate::{error::IntoSyscallResult, sys};
 use cid::Cid;
 use fvm_shared::address::Address;
 
 /// Signals that this actor accepts calls from any other actor.
-pub fn validate_immediate_caller_accept_any() {
-    unsafe {
-        sys::validation::validate_immediate_caller_accept_any();
-    }
+pub fn validate_immediate_caller_accept_any() -> SyscallResult<()> {
+    unsafe { sys::validation::validate_immediate_caller_accept_any().into_syscall_result() }
 }
 
 /// Validates that the call being processed originated at one
 /// of the listed addresses.
 ///
 /// The list of addreses is provided as a CBOR encoded list.
-pub fn validate_immediate_caller_addr_one_of(addrs: &[Address]) {
+pub fn validate_immediate_caller_addr_one_of(addrs: &[Address]) -> SyscallResult<()> {
     // TODO error handling during decoding, although this is likely a fatal error.
     unsafe {
         let v = addrs.to_vec();
@@ -22,6 +21,7 @@ pub fn validate_immediate_caller_addr_one_of(addrs: &[Address]) {
             encoded.as_ptr(),
             encoded.len() as u32,
         )
+        .into_syscall_result()
     }
 }
 
@@ -29,7 +29,7 @@ pub fn validate_immediate_caller_addr_one_of(addrs: &[Address]) {
 /// actor of one of the specified types.
 ///
 /// The list of CIDs is provided as a CBOR encoded list.
-pub fn validate_immediate_caller_type_one_of(cids: &[Cid]) {
+pub fn validate_immediate_caller_type_one_of(cids: &[Cid]) -> SyscallResult<()> {
     // TODO error handling during decoding, although this is likely a fatal error.
     unsafe {
         let v = cids.to_vec();
@@ -38,5 +38,6 @@ pub fn validate_immediate_caller_type_one_of(cids: &[Cid]) {
             encoded.as_ptr(),
             encoded.len() as u32,
         )
+        .into_syscall_result()
     }
 }

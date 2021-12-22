@@ -32,18 +32,18 @@ extern "C" {
     /// - The reachable set is initialized to the root.
     /// - The reachable set is extended to include the direct children of loaded blocks until the
     ///   end of the invocation.
-    pub fn open(cid: *const u8) -> (u32, u64, u32);
+    pub fn open(cid: *const u8) -> (u32, u32, u64, u32);
 
     /// Creates a new block, returning the block's ID. The block's children must be in the reachable
     /// set. The new block isn't added to the reachable set until the CID is computed.
-    pub fn create(codec: u64, data: *const u8, len: u32) -> u32;
+    pub fn create(codec: u64, data: *const u8, len: u32) -> (u32, u32);
 
     /// Reads the identified block into obuf, starting at offset, reading _at most_ len bytes.
     /// Returns the number of bytes read.
-    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> u32;
+    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> (u32, u32);
 
     /// Returns the codec and size of the specified block.
-    pub fn stat(id: u32) -> (u64, u32);
+    pub fn stat(id: u32) -> (u32, u64, u32);
 
     // TODO: CID versions?
 
@@ -52,5 +52,6 @@ extern "C" {
     /// If the CID is longer than cid_max_len, no data is written and the actual size is returned.
     ///
     /// The returned CID is added to the reachable set.
-    pub fn cid(id: u32, hash_fun: u64, hash_len: u32, cid: *mut u8, cid_max_len: u32) -> u32;
+    pub fn cid(id: u32, hash_fun: u64, hash_len: u32, cid: *mut u8, cid_max_len: u32)
+        -> (u32, u32);
 }

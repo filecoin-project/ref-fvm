@@ -1,19 +1,19 @@
 #[link(wasm_import_module = "self")]
+#[allow(improper_ctypes)]
 extern "C" {
     /// Gets the current root for the calling actor.
     ///
     /// If the CID doesn't fit in the specified maximum length (and/or the length is 0), this
     /// function returns the required size and does not update the cid buffer.
-    pub fn get_root(cid: *mut u8, cid_max_len: u32) -> u32;
+    pub fn get_root(cid: *mut u8, cid_max_len: u32) -> (u32, u32);
 
     /// Sets the root CID for the calling actor. The new root must be in the reachable set.
-    pub fn set_root(cid: *const u8);
+    pub fn set_root(cid: *const u8) -> u32;
 
     /// Gets the current balance for the calling actor.
-    #[allow(improper_ctypes)]
-    pub fn current_balance() -> (u64, u64);
+    pub fn current_balance() -> (u32, u64, u64);
 
     /// Destroys the calling actor, sending its current balance
     /// to the supplied address, which cannot be itself.
-    pub fn self_destruct(addr_off: *const u8, addr_len: u32);
+    pub fn self_destruct(addr_off: *const u8, addr_len: u32) -> u32;
 }

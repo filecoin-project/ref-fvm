@@ -14,13 +14,13 @@ use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, RawBytes};
-use fvm_shared::error::ActorError;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
-use fvm_shared::{actor_error, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 
+use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{
     runtime::{ActorCode, Runtime},
     ActorDowncast, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
