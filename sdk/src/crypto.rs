@@ -1,16 +1,17 @@
 use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::{ipld, status_code_to_bool, sys, MAX_CID_LEN};
+use crate::{status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::Signature;
-use fvm_shared::encoding::{from_slice, to_vec, Cbor};
+use fvm_shared::encoding::{to_vec, Cbor};
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use num_traits::FromPrimitive;
 
 /// Verifies that a signature is valid for an address and plaintext.
 #[allow(unused)]
@@ -118,8 +119,8 @@ fn verify_consensus_fault(
     h2: &[u8],
     extra: &[u8],
 ) -> SyscallResult<Option<ConsensusFault>> {
-    unsafe {
-        let (ok, id) = sys::crypto::verify_consensus_fault(
+    let (fault, epoch, actor) = unsafe {
+        sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
             h1.len() as u32,
             h2.as_ptr(),
@@ -127,16 +128,18 @@ fn verify_consensus_fault(
             extra.as_ptr(),
             extra.len() as u32,
         )
-        .into_syscall_result()?;
-        if status_code_to_bool(ok) {
-            let data = ipld::get_block(id, None)?;
-            let data = data.as_slice();
-            return Ok(Some(
-                from_slice(data).expect("failed to unmarshal ConsensusFault"),
-            ));
-        }
+        .into_syscall_result()?
+    };
+    if fault == 0 {
+        return Ok(None);
     }
-    Ok(None)
+    let fault_type =
+        FromPrimitive::from_u32(fault).expect("received an invalid fault type from the runtime");
+    Ok(Some(ConsensusFault {
+        epoch,
+        fault_type,
+        target: Address::new_id(actor),
+    }))
 }
 
 #[allow(unused)]
