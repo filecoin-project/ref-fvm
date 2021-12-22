@@ -203,39 +203,28 @@ where
         // Apply the message.
         let (res, gas_used, mut backtrace) = self.map_mut(|machine| {
             let mut cm = CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
+            // This error is fatal because it should have already been acounted for inside
+            // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
                 return (Err(e), cm.finish().2);
             }
 
-            // BEGIN CRITICAL SECTION: Do not return an error after this line
-            cm.state_tree.begin_transaction();
+            let result = cm.with_transaction(|cm| {
+                // Invoke the message.
+                let ret = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
 
-            // Invoke the message.
-            let res = cm.send(sender_id, msg.to, msg.method_num, &msg.params, &msg.value);
-
-            // Charge for including the result.
-            // We shouldn't put this here, but this is where we can still account for gas.
-            // TODO: Maybe CallManager::finish() should return the GasTracker?
-            let result = res.and_then(|ret| {
+                // Charge for including the result (before we end the transaction).
                 cm.charge_gas(
                     cm.context()
                         .price_list()
                         .on_chain_return_value(ret.return_data.len()),
                 )?;
+
                 Ok(ret)
             });
-
             let (gas_used, backtrace, machine) = cm.finish();
             (Ok((result, gas_used, backtrace)), machine)
         })?;
-
-        // Abort or commit the transaction.
-        self.state_tree
-            .end_transaction(res.is_err())
-            .context("failed to end transaction")
-            .or_fatal()?;
-
-        // END CRITICAL SECTION
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {

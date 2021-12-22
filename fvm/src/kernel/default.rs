@@ -314,17 +314,9 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<Receipt> {
-        self.call_manager.state_tree_mut().begin_transaction();
-
-        let res = self
-            .call_manager
-            .send(self.from, *recipient, method, params, value);
-        // TODO Do something with the result.
+        let from = self.from;
         self.call_manager
-            .state_tree_mut()
-            .end_transaction(res.is_err())?;
-
-        res
+            .with_transaction(|cm| cm.send(from, *recipient, method, params, value))
     }
 }
 
@@ -789,11 +781,11 @@ where
     B: Blockstore,
     E: Externs,
 {
-    fn push_syscall_error(&mut self, code: ExitCode, message: String) {
+    fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,
-            code,
-            message,
+            code: err.1,
+            message: err.0,
         })
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {

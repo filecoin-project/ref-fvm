@@ -10,5 +10,5 @@ extern "C" {
         params: u32,
         value_hi: u64,
         value_lo: u64,
-    ) -> (u32, u32);
+    ) -> (super::SyscallStatus, u32);
 }

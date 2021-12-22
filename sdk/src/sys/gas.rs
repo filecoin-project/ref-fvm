@@ -4,9 +4,9 @@ extern "C" {
     // We could also _not_ feed that through to the outside?
 
     /// Charge gas.
-    pub fn charge(name_off: *const u8, name_len: u32, amount: u64) -> u32;
+    pub fn charge(name_off: *const u8, name_len: u32, amount: u64) -> super::SyscallStatus;
 
     // Returns the amount of gas remaining.
     // TODO not implemented.
-    // pub fn remaining() -> (u32, u64);
+    // pub fn remaining() -> (super::SyscallStatus, u64);
 }

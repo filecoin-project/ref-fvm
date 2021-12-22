@@ -273,7 +273,7 @@ pub trait DebugOps {
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.
-    fn push_syscall_error(&mut self, code: ExitCode, message: String);
+    fn push_syscall_error(&mut self, e: SyscallError);
 
     /// Log an actor error, adding it to the current error trace.
     ///
