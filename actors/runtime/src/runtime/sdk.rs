@@ -29,7 +29,7 @@ lazy_static! {
     };
 }
 
-pub struct SdkRuntime<B> {
+pub struct FvmRuntime<B> {
     blockstore: B,
     in_transaction: bool,
 }
@@ -50,7 +50,7 @@ impl MessageInfo for FvmMessage {
     }
 }
 
-impl<B> Runtime<B> for SdkRuntime<B>
+impl<B> Runtime<B> for FvmRuntime<B>
 where
     B: Blockstore,
 {
@@ -226,7 +226,7 @@ where
     }
 }
 
-impl<B> Syscalls for SdkRuntime<B>
+impl<B> Syscalls for FvmRuntime<B>
 where
     B: Blockstore,
 {
