@@ -29,11 +29,15 @@ lazy_static! {
     };
 }
 
+/// A runtime that bridges to the FVM environment through the FVM SDK.
 pub struct FvmRuntime<B> {
     blockstore: B,
+    /// Indicates whether we are in a state transaction. During such, sending
+    /// messages is prohibited.
     in_transaction: bool,
 }
 
+/// A stub MessageInfo implementation performing FVM syscalls to obtain its fields.
 struct FvmMessage;
 
 impl MessageInfo for FvmMessage {
