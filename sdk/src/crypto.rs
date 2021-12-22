@@ -1,16 +1,16 @@
 use crate::error::{IntoSyscallResult, SyscallResult};
-use crate::{ipld, status_code_to_bool, sys, MAX_CID_LEN};
+use crate::{status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::Signature;
-use fvm_shared::encoding::{from_slice, to_vec, Cbor};
+use fvm_shared::encoding::{to_vec, Cbor};
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use num_traits::FromPrimitive;
 
 /// Verifies that a signature is valid for an address and plaintext.
 #[allow(unused)]
@@ -39,18 +39,18 @@ pub fn verify_signature(
 
 /// Hashes input data using blake2b with 256 bit output.
 #[allow(unused)]
-pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Randomness> {
-    let mut ret = Vec::with_capacity(RANDOMNESS_LENGTH);
+pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Vec<u8>> {
+    let mut ret = Vec::with_capacity(32);
     unsafe {
         sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())
             .into_syscall_result()?
     }
-    Ok(Randomness(ret))
+    Ok(ret)
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
 #[allow(unused)]
-fn compute_unsealed_sector_cid(
+pub fn compute_unsealed_sector_cid(
     proof_type: RegisteredSealProof,
     pieces: &[PieceInfo],
 ) -> SyscallResult<Cid> {
@@ -78,7 +78,7 @@ fn compute_unsealed_sector_cid(
 
 /// Verifies a sector seal proof.
 #[allow(unused)]
-fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
+pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal seal verification input");
@@ -91,7 +91,7 @@ fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
 
 /// Verifies a window proof of spacetime.
 #[allow(unused)]
-fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
+pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal PoSt verification input");
@@ -113,13 +113,13 @@ fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns nil and an error if the headers don't prove a fault.
 #[allow(unused)]
-fn verify_consensus_fault(
+pub fn verify_consensus_fault(
     h1: &[u8],
     h2: &[u8],
     extra: &[u8],
 ) -> SyscallResult<Option<ConsensusFault>> {
-    unsafe {
-        let (ok, id) = sys::crypto::verify_consensus_fault(
+    let (fault, epoch, actor) = unsafe {
+        sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
             h1.len() as u32,
             h2.as_ptr(),
@@ -127,20 +127,22 @@ fn verify_consensus_fault(
             extra.as_ptr(),
             extra.len() as u32,
         )
-        .into_syscall_result()?;
-        if status_code_to_bool(ok) {
-            let data = ipld::get_block(id, None)?;
-            let data = data.as_slice();
-            return Ok(Some(
-                from_slice(data).expect("failed to unmarshal ConsensusFault"),
-            ));
-        }
+        .into_syscall_result()?
+    };
+    if fault == 0 {
+        return Ok(None);
     }
-    Ok(None)
+    let fault_type =
+        FromPrimitive::from_u32(fault).expect("received an invalid fault type from the runtime");
+    Ok(Some(ConsensusFault {
+        epoch,
+        fault_type,
+        target: Address::new_id(actor),
+    }))
 }
 
 #[allow(unused)]
-fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> SyscallResult<bool> {
+pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal aggregate seal verification input");

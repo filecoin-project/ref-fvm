@@ -11,9 +11,8 @@ use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore};
+use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 
@@ -308,24 +307,16 @@ where
     B: Blockstore,
     E: Externs + 'static,
 {
-    /// XXX: is message the right argument? Most of the fields are unused and unchecked.
-    /// Also, won't the params be a block ID?
-    fn send(&mut self, message: Message) -> Result<Receipt> {
-        self.call_manager.state_tree_mut().begin_transaction();
-
-        let res = self.call_manager.send(
-            self.from,
-            message.to,
-            message.method_num,
-            &message.params,
-            &message.value,
-        );
-        // TODO Do something with the result.
+    fn send(
+        &mut self,
+        recipient: &Address,
+        method: MethodNum,
+        params: &RawBytes,
+        value: &TokenAmount,
+    ) -> Result<Receipt> {
+        let from = self.from;
         self.call_manager
-            .state_tree_mut()
-            .end_transaction(res.is_err())?;
-
-        res
+            .with_transaction(|cm| cm.send(from, *recipient, method, params, value))
     }
 }
 
@@ -790,11 +781,11 @@ where
     B: Blockstore,
     E: Externs,
 {
-    fn push_syscall_error(&mut self, code: ExitCode, message: String) {
+    fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,
-            code,
-            message,
+            code: err.1,
+            message: err.0,
         })
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {

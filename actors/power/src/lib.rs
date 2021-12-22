@@ -189,7 +189,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
-        let miner_addr = *rt.message().caller();
+        let miner_addr = rt.message().caller();
 
         rt.transaction(|st: &mut State, rt| {
             let mut claims =
@@ -230,7 +230,7 @@ impl Actor {
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
         let miner_event = CronEvent {
-            miner_addr: *rt.message().caller(),
+            miner_addr: rt.message().caller(),
             callback_payload: params.payload.clone(),
         };
 
@@ -319,7 +319,7 @@ impl Actor {
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
         rt.transaction(|st: &mut State, rt| {
-            st.validate_miner_has_claim(rt.store(), rt.message().caller())?;
+            st.validate_miner_has_claim(rt.store(), &rt.message().caller())?;
             st.add_pledge_total(pledge_delta);
             if st.total_pledge_collateral.is_negative() {
                 return Err(actor_error!(
@@ -343,7 +343,7 @@ impl Actor {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
 
         rt.transaction(|st: &mut State, rt| {
-            st.validate_miner_has_claim(rt.store(), rt.message().caller())?;
+            st.validate_miner_has_claim(rt.store(), &rt.message().caller())?;
 
             let mut mmap = if let Some(ref batch) = st.proof_validation_batch {
                 Multimap::from_root(

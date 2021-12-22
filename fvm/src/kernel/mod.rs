@@ -10,7 +10,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::message::Message;
+use fvm_shared::encoding::RawBytes;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::receipt::Receipt;
@@ -157,7 +157,13 @@ pub trait ActorOps {
 
 /// Operations to send messages to other actors.
 pub trait SendOps {
-    fn send(&mut self, message: Message) -> Result<Receipt>;
+    fn send(
+        &mut self,
+        recipient: &Address,
+        method: u64,
+        params: &RawBytes,
+        value: &TokenAmount,
+    ) -> Result<Receipt>;
 }
 
 /// Operations to query the circulating supply.
@@ -267,7 +273,7 @@ pub trait DebugOps {
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.
-    fn push_syscall_error(&mut self, code: ExitCode, message: String);
+    fn push_syscall_error(&mut self, e: SyscallError);
 
     /// Log an actor error, adding it to the current error trace.
     ///

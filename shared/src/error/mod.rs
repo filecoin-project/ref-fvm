@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use num_derive::FromPrimitive;
+use std::fmt::Formatter;
 
 use crate::encoding::repr::*;
+use thiserror::Error;
 
 /// ExitCode defines the exit code from the VM execution.
 #[repr(u32)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy, FromPrimitive, Serialize_repr, Deserialize_repr)]
+#[derive(
+    PartialEq, Eq, Debug, Clone, Copy, FromPrimitive, Serialize_repr, Deserialize_repr, Error,
+)]
 pub enum ExitCode {
     Ok = 0,
 
@@ -80,5 +84,11 @@ impl ExitCode {
     /// Returns true if the error code is a system error.
     pub fn is_system_error(self) -> bool {
         (self as u32) < (ExitCode::ErrIllegalArgument as u32)
+    }
+}
+
+impl std::fmt::Display for ExitCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "exit code: {}", self)
     }
 }

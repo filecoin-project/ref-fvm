@@ -125,7 +125,7 @@ impl Actor {
         let st: State = rt.state()?;
 
         rt.validate_immediate_caller_is([st.from, st.to].iter())?;
-        let signer = if rt.message().caller() == &st.from {
+        let signer = if rt.message().caller() == st.from {
             st.to
         } else {
             st.from
@@ -170,7 +170,7 @@ impl Actor {
                 sv.channel_addr
             )
         })?;
-        if pch_addr != &svpch_id_addr {
+        if pch_addr != svpch_id_addr {
             return Err(actor_error!(ErrIllegalArgument;
                     "voucher payment channel address {} does not match receiver {}",
                     svpch_id_addr, pch_addr));

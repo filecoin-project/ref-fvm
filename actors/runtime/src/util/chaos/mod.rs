@@ -187,8 +187,8 @@ impl Actor {
     {
         rt.validate_immediate_caller_accept_any()?;
         Ok(InspectRuntimeReturn {
-            caller: *rt.message().caller(),
-            receiver: *rt.message().receiver(),
+            caller: rt.message().caller(),
+            receiver: rt.message().receiver(),
             value_received: rt.message().value_received().clone(),
             curr_epoch: rt.curr_epoch(),
             current_balance: rt.current_balance()?,

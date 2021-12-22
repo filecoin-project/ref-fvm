@@ -6,6 +6,7 @@ use crate::{syscall_error, Kernel};
 use anyhow::Context as _;
 use cid::Cid;
 use fvm_shared::address::Address;
+use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::ExitCode::SysErrIllegalArgument;
@@ -13,6 +14,7 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use fvm_shared::ActorID;
 use std::collections::HashMap;
 use wasmtime::{Caller, Trap};
 
@@ -136,12 +138,11 @@ pub fn verify_post(
 /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
-/// Returns nil and an error if the headers don't prove a fault.
 ///
-/// The return i32 indicates the status code of the verification:
-///  - 0: consensus fault recognized, along with the block id where to find the
-///       ConsensusFault report.
-///  - -1: no consensus fault recognized.
+/// Returns:
+/// - The fault type (1-3) or 0 for no fault.
+/// - The chain epoch at which the fault happened.
+/// - The actor at fault.
 pub fn verify_consensus_fault(
     caller: &mut Caller<'_, impl Kernel>,
     h1_off: u32,
@@ -150,7 +151,7 @@ pub fn verify_consensus_fault(
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<(i32, BlockId)> {
+) -> Result<(u32, ChainEpoch, ActorID)> {
     let (kernel, memory) = caller.kernel_and_memory()?;
 
     let h1 = memory.try_slice(h1_off, h1_len)?;
@@ -165,18 +166,17 @@ pub fn verify_consensus_fault(
 
     match ret {
         // Consensus fault detected; return the actor as a block.
-        Some(fault) => {
-            let ser = fault
-                .marshal_cbor()
-                .context("failed to marshal consensus fault result")
-                .or_fatal()?;
-            kernel
-                .block_create(DAG_CBOR, ser.as_slice())
-                .map(|bid| (1, bid))
-                .or_illegal_argument() // TODO: not quite the correct error...
-        }
+        Some(fault) => Ok((
+            fault.fault_type as u32,
+            fault.epoch,
+            fault
+                .target
+                .id()
+                .context("expected a resolved actor address")
+                .or_fatal()?,
+        )),
         // No consensus fault.
-        None => Ok((0, 0)),
+        None => Ok((0, 0, 0)),
     }
 }
 

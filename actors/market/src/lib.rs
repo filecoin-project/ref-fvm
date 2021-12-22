@@ -279,12 +279,12 @@ impl Actor {
 
         let (_, worker, controllers) = request_miner_control_addrs(rt, provider)?;
         let caller = rt.message().caller();
-        let mut caller_ok = caller == &worker;
+        let mut caller_ok = caller == worker;
         for controller in controllers.iter() {
             if caller_ok {
                 break;
             }
-            caller_ok = caller == controller;
+            caller_ok = caller == *controller;
         }
         if !caller_ok {
             return Err(actor_error!(
@@ -572,7 +572,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
-        let miner_addr = *rt.message().caller();
+        let miner_addr = rt.message().caller();
         let curr_epoch = rt.curr_epoch();
 
         let st: State = rt.state()?;
@@ -613,7 +613,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
-        let miner_addr = *rt.message().caller();
+        let miner_addr = rt.message().caller();
         let curr_epoch = rt.curr_epoch();
 
         // Update deal states
@@ -741,7 +741,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(std::iter::once(&*MINER_ACTOR_CODE_ID))?;
-        let miner_addr = *rt.message().caller();
+        let miner_addr = rt.message().caller();
 
         rt.transaction(|st: &mut State, rt| {
             let mut msm = st.mutator(rt.store());

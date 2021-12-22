@@ -152,7 +152,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let proposer: Address = *rt.message().caller();
+        let proposer: Address = rt.message().caller();
 
         if params.value.sign() == Sign::Minus {
             return Err(actor_error!(
@@ -219,7 +219,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let approver: Address = *rt.message().caller();
+        let approver: Address = rt.message().caller();
 
         let id = params.id;
         let (st, txn) = rt.transaction(|st: &mut State, rt| {
@@ -259,7 +259,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let caller_addr: Address = *rt.message().caller();
+        let caller_addr: Address = rt.message().caller();
 
         rt.transaction(|st: &mut State, rt| {
             if !st.is_signer(&caller_addr) {
@@ -324,7 +324,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let receiver = *rt.message().receiver();
+        let receiver = rt.message().receiver();
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
         let resolved_new_signer = resolve_to_id_addr(rt, &params.signer).map_err(|e| {
             e.downcast_default(
@@ -365,7 +365,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let receiver = *rt.message().receiver();
+        let receiver = rt.message().receiver();
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
         let resolved_old_signer = resolve_to_id_addr(rt, &params.signer).map_err(|e| {
             e.downcast_default(
@@ -430,7 +430,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let receiver = *rt.message().receiver();
+        let receiver = rt.message().receiver();
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
         let from_resolved = resolve_to_id_addr(rt, &params.from).map_err(|e| {
             e.downcast_default(
@@ -484,7 +484,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let receiver = *rt.message().receiver();
+        let receiver = rt.message().receiver();
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
 
         rt.transaction(|st: &mut State, _| {
@@ -507,7 +507,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let receiver = *rt.message().receiver();
+        let receiver = rt.message().receiver();
         rt.validate_immediate_caller_is(std::iter::once(&receiver))?;
 
         if params.unlock_duration <= 0 {
@@ -548,7 +548,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         for previous_approver in &txn.approved {
-            if previous_approver == rt.message().caller() {
+            if *previous_approver == rt.message().caller() {
                 return Err(actor_error!(
                     ErrForbidden,
                     "{} already approved this message",
@@ -566,7 +566,7 @@ impl Actor {
             })?;
 
             // update approved on the transaction
-            txn.approved.push(*rt.message().caller());
+            txn.approved.push(rt.message().caller());
 
             ptx.set(tx_id.key(), txn.clone()).map_err(|e| {
                 e.downcast_default(

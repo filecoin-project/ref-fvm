@@ -8,10 +8,11 @@ use anyhow::anyhow;
 use blockstore::MemoryBlockstore;
 use cid::{multihash::Code, Cid};
 
-use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Runtime, Syscalls};
+use crate::runtime::{ActorCode, MessageInfo, Runtime, Syscalls};
 use crate::{actor_error, ActorError};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
@@ -370,14 +371,14 @@ impl MockRuntime {
 }
 
 impl MessageInfo for MockRuntime {
-    fn caller(&self) -> &Address {
-        &self.caller
+    fn caller(&self) -> Address {
+        self.caller.clone()
     }
-    fn receiver(&self) -> &Address {
-        &self.receiver
+    fn receiver(&self) -> Address {
+        self.receiver.clone()
     }
-    fn value_received(&self) -> &TokenAmount {
-        &self.value_received
+    fn value_received(&self) -> TokenAmount {
+        self.value_received.clone()
     }
 }
 
@@ -429,7 +430,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         );
 
         for expected in &addrs {
-            if self.message().caller() == expected {
+            if self.message().caller() == *expected {
                 self.expect_validate_caller_addr = None;
                 return Ok(());
             }
@@ -643,8 +644,8 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(())
     }
 
-    fn base_fee(&self) -> &TokenAmount {
-        &self.base_fee
+    fn base_fee(&self) -> TokenAmount {
+        self.base_fee.clone()
     }
 }
 
