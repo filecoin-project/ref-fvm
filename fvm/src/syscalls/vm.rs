@@ -38,7 +38,7 @@ pub fn abort(
         kernel.push_actor_error(code, message);
         Ok(())
     })() {
-        Err(ExecutionError::Syscall(e)) => {
+        Err(ExecutionError::Syscall(e)) if e.is_recoverable() => {
             // We're logging the actor error here, not the syscall error.
             caller.kernel().push_actor_error(
                 code,
@@ -48,7 +48,7 @@ pub fn abort(
                 ),
             )
         }
-        Err(ExecutionError::Fatal(e)) => return Err(trap_from_error(e)),
+        Err(err) => return Err(trap_from_error(err)),
         Ok(_) => (),
     }
 

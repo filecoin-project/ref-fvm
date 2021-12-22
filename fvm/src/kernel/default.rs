@@ -789,11 +789,11 @@ where
     B: Blockstore,
     E: Externs,
 {
-    fn push_syscall_error(&mut self, code: ExitCode, message: String) {
+    fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,
-            code,
-            message,
+            code: err.1,
+            message: err.0,
         })
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {

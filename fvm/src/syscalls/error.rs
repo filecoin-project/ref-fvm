@@ -85,13 +85,14 @@ macro_rules! impl_bind_syscalls {
         {
             type Value = (u32, $($t),*);
             fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
+                use ExecutionError::*;
                 match self {
                     Ok(($($t,)*)) => Ok((ExitCode::Ok as u32, $($t),*)),
-                    Err(ExecutionError::Syscall(SyscallError(msg, code))) => {
-                        k.push_syscall_error(code, msg);
+                    Err(Syscall(err @ SyscallError(_, code))) if err.is_recoverable() => {
+                        k.push_syscall_error(err);
                         Ok((code as u32, $($t::default()),*))
                     },
-                    Err(ExecutionError::Fatal(e)) => Err(trap_from_error(e)),
+                    Err(err) => Err(trap_from_error(err)),
                 }
             }
         }
@@ -115,13 +116,14 @@ macro_rules! impl_bind_syscalls_single_return {
             impl IntoSyscallResult for crate::kernel::Result<$t> {
                 type Value = (u32, $t);
                 fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
+                    use ExecutionError::*;
                     match self {
                         Ok(v) => Ok((ExitCode::Ok as u32, v)),
-                        Err(ExecutionError::Syscall(SyscallError(msg, code))) => {
-                            k.push_syscall_error(code, msg);
+                        Err(Syscall(err @ SyscallError(_, code))) if err.is_recoverable() => {
+                            k.push_syscall_error(err);
                             Ok((code as u32, Default::default()))
                         }
-                        Err(ExecutionError::Fatal(e)) => Err(trap_from_error(e)),
+                        Err(err) => Err(trap_from_error(err)),
                     }
                 }
             }
@@ -130,7 +132,7 @@ macro_rules! impl_bind_syscalls_single_return {
 }
 impl_bind_syscalls_single_return!(u32 i32 u64 i64 f32 f64);
 
-pub fn trap_from_error(e: anyhow::Error) -> Trap {
+pub fn trap_from_error(e: ExecutionError) -> Trap {
     Trap::from(
         Box::new(ErrorEnvelope::wrap(e)) as Box<dyn std::error::Error + Send + Sync + 'static>
     )
@@ -143,9 +145,10 @@ pub fn trap_from_code(code: ExitCode) -> Trap {
 
 /// Unwraps a trap error from an actor into one of:
 ///
-/// 1. A receipt with an exit code (if the trap is an exit).
+/// 1. A receipt with an exit code (if the trap is recoverable).
 /// 2. An "illegal actor" syscall error if the trap is caused by a WASM error.
-/// 3. A fatal error otherwise.
+/// 3. A syscall error if the trap is neither fatal nor recoverable (currently just "out of gas").
+/// 4. A fatal error otherwise.
 pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<Receipt> {
     use std::error::Error;
 
@@ -164,13 +167,12 @@ pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<Receipt> {
     }
 
     // Do whatever we can to pull the original error back out (if it exists).
-    Err(ExecutionError::Fatal(
-        e.source()
-            .and_then(|e| e.downcast_ref::<ErrorEnvelope>())
-            .and_then(|e| e.inner.lock().ok())
-            .and_then(|mut e| e.take())
-            .unwrap_or_else(|| e.into()),
-    ))
+    Err(e
+        .source()
+        .and_then(|e| e.downcast_ref::<ErrorEnvelope>())
+        .and_then(|e| e.inner.lock().ok())
+        .and_then(|mut e| e.take())
+        .unwrap_or_else(|| ExecutionError::Fatal(e.into())))
 }
 
 /// A super special secret error type for stapling an error to a trap in a way that allows us to
@@ -180,11 +182,11 @@ pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<Receipt> {
 #[derive(Display, Debug)]
 #[display(fmt = "wrapping error")]
 struct ErrorEnvelope {
-    inner: Mutex<Option<anyhow::Error>>,
+    inner: Mutex<Option<ExecutionError>>,
 }
 
 impl ErrorEnvelope {
-    fn wrap(e: anyhow::Error) -> Self {
+    fn wrap(e: ExecutionError) -> Self {
         Self {
             inner: Mutex::new(Some(e)),
         }

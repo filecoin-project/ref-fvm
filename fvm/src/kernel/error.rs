@@ -34,6 +34,33 @@ pub enum ExecutionError {
     Fatal(anyhow::Error),
 }
 
+impl ExecutionError {
+    /// Returns true if the error is fatal. A fatal error means that something went wrong
+    /// when processing the message. This might be due to the message, the state of the filecoin
+    /// client, or (unlikely) the state of the chain itself.
+    ///
+    /// - A message that raises a fatal error will _not_ produce a receipt or an exit code, but will
+    ///   fail with an error.
+    /// - A message that results in a fatal error cannot be included in a block (no receipt).
+    /// - A block including a message that results in a fatal error cannot be accepted (messages
+    ///   cannot be skipped).
+    pub fn is_fatal(&self) -> bool {
+        match self {
+            ExecutionError::Fatal(_) => true,
+            ExecutionError::Syscall(_) => false,
+        }
+    }
+
+    /// Returns true if an actor can catch the error. All errors except fatal and out of gas errors
+    /// are recoverable.
+    pub fn is_recoverable(&self) -> bool {
+        match self {
+            ExecutionError::Fatal(_) => false,
+            ExecutionError::Syscall(e) => e.is_recoverable(),
+        }
+    }
+}
+
 // NOTE: this is the _only_ from impl we provide. Otherwise, we expect the user to explicitly
 // select between the two options.
 impl From<SyscallError> for ExecutionError {
@@ -153,6 +180,11 @@ pub struct SyscallError(pub String, pub ExitCode);
 impl SyscallError {
     pub fn new<D: Display>(c: ExitCode, d: D) -> Self {
         SyscallError(d.to_string(), c)
+    }
+
+    /// Returns true if the error can be caught by an actor.
+    pub fn is_recoverable(&self) -> bool {
+        self.1 != ExitCode::SysErrOutOfGas
     }
 }
 
