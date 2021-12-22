@@ -9,7 +9,12 @@ pub(crate) struct BlockRegistry {
     blocks: Vec<Block>,
 }
 
+/// Blocks in the block registry are addressed by an ordinal, starting from 1 (`FIRST_ID`).
+/// The zero value is reserved to mean "no data", such as when actor invocations
+/// receive or return no data.
 pub type BlockId = u32;
+
+const FIRST_ID: BlockId = 1;
 
 #[derive(Copy, Clone)]
 pub struct BlockStat {
@@ -52,7 +57,7 @@ pub enum BlockError {
     Unreachable(Box<Cid>),
     #[error("too many blocks have been written")]
     TooManyBlocks,
-    #[error("block handle {0} does not exist")]
+    #[error("block handle {0} does not exist, or is illegal")]
     InvalidHandle(BlockId),
     #[error("invalid multihash length or code")]
     InvalidMultihashSpec { length: u32, code: u64 },
@@ -72,28 +77,35 @@ impl BlockRegistry {
     /// Adds a new block to the registry, and returns a handle to refer to it.
     pub fn put(&mut self, block: Block) -> Result<BlockId, BlockError> {
         // TODO: limit the code types we allow.
-        let id: u32 = self
+        let mut id: u32 = self
             .blocks
             .len()
             .try_into()
             .map_err(|_| BlockError::TooManyBlocks)?;
+        id += FIRST_ID;
         self.blocks.push(block);
         Ok(id)
     }
 
     /// Gets the block associated with a block handle.
     pub fn get(&self, id: BlockId) -> Result<&Block, BlockError> {
+        if id < FIRST_ID {
+            return Err(BlockError::InvalidHandle(id));
+        }
         id.try_into()
             .ok()
-            .and_then(|idx: usize| self.blocks.get(idx))
+            .and_then(|idx: usize| self.blocks.get(idx - FIRST_ID as usize))
             .ok_or(BlockError::InvalidHandle(id))
     }
 
     /// Returns the size & codec of the specified block.
     pub fn stat(&self, id: BlockId) -> Result<BlockStat, BlockError> {
+        if id < FIRST_ID {
+            return Err(BlockError::InvalidHandle(id));
+        }
         id.try_into()
             .ok()
-            .and_then(|idx: usize| self.blocks.get(idx))
+            .and_then(|idx: usize| self.blocks.get(idx - FIRST_ID as usize))
             .ok_or(BlockError::InvalidHandle(id))
             .map(|b| BlockStat {
                 codec: b.codec(),
