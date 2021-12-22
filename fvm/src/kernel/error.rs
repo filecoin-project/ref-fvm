@@ -35,7 +35,15 @@ pub enum ExecutionError {
 }
 
 impl ExecutionError {
-    /// Returns true if the error is fatal and aborts the entire block.
+    /// Returns true if the error is fatal. A fatal error means that something went wrong
+    /// when processing the message. This might be due to the message, the state of the filecoin
+    /// client, or (unlikely) the state of the chain itself.
+    ///
+    /// - A message that raises a fatal error will _not_ produce a receipt or an exit code, but will
+    ///   fail with an error.
+    /// - A message that results in a fatal error cannot be included in a block (no receipt).
+    /// - A block including a message that results in a fatal error cannot be accepted (messages
+    ///   cannot be skipped).
     pub fn is_fatal(&self) -> bool {
         match self {
             ExecutionError::Fatal(_) => true,
