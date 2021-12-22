@@ -290,4 +290,11 @@ where
     {
         replace_with::replace_with_and_return(self, || CallManager(None), f)
     }
+
+    pub fn with_transaction<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        self.state_tree_mut().begin_transaction();
+        let res = f(self);
+        self.state_tree_mut().end_transaction(res.is_err())?;
+        res
+    }
 }
