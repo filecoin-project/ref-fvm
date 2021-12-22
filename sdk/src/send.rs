@@ -6,11 +6,12 @@ use crate::error::{IntoSyscallResult, SyscallResult};
 use fvm_shared::encoding::{from_slice, RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode::ErrIllegalArgument;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::MethodNum;
 
 /// Sends a message to another actor.
 pub fn send(
     to: &Address,
-    method: u64,
+    method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
 ) -> SyscallResult<Receipt> {
@@ -21,7 +22,6 @@ pub fn send(
     if value_iter.next().is_some() {
         return Err(ErrIllegalArgument);
     };
-
     unsafe {
         // Send the message.
         let params_id = sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)

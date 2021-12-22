@@ -163,7 +163,7 @@ impl Actor {
 
         let current_epoch = rt.curr_epoch();
         let blake2b = |b: &[u8]| rt.hash_blake2b(b);
-        let offset = assign_proving_period_offset(*rt.message().receiver(), current_epoch, blake2b)
+        let offset = assign_proving_period_offset(rt.message().receiver(), current_epoch, blake2b)
             .map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrSerialization,
@@ -315,7 +315,7 @@ impl Actor {
         rt.transaction(|state: &mut State, rt| {
             let mut info = get_miner_info(rt.store(), state)?;
 
-            if rt.message().caller() == &info.owner || info.pending_owner_address.is_none() {
+            if rt.message().caller() == info.owner || info.pending_owner_address.is_none() {
                 rt.validate_immediate_caller_is(std::iter::once(&info.owner))?;
                 info.pending_owner_address = Some(new_address);
             } else {
@@ -849,7 +849,7 @@ impl Actor {
         // confirmSectorProofsValid can change it.
         let state: State = rt.state()?;
         let aggregate_fee =
-            aggregate_network_fee(precommits_to_confirm.len() as i64, rt.base_fee());
+            aggregate_network_fee(precommits_to_confirm.len() as i64, &rt.base_fee());
         let unlocked_balance = state
             .get_unlocked_balance(&rt.current_balance()?)
             .map_err(|_e| actor_error!(ErrIllegalState, "failed to determine unlocked balance"))?;
@@ -882,7 +882,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let reporter = *rt.message().caller();
+        let reporter = rt.message().caller();
 
         if params.deadline >= WPOST_PERIOD_DEADLINES as usize {
             return Err(actor_error!(
@@ -2607,13 +2607,13 @@ impl Actor {
         // ConsensusFaultElapsed state variable to an epoch after the fault, and reports prior to
         // that epoch are no longer valid
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let reporter = *rt.message().caller();
+        let reporter = rt.message().caller();
 
         let fault = rt
             .verify_consensus_fault(&params.header1, &params.header2, &params.header_extra)
             .map_err(|e| e.downcast_default(ExitCode::ErrIllegalArgument, "fault not verified"))?
             .ok_or_else(|| actor_error!(ErrIllegalArgument, "No consensus fault found"))?;
-        if fault.target != *rt.message().receiver() {
+        if fault.target != rt.message().receiver() {
             return Err(actor_error!(
                 ErrIllegalArgument,
                 "fault by {} reported to miner {}",

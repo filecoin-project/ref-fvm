@@ -9,5 +9,6 @@ crate-type = ["lib"]
 [dependencies]
 cid = { version = "0.7.0", default-features = false }
 fvm_shared = { path = "../shared" }
+blockstore = { path = "../lib/blockstore" }
 ## num-traits; disabling default features makes it play nice with no_std.
 num-traits = { version = "0.2.14", default-features = false }
