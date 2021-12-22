@@ -1,6 +1,8 @@
 use anyhow::Error;
-use cid::Cid;
-use multihash::Code;
+use cid::{
+    multihash::{Code, MultihashDigest},
+    Cid,
+};
 
 use crate::runtime::actor_blockstore::ActorBlockstore;
 use crate::runtime::{ConsensusFault, MessageInfo, Syscalls};
@@ -13,12 +15,19 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, CborStore, RawBytes};
-use fvm_shared::error::ExitCode;
+use fvm_shared::encoding::{to_vec, Cbor, CborStore, RawBytes, DAG_CBOR};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{AggregateSealVerifyProofAndInfos, SealVerifyInfo, WindowPoStVerifyInfo};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MethodNum;
+
+lazy_static! {
+    /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
+    pub static ref EMPTY_ARR_CID: Cid = {
+        let empty = to_vec::<[(); 0]>(&[]).unwrap();
+        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty))
+    };
+}
 
 pub struct SdkRuntime<B> {
     blockstore: B,
@@ -120,7 +129,17 @@ where
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
-        todo!()
+        let root = fvm::sself::get_root()?;
+        if root != *EMPTY_ARR_CID {
+            return Err(actor_error!(fatal(
+                "failed to create state; expected empty array CID, got: {}",
+                root
+            )));
+        }
+        let new_root = ActorBlockstore.put_cbor(obj, Code::Blake2b256)
+            .map_err(|e| actor_error!(SysErrIllegalArgument; "failed to write actor state during creation: {}", e.to_string()))?;
+        fvm::sself::set_root(&new_root)?;
+        Ok(())
     }
 
     fn state<C: Cbor>(&self) -> Result<C, ActorError> {
