@@ -8,6 +8,7 @@ use cid::Cid;
 
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
@@ -28,9 +29,6 @@ mod actor_code;
 
 #[cfg(feature = "runtime-wasm")]
 mod sdk;
-
-#[cfg(feature = "runtime-wasm")]
-pub use sdk::ActorBlockstore;
 
 /// Runtime is the VM's internal runtime object.
 /// this is everything that is accessible to actors, beyond parameters.
@@ -169,20 +167,20 @@ pub trait Runtime<BS: Blockstore>: Syscalls {
         })
     }
 
-    fn base_fee(&self) -> &TokenAmount;
+    fn base_fee(&self) -> TokenAmount;
 }
 
 /// Message information available to the actor about executing message.
 pub trait MessageInfo {
     /// The address of the immediate calling actor. Always an ID-address.
-    fn caller(&self) -> &Address;
+    fn caller(&self) -> Address;
 
     /// The address of the actor receiving the message. Always an ID-address.
-    fn receiver(&self) -> &Address;
+    fn receiver(&self) -> Address;
 
     /// The value attached to the message being processed, implicitly
     /// added to current_balance() before method invocation.
-    fn value_received(&self) -> &TokenAmount;
+    fn value_received(&self) -> TokenAmount;
 }
 
 /// Pure functions implemented as primitives by the runtime.
@@ -244,25 +242,6 @@ pub trait Syscalls {
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), anyhow::Error>;
-}
-
-/// Result of checking two headers for a consensus fault.
-#[derive(Clone)]
-pub struct ConsensusFault {
-    /// Address of the miner at fault (always an ID address).
-    pub target: Address,
-    /// Epoch of the fault, which is the higher epoch of the two blocks causing it.
-    pub epoch: ChainEpoch,
-    /// Type of fault.
-    pub fault_type: ConsensusFaultType,
-}
-
-/// Consensus fault types in VM.
-#[derive(Clone, Copy)]
-pub enum ConsensusFaultType {
-    DoubleForkMining = 1,
-    ParentGrinding = 2,
-    TimeOffsetMining = 3,
 }
 
 // fn get_required_padding(
