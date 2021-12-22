@@ -3,11 +3,11 @@
 
 use blockstore::Blockstore;
 
-use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ActorError;
-use fvm_shared::MethodNum;
-
+use crate::ActorError;
 use crate::Runtime;
+
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::MethodNum;
 
 /// Interface for invoking methods on an Actor
 pub trait ActorCode {

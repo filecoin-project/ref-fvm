@@ -6,15 +6,15 @@ use cid::Cid;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
 pub use state::*;
 pub use types::*;
 
 use crate::runtime::{ActorCode, Runtime};
+use crate::{actor_error, ActorError};
 
 mod state;
 mod types;

@@ -5,11 +5,11 @@ use blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use fvm_shared::actor_error;
+use actors_runtime::{actor_error, ActorError};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 
 use actors_runtime::{

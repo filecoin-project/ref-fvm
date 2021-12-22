@@ -15,7 +15,7 @@ use crate::{
     externs::Externs,
     gas::{GasCharge, GasTracker},
     kernel::{BlockOps, ClassifyResult, Result, SyscallError},
-    machine::Machine,
+    machine::{CallError, Machine},
     syscall_error,
     syscalls::{bind_syscalls, error::unwrap_trap},
     DefaultKernel,
@@ -52,6 +52,8 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
     nonce: u64,
     /// Number of actors created in this call stack.
     num_actors_created: u64,
+    /// The current chain of errors, if any.
+    backtrace: Vec<CallError>,
 }
 
 #[doc(hidden)]
@@ -83,6 +85,7 @@ where
             origin,
             nonce,
             num_actors_created: 0,
+            backtrace: Vec::new(),
         }))
     }
 
@@ -233,12 +236,12 @@ where
     }
 
     /// Finishes execution, returning the gas used and the machine.
-    pub fn finish(mut self) -> (i64, Machine<B, E>) {
+    pub fn finish(mut self) -> (i64, Vec<CallError>, Machine<B, E>) {
         let gas_used = self.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.machine)
+        (gas_used, inner.backtrace, inner.machine)
     }
 
     /// Charge gas.
@@ -272,6 +275,14 @@ where
         let ret = self.num_actors_created;
         self.num_actors_created += 1;
         ret
+    }
+
+    pub fn push_error(&mut self, e: CallError) {
+        self.backtrace.push(e);
+    }
+
+    pub fn clear_error(&mut self) {
+        self.backtrace.clear();
     }
 
     fn map_mut<F, T>(&mut self, f: F) -> T

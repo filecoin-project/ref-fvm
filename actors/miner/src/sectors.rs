@@ -3,14 +3,14 @@
 
 use std::collections::HashSet;
 
+use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{ActorDowncast, Array};
 use ahash::AHashSet;
 use anyhow::anyhow;
 use bitfield::BitField;
 use blockstore::Blockstore;
 use cid::Cid;
-use fvm_shared::actor_error;
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{SectorNumber, MAX_SECTOR_NUMBER};
 use ipld_amt::Error as AmtError;
 

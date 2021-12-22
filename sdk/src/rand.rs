@@ -1,3 +1,4 @@
+use crate::error::{IntoSyscallResult, SyscallResult};
 use crate::sys;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -11,7 +12,7 @@ pub fn get_chain_randomness(
     dst: DomainSeparationTag,
     round: ChainEpoch,
     entropy: &[u8],
-) -> Randomness {
+) -> SyscallResult<Randomness> {
     let mut ret = [0u8; RANDOMNESS_LENGTH];
     unsafe {
         sys::rand::get_chain_randomness(
@@ -21,8 +22,9 @@ pub fn get_chain_randomness(
             entropy.len() as u32,
             ret.as_mut_ptr(),
         )
+        .into_syscall_result()?
     }
-    Randomness(ret.to_vec())
+    Ok(Randomness(ret.to_vec()))
 }
 
 /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -33,7 +35,7 @@ pub fn get_beacon_randomness(
     dst: DomainSeparationTag,
     round: ChainEpoch,
     entropy: &[u8],
-) -> Randomness {
+) -> SyscallResult<Randomness> {
     let mut ret = [0u8; RANDOMNESS_LENGTH];
     unsafe {
         sys::rand::get_beacon_randomness(
@@ -43,6 +45,7 @@ pub fn get_beacon_randomness(
             entropy.len() as u32,
             ret.as_mut_ptr(),
         )
+        .into_syscall_result()?
     }
-    Randomness(ret.to_vec())
+    Ok(Randomness(ret.to_vec()))
 }

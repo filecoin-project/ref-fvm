@@ -9,12 +9,12 @@ use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
 use num_traits::{Signed, Zero};
 
+use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{ActorDowncast, Array};
-use fvm_shared::actor_error;
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{tuple::*, CborStore};
-use fvm_shared::error::{ActorError, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{PoStProof, SectorSize};
 
 use super::{

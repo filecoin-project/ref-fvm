@@ -27,7 +27,7 @@ pub fn send(
     let msg: Message = mem.read_cbor(msg_off, msg_len)?;
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    let receipt = k.send(msg).or_fatal()?;
+    let receipt = k.send(msg)?;
     let ser = to_vec(&receipt).or_fatal()?;
     let id = k.block_create(DAG_CBOR, ser.as_slice())?;
     Ok(id)
