@@ -139,13 +139,12 @@ where
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
         let root = fvm::sself::get_root()?;
         if root != *EMPTY_ARR_CID {
-            return Err(actor_error!(fatal(
-                "failed to create state; expected empty array CID, got: {}",
-                root
-            )));
+            return Err(
+                actor_error!(ErrIllegalState; "failed to create state; expected empty array CID, got: {}", root),
+            );
         }
         let new_root = ActorBlockstore.put_cbor(obj, Code::Blake2b256)
-            .map_err(|e| actor_error!(SysErrIllegalArgument; "failed to write actor state during creation: {}", e.to_string()))?;
+            .map_err(|e| actor_error!(ErrIllegalArgument; "failed to write actor state during creation: {}", e.to_string()))?;
         fvm::sself::set_root(&new_root)?;
         Ok(())
     }
@@ -155,11 +154,9 @@ where
         Ok(ActorBlockstore
             .get_cbor(&root)
             .map_err(
-                |_| actor_error!(SysErrIllegalArgument; "failed to get actor for Readonly state"),
+                |_| actor_error!(ErrIllegalArgument; "failed to get actor for Readonly state"),
             )?
-            .ok_or(actor_error!(fatal(
-                "State does not exist for actor state root"
-            )))?)
+            .expect("State does not exist for actor state root"))
     }
 
     fn transaction<C, RT, F>(&mut self, f: F) -> Result<RT, ActorError>
@@ -167,18 +164,13 @@ where
         C: Cbor,
         F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>,
     {
-        let state_cid = fvm::sself::get_root().map_err(
-            |_| actor_error!(SysErrIllegalArgument; "failed to get actor root state CID"),
-        )?;
+        let state_cid = fvm::sself::get_root()
+            .map_err(|_| actor_error!(ErrIllegalArgument; "failed to get actor root state CID"))?;
+
         let mut state = ActorBlockstore
             .get_cbor::<C>(&state_cid)
-            .map_err(|_| actor_error!(SysErrIllegalArgument; "failed to get actor state"))?
-            .ok_or_else(|| {
-                actor_error!(fatal(
-                    "State does not exist for actor state cid: {}",
-                    state_cid
-                ))
-            })?;
+            .map_err(|_| actor_error!(ErrIllegalArgument; "failed to get actor state"))?
+            .expect("State does not exist for actor state root");
 
         self.in_transaction = true;
         let result = f(&mut state, self);
@@ -186,7 +178,7 @@ where
 
         let ret = result?;
         let new_root = ActorBlockstore.put_cbor(&state, Code::Blake2b256)
-            .map_err(|e| actor_error!(SysErrIllegalArgument; "failed to write actor state in transaction: {}", e.to_string()))?;
+            .map_err(|e| actor_error!(ErrIllegalArgument; "failed to write actor state in transaction: {}", e.to_string()))?;
         fvm::sself::set_root(&new_root)?;
         Ok(ret)
     }
