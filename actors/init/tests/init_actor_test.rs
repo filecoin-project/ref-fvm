@@ -55,7 +55,7 @@ fn create_2_payment_channels() {
         let pay_channel_string = format!("paych_{}", n);
         let paych = pay_channel_string.as_bytes();
 
-        rt.balance = TokenAmount::from(100);
+        rt.set_balance(TokenAmount::from(100));
         rt.value_received = TokenAmount::from(100);
 
         let unique_address = Address::new_actor(paych);
