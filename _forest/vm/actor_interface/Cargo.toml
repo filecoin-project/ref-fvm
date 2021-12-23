@@ -12,7 +12,8 @@ actorv0 = { package = "forest_actor", version = "0.1" }
 actorv2 = { package = "forest_actor", version = "1.0" }
 actorv3 = { package = "forest_actor", version = "2.0" }
 actorv4 = { package = "forest_actor", version = "3.0" }
-actorv5 = { package = "forest_actor", path = "../../actor" }
+actorv5 = { package = "forest_actor", version = "4.0" }
+actorv6 = { package = "forest_actor", path = "../../actor" }
 
 libp2p = { version = "0.40.0-rc.1", default-features = false }
 fil_types = { version = "0.2" }

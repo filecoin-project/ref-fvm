@@ -11,9 +11,12 @@ use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe};
 use fvm_shared::randomness::Randomness;
-use fvm_shared::sector::{PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use fvm_shared::sector::{
+    PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StoragePower,
+};
 
 use actors_runtime::DealWeight;
+use fvm_shared::smooth::FilterEstimate;
 
 pub type CronEvent = i64;
 pub const CRON_EVENT_WORKER_KEY_CHANGE: CronEvent = 0;
@@ -71,6 +74,18 @@ pub struct ChangeMultiaddrsParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct ConfirmSectorProofsParams {
     pub sectors: Vec<SectorNumber>,
+    pub reward_smoothed: FilterEstimate,
+    #[serde(with = "bigint_ser")]
+    pub reward_baseline_power: StoragePower,
+    pub quality_adj_power_smoothed: FilterEstimate,
+}
+
+#[derive(Serialize_tuple, Deserialize_tuple)]
+pub struct DeferredCronEventParams {
+    #[serde(with = "serde_bytes")]
+    pub event_payload: Vec<u8>,
+    pub reward_smoothed: FilterEstimate,
+    pub quality_adj_power_smoothed: FilterEstimate,
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -199,6 +214,13 @@ pub struct ReportConsensusFaultParams {
 pub struct WithdrawBalanceParams {
     #[serde(with = "bigint_ser")]
     pub amount_requested: TokenAmount,
+}
+
+#[derive(Serialize_tuple, Deserialize_tuple)]
+#[serde(transparent)]
+pub struct WithdrawBalanceReturn {
+    #[serde(with = "bigint_ser")]
+    pub amount_withdrawn: TokenAmount,
 }
 
 #[derive(Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]

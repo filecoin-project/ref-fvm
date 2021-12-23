@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
 use anyhow::anyhow;
@@ -38,10 +38,12 @@ pub struct MockRuntime {
     pub caller: Address,
     pub caller_type: Cid,
     pub value_received: TokenAmount,
+    pub hash_func: Box<dyn Fn(&[u8]) -> [u8; 32]>,
+    pub network_version: NetworkVersion,
 
     // Actor State
     pub state: Option<Cid>,
-    pub balance: TokenAmount,
+    pub balance: RefCell<TokenAmount>,
     pub received: TokenAmount,
 
     // VM Impl
@@ -50,19 +52,76 @@ pub struct MockRuntime {
     pub in_transaction: bool,
 
     // Expectations
-    pub expect_validate_caller_any: Cell<bool>,
+    pub expectations: RefCell<Expectations>,
+}
+
+#[derive(Default)]
+pub struct Expectations {
+    pub expect_validate_caller_any: bool,
     pub expect_validate_caller_addr: Option<Vec<Address>>,
     pub expect_validate_caller_type: Option<Vec<Cid>>,
     pub expect_sends: VecDeque<ExpectedMessage>,
     pub expect_create_actor: Option<ExpectCreateActor>,
     pub expect_delete_actor: Option<Address>,
-    pub expect_verify_sigs: RefCell<VecDeque<ExpectedVerifySig>>,
-    pub expect_verify_seal: RefCell<Option<ExpectVerifySeal>>,
-    pub expect_verify_post: RefCell<Option<ExpectVerifyPoSt>>,
-    pub expect_compute_unsealed_sector_cid: RefCell<Option<ExpectComputeUnsealedSectorCid>>,
-    pub expect_verify_consensus_fault: RefCell<Option<ExpectVerifyConsensusFault>>,
-    pub hash_func: Box<dyn Fn(&[u8]) -> [u8; 32]>,
-    pub network_version: NetworkVersion,
+    pub expect_verify_sigs: VecDeque<ExpectedVerifySig>,
+    pub expect_verify_seal: Option<ExpectVerifySeal>,
+    pub expect_verify_post: Option<ExpectVerifyPoSt>,
+    pub expect_compute_unsealed_sector_cid: Option<ExpectComputeUnsealedSectorCid>,
+    pub expect_verify_consensus_fault: Option<ExpectVerifyConsensusFault>,
+}
+
+impl Expectations {
+    fn reset(&mut self) {
+        self.expect_validate_caller_any = false;
+        self.expect_validate_caller_addr = None;
+        self.expect_validate_caller_type = None;
+        self.expect_create_actor = None;
+        self.expect_sends.clear();
+        self.expect_verify_sigs.clear();
+        self.expect_verify_seal = None;
+        self.expect_verify_post = None;
+        self.expect_compute_unsealed_sector_cid = None;
+        self.expect_verify_consensus_fault = None;
+    }
+    fn verify(&mut self) {
+        assert!(
+            !self.expect_validate_caller_any,
+            "expected ValidateCallerAny, not received"
+        );
+        assert!(
+            self.expect_validate_caller_addr.is_none(),
+            "expected ValidateCallerAddr {:?}, not received",
+            self.expect_validate_caller_addr
+        );
+        assert!(
+            self.expect_validate_caller_type.is_none(),
+            "expected ValidateCallerType {:?}, not received",
+            self.expect_validate_caller_type
+        );
+        assert!(
+            self.expect_sends.is_empty(),
+            "expected all message to be send, unsent messages {:?}",
+            self.expect_sends
+        );
+        assert!(
+            self.expect_create_actor.is_none(),
+            "expected actor to be created, uncreated actor: {:?}",
+            self.expect_create_actor
+        );
+        assert!(
+            self.expect_verify_seal.is_none(),
+            "expect_verify_seal {:?}, not received",
+            self.expect_verify_seal.as_ref().unwrap()
+        );
+        assert!(
+            self.expect_compute_unsealed_sector_cid.is_none(),
+            "expect_compute_unsealed_sector_cid not received",
+        );
+        assert!(
+            self.expect_verify_consensus_fault.is_none(),
+            "expect_verify_consensus_fault not received",
+        );
+    }
 }
 
 impl Default for MockRuntime {
@@ -78,25 +137,15 @@ impl Default for MockRuntime {
             caller: Address::new_id(0),
             caller_type: Default::default(),
             value_received: Default::default(),
+            hash_func: Box::new(|_| [0u8; 32]),
+            network_version: NetworkVersion::V0,
             state: Default::default(),
             balance: Default::default(),
             received: Default::default(),
             in_call: Default::default(),
             store: Default::default(),
             in_transaction: Default::default(),
-            expect_validate_caller_any: Default::default(),
-            expect_validate_caller_addr: Default::default(),
-            expect_validate_caller_type: Default::default(),
-            expect_sends: Default::default(),
-            expect_create_actor: Default::default(),
-            expect_delete_actor: Default::default(),
-            expect_verify_sigs: Default::default(),
-            expect_verify_seal: Default::default(),
-            expect_verify_post: Default::default(),
-            expect_compute_unsealed_sector_cid: Default::default(),
-            expect_verify_consensus_fault: Default::default(),
-            hash_func: Box::new(|_| [0u8; 32]),
-            network_version: NetworkVersion::V0,
+            expectations: Default::default(),
         }
     }
 }
@@ -185,17 +234,25 @@ impl MockRuntime {
     #[allow(dead_code)]
     pub fn expect_validate_caller_addr(&mut self, addr: Vec<Address>) {
         assert!(!addr.is_empty(), "addrs must be non-empty");
-        self.expect_validate_caller_addr = Some(addr);
+        self.expectations.get_mut().expect_validate_caller_addr = Some(addr);
     }
 
     #[allow(dead_code)]
     pub fn expect_verify_signature(&self, exp: ExpectedVerifySig) {
-        self.expect_verify_sigs.borrow_mut().push_back(exp);
+        self.expectations
+            .borrow_mut()
+            .expect_verify_sigs
+            .push_back(exp);
     }
 
     #[allow(dead_code)]
     pub fn set_balance(&mut self, amount: TokenAmount) {
-        self.balance = amount;
+        *self.balance.get_mut() = amount;
+    }
+
+    #[allow(dead_code)]
+    pub fn add_balance(&mut self, amount: TokenAmount) {
+        *self.balance.get_mut() += amount;
     }
 
     #[allow(dead_code)]
@@ -207,35 +264,38 @@ impl MockRuntime {
         fault: Option<ConsensusFault>,
         exit_code: ExitCode,
     ) {
-        *self.expect_verify_consensus_fault.borrow_mut() = Some(ExpectVerifyConsensusFault {
-            require_correct_input: true,
-            block_header_1: h1,
-            block_header_2: h2,
-            block_header_extra: extra,
-            fault,
-            exit_code,
-        });
+        self.expectations.borrow_mut().expect_verify_consensus_fault =
+            Some(ExpectVerifyConsensusFault {
+                require_correct_input: true,
+                block_header_1: h1,
+                block_header_2: h2,
+                block_header_extra: extra,
+                fault,
+                exit_code,
+            });
     }
 
     #[allow(dead_code)]
     pub fn expect_compute_unsealed_sector_cid(&self, exp: ExpectComputeUnsealedSectorCid) {
-        *self.expect_compute_unsealed_sector_cid.borrow_mut() = Some(exp);
+        self.expectations
+            .borrow_mut()
+            .expect_compute_unsealed_sector_cid = Some(exp);
     }
 
     #[allow(dead_code)]
     pub fn expect_validate_caller_type(&mut self, types: Vec<Cid>) {
         assert!(!types.is_empty(), "addrs must be non-empty");
-        self.expect_validate_caller_type = Some(types);
+        self.expectations.borrow_mut().expect_validate_caller_type = Some(types);
     }
 
     #[allow(dead_code)]
     pub fn expect_validate_caller_any(&self) {
-        self.expect_validate_caller_any.set(true);
+        self.expectations.borrow_mut().expect_validate_caller_any = true;
     }
 
     #[allow(dead_code)]
     pub fn expect_delete_actor(&mut self, beneficiary: Address) {
-        self.expect_delete_actor = Some(beneficiary);
+        self.expectations.borrow_mut().expect_delete_actor = Some(beneficiary);
     }
 
     pub fn call<A: ActorCode>(
@@ -255,63 +315,10 @@ impl MockRuntime {
     }
 
     pub fn verify(&mut self) {
-        assert!(
-            !self.expect_validate_caller_any.get(),
-            "expected ValidateCallerAny, not received"
-        );
-        assert!(
-            self.expect_validate_caller_addr.is_none(),
-            "expected ValidateCallerAddr {:?}, not received",
-            self.expect_validate_caller_addr
-        );
-        assert!(
-            self.expect_validate_caller_type.is_none(),
-            "expected ValidateCallerType {:?}, not received",
-            self.expect_validate_caller_type
-        );
-        assert!(
-            self.expect_sends.is_empty(),
-            "expected all message to be send, unsent messages {:?}",
-            self.expect_sends
-        );
-        assert!(
-            self.expect_create_actor.is_none(),
-            "expected actor to be created, uncreated actor: {:?}",
-            self.expect_create_actor
-        );
-        assert!(
-            self.expect_verify_seal.borrow().as_ref().is_none(),
-            "expect_verify_seal {:?}, not received",
-            self.expect_verify_seal.borrow().as_ref().unwrap()
-        );
-        assert!(
-            self.expect_compute_unsealed_sector_cid
-                .borrow()
-                .as_ref()
-                .is_none(),
-            "expect_compute_unsealed_sector_cid not received",
-        );
-        assert!(
-            self.expect_verify_consensus_fault
-                .borrow()
-                .as_ref()
-                .is_none(),
-            "expect_verify_consensus_fault not received",
-        );
-
-        self.reset();
+        self.expectations.borrow_mut().verify()
     }
     pub fn reset(&mut self) {
-        self.expect_validate_caller_any.set(false);
-        self.expect_validate_caller_addr = None;
-        self.expect_validate_caller_type = None;
-        self.expect_create_actor = None;
-        self.expect_sends.clear();
-        self.expect_verify_sigs.borrow_mut().clear();
-        *self.expect_verify_seal.borrow_mut() = None;
-        *self.expect_verify_post.borrow_mut() = None;
-        *self.expect_compute_unsealed_sector_cid.borrow_mut() = None;
-        *self.expect_verify_consensus_fault.borrow_mut() = None;
+        self.expectations.borrow_mut().reset();
     }
 
     #[allow(dead_code)]
@@ -324,32 +331,35 @@ impl MockRuntime {
         send_return: RawBytes,
         exit_code: ExitCode,
     ) {
-        self.expect_sends.push_back(ExpectedMessage {
-            to,
-            method,
-            params,
-            value,
-            send_return,
-            exit_code,
-        })
+        self.expectations
+            .borrow_mut()
+            .expect_sends
+            .push_back(ExpectedMessage {
+                to,
+                method,
+                params,
+                value,
+                send_return,
+                exit_code,
+            })
     }
 
     #[allow(dead_code)]
     pub fn expect_create_actor(&mut self, code_id: Cid, address: Address) {
         let a = ExpectCreateActor { code_id, address };
-        self.expect_create_actor = Some(a);
+        self.expectations.borrow_mut().expect_create_actor = Some(a);
     }
 
     #[allow(dead_code)]
     pub fn expect_verify_seal(&mut self, seal: SealVerifyInfo, exit_code: ExitCode) {
         let a = ExpectVerifySeal { seal, exit_code };
-        *self.expect_verify_seal.borrow_mut() = Some(a);
+        self.expectations.borrow_mut().expect_verify_seal = Some(a);
     }
 
     #[allow(dead_code)]
     pub fn expect_verify_post(&mut self, post: WindowPoStVerifyInfo, exit_code: ExitCode) {
         let a = ExpectVerifyPoSt { post, exit_code };
-        *self.expect_verify_post.borrow_mut() = Some(a);
+        self.expectations.borrow_mut().expect_verify_post = Some(a);
     }
 
     #[allow(dead_code)]
@@ -400,10 +410,10 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
         self.require_in_call();
         assert!(
-            self.expect_validate_caller_any.get(),
+            self.expectations.borrow_mut().expect_validate_caller_any,
             "unexpected validate-caller-any"
         );
-        self.expect_validate_caller_any.set(false);
+        self.expectations.borrow_mut().expect_validate_caller_any = false;
         Ok(())
     }
 
@@ -418,24 +428,31 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         self.check_argument(!addrs.is_empty(), "addrs must be non-empty".to_owned())?;
 
         assert!(
-            self.expect_validate_caller_addr.is_some(),
+            self.expectations
+                .borrow_mut()
+                .expect_validate_caller_addr
+                .is_some(),
             "unexpected validate caller addrs"
         );
         assert_eq!(
             &addrs,
-            self.expect_validate_caller_addr.as_ref().unwrap(),
+            self.expectations
+                .borrow_mut()
+                .expect_validate_caller_addr
+                .as_ref()
+                .unwrap(),
             "unexpected validate caller addrs {:?}, expected {:?}",
             addrs,
-            self.expect_validate_caller_addr
+            self.expectations.borrow_mut().expect_validate_caller_addr
         );
 
         for expected in &addrs {
             if self.message().caller() == *expected {
-                self.expect_validate_caller_addr = None;
+                self.expectations.borrow_mut().expect_validate_caller_addr = None;
                 return Ok(());
             }
         }
-        self.expect_validate_caller_addr = None;
+        self.expectations.borrow_mut().expect_validate_caller_addr = None;
         return Err(actor_error!(ErrForbidden;
                 "caller address {:?} forbidden, allowed: {:?}",
                 self.message().caller(), &addrs
@@ -451,25 +468,32 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         self.check_argument(!types.is_empty(), "types must be non-empty".to_owned())?;
 
         assert!(
-            self.expect_validate_caller_type.is_some(),
+            self.expectations
+                .borrow_mut()
+                .expect_validate_caller_type
+                .is_some(),
             "unexpected validate caller code"
         );
         assert_eq!(
             &types,
-            self.expect_validate_caller_type.as_ref().unwrap(),
+            self.expectations
+                .borrow_mut()
+                .expect_validate_caller_type
+                .as_ref()
+                .unwrap(),
             "unexpected validate caller code {:?}, expected {:?}",
             types,
-            self.expect_validate_caller_type
+            self.expectations.borrow_mut().expect_validate_caller_type
         );
 
         for expected in &types {
             if &self.caller_type == expected {
-                self.expect_validate_caller_type = None;
+                self.expectations.borrow_mut().expect_validate_caller_type = None;
                 return Ok(());
             }
         }
 
-        self.expect_validate_caller_type = None;
+        self.expectations.borrow_mut().expect_validate_caller_type = None;
 
         Err(
             actor_error!(ErrForbidden; "caller type {:?} forbidden, allowed: {:?}",
@@ -479,7 +503,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
 
     fn current_balance(&self) -> Result<TokenAmount, ActorError> {
         self.require_in_call();
-        Ok(self.balance.clone())
+        Ok(self.balance.borrow().clone())
     }
 
     fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
@@ -552,7 +576,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
     }
 
     fn send(
-        &mut self,
+        &self,
         to: Address,
         method: MethodNum,
         params: RawBytes,
@@ -564,7 +588,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         }
 
         assert!(
-            !self.expect_sends.is_empty(),
+            !self.expectations.borrow_mut().expect_sends.is_empty(),
             "unexpected expectedMessage to: {:?} method: {:?}, value: {:?}, params: {:?}",
             to,
             method,
@@ -572,17 +596,27 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             params
         );
 
-        let expected_msg = self.expect_sends.pop_front().unwrap();
+        let expected_msg = self
+            .expectations
+            .borrow_mut()
+            .expect_sends
+            .pop_front()
+            .unwrap();
 
-        assert!(expected_msg.to == to && expected_msg.method == method && expected_msg.params == params && expected_msg.value == value, "expectedMessage being sent does not match expectation.\nMessage -\t to: {:?} method: {:?} value: {:?} params: {:?}\nExpected -\t {:?}", to, method, value, params, self.expect_sends[0]);
+        assert!(expected_msg.to == to && expected_msg.method == method && expected_msg.params == params && expected_msg.value == value,
+            "expectedMessage being sent does not match expectation.\nMessage -\t to: {:?} method: {:?} value: {:?} params: {:?}\nExpected -\t {:?}",
+            to, method, value, params, expected_msg);
 
-        if value > self.balance {
-            return Err(actor_error!(SysErrSenderStateInvalid;
-                    "cannot send value: {:?} exceeds balance: {:?}",
-                    value, self.balance
-            ));
+        {
+            let mut balance = self.balance.borrow_mut();
+            if value > *balance {
+                return Err(actor_error!(SysErrSenderStateInvalid;
+                        "cannot send value: {:?} exceeds balance: {:?}",
+                        value, *balance
+                ));
+            }
+            *balance -= value;
         }
-        self.balance -= value;
 
         match expected_msg.exit_code {
             ExitCode::Ok => Ok(expected_msg.send_return),
@@ -606,6 +640,8 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
         }
         let expect_create_actor = self
+            .expectations
+            .borrow_mut()
             .expect_create_actor
             .take()
             .expect("unexpected call to create actor");
@@ -619,7 +655,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         if self.in_transaction {
             return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
         }
-        let exp_act = self.expect_delete_actor.take();
+        let exp_act = self.expectations.borrow_mut().expect_delete_actor.take();
         if exp_act.is_none() {
             panic!("unexpected call to delete actor: {}", addr);
         }
@@ -654,7 +690,7 @@ impl Syscalls for MockRuntime {
         signer: &Address,
         plaintext: &[u8],
     ) -> anyhow::Result<()> {
-        if self.expect_verify_sigs.borrow().is_empty() {
+        if self.expectations.borrow_mut().expect_verify_sigs.is_empty() {
             panic!(
                 "Unexpected signature verification sig: {:?}, signer: {}, plaintext: {}",
                 signature,
@@ -662,7 +698,11 @@ impl Syscalls for MockRuntime {
                 hex::encode(plaintext)
             );
         }
-        let exp = self.expect_verify_sigs.borrow_mut().pop_front();
+        let exp = self
+            .expectations
+            .borrow_mut()
+            .expect_verify_sigs
+            .pop_front();
         if let Some(exp) = exp {
             if exp.sig != *signature || exp.signer != *signer || &exp.plaintext[..] != plaintext {
                 panic!(
@@ -698,8 +738,10 @@ impl Syscalls for MockRuntime {
         pieces: &[PieceInfo],
     ) -> anyhow::Result<Cid> {
         let exp = self
+            .expectations
+            .borrow_mut()
             .expect_compute_unsealed_sector_cid
-            .replace(None)
+            .take()
             .ok_or_else(
                 || actor_error!(ErrIllegalState; "Unexpected syscall to ComputeUnsealedSectorCID"),
             )?;
@@ -726,8 +768,10 @@ impl Syscalls for MockRuntime {
     }
     fn verify_seal(&self, seal: &SealVerifyInfo) -> anyhow::Result<()> {
         let exp = self
+            .expectations
+            .borrow_mut()
             .expect_verify_seal
-            .replace(None)
+            .take()
             .ok_or_else(|| actor_error!(ErrIllegalState; "Unexpected syscall to verify seal"))?;
 
         if exp.seal != *seal {
@@ -745,8 +789,10 @@ impl Syscalls for MockRuntime {
     }
     fn verify_post(&self, post: &WindowPoStVerifyInfo) -> anyhow::Result<()> {
         let exp = self
+            .expectations
+            .borrow_mut()
             .expect_verify_post
-            .replace(None)
+            .take()
             .ok_or_else(|| actor_error!(ErrIllegalState; "Unexpected syscall to verify PoSt"))?;
 
         if exp.post != *post {
@@ -769,8 +815,10 @@ impl Syscalls for MockRuntime {
         extra: &[u8],
     ) -> anyhow::Result<Option<ConsensusFault>> {
         let exp = self
+            .expectations
+            .borrow_mut()
             .expect_verify_consensus_fault
-            .replace(None)
+            .take()
             .ok_or_else(
                 || actor_error!(ErrIllegalState; "Unexpected syscall to verify_consensus_fault"),
             )?;

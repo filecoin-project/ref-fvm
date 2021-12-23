@@ -121,7 +121,6 @@ fn add_provider_escrow_funds() {
             rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, *caller_addr);
 
             let amount = TokenAmount::from(test_case.0 as u64);
-            // rt.balance = rt.balance + amount.clone();
             rt.set_value(amount);
 
             expect_provider_control_address(&mut rt, provider_addr, owner_addr, worker_addr);
@@ -450,7 +449,7 @@ fn add_provider_funds(
 
     rt.verify();
 
-    rt.balance = rt.balance.clone() + amount;
+    rt.add_balance(amount);
 }
 
 fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmount) {
@@ -469,7 +468,7 @@ fn add_participant_funds(rt: &mut MockRuntime, addr: Address, amount: TokenAmoun
 
     rt.verify();
 
-    rt.balance = rt.balance.clone() + amount;
+    rt.add_balance(amount);
 }
 
 fn construct_and_verify(rt: &mut MockRuntime) {
