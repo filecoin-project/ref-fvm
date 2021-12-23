@@ -6,7 +6,6 @@ use cid::Cid;
 use num_traits::{Signed, Zero};
 use wasmtime::{Engine, Module};
 
-use blockstore::Blockstore;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::clock::ChainEpoch;
@@ -20,12 +19,11 @@ use fvm_shared::ActorID;
 
 use crate::account_actor::is_account_actor;
 use crate::call_manager::CallManager;
-use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs, PriceList};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
 use crate::state_tree::{ActorState, StateTree};
-use crate::syscall_error;
 use crate::Config;
+use crate::{syscall_error, Kernel};
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
 /// Distinguished AccountActor that is the destination of all burnt funds.
@@ -40,11 +38,11 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 //
 // If the inner value is `None` it means the machine got poisend and is unusable.
 #[repr(transparent)]
-pub struct Machine<B: 'static, E: 'static>(Option<Box<InnerMachine<B, E>>>);
+pub struct Machine<K: Kernel>(Option<Box<InnerMachine<K>>>);
 
 #[doc(hidden)]
-impl<B: 'static, E: 'static> Deref for Machine<B, E> {
-    type Target = InnerMachine<B, E>;
+impl<K: Kernel> Deref for Machine<K> {
+    type Target = InnerMachine<K>;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("machine is poisoned")
@@ -52,14 +50,14 @@ impl<B: 'static, E: 'static> Deref for Machine<B, E> {
 }
 
 #[doc(hidden)]
-impl<B: 'static, E: 'static> DerefMut for Machine<B, E> {
+impl<K: Kernel> DerefMut for Machine<K> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("machine is poisoned")
     }
 }
 
 #[doc(hidden)]
-pub struct InnerMachine<B: 'static, E: 'static> {
+pub struct InnerMachine<K: Kernel> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -68,28 +66,24 @@ pub struct InnerMachine<B: 'static, E: 'static> {
     engine: Engine,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin node.
-    externs: E,
+    externs: K::Externs,
     /// The state tree. It is updated with the results from every message
     /// execution as the call stack for every message concludes.
     ///
     /// Owned.
-    state_tree: StateTree<B>,
+    state_tree: StateTree<K::Blockstore>,
 }
 
-impl<B, E> Machine<B, E>
-where
-    B: Blockstore,
-    E: Externs,
-{
+impl<K: Kernel> Machine<K> {
     pub fn new(
         config: Config,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        blockstore: B,
-        externs: E,
-    ) -> anyhow::Result<Machine<B, E>> {
+        blockstore: K::Blockstore,
+        externs: K::Externs,
+    ) -> anyhow::Result<Machine<K>> {
         let context = MachineContext::new(
             epoch,
             base_fee,
@@ -122,7 +116,7 @@ where
         self.config.clone()
     }
 
-    pub fn blockstore(&self) -> &B {
+    pub fn blockstore(&self) -> &K::Blockstore {
         self.state_tree.store()
     }
 
@@ -130,15 +124,15 @@ where
         &self.context
     }
 
-    pub fn externs(&self) -> &E {
+    pub fn externs(&self) -> &K::Externs {
         &self.externs
     }
 
-    pub fn state_tree(&self) -> &StateTree<B> {
+    pub fn state_tree(&self) -> &StateTree<K::Blockstore> {
         &self.state_tree
     }
 
-    pub fn state_tree_mut(&mut self) -> &mut StateTree<B> {
+    pub fn state_tree_mut(&mut self) -> &mut StateTree<K::Blockstore> {
         &mut self.state_tree
     }
 

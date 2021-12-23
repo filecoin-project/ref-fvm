@@ -48,7 +48,7 @@ lazy_static! {
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
-pub struct DefaultKernel<B: 'static, E: 'static> {
+pub struct DefaultKernel<B: Blockstore + 'static, E: Externs + 'static> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
     from: ActorID,
@@ -58,7 +58,7 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
-    call_manager: CallManager<B, E>,
+    call_manager: CallManager<Self>,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
@@ -72,24 +72,29 @@ pub struct DefaultKernel<B: 'static, E: 'static> {
 impl<B, E> Kernel for DefaultKernel<B, E>
 where
     B: Blockstore,
-    E: Externs + 'static,
+    E: Externs,
 {
-}
+    type Blockstore = B;
+    type Externs = E;
 
-impl<B, E> DefaultKernel<B, E>
-where
-    B: Blockstore,
-    E: Externs + 'static,
-{
+    fn take(self) -> CallManager<Self>
+    where
+        Self: Sized,
+    {
+        self.call_manager
+    }
+
     /// Starts an unattached kernel.
-    // TODO: combine the gas tracker and the machine into some form of "call stack context"?
-    pub fn new(
-        mgr: CallManager<B, E>,
+    fn new(
+        mgr: CallManager<Self>,
         from: ActorID,
         to: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
-    ) -> Self {
+    ) -> Self
+    where
+        Self: Sized,
+    {
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
@@ -100,11 +105,13 @@ where
             caller_validated: false,
         }
     }
+}
 
-    pub fn take(self) -> CallManager<B, E> {
-        self.call_manager
-    }
-
+impl<B, E> DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn assert_not_validated(&mut self) -> Result<()> {
         if self.caller_validated {
             return Err(syscall_error!(
@@ -142,7 +149,7 @@ where
 impl<B, E> SelfOps for DefaultKernel<B, E>
 where
     B: Blockstore,
-    E: 'static + Externs,
+    E: Externs,
 {
     fn root(&self) -> Cid {
         let addr = Address::new_id(self.to);
@@ -218,7 +225,7 @@ where
 impl<B, E> BlockOps for DefaultKernel<B, E>
 where
     B: Blockstore,
-    E: 'static + Externs,
+    E: Externs,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
         let data = self
@@ -284,7 +291,11 @@ where
     }
 }
 
-impl<B, E> MessageOps for DefaultKernel<B, E> {
+impl<B, E> MessageOps for DefaultKernel<B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn msg_caller(&self) -> ActorID {
         self.from
     }
@@ -305,7 +316,7 @@ impl<B, E> MessageOps for DefaultKernel<B, E> {
 impl<B, E> SendOps for DefaultKernel<B, E>
 where
     B: Blockstore,
-    E: Externs + 'static,
+    E: Externs,
 {
     fn send(
         &mut self,
@@ -322,6 +333,7 @@ where
 
 impl<B, E> CircSupplyOps for DefaultKernel<B, E>
 where
+    B: Blockstore,
     E: Externs,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
@@ -634,7 +646,7 @@ where
 impl<B, E> RandomnessOps for DefaultKernel<B, E>
 where
     B: Blockstore,
-    E: 'static + Externs,
+    E: Externs,
 {
     #[allow(unused)]
     fn get_randomness_from_tickets(
@@ -670,8 +682,8 @@ where
 
 impl<B, E> ValidationOps for DefaultKernel<B, E>
 where
-    B: 'static + Blockstore,
-    E: 'static + Externs,
+    B: Blockstore,
+    E: Externs,
 {
     fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
         self.assert_not_validated()
