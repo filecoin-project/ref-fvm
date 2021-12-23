@@ -82,18 +82,19 @@ where
     {
         self.call_manager
     }
+}
 
-    /// Starts an unattached kernel.
+impl<C> StaticKernel for DefaultKernel<C>
+where
+    C: CallManager,
+{
     fn new(
-        mgr: Self::CallManager,
+        mgr: C,
         from: ActorID,
         to: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
-    ) -> Self
-    where
-        Self: Sized,
-    {
+    ) -> Self {
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),

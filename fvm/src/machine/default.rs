@@ -19,7 +19,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
 use crate::account_actor::is_account_actor;
-use crate::call_manager::CallManager;
+use crate::call_manager::{CallManager, CallManagerFactory, StaticCallManager};
 use crate::externs::Externs;
 use crate::gas::{price_list_by_epoch, GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result, SyscallError};
@@ -41,11 +41,11 @@ use super::{
 //
 // If the inner value is `None` it means the machine got poisend and is unusable.
 #[repr(transparent)]
-pub struct DefaultMachine<B, E, C>(Option<Box<InnerDefaultMachine<B, E, C>>>);
+pub struct DefaultMachine<B, E, C, CF = ()>(Option<Box<InnerDefaultMachine<B, E, C, CF>>>);
 
 #[doc(hidden)]
-impl<B, E, C> Deref for DefaultMachine<B, E, C> {
-    type Target = InnerDefaultMachine<B, E, C>;
+impl<B, E, C, CF> Deref for DefaultMachine<B, E, C, CF> {
+    type Target = InnerDefaultMachine<B, E, C, CF>;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("machine is poisoned")
@@ -53,14 +53,14 @@ impl<B, E, C> Deref for DefaultMachine<B, E, C> {
 }
 
 #[doc(hidden)]
-impl<B, E, C> DerefMut for DefaultMachine<B, E, C> {
+impl<B, E, C, CF> DerefMut for DefaultMachine<B, E, C, CF> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("machine is poisoned")
     }
 }
 
 #[doc(hidden)]
-pub struct InnerDefaultMachine<B, E, C> {
+pub struct InnerDefaultMachine<B, E, C, CF = ()> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -76,16 +76,17 @@ pub struct InnerDefaultMachine<B, E, C> {
     /// Owned.
     state_tree: StateTree<B>,
 
-    // The call manager and kernel are constructed on-demand. We could make the trait itself, or the
-    // `execute_message` method generic over, but that would be kind of annoying.
-    _marker: PhantomData<fn() -> C>,
+    /// A factory for creating call managers.
+    call_manager_factory: CF,
+    /// A marker to select the specific call manager we're going to use.
+    call_manager_marker: PhantomData<fn() -> C>,
 }
 
 impl<B, E, C> DefaultMachine<B, E, C>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
-    C: CallManager<Machine = Self> + 'static,
+    C: StaticCallManager + CallManager<Machine = Self> + 'static,
 {
     pub fn new(
         config: Config,
@@ -95,7 +96,37 @@ where
         state_root: Cid,
         blockstore: B,
         externs: E,
-    ) -> anyhow::Result<DefaultMachine<B, E, C>> {
+    ) -> anyhow::Result<Self> {
+        Self::new_with_factory(
+            config,
+            epoch,
+            base_fee,
+            network_version,
+            state_root,
+            blockstore,
+            externs,
+            (),
+        )
+    }
+}
+
+impl<B, E, C, CF> DefaultMachine<B, E, C, CF>
+where
+    B: Blockstore + 'static,
+    E: Externs + 'static,
+    C: CallManager<Machine = Self> + 'static,
+    CF: CallManagerFactory<C>,
+{
+    pub fn new_with_factory(
+        config: Config,
+        epoch: ChainEpoch,
+        base_fee: TokenAmount,
+        network_version: NetworkVersion,
+        state_root: Cid,
+        blockstore: B,
+        externs: E,
+        call_manager_factory: CF,
+    ) -> anyhow::Result<Self> {
         let context = MachineContext::new(
             epoch,
             base_fee,
@@ -117,7 +148,8 @@ where
             engine,
             externs,
             state_tree,
-            _marker: PhantomData,
+            call_manager_factory,
+            call_manager_marker: PhantomData,
         }))))
     }
 }
@@ -249,11 +281,12 @@ where
     }
 }
 
-impl<B, E, C> Executor for DefaultMachine<B, E, C>
+impl<B, E, C, CF> Executor for DefaultMachine<B, E, C, CF>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
     C: CallManager<Machine = Self> + 'static,
+    CF: CallManagerFactory<C>,
 {
     type CallManager = C;
     /// This is the entrypoint to execute a message.
@@ -266,7 +299,12 @@ where
 
         // Apply the message.
         let (res, gas_used, mut backtrace) = self.map_mut(|machine| {
-            let mut cm = Self::CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
+            let mut cm = machine.call_manager_factory.clone().make(
+                machine,
+                msg.gas_limit,
+                msg.from,
+                msg.sequence,
+            );
             // This error is fatal because it should have already been acounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
@@ -325,11 +363,12 @@ where
     }
 }
 
-impl<B, E, C> DefaultMachine<B, E, C>
+impl<B, E, C, CF> DefaultMachine<B, E, C, CF>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
     C: CallManager<Machine = Self> + 'static,
+    CF: CallManagerFactory<C>,
 {
     // TODO: The return type here is very strange because we have three cases:
     // 1. Continue (return actor ID & gas).

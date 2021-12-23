@@ -18,11 +18,6 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 pub trait CallManager: 'static {
     type Machine: Machine;
 
-    /// Construct a new call manager. This should be called by the machine.
-    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self
-    where
-        Self: Sized;
-
     /// Send a message.
     fn send(
         &mut self,
@@ -109,5 +104,41 @@ pub trait CallManager: 'static {
     /// Getter for gas used.
     fn gas_used(&self) -> i64 {
         self.gas_tracker().gas_used()
+    }
+}
+
+/// A `StaticCallManager` is a `CallManager` that can be constructed without a factory. To use this
+/// kind of call manager, either don't specify the factory in the machine, or specify `()`.
+pub trait StaticCallManager: CallManager {
+    /// Construct a new call manager without a factory.
+    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self
+    where
+        Self: Sized;
+}
+
+/// A `CallManagerFactory` is a factory for creating call managers.
+///
+/// The `Machine` will _usually_ give the `CallManager` everything it needs, but sometimes (e.g.,
+/// for testing), you need something else.
+pub trait CallManagerFactory<C>: Clone
+where
+    C: CallManager,
+{
+    /// Construct a new call manager with the current factory.
+    fn make(self, machine: C::Machine, gas_limit: i64, origin: Address, nonce: u64) -> C
+    where
+        Self: Sized;
+}
+
+/// `CallManagerFactory` is implemented for `()` for all `StaticCallManager`s.
+impl<C> CallManagerFactory<C> for ()
+where
+    C: StaticCallManager,
+{
+    fn make(self, machine: C::Machine, gas_limit: i64, origin: Address, nonce: u64) -> C
+    where
+        Self: Sized,
+    {
+        C::new(machine, gas_limit, origin, nonce)
     }
 }
