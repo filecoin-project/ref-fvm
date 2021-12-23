@@ -24,3 +24,10 @@ example-fvm: example-actor
 example-blockstore-cgo:
 	$(MAKE) -C ./examples/blockstore-cgo
 .PHONY: example-blockstore-cgo
+
+clean:
+	cargo clean
+
+lint: clean
+	cargo fmt --all
+	cargo clippy --all -- -D warnings -A clippy::upper_case_acronyms

@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::anyhow;
@@ -287,7 +288,7 @@ mod create_lane_tests {
                 caller_type: *INIT_ACTOR_CODE_ID,
                 actor_code_cids,
                 epoch: test_case.epoch,
-                balance: paych_balance.clone(),
+                balance: RefCell::new(paych_balance.clone()),
                 ..Default::default()
             };
 
@@ -566,7 +567,7 @@ mod merge_tests {
             let num_lanes = 2;
             let (mut rt, mut sv, state) = construct_runtime(num_lanes);
 
-            rt.balance = TokenAmount::from(tc.balance as u64);
+            rt.set_balance(TokenAmount::from(tc.balance as u64));
 
             sv.lane = 0;
             sv.nonce = tc.voucher;
@@ -994,7 +995,7 @@ fn require_create_cannel_with_lanes(num_lanes: u64) -> (MockRuntime, SignedVouch
         caller_type: *INIT_ACTOR_CODE_ID,
         actor_code_cids,
         received,
-        balance,
+        balance: RefCell::new(balance),
         epoch: curr_epoch,
         ..Default::default()
     };
