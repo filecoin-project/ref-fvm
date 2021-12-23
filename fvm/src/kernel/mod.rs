@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockstore::Blockstore;
 use cid::Cid;
 use fvm_shared::error::ExitCode;
 
@@ -26,6 +27,9 @@ pub mod default;
 mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
+use crate::call_manager::CallManager;
+use crate::externs::Externs;
+
 pub trait Kernel:
     ActorOps
     + BlockOps
@@ -39,7 +43,24 @@ pub trait Kernel:
     + SelfOps
     + SendOps
     + ValidationOps
+    + 'static
 {
+    type Blockstore: Blockstore;
+    type Externs: Externs;
+
+    fn new(
+        mgr: CallManager<Self>,
+        from: ActorID,
+        to: ActorID,
+        method: MethodNum,
+        value_received: TokenAmount,
+    ) -> Self
+    where
+        Self: Sized;
+
+    fn take(self) -> CallManager<Self>
+    where
+        Self: Sized;
 }
 
 /// Network-related operations.

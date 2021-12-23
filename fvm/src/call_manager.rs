@@ -1,4 +1,3 @@
-use blockstore::Blockstore;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
     address::{Address, Protocol},
@@ -12,13 +11,11 @@ use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
 use crate::{
-    externs::Externs,
     gas::{GasCharge, GasTracker},
-    kernel::{BlockOps, ClassifyResult, Result, SyscallError},
+    kernel::{ClassifyResult, Kernel, Result, SyscallError},
     machine::{CallError, Machine},
     syscall_error,
     syscalls::{bind_syscalls, error::unwrap_trap},
-    DefaultKernel,
 };
 
 /// BlockID representing nil parameters or return data.
@@ -38,15 +35,15 @@ const NO_DATA_BLOCK_ID: u32 = 0;
 ///    4. Return.
 
 #[repr(transparent)]
-pub struct CallManager<B: 'static, E: 'static>(Option<InnerCallManager<B, E>>);
+pub struct CallManager<K: Kernel>(Option<InnerCallManager<K>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct InnerCallManager<B: 'static, E: 'static> {
+pub struct InnerCallManager<K: Kernel> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
-    machine: Machine<B, E>,
+    machine: Machine<K>,
     /// The gas tracker.
     gas_tracker: GasTracker,
     /// The original sender of the chain message that initiated this call stack.
@@ -60,8 +57,8 @@ pub struct InnerCallManager<B: 'static, E: 'static> {
 }
 
 #[doc(hidden)]
-impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
-    type Target = InnerCallManager<B, E>;
+impl<K: Kernel> std::ops::Deref for CallManager<K> {
+    type Target = InnerCallManager<K>;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("call manager is poisoned")
@@ -69,19 +66,15 @@ impl<B: 'static, E: 'static> std::ops::Deref for CallManager<B, E> {
 }
 
 #[doc(hidden)]
-impl<B: 'static, E: 'static> std::ops::DerefMut for CallManager<B, E> {
+impl<K: Kernel> std::ops::DerefMut for CallManager<K> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
 }
 
-impl<B: 'static, E: 'static> CallManager<B, E>
-where
-    B: Blockstore,
-    E: Externs,
-{
+impl<K: Kernel> CallManager<K> {
     /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<B, E>, gas_limit: i64, origin: Address, nonce: u64) -> Self {
+    pub(crate) fn new(machine: Machine<K>, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         CallManager(Some(InnerCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
@@ -207,7 +200,7 @@ where
 
         self.map_mut(|cm| {
             // Make the kernel/store.
-            let kernel = DefaultKernel::new(cm, from, to, method, value.clone());
+            let kernel = K::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, kernel);
 
             let result = (|| {
@@ -249,7 +242,7 @@ where
     }
 
     /// Finishes execution, returning the gas used and the machine.
-    pub fn finish(mut self) -> (i64, Vec<CallError>, Machine<B, E>) {
+    pub fn finish(mut self) -> (i64, Vec<CallError>, Machine<K>) {
         let gas_used = self.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
