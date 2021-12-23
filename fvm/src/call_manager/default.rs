@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
     address::{Address, Protocol},
@@ -11,17 +13,16 @@ use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
 use crate::{
-    gas::{GasCharge, GasTracker},
+    gas::GasTracker,
     kernel::{ClassifyResult, Kernel, Result, SyscallError},
     machine::{CallError, Machine},
     syscall_error,
     syscalls::{bind_syscalls, error::unwrap_trap},
 };
 
-/// BlockID representing nil parameters or return data.
-const NO_DATA_BLOCK_ID: u32 = 0;
+use super::{CallManager, NO_DATA_BLOCK_ID};
 
-/// The CallManager manages a single call stack.
+/// The DefaultCallManager manages a single call stack.
 ///
 /// When a top-level message is executed:
 ///
@@ -35,15 +36,15 @@ const NO_DATA_BLOCK_ID: u32 = 0;
 ///    4. Return.
 
 #[repr(transparent)]
-pub struct CallManager<K: Kernel>(Option<InnerCallManager<K>>);
+pub struct DefaultCallManager<M, K>(Option<InnerDefaultCallManager<M, K>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct InnerCallManager<K: Kernel> {
+pub struct InnerDefaultCallManager<M, K> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
-    machine: Machine<K>,
+    machine: M,
     /// The gas tracker.
     gas_tracker: GasTracker,
     /// The original sender of the chain message that initiated this call stack.
@@ -54,11 +55,16 @@ pub struct InnerCallManager<K: Kernel> {
     num_actors_created: u64,
     /// The current chain of errors, if any.
     backtrace: Vec<CallError>,
+
+    _marker: PhantomData<fn() -> K>,
 }
 
 #[doc(hidden)]
-impl<K: Kernel> std::ops::Deref for CallManager<K> {
-    type Target = InnerCallManager<K>;
+impl<M, K> std::ops::Deref for DefaultCallManager<M, K>
+where
+    M: Machine,
+{
+    type Target = InnerDefaultCallManager<M, K>;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("call manager is poisoned")
@@ -66,25 +72,141 @@ impl<K: Kernel> std::ops::Deref for CallManager<K> {
 }
 
 #[doc(hidden)]
-impl<K: Kernel> std::ops::DerefMut for CallManager<K> {
+impl<M, K> std::ops::DerefMut for DefaultCallManager<M, K>
+where
+    M: Machine,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
 }
 
-impl<K: Kernel> CallManager<K> {
-    /// Construct a new call manager. This should be called by the machine.
-    pub(crate) fn new(machine: Machine<K>, gas_limit: i64, origin: Address, nonce: u64) -> Self {
-        CallManager(Some(InnerCallManager {
+impl<M, K> CallManager for DefaultCallManager<M, K>
+where
+    M: Machine,
+    K: Kernel<CallManager = Self>,
+{
+    type Machine = M;
+
+    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self
+    where
+        Self: Sized,
+    {
+        DefaultCallManager(Some(InnerDefaultCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
             origin,
             nonce,
             num_actors_created: 0,
             backtrace: Vec::new(),
+            _marker: PhantomData,
         }))
     }
 
+    fn send(
+        &mut self,
+        from: ActorID,
+        to: Address,
+        method: MethodNum,
+        params: &RawBytes,
+        value: &TokenAmount,
+    ) -> Result<Receipt> {
+        // Get the receiver; this will resolve the address.
+        // TODO: What kind of errors should we be using here?
+        let to = match self.state_tree().lookup_id(&to)? {
+            Some(addr) => addr,
+            None => match to.protocol() {
+                Protocol::BLS | Protocol::Secp256k1 => {
+                    // Try to create an account actor if the receiver is a key address.
+                    self.create_account_actor(&to)?
+                }
+                _ => {
+                    return Err(
+                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
+                            .into(),
+                    )
+                }
+            },
+        };
+
+        // Do the actual send.
+
+        self.send_resolved(from, to, method, params, value)
+    }
+
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<Receipt>,
+    ) -> Result<Receipt> {
+        self.state_tree_mut().begin_transaction();
+        let (revert, res) = match f(self) {
+            Ok(v) => (v.exit_code != ExitCode::Ok, Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+        self.state_tree_mut().end_transaction(revert)?;
+        res
+    }
+
+    fn finish(mut self) -> (i64, Vec<CallError>, Self::Machine) {
+        let gas_used = self.gas_used().max(0);
+
+        let inner = self.0.take().expect("call manager is poisoned");
+        // TODO: Having to check against zero here is fishy, but this is what lotus does.
+        (gas_used, inner.backtrace, inner.machine)
+    }
+
+    // Accessor methods so the trait can implement some common methods by default.
+
+    fn machine(&self) -> &Self::Machine {
+        &self.machine
+    }
+
+    fn machine_mut(&mut self) -> &mut Self::Machine {
+        &mut self.machine
+    }
+
+    fn gas_tracker(&self) -> &GasTracker {
+        &self.gas_tracker
+    }
+
+    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
+        &mut self.gas_tracker
+    }
+
+    // Other accessor methods
+
+    fn origin(&self) -> Address {
+        self.origin
+    }
+
+    fn nonce(&self) -> u64 {
+        self.nonce
+    }
+
+    // Helper for creating actors. This really doesn't belong on this trait.
+
+    fn next_actor_idx(&mut self) -> u64 {
+        let ret = self.num_actors_created;
+        self.num_actors_created += 1;
+        ret
+    }
+
+    // Helpers for error tracing.
+
+    fn push_error(&mut self, e: CallError) {
+        self.backtrace.push(e);
+    }
+
+    fn clear_error(&mut self) {
+        self.backtrace.clear();
+    }
+}
+
+impl<M, K> DefaultCallManager<M, K>
+where
+    M: Machine,
+    K: Kernel<CallManager = Self>,
+{
     fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID> {
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
@@ -115,40 +237,6 @@ impl<K: Kernel> CallManager<K> {
         )?;
 
         Ok(id)
-    }
-
-    /// Send a message to an actor.
-    ///
-    /// This method does not create any transactions, that's the caller's responsibility.
-    pub fn send(
-        &mut self,
-        from: ActorID,
-        to: Address,
-        method: MethodNum,
-        params: &RawBytes,
-        value: &TokenAmount,
-    ) -> Result<Receipt> {
-        // Get the receiver; this will resolve the address.
-        // TODO: What kind of errors should we be using here?
-        let to = match self.state_tree().lookup_id(&to)? {
-            Some(addr) => addr,
-            None => match to.protocol() {
-                Protocol::BLS | Protocol::Secp256k1 => {
-                    // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor(&to)?
-                }
-                _ => {
-                    return Err(
-                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
-                            .into(),
-                    )
-                }
-            },
-        };
-
-        // Do the actual send.
-
-        self.send_resolved(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.
@@ -208,7 +296,7 @@ impl<K: Kernel> CallManager<K> {
                 let param_id = if params.len() > 0 {
                     store.data_mut().block_create(DAG_CBOR, params)?
                 } else {
-                    NO_DATA_BLOCK_ID
+                    super::NO_DATA_BLOCK_ID
                 };
 
                 // Instantiate the module.
@@ -241,75 +329,10 @@ impl<K: Kernel> CallManager<K> {
         })
     }
 
-    /// Finishes execution, returning the gas used and the machine.
-    pub fn finish(mut self) -> (i64, Vec<CallError>, Machine<K>) {
-        let gas_used = self.gas_used().max(0);
-
-        let inner = self.0.take().expect("call manager is poisoned");
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.machine)
-    }
-
-    /// Charge gas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker.charge_gas(charge)?;
-        Ok(())
-    }
-
-    /// Returns the available gas.
-    pub fn gas_available(&self) -> i64 {
-        self.gas_tracker.gas_available()
-    }
-
-    /// Getter for gas used.
-    pub fn gas_used(&self) -> i64 {
-        self.gas_tracker.gas_used()
-    }
-
-    /// Getter for origin actor.
-    pub fn origin(&self) -> Address {
-        self.origin
-    }
-
-    /// Getter for message nonce.
-    pub fn nonce(&self) -> u64 {
-        self.nonce
-    }
-
-    /// Gets and increment the call-stack actor creation index.
-    pub fn next_actor_idx(&mut self) -> u64 {
-        let ret = self.num_actors_created;
-        self.num_actors_created += 1;
-        ret
-    }
-
-    pub fn push_error(&mut self, e: CallError) {
-        self.backtrace.push(e);
-    }
-
-    pub fn clear_error(&mut self) {
-        self.backtrace.clear();
-    }
-
     fn map_mut<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(Self) -> (T, Self),
     {
-        replace_with::replace_with_and_return(self, || CallManager(None), f)
-    }
-
-    /// Wrap a send closure in a transaction. The transaction will be reverted if the send closure
-    /// returns either an error or a receipt with a non-zero exit code.
-    pub fn with_transaction(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<Receipt>,
-    ) -> Result<Receipt> {
-        self.state_tree_mut().begin_transaction();
-        let (revert, res) = match f(self) {
-            Ok(v) => (v.exit_code != ExitCode::Ok, Ok(v)),
-            Err(e) => (true, Err(e)),
-        };
-        self.state_tree_mut().end_transaction(revert)?;
-        res
+        replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
     }
 }
