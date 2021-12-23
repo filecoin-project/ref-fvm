@@ -6,7 +6,7 @@ use log::{error, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
-use actors_runtime::actor_error;
+use actors_runtime::{actor_error, wasm_trampoline};
 use fvm_shared::bigint::Sign;
 use fvm_shared::bigint::{bigint_ser::BigIntDe, Integer};
 use fvm_shared::econ::TokenAmount;
@@ -41,6 +41,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 pub(crate) mod expneg;
 mod logic;

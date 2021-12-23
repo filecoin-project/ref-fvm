@@ -21,6 +21,9 @@ use crate::{
     DefaultKernel,
 };
 
+/// BlockID representing nil parameters or return data.
+const NO_DATA_BLOCK_ID: u32 = 0;
+
 /// The CallManager manages a single call stack.
 ///
 /// When a top-level message is executed:
@@ -208,8 +211,12 @@ where
             let mut store = Store::new(&engine, kernel);
 
             let result = (|| {
-                // Load parameters.
-                let param_id = store.data_mut().block_create(DAG_CBOR, params)?;
+                // Load parameters, if there are any.
+                let param_id = if params.len() > 0 {
+                    store.data_mut().block_create(DAG_CBOR, params)?
+                } else {
+                    NO_DATA_BLOCK_ID
+                };
 
                 // Instantiate the module.
                 let instance = linker.instantiate(&mut store, &module).or_fatal()?;
@@ -221,10 +228,17 @@ where
                     Err(e) => return unwrap_trap(e),
                 };
 
-                let (code, ret) = store.data().block_get(return_block_id)?;
-                debug_assert_eq!(code, DAG_CBOR);
+                // Extract the return value, if there is one.
+                let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
+                    let (code, ret) = store.data().block_get(return_block_id)?;
+                    debug_assert_eq!(code, DAG_CBOR);
+                    RawBytes::new(ret)
+                } else {
+                    RawBytes::default()
+                };
+
                 Ok(Receipt {
-                    return_data: RawBytes::new(ret),
+                    return_data: return_value,
                     exit_code: ExitCode::Ok,
                     gas_used: 0,
                 })

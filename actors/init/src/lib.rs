@@ -6,7 +6,7 @@ use cid::Cid;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use actors_runtime::{actor_error, ActorError};
+use actors_runtime::{actor_error, wasm_trampoline, ActorError};
 use actors_runtime::{
     runtime::{ActorCode, Runtime},
     ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
@@ -39,6 +39,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 // * Updated to specs-actors commit: 999e57a151cc7ada020ca2844b651499ab8c0dec (v3.0.1)
 

@@ -52,6 +52,17 @@ pub mod util;
 #[cfg(feature = "test_utils")]
 pub mod test_utils;
 
+#[macro_export]
+macro_rules! wasm_trampoline {
+    ($target:ty) => {
+        #[no_mangle]
+        #[cfg(feature = "runtime-wasm")]
+        pub extern "C" fn invoke(param: u32) -> u32 {
+            $crate::runtime::fvm::trampoline::<$target>(param)
+        }
+    };
+}
+
 /// Map type to be used within actors. The underlying type is a HAMT.
 pub type Map<'bs, BS, V> = Hamt<&'bs BS, V, BytesKey>;
 

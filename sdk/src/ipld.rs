@@ -5,8 +5,8 @@ use cid::Cid;
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;
 
-pub(crate) type BlockId = u32;
-pub(crate) type Codec = u64;
+pub type BlockId = u32;
+pub type Codec = u64;
 
 /// Store a block. The block will only be persisted in the state-tree if the CID is "linked in" to
 /// the actor's state-tree before the end of the current invocation.
@@ -48,7 +48,7 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
 
 /// Gets the data of the block referenced by BlockId. If the caller knows the
 /// size, this function will avoid statting the block.
-pub(crate) fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
+pub fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
     let size = match size {
         Some(size) => size,
         None => unsafe {
@@ -64,6 +64,11 @@ pub(crate) fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>
         block.set_len(size as usize);
     }
     Ok(block)
+}
+
+/// Writes the supplied block and returns the BlockId.
+pub fn put_block(codec: Codec, data: &[u8]) -> SyscallResult<BlockId> {
+    unsafe { sys::ipld::create(codec, data.as_ptr(), data.len() as u32).into_syscall_result() }
 }
 
 // Transform the IPLD DAG.

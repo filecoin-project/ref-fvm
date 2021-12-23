@@ -24,8 +24,8 @@ use fvm_shared::{
 use actors_runtime::{
     actor_error, make_map_with_root_and_bitwidth,
     runtime::{ActorCode, Runtime},
-    ActorDowncast, ActorError, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR,
-    MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
+    wasm_trampoline, ActorDowncast, ActorError, Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR,
+    INIT_ACTOR_ADDR, MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 
 pub use self::policy::*;
@@ -48,6 +48,8 @@ pub mod wasm {
         }
     }
 }
+
+wasm_trampoline!(Actor);
 
 #[doc(hidden)]
 pub mod ext;
