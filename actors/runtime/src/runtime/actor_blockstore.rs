@@ -3,7 +3,6 @@ use blockstore::Block;
 use cid::multihash::Code;
 use cid::Cid;
 use fvm_sdk as fvm;
-use fvm_shared::error::ExitCode::{ErrIllegalState, ErrSerialization};
 use std::convert::TryFrom;
 
 /// A blockstore suitable for use within actors.
