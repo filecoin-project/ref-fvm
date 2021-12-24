@@ -4,7 +4,6 @@ use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
 
-use blockstore::Blockstore;
 use byteorder::{BigEndian, WriteBytesExt};
 use fvm_shared::bigint::Zero;
 use fvm_shared::commcid::{
@@ -16,9 +15,11 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 
+use blockstore::Blockstore;
+
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::CallManager;
-use crate::externs::Externs;
+use crate::externs::{Consensus, Rand};
 use crate::machine::CallError;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
@@ -48,7 +49,7 @@ lazy_static! {
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
-pub struct DefaultKernel<B: Blockstore + 'static, E: Externs + 'static> {
+pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
     from: ActorID,
@@ -58,7 +59,7 @@ pub struct DefaultKernel<B: Blockstore + 'static, E: Externs + 'static> {
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
-    call_manager: CallManager<Self>,
+    call_manager: C,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
@@ -69,32 +70,26 @@ pub struct DefaultKernel<B: Blockstore + 'static, E: Externs + 'static> {
 
 // Even though all children traits are implemented, Rust needs to know that the
 // supertrait is implemented too.
-impl<B, E> Kernel for DefaultKernel<B, E>
+impl<C> Kernel for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
-    type Blockstore = B;
-    type Externs = E;
+    type CallManager = C;
 
-    fn take(self) -> CallManager<Self>
+    fn take(self) -> Self::CallManager
     where
         Self: Sized,
     {
         self.call_manager
     }
 
-    /// Starts an unattached kernel.
     fn new(
-        mgr: CallManager<Self>,
+        mgr: C,
         from: ActorID,
         to: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
-    ) -> Self
-    where
-        Self: Sized,
-    {
+    ) -> Self {
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
@@ -107,10 +102,9 @@ where
     }
 }
 
-impl<B, E> DefaultKernel<B, E>
+impl<C> DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn assert_not_validated(&mut self) -> Result<()> {
         if self.caller_validated {
@@ -146,10 +140,9 @@ where
     }
 }
 
-impl<B, E> SelfOps for DefaultKernel<B, E>
+impl<C> SelfOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn root(&self) -> Cid {
         let addr = Address::new_id(self.to);
@@ -164,7 +157,7 @@ where
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
         let addr = Address::new_id(self.to);
-        let state_tree = self.call_manager.state_tree_mut();
+        let state_tree = self.call_manager.machine_mut().state_tree_mut();
 
         state_tree.mutate_actor(&addr, |actor_state| {
             actor_state.state = new;
@@ -191,7 +184,7 @@ where
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
         // TODO abort with internal error instead of returning.
         self.call_manager
-            .charge_gas(self.call_manager.context().price_list().on_delete_actor())?;
+            .charge_gas(self.call_manager.price_list().on_delete_actor())?;
 
         let balance = self.current_balance()?;
         if balance != TokenAmount::zero() {
@@ -213,19 +206,22 @@ where
 
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
+                .machine_mut()
                 .transfer(self.from, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
         // TODO errors here are FATAL errors
-        self.call_manager.state_tree_mut().delete_actor_id(self.to)
+        self.call_manager
+            .machine_mut()
+            .state_tree_mut()
+            .delete_actor_id(self.to)
     }
 }
 
-impl<B, E> BlockOps for DefaultKernel<B, E>
+impl<C> BlockOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
         let data = self
@@ -291,10 +287,9 @@ where
     }
 }
 
-impl<B, E> MessageOps for DefaultKernel<B, E>
+impl<C> MessageOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn msg_caller(&self) -> ActorID {
         self.from
@@ -313,10 +308,9 @@ where
     }
 }
 
-impl<B, E> SendOps for DefaultKernel<B, E>
+impl<C> SendOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn send(
         &mut self,
@@ -327,24 +321,22 @@ where
     ) -> Result<Receipt> {
         let from = self.from;
         self.call_manager
-            .with_transaction(|cm| cm.send(from, *recipient, method, params, value))
+            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
     }
 }
 
-impl<B, E> CircSupplyOps for DefaultKernel<B, E>
+impl<C> CircSupplyOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
         todo!()
     }
 }
 
-impl<B, E> CryptoOps for DefaultKernel<B, E>
+impl<C> CryptoOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn verify_signature(
         &mut self,
@@ -354,7 +346,6 @@ where
     ) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
-                .context()
                 .price_list()
                 .on_verify_signature(signature.signature_type()),
         )?;
@@ -365,12 +356,8 @@ where
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        self.call_manager.charge_gas(
-            self.call_manager
-                .context()
-                .price_list()
-                .on_hashing(data.len()),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
         Ok(blake2b_256(data))
     }
@@ -382,7 +369,6 @@ where
     ) -> Result<Cid> {
         self.call_manager.charge_gas(
             self.call_manager
-                .context()
                 .price_list()
                 .on_compute_unsealed_sector_cid(proof_type, pieces),
         )?;
@@ -436,12 +422,8 @@ where
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        self.call_manager.charge_gas(
-            self.call_manager
-                .context()
-                .price_list()
-                .on_verify_post(verify_info),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
         let WindowPoStVerifyInfo {
             ref proofs,
@@ -479,12 +461,8 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        self.call_manager.charge_gas(
-            self.call_manager
-                .context()
-                .price_list()
-                .on_verify_consensus_fault(),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
@@ -614,10 +592,9 @@ where
     }
 }
 
-impl<B, E> GasOps for DefaultKernel<B, E>
+impl<C> GasOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
@@ -625,10 +602,9 @@ where
     }
 }
 
-impl<B, E> NetworkOps for DefaultKernel<B, E>
+impl<C> NetworkOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
         self.call_manager.context().epoch()
@@ -643,10 +619,9 @@ where
     }
 }
 
-impl<B, E> RandomnessOps for DefaultKernel<B, E>
+impl<C> RandomnessOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     #[allow(unused)]
     fn get_randomness_from_tickets(
@@ -680,10 +655,9 @@ where
     }
 }
 
-impl<B, E> ValidationOps for DefaultKernel<B, E>
+impl<C> ValidationOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
         self.assert_not_validated()
@@ -719,10 +693,9 @@ where
     }
 }
 
-impl<B, E> ActorOps for DefaultKernel<B, E>
+impl<C> ActorOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
         self.call_manager.state_tree().lookup_id(address)
@@ -778,7 +751,7 @@ where
         }
 
         self.call_manager
-            .charge_gas(self.call_manager.context().price_list().on_create_actor())?;
+            .charge_gas(self.call_manager.price_list().on_create_actor())?;
 
         let state_tree = self.call_manager.state_tree_mut();
         state_tree.set_actor(
@@ -788,10 +761,9 @@ where
     }
 }
 
-impl<B, E> DebugOps for DefaultKernel<B, E>
+impl<C> DebugOps for DefaultKernel<C>
 where
-    B: Blockstore,
-    E: Externs,
+    C: CallManager,
 {
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
