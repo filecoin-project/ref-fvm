@@ -11,6 +11,7 @@ mod account_actor;
 mod builtin;
 mod gas;
 mod init_actor;
+mod intercept;
 mod state_tree;
 
 #[derive(Clone)]
