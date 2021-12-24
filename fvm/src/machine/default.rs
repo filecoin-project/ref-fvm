@@ -56,13 +56,13 @@ where
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
-        let context = MachineContext::new(
+        let context = MachineContext {
             epoch,
             base_fee,
-            state_root,
-            price_list_by_epoch(epoch),
             network_version,
-        );
+            initial_state_root: state_root,
+            price_list: price_list_by_epoch(epoch),
+        };
 
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
@@ -93,8 +93,8 @@ where
         &self.engine
     }
 
-    fn config(&self) -> Config {
-        self.config.clone()
+    fn config(&self) -> &Config {
+        &self.config
     }
 
     fn blockstore(&self) -> &Self::Blockstore {

@@ -65,7 +65,7 @@ pub trait CallManager: 'static {
 
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {
-        self.machine().context().price_list()
+        &self.machine().context().price_list
     }
 
     /// Returns the machine context.
@@ -97,15 +97,5 @@ pub trait CallManager: 'static {
     fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         self.gas_tracker_mut().charge_gas(charge)?;
         Ok(())
-    }
-
-    /// Returns the available gas.
-    fn gas_available(&self) -> i64 {
-        self.gas_tracker().gas_available()
-    }
-
-    /// Getter for gas used.
-    fn gas_used(&self) -> i64 {
-        self.gas_tracker().gas_used()
     }
 }

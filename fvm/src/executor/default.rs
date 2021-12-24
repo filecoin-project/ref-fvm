@@ -77,7 +77,7 @@ where
                 // Charge for including the result (before we end the transaction).
                 cm.charge_gas(
                     cm.context()
-                        .price_list()
+                        .price_list
                         .on_chain_return_value(ret.return_data.len()),
                 )?;
 
@@ -118,7 +118,7 @@ where
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().epoch()
+                    self.context().epoch
                 )))
             }
         };
@@ -148,7 +148,7 @@ where
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
-        let pl = &self.context().price_list();
+        let pl = &self.context().price_list;
         let ser_msg = msg
             .marshal_cbor()
             .context("failed to re-marshal message")
@@ -160,12 +160,12 @@ where
         if inclusion_total > msg.gas_limit {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                self.context().base_fee() * inclusion_total,
+                &self.context().base_fee * inclusion_total,
             )));
         }
 
         // Load sender actor state.
-        let miner_penalty_amount = self.context().base_fee() * msg.gas_limit;
+        let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
 
         let sender_id = match self
             .state_tree()
@@ -250,7 +250,7 @@ where
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
-            &self.context().base_fee(),
+            &self.context().base_fee,
             &msg.gas_fee_cap,
             &msg.gas_premium,
         );
