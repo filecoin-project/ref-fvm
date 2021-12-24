@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use derive_more::{Deref, DerefMut};
 use fvm_shared::{
     address::{Address, Protocol},
@@ -14,13 +12,13 @@ use wasmtime::{Linker, Store};
 
 use crate::{
     gas::GasTracker,
-    kernel::{ClassifyResult, Kernel, KernelFactory, Result, StaticKernel, SyscallError},
+    kernel::{ClassifyResult, Kernel, Result, SyscallError},
     machine::{CallError, Machine},
     syscall_error,
     syscalls::{bind_syscalls, error::unwrap_trap},
 };
 
-use super::{CallManager, StaticCallManager, NO_DATA_BLOCK_ID};
+use super::{CallManager, NO_DATA_BLOCK_ID};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -36,11 +34,11 @@ use super::{CallManager, StaticCallManager, NO_DATA_BLOCK_ID};
 ///    4. Return.
 
 #[repr(transparent)]
-pub struct DefaultCallManager<M, K, KF = ()>(Option<InnerDefaultCallManager<M, K, KF>>);
+pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct InnerDefaultCallManager<M, K, KF = ()> {
+pub struct InnerDefaultCallManager<M> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
@@ -55,16 +53,11 @@ pub struct InnerDefaultCallManager<M, K, KF = ()> {
     num_actors_created: u64,
     /// The current chain of errors, if any.
     backtrace: Vec<CallError>,
-
-    /// A kernel factory.
-    kernel_factory: KF,
-    /// A marker to select the specific kernel we want from the factory.
-    kernel_marker: PhantomData<fn() -> K>,
 }
 
 #[doc(hidden)]
-impl<M, F, KF> std::ops::Deref for DefaultCallManager<M, F, KF> {
-    type Target = InnerDefaultCallManager<M, F, KF>;
+impl<M> std::ops::Deref for DefaultCallManager<M> {
+    type Target = InnerDefaultCallManager<M>;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("call manager is poisoned")
@@ -72,28 +65,40 @@ impl<M, F, KF> std::ops::Deref for DefaultCallManager<M, F, KF> {
 }
 
 #[doc(hidden)]
-impl<M, K, KF> std::ops::DerefMut for DefaultCallManager<M, K, KF> {
+impl<M> std::ops::DerefMut for DefaultCallManager<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
 }
 
-impl<M, K, KF> CallManager for DefaultCallManager<M, K, KF>
+impl<M> CallManager for DefaultCallManager<M>
 where
     M: Machine,
-    K: Kernel<CallManager = Self>,
-    KF: KernelFactory<K>,
 {
     type Machine = M;
 
-    fn send(
+    fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
+        DefaultCallManager(Some(InnerDefaultCallManager {
+            machine,
+            gas_tracker: GasTracker::new(gas_limit, 0),
+            origin,
+            nonce,
+            num_actors_created: 0,
+            backtrace: Vec::new(),
+        }))
+    }
+
+    fn send<K>(
         &mut self,
         from: ActorID,
         to: Address,
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt> {
+    ) -> Result<Receipt>
+    where
+        K: Kernel<CallManager = Self>,
+    {
         // Get the receiver; this will resolve the address.
         // TODO: What kind of errors should we be using here?
         let to = match self.state_tree().lookup_id(&to)? {
@@ -101,7 +106,7 @@ where
             None => match to.protocol() {
                 Protocol::BLS | Protocol::Secp256k1 => {
                     // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor(&to)?
+                    self.create_account_actor::<K>(&to)?
                 }
                 _ => {
                     return Err(
@@ -114,7 +119,7 @@ where
 
         // Do the actual send.
 
-        self.send_resolved(from, to, method, params, value)
+        self.send_resolved::<K>(from, to, method, params, value)
     }
 
     fn with_transaction(
@@ -185,44 +190,14 @@ where
     }
 }
 
-impl<M, K> StaticCallManager for DefaultCallManager<M, K, ()>
+impl<M> DefaultCallManager<M>
 where
-    K: StaticKernel<CallManager = Self>,
     M: Machine,
 {
-    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self
+    fn create_account_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
-        Self: Sized,
+        K: Kernel<CallManager = Self>,
     {
-        DefaultCallManager::new((), machine, gas_limit, origin, nonce)
-    }
-}
-
-impl<M, K, KF> DefaultCallManager<M, K, KF>
-where
-    M: Machine,
-    K: Kernel<CallManager = Self>,
-    KF: KernelFactory<K>,
-{
-    pub fn new(
-        kernel_factory: KF,
-        machine: M,
-        gas_limit: i64,
-        origin: Address,
-        nonce: u64,
-    ) -> Self {
-        DefaultCallManager(Some(InnerDefaultCallManager {
-            machine,
-            gas_tracker: GasTracker::new(gas_limit, 0),
-            origin,
-            nonce,
-            num_actors_created: 0,
-            backtrace: Vec::new(),
-            kernel_factory,
-            kernel_marker: PhantomData,
-        }))
-    }
-    fn create_account_actor(&mut self, addr: &Address) -> Result<ActorID> {
         self.charge_gas(self.context().price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
@@ -243,7 +218,7 @@ where
             // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
             .map_err(|e| syscall_error!(ErrSerialization; "failed to serialize params: {}", e))?;
 
-        self.send_resolved(
+        self.send_resolved::<K>(
             crate::account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
@@ -255,14 +230,17 @@ where
     }
 
     /// Send with resolved addresses.
-    fn send_resolved(
+    fn send_resolved<K>(
         &mut self,
         from: ActorID,
         to: ActorID,
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt> {
+    ) -> Result<Receipt>
+    where
+        K: Kernel<CallManager = Self>,
+    {
         // Lookup the actor.
         let state = self
             .state_tree()
@@ -303,10 +281,7 @@ where
 
         self.map_mut(|cm| {
             // Make the kernel/store.
-            let kernel = cm
-                .kernel_factory
-                .clone()
-                .make(cm, from, to, method, value.clone());
+            let kernel = K::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, kernel);
 
             let result = (|| {

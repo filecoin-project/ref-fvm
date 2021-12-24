@@ -82,12 +82,7 @@ where
     {
         self.call_manager
     }
-}
 
-impl<C> StaticKernel for DefaultKernel<C>
-where
-    C: CallManager,
-{
     fn new(
         mgr: C,
         from: ActorID,
@@ -326,7 +321,7 @@ where
     ) -> Result<Receipt> {
         let from = self.from;
         self.call_manager
-            .with_transaction(|cm| cm.send(from, *recipient, method, params, value))
+            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
     }
 }
 

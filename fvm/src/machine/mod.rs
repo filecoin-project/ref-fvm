@@ -1,28 +1,24 @@
 use blockstore::Blockstore;
 use cid::Cid;
-use num_traits::Zero;
 use wasmtime::{Engine, Module};
 
 use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
-use crate::call_manager::CallManager;
 use crate::externs::Externs;
 use crate::gas::PriceList;
-use crate::kernel::{Result, SyscallError};
+use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
 mod default;
 pub use default::DefaultMachine;
+
+mod boxed;
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
 /// Distinguished AccountActor that is the destination of all burnt funds.
@@ -55,13 +51,6 @@ pub trait Machine: 'static {
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
 }
 
-pub trait Executor {
-    type CallManager: CallManager;
-
-    /// This is the entrypoint to execute a message.
-    fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet>;
-}
-
 /// An error included in a message's backtrace on failure.
 #[derive(Clone, Debug)]
 pub struct CallError {
@@ -71,44 +60,6 @@ pub struct CallError {
     pub code: ExitCode,
     /// The error message.
     pub message: String,
-}
-
-/// Apply message return data.
-#[derive(Clone, Debug)]
-pub struct ApplyRet {
-    /// Message receipt for the transaction. This data is stored on chain.
-    pub msg_receipt: Receipt,
-    /// A backtrace for the transaction, if it failed.
-    pub backtrace: Vec<CallError>,
-    /// Gas penalty from transaction, if any.
-    pub penalty: BigInt,
-    /// Tip given to miner from message.
-    pub miner_tip: BigInt,
-}
-
-impl ApplyRet {
-    #[inline]
-    pub fn prevalidation_fail(error: SyscallError, miner_penalty: BigInt) -> ApplyRet {
-        ApplyRet {
-            msg_receipt: Receipt {
-                exit_code: error.1,
-                return_data: RawBytes::default(),
-                gas_used: 0,
-            },
-            penalty: miner_penalty,
-            backtrace: vec![CallError {
-                source: 0,
-                code: error.1,
-                message: error.0,
-            }],
-            miner_tip: BigInt::zero(),
-        }
-    }
-}
-
-pub enum ApplyKind {
-    Explicit,
-    Implicit,
 }
 
 /// Execution context supplied to the machine. All fields are private.

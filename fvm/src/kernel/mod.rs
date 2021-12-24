@@ -49,6 +49,16 @@ pub trait Kernel:
     fn take(self) -> Self::CallManager
     where
         Self: Sized;
+
+    fn new(
+        mgr: Self::CallManager,
+        from: ActorID,
+        to: ActorID,
+        method: MethodNum,
+        value_received: TokenAmount,
+    ) -> Self
+    where
+        Self: Sized;
 }
 
 /// Network-related operations.
@@ -293,43 +303,4 @@ pub trait DebugOps {
     ///
     /// Call this before any syscall except abort.
     fn clear_error(&mut self);
-}
-
-pub trait KernelFactory<K: Kernel + Sized>: Clone + 'static {
-    fn make(
-        self,
-        mgr: K::CallManager,
-        from: ActorID,
-        to: ActorID,
-        method: MethodNum,
-        value_received: TokenAmount,
-    ) -> K;
-}
-
-pub trait StaticKernel: Kernel {
-    fn new(
-        mgr: Self::CallManager,
-        from: ActorID,
-        to: ActorID,
-        method: MethodNum,
-        value_received: TokenAmount,
-    ) -> Self
-    where
-        Self: Sized;
-}
-
-impl<K> KernelFactory<K> for ()
-where
-    K: StaticKernel,
-{
-    fn make(
-        self,
-        mgr: K::CallManager,
-        from: ActorID,
-        to: ActorID,
-        method: MethodNum,
-        value_received: TokenAmount,
-    ) -> K {
-        K::new(mgr, from, to, method, value_received)
-    }
 }
