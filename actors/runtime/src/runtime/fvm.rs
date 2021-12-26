@@ -222,7 +222,7 @@ where
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
-        todo!()
+        Ok(fvm::network::total_fil_circ_supply()?)
     }
 
     fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError> {

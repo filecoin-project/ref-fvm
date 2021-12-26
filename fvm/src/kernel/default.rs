@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto};
 use cid::Cid;
 
 use byteorder::{BigEndian, WriteBytesExt};
-use fvm_shared::bigint::Zero;
+use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
@@ -13,7 +13,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::error::ExitCode;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::ActorID;
+use fvm_shared::{ActorID, FILECOIN_PRECISION};
 
 use blockstore::Blockstore;
 
@@ -23,6 +23,9 @@ use crate::externs::{Consensus, Rand};
 use crate::machine::CallError;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
+
+use crate::market_actor::State as MarketActorState;
+use crate::power_actor::State as PowerActorState;
 
 use filecoin_proofs_api::seal::compute_comm_d;
 use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
@@ -41,6 +44,9 @@ use super::*;
 use crate::gas::GasCharge;
 use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+pub const BURN_ACTOR_ADDR: u64 = 99;
+pub const RESERVE_ACTOR_ADDR: u64 = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -137,6 +143,42 @@ where
             .or_fatal()?;
 
         Ok(state.address)
+    }
+
+    fn get_burnt_funds(&self) -> Result<TokenAmount> {
+        Ok(self
+            .call_manager
+            .state_tree()
+            .get_actor_id(BURN_ACTOR_ADDR)?
+            .ok_or_else(|| anyhow!("burn actor state couldn't be loaded"))
+            .or_fatal()?
+            .balance)
+    }
+
+    fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
+        let initial_reserve_balance = BigInt::from(330_000_000) * FILECOIN_PRECISION;
+        initial_reserve_balance
+            .checked_sub(
+                &self
+                    .call_manager
+                    .state_tree()
+                    .get_actor_id(RESERVE_ACTOR_ADDR)?
+                    .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
+                    .or_fatal()?
+                    .balance,
+            )
+            .ok_or_else(|| anyhow!("failed to subtract"))
+            .or_fatal()
+    }
+
+    fn power_locked(&self) -> Result<TokenAmount> {
+        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())?;
+        Ok(power_state.total_locked())
+    }
+
+    fn market_locked(&self) -> Result<TokenAmount> {
+        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
+        Ok(market_state.total_locked())
     }
 }
 
@@ -327,7 +369,21 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        todo!()
+        self.call_manager
+            .context()
+            .base_circ_supply
+            .checked_add(&self.get_reserve_disbursed()?)
+            .ok_or(anyhow!("failed to add"))
+            .or_error(ExitCode::ErrIllegalState)?
+            .checked_sub(&self.get_burnt_funds()?)
+            .ok_or(anyhow!("failed to subtract"))
+            .or_error(ExitCode::ErrIllegalState)?
+            .checked_sub(&self.power_locked()?)
+            .ok_or(anyhow!("failed to subtract"))
+            .or_error(ExitCode::ErrIllegalState)?
+            .checked_sub(&self.market_locked()?)
+            .ok_or(anyhow!("failed to subtract"))
+            .or_error(ExitCode::ErrIllegalState)
     }
 }
 

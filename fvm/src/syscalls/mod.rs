@@ -67,6 +67,11 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     linker.bind("message", "value_received", message::value_received)?;
 
     linker.bind("network", "base_fee", network::base_fee)?;
+    linker.bind(
+        "network",
+        "total_fil_circ_supply",
+        network::total_fil_circ_supply,
+    )?;
     linker.bind("network", "version", network::version)?;
     linker.bind("network", "epoch", network::epoch)?;
 

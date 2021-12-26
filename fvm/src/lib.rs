@@ -12,6 +12,8 @@ mod builtin;
 mod gas;
 mod init_actor;
 mod intercept;
+mod market_actor;
+mod power_actor;
 mod state_tree;
 
 #[derive(Clone)]
@@ -50,6 +52,7 @@ mod test {
                 engine: Default::default(),
             },
             0,
+            Zero::zero(),
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,

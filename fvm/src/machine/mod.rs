@@ -88,6 +88,8 @@ pub struct MachineContext {
     pub epoch: ChainEpoch,
     /// The base fee that's in effect when the Machine runs.
     pub base_fee: TokenAmount,
+    /// The base circ supply for the epoch.
+    pub base_circ_supply: TokenAmount,
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,
     /// The price list.
