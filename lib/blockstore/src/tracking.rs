@@ -1,10 +1,12 @@
 //#![cfg(feature = "tracking")]
 
+use std::cell::RefCell;
+
+use anyhow::Result;
 use cid::{
     multihash::{self, Code},
     Cid,
 };
-use std::cell::RefCell;
 
 use crate::{Block, Blockstore};
 
@@ -46,9 +48,7 @@ impl<BS> Blockstore for TrackingBlockstore<BS>
 where
     BS: Blockstore,
 {
-    type Error = BS::Error;
-
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         let mut stats = self.stats.borrow_mut();
         stats.r += 1;
         let bytes = self.base.get(cid)?;
@@ -57,12 +57,12 @@ where
         }
         Ok(bytes)
     }
-    fn has(&self, cid: &Cid) -> Result<bool, Self::Error> {
+    fn has(&self, cid: &Cid) -> Result<bool> {
         self.stats.borrow_mut().r += 1;
         self.base.has(cid)
     }
 
-    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid, Self::Error>
+    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid>
     where
         D: AsRef<[u8]>,
     {
@@ -72,14 +72,14 @@ where
         self.base.put(code, block)
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
         let mut stats = self.stats.borrow_mut();
         stats.w += 1;
         stats.bw += block.len();
         self.base.put_keyed(k, block)
     }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put_many<D, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -93,7 +93,7 @@ where
         Ok(())
     }
 
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
         D: AsRef<[u8]>,

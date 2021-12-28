@@ -1,8 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::Blockstore;
+use anyhow::{anyhow, Result};
 use cid::Cid;
+
+use super::{Blockstore, Buffered};
 
 // TODO: figure out where to put this.
 const DAG_CBOR: u64 = 0x71;
@@ -14,7 +16,7 @@ const DAG_CBOR: u64 = 0x71;
 
 use std::cell::RefCell;
 // TODO: replace HashMap with DashMap like in forest?
-use std::{collections::HashMap, error::Error as StdError};
+use std::collections::HashMap;
 
 // TODO: This is going to live in the kernel so it should be a Blockstore, not an ActorStore.
 
@@ -36,11 +38,16 @@ where
             write: Default::default(),
         }
     }
+}
 
+impl<BS> Buffered for BufferedBlockstore<BS>
+where
+    BS: Blockstore,
+{
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
     /// root Cid.
-    pub fn flush(&self, root: &Cid) -> Result<(), Box<dyn StdError + '_>> {
+    fn flush(&self, root: &Cid) -> Result<()> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
         copy_rec(&self.base, &s, *root, &mut buffer)?;
@@ -58,7 +65,7 @@ fn copy_rec<'a, BS>(
     cache: &'a HashMap<Cid, Vec<u8>>,
     root: Cid,
     buffer: &mut Vec<(Cid, &'a [u8])>,
-) -> Result<(), Box<dyn StdError>>
+) -> Result<()>
 where
     BS: Blockstore,
 {
@@ -70,7 +77,7 @@ where
 
     let block = &*cache
         .get(&root)
-        .ok_or_else(|| format!("Invalid link ({}) in flushing buffered store", root))?;
+        .ok_or_else(|| anyhow!("Invalid link ({}) in flushing buffered store", root))?;
 
     use libipld::cbor::DagCborCodec;
     use libipld::{codec::Codec, Ipld};
@@ -101,30 +108,28 @@ impl<BS> Blockstore for BufferedBlockstore<BS>
 where
     BS: Blockstore,
 {
-    type Error = BS::Error;
-
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
-        if let Some(data) = self.write.borrow().get(cid) {
-            Ok(Some(data.clone()))
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+        Ok(if let Some(data) = self.write.borrow().get(cid) {
+            Some(data.clone())
         } else {
-            self.base.get(cid)
-        }
+            self.base.get(cid)?
+        })
     }
 
-    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<(), Self::Error> {
+    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {
         self.write.borrow_mut().insert(*cid, Vec::from(buf));
         Ok(())
     }
 
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+    fn has(&self, k: &Cid) -> Result<bool> {
         if self.write.borrow().contains_key(k) {
             Ok(true)
         } else {
-            self.base.has(k)
+            Ok(self.base.has(k)?)
         }
     }
 
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
         D: AsRef<[u8]>,

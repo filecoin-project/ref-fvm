@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+anyhow = { version = "1.0.51", default-features = false }
 cid = { version = "0.7.0", default-features = false }
-core2 = "0.3.2"
 libipld = { version = "0.12.0", default-features = false, features = [ "dag-cbor" ] }
 
 [features]
