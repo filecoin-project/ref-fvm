@@ -20,7 +20,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn config(&self) -> Config {
+    fn config(&self) -> &Config {
         (&**self).config()
     }
 

@@ -16,7 +16,7 @@ where
         self.machine.engine()
     }
 
-    fn config(&self) -> crate::Config {
+    fn config(&self) -> &crate::Config {
         self.machine.config()
     }
 

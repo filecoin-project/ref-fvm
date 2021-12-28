@@ -157,7 +157,7 @@ where
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
         let addr = Address::new_id(self.to);
-        let state_tree = self.call_manager.machine_mut().state_tree_mut();
+        let state_tree = self.call_manager.state_tree_mut();
 
         state_tree.mutate_actor(&addr, |actor_state| {
             actor_state.state = new;
@@ -212,10 +212,7 @@ where
 
         // Delete the executing actor
         // TODO errors here are FATAL errors
-        self.call_manager
-            .machine_mut()
-            .state_tree_mut()
-            .delete_actor_id(self.to)
+        self.call_manager.state_tree_mut().delete_actor_id(self.to)
     }
 }
 
@@ -607,15 +604,15 @@ where
     C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().epoch()
+        self.call_manager.context().epoch
     }
 
     fn network_version(&self) -> NetworkVersion {
-        self.call_manager.context().network_version()
+        self.call_manager.context().network_version
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        self.call_manager.context().base_fee()
+        &self.call_manager.context().base_fee
     }
 }
 

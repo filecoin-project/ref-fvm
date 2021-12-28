@@ -136,7 +136,7 @@ where
     }
 
     fn finish(mut self) -> (i64, Vec<CallError>, Self::Machine) {
-        let gas_used = self.gas_used().max(0);
+        let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
@@ -198,7 +198,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.context().price_list().on_create_actor())?;
+        self.charge_gas(self.price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
             return Err(SyscallError::new(
@@ -248,11 +248,7 @@ where
             .ok_or_else(|| syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
-        self.charge_gas(
-            self.context()
-                .price_list()
-                .on_method_invocation(value, method),
-        )?;
+        self.charge_gas(self.price_list().on_method_invocation(value, method))?;
 
         // Transfer, if necessary.
         if !value.is_zero() {
