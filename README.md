@@ -29,7 +29,6 @@ Here's what you'll find in each directory:
 - `/cgo` 🚧: components serving the Cgo boundary between Go and Rust. Concretely, today it contains a blockstore adapter used to inject a blockstore owned by Go code, to the FVM built in Rust.
 - `/lib` and `/ipld` 🚧: various libraries, mostly related to IPLD data processing. Some of them are based off, and adapted, from the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/examples` 🚧: a directory eventually containing actor examples.
-- `/_forest` 🚧: a subtree containing some relevant components of Forest, conveniently colocated with the FVM, to use as a quick reference during development. This subtree is not linked to the build.
 
 
 ## License
