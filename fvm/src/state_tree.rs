@@ -588,3 +588,212 @@ pub mod json {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
+    use crate::init_actor;
+    use crate::init_actor::INIT_ACTOR_ADDR;
+    use crate::state_tree::{ActorState, StateTree};
+    use blockstore::MemoryBlockstore;
+    use cid::{
+        multihash::Code::{Blake2b256, Identity},
+        multihash::MultihashDigest,
+        Cid,
+    };
+    use fvm_shared::address::{Address, SECP_PUB_LEN};
+    use fvm_shared::bigint::BigInt;
+    use fvm_shared::encoding::{CborStore, DAG_CBOR};
+    use fvm_shared::state::StateTreeVersion;
+    use ipld_hamt::Hamt;
+
+    fn empty_cid() -> Cid {
+        Cid::new_v1(DAG_CBOR, Identity.digest(&[]))
+    }
+
+    #[test]
+    fn get_set_cache() {
+        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1);
+        let act_a = ActorState::new(empty_cid(), empty_cid(), Default::default(), 2);
+        let addr = Address::new_id(1);
+        let store = MemoryBlockstore::default();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+
+        // test address not in cache
+        assert_eq!(tree.get_actor(&addr).unwrap(), None);
+        // test successful insert
+        assert!(tree.set_actor(&addr, act_s).is_ok());
+        // test inserting with different data
+        assert!(tree.set_actor(&addr, act_a.clone()).is_ok());
+        // Assert insert with same data returns ok
+        assert!(tree.set_actor(&addr, act_a.clone()).is_ok());
+        // test getting set item
+        assert_eq!(tree.get_actor(&addr).unwrap().unwrap(), act_a);
+    }
+
+    #[test]
+    fn delete_actor() {
+        let store = MemoryBlockstore::default();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+
+        let addr = Address::new_id(3);
+        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1);
+        tree.set_actor(&addr, act_s.clone()).unwrap();
+        assert_eq!(tree.get_actor(&addr).unwrap(), Some(act_s));
+        tree.delete_actor(&addr).unwrap();
+        assert_eq!(tree.get_actor(&addr).unwrap(), None);
+    }
+
+    #[test]
+    fn get_set_non_id() {
+        let store = MemoryBlockstore::default();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+
+        // Empty hamt Cid used for testing
+        let e_cid = Hamt::<_, String>::new_with_bit_width(&store, 5)
+            .flush()
+            .unwrap();
+
+        let init_state = init_actor::State {
+            address_map: e_cid,
+            next_id: 100,
+            network_name: "test".to_owned(),
+        };
+
+        let state_cid = tree
+            .store()
+            .put_cbor(&init_state, Blake2b256)
+            .map_err(|e| e.to_string())
+            .unwrap();
+
+        let act_s = ActorState::new(*INIT_ACTOR_CODE_ID, state_cid, Default::default(), 1);
+
+        tree.begin_transaction();
+        tree.set_actor(&INIT_ACTOR_ADDR, act_s).unwrap();
+
+        // Test mutate function
+        tree.mutate_actor(&INIT_ACTOR_ADDR, |mut actor| {
+            actor.sequence = 2;
+            Ok(())
+        })
+        .unwrap();
+        let new_init_s = tree.get_actor(&INIT_ACTOR_ADDR).unwrap();
+        assert_eq!(
+            new_init_s,
+            Some(ActorState {
+                code: *INIT_ACTOR_CODE_ID,
+                state: state_cid,
+                balance: Default::default(),
+                sequence: 2
+            })
+        );
+
+        // Register new address
+        let addr = Address::new_secp256k1(&[2; SECP_PUB_LEN]).unwrap();
+        let assigned_addr = tree.register_new_address(&addr).unwrap();
+
+        assert_eq!(assigned_addr, 100);
+    }
+
+    #[test]
+    fn test_transactions() {
+        let store = MemoryBlockstore::default();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut addresses: Vec<Address> = Vec::new();
+
+        let test_addresses = vec!["t0100", "t0101", "t0102"];
+        for a in test_addresses.iter() {
+            addresses.push(a.parse().unwrap());
+        }
+
+        tree.begin_transaction();
+        tree.set_actor(
+            &addresses[0],
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1,
+            ),
+        )
+        .unwrap();
+
+        tree.set_actor(
+            &addresses[1],
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1,
+            ),
+        )
+        .unwrap();
+        tree.set_actor(
+            &addresses[2],
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1,
+            ),
+        )
+        .unwrap();
+        tree.end_transaction(false).unwrap();
+        tree.flush().unwrap();
+
+        assert_eq!(
+            tree.get_actor(&addresses[0]).unwrap().unwrap(),
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1
+            )
+        );
+        assert_eq!(
+            tree.get_actor(&addresses[1]).unwrap().unwrap(),
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1
+            )
+        );
+
+        assert_eq!(
+            tree.get_actor(&addresses[2]).unwrap().unwrap(),
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1
+            )
+        );
+    }
+
+    #[test]
+    fn revert_transaction() {
+        let store = MemoryBlockstore::default();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+
+        let addr_str = "f01";
+        let addr: Address = addr_str.parse().unwrap();
+
+        tree.begin_transaction();
+        tree.set_actor(
+            &addr,
+            ActorState::new(
+                *ACCOUNT_ACTOR_CODE_ID,
+                *ACCOUNT_ACTOR_CODE_ID,
+                BigInt::from(55),
+                1,
+            ),
+        )
+        .unwrap();
+        tree.end_transaction(true).unwrap();
+
+        tree.flush().unwrap();
+
+        assert_eq!(tree.get_actor(&addr).unwrap(), None);
+    }
+}
