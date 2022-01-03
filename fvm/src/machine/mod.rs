@@ -64,6 +64,7 @@ pub trait Machine: 'static {
     /// Otherwise, if the amounts are invalid, etc., it fails with a syscall error.
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
 
+    /// Flushes the state-tree and returns the new root CID.
     fn flush(&mut self) -> Result<Cid> {
         self.state_tree_mut().flush()
     }

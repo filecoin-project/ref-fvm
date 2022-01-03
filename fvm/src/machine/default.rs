@@ -118,6 +118,11 @@ where
         &mut self.state_tree
     }
 
+    /// Flushes the state-tree and returns the new root CID.
+    ///
+    /// This method also flushes all new blocks (reachable from this new root CID) from the write
+    /// buffer into the underlying blockstore (the blockstore with which the machine was
+    /// constructed).
     fn flush(&mut self) -> Result<Cid> {
         let root = self.state_tree_mut().flush()?;
         self.blockstore().flush(&root).or_fatal()?;
