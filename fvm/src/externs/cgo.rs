@@ -2,7 +2,6 @@
 use cid::Cid;
 
 use anyhow::Result;
-use blockstore::cgo::CgoBlockstore;
 use fvm_shared::{
     address::Address,
     clock::ChainEpoch,
@@ -10,7 +9,7 @@ use fvm_shared::{
     crypto::randomness::DomainSeparationTag,
 };
 
-use crate::externs::{Blockstore, Consensus, Externs, Rand};
+use crate::externs::{Consensus, Externs, Rand};
 
 /// TODO this will be the externs implementation that delegates to a Go node
 /// (e.g. Lotus) via Cgo to resolve externs.
@@ -79,22 +78,6 @@ impl Consensus for CgoExterns {
             epoch: 0,
             fault_type: ConsensusFaultType::DoubleForkMining,
         }))
-    }
-}
-
-impl Blockstore for CgoExterns {
-    type Error = blockstore::cgo::Error;
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
-        let bs = CgoBlockstore::new(self.handle);
-        bs.has(k)
-    }
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
-        let bs = CgoBlockstore::new(self.handle);
-        bs.get(k)
-    }
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
-        let bs = CgoBlockstore::new(self.handle);
-        bs.put_keyed(k, block)
     }
 }
 
