@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use ahash::AHashMap;
 use bitfield::BitField;
-use blockstore::Blockstore;
+use fvm_shared::blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 

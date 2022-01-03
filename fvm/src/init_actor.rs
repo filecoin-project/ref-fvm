@@ -8,12 +8,13 @@
 //! This module can only deal with the Init Actor as of actors v3 ==
 //! network version v10. The reason being that the HAMT layout changed.
 use anyhow::Context;
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 
 use fvm_shared::address::{Address, Payload};
+use fvm_shared::blockstore::CborStore;
+use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
-use fvm_shared::encoding::{tuple::*, CborStore};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use ipld_hamt::Hamt;
 

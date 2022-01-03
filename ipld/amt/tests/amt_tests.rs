@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::{
+use fvm_shared::blockstore::{
     tracking::{BSStats, TrackingBlockstore},
     Blockstore,
 };
@@ -19,7 +19,7 @@ where
 
 #[test]
 fn basic_get_set() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -43,7 +43,7 @@ fn basic_get_set() {
 
 #[test]
 fn out_of_range() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -70,7 +70,7 @@ fn out_of_range() {
 
 #[test]
 fn expand() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -103,7 +103,7 @@ fn expand() {
 
 #[test]
 fn bulk_insert() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -138,7 +138,7 @@ fn bulk_insert() {
 
 #[test]
 fn flush_read() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -166,7 +166,7 @@ fn flush_read() {
 
 #[test]
 fn delete() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     a.set(0, tbytes(b"cat")).unwrap();
@@ -214,7 +214,7 @@ fn delete() {
 
 #[test]
 fn delete_fail_check() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -233,7 +233,7 @@ fn delete_fail_check() {
 
 #[test]
 fn delete_first_entry() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -263,7 +263,7 @@ fn delete_first_entry() {
 
 #[test]
 fn delete_reduce_height() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -294,7 +294,7 @@ fn delete_reduce_height() {
 
 #[test]
 fn for_each() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -361,7 +361,7 @@ fn for_each() {
 
 #[test]
 fn for_each_mutate() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -399,7 +399,7 @@ fn for_each_mutate() {
 
 #[test]
 fn delete_bug_test() {
-    let mem = blockstore::MemoryBlockstore::default();
+    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     let empty_cid = a.flush().unwrap();

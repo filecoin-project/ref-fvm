@@ -4,8 +4,8 @@
 use std::ops::Neg;
 
 use anyhow::{anyhow, Context};
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use integer_encoding::VarInt;
 use lazy_static::lazy_static;
 use num_traits::Signed;

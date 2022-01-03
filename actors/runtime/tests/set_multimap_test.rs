@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use actors_runtime::{u64_key, SetMultimap};
-use blockstore::MemoryBlockstore;
+use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::clock::ChainEpoch;
 
 #[test]

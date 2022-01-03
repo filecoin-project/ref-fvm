@@ -3,8 +3,8 @@
 
 use std::borrow::Borrow;
 
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;

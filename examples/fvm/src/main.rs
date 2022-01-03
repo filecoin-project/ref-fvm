@@ -1,6 +1,6 @@
 use std::mem;
 
-use blockstore::{Blockstore, MemoryBlockstore};
+use fvm_shared::blockstore::{Blockstore, MemoryBlockstore};
 use cid::Cid;
 use fvm;
 // TODO: the compiler doesn't bring inherited traits in scope automatically when

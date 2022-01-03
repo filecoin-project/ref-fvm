@@ -6,15 +6,16 @@ use cid::Cid;
 
 use byteorder::{BigEndian, WriteBytesExt};
 use fvm_shared::bigint::{BigInt, Zero};
+use fvm_shared::blockstore::CborStore;
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
+use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 
-use blockstore::Blockstore;
+use fvm_shared::blockstore::Blockstore;
 
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};

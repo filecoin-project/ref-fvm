@@ -4,17 +4,17 @@
 //! It should be removed as soon as the Filecoin network updates to v15.
 
 use anyhow::Context;
-use blockstore::Blockstore;
 use cid::Cid;
 
 use crate::kernel::{ClassifyResult, Result};
 use crate::state_tree::{ActorState, StateTree};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor, CborStore};
+use fvm_shared::encoding::{tuple::*, Cbor};
 
 pub const MARKET_ACTOR_ADDR: Address = Address::new_id(5);
 

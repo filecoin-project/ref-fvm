@@ -5,8 +5,8 @@ use std::ops::{self, Neg};
 
 use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use actors_runtime::{actor_error, ActorDowncast, Array};

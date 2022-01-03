@@ -9,6 +9,9 @@ pub mod buffered;
 pub mod cgo;
 pub mod tracking;
 
+mod cbor;
+pub use cbor::CborStore;
+
 mod memory;
 pub use memory::MemoryBlockstore;
 
@@ -53,7 +56,7 @@ pub trait Blockstore {
     ///
     /// ```rust
     /// use multihash::Code::Sha2_256;
-    /// use blockstore::{Blockstore, MemoryBlockstore, Block};
+    /// use fvm_shared::blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
     /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];

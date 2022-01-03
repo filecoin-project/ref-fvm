@@ -3,8 +3,8 @@
 
 use anyhow::anyhow;
 
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 
 use actors_runtime::{make_empty_map, make_map_with_root_and_bitwidth, FIRST_NON_SINGLETON_ADDR};
 use fvm_shared::address::{Address, Protocol};

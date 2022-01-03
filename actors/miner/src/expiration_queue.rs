@@ -6,8 +6,8 @@ use std::{collections::HashMap, collections::HashSet};
 
 use anyhow::anyhow;
 use bitfield::BitField;
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use fvm_shared::bigint::bigint_ser;

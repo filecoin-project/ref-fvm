@@ -25,7 +25,6 @@ base64 = "0.13"
 fvm_sdk = { path = "../../sdk", optional = true }
 log = "0.4.8"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
-blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
 thiserror = "1.0.30"
 
 # enforce wasm comapt

@@ -8,9 +8,10 @@ use crate::{
     nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
 use anyhow::anyhow;
-use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize, CborStore};
+use fvm_shared::blockstore::Blockstore;
+use fvm_shared::blockstore::CborStore;
+use fvm_shared::encoding::{de::DeserializeOwned, ser::Serialize};
 use itertools::sorted;
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
@@ -21,7 +22,7 @@ use itertools::sorted;
 /// ```
 /// use ipld_amt::Amt;
 ///
-/// let db = blockstore::MemoryBlockstore::default();
+/// let db = fvm_shared::blockstore::MemoryBlockstore::default();
 /// let mut amt = Amt::new(&db);
 ///
 /// // Insert or remove any serializable values
@@ -271,7 +272,7 @@ where
     /// ```
     /// use ipld_amt::Amt;
     ///
-    /// let store = blockstore::MemoryBlockstore::default();
+    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Amt<String, _> = Amt::new(&store);
     /// map.set(1, "One".to_owned()).unwrap();

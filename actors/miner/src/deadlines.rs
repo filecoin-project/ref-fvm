@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use blockstore::Blockstore;
+use fvm_shared::blockstore::Blockstore;
 
 use actors_runtime::Array;
 use fvm_shared::clock::{ChainEpoch, QuantSpec};

@@ -6,9 +6,9 @@ use std::{iter, ops::Neg};
 
 use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
-use blockstore::Blockstore;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use cid::{multihash::Code, Cid};
+use fvm_shared::blockstore::Blockstore;
 use log::{error, info, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
@@ -21,8 +21,9 @@ pub use deadlines::*;
 pub use expiration_queue::*;
 
 use fvm_shared::bigint::{bigint_ser::BigIntSer, Integer};
+use fvm_shared::blockstore::CborStore;
 use fvm_shared::crypto::randomness::DomainSeparationTag::WindowedPoStChallengeSeed;
-use fvm_shared::encoding::{from_slice, BytesDe, Cbor, CborStore};
+use fvm_shared::encoding::{from_slice, BytesDe, Cbor};
 use fvm_shared::{
     address::{Address, Payload, Protocol},
     bigint::BigInt,

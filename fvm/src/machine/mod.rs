@@ -1,5 +1,5 @@
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use wasmtime::{Engine, Module};
 
 use fvm_shared::address::Address;

@@ -5,13 +5,13 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
-use blockstore::Blockstore;
 use cid::{multihash, Cid};
+use fvm_shared::blockstore::{Blockstore, CborStore};
 
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, CborStore};
+use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::ActorID;
 
@@ -595,7 +595,6 @@ mod tests {
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ADDR;
     use crate::state_tree::{ActorState, StateTree};
-    use blockstore::MemoryBlockstore;
     use cid::{
         multihash::Code::{Blake2b256, Identity},
         multihash::MultihashDigest,
@@ -603,7 +602,9 @@ mod tests {
     };
     use fvm_shared::address::{Address, SECP_PUB_LEN};
     use fvm_shared::bigint::BigInt;
-    use fvm_shared::encoding::{CborStore, DAG_CBOR};
+    use fvm_shared::blockstore::CborStore;
+    use fvm_shared::blockstore::MemoryBlockstore;
+    use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
     use ipld_hamt::Hamt;
 

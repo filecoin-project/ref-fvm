@@ -5,19 +5,20 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
 use anyhow::anyhow;
-use blockstore::MemoryBlockstore;
 use cid::{multihash::Code, Cid};
+use fvm_shared::blockstore::MemoryBlockstore;
 
 use crate::runtime::{ActorCode, MessageInfo, Runtime, Syscalls};
 use crate::{actor_error, ActorError};
 use fvm_shared::address::{Address, Protocol};
+use fvm_shared::blockstore::CborStore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::de::DeserializeOwned;
-use fvm_shared::encoding::{blake2b_256, Cbor, CborStore, RawBytes};
+use fvm_shared::encoding::{blake2b_256, Cbor, RawBytes};
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
