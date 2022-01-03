@@ -45,8 +45,8 @@ use crate::gas::GasCharge;
 use fvm_shared::sector::SectorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-pub const BURN_ACTOR_ADDR: u64 = 99;
-pub const RESERVE_ACTOR_ADDR: u64 = 90;
+pub const BURN_ACTOR_ID: ActorID = 99;
+pub const RESERVE_ACTOR_ID: ActorID = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -149,7 +149,7 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(BURN_ACTOR_ADDR)?
+            .get_actor_id(BURN_ACTOR_ID)?
             .ok_or_else(|| anyhow!("burn actor state couldn't be loaded"))
             .or_fatal()?
             .balance)
@@ -162,7 +162,7 @@ where
                 &self
                     .call_manager
                     .state_tree()
-                    .get_actor_id(RESERVE_ACTOR_ADDR)?
+                    .get_actor_id(RESERVE_ACTOR_ID)?
                     .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
                     .or_fatal()?
                     .balance,
