@@ -373,17 +373,19 @@ where
             .context()
             .base_circ_supply
             .checked_add(&self.get_reserve_disbursed()?)
-            .ok_or(anyhow!("failed to add"))
-            .or_error(ExitCode::ErrIllegalState)?
+            .ok_or(anyhow!(
+                "overflow when adding reserve to base circulating supply"
+            ))
+            .or_fatal()?
             .checked_sub(&self.get_burnt_funds()?)
-            .ok_or(anyhow!("failed to subtract"))
-            .or_error(ExitCode::ErrIllegalState)?
+            .ok_or(anyhow!("underflow when subtracting burnt funds"))
+            .or_fatal()?
             .checked_sub(&self.power_locked()?)
-            .ok_or(anyhow!("failed to subtract"))
-            .or_error(ExitCode::ErrIllegalState)?
+            .ok_or(anyhow!("underflow when subtracting power locked funds"))
+            .or_fatal()?
             .checked_sub(&self.market_locked()?)
-            .ok_or(anyhow!("failed to subtract"))
-            .or_error(ExitCode::ErrIllegalState)
+            .ok_or(anyhow!("underflow when subtracting market locked funds"))
+            .or_fatal()
     }
 }
 
