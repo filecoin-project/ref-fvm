@@ -29,10 +29,10 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// mod my_module {
-    ///     fn zero(caller: wasmtime::Caller<'a, ()>, arg: i32) -> crate::kernel::Result<i32> {
-    ///         0
+    ///     pub fn zero(caller: wasmtime::Caller<()>, arg: i32) -> crate::fvm::kernel::Result<i32> {
+    ///         Ok(0)
     ///     }
     /// }
     /// let engine = wasmtime::Engine::default();

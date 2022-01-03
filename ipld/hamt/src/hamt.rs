@@ -309,4 +309,9 @@ where
     {
         self.root.for_each(self.store.borrow(), &mut f)
     }
+
+    /// Consumes this HAMT and returns the Blockstore it owns.
+    pub fn consume(self) -> BS {
+        self.store
+    }
 }

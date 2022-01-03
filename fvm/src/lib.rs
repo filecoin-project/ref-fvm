@@ -27,15 +27,22 @@ pub struct Config {
 
 #[cfg(test)]
 mod test {
-    use cid::Cid;
+    use blockstore::MemoryBlockstore;
+    use fvm_shared::state::StateTreeVersion;
     use num_traits::Zero;
 
     use crate::{
-        call_manager::DefaultCallManager, executor, externs, machine::DefaultMachine, Config,
-        DefaultKernel,
+        call_manager::DefaultCallManager, executor, externs, machine::DefaultMachine,
+        state_tree::StateTree, Config, DefaultKernel,
     };
+
     #[test]
     fn test_constructor() {
+        let mut bs = MemoryBlockstore::default();
+        let mut st = StateTree::new(bs, StateTreeVersion::V4).unwrap();
+        let root = st.flush().unwrap();
+        bs = st.consume();
+
         let machine = DefaultMachine::new(
             Config {
                 initial_pages: 0,
@@ -45,8 +52,8 @@ mod test {
             0,
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
-            Cid::default(),
-            externs::cgo::CgoExterns::new(0),
+            root,
+            bs,
             externs::cgo::CgoExterns::new(0),
         )
         .unwrap();
