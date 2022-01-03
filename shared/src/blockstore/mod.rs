@@ -55,12 +55,12 @@ pub trait Blockstore {
     ///
     ///
     /// ```rust
-    /// use multihash::Code::Sha2_256;
+    /// use multihash::Code::Blake2b256;
     /// use fvm_shared::blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
     /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];
-    /// bs.put_many(blocks.iter().map(|b| (Sha2_256, b.into()))).unwrap();
+    /// bs.put_many(blocks.iter().map(|b| (Blake2b256, b.into()))).unwrap();
     /// ```
     fn put_many<D, I>(&self, blocks: I) -> Result<()>
     where
