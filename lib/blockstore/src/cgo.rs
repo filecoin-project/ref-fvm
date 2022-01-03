@@ -1,3 +1,13 @@
+use std::ptr;
+
+use anyhow::{anyhow, Result};
+use cid::Cid;
+
+use super::Blockstore;
+
+const ERR_NO_STORE: i32 = -1;
+const ERR_NOT_FOUND: i32 = -2;
+
 extern "C" {
     pub fn cgobs_get(
         store: i32,
@@ -12,24 +22,6 @@ extern "C" {
     pub fn cgobs_has(store: i32, k: *const u8, k_len: i32) -> i32;
 }
 
-use cid::Cid;
-use std::ptr;
-
-use std::error;
-use std::fmt;
-
-use super::Blockstore;
-
-const ERR_NO_STORE: i32 = -1;
-const ERR_NOT_FOUND: i32 = -2;
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum Error {
-    NotFound,
-    Other,
-}
-
 pub struct CgoBlockstore {
     handle: i32,
 }
@@ -41,23 +33,10 @@ impl CgoBlockstore {
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotFound => f.write_str("not found"),
-            Self::Other => f.write_str("other"),
-        }
-    }
-}
-
-impl error::Error for Error {}
-
 // TODO: Implement a trait. Unfortunately, the chainsafe one is a bit tangled with the concept of a
 // datastore.
 impl Blockstore for CgoBlockstore {
-    type Error = Error;
-
-    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
+    fn has(&self, k: &Cid) -> Result<bool> {
         let k_bytes = k.to_bytes();
         unsafe {
             match cgobs_has(self.handle, k_bytes.as_ptr(), k_bytes.len() as i32) {
@@ -71,12 +50,12 @@ impl Blockstore for CgoBlockstore {
                 // on and there is a bug in the program.
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // Otherwise, return "other". We should add error codes in the future.
-                _ => Err(Error::Other),
+                e => Err(anyhow!("cgo blockstore 'has' failed with error code {}", e).into()),
             }
         }
     }
 
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
+    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
         let k_bytes = k.to_bytes();
         unsafe {
             let mut buf: *mut u8 = ptr::null_mut();
@@ -91,13 +70,13 @@ impl Blockstore for CgoBlockstore {
                 0 => Ok(Some(Vec::from_raw_parts(buf, size as usize, size as usize))),
                 r @ 1.. => panic!("invalid return value from has: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
-                ERR_NOT_FOUND => Err(Error::NotFound),
-                _ => Err(Error::Other),
+                ERR_NOT_FOUND => Ok(None),
+                e => Err(anyhow!("cgo blockstore 'get' failed with error code {}", e).into()),
             }
         }
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Error> {
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
         let k_bytes = k.to_bytes();
         unsafe {
             match cgobs_put(
@@ -112,7 +91,7 @@ impl Blockstore for CgoBlockstore {
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // This error makes no sense.
                 ERR_NOT_FOUND => panic!("not found error on put"),
-                _ => Err(Error::Other),
+                e => Err(anyhow!("cgo blockstore 'put' failed with error code {}", e).into()),
             }
         }
     }

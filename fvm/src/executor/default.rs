@@ -13,6 +13,7 @@ use crate::{
     syscall_error,
 };
 use anyhow::{anyhow, Context as _, Result};
+use cid::Cid;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::Cbor;
 use fvm_shared::{
@@ -132,6 +133,12 @@ where
 {
     pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
         Self(Some(m))
+    }
+
+    /// Flush the state-tree to the underlying blockstore.
+    pub fn flush(&mut self) -> anyhow::Result<Cid> {
+        let k = (&mut **self).flush()?;
+        Ok(k)
     }
     // TODO: The return type here is very strange because we have three cases:
     // 1. Continue (return actor ID & gas).

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context};
-use blockstore::Blockstore;
+use blockstore::buffered::BufferedBlockstore;
+use blockstore::{Blockstore, Buffered};
 use cid::Cid;
 use num_traits::Signed;
 use wasmtime::{Engine, Module};
@@ -39,7 +40,7 @@ pub struct DefaultMachine<B, E> {
     /// execution as the call stack for every message concludes.
     ///
     /// Owned.
-    state_tree: StateTree<B>,
+    state_tree: StateTree<BufferedBlockstore<B>>,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -67,9 +68,9 @@ where
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
 
-        // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
-        //  non-send errors in the state-tree.
-        let state_tree = StateTree::new_from_root(blockstore, &context.initial_state_root)?;
+        let bstore = BufferedBlockstore::new(blockstore);
+
+        let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
 
         Ok(DefaultMachine {
             config,
@@ -86,7 +87,7 @@ where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
-    type Blockstore = B;
+    type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
 
     fn engine(&self) -> &Engine {
@@ -115,6 +116,17 @@ where
 
     fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore> {
         &mut self.state_tree
+    }
+
+    /// Flushes the state-tree and returns the new root CID.
+    ///
+    /// This method also flushes all new blocks (reachable from this new root CID) from the write
+    /// buffer into the underlying blockstore (the blockstore with which the machine was
+    /// constructed).
+    fn flush(&mut self) -> Result<Cid> {
+        let root = self.state_tree_mut().flush()?;
+        self.blockstore().flush(&root).or_fatal()?;
+        Ok(root)
     }
 
     /// Creates an uninitialized actor.

@@ -63,6 +63,11 @@ pub trait Machine: 'static {
     /// If either the receiver or the sender do not exist, this method fails with a FATAL error.
     /// Otherwise, if the amounts are invalid, etc., it fails with a syscall error.
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
+
+    /// Flushes the state-tree and returns the new root CID.
+    fn flush(&mut self) -> Result<Cid> {
+        self.state_tree_mut().flush()
+    }
 }
 
 /// An error included in a message's backtrace on failure.
