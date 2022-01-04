@@ -57,7 +57,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let base_fee = preconditions
             .basefee
             .map(|i| i.to_bigint().unwrap())
-            .unwrap_or(BigInt::from(DEFAULT_BASE_FEE));
+            .unwrap_or_else(|| BigInt::from(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
         let state_root = preconditions.state_tree.root_cid;
 
@@ -87,7 +87,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .unwrap_or(TOTAL_FILECOIN.clone()),
             },
         };
-        return ret;
+        ret
     }
 }
 

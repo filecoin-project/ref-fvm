@@ -128,6 +128,7 @@ mod tests {
     use async_std::io::Cursor;
     use async_std::sync::RwLock;
     use cid::multihash::{Code::Blake2b256, MultihashDigest};
+    use fvm_shared::blockstore::MemoryBlockstore;
     use fvm_shared::encoding::DAG_CBOR;
     use std::sync::Arc;
 
@@ -152,7 +153,7 @@ mod tests {
             roots: vec![cid],
             version: 1,
         };
-        assert_eq!(to_vec(&header).unwrap(), 60);
+        assert_eq!(to_vec(&header).unwrap().len(), 60);
 
         let (tx, mut rx) = bounded(10);
 
@@ -171,7 +172,7 @@ mod tests {
         let buffer: Vec<_> = buffer.read().await.clone();
         let reader = Cursor::new(&buffer);
 
-        let bs = blockstore::MemoryBlockstore::default();
+        let bs = MemoryBlockstore::default();
         load_car(&bs, reader).await.unwrap();
 
         assert_eq!(bs.get(&cid).unwrap(), Some(b"test".to_vec()));
