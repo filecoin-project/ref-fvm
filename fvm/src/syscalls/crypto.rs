@@ -18,7 +18,7 @@ use fvm_shared::ActorID;
 use std::collections::HashMap;
 use wasmtime::{Caller, Trap};
 
-use super::Context;
+use super::Memory;
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///
@@ -26,7 +26,8 @@ use super::Context;
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_signature(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     sig_off: u32, // Signature
     sig_len: u32,
     addr_off: u32, // Address
@@ -34,7 +35,6 @@ pub fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
     let sig: Signature = memory.read_cbor(sig_off, sig_len)?;
     let addr: Address = memory.read_address(addr_off, addr_len)?;
     // plaintext doesn't need to be a mutable borrow, but otherwise we would be
@@ -49,14 +49,14 @@ pub fn verify_signature(
 ///
 /// The output buffer must be sized to 32 bytes.
 pub fn hash_blake2b(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     data_off: u32,
     data_len: u32,
     obuf_off: u32,
 ) -> Result<()> {
     const HASH_LEN: usize = 32;
 
-    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let hash = {
         let data = memory.try_slice(data_len, data_off)?;
         kernel.hash_blake2b(data)?
@@ -72,14 +72,14 @@ pub fn hash_blake2b(
 ///
 /// Writes the CID in the provided output buffer.
 pub fn compute_unsealed_sector_cid(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     proof_type: i64, // RegisteredSealProof,
     pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
     cid_off: u32,
     cid_len: u32,
 ) -> Result<()> {
-    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let pieces: Vec<PieceInfo> = memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
     let cid = kernel.compute_unsealed_sector_cid(typ, pieces.as_slice())?;
@@ -105,11 +105,11 @@ pub fn compute_unsealed_sector_cid(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_seal(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<i32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<SealVerifyInfo>(info_off, info_len)?;
     kernel.verify_seal(&info).map(|v| if v { 0 } else { -1 })
 }
@@ -120,11 +120,11 @@ pub fn verify_seal(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_post(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<i32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
     kernel.verify_post(&info).map(|v| if v { 0 } else { -1 })
 }
@@ -144,7 +144,8 @@ pub fn verify_post(
 /// - The chain epoch at which the fault happened.
 /// - The actor at fault.
 pub fn verify_consensus_fault(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     h1_off: u32,
     h1_len: u32,
     h2_off: u32,
@@ -152,8 +153,6 @@ pub fn verify_consensus_fault(
     extra_off: u32,
     extra_len: u32,
 ) -> Result<(u32, ChainEpoch, ActorID)> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
-
     let h1 = memory.try_slice(h1_off, h1_len)?;
     let h2 = memory.try_slice(h2_off, h2_len)?;
     let extra = memory.try_slice(extra_off, extra_len)?;
@@ -184,11 +183,11 @@ pub fn verify_consensus_fault(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_aggregate_seals(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
 ) -> Result<i32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
     let info = memory.read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
     kernel
         .verify_aggregate_seals(&info)
