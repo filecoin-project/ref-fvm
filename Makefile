@@ -4,7 +4,7 @@ all: build examples
 .PHONY: all
 
 build:
-	cargo build
+	cargo build --features builtin_actors
 .PHONY: build
 
 #examples: example-actor example-fvm example-blockstore-cgo

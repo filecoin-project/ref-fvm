@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use blockstore::buffered::BufferedBlockstore;
 use blockstore::{Blockstore, Buffered};
 use cid::Cid;
@@ -148,7 +148,9 @@ where
         Ok(addr_id)
     }
 
+    #[cfg(feature = "builtin_actors")]
     fn load_module(&self, code: &Cid) -> Result<Module> {
+        use anyhow::Context;
         // TODO: cache compiled code, and modules?
         let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
             fvm_actor_system::wasm::WASM_BINARY
@@ -179,6 +181,13 @@ where
         let binary = binary.context("missing wasm binary").or_fatal()?;
         let module = Module::new(&self.engine, binary).or_fatal()?;
         Ok(module)
+    }
+
+    #[cfg(not(feature = "builtin_actors"))]
+    fn load_module(&self, _code: &Cid) -> Result<Module> {
+        Err(crate::kernel::ExecutionError::Fatal(anyhow!(
+            "built-in actors not embedded; please run build enabling the builtin_actors feature"
+        )))
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
