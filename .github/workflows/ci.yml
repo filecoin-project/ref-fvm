@@ -1,0 +1,53 @@
+name: Continuous integration
+
+on:
+  push:
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: actions-rs/toolchain@v1.0.7
+      with:
+        profile: minimal
+        override: true
+        components: rustfmt
+    - name: Check formatting
+      run: cargo fmt -- --check
+  check-clippy:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: actions-rs/toolchain@v1.0.7
+      with:
+        profile: minimal
+        target: wasm32-unknown-unknown
+        override: true
+        components: clippy
+    - uses: Swatinem/rust-cache@v1.3.0
+    # otherwise the include_bytes! macro fails because this file hasn't been generated
+    - run: touch examples/fvm/fvm_example_actor.wasm
+      shell: bash
+    - name: Run cargo clippy
+      uses: actions-rs/cargo@v1.0.3
+      with:
+        command: clippy
+        args: --all --all-targets
+  test-wasm:
+    name: Build on WASM
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: actions-rs/toolchain@v1.0.7
+      with:
+        target: wasm32-unknown-unknown
+        override: true
+    - uses: Swatinem/rust-cache@v1.3.0
+    - uses: actions-rs/cargo@v1.0.3
+      with:
+        command: install
+        args: --force cbindgen
+    - name: Build on wasm32-unknown-unknown
+      run: make RUSTFLAGS="-D warnings"
+      shell: bash
