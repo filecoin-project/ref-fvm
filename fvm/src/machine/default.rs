@@ -228,4 +228,8 @@ where
 
         Ok(())
     }
+
+    fn consume(self) -> Self::Blockstore {
+        self.state_tree.consume()
+    }
 }

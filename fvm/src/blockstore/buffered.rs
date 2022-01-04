@@ -40,6 +40,10 @@ where
             write: Default::default(),
         }
     }
+
+    pub fn consume(self) -> BS {
+        self.base
+    }
 }
 
 impl<BS> Buffered for BufferedBlockstore<BS>
