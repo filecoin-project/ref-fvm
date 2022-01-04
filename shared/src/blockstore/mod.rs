@@ -4,8 +4,6 @@ use anyhow::Result;
 use cid::multihash;
 use cid::Cid;
 
-#[cfg(feature = "cgo")]
-pub mod cgo;
 pub mod tracking;
 
 mod cbor;

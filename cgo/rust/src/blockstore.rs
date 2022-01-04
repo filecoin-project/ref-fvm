@@ -3,7 +3,7 @@ use std::ptr;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 
-use super::Blockstore;
+use fvm_shared::blockstore::Blockstore;
 
 const ERR_NO_STORE: i32 = -1;
 const ERR_NOT_FOUND: i32 = -2;

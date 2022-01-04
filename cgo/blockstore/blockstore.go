@@ -1,4 +1,4 @@
-package cgobs
+package blockstore
 
 import (
 	"sync"

@@ -1,0 +1,11 @@
+[package]
+name = "fvm_cgo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.52"
+cid = { version = "0.7.0", default-features = false }
+fvm_shared = { version = "0.1.0", path = "../../shared" }

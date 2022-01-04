@@ -44,7 +44,6 @@ multihash = { version = "0.15", default-features = false, features = ["blake2b",
 [features]
 default = []
 crypto = ["libsecp256k1", "blst", "proofs"]
-cgo = []
 proofs = ["filecoin-proofs-api"]
 secp256k1 = ["libsecp256k1"]
 blst = ["bls-signatures/blst"]

@@ -4,6 +4,7 @@ members = [
     "sdk",
     "shared",
     "actors/*",
+    "cgo/rust",
     "examples/actor",
     "examples/blockstore-cgo/user",
 
