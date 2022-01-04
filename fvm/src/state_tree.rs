@@ -13,7 +13,7 @@ use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use fvm_shared::ActorID;
+use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
 use ipld_hamt::Hamt;
 
@@ -201,11 +201,13 @@ where
 {
     pub fn new(store: S, version: StateTreeVersion) -> Result<Self> {
         let info = match version {
-            StateTreeVersion::V0 => None,
-            StateTreeVersion::V1
-            | StateTreeVersion::V2
-            | StateTreeVersion::V3
-            | StateTreeVersion::V4 => {
+            StateTreeVersion::V0 | StateTreeVersion::V1 | StateTreeVersion::V2 => {
+                return Err(ExecutionError::Fatal(anyhow!(
+                    "unsupported state tree version: {:?}",
+                    version
+                )))
+            }
+            StateTreeVersion::V3 | StateTreeVersion::V4 => {
                 let cid = store
                     .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
                     .context("failed to put state info")
@@ -214,9 +216,8 @@ where
             }
         };
 
-        // TODO: restore multiple version support? Or drop it entirely?
-        //let hamt = Map::new(store, ActorVersion::from(version));
-        let hamt = Hamt::new(store);
+        // Both V3 and V4 use bitwidt=5.
+        let hamt = Hamt::new_with_bit_width(store, HAMT_BIT_WIDTH);
         Ok(Self {
             hamt,
             version,
@@ -237,17 +238,18 @@ where
             (version, Some(info), actors)
         } else {
             // Fallback to v0 state tree if retrieval fails
-            (StateTreeVersion::V0, None, *c)
+            (StateTreeVersion::V3, None, *c)
         };
 
         match version {
-            StateTreeVersion::V0
-            | StateTreeVersion::V1
-            | StateTreeVersion::V2
-            | StateTreeVersion::V3
-            | StateTreeVersion::V4 => {
-                // TODO: use the version.
-                let hamt = Hamt::load(&actors, store)
+            StateTreeVersion::V0 | StateTreeVersion::V1 | StateTreeVersion::V2 => {
+                return Err(ExecutionError::Fatal(anyhow!(
+                    "unsupported state tree version: {:?}",
+                    version
+                )))
+            }
+            StateTreeVersion::V3 | StateTreeVersion::V4 => {
+                let hamt = Hamt::load_with_bit_width(&actors, store, HAMT_BIT_WIDTH)
                     .context("failed to load state tree")
                     .or_fatal()?;
 
@@ -283,9 +285,10 @@ where
             StateCacheResult::Deleted => None,
             StateCacheResult::Uncached => {
                 // if state doesn't exist, find using hamt
+                let key = Address::new_id(id).to_bytes();
                 let act = self
                     .hamt
-                    .get(&Address::new_id(id).to_bytes())
+                    .get(&key)
                     .with_context(|| format!("failed to lookup actor {}", id))
                     .or_fatal()?
                     .cloned();
@@ -433,7 +436,7 @@ where
         let root = self.hamt.flush().or_fatal()?;
 
         match self.version {
-            StateTreeVersion::V0 => Ok(root),
+            StateTreeVersion::V3 => Ok(root),
             _ => {
                 let cid = self
                     .info
@@ -618,7 +621,7 @@ mod tests {
         let act_a = ActorState::new(empty_cid(), empty_cid(), Default::default(), 2);
         let addr = Address::new_id(1);
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
 
         // test address not in cache
         assert_eq!(tree.get_actor(&addr).unwrap(), None);
@@ -635,7 +638,7 @@ mod tests {
     #[test]
     fn delete_actor() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
 
         let addr = Address::new_id(3);
         let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1);
@@ -648,7 +651,7 @@ mod tests {
     #[test]
     fn get_set_non_id() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
 
         // Empty hamt Cid used for testing
         let e_cid = Hamt::<_, String>::new_with_bit_width(&store, 5)
@@ -699,7 +702,7 @@ mod tests {
     #[test]
     fn test_transactions() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
         let mut addresses: Vec<Address> = Vec::new();
 
         let test_addresses = vec!["t0100", "t0101", "t0102"];
@@ -775,7 +778,7 @@ mod tests {
     #[test]
     fn revert_transaction() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V0).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
 
         let addr_str = "f01";
         let addr: Address = addr_str.parse().unwrap();
@@ -796,5 +799,20 @@ mod tests {
         tree.flush().unwrap();
 
         assert_eq!(tree.get_actor(&addr).unwrap(), None);
+    }
+
+    #[test]
+    fn unsupported_versions() {
+        let unsupported = vec![
+            StateTreeVersion::V0,
+            StateTreeVersion::V1,
+            StateTreeVersion::V2,
+        ];
+        let store = MemoryBlockstore::default();
+        for v in unsupported {
+            // expect a fatal error.
+            let err = StateTree::new(&store, v).err().unwrap();
+            assert!(err.is_fatal());
+        }
     }
 }
