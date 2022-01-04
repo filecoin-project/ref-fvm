@@ -1,0 +1,47 @@
+[package]
+name = "conformance_tests"
+version = "0.1.0"
+authors = ["ChainSafe Systems <info@chainsafe.io>"]
+edition = "2018"
+
+[features]
+default = []
+
+[dependencies]
+anyhow = "1.0.47"
+thiserror = "1.0.30"
+num-traits = "0.2"
+derive_builder = "0.10"
+ahash = "0.7"
+num-derive = "0.3.3"
+cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
+multihash = { version = "0.15", default-features = false, features = ["identity"] }
+fvm = { path = "../../fvm" }
+fvm_shared = { path = "../../shared", features = ["crypto"] }
+ipld_hamt = { path = "../../ipld/hamt"}
+ipld_amt = { path = "../../ipld/amt"}
+serde = { version = "1.0", features = ["derive"] }
+serde_tuple = "0.5"
+serde_repr = "0.1"
+lazy_static = "1.4.0"
+derive-getters = "0.2.0"
+derive_more = "0.99.17"
+replace_with = "0.1.7"
+log = "0.4.14"
+byteorder = "1.4.3"
+futures = "0.3.19"
+ipld_car = { path="../../ipld/car" }
+async-std = { version = "1.9", features = ["attributes"] }
+wasmtime = "0.32.0" # this dependency is necessary because replacing a kernel with external data
+base64 = "0.13.0"
+flate2 = { version = "1.0" }
+
+[dev-dependencies]
+regex = { version = "1.0" }
+walkdir = "2.3"
+serde_json = "1.0"
+flate2 = "1.0"
+lazy_static = "1.4"
+pretty_env_logger = "0.4.0"
+log = "0.4"
+

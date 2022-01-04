@@ -68,6 +68,9 @@ pub trait Machine: 'static {
     fn flush(&mut self) -> Result<Cid> {
         self.state_tree_mut().flush()
     }
+
+    /// Consumes the machine and returns the owned blockstore.
+    fn consume(self) -> Self::Blockstore;
 }
 
 /// An error included in a message's backtrace on failure.

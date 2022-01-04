@@ -154,6 +154,13 @@ where
         let k = (&mut **self).flush()?;
         Ok(k)
     }
+
+    /// Consume consumes the executor and returns the Machine. If the Machine had
+    /// been poisoned during execution, the Option will be None.
+    pub fn consume(self) -> Option<<K::CallManager as CallManager>::Machine> {
+        self.0
+    }
+
     // TODO: The return type here is very strange because we have three cases:
     // 1. Continue (return actor ID & gas).
     // 2. Short-circuit (return ApplyRet).

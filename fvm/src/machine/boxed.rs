@@ -63,4 +63,9 @@ impl<M: Machine> Machine for Box<M> {
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
         (&mut **self).transfer(from, to, value)
     }
+
+    #[inline(always)]
+    fn consume(self) -> Self::Blockstore {
+        (*self).consume()
+    }
 }

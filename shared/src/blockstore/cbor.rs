@@ -25,13 +25,13 @@ pub trait CborStore: Blockstore + Sized {
         S: ser::Serialize,
     {
         let bytes = to_vec(obj)?;
-        Ok(self.put(
+        self.put(
             code,
             &Block {
                 codec: DAG_CBOR,
                 data: &bytes,
             },
-        )?)
+        )
     }
 }
 

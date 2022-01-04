@@ -1,5 +1,7 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use cid::Cid;
+use log::Level::Trace;
+use log::{debug, log_enabled, trace};
 use num_traits::Signed;
 use wasmtime::{Engine, Module};
 
@@ -13,6 +15,7 @@ use fvm_shared::ActorID;
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
+use crate::init_actor::{State, INIT_ACTOR_ADDR};
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
@@ -58,6 +61,10 @@ where
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
+        debug!(
+            "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
+            epoch, &base_fee, network_version, state_root
+        );
         let context = MachineContext {
             epoch,
             base_fee,
@@ -70,9 +77,23 @@ where
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
 
+        if !blockstore
+            .has(&context.initial_state_root)
+            .context("failed to load initial state-root")?
+        {
+            return Err(anyhow!(
+                "blockstore doesn't have the initial state-root {}",
+                &context.initial_state_root
+            ));
+        }
+
         let bstore = BufferedBlockstore::new(blockstore);
 
         let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
+
+        if log_enabled!(Trace) {
+            trace_actors(&state_tree);
+        }
 
         Ok(DefaultMachine {
             config,
@@ -81,6 +102,29 @@ where
             externs,
             state_tree,
         })
+    }
+}
+
+/// Print a trace of all actors and their state roots.
+#[cold]
+fn trace_actors<B: Blockstore>(state_tree: &StateTree<B>) {
+    trace!("init actor address: {}", INIT_ACTOR_ADDR.to_string());
+
+    state_tree
+        .for_each(|addr, actor_state| {
+            trace!(
+                "state tree: {} ({:?}): {:?}",
+                addr.to_string(),
+                addr.to_bytes(),
+                actor_state
+            );
+            Ok(())
+        })
+        .unwrap(); // This will never panic.
+
+    match State::load(state_tree) {
+        Ok((state, _)) => trace!("init actor: {:?}", state),
+        Err(err) => trace!("init actor: failed to load state; err={:?}", err),
     }
 }
 
@@ -227,5 +271,9 @@ where
         //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
 
         Ok(())
+    }
+
+    fn consume(self) -> Self::Blockstore {
+        self.state_tree.consume()
     }
 }

@@ -60,4 +60,8 @@ where
     ) -> crate::kernel::Result<()> {
         self.machine.transfer(from, to, value)
     }
+
+    fn consume(self) -> Self::Blockstore {
+        self.machine.consume()
+    }
 }

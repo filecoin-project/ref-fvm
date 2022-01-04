@@ -1,3 +1,10 @@
+//! (Proper package docs coming shortly; for now this is a holding pen for items
+//! we must mention).
+//!
+//! ## Logging
+//!
+//! This package emits logs using the log façade. Configure the logging backend
+//! of your choice during the initialization of the consuming application.
 pub use kernel::{default::DefaultKernel, BlockError, Kernel};
 
 pub mod call_manager;
@@ -7,15 +14,18 @@ pub mod kernel;
 pub mod machine;
 pub mod syscalls;
 
-mod account_actor;
+// TODO Public only for conformance tests.
+//  Consider exporting only behind a feature.
+pub mod account_actor;
+pub mod builtin;
+pub mod gas;
+pub mod init_actor;
+pub mod state_tree;
+
 mod blockstore;
-mod builtin;
-mod gas;
-mod init_actor;
 mod intercept;
 mod market_actor;
 mod power_actor;
-mod state_tree;
 
 #[derive(Clone)]
 pub struct Config {
