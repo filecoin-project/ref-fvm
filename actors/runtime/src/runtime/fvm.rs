@@ -11,7 +11,6 @@ use crate::Runtime;
 use crate::{actor_error, ActorError};
 use blockstore::Blockstore;
 use fvm_sdk as fvm;
-use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
@@ -24,6 +23,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MethodNum;
+use fvm_shared::{address::Address, ActorID};
 
 lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
@@ -213,8 +213,8 @@ where
         Ok(fvm::actor::new_actor_address()?)
     }
 
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
-        Ok(fvm::actor::create_actor(*address, code_id)?)
+    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<(), ActorError> {
+        Ok(fvm::actor::create_actor(actor_id, code_id)?)
     }
 
     fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError> {

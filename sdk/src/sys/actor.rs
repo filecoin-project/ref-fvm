@@ -19,9 +19,5 @@ extern "C" {
     /// Creates a new actor of the specified type in the state tree, under
     /// the provided address.
     /// TODO this syscall will change to calculate the address internally.
-    pub fn create_actor(
-        addr_off: *const u8,
-        addr_len: u32,
-        typ_off: *const u8,
-    ) -> super::SyscallStatus;
+    pub fn create_actor(actor_id: u64, typ_off: *const u8) -> super::SyscallStatus;
 }

@@ -61,8 +61,9 @@ fn create_2_payment_channels() {
         let unique_address = Address::new_actor(paych);
         rt.new_actor_addr = Some(Address::new_actor(paych));
 
-        let expected_id_addr = Address::new_id(100 + n);
-        rt.expect_create_actor(*PAYCH_ACTOR_CODE_ID, expected_id_addr);
+        let expected_id = 100 + n;
+        let expected_id_addr = Address::new_id(expected_id);
+        rt.expect_create_actor(*PAYCH_ACTOR_CODE_ID, expected_id);
 
         let fake_params = ConstructorParams {
             network_name: String::from("fake_param"),
@@ -112,8 +113,9 @@ fn create_storage_miner() {
     let unique_address = Address::new_actor(b"miner");
     rt.new_actor_addr = Some(unique_address);
 
-    let expected_id_addr = Address::new_id(100);
-    rt.expect_create_actor(*MINER_ACTOR_CODE_ID, expected_id_addr);
+    let expected_id = 100;
+    let expected_id_addr = Address::new_id(expected_id);
+    rt.expect_create_actor(*MINER_ACTOR_CODE_ID, expected_id);
 
     let fake_params = ConstructorParams {
         network_name: String::from("fake_param"),
@@ -166,8 +168,9 @@ fn create_multisig_actor() {
     rt.new_actor_addr = Some(unique_address);
 
     // Next id
-    let expected_id_addr = Address::new_id(100);
-    rt.expect_create_actor(*MULTISIG_ACTOR_CODE_ID, expected_id_addr);
+    let expected_id = 100;
+    let expected_id_addr = Address::new_id(expected_id);
+    rt.expect_create_actor(*MULTISIG_ACTOR_CODE_ID, expected_id);
 
     let fake_params = ConstructorParams {
         network_name: String::from("fake_param"),
@@ -208,8 +211,9 @@ fn sending_constructor_failure() {
     rt.new_actor_addr = Some(unique_address);
 
     // Create the next id address
-    let expected_id_addr = Address::new_id(100);
-    rt.expect_create_actor(*MINER_ACTOR_CODE_ID, expected_id_addr);
+    let expected_id = 100;
+    let expected_id_addr = Address::new_id(expected_id);
+    rt.expect_create_actor(*MINER_ACTOR_CODE_ID, expected_id);
 
     let fake_params = ConstructorParams {
         network_name: String::from("fake_param"),

@@ -1,3 +1,5 @@
+use fvm_shared::ActorID;
+
 use crate::{call_manager::CallManager, kernel::*, machine::Machine};
 
 use super::{InterceptCallManager, InterceptMachine};
@@ -65,12 +67,8 @@ where
         self.0.new_actor_address()
     }
 
-    fn create_actor(
-        &mut self,
-        code_id: cid::Cid,
-        address: &fvm_shared::address::Address,
-    ) -> Result<()> {
-        self.0.create_actor(code_id, address)
+    fn create_actor(&mut self, code_id: cid::Cid, actor_id: ActorID) -> Result<()> {
+        self.0.create_actor(code_id, actor_id)
     }
 }
 impl<M, C, K, D> BlockOps for InterceptKernel<K>

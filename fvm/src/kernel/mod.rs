@@ -169,9 +169,9 @@ pub trait ActorOps {
     /// Always an ActorExec address.
     fn new_actor_address(&mut self) -> Result<Address>;
 
-    /// Creates an actor with code `codeID` and address `address`, with empty state.
+    /// Creates an actor with code `codeID` and id `actor_id`, with empty state.
     /// May only be called by Init actor.
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()>;
+    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()>;
 }
 
 /// Operations to send messages to other actors.

@@ -10,6 +10,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
+use fvm_shared::ActorID;
 
 use super::state::State;
 
@@ -19,7 +20,7 @@ pub struct CreateActorArgs {
     pub undef_cid: bool,
     pub cid: Cid,
     pub undef_address: bool,
-    pub address: Address,
+    pub actor_id: ActorID,
 }
 
 /// Holds the response of a call to runtime.ResolveAddress

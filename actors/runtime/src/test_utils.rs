@@ -25,7 +25,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::MethodNum;
+use fvm_shared::{ActorID, MethodNum};
 
 pub struct MockRuntime {
     pub epoch: ChainEpoch,
@@ -153,7 +153,7 @@ impl Default for MockRuntime {
 #[derive(Clone, Debug)]
 pub struct ExpectCreateActor {
     pub code_id: Cid,
-    pub address: Address,
+    pub actor_id: ActorID,
 }
 #[derive(Clone, Debug)]
 pub struct ExpectedMessage {
@@ -345,8 +345,8 @@ impl MockRuntime {
     }
 
     #[allow(dead_code)]
-    pub fn expect_create_actor(&mut self, code_id: Cid, address: Address) {
-        let a = ExpectCreateActor { code_id, address };
+    pub fn expect_create_actor(&mut self, code_id: Cid, actor_id: ActorID) {
+        let a = ExpectCreateActor { code_id, actor_id };
         self.expectations.borrow_mut().expect_create_actor = Some(a);
     }
 
@@ -634,7 +634,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(ret)
     }
 
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError> {
+    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<(), ActorError> {
         self.require_in_call();
         if self.in_transaction {
             return Err(actor_error!(SysErrIllegalActor; "side-effect within transaction"));
@@ -646,7 +646,7 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             .take()
             .expect("unexpected call to create actor");
 
-        assert!(expect_create_actor.code_id == code_id && &expect_create_actor.address == address, "unexpected actor being created, expected code: {:?} address: {:?}, actual code: {:?} address: {:?}", expect_create_actor.code_id, expect_create_actor.address, code_id, address);
+        assert!(expect_create_actor.code_id == code_id && expect_create_actor.actor_id == actor_id, "unexpected actor being created, expected code: {:?} address: {:?}, actual code: {:?} address: {:?}", expect_create_actor.code_id, expect_create_actor.actor_id, code_id, actor_id);
         Ok(())
     }
 

@@ -15,7 +15,7 @@ use actors_runtime::{
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR};
+use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
 
 pub use self::state::State;
 pub use self::types::*;
@@ -106,7 +106,7 @@ impl Actor {
 
         // Allocate an ID for this actor.
         // Store mapping of pubkey or actor address to actor ID
-        let id_address: Address = rt.transaction(|s: &mut State, rt| {
+        let id_address: ActorID = rt.transaction(|s: &mut State, rt| {
             s.map_address_to_new_id(rt.store(), &robust_address)
                 .map_err(|e| {
                     e.downcast_default(ExitCode::ErrIllegalState, "failed to allocate ID address")
@@ -114,11 +114,11 @@ impl Actor {
         })?;
 
         // Create an empty actor
-        rt.create_actor(params.code_cid, &id_address)?;
+        rt.create_actor(params.code_cid, id_address)?;
 
         // Invoke constructor
         rt.send(
-            id_address,
+            Address::new_id(id_address),
             METHOD_CONSTRUCTOR,
             params.constructor_params,
             rt.message().value_received().clone(),
@@ -126,7 +126,7 @@ impl Actor {
         .map_err(|err| err.wrap("constructor failed"))?;
 
         Ok(ExecReturn {
-            id_address,
+            id_address: Address::new_id(id_address),
             robust_address,
         })
     }
