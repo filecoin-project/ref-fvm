@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
 
-use super::{Blockstore, Buffered};
+use fvm_shared::blockstore::{Blockstore, Buffered};
 
 // TODO: figure out where to put this.
 const DAG_CBOR: u64 = 0x71;
@@ -249,12 +249,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::blockstore::{Blockstore, MemoryBlockstore};
+    use fvm_shared::blockstore::{Blockstore, MemoryBlockstore};
 
     use super::*;
-    use crate::blockstore::CborStore;
-    use crate::commcid;
     use cid::multihash::{Code, MultihashDigest};
+    use fvm_shared::blockstore::CborStore;
+    use fvm_shared::commcid;
     use serde::{Deserialize, Serialize};
 
     const RAW: u64 = 0x55;

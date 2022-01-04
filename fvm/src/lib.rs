@@ -8,6 +8,7 @@ pub mod machine;
 pub mod syscalls;
 
 mod account_actor;
+mod blockstore;
 mod builtin;
 mod gas;
 mod init_actor;

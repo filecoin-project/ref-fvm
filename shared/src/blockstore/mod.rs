@@ -4,7 +4,6 @@ use anyhow::Result;
 use cid::multihash;
 use cid::Cid;
 
-pub mod buffered;
 #[cfg(feature = "cgo")]
 pub mod cgo;
 pub mod tracking;

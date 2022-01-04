@@ -4,13 +4,13 @@ use num_traits::Signed;
 use wasmtime::{Engine, Module};
 
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::buffered::BufferedBlockstore;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 
+use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
 use crate::kernel::{ClassifyResult, Context as _, Result};
