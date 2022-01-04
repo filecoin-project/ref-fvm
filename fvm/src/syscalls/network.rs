@@ -18,3 +18,10 @@ pub fn base_fee(caller: &mut Caller<'_, impl Kernel>) -> Result<(u64, u64)> {
     let mut iter = base_fee.iter_u64_digits();
     Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
 }
+
+/// Returns the network circ supply split as two u64 ordered in little endian.
+pub fn total_fil_circ_supply(caller: &mut Caller<'_, impl Kernel>) -> Result<(u64, u64)> {
+    let base_fee = caller.kernel().total_fil_circ_supply()?;
+    let mut iter = base_fee.iter_u64_digits();
+    Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
+}

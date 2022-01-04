@@ -34,6 +34,7 @@ mod test {
             },
             0,
             Zero::zero(),
+            Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
             bs,
