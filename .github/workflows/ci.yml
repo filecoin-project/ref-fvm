@@ -48,7 +48,7 @@ jobs:
     - uses: actions-rs/cargo@v1.0.3
       with:
         command: install
-        args: --force cbindgen
+        args: cbindgen
     - name: Build on wasm32-unknown-unknown
       run: make RUSTFLAGS="-D warnings"
       shell: bash
