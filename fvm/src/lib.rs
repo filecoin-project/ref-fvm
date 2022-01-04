@@ -18,6 +18,8 @@ mod state_tree;
 
 #[derive(Clone)]
 pub struct Config {
+    /// The maximum call depth.
+    pub max_call_depth: u32,
     /// Initial number of memory pages to allocate for the invocation container.
     pub initial_pages: usize,
     /// Maximum number of memory pages an invocation container's memory
@@ -25,6 +27,17 @@ pub struct Config {
     pub max_pages: usize,
     /// Wasmtime engine configuration.
     pub engine: wasmtime::Config,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            initial_pages: 0,
+            max_pages: 1024,
+            engine: Default::default(),
+            max_call_depth: 4096,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -46,11 +59,7 @@ mod test {
         bs = st.consume();
 
         let machine = DefaultMachine::new(
-            Config {
-                initial_pages: 0,
-                max_pages: 1024,
-                engine: Default::default(),
-            },
+            Config::default(),
             0,
             Zero::zero(),
             Zero::zero(),

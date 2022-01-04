@@ -51,6 +51,8 @@ pub struct InnerDefaultCallManager<M> {
     nonce: u64,
     /// Number of actors created in this call stack.
     num_actors_created: u64,
+    /// Current call-stack depth.
+    call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Vec<CallError>,
 }
@@ -84,6 +86,7 @@ where
             origin,
             nonce,
             num_actors_created: 0,
+            call_stack_depth: 0,
             backtrace: Vec::new(),
         }))
     }
@@ -99,27 +102,15 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        // Get the receiver; this will resolve the address.
-        // TODO: What kind of errors should we be using here?
-        let to = match self.state_tree().lookup_id(&to)? {
-            Some(addr) => addr,
-            None => match to.protocol() {
-                Protocol::BLS | Protocol::Secp256k1 => {
-                    // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor::<K>(&to)?
-                }
-                _ => {
-                    return Err(
-                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
-                            .into(),
-                    )
-                }
-            },
-        };
-
-        // Do the actual send.
-
-        self.send_resolved::<K>(from, to, method, params, value)
+        if self.call_stack_depth > self.machine.config().max_call_depth {
+            return Err(
+                syscall_error!(SysErrForbidden, "message execution exceeds call depth").into(),
+            );
+        }
+        self.call_stack_depth += 1;
+        let result = self.send_unchecked::<K>(from, to, method, params, value);
+        self.call_stack_depth -= 1;
+        result
     }
 
     fn with_transaction(
@@ -227,6 +218,41 @@ where
         )?;
 
         Ok(id)
+    }
+
+    /// Send without checking the call depth.
+    fn send_unchecked<K>(
+        &mut self,
+        from: ActorID,
+        to: Address,
+        method: MethodNum,
+        params: &RawBytes,
+        value: &TokenAmount,
+    ) -> Result<Receipt>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        // Get the receiver; this will resolve the address.
+        // TODO: What kind of errors should we be using here?
+        let to = match self.state_tree().lookup_id(&to)? {
+            Some(addr) => addr,
+            None => match to.protocol() {
+                Protocol::BLS | Protocol::Secp256k1 => {
+                    // Try to create an account actor if the receiver is a key address.
+                    self.create_account_actor::<K>(&to)?
+                }
+                _ => {
+                    return Err(
+                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
+                            .into(),
+                    )
+                }
+            },
+        };
+
+        // Do the actual send.
+
+        self.send_resolved::<K>(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.

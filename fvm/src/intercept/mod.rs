@@ -27,11 +27,7 @@ mod test {
         bs = st.consume();
 
         let machine = DefaultMachine::new(
-            Config {
-                initial_pages: 0,
-                max_pages: 1024,
-                engine: Default::default(),
-            },
+            Config::default(),
             0,
             Zero::zero(),
             Zero::zero(),
