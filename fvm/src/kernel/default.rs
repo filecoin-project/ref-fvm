@@ -263,6 +263,9 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+
         let data = self
             .call_manager
             .blockstore()
@@ -274,6 +277,7 @@ where
             // to be in the state-tree.
             .or_fatal()?;
 
+        // We charge on open, not read, to emulate the current gas model.
         let block = Block::new(cid.codec(), data);
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
         self.blocks.put(block).or_illegal_argument()
@@ -293,6 +297,13 @@ where
         let code = multihash::Code::try_from(hash_fun)
             .or_illegal_argument()
             .context(format_args!("invalid hash code: {}", hash_fun))?;
+
+        // We charge on link, not create, to emulate the current gas model.
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_ipld_put(block.size().try_into().or_illegal_argument()?),
+        )?;
 
         let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
@@ -473,6 +484,8 @@ where
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
         verify_seal(vi)
     }
 
@@ -532,6 +545,8 @@ where
         &mut self,
         vis: &[(&Address, &[SealVerifyInfo])],
     ) -> Result<HashMap<Address, Vec<bool>>> {
+        // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
+        // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
         let out = vis
             .par_iter()
@@ -581,6 +596,11 @@ where
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<bool> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_verify_aggregate_seals(aggregate),
+        )?;
         if aggregate.infos.is_empty() {
             return Err(syscall_error!(SysErrIllegalArgument; "no seal verify infos").into());
         }
