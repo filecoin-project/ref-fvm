@@ -20,7 +20,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::MethodNum;
+use fvm_shared::{ActorID, MethodNum};
 
 use crate::ActorError;
 
@@ -131,7 +131,7 @@ pub trait Runtime<BS: Blockstore>: Syscalls {
 
     /// Creates an actor with code `codeID` and address `address`, with empty state.
     /// May only be called by Init actor.
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<(), ActorError>;
+    fn create_actor(&mut self, code_id: Cid, address: ActorID) -> Result<(), ActorError>;
 
     /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
     /// Aborts if the beneficiary does not exist.

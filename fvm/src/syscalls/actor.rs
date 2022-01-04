@@ -74,12 +74,10 @@ pub fn new_actor_address(
 
 pub fn create_actor(
     caller: &mut Caller<'_, impl Kernel>,
-    addr_off: u32, // Address
-    addr_len: u32,
-    typ_off: u32, // Cid
+    actor_id: u64, // Address
+    typ_off: u32,  // Cid
 ) -> Result<()> {
     let (k, mem) = caller.kernel_and_memory()?;
-    let addr = mem.read_address(addr_off, addr_len)?;
     let typ = mem.read_cid(typ_off)?;
-    k.create_actor(typ, &addr)
+    k.create_actor(typ, actor_id)
 }

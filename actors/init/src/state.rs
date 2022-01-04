@@ -39,7 +39,7 @@ impl State {
         &mut self,
         store: &BS,
         addr: &Address,
-    ) -> Result<Address, HamtError> {
+    ) -> Result<ActorID, HamtError> {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -47,7 +47,7 @@ impl State {
         map.set(addr.to_bytes().into(), id)?;
         self.address_map = map.flush()?;
 
-        Ok(Address::new_id(id))
+        Ok(id)
     }
 
     /// ResolveAddress resolves an address to an ID-address, if possible.

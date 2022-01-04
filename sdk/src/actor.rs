@@ -57,11 +57,7 @@ pub fn new_actor_address() -> SyscallResult<Address> {
 /// Creates a new actor of the specified type in the state tree, under
 /// the provided address.
 /// TODO this syscall will change to calculate the address internally.
-pub fn create_actor(address: Address, code_cid: Cid) -> SyscallResult<()> {
-    let addr = address.to_bytes();
+pub fn create_actor(actor_id: ActorID, code_cid: Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
-    unsafe {
-        sys::actor::create_actor(addr.as_ptr(), addr.len() as u32, cid.as_ptr())
-            .into_syscall_result()
-    }
+    unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()).into_syscall_result() }
 }

@@ -786,7 +786,7 @@ where
     }
 
     // TODO merge new_actor_address and create_actor into a single syscall.
-    fn create_actor(&mut self, code_id: Cid, address: &Address) -> Result<()> {
+    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         if !is_builtin_actor(&code_id) {
             return Err(
                 syscall_error!(SysErrIllegalArgument; "Can only create built-in actors").into(),
@@ -799,7 +799,7 @@ where
         }
 
         let state_tree = self.call_manager.state_tree();
-        if let Ok(Some(_)) = state_tree.get_actor(address) {
+        if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
             return Err(
                 syscall_error!(SysErrIllegalArgument; "Actor address already exists").into(),
             );
@@ -809,8 +809,8 @@ where
             .charge_gas(self.call_manager.price_list().on_create_actor())?;
 
         let state_tree = self.call_manager.state_tree_mut();
-        state_tree.set_actor(
-            address,
+        state_tree.set_actor_id(
+            actor_id,
             ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
         )
     }
