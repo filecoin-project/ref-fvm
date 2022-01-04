@@ -105,19 +105,18 @@ where
     let mut car_reader = CarReader::new(reader).await?;
 
     // Batch write key value pairs from car file
-    // let mut buf: Vec<(Vec<u8>, Vec<u8>)> = Vec::with_capacity(100);
+    // TODO: Stream the data once some of the stream APIs stabilize.
+    let mut buf = Vec::with_capacity(100);
     while let Some(block) = car_reader.next_block().await? {
-        s.put_keyed(&block.cid, block.data.as_slice())
-            .map_err(|e| Error::Other(e.to_string()))?;
-        // buf.push((block.cid.to_bytes(), block.data));
-        // if buf.len() > 1000 {
-        //     s.bulk_write(&buf)
-        //         .map_err(|e| Error::Other(e.to_string()))?;
-        //     buf.clear();
-        // }
+        buf.push((block.cid, block.data));
+        if buf.len() > 1000 {
+            s.put_many_keyed(buf.iter().map(|(k, v)| (*k, &*v)))
+                .map_err(|e| Error::Other(e.to_string()))?;
+            buf.clear();
+        }
     }
-    // s.bulk_write(&buf)
-    //     .map_err(|e| Error::Other(e.to_string()))?;
+    s.put_many_keyed(buf.iter().map(|(k, v)| (*k, &*v)))
+        .map_err(|e| Error::Other(e.to_string()))?;
     Ok(car_reader.header.roots)
 }
 
