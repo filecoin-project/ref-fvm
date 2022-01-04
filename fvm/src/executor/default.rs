@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 use std::result::Result as StdResult;
 
 use crate::account_actor::is_account_actor;
+use crate::call_manager::InvocationResult;
 use crate::gas::GasOutputs;
 use crate::kernel::{ClassifyResult, Context as _, Kernel};
 use crate::machine::{BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
@@ -16,6 +17,7 @@ use anyhow::{anyhow, Context as _, Result};
 use cid::Cid;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::Cbor;
+use fvm_shared::error::ExitCode;
 use fvm_shared::{
     address::Address, econ::TokenAmount, message::Message, receipt::Receipt, ActorID,
 };
@@ -76,11 +78,9 @@ where
                     cm.send::<K>(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
 
                 // Charge for including the result (before we end the transaction).
-                cm.charge_gas(
-                    cm.context()
-                        .price_list
-                        .on_chain_return_value(ret.return_data.len()),
-                )?;
+                if let InvocationResult::Return(data) = &ret {
+                    cm.charge_gas(cm.context().price_list.on_chain_return_value(data.len()))?;
+                }
 
                 Ok(ret)
             });
@@ -90,9 +90,23 @@ where
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
-            Ok(receipt) => {
+            Ok(InvocationResult::Return(return_data)) => {
                 backtrace.clear();
-                receipt
+                Receipt {
+                    exit_code: ExitCode::Ok,
+                    return_data,
+                    gas_used,
+                }
+            }
+            Ok(InvocationResult::Failure(exit_code)) => {
+                if exit_code.is_success() {
+                    return Err(anyhow!("actor failed with status OK"));
+                }
+                Receipt {
+                    exit_code,
+                    return_data: Default::default(),
+                    gas_used,
+                }
             }
             Err(ExecutionError::Syscall(SyscallError(errmsg, exit_code))) => {
                 if exit_code.is_success() {

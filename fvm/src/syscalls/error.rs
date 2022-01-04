@@ -3,10 +3,10 @@ use std::sync::Mutex;
 use anyhow::Context;
 use derive_more::Display;
 use fvm_shared::error::ExitCode;
-use fvm_shared::receipt::Receipt;
 use num_traits::FromPrimitive;
 use wasmtime::{Caller, Linker, Trap, WasmRet, WasmTy};
 
+use crate::call_manager::InvocationResult;
 use crate::kernel::{ClassifyResult, ExecutionError, SyscallError};
 use crate::Kernel;
 
@@ -149,17 +149,15 @@ pub fn trap_from_code(code: ExitCode) -> Trap {
 /// 2. An "illegal actor" syscall error if the trap is caused by a WASM error.
 /// 3. A syscall error if the trap is neither fatal nor recoverable (currently just "out of gas").
 /// 4. A fatal error otherwise.
-pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<Receipt> {
+pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<InvocationResult> {
     use std::error::Error;
 
     if let Some(status) = e.i32_exit_status() {
-        return Ok(Receipt {
-            exit_code: ExitCode::from_i32(status)
+        return Ok(InvocationResult::Failure(
+            ExitCode::from_i32(status)
                 .with_context(|| format!("invalid exit code: {}", status))
                 .or_fatal()?,
-            gas_used: 0,
-            return_data: Default::default(),
-        });
+        ));
     }
 
     if e.trap_code().is_some() {
