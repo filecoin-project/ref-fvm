@@ -1,5 +1,5 @@
 use fvm_shared::{
-    address::Address, econ::TokenAmount, encoding::RawBytes, receipt::Receipt, ActorID, MethodNum,
+    address::Address, econ::TokenAmount, encoding::RawBytes, error::ExitCode, ActorID, MethodNum,
 };
 
 use crate::{
@@ -29,11 +29,13 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt>;
+    ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.
-    fn with_transaction(&mut self, f: impl FnOnce(&mut Self) -> Result<Receipt>)
-        -> Result<Receipt>;
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+    ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used and the machine.
     fn finish(self) -> (i64, Vec<CallError>, Self::Machine);
@@ -97,5 +99,26 @@ pub trait CallManager: 'static {
     fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         self.gas_tracker_mut().charge_gas(charge)?;
         Ok(())
+    }
+}
+
+/// The result of a method invocation.
+pub enum InvocationResult {
+    Return(RawBytes),
+    Failure(ExitCode),
+}
+
+impl Default for InvocationResult {
+    fn default() -> Self {
+        Self::Return(Default::default())
+    }
+}
+
+impl InvocationResult {
+    pub fn exit_code(&self) -> ExitCode {
+        match self {
+            Self::Return(_) => ExitCode::Ok,
+            Self::Failure(e) => *e,
+        }
     }
 }

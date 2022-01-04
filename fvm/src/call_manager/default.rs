@@ -4,7 +4,6 @@ use fvm_shared::{
     econ::TokenAmount,
     encoding::{RawBytes, DAG_CBOR},
     error::ExitCode,
-    receipt::Receipt,
     ActorID, MethodNum, METHOD_SEND,
 };
 use num_traits::Zero;
@@ -18,7 +17,7 @@ use crate::{
     syscalls::{bind_syscalls, error::unwrap_trap},
 };
 
-use super::{CallManager, NO_DATA_BLOCK_ID};
+use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -98,7 +97,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt>
+    ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
@@ -115,11 +114,11 @@ where
 
     fn with_transaction(
         &mut self,
-        f: impl FnOnce(&mut Self) -> Result<Receipt>,
-    ) -> Result<Receipt> {
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+    ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction();
         let (revert, res) = match f(self) {
-            Ok(v) => (v.exit_code != ExitCode::Ok, Ok(v)),
+            Ok(v) => (!v.exit_code().is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
         self.state_tree_mut().end_transaction(revert)?;
@@ -228,7 +227,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt>
+    ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
@@ -263,7 +262,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt>
+    ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
@@ -283,11 +282,7 @@ where
 
         // Abort early if we have a send.
         if method == METHOD_SEND {
-            return Ok(Receipt {
-                exit_code: ExitCode::Ok,
-                return_data: Default::default(),
-                gas_used: 0,
-            });
+            return Ok(InvocationResult::Return(Default::default()));
         }
 
         // Finally, handle the code.
@@ -333,11 +328,7 @@ where
                     RawBytes::default()
                 };
 
-                Ok(Receipt {
-                    return_data: return_value,
-                    exit_code: ExitCode::Ok,
-                    gas_used: 0,
-                })
+                Ok(InvocationResult::Return(return_value))
             })();
 
             (result, store.into_data().take())

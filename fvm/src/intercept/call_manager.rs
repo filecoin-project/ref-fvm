@@ -35,7 +35,7 @@ where
         method: fvm_shared::MethodNum,
         params: &fvm_shared::encoding::RawBytes,
         value: &fvm_shared::econ::TokenAmount,
-    ) -> Result<fvm_shared::receipt::Receipt> {
+    ) -> Result<crate::call_manager::InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
         self.0
@@ -44,8 +44,8 @@ where
 
     fn with_transaction(
         &mut self,
-        f: impl FnOnce(&mut Self) -> Result<fvm_shared::receipt::Receipt>,
-    ) -> Result<fvm_shared::receipt::Receipt> {
+        f: impl FnOnce(&mut Self) -> Result<crate::call_manager::InvocationResult>,
+    ) -> Result<crate::call_manager::InvocationResult> {
         // This transmute is _safe_ because this type is "repr transparent".
         let inner_ptr = &mut self.0 as *mut C;
         self.0.with_transaction(|inner: &mut C| unsafe {

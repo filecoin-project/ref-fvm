@@ -8,7 +8,7 @@ use crate::ipld::{BlockId, Codec};
 use crate::{abort, sys};
 
 /// BlockID representing nil parameters or return data.
-const NO_DATA_BLOCK_ID: u32 = 0;
+pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 /// Returns the ID address of the caller.
 #[inline(always)]

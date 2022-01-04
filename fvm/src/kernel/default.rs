@@ -12,13 +12,12 @@ use fvm_shared::commcid::{
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::error::ExitCode;
-use fvm_shared::receipt::Receipt;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 
 use blockstore::Blockstore;
 
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
-use crate::call_manager::CallManager;
+use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::machine::CallError;
 use crate::state_tree::ActorState;
@@ -357,7 +356,7 @@ where
         method: MethodNum,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt> {
+    ) -> Result<InvocationResult> {
         let from = self.from;
         self.call_manager
             .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))

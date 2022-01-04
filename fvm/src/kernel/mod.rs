@@ -13,7 +13,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
-use fvm_shared::receipt::Receipt;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
@@ -26,7 +25,7 @@ pub mod default;
 mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
-use crate::call_manager::CallManager;
+use crate::call_manager::{CallManager, InvocationResult};
 use crate::machine::Machine;
 
 pub trait Kernel:
@@ -182,7 +181,7 @@ pub trait SendOps {
         method: u64,
         params: &RawBytes,
         value: &TokenAmount,
-    ) -> Result<Receipt>;
+    ) -> Result<InvocationResult>;
 }
 
 /// Operations to query the circulating supply.

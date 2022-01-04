@@ -301,7 +301,7 @@ where
         method: u64,
         params: &fvm_shared::encoding::RawBytes,
         value: &fvm_shared::econ::TokenAmount,
-    ) -> Result<fvm_shared::receipt::Receipt> {
+    ) -> Result<crate::call_manager::InvocationResult> {
         self.0.send(recipient, method, params, value)
     }
 }

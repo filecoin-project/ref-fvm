@@ -1,11 +1,10 @@
+use crate::call_manager::InvocationResult;
 use crate::kernel::BlockId;
-use crate::{
-    kernel::{ClassifyResult, Result},
-    Kernel,
-};
+use crate::{kernel::Result, Kernel};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, DAG_CBOR};
+use fvm_shared::encoding::DAG_CBOR;
+use fvm_shared::error::ExitCode;
 use wasmtime::Caller;
 
 use super::Context;
@@ -24,7 +23,7 @@ pub fn send(
     params_id: u32,
     value_hi: u64,
     value_lo: u64,
-) -> Result<BlockId> {
+) -> Result<(u32, BlockId)> {
     let (k, memory) = caller.kernel_and_memory()?;
     let recipient: Address = memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from((value_hi as u128) << 64 | value_lo as u128);
@@ -32,8 +31,11 @@ pub fn send(
     debug_assert_eq!(code, DAG_CBOR);
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    let receipt = k.send(&recipient, method, &params.into(), &value)?;
-    let ser = to_vec(&receipt).or_fatal()?;
-    let id = k.block_create(DAG_CBOR, ser.as_slice())?;
-    Ok(id)
+    Ok(match k.send(&recipient, method, &params.into(), &value)? {
+        InvocationResult::Return(value) => (
+            ExitCode::Ok as u32,
+            k.block_create(DAG_CBOR, value.bytes())?,
+        ),
+        InvocationResult::Failure(code) => (code as u32, 0),
+    })
 }
