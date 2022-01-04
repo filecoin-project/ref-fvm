@@ -7,6 +7,7 @@ members = [
     "cgo/rust",
     "examples/actor",
     "examples/blockstore-cgo/user",
+    "testing/conformance",
     "ipld/*",
 ]
 exclude = [
@@ -18,6 +19,7 @@ default-members = [
     "sdk",
     "shared",
     "actors/*",
+    "testing/conformance",
     "ipld/*"
     # don't build the examples by default, as they require a specific target and profile.
     # build them with cargo make examples
