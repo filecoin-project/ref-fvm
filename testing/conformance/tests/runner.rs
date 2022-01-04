@@ -155,17 +155,7 @@ async fn conformance_test_runner() -> Result<(), Box<dyn std::error::Error>> {
 
                     let machine = TestMachine::new_for_vector(&vector, &variant, bs);
                     let mut exec: DefaultExecutor<
-                        TestKernel<
-                            DefaultKernel<
-                                TestCallManager<
-                                    DefaultCallManager<
-                                        TestMachine<
-                                            Box<DefaultMachine<MemoryBlockstore, TestExterns>>,
-                                        >,
-                                    >,
-                                >,
-                            >,
-                        >,
+                        TestKernel<DefaultKernel<TestCallManager<DefaultCallManager<_>>>>,
                     > = DefaultExecutor::new(machine);
 
                     'messages: for (i, m) in apply_messages.iter().enumerate() {
