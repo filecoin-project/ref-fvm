@@ -92,24 +92,7 @@ where
         let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
 
         if log_enabled!(Trace) {
-            trace!("init actor address: {}", INIT_ACTOR_ADDR.to_string());
-
-            state_tree
-                .for_each(|addr, actor_state| {
-                    trace!(
-                        "state tree: {} ({:?}): {:?}",
-                        addr.to_string(),
-                        addr.to_bytes(),
-                        actor_state
-                    );
-                    Ok(())
-                })
-                .unwrap(); // This will never panic.
-
-            match State::load(&state_tree) {
-                Ok((state, _)) => trace!("init actor: {:?}", state),
-                Err(err) => trace!("init actor: failed to load state; err={:?}", err),
-            }
+            trace_actors(&state_tree);
         }
 
         Ok(DefaultMachine {
@@ -119,6 +102,29 @@ where
             externs,
             state_tree,
         })
+    }
+}
+
+/// Print a trace of all actors and their state roots.
+#[cold]
+fn trace_actors<B: Blockstore>(state_tree: &StateTree<B>) {
+    trace!("init actor address: {}", INIT_ACTOR_ADDR.to_string());
+
+    state_tree
+        .for_each(|addr, actor_state| {
+            trace!(
+                "state tree: {} ({:?}): {:?}",
+                addr.to_string(),
+                addr.to_bytes(),
+                actor_state
+            );
+            Ok(())
+        })
+        .unwrap(); // This will never panic.
+
+    match State::load(state_tree) {
+        Ok((state, _)) => trace!("init actor: {:?}", state),
+        Err(err) => trace!("init actor: failed to load state; err={:?}", err),
     }
 }
 
