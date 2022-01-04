@@ -30,19 +30,20 @@ jobs:
     - run: touch examples/fvm/fvm_example_actor.wasm
       shell: bash
     - name: Run cargo clippy
-      uses: actions-rs/cargo@v1.0.3
-      with:
-        command: clippy
-        args: --all --all-targets
+      run: cargo clippy --all --all-targets
+      shell: bash
   test-wasm:
-    name: Build on WASM
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2.4.0
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.3
     - uses: actions-rs/toolchain@v1.0.7
       with:
         target: wasm32-unknown-unknown
         override: true
+    - uses: protocol/cache-go-action@v1
     - uses: Swatinem/rust-cache@v1.3.0
     - uses: actions-rs/cargo@v1.0.3
       with:
