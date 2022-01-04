@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use log::Level::Trace;
 use log::{debug, log_enabled, trace};
@@ -77,7 +77,16 @@ where
         // Initialize the WASM engine.
         let engine = Engine::new(&config.engine)?;
 
-        assert!(blockstore.has(&context.initial_state_root).unwrap());
+        if !blockstore
+            .has(&context.initial_state_root)
+            .context("failed to load initial state-root")?
+        {
+            return Err(anyhow!(
+                "blockstore doesn't have the initial state-root {}",
+                &context.initial_state_root
+            ));
+        }
+
         let bstore = BufferedBlockstore::new(blockstore);
 
         let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
