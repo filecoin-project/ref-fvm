@@ -31,7 +31,7 @@ use crate::kernel::{ClassifyResult, Result};
 //  In theory, we should go through the actor version multiplexer to decide which
 //  state object to deserialize into. But luckily, the init actor's state hasn't
 //  undergone changes over time, so we can use a fixed object.
-#[derive(Serialize_tuple, Deserialize_tuple)]
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
 pub struct State {
     pub address_map: Cid,
     pub next_id: ActorID,
