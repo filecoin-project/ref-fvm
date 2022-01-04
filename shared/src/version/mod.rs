@@ -60,6 +60,7 @@ impl TryFrom<u32> for NetworkVersion {
             11 => Ok(V11),
             12 => Ok(V12),
             13 => Ok(V13),
+            14 => Ok(V14),
             _ => Err(()),
         }
     }
