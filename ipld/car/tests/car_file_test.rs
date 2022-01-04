@@ -3,7 +3,7 @@
 
 use async_std::fs::File;
 use async_std::io::BufReader;
-use blockstore::MemoryBlockstore;
+use fvm_shared::blockstore::MemoryBlockstore;
 use ipld_car::load_car;
 
 #[async_std::test]
