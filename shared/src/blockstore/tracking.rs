@@ -8,7 +8,7 @@ use cid::{
     Cid,
 };
 
-use crate::{Block, Blockstore};
+use super::{Block, Blockstore};
 
 /// Stats for a [TrackingBlockstore] this indicates the amount of read and written data
 /// to the wrapped store.
@@ -83,7 +83,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, crate::Block<D>)>,
+        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
     {
         let mut stats = self.stats.borrow_mut();
         self.base.put_many(blocks.into_iter().inspect(|(_, b)| {
@@ -111,10 +111,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::MemoryBlockstore;
+    use crate::blockstore::{Block, MemoryBlockstore};
 
     use super::*;
-    use crate::Block;
 
     #[test]
     fn basic_tracking_store() {

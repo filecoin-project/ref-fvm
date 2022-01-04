@@ -4,9 +4,10 @@
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 use anyhow::anyhow;
-use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
-use fvm_shared::encoding::{serde_bytes, BytesSer, CborStore};
+use fvm_shared::blockstore::Blockstore;
+use fvm_shared::blockstore::CborStore;
+use fvm_shared::encoding::{serde_bytes, BytesSer};
 use once_cell::unsync::OnceCell;
 use serde::{
     de::{self, DeserializeOwned},

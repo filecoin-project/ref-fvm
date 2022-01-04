@@ -11,6 +11,7 @@ use clock::ChainEpoch;
 
 pub mod address;
 pub mod bigint;
+pub mod blockstore;
 pub mod clock;
 pub mod commcid;
 pub mod consensus;

@@ -1,10 +1,10 @@
 use std::convert::TryFrom;
 
 use anyhow::Result;
-use blockstore::Block;
 use cid::multihash::Code;
 use cid::Cid;
 use fvm_sdk as fvm;
+use fvm_shared::blockstore::Block;
 
 use crate::actor_error;
 
@@ -12,7 +12,7 @@ use crate::actor_error;
 pub struct ActorBlockstore;
 
 /// Implements a blockstore delegating to IPLD syscalls.
-impl blockstore::Blockstore for ActorBlockstore {
+impl fvm_shared::blockstore::Blockstore for ActorBlockstore {
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         // If this fails, the _CID_ is invalid. I.e., we have a bug.
         fvm::ipld::get(cid).map(Some).map_err(|c| {

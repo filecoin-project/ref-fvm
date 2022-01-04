@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use blockstore::Blockstore;
+use fvm_shared::blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 

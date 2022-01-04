@@ -1,7 +1,7 @@
 [package]
 name = "fvm"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["lib"]
@@ -9,7 +9,6 @@ crate-type = ["lib"]
 [dependencies]
 anyhow = "1.0.47"
 thiserror = "1.0.30"
-blockstore = { path = "../lib/blockstore", features = ["cgo"] }
 num-traits = "0.2"
 derive_builder = "0.10"
 ahash = "0.7"

@@ -12,7 +12,6 @@ actors-runtime = { path = "../runtime" }
 fvm_shared = { path = "../../shared", default-features = false }
 num-traits = "0.2"
 num-derive = "0.3.0"
-blockstore = { version = "0.1.0", path = "../../lib/blockstore" }
 log = "0.4.8"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 ahash = "0.7"

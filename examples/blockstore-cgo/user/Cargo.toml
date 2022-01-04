@@ -7,5 +7,6 @@ edition = "2018"
 crate-type = ["staticlib"]
 
 [dependencies]
-blockstore = { version = "0.1.0", path = "../../../lib/blockstore", features = ["cgo"] }
+fvm_shared = { version = "0.1.0", path = "../../../shared" }
 cid = "0.7.0"
+fvm_cgo = { version = "0.1.0", path = "../../../cgo/rust" }

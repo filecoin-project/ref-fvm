@@ -25,8 +25,8 @@ extern crate lazy_static;
 // workaround for a compiler bug, see https://github.com/rust-lang/rust/issues/55779
 extern crate serde;
 
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use ipld_amt::Amt;
 use serde::{de::DeserializeOwned, Serialize};
 use unsigned_varint::decode::Error as UVarintError;

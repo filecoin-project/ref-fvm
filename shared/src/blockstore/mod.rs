@@ -4,10 +4,10 @@ use anyhow::Result;
 use cid::multihash;
 use cid::Cid;
 
-pub mod buffered;
-#[cfg(feature = "cgo")]
-pub mod cgo;
 pub mod tracking;
+
+mod cbor;
+pub use cbor::CborStore;
 
 mod memory;
 pub use memory::MemoryBlockstore;
@@ -52,12 +52,12 @@ pub trait Blockstore {
     ///
     ///
     /// ```rust
-    /// use multihash::Code::Sha2_256;
-    /// use blockstore::{Blockstore, MemoryBlockstore, Block};
+    /// use multihash::Code::Blake2b256;
+    /// use fvm_shared::blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
     /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];
-    /// bs.put_many(blocks.iter().map(|b| (Sha2_256, b.into()))).unwrap();
+    /// bs.put_many(blocks.iter().map(|b| (Blake2b256, b.into()))).unwrap();
     /// ```
     fn put_many<D, I>(&self, blocks: I) -> Result<()>
     where

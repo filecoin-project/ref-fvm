@@ -13,7 +13,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.3"
 arbitrary = { version = "0.4", features = ["derive"] }
 ahash = "0.6"
-blockstore = { path = "../../../lib/blockstore" }
+fvm_shared = { path = "../../../shared" }
 
 [dependencies.ipld_hamt]
 path = ".."

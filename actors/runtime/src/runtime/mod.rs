@@ -3,8 +3,8 @@
 
 use std::collections::HashMap;
 
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;

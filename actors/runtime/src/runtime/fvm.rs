@@ -9,13 +9,13 @@ use crate::runtime::actor_blockstore::ActorBlockstore;
 use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Syscalls};
 use crate::Runtime;
 use crate::{actor_error, ActorError};
-use blockstore::Blockstore;
 use fvm_sdk as fvm;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{to_vec, Cbor, CborStore, RawBytes, DAG_CBOR};
+use fvm_shared::encoding::{to_vec, Cbor, RawBytes, DAG_CBOR};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{

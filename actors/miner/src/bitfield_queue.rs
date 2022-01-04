@@ -4,8 +4,8 @@
 use std::collections::HashMap;
 
 use bitfield::BitField;
-use blockstore::Blockstore;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 
 use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::clock::{ChainEpoch, QuantSpec};

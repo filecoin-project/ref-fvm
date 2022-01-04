@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use actors_runtime::Multimap;
-use blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
+use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_amt::Amt;
 

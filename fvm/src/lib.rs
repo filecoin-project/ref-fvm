@@ -8,6 +8,7 @@ pub mod machine;
 pub mod syscalls;
 
 mod account_actor;
+mod blockstore;
 mod builtin;
 mod gas;
 mod init_actor;
@@ -42,7 +43,7 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
-    use blockstore::MemoryBlockstore;
+    use fvm_shared::blockstore::MemoryBlockstore;
     use fvm_shared::state::StateTreeVersion;
     use num_traits::Zero;
 

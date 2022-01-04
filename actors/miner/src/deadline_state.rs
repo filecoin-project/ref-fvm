@@ -5,15 +5,16 @@ use std::{cmp, collections::HashMap, collections::HashSet};
 
 use anyhow::anyhow;
 use bitfield::BitField;
-use blockstore::Blockstore;
 use cid::{multihash::Code, Cid};
+use fvm_shared::blockstore::Blockstore;
 use num_traits::{Signed, Zero};
 
 use actors_runtime::{actor_error, ActorError};
 use actors_runtime::{ActorDowncast, Array};
+use fvm_shared::blockstore::CborStore;
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, CborStore};
+use fvm_shared::encoding::tuple::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::{PoStProof, SectorSize};
 

@@ -3,8 +3,8 @@
 
 use ahash::AHashSet;
 use anyhow::anyhow;
-use blockstore::Blockstore;
 use ext::init;
+use fvm_shared::blockstore::Blockstore;
 use indexmap::IndexMap;
 use log::{debug, error, info};
 use num_derive::FromPrimitive;

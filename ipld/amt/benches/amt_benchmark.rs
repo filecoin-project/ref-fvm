@@ -73,7 +73,7 @@ const VALUES: &[u64] = &[
 fn insert(c: &mut Criterion) {
     c.bench_function("AMT bulk insert (no flush)", |b| {
         b.iter(|| {
-            let db = blockstore::MemoryBlockstore::default();
+            let db = fvm_shared::blockstore::MemoryBlockstore::default();
             let mut a = Amt::new(&db);
 
             for i in 0..black_box(ITEM_COUNT) {
@@ -87,7 +87,7 @@ fn insert(c: &mut Criterion) {
 fn insert_load_flush(c: &mut Criterion) {
     c.bench_function("AMT bulk insert with flushing and loading", |b| {
         b.iter(|| {
-            let db = blockstore::MemoryBlockstore::default();
+            let db = fvm_shared::blockstore::MemoryBlockstore::default();
             let mut empt = Amt::<(), _>::new(&db);
             let mut cid = empt.flush().unwrap();
 
@@ -104,14 +104,14 @@ fn insert_load_flush(c: &mut Criterion) {
 fn from_slice(c: &mut Criterion) {
     c.bench_function("AMT initialization from slice", |b| {
         b.iter(|| {
-            let db = blockstore::MemoryBlockstore::default();
+            let db = fvm_shared::blockstore::MemoryBlockstore::default();
             Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
         })
     });
 }
 
 fn for_each(c: &mut Criterion) {
-    let db = blockstore::MemoryBlockstore::default();
+    let db = fvm_shared::blockstore::MemoryBlockstore::default();
     let cid = Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
 
     c.bench_function("AMT for_each function", |b| {
