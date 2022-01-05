@@ -35,6 +35,7 @@ async-std = { version = "1.9", features = ["attributes"] }
 wasmtime = "0.32.0" # this dependency is necessary because replacing a kernel with external data
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
+colored = "2"
 
 [dev-dependencies]
 regex = { version = "1.0" }
