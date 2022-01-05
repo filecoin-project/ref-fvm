@@ -139,14 +139,12 @@ pub struct MessageVector {
 impl MessageVector {
     /// Seeds a new blockstore with the CAR encoded in the test vector, and
     /// returns the blockstore and the root CID.
-    pub async fn seed_blockstore(&self) -> (MemoryBlockstore, Vec<Cid>) {
+    pub async fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
         let blockstore = MemoryBlockstore::new();
         let bytes = self.car.as_slice();
         let decoder = GzipDecoder(GzDecoder::new(bytes));
-        let cid = load_car(&blockstore, decoder)
-            .await
-            .expect("failed to load precondition CAR");
-        (blockstore, cid)
+        let cid = load_car(&blockstore, decoder).await?;
+        Ok((blockstore, cid))
     }
 }
 
