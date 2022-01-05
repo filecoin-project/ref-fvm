@@ -1,6 +1,5 @@
 use crate::externs::TestExterns;
-use crate::vector::TestVector::Message;
-use crate::vector::{TestVector, Variant};
+use crate::vector::{MessageVector, Variant};
 use cid::Cid;
 use fvm::call_manager::{CallManager, InvocationResult};
 use fvm::gas::GasTracker;
@@ -42,26 +41,21 @@ pub struct TestMachine<M> {
 
 impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub fn new_for_vector(
-        v: &TestVector,
+        v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
-        let Message {
-            ref preconditions,
-            ref randomness,
-            ..
-        } = v;
-
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
-        let base_fee = preconditions
+        let base_fee = v
+            .preconditions
             .basefee
             .map(|i| i.to_bigint().unwrap())
             .unwrap_or_else(|| BigInt::from(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
-        let state_root = preconditions.state_tree.root_cid;
+        let state_root = v.preconditions.state_tree.root_cid;
 
-        let externs = TestExterns::new(randomness);
+        let externs = TestExterns::new(&v.randomness);
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
@@ -78,16 +72,17 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             externs,
         )
         .unwrap();
-        let ret = TestMachine::<Box<DefaultMachine<_, _>>> {
+
+        TestMachine::<Box<DefaultMachine<_, _>>> {
             machine: Box::new(machine),
             data: TestData {
-                circ_supply: preconditions
+                circ_supply: v
+                    .preconditions
                     .circ_supply
                     .map(|i| i.to_bigint().unwrap())
                     .unwrap_or(TOTAL_FILECOIN.clone()),
             },
-        };
-        ret
+        }
     }
 }
 
