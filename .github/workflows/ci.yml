@@ -25,6 +25,10 @@ jobs:
         target: wasm32-unknown-unknown
         override: true
         components: clippy
+    # we don't check the lockfile in; this is needed for cache restoration/saving
+    - uses: actions-rs/cargo@v1.0.3
+      with:
+        command: generate-lockfile
     - uses: Swatinem/rust-cache@v1.3.0
     # otherwise the include_bytes! macro fails because this file hasn't been generated
     - run: touch examples/fvm/fvm_example_actor.wasm
@@ -43,6 +47,10 @@ jobs:
       with:
         target: wasm32-unknown-unknown
         override: true
+    # we don't check the lockfile in; this is needed for cache restoration/saving
+    - uses: actions-rs/cargo@v1.0.3
+      with:
+        command: generate-lockfile
     - uses: protocol/cache-go-action@v1
     - uses: Swatinem/rust-cache@v1.3.0
     - uses: actions-rs/cargo@v1.0.3
