@@ -117,37 +117,36 @@ pub struct RandomnessRule {
 #[serde(tag = "class")]
 pub enum TestVector {
     #[serde(rename = "message")]
-    Message {
-        selector: Option<Selector>,
-        #[serde(rename = "_meta")]
-        meta: Option<MetaData>,
-
-        #[serde(with = "base64_bytes")]
-        car: Vec<u8>,
-        preconditions: PreConditions,
-        apply_messages: Vec<MessageVector>,
-        postconditions: PostConditions,
-
-        #[serde(default)]
-        randomness: Randomness,
-    },
+    Message(MessageVector),
 }
 
-impl TestVector {
+#[derive(Debug, Deserialize)]
+pub struct MessageVector {
+    pub selector: Option<Selector>,
+    #[serde(rename = "_meta")]
+    pub meta: Option<MetaData>,
+
+    #[serde(with = "base64_bytes")]
+    pub car: Vec<u8>,
+    pub preconditions: PreConditions,
+    pub apply_messages: Vec<ApplyMessage>,
+    pub postconditions: PostConditions,
+
+    #[serde(default)]
+    pub randomness: Randomness,
+}
+
+impl MessageVector {
     /// Seeds a new blockstore with the CAR encoded in the test vector, and
     /// returns the blockstore and the root CID.
     pub async fn seed_blockstore(&self) -> (MemoryBlockstore, Vec<Cid>) {
         let blockstore = MemoryBlockstore::new();
-        match self {
-            TestVector::Message { ref car, .. } => {
-                let bytes = car.as_slice();
-                let decoder = GzipDecoder(GzDecoder::new(bytes));
-                let cid = load_car(&blockstore, decoder)
-                    .await
-                    .expect("failed to load precondition CAR");
-                (blockstore, cid)
-            }
-        }
+        let bytes = self.car.as_slice();
+        let decoder = GzipDecoder(GzDecoder::new(bytes));
+        let cid = load_car(&blockstore, decoder)
+            .await
+            .expect("failed to load precondition CAR");
+        (blockstore, cid)
     }
 }
 
@@ -164,7 +163,7 @@ impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct MessageVector {
+pub struct ApplyMessage {
     #[serde(with = "base64_bytes")]
     pub bytes: Vec<u8>,
     #[serde(default)]
