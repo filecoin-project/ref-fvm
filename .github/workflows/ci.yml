@@ -39,7 +39,7 @@ jobs:
     - name: Run cargo clippy
       run: cargo clippy --all --all-targets
       shell: bash
-  test-wasm:
+  build:
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2.4.0
