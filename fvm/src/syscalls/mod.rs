@@ -1,3 +1,4 @@
+use cid::Cid;
 use wasmtime::Linker;
 
 use crate::Kernel;
@@ -32,8 +33,6 @@ pub const MAX_CID_LEN: usize = 100;
 pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Result<()> {
     linker.bind_keep_error("vm", "abort", vm::abort)?;
 
-    linker.bind("ipld", "get_root", ipld::get_root)?;
-    linker.bind("ipld", "set_root", ipld::set_root)?;
     linker.bind("ipld", "open", ipld::open)?;
     linker.bind("ipld", "create", ipld::create)?;
     linker.bind("ipld", "read", ipld::read)?;
@@ -111,4 +110,22 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     linker.bind("send", "send", send::send)?;
 
     Ok(())
+}
+
+// Computes the encoded size of a varint.
+// TODO: move this to the varint crate.
+pub(self) fn uvarint_size(num: u64) -> u32 {
+    let bits = u64::BITS - num.leading_zeros();
+    (bits / 7 + (bits % 7 > 0) as u32).min(1) as u32
+}
+
+/// Returns the size cid would be, once encoded.
+// TODO: move this to the cid/multihash crates.
+pub(self) fn encoded_cid_size(k: &Cid) -> u32 {
+    let mh = k.hash();
+    let mh_size = uvarint_size(mh.code()) + uvarint_size(mh.size() as u64) + mh.size() as u32;
+    match k.version() {
+        cid::Version::V0 => mh_size,
+        cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
+    }
 }

@@ -5,7 +5,7 @@ extern "C" {
     ///
     /// If the CID doesn't fit in the specified maximum length (and/or the length is 0), this
     /// function returns the required size and does not update the cid buffer.
-    pub fn get_root(cid: *mut u8, cid_max_len: u32) -> (super::SyscallStatus, u32);
+    pub fn root(cid: *mut u8, cid_max_len: u32) -> (super::SyscallStatus, u32);
 
     /// Sets the root CID for the calling actor. The new root must be in the reachable set.
     pub fn set_root(cid: *const u8) -> super::SyscallStatus;

@@ -1,10 +1,23 @@
 use super::{Memory, MAX_CID_LEN};
-use crate::kernel::{ClassifyResult, Kernel, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
+use anyhow::{anyhow, Context};
 
 pub fn root(kernel: &mut impl Kernel, memory: &mut [u8], obuf_off: u32) -> Result<()> {
+    let root = kernel.root();
+    let size = super::encoded_cid_size(&root);
+    if size > MAX_CID_LEN as u32 {
+        return Err(ExecutionError::Fatal(anyhow!(
+            "root CID length larger than CID length allowed by environment: {} > {}",
+            size,
+            MAX_CID_LEN
+        )));
+    }
+
     let obuf = memory.try_slice_mut(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
-    let cid = kernel.root();
-    cid.write_bytes(&mut obuf[..MAX_CID_LEN]).or_fatal()?;
+    root.write_bytes(&mut obuf[..MAX_CID_LEN])
+        .context("failed to write cid root")
+        .or_fatal()?;
+
     Ok(())
 }
 

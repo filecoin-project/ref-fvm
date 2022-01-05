@@ -5,12 +5,12 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 
 /// Get the IPLD root CID.
-pub fn get_root() -> SyscallResult<Cid> {
+pub fn root() -> SyscallResult<Cid> {
     // I really hate this CID interface. Why can't I just have bytes?
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let len = sys::sself::get_root(buf.as_mut_ptr(), buf.len() as u32).into_syscall_result()?
-            as usize;
+        let len =
+            sys::sself::root(buf.as_mut_ptr(), buf.len() as u32).into_syscall_result()? as usize;
         if len > buf.len() {
             // TODO: re-try with a larger buffer?
             panic!("CID too big: {} > {}", len, buf.len())

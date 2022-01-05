@@ -74,7 +74,7 @@ pub fn put_block(codec: Codec, data: &[u8]) -> SyscallResult<BlockId> {
 // Transform the IPLD DAG.
 pub fn transaction(f: impl FnOnce(Cid) -> Option<Cid>) -> SyscallResult<()> {
     // TODO: Prevent calls, recursive transactions, etc.
-    f(sself::get_root()?).as_ref().map(sself::set_root);
+    f(sself::root()?).as_ref().map(sself::set_root);
     Ok(())
 }
 

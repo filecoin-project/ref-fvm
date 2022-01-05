@@ -146,7 +146,7 @@ where
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
-        let root = fvm::sself::get_root()?;
+        let root = fvm::sself::root()?;
         if root != *EMPTY_ARR_CID {
             return Err(
                 actor_error!(ErrIllegalState; "failed to create state; expected empty array CID, got: {}", root),
@@ -159,7 +159,7 @@ where
     }
 
     fn state<C: Cbor>(&self) -> Result<C, ActorError> {
-        let root = fvm::sself::get_root()?;
+        let root = fvm::sself::root()?;
         Ok(ActorBlockstore
             .get_cbor(&root)
             .map_err(
@@ -173,7 +173,7 @@ where
         C: Cbor,
         F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>,
     {
-        let state_cid = fvm::sself::get_root()
+        let state_cid = fvm::sself::root()
             .map_err(|_| actor_error!(ErrIllegalArgument; "failed to get actor root state CID"))?;
 
         let mut state = ActorBlockstore
