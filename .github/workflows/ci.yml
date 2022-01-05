@@ -30,6 +30,9 @@ jobs:
       with:
         command: generate-lockfile
     - uses: Swatinem/rust-cache@v1.3.0
+      with:
+        # change this to invalidate cache for this job
+        key: v0
     # otherwise the include_bytes! macro fails because this file hasn't been generated
     - run: touch examples/fvm/fvm_example_actor.wasm
       shell: bash
@@ -53,6 +56,9 @@ jobs:
         command: generate-lockfile
     - uses: protocol/cache-go-action@v1
     - uses: Swatinem/rust-cache@v1.3.0
+      with:
+        # change this to invalidate cache for this job
+        key: v0
     - uses: actions-rs/cargo@v1.0.3
       with:
         command: install
