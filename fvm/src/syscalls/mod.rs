@@ -4,10 +4,11 @@ use crate::Kernel;
 pub(crate) mod error;
 
 mod actor;
-mod context;
+mod bind;
 mod crypto;
 mod gas;
 mod ipld;
+mod memory;
 mod message;
 mod network;
 mod rand;
@@ -16,9 +17,9 @@ mod sself;
 mod validation;
 mod vm;
 
-pub(self) use context::Context;
+pub(self) use memory::Memory;
 
-use self::error::BindSyscall;
+use self::bind::BindSyscall;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
 pub const MAX_CID_LEN: usize = 100;
@@ -29,8 +30,7 @@ pub const MAX_CID_LEN: usize = 100;
 // TODO try to fix the static lifetime here. I want to tell the compiler that
 //  the Kernel will live as long as the Machine and the Linker.
 pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Result<()> {
-    // Wrap this manually as bind will clear the error before invoking the syscall.
-    linker.func_wrap("vm", "abort", vm::abort)?;
+    linker.bind_keep_error("vm", "abort", vm::abort)?;
 
     linker.bind("ipld", "get_root", ipld::get_root)?;
     linker.bind("ipld", "set_root", ipld::set_root)?;

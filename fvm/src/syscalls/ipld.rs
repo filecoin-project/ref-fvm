@@ -1,13 +1,12 @@
 use anyhow::Context as _;
 use cid::{self, Cid};
-use wasmtime::{self, Caller};
 
 use crate::{
     kernel::{ClassifyResult, Result},
     Kernel,
 };
 
-use super::Context as _;
+use super::Memory;
 
 // Computes the encoded size of a varint.
 // TODO: move this to the varint crate.
@@ -27,9 +26,12 @@ fn encoded_cid_size(k: &Cid) -> u32 {
     }
 }
 
-pub fn get_root(caller: &mut Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32) -> Result<u32> {
-    let (kernel, mut memory) = caller.kernel_and_memory()?;
-
+pub fn get_root(
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
+    cid_off: u32,
+    cid_len: u32,
+) -> Result<u32> {
     let root = kernel.root();
     let size = encoded_cid_size(&root);
     if size > cid_len {
@@ -45,39 +47,37 @@ pub fn get_root(caller: &mut Caller<'_, impl Kernel>, cid_off: u32, cid_len: u32
     Ok(size)
 }
 
-pub fn set_root(caller: &mut Caller<'_, impl Kernel>, cid: u32) -> Result<()> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
+pub fn set_root(kernel: &mut impl Kernel, memory: &mut [u8], cid: u32) -> Result<()> {
     let cid = memory.read_cid(cid)?;
     kernel.set_root(cid)?;
     Ok(())
 }
 
-pub fn open(caller: &mut Caller<'_, impl Kernel>, cid: u32) -> Result<u32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
+pub fn open(kernel: &mut impl Kernel, memory: &mut [u8], cid: u32) -> Result<u32> {
     let cid = memory.read_cid(cid)?;
     kernel.block_open(&cid)
 }
 
 pub fn create(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     codec: u64,
     data_off: u32,
     data_len: u32,
 ) -> Result<u32> {
-    let (kernel, memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice(data_off, data_len)?;
     kernel.block_create(codec, data)
 }
 
 pub fn cid(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     id: u32,
     hash_fun: u64,
     hash_len: u32,
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32> {
-    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let cid = kernel.block_link(id, hash_fun, hash_len)?;
 
     let size = encoded_cid_size(&cid);
@@ -94,20 +94,17 @@ pub fn cid(
 }
 
 pub fn read(
-    caller: &mut Caller<'_, impl Kernel>,
+    kernel: &mut impl Kernel,
+    memory: &mut [u8],
     id: u32,
     offset: u32,
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<u32> {
-    let (kernel, mut memory) = caller.kernel_and_memory()?;
     let data = memory.try_slice_mut(obuf_off, obuf_len)?;
     kernel.block_read(id, offset, data)
 }
 
-pub fn stat(caller: &mut Caller<'_, impl Kernel>, id: u32) -> Result<(u64, u32)> {
-    caller
-        .kernel()
-        .block_stat(id)
-        .map(|stat| (stat.codec, stat.size))
+pub fn stat(kernel: &mut impl Kernel, id: u32) -> Result<(u64, u32)> {
+    kernel.block_stat(id).map(|stat| (stat.codec, stat.size))
 }
