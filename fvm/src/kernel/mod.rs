@@ -90,7 +90,7 @@ pub trait BlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId>;
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)>;
 
     /// Create a new block.
     ///

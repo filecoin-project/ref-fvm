@@ -77,7 +77,7 @@ where
     C: CallManager<Machine = InterceptMachine<M, D>>,
     K: Kernel<CallManager = InterceptCallManager<C>>,
 {
-    fn block_open(&mut self, cid: &cid::Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &cid::Cid) -> Result<(BlockId, BlockStat)> {
         self.0.block_open(cid)
     }
 

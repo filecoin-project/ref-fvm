@@ -291,7 +291,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.0.block_open(cid)
     }
 

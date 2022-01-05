@@ -7,9 +7,10 @@ use crate::{
 
 use super::Memory;
 
-pub fn open(kernel: &mut impl Kernel, memory: &mut [u8], cid: u32) -> Result<u32> {
+pub fn open(kernel: &mut impl Kernel, memory: &mut [u8], cid: u32) -> Result<(u32, u64, u32)> {
     let cid = memory.read_cid(cid)?;
-    kernel.block_open(&cid)
+    let (id, stat) = kernel.block_open(&cid)?;
+    Ok((id, stat.codec, stat.size))
 }
 
 pub fn create(
