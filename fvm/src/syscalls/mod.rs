@@ -41,17 +41,17 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
 
     linker.bind(
         "validation",
-        "accept_any",
+        "validate_immediate_caller_accept_any",
         validation::validate_immediate_caller_accept_any,
     )?;
     linker.bind(
         "validation",
-        "accept_addrs",
+        "validate_immediate_caller_addr_one_of",
         validation::validate_immediate_caller_addr_one_of,
     )?;
     linker.bind(
         "validation",
-        "accept_types",
+        "validate_immediate_caller_type_one_of",
         validation::validate_immediate_caller_type_one_of,
     )?;
 
