@@ -1,4 +1,4 @@
-#[link(wasm_import_module = "fvm")]
+#[link(wasm_import_module = "vm")]
 extern "C" {
     /* Control */
 

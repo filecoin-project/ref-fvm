@@ -7,7 +7,6 @@ pub mod actor;
 pub mod crypto;
 #[cfg(feature = "debug")]
 pub mod debug;
-pub mod fvm;
 pub mod gas;
 pub mod ipld;
 pub mod message;
@@ -16,6 +15,7 @@ pub mod rand;
 pub mod send;
 pub mod sself;
 pub mod validation;
+pub mod vm;
 
 #[repr(transparent)]
 pub struct SyscallStatus(u32);

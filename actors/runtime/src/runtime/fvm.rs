@@ -327,7 +327,7 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     // Invoke the method, aborting if the actor returns an errored exit code, or
     // handling the return data appropriately otherwise.
     match C::invoke_method(&mut rt, method, &params) {
-        Err(err) => fvm::abort(err.exit_code() as u32, Some(err.msg())),
+        Err(err) => fvm::vm::abort(err.exit_code() as u32, Some(err.msg())),
         Ok(ret) if ret.len() == 0 => 0,
         Ok(ret) => fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result"),
     }

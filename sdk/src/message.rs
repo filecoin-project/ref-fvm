@@ -5,7 +5,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::error::{IntoSyscallResult, SyscallResult};
 use crate::ipld::{BlockId, Codec};
-use crate::{abort, sys};
+use crate::{sys, vm};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -65,7 +65,7 @@ pub fn params_cbor<T: Cbor>(id: BlockId) -> SyscallResult<T> {
     debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");
     match fvm_shared::encoding::from_slice(raw.as_slice()) {
         Ok(v) => Ok(v),
-        Err(e) => abort(
+        Err(e) => vm::abort(
             ExitCode::ErrSerialization as u32,
             Some(format!("could not deserialize parameters as cbor: {:?}", e).as_str()),
         ),
