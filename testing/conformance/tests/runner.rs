@@ -137,43 +137,43 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         ),
     };
 
-    let (succeeded, failed, skipped) = stream::from_iter(vector_results)
+    let mut results = stream::from_iter(vector_results)
         // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
         // parallel (yet), but that shouldn't be too hard.
         .buffer_unordered(100)
         .map_ok(|(path, res)| stream::from_iter(res).map_ok(move |r| (path.clone(), r)))
-        .try_flatten()
-        .try_fold(
-            (0, 0, 0),
-            |(mut succeeded, mut failed, mut skipped), (path, res)| async move {
-                match res {
-                    VariantResult::Ok { id } => {
-                        println!("OK vector {}, variant {}", path.display(), id);
-                        succeeded += 1;
-                    }
-                    VariantResult::Failed { reason, id } => {
-                        println!(
-                            "FAIL vector {}, variant {}, reason: {:?}",
-                            path.display(),
-                            id,
-                            reason
-                        );
-                        failed += 1;
-                    }
-                    VariantResult::Skipped { reason, id } => {
-                        println!(
-                            "SKIP vector {}, variant {}, reason: {:?}",
-                            path.display(),
-                            id,
-                            reason
-                        );
-                        skipped += 1;
-                    }
-                }
-                Ok((succeeded, failed, skipped))
-            },
-        )
-        .await?;
+        .try_flatten();
+
+    let mut succeeded = 0;
+    let mut failed = 0;
+    let mut skipped = 0;
+
+    while let Some((path, res)) = results.next().await.transpose()? {
+        match res {
+            VariantResult::Ok { id } => {
+                println!("OK vector {}, variant {}", path.display(), id);
+                succeeded += 1;
+            }
+            VariantResult::Failed { reason, id } => {
+                println!(
+                    "FAIL vector {}, variant {}, reason: {:?}",
+                    path.display(),
+                    id,
+                    reason
+                );
+                failed += 1;
+            }
+            VariantResult::Skipped { reason, id } => {
+                println!(
+                    "SKIP vector {}, variant {}, reason: {:?}",
+                    path.display(),
+                    id,
+                    reason
+                );
+                skipped += 1;
+            }
+        }
+    }
 
     println!(
         "conformance tests result: {}/{} tests passed ({} skipped):",
