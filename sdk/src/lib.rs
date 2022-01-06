@@ -1,6 +1,5 @@
 pub mod actor;
 pub mod crypto;
-pub mod error;
 pub mod gas;
 pub mod ipld;
 pub mod message;
@@ -24,3 +23,11 @@ pub const MAX_ACTOR_ADDR_LEN: usize = 21;
 pub(crate) fn status_code_to_bool(code: i32) -> bool {
     code == 0
 }
+
+/// SDK functions performing a syscall return a SyscallResult type, where the
+/// Error type is an ExitCode. ExitCode::Ok is translated to an Ok result, while
+/// error codes are propagated as Err(ExitCode).
+///
+/// Error messages don't make it across the boundary, but are logged at the FVM
+/// level for debugging and informational purposes.
+pub type SyscallResult<T> = core::result::Result<T, fvm_shared::error::ExitCode>;

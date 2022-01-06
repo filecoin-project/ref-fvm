@@ -1,5 +1,5 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
 use crate::sys;
+use crate::SyscallResult;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
@@ -22,7 +22,7 @@ pub fn get_chain_randomness(
             entropy.len() as u32,
             ret.as_mut_ptr(),
         )
-        .into_syscall_result()?
+        .into_result()?
     }
     Ok(Randomness(ret.to_vec()))
 }
@@ -45,7 +45,7 @@ pub fn get_beacon_randomness(
             entropy.len() as u32,
             ret.as_mut_ptr(),
         )
-        .into_syscall_result()?
+        .into_result()?
     }
     Ok(Randomness(ret.to_vec()))
 }

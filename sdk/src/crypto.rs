@@ -1,4 +1,4 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
+use crate::SyscallResult;
 use crate::{status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -32,7 +32,7 @@ pub fn verify_signature(
             plaintext.as_ptr(),
             plaintext.len() as u32,
         )
-        .into_syscall_result()
+        .into_result()
         .map(status_code_to_bool)
     }
 }
@@ -43,7 +43,7 @@ pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Vec<u8>> {
     let mut ret = Vec::with_capacity(32);
     unsafe {
         sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())
-            .into_syscall_result()?
+            .into_result()?
     }
     Ok(ret)
 }
@@ -65,7 +65,7 @@ pub fn compute_unsealed_sector_cid(
             out.as_mut_ptr(),
             out.len() as u32,
         )
-        .into_syscall_result()?;
+        .into_result()?;
         assert!(
             len <= out.len() as u32,
             "CID too large: {} > {}",
@@ -84,7 +84,7 @@ pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
         .expect("failed to marshal seal verification input");
     unsafe {
         sys::crypto::verify_seal(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
+            .into_result()
             .map(status_code_to_bool)
     }
 }
@@ -97,7 +97,7 @@ pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
         .expect("failed to marshal PoSt verification input");
     unsafe {
         sys::crypto::verify_post(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
+            .into_result()
             .map(status_code_to_bool)
     }
 }
@@ -127,7 +127,7 @@ pub fn verify_consensus_fault(
             extra.as_ptr(),
             extra.len() as u32,
         )
-        .into_syscall_result()?
+        .into_result()?
     };
     if fault == 0 {
         return Ok(None);
@@ -148,7 +148,7 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
         .expect("failed to marshal aggregate seal verification input");
     unsafe {
         sys::crypto::verify_aggregate_seals(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
+            .into_result()
             .map(status_code_to_bool)
     }
 }
