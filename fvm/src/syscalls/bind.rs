@@ -6,6 +6,7 @@ use crate::kernel::{ExecutionError, SyscallError};
 use crate::Kernel;
 
 use super::error::trap_from_error;
+use super::{Context, Memory};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
 // this type nonsense. But this was faster and will "work" for now.
@@ -14,7 +15,7 @@ use super::error::trap_from_error;
 ///
 /// 1. If the error is a syscall error, it's returned as the first return value.
 /// 2. If the error is a fatal error, a Trap is returned.
-pub(super) trait BindSyscall<Ctx: ?Sized, Args, Ret, Func> {
+pub(super) trait BindSyscall<Args, Ret, Func> {
     /// Bind a syscall to the linker.
     ///
     /// The return type will be automatically adjusted to return `Result<(u32, ...), Trap>` where
@@ -79,67 +80,27 @@ impl<T> IntoSyscallResult for Result<T, Trap> {
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {
-        /// Implementation for wasmtime specific syscalls that absolutely need a "Caller".
         #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<Caller<'_, K>, ($($t,)*), Ret, Func> for Linker<K>
+        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<K>
         where
             K: Kernel,
-            Func: for<'a> Fn(&'a mut Caller<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
+            Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoSyscallResult,
             Ret::Value: WasmRet,
            $($t: WasmTy,)*
         {
             fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
                 self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                    if !keep_error {
-                        caller.data_mut().clear_error();
-                    }
-                    syscall(&mut caller $(, $t)*).into(caller.data_mut())
-                })
-            }
-        }
-
-        /// Implementation for syscalls that only need a kernel.
-        #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<(K,), ($($t,)*), Ret, Func> for Linker<K>
-        where
-            K: Kernel,
-            Func: for<'a> Fn(&'a mut K $(, $t)*) -> Ret + Send + Sync + 'static,
-            Ret: IntoSyscallResult,
-            Ret::Value: WasmRet,
-           $($t: WasmTy,)*
-        {
-            fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
-                self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                    if !keep_error {
-                        caller.data_mut().clear_error();
-                    }
-                    syscall(caller.data_mut() $(, $t)*).into(caller.data_mut())
-                })
-            }
-        }
-
-        /// Implementation for syscalls that need a kernel and a memory.
-        #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<(K, [u8]), ($($t,)*), Ret, Func> for Linker<K>
-        where
-            K: Kernel,
-            Func: for<'a, 'b> Fn(&'a mut K, &'b mut [u8] $(, $t)*) -> Ret + Send + Sync + 'static,
-            Ret: IntoSyscallResult,
-            Ret::Value: WasmRet,
-           $($t: WasmTy,)*
-        {
-            fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
-                self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                    if !keep_error {
-                        caller.data_mut().clear_error();
-                    }
                     let (memory, kernel) = caller
                         .get_export("memory")
                         .and_then(|m| m.into_memory())
-                        .ok_or_else(||Trap::new("failed to lookup actor memory"))?
+                        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
                         .data_and_store_mut(&mut caller);
-                    syscall(kernel, memory $(, $t)*).into(kernel)
+
+                    if !keep_error {
+                        kernel.clear_error();
+                    }
+                    syscall(Context{ kernel, memory: Memory::new(memory) } $(, $t)*).into(kernel)
                 })
             }
         }

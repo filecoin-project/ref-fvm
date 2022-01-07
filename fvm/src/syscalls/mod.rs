@@ -6,10 +6,10 @@ pub(crate) mod error;
 
 mod actor;
 mod bind;
+mod context;
 mod crypto;
 mod gas;
 mod ipld;
-mod memory;
 mod message;
 mod network;
 mod rand;
@@ -18,7 +18,7 @@ mod sself;
 mod validation;
 mod vm;
 
-pub(self) use memory::Memory;
+pub(self) use context::{Context, Memory};
 
 use self::bind::BindSyscall;
 
