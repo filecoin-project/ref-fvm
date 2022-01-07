@@ -30,8 +30,8 @@ pub fn set_root(cid: &Cid) -> SyscallResult<()> {
 #[inline(always)]
 pub fn current_balance() -> SyscallResult<TokenAmount> {
     unsafe {
-        let (lo, hi) = sys::sself::current_balance()?;
-        Ok(TokenAmount::from(hi) << 64 | TokenAmount::from(lo))
+        let v = sys::sself::current_balance()?;
+        Ok(v.into())
     }
 }
 

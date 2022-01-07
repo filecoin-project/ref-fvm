@@ -33,7 +33,10 @@ pub fn send(
         } else {
             sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
         };
-        let (exit_code, return_id) = sys::send::send(
+        let sys::send::out::Send {
+            exit_code,
+            return_id,
+        } = sys::send::send(
             recipient.as_ptr(),
             recipient.len() as u32,
             method,
@@ -41,6 +44,8 @@ pub fn send(
             value_hi,
             value_lo,
         )?;
+
+        // Failures do not carry return values.
         if exit_code != ExitCode::Ok as u32 {
             return Ok(Receipt {
                 exit_code: ExitCode::from_u32(exit_code).unwrap_or(ExitCode::ErrIllegalState),
@@ -48,18 +53,19 @@ pub fn send(
                 gas_used: 0,
             });
         }
+
         let return_data = if return_id == NO_DATA_BLOCK_ID {
             RawBytes::default()
         } else {
             // Allocate a buffer to read the result.
-            let (_, length) = sys::ipld::stat(return_id)?;
-            let mut bytes = Vec::with_capacity(length as usize);
+            let sys::ipld::out::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
+            let mut bytes = Vec::with_capacity(size as usize);
             // Now read the result.
-            let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), length)?;
-            assert_eq!(read, length);
+            let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), size)?;
+            assert_eq!(read, size);
             RawBytes::from(bytes)
         };
-        // Deserialize the receipt.
+
         Ok(Receipt {
             exit_code: ExitCode::Ok,
             return_data,

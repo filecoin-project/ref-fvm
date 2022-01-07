@@ -105,7 +105,11 @@ pub fn verify_consensus_fault(
     h2: &[u8],
     extra: &[u8],
 ) -> SyscallResult<Option<ConsensusFault>> {
-    let (fault, epoch, actor) = unsafe {
+    let sys::crypto::out::VerifyConsensusFault {
+        fault,
+        epoch,
+        actor,
+    } = unsafe {
         sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
             h1.len() as u32,

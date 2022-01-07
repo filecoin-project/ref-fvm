@@ -31,7 +31,7 @@ super::fvm_syscalls! {
     /// - The reachable set is initialized to the root.
     /// - The reachable set is extended to include the direct children of loaded blocks until the
     ///   end of the invocation.
-    pub fn open(cid: *const u8) -> Result<(u32, u64, u32)>;
+    pub fn open(cid: *const u8) -> Result<self::out::IpldOpen>;
 
     /// Creates a new block, returning the block's ID. The block's children must be in the reachable
     /// set. The new block isn't added to the reachable set until the CID is computed.
@@ -42,7 +42,7 @@ super::fvm_syscalls! {
     pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<u32>;
 
     /// Returns the codec and size of the specified block.
-    pub fn stat(id: u32) -> Result<(u64, u32)>;
+    pub fn stat(id: u32) -> Result<self::out::IpldStat>;
 
     // TODO: CID versions?
 
@@ -58,4 +58,21 @@ super::fvm_syscalls! {
         cid: *mut u8,
         cid_max_len: u32,
     ) -> Result<u32>;
+}
+
+/// Module containing multi-value out types of these syscalls.
+pub mod out {
+    #[repr(C)]
+    pub struct IpldOpen {
+        /// TODO could be more efficient to align id, size, codec, depending on padding.
+        pub id: u32,
+        pub codec: u64,
+        pub size: u32,
+    }
+
+    #[repr(C)]
+    pub struct IpldStat {
+        pub codec: u64,
+        pub size: u32,
+    }
 }

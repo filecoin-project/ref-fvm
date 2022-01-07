@@ -1,3 +1,4 @@
+use crate::sys::ipld::out::IpldOpen;
 use crate::SyscallResult;
 use crate::{sself, sys, MAX_CID_LEN};
 use cid::Cid;
@@ -40,7 +41,7 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
         let mut cid_buf = [0u8; MAX_CID_LEN];
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
-        let (id, _, size) = sys::ipld::open(cid_buf.as_mut_ptr())?;
+        let IpldOpen { id, size, .. } = sys::ipld::open(cid_buf.as_mut_ptr())?;
         get_block(id, Some(size))
     }
 }
@@ -50,7 +51,7 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
 pub fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
     let size = match size {
         Some(size) => size,
-        None => unsafe { sys::ipld::stat(id).map(|(_, size)| size)? },
+        None => unsafe { sys::ipld::stat(id).map(|out| out.size)? },
     };
     let mut block = Vec::with_capacity(size as usize);
     unsafe {

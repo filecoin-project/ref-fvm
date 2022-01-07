@@ -20,14 +20,14 @@ pub fn version() -> SyscallResult<NetworkVersion> {
 
 pub fn base_fee() -> SyscallResult<TokenAmount> {
     unsafe {
-        let (hi, lo) = sys::network::base_fee()?;
-        Ok(TokenAmount::from((hi as u128) << 64 | lo as u128))
+        let v = sys::network::base_fee()?;
+        Ok(v.into())
     }
 }
 
 pub fn total_fil_circ_supply() -> SyscallResult<TokenAmount> {
     unsafe {
-        let (hi, lo) = sys::network::total_fil_circ_supply()?;
-        Ok(TokenAmount::from((hi as u128) << 64 | lo as u128))
+        let v = sys::network::total_fil_circ_supply()?;
+        Ok(v.into())
     }
 }

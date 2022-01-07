@@ -34,7 +34,7 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         return Ok((DAG_CBOR, Vec::default())); // DAG_CBOR is a lie, but we have no nil codec.
     }
     unsafe {
-        let (codec, size) = sys::ipld::stat(id)?;
+        let sys::ipld::out::IpldStat { codec, size } = sys::ipld::stat(id)?;
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
@@ -47,8 +47,8 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 #[inline(always)]
 pub fn value_received() -> SyscallResult<TokenAmount> {
     unsafe {
-        let (lo, hi) = sys::message::value_received()?;
-        Ok(TokenAmount::from(hi) << 64 | TokenAmount::from(lo))
+        let v = sys::message::value_received()?;
+        Ok(v.into())
     }
 }
 
