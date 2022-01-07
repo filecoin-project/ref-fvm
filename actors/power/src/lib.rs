@@ -5,8 +5,7 @@ use ahash::AHashSet;
 use anyhow::anyhow;
 use ext::init;
 use fvm_shared::blockstore::Blockstore;
-use indexmap::IndexMap;
-use log::{debug, error, info};
+use log::{debug, error};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
 
@@ -433,9 +432,8 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        // Index map is needed here to preserve insertion order, miners must be iterated based
-        // on order iterated through multimap.
-        let mut verifies = IndexMap::new();
+        let mut miners: Vec<(Address, usize)> = Vec::new();
+        let mut infos: Vec<SealVerifyInfo> = Vec::new();
         let mut st_err: Option<String> = None;
         let this_epoch_qa_power_smoothed = rt
             .transaction(|st: &mut State, rt| {
@@ -487,7 +485,8 @@ impl Actor {
                         return Ok(());
                     }
 
-                    let mut infos = Vec::new();
+                    let num_proofs = arr.count();
+                    infos.reserve(num_proofs);
                     arr.for_each(|_, svi| {
                         infos.push(svi.clone());
                         Ok(())
@@ -500,7 +499,7 @@ impl Actor {
                         )
                     })?;
 
-                    verifies.insert(addr, infos);
+                    miners.push((addr, num_proofs));
                     Ok(())
                 }) {
                     // Do not return immediately, all runs that get this far should wipe the ProofValidationBatchQueue.
@@ -522,48 +521,47 @@ impl Actor {
             return Err(st_err);
         }
 
-        // TODO if verifies is ever Rayon compatible, this won't be needed
-        let verif_arr: Vec<(&Address, &Vec<SealVerifyInfo>)> = verifies.iter().collect();
         let res = rt
-            .batch_verify_seals(verif_arr.as_slice())
+            .batch_verify_seals(&infos)
             .map_err(|e| format!("failed to batch verify: {}", e))?;
-        for (m, verifs) in verifies.iter() {
-            let vres = res.get(m).ok_or_else(
-                || format!("batch verify seals syscall implemented incorrectly, result not found for miner: {}", m)
-            )?;
 
-            let mut seen = AHashSet::<_>::new();
-            let mut successful = Vec::new();
-            for (i, &r) in vres.iter().enumerate() {
-                if r {
-                    let snum = verifs[i].sector_id.number;
-                    if seen.contains(&snum) {
-                        info!("skipped over a duplicate proof");
-                        continue;
-                    }
-                    seen.insert(snum);
-                    successful.push(snum);
-                }
-            }
+        let mut res_iter = infos.iter().zip(res.iter().copied());
+        for (m, count) in miners {
+            let successful: Vec<_> = res_iter
+                .by_ref()
+                // Take the miner's sectors.
+                .take(count)
+                // Filter by successful
+                .filter(|(_, r)| *r)
+                // Pull out the sector numbers.
+                .map(|(info, _)| info.sector_id.number)
+                // Deduplicate
+                .filter({
+                    let mut seen = AHashSet::<_>::with_capacity(count);
+                    move |snum| seen.insert(*snum)
+                })
+                .collect();
+
             // Result intentionally ignored
-            if !successful.is_empty() {
-                if let Err(e) = rt.send(
-                    *m,
-                    ext::miner::CONFIRM_SECTOR_PROOFS_VALID_METHOD,
-                    RawBytes::serialize(&ext::miner::ConfirmSectorProofsParams {
-                        sectors: successful,
-                        reward_smoothed: rewret.this_epoch_reward_smoothed.clone(),
-                        reward_baseline_power: rewret.this_epoch_baseline_power.clone(),
-                        quality_adj_power_smoothed: this_epoch_qa_power_smoothed.clone(),
-                    })
-                    .map_err(|e| format!("failed to serialize ConfirmSectorProofsParams: {}", e))?,
-                    Default::default(),
-                ) {
-                    error!(
-                        "failed to confirm sector proof validity to {}, error code {}",
-                        m, e
-                    );
-                }
+            if successful.is_empty() {
+                continue;
+            }
+            if let Err(e) = rt.send(
+                m,
+                ext::miner::CONFIRM_SECTOR_PROOFS_VALID_METHOD,
+                RawBytes::serialize(&ext::miner::ConfirmSectorProofsParams {
+                    sectors: successful,
+                    reward_smoothed: rewret.this_epoch_reward_smoothed.clone(),
+                    reward_baseline_power: rewret.this_epoch_baseline_power.clone(),
+                    quality_adj_power_smoothed: this_epoch_qa_power_smoothed.clone(),
+                })
+                .map_err(|e| format!("failed to serialize ConfirmSectorProofsParams: {}", e))?,
+                Default::default(),
+            ) {
+                error!(
+                    "failed to confirm sector proof validity to {}, error code {}",
+                    m, e
+                );
             }
         }
         Ok(())

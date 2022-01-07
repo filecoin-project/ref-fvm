@@ -99,8 +99,7 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
         "verify_aggregate_seals",
         crypto::verify_aggregate_seals,
     )?;
-    // TODO implement
-    // linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
+    linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
 
     linker.bind("rand", "get_chain_randomness", rand::get_chain_randomness)?;
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;

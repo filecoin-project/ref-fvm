@@ -55,6 +55,9 @@ super::fvm_syscalls! {
 
     /// Verifies an aggregated batch of sector seal proofs.
     pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> Result<i32>;
+
+    /// Verifies an aggregated batch of sector seal proofs.
+    pub fn batch_verify_seals(batch_off: *const u8, batch_len: u32, result_off: *const u8) -> Result<i32>;
 }
 
 /// Module containing multi-value out types of these syscalls.

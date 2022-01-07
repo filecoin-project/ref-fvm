@@ -1,8 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
-
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
 
@@ -229,16 +227,11 @@ pub trait Syscalls {
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>, anyhow::Error>;
 
-    fn batch_verify_seals(
-        &self,
-        vis: &[(&Address, &Vec<SealVerifyInfo>)],
-    ) -> anyhow::Result<HashMap<Address, Vec<bool>>> {
-        let mut verified = HashMap::new();
-        for (&addr, s) in vis.iter() {
-            let vals = s.iter().map(|si| self.verify_seal(si).is_ok()).collect();
-            verified.insert(addr, vals);
-        }
-        Ok(verified)
+    fn batch_verify_seals(&self, batch: &[SealVerifyInfo]) -> anyhow::Result<Vec<bool>> {
+        Ok(batch
+            .iter()
+            .map(|si| self.verify_seal(si).is_ok())
+            .collect())
     }
     fn verify_aggregate_seals(
         &self,

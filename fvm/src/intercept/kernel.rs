@@ -156,11 +156,8 @@ where
 
     fn batch_verify_seals(
         &mut self,
-        vis: &[(
-            &fvm_shared::address::Address,
-            &[fvm_shared::sector::SealVerifyInfo],
-        )],
-    ) -> Result<std::collections::HashMap<fvm_shared::address::Address, Vec<bool>>> {
+        vis: &[fvm_shared::sector::SealVerifyInfo],
+    ) -> Result<Vec<bool>> {
         self.0.batch_verify_seals(vis)
     }
 

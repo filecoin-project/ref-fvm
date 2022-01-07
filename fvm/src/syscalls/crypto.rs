@@ -16,6 +16,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::ActorID;
 use std::collections::HashMap;
+use std::iter;
 use wasmtime::{Caller, Trap};
 
 use super::Context;
@@ -203,10 +204,26 @@ pub fn verify_aggregate_seals(
         .map(|v| if v { 0 } else { -1 })
 }
 
-// TODO implement
-fn batch_verify_seals(
-    caller: Caller<'_, impl Kernel>,
-    vis: &[(&Address, &[SealVerifyInfo])],
-) -> Result<HashMap<Address, Vec<i32>>> {
-    todo!()
+/// Verify a batch of seals encoded as a CBOR array of `SealVerifyInfo`.
+///
+/// When successful, this method will write a single byte back into the array at `result_off` for
+/// each result: 0 for failed, 1 for success.
+pub fn batch_verify_seals(
+    mut context: Context<'_, impl Kernel>,
+    batch_off: u32,
+    batch_len: u32,
+    result_off: u32,
+) -> Result<()> {
+    let batch = context
+        .memory
+        .read_cbor::<Vec<SealVerifyInfo>>(batch_off, batch_len)?;
+
+    let mut result = context.kernel.batch_verify_seals(&batch)?;
+    let output = context
+        .memory
+        .try_slice_mut(result_off, result.len() as u32)?;
+    unsafe {
+        output.copy_from_slice(&*(&*result as *const [bool] as *const [u8]));
+    }
+    Ok(())
 }

@@ -24,7 +24,6 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -343,10 +342,7 @@ where
     }
 
     // forwarded
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>> {
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         self.0.batch_verify_seals(vis)
     }
 

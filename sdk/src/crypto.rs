@@ -143,8 +143,19 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
 }
 
 #[allow(unused)]
-fn batch_verify_seals(vis: &[(&Address, &Vec<SealVerifyInfo>)]) -> ! {
-    todo!()
+pub fn batch_verify_seals(batch: &[SealVerifyInfo]) -> SyscallResult<Vec<bool>> {
+    let encoded = to_vec(batch).expect("failed to marshal batch seal verification input");
+
+    Ok(unsafe {
+        let mut result: Vec<bool> = Vec::with_capacity(batch.len());
+        sys::crypto::batch_verify_seals(
+            encoded.as_ptr(),
+            encoded.len() as u32,
+            result.as_mut_ptr() as *mut u8,
+        )?;
+        result.set_len(batch.len());
+        result
+    })
 }
 
 // TODO implement verify_replica_update
