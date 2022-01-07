@@ -1,26 +1,28 @@
 use super::{Context, MAX_CID_LEN};
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
-use anyhow::{anyhow, Context as _};
+use crate::kernel::{ClassifyResult, Kernel, Result};
+use anyhow::Context as _;
 
-pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32) -> Result<()> {
+/// Returns the root CID of the actor's state by writing it in the specified buffer.
+///
+/// The returned u32 represents the _actual_ length of the CID. If the supplied
+/// buffer is smaller, no value will have been written. The caller must retry
+/// with a larger buffer.
+pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> Result<u32> {
     let root = context.kernel.root();
     let size = super::encoded_cid_size(&root);
-    if size > MAX_CID_LEN as u32 {
-        return Err(ExecutionError::Fatal(anyhow!(
-            "root CID length larger than CID length allowed by environment: {} > {}",
-            size,
-            MAX_CID_LEN
-        )));
+
+    if size <= obuf_len {
+        // Only write the CID if there's sufficient capacity.
+        let obuf = context
+            .memory
+            .try_slice_mut(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
+
+        root.write_bytes(&mut obuf[..MAX_CID_LEN])
+            .context("failed to write cid root")
+            .or_fatal()?;
     }
 
-    let obuf = context
-        .memory
-        .try_slice_mut(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
-    root.write_bytes(&mut obuf[..MAX_CID_LEN])
-        .context("failed to write cid root")
-        .or_fatal()?;
-
-    Ok(())
+    Ok(size)
 }
 
 pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {

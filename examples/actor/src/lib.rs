@@ -8,6 +8,7 @@ use fvm_sdk as sdk;
 pub fn invoke(_: u32) -> u32 {
     //let root = sdk::ipld::get_root();
     let _value = sdk::network::base_fee().unwrap();
+    sdk::sself::root();
     sdk::vm::abort(2, None);
 
     sdk::ipld::UNIT
