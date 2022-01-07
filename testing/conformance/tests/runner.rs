@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::{anyhow, Result};
+use async_std::stream;
 use cid::Cid;
 use colored::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestCallManager, TestKernel, TestMachine};
 use fmt::Display;
+use futures::{StreamExt, TryStreamExt};
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::machine::Machine;
 use fvm::DefaultKernel;
-use fvm_shared::blockstore;
+use fvm_shared::blockstore::{self, MemoryBlockstore};
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::env::var;
-use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::{fmt, iter};
 use walkdir::{DirEntry, WalkDir};
 
 lazy_static! {
@@ -115,43 +117,63 @@ fn compare_state_roots(
 }
 
 #[async_std::test]
-async fn conformance_test_runner() -> Result<(), Box<dyn std::error::Error>> {
+async fn conformance_test_runner() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
-    let vector_results: Vec<(PathBuf, Vec<VariantResult>)> = match var("VECTOR") {
-        Ok(v) => {
-            let path = Path::new(v.as_str()).to_path_buf();
-            let res = run_vector(&path).await;
-            vec![(path, res)]
-        }
-        Err(_) => {
-            let paths: Vec<PathBuf> = WalkDir::new("test-vectors/corpus")
+    let vector_results = match var("VECTOR") {
+        Ok(v) => either::Either::Left(
+            iter::once(async move {
+                let path = Path::new(v.as_str()).to_path_buf();
+                let res = run_vector(&path).await?;
+                anyhow::Ok((path, res))
+            })
+            .map(futures::future::Either::Left),
+        ),
+        Err(_) => either::Either::Right(
+            WalkDir::new("test-vectors/corpus")
                 .into_iter()
                 .filter_map(|e| e.ok())
                 .filter(is_runnable)
-                .map(|e| e.path().to_path_buf())
-                .collect();
-
-            let mut ret = Vec::new();
-            for path in paths {
-                // Cannot use iterator map here because of the async function.
-                let res = run_vector(&path).await;
-                ret.push((path, res));
-            }
-            ret
-        }
+                .map(|e| async move {
+                    let path = e.path().to_path_buf();
+                    let res = run_vector(&path).await?;
+                    Ok((path, res))
+                })
+                .map(futures::future::Either::Right),
+        ),
     };
+
+    let mut results = stream::from_iter(vector_results)
+        // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
+        // parallel (yet), but that shouldn't be too hard.
+        .buffer_unordered(100)
+        .map_ok(|(path, res)| stream::from_iter(res).map_ok(move |r| (path.clone(), r)))
+        .try_flatten();
 
     let mut succeeded = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
-    for (_, ress) in vector_results {
-        for res in ress {
-            match res {
-                VariantResult::Ok { .. } => succeeded += 1,
-                VariantResult::Failed { .. } => failed += 1,
-                VariantResult::Skipped { .. } => skipped += 1,
+    // Output the result to stdout.
+    // Doing this here instead of in an inspect so that we get streaming output.
+    macro_rules! report {
+        ($status:expr, $path:expr, $id:expr) => {
+            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+        };
+    }
+
+    while let Some((path, res)) = results.next().await.transpose()? {
+        match res {
+            VariantResult::Ok { id } => {
+                report!("OK".on_green(), path.display(), id);
+            }
+            VariantResult::Failed { reason, id } => {
+                report!("FAIL".white().on_red(), path.display(), id);
+                println!("\t|> reason: {}", reason);
+            }
+            VariantResult::Skipped { reason, id } => {
+                report!("SKIP".on_yellow(), path.display(), id);
+                println!("\t|> reason: {}", reason);
             }
         }
     }
@@ -169,7 +191,7 @@ async fn conformance_test_runner() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     if failed > 0 {
-        Err(String::from("some vectors failed").into())
+        Err(anyhow!("some vectors failed"))
     } else {
         Ok(())
     }
@@ -187,84 +209,53 @@ enum VariantResult {
 
 /// Runs a single test vector and returns a list of VectorResults,
 /// one per variant.
-async fn run_vector(path: &PathBuf) -> Vec<VariantResult> {
-    let file = File::open(path).unwrap();
+async fn run_vector(
+    path: &PathBuf,
+) -> anyhow::Result<impl Iterator<Item = anyhow::Result<VariantResult>>> {
+    let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let vector: TestVector = serde_json::from_reader(reader).unwrap();
+    let vector: TestVector = serde_json::from_reader(reader)?;
 
     match vector {
         TestVector::Message(v) => {
-            let variants = &v.preconditions.variants;
             let skip = !v.selector.as_ref().map_or(true, Selector::supported);
-            let results = if skip {
-                variants
-                    .iter()
-                    .map(|variant| VariantResult::Skipped {
-                        id: variant.id.clone(),
-                        reason: "selector not supported".to_owned(),
-                    })
-                    .collect()
+            if skip {
+                Ok(either::Either::Left(
+                    v.preconditions.variants.into_iter().map(|variant| {
+                        Ok(VariantResult::Skipped {
+                            id: variant.id,
+                            reason: "selector not supported".to_owned(),
+                        })
+                    }),
+                ))
             } else {
-                let mut ret = Vec::with_capacity(variants.len());
-                for variant in variants.iter() {
-                    // Cannot use a functional approach without dealing with
-                    // futures streams due to the async :-(
-                    ret.push(run_variant(&v, &variant).await);
+                // First import the blockstore and do some sanity checks.
+                let (bs, imported_root) = v.seed_blockstore().await?;
+                if imported_root.len() != 1 {
+                    return Err(anyhow!("expected one root; found {}", imported_root.len()));
                 }
-                ret
-            };
-
-            // Output the result to stdout.
-            // Doing this here instead of in an inspect so that we get streaming output.
-            macro_rules! report {
-                ($status:expr, $path:expr, $id:expr) => {
-                    println!("[{}] vector: {} | variant: {}", $status, $path, $id);
-                };
-            }
-            for res in &results {
-                match &res {
-                    VariantResult::Ok { id } => {
-                        report!("OK".on_green(), path.display(), id);
-                    }
-                    VariantResult::Failed { reason, id } => {
-                        report!("FAIL".white().on_red(), path.display(), id);
-                        println!("\t|> reason: {}", reason);
-                    }
-                    VariantResult::Skipped { reason, id } => {
-                        report!("SKIP".on_yellow(), path.display(), id);
-                        println!("\t|> reason: {}", reason);
-                    }
+                if v.preconditions.state_tree.root_cid != imported_root[0] {
+                    return Err(anyhow!(
+                        "imported root does not match precondition root; imported: {}; expected: {}",
+                        imported_root[0],
+                        v.preconditions.state_tree.root_cid
+                    ));
                 }
+                Ok(either::Either::Right(
+                    (0..v.preconditions.variants.len())
+                        .map(move |i| run_variant(bs.clone(), &v, &v.preconditions.variants[i])),
+                ))
             }
-
-            results
         }
     }
 }
 
-async fn run_variant(v: &MessageVector, variant: &Variant) -> VariantResult {
+fn run_variant(
+    bs: MemoryBlockstore,
+    v: &MessageVector,
+    variant: &Variant,
+) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
-
-    // Import the embedded CAR into a memory blockstore.
-    let (mut bs, imported_root) = v.seed_blockstore().await;
-
-    // Sanity checks.
-    if imported_root.len() != 1 {
-        return VariantResult::Failed {
-            id,
-            reason: anyhow!("expected one root; found {}", imported_root.len()),
-        };
-    }
-    if v.preconditions.state_tree.root_cid != imported_root[0] {
-        return VariantResult::Failed {
-            id,
-            reason: anyhow!(
-                "imported root does not match precondition root; imported: {}; expected: {}",
-                imported_root[0],
-                v.preconditions.state_tree.root_cid
-            ),
-        };
-    }
 
     // Construct the Machine.
     let machine = TestMachine::new_for_vector(&v, &variant, bs);
@@ -274,15 +265,18 @@ async fn run_variant(v: &MessageVector, variant: &Variant) -> VariantResult {
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
-        let msg = Message::unmarshal_cbor(&m.bytes).unwrap();
+        let msg = Message::unmarshal_cbor(&m.bytes)?;
 
         // Execute the message.
-        let ret = exec.execute_message(msg, ApplyKind::Explicit).unwrap();
+        let ret = match exec.execute_message(msg, ApplyKind::Explicit) {
+            Ok(ret) => ret,
+            Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
+        };
 
         // Compare the actual receipt with the expected receipt.
         let expected_receipt = &v.postconditions.receipts[i];
         if let Err(err) = check_msg_result(expected_receipt, &ret, i) {
-            return VariantResult::Failed { id, reason: err };
+            return Ok(VariantResult::Failed { id, reason: err });
         }
     }
 
@@ -291,21 +285,31 @@ async fn run_variant(v: &MessageVector, variant: &Variant) -> VariantResult {
     let final_root = match exec.flush() {
         Ok(cid) => cid,
         Err(err) => {
-            return VariantResult::Failed {
+            return Ok(VariantResult::Failed {
                 id,
                 reason: err.context("flushing executor failed"),
-            };
+            });
         }
     };
 
-    bs = exec.consume().unwrap().consume().consume();
+    let machine = match exec.consume() {
+        Some(machine) => machine,
+        None => {
+            return Ok(VariantResult::Failed {
+                id,
+                reason: anyhow!("machine poisoned"),
+            })
+        }
+    };
+
+    let bs = machine.consume().consume();
 
     if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
-        return VariantResult::Failed {
+        return Ok(VariantResult::Failed {
             id,
             reason: err.context("comparing state roots failed"),
-        };
+        });
     }
 
-    VariantResult::Ok { id }
+    Ok(VariantResult::Ok { id })
 }

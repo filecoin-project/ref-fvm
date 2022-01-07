@@ -36,6 +36,7 @@ wasmtime = "0.32.0" # this dependency is necessary because replacing a kernel wi
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
 colored = "2"
+either = "1.6.1"
 
 [dev-dependencies]
 regex = { version = "1.0" }
