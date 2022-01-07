@@ -392,6 +392,10 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
+    fn log(&self, msg: String) {
+        self.0.log(msg)
+    }
+
     fn push_syscall_error(&mut self, e: SyscallError) {
         self.0.push_syscall_error(e)
     }

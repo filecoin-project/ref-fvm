@@ -322,6 +322,9 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     } else {
         RawBytes::default()
     };
+
+    fvm::debug::log(format!("[trampoline] input params: {:?}", params.bytes()));
+
     // Construct a new runtime.
     let mut rt = FvmRuntime::default();
     // Invoke the method, aborting if the actor returns an errored exit code, or

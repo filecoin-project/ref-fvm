@@ -8,6 +8,7 @@ mod actor;
 mod bind;
 mod context;
 mod crypto;
+mod debug;
 mod gas;
 mod ipld;
 mod message;
@@ -108,6 +109,8 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
 
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;
+
+    linker.bind("debug", "log", debug::log)?;
 
     Ok(())
 }

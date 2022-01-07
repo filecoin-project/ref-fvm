@@ -843,6 +843,10 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    fn log(&self, msg: String) {
+        println!("{}", msg)
+    }
+
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,

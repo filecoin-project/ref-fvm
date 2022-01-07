@@ -288,6 +288,9 @@ pub trait RandomnessOps {
 
 /// Debugging APIs.
 pub trait DebugOps {
+    /// Log a message.
+    fn log(&self, msg: String);
+
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.

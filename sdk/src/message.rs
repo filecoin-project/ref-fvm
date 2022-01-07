@@ -35,9 +35,18 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
     }
     unsafe {
         let sys::ipld::out::IpldStat { codec, size } = sys::ipld::stat(id)?;
+        crate::debug::log(format!(
+            "[params_raw] ipld stat: size={:?}; codec={:?}",
+            codec, size
+        ));
+
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
+        crate::debug::log(format!(
+            "[params_raw] ipld read: bytes_read={:?}",
+            bytes_read
+        ));
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         Ok((codec, buf))
     }
