@@ -1,12 +1,13 @@
+use std::mem;
+
 use fvm_shared::error::ExitCode;
 
-use wasmtime::{Caller, Linker, Trap, WasmRet, WasmTy};
+use wasmtime::{Caller, Linker, Trap, WasmTy};
 
-use crate::kernel::{ExecutionError, SyscallError};
-use crate::Kernel;
+use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 use super::error::trap_from_error;
-use super::{Context, Memory};
+use super::Context;
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
 // this type nonsense. But this was faster and will "work" for now.
@@ -65,15 +66,31 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
 /// results that can be handled by wasmtime. See the documentation on `BindSyscall` for details.
 #[doc(hidden)]
 pub trait IntoSyscallResult: Sized {
-    type Value;
-    fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap>;
+    type Value: Copy + Sized + 'static;
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap>;
+}
+// Implementation for syscalls that want to trap directly.
+impl<T> IntoSyscallResult for Result<T, Trap>
+where
+    T: Copy + Sized + 'static,
+{
+    type Value = T;
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
+        self.map(Ok)
+    }
 }
 
-// Implementation for syscalls that want to trap directly.
-impl<T> IntoSyscallResult for Result<T, Trap> {
+impl<T> IntoSyscallResult for kernel::Result<T>
+where
+    T: Copy + Sized + 'static,
+{
     type Value = T;
-    fn into<K: Kernel>(self, _k: &mut K) -> Result<Self::Value, Trap> {
-        self
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
+        match self {
+            Ok(value) => Ok(Ok(value)),
+            Err(ExecutionError::Syscall(err)) if err.is_recoverable() => Ok(Err(err)),
+            Err(e) => Err(trap_from_error(e)),
+        }
     }
 }
 
@@ -86,40 +103,55 @@ macro_rules! impl_bind_syscalls {
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoSyscallResult,
-            Ret::Value: WasmRet,
            $($t: WasmTy,)*
         {
             fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
-                self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                    let (memory, kernel) = caller
-                        .get_export("memory")
-                        .and_then(|m| m.into_memory())
-                        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
-                        .data_and_store_mut(&mut caller);
+                if mem::size_of::<Ret::Value>() == 0 {
+                    // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
+                        let mut ctx = Context::try_from(&mut caller)?;
+                        if !keep_error {
+                            ctx.kernel.clear_error();
+                        }
 
-                    if !keep_error {
-                        kernel.clear_error();
-                    }
-                    syscall(Context{ kernel, memory: Memory::new(memory) } $(, $t)*).into(kernel)
-                })
-            }
-        }
+                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
+                            Ok(_) => 0,
+                            Err(err) => {
+                                let code = err.1;
+                                ctx.kernel.push_syscall_error(err);
+                                code as u32
+                            },
+                        })
+                    })
+                } else {
+                    // If we're returning an actual value, we need to write it back into the wasm module's memory.
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, K>, ret: u32 $(, $t: $t)*| {
+                        let mut ctx = Context::try_from(&mut caller)?;
 
-        #[allow(non_snake_case)]
-        impl< $($t),* > IntoSyscallResult for crate::kernel::Result<($($t,)*)>
-        where
-            $($t: Default + WasmTy,)*
-        {
-            type Value = (u32, $($t),*);
-            fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
-                use ExecutionError::*;
-                match self {
-                    Ok(($($t,)*)) => Ok((ExitCode::Ok as u32, $($t),*)),
-                    Err(Syscall(err @ SyscallError(_, code))) if err.is_recoverable() => {
-                        k.push_syscall_error(err);
-                        Ok((code as u32, $($t::default()),*))
-                    },
-                    Err(err) => Err(trap_from_error(err)),
+                        if !keep_error {
+                            ctx.kernel.clear_error();
+                        }
+
+                        // We need to check to make sure we can store the return value _before_ we do anything.
+                        if (ret as u64) > (ctx.memory.len() as u64)
+                            || ctx.memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
+                            let code = ExitCode::SysErrIllegalArgument;
+                            ctx.kernel.push_syscall_error(SyscallError(format!("no space for return value"), code));
+                            return Ok(code as u32);
+                        }
+
+                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
+                            Ok(value) => {
+                                unsafe { *(ctx.memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                0
+                            },
+                            Err(err) => {
+                                let code = err.1;
+                                ctx.kernel.push_syscall_error(err);
+                                code as u32
+                            },
+                        })
+                    })
                 }
             }
         }
@@ -133,28 +165,3 @@ impl_bind_syscalls!(A B C);
 impl_bind_syscalls!(A B C D);
 impl_bind_syscalls!(A B C D E);
 impl_bind_syscalls!(A B C D E F);
-
-// We've now implemented it for all "tuple" return types, but we still need to implement it for
-// returning a single non-tuple type. Unfortunately, we can't do this generically without
-// conflicting with the tuple impls, so we implement it explicitly for all value types we support.
-macro_rules! impl_bind_syscalls_single_return {
-    ($($t:ty)*) => {
-        $(
-            impl IntoSyscallResult for crate::kernel::Result<$t> {
-                type Value = (u32, $t);
-                fn into<K: Kernel>(self, k: &mut K) -> Result<Self::Value, Trap> {
-                    use ExecutionError::*;
-                    match self {
-                        Ok(v) => Ok((ExitCode::Ok as u32, v)),
-                        Err(Syscall(err @ SyscallError(_, code))) if err.is_recoverable() => {
-                            k.push_syscall_error(err);
-                            Ok((code as u32, Default::default()))
-                        }
-                        Err(err) => Err(trap_from_error(err)),
-                    }
-                }
-            }
-        )*
-    };
-}
-impl_bind_syscalls_single_return!(u32 i32 u64 i64 f32 f64);

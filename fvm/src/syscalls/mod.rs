@@ -18,7 +18,7 @@ mod sself;
 mod validation;
 mod vm;
 
-pub(self) use context::{Context, Memory};
+pub(self) use context::Context;
 
 use self::bind::BindSyscall;
 

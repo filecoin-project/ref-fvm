@@ -31,7 +31,7 @@ pub fn send(
         let params_id = if params.len() == 0 {
             NO_DATA_BLOCK_ID
         } else {
-            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32).into_result()?
+            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
         };
         let (exit_code, return_id) = sys::send::send(
             recipient.as_ptr(),
@@ -40,8 +40,7 @@ pub fn send(
             params_id,
             value_hi,
             value_lo,
-        )
-        .into_result()?;
+        )?;
         if exit_code != ExitCode::Ok as u32 {
             return Ok(Receipt {
                 exit_code: ExitCode::from_u32(exit_code).unwrap_or(ExitCode::ErrIllegalState),
@@ -53,10 +52,10 @@ pub fn send(
             RawBytes::default()
         } else {
             // Allocate a buffer to read the result.
-            let (_, length) = sys::ipld::stat(return_id).into_result()?;
+            let (_, length) = sys::ipld::stat(return_id)?;
             let mut bytes = Vec::with_capacity(length as usize);
             // Now read the result.
-            let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), length).into_result()?;
+            let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), length)?;
             assert_eq!(read, length);
             RawBytes::from(bytes)
         };

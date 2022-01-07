@@ -1,7 +1,8 @@
 use crate::ipld::BlockId;
 
-#[link(wasm_import_module = "send")]
-extern "C" {
+super::fvm_syscalls! {
+    module = "send";
+
     /// Sends a message to another actor, and returns the exit code and block ID of the return
     /// result.
     pub fn send(
@@ -11,5 +12,5 @@ extern "C" {
         params: u32,
         value_hi: u64,
         value_lo: u64,
-    ) -> super::SyscallResult2<u32, BlockId>;
+    ) -> Result<(u32, BlockId)>;
 }

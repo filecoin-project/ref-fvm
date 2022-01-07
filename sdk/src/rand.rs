@@ -21,8 +21,7 @@ pub fn get_chain_randomness(
             entropy.as_ptr(),
             entropy.len() as u32,
             ret.as_mut_ptr(),
-        )
-        .into_result()?
+        )?
     }
     Ok(Randomness(ret.to_vec()))
 }
@@ -44,8 +43,7 @@ pub fn get_beacon_randomness(
             entropy.as_ptr(),
             entropy.len() as u32,
             ret.as_mut_ptr(),
-        )
-        .into_result()?
+        )?
     }
     Ok(Randomness(ret.to_vec()))
 }

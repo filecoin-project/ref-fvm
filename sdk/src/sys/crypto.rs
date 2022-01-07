@@ -1,5 +1,6 @@
-#[link(wasm_import_module = "crypto")]
-extern "C" {
+super::fvm_syscalls! {
+    module = "crypto";
+
     /// Verifies that a signature is valid for an address and plaintext.
     pub fn verify_signature(
         sig_off: *const u8,
@@ -8,7 +9,7 @@ extern "C" {
         addr_len: u32,
         plaintext_off: *const u8,
         plaintext_len: u32,
-    ) -> super::SyscallResult1<i32>;
+    ) -> Result<i32>;
 
     /// Hashes input data using blake2b with 256 bit output.
     ///
@@ -17,7 +18,7 @@ extern "C" {
         data_off: *const u8,
         data_len: u32,
         obuf_off: *mut u8,
-    ) -> super::SyscallResult0;
+    ) -> Result<()>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.
@@ -30,13 +31,13 @@ extern "C" {
         pieces_len: u32,
         cid_off: *mut u8,
         cid_len: u32,
-    ) -> super::SyscallResult1<u32>;
+    ) -> Result<u32>;
 
     /// Verifies a sector seal proof.
-    pub fn verify_seal(info_off: *const u8, info_len: u32) -> super::SyscallResult1<i32>;
+    pub fn verify_seal(info_off: *const u8, info_len: u32) -> Result<i32>;
 
     /// Verifies a window proof of spacetime.
-    pub fn verify_post(info_off: *const u8, info_len: u32) -> super::SyscallResult1<i32>;
+    pub fn verify_post(info_off: *const u8, info_len: u32) -> Result<i32>;
 
     /// Verifies that two block headers provide proof of a consensus fault.
     ///
@@ -50,8 +51,8 @@ extern "C" {
         h2_len: u32,
         extra_off: *const u8,
         extra_len: u32,
-    ) -> super::SyscallResult3<u32, fvm_shared::clock::ChainEpoch, fvm_shared::ActorID>;
+    ) -> Result<(u32, fvm_shared::clock::ChainEpoch, fvm_shared::ActorID)>;
 
     /// Verifies an aggregated batch of sector seal proofs.
-    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> super::SyscallResult1<i32>;
+    pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> Result<i32>;
 }

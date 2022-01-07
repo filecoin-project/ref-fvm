@@ -22,27 +22,27 @@
 /// The ID of the "unit" block (or void for C programmers).
 pub const UNIT: u32 = 0;
 
-// TODO: new package?
-#[link(wasm_import_module = "ipld")]
-extern "C" {
+super::fvm_syscalls! {
+    module = "ipld";
+
     /// Opens a block from the "reachable" set, returning an ID for the block, its codec, and its
     /// size in bytes.
     ///
     /// - The reachable set is initialized to the root.
     /// - The reachable set is extended to include the direct children of loaded blocks until the
     ///   end of the invocation.
-    pub fn open(cid: *const u8) -> super::SyscallResult3<u32, u64, u32>;
+    pub fn open(cid: *const u8) -> Result<(u32, u64, u32)>;
 
     /// Creates a new block, returning the block's ID. The block's children must be in the reachable
     /// set. The new block isn't added to the reachable set until the CID is computed.
-    pub fn create(codec: u64, data: *const u8, len: u32) -> super::SyscallResult1<u32>;
+    pub fn create(codec: u64, data: *const u8, len: u32) -> Result<u32>;
 
     /// Reads the identified block into obuf, starting at offset, reading _at most_ len bytes.
     /// Returns the number of bytes read.
-    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> super::SyscallResult1<u32>;
+    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<u32>;
 
     /// Returns the codec and size of the specified block.
-    pub fn stat(id: u32) -> super::SyscallResult2<u64, u32>;
+    pub fn stat(id: u32) -> Result<(u64, u32)>;
 
     // TODO: CID versions?
 
@@ -57,5 +57,5 @@ extern "C" {
         hash_len: u32,
         cid: *mut u8,
         cid_max_len: u32,
-    ) -> super::SyscallResult1<u32>;
+    ) -> Result<u32>;
 }

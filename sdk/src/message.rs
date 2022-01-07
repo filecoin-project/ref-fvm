@@ -13,19 +13,19 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> SyscallResult<ActorID> {
-    unsafe { sys::message::caller().into_result() }
+    unsafe { sys::message::caller() }
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> SyscallResult<ActorID> {
-    unsafe { sys::message::receiver().into_result() }
+    unsafe { sys::message::receiver() }
 }
 
 /// Returns the message's method number.
 #[inline(always)]
 pub fn method_number() -> SyscallResult<MethodNum> {
-    unsafe { sys::message::method_number().into_result() }
+    unsafe { sys::message::method_number() }
 }
 
 /// Returns the message codec and parameters.
@@ -34,10 +34,10 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         return Ok((DAG_CBOR, Vec::default())); // DAG_CBOR is a lie, but we have no nil codec.
     }
     unsafe {
-        let (codec, size) = sys::ipld::stat(id).into_result()?;
+        let (codec, size) = sys::ipld::stat(id)?;
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
-        let bytes_read = sys::ipld::read(id, 0, ptr, size).into_result()?;
+        let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         Ok((codec, buf))
     }
@@ -47,7 +47,7 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 #[inline(always)]
 pub fn value_received() -> SyscallResult<TokenAmount> {
     unsafe {
-        let (lo, hi) = sys::message::value_received().into_result()?;
+        let (lo, hi) = sys::message::value_received()?;
         Ok(TokenAmount::from(hi) << 64 | TokenAmount::from(lo))
     }
 }

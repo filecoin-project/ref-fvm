@@ -14,6 +14,33 @@ pub struct Context<'a, K> {
     pub memory: &'a mut Memory,
 }
 
+impl<'a, K> Context<'a, K> {
+    /// Reborrow the context with a shorter lifetime. Unfortunately, our pointers are internal so we
+    /// can't use rust's normal re-borrowing logic.
+    pub fn reborrow<'b>(&'b mut self) -> Context<'b, K> {
+        Context {
+            kernel: self.kernel,
+            memory: self.memory,
+        }
+    }
+}
+
+impl<'a, K> TryFrom<&'a mut wasmtime::Caller<'_, K>> for Context<'a, K> {
+    type Error = wasmtime::Trap;
+
+    fn try_from(caller: &'a mut wasmtime::Caller<'_, K>) -> std::result::Result<Self, Self::Error> {
+        let (memory, kernel) = caller
+            .get_export("memory")
+            .and_then(|m| m.into_memory())
+            .ok_or_else(|| wasmtime::Trap::new("failed to lookup actor memory"))?
+            .data_and_store_mut(caller);
+        Ok(Context {
+            kernel,
+            memory: Memory::new(memory),
+        })
+    }
+}
+
 #[repr(transparent)]
 pub struct Memory([u8]);
 
