@@ -94,6 +94,7 @@ macro_rules! fvm_syscalls {
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> !; $($rest:tt)*) => {
         $(#[$attrs])*
         $v unsafe fn $name($($args:$args_ty),*) -> ! {
+            #[link(wasm_import_module = $module)]
             extern "C" {
                 #[link_name = stringify!($name)]
                 fn syscall($($args : $args_ty),*) -> u32;
