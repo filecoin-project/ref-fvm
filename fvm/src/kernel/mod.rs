@@ -90,7 +90,7 @@ pub trait BlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId>;
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)>;
 
     /// Create a new block.
     ///
@@ -288,6 +288,9 @@ pub trait RandomnessOps {
 
 /// Debugging APIs.
 pub trait DebugOps {
+    /// Log a message.
+    fn log(&self, msg: String);
+
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.

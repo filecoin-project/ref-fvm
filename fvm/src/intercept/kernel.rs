@@ -77,7 +77,7 @@ where
     C: CallManager<Machine = InterceptMachine<M, D>>,
     K: Kernel<CallManager = InterceptCallManager<C>>,
 {
-    fn block_open(&mut self, cid: &cid::Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &cid::Cid) -> Result<(BlockId, BlockStat)> {
         self.0.block_open(cid)
     }
 
@@ -177,6 +177,10 @@ where
     C: CallManager<Machine = InterceptMachine<M, D>>,
     K: Kernel<CallManager = InterceptCallManager<C>>,
 {
+    fn log(&self, msg: String) {
+        self.0.log(msg)
+    }
+
     fn push_syscall_error(&mut self, e: SyscallError) {
         self.0.push_syscall_error(e)
     }

@@ -262,7 +262,7 @@ impl<C> BlockOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_ipld_get())?;
 
@@ -279,8 +279,11 @@ where
 
         // We charge on open, not read, to emulate the current gas model.
         let block = Block::new(cid.codec(), data);
+        let stat = block.stat();
+
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
-        self.blocks.put(block).or_illegal_argument()
+        let id = self.blocks.put(block).or_illegal_argument()?;
+        Ok((id, stat))
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
@@ -840,6 +843,10 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    fn log(&self, msg: String) {
+        println!("{}", msg)
+    }
+
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,

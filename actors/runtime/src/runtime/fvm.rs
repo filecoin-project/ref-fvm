@@ -146,7 +146,7 @@ where
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
-        let root = fvm::sself::get_root()?;
+        let root = fvm::sself::root()?;
         if root != *EMPTY_ARR_CID {
             return Err(
                 actor_error!(ErrIllegalState; "failed to create state; expected empty array CID, got: {}", root),
@@ -159,7 +159,7 @@ where
     }
 
     fn state<C: Cbor>(&self) -> Result<C, ActorError> {
-        let root = fvm::sself::get_root()?;
+        let root = fvm::sself::root()?;
         Ok(ActorBlockstore
             .get_cbor(&root)
             .map_err(
@@ -173,7 +173,7 @@ where
         C: Cbor,
         F: FnOnce(&mut C, &mut Self) -> Result<RT, ActorError>,
     {
-        let state_cid = fvm::sself::get_root()
+        let state_cid = fvm::sself::root()
             .map_err(|_| actor_error!(ErrIllegalArgument; "failed to get actor root state CID"))?;
 
         let mut state = ActorBlockstore
@@ -322,12 +322,15 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     } else {
         RawBytes::default()
     };
+
+    fvm::debug::log(format!("[trampoline] input params: {:?}", params.bytes()));
+
     // Construct a new runtime.
     let mut rt = FvmRuntime::default();
     // Invoke the method, aborting if the actor returns an errored exit code, or
     // handling the return data appropriately otherwise.
     match C::invoke_method(&mut rt, method, &params) {
-        Err(err) => fvm::abort(err.exit_code() as u32, Some(err.msg())),
+        Err(err) => fvm::vm::abort(err.exit_code() as u32, Some(err.msg())),
         Ok(ret) if ret.len() == 0 => 0,
         Ok(ret) => fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result"),
     }

@@ -49,6 +49,13 @@ impl Block {
     pub fn size(&self) -> u32 {
         self.data.len() as u32
     }
+
+    pub fn stat(&self) -> BlockStat {
+        BlockStat {
+            codec: self.codec(),
+            size: self.size(),
+        }
+    }
 }
 
 #[derive(Error, Debug)]

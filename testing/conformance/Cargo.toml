@@ -16,7 +16,7 @@ ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
 multihash = { version = "0.15", default-features = false, features = ["identity"] }
-fvm = { path = "../../fvm" }
+fvm = { path = "../../fvm", features = ["builtin_actors"] }
 fvm_shared = { path = "../../shared", features = ["crypto"] }
 ipld_hamt = { path = "../../ipld/hamt"}
 ipld_amt = { path = "../../ipld/amt"}
@@ -35,6 +35,7 @@ async-std = { version = "1.9", features = ["attributes"] }
 wasmtime = "0.32.0" # this dependency is necessary because replacing a kernel with external data
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
+colored = "2"
 either = "1.6.1"
 
 [dev-dependencies]

@@ -1,3 +1,4 @@
+use cid::Cid;
 use wasmtime::Linker;
 
 use crate::Kernel;
@@ -5,10 +6,11 @@ pub(crate) mod error;
 
 mod actor;
 mod bind;
+mod context;
 mod crypto;
+mod debug;
 mod gas;
 mod ipld;
-mod memory;
 mod message;
 mod network;
 mod rand;
@@ -17,7 +19,7 @@ mod sself;
 mod validation;
 mod vm;
 
-pub(self) use memory::Memory;
+pub(self) use context::Context;
 
 use self::bind::BindSyscall;
 
@@ -32,8 +34,6 @@ pub const MAX_CID_LEN: usize = 100;
 pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Result<()> {
     linker.bind_keep_error("vm", "abort", vm::abort)?;
 
-    linker.bind("ipld", "get_root", ipld::get_root)?;
-    linker.bind("ipld", "set_root", ipld::set_root)?;
     linker.bind("ipld", "open", ipld::open)?;
     linker.bind("ipld", "create", ipld::create)?;
     linker.bind("ipld", "read", ipld::read)?;
@@ -42,17 +42,17 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
 
     linker.bind(
         "validation",
-        "accept_any",
+        "validate_immediate_caller_accept_any",
         validation::validate_immediate_caller_accept_any,
     )?;
     linker.bind(
         "validation",
-        "accept_addrs",
+        "validate_immediate_caller_addr_one_of",
         validation::validate_immediate_caller_addr_one_of,
     )?;
     linker.bind(
         "validation",
-        "accept_types",
+        "validate_immediate_caller_type_one_of",
         validation::validate_immediate_caller_type_one_of,
     )?;
 
@@ -110,5 +110,25 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;
 
+    linker.bind("debug", "log", debug::log)?;
+
     Ok(())
+}
+
+// Computes the encoded size of a varint.
+// TODO: move this to the varint crate.
+pub(self) fn uvarint_size(num: u64) -> u32 {
+    let bits = u64::BITS - num.leading_zeros();
+    (bits / 7 + (bits % 7 > 0) as u32).min(1) as u32
+}
+
+/// Returns the size cid would be, once encoded.
+// TODO: move this to the cid/multihash crates.
+pub(self) fn encoded_cid_size(k: &Cid) -> u32 {
+    let mh = k.hash();
+    let mh_size = uvarint_size(mh.code()) + uvarint_size(mh.size() as u64) + mh.size() as u32;
+    match k.version() {
+        cid::Version::V0 => mh_size,
+        cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
+    }
 }

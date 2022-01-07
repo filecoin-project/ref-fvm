@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Result};
 use async_std::stream;
 use cid::Cid;
+use colored::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestCallManager, TestKernel, TestMachine};
 use fmt::Display;
@@ -53,7 +54,12 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
     let error = ret
         .backtrace
         .iter()
-        .map(|e| format!("{:?} {:?} {:?}", e.source, e.code, e.message))
+        .map(|e| {
+            format!(
+                "source: {:?}, code: {:?}, message: {:?}",
+                e.source, e.code, e.message
+            )
+        })
         .collect::<Vec<String>>()
         .join("\n");
     let actual_rec = &ret.msg_receipt;
@@ -148,38 +154,40 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let mut failed = 0;
     let mut skipped = 0;
 
+    // Output the result to stdout.
+    // Doing this here instead of in an inspect so that we get streaming output.
+    macro_rules! report {
+        ($status:expr, $path:expr, $id:expr) => {
+            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+        };
+    }
+
     while let Some((path, res)) = results.next().await.transpose()? {
         match res {
             VariantResult::Ok { id } => {
-                println!("OK vector {}, variant {}", path.display(), id);
-                succeeded += 1;
+                report!("OK".on_green(), path.display(), id);
             }
             VariantResult::Failed { reason, id } => {
-                println!(
-                    "FAIL vector {}, variant {}, reason: {:?}",
-                    path.display(),
-                    id,
-                    reason
-                );
-                failed += 1;
+                report!("FAIL".white().on_red(), path.display(), id);
+                println!("\t|> reason: {}", reason);
             }
             VariantResult::Skipped { reason, id } => {
-                println!(
-                    "SKIP vector {}, variant {}, reason: {:?}",
-                    path.display(),
-                    id,
-                    reason
-                );
-                skipped += 1;
+                report!("SKIP".on_yellow(), path.display(), id);
+                println!("\t|> reason: {}", reason);
             }
         }
     }
 
+    println!();
     println!(
-        "conformance tests result: {}/{} tests passed ({} skipped):",
-        succeeded,
-        failed + succeeded,
-        skipped,
+        "{}",
+        format!(
+            "conformance tests result: {}/{} tests passed ({} skipped)",
+            succeeded,
+            failed + succeeded,
+            skipped,
+        )
+        .bold()
     );
 
     if failed > 0 {

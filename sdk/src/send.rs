@@ -1,9 +1,6 @@
-use crate::message::NO_DATA_BLOCK_ID;
-use crate::sys;
+use crate::{message::NO_DATA_BLOCK_ID, sys, SyscallResult};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-// no_std
-use crate::error::{IntoSyscallResult, SyscallResult};
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode::{self, ErrIllegalArgument};
 use fvm_shared::receipt::Receipt;
@@ -27,44 +24,45 @@ pub fn send(
         return Err(ErrIllegalArgument);
     };
     unsafe {
-        // Send the message.
-        let params_id = if params.len() == 0 {
-            NO_DATA_BLOCK_ID
+        // Insert parameters as a block. Nil parameters is represented as the
+        // NO_DATA_BLOCK_ID block ID in the FFI interface.
+        let params_id = if params.len() > 0 {
+            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
         } else {
-            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)
-                .into_syscall_result()?
+            NO_DATA_BLOCK_ID
         };
-        let (exit_code, return_id) = sys::send::send(
+
+        // Perform the syscall to send the message.
+        let sys::send::out::Send {
+            exit_code,
+            return_id,
+        } = sys::send::send(
             recipient.as_ptr(),
             recipient.len() as u32,
             method,
             params_id,
             value_hi,
             value_lo,
-        )
-        .into_syscall_result()?;
-        if exit_code != ExitCode::Ok as u32 {
-            return Ok(Receipt {
-                exit_code: ExitCode::from_u32(exit_code).unwrap_or(ExitCode::ErrIllegalState),
-                return_data: Default::default(),
-                gas_used: 0,
-            });
-        }
-        let return_data = if return_id == NO_DATA_BLOCK_ID {
-            RawBytes::default()
-        } else {
-            // Allocate a buffer to read the result.
-            let (_, length) = sys::ipld::stat(return_id).into_syscall_result()?;
-            let mut bytes = Vec::with_capacity(length as usize);
-            // Now read the result.
-            let read =
-                sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), length).into_syscall_result()?;
-            assert_eq!(read, length);
-            RawBytes::from(bytes)
+        )?;
+
+        // Process the result.
+        let exit_code = ExitCode::from_u32(exit_code).unwrap_or(ExitCode::ErrIllegalState);
+        let return_data = match exit_code {
+            ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
+                // Allocate a buffer to read the return data.
+                let sys::ipld::out::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
+                let mut bytes = Vec::with_capacity(size as usize);
+
+                // Now read the return data.
+                let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), size)?;
+                assert_eq!(read, size);
+                RawBytes::from(bytes)
+            }
+            _ => Default::default(),
         };
-        // Deserialize the receipt.
+
         Ok(Receipt {
-            exit_code: ExitCode::Ok,
+            exit_code,
             return_data,
             gas_used: 0,
         })
