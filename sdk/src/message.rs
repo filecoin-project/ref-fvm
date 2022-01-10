@@ -38,8 +38,8 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         logc!(
             "params_raw",
             "ipld stat: size={:?}; codec={:?}",
-            codec,
-            size
+            size,
+            codec
         );
 
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);

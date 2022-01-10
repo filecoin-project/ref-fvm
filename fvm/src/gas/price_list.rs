@@ -17,116 +17,7 @@ use fvm_shared::{MethodNum, METHOD_SEND};
 
 use super::GasCharge;
 
-/// V7 network upgrade
-pub const UPGRADE_CALICO_HEIGHT: ChainEpoch = 265200;
-
 lazy_static! {
-    static ref BASE_PRICES: PriceList = PriceList {
-        compute_gas_multiplier: 1,
-        storage_gas_multiplier: 1000,
-
-        on_chain_message_compute_base: 38863,
-        on_chain_message_storage_base: 36,
-        on_chain_message_storage_per_byte: 1,
-
-        on_chain_return_value_per_byte: 1,
-
-        send_base: 29233,
-        send_transfer_funds: 27500,
-        send_transfer_only_premium: 159672,
-        send_invoke_method: -5377,
-
-        ipld_get_base: 75242,
-        ipld_put_base: 84070,
-        ipld_put_per_byte: 1,
-
-        create_actor_compute: 1108454,
-        create_actor_storage: 36 + 40,
-        delete_actor: -(36 + 40),
-
-        bls_sig_cost: 16598605,
-        secp256k1_sig_cost: 1637292,
-
-        hashing_base: 31355,
-        compute_unsealed_sector_cid_base: 98647,
-        verify_seal_base: 2000, // TODO revisit potential removal of this
-
-        verify_aggregate_seal_base: 0,
-        verify_aggregate_seal_per: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                449900
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                359272
-            )
-        ].iter().copied().collect(),
-        verify_aggregate_seal_steps: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: 103994170},
-                        Step{start: 7, cost: 112356810},
-                        Step{start: 13, cost: 122912610},
-                        Step{start: 26, cost: 137559930},
-                        Step{start: 52, cost: 162039100},
-                        Step{start: 103, cost: 210960780},
-                        Step{start: 205, cost: 318351180},
-                        Step{start: 410, cost: 528274980},
-                    ]
-                )
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: 102581240},
-                        Step{start: 7, cost: 110803030},
-                        Step{start: 13, cost: 120803700},
-                        Step{start: 26, cost: 134642130},
-                        Step{start: 52, cost: 157357890},
-                        Step{start: 103, cost: 203017690},
-                        Step{start: 205, cost: 304253590},
-                        Step{start: 410, cost: 509880640},
-                    ]
-                )
-            )
-        ].iter()
-        .cloned()
-        .collect(),
-        verify_consensus_fault: 495422,
-
-        verify_post_lookup: [
-            (
-                RegisteredPoStProof::StackedDRGWindow512MiBV1,
-                ScalingCost {
-                    flat: 123861062,
-                    scale: 9226981,
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow32GiBV1,
-                ScalingCost {
-                    flat: 748593537,
-                    scale: 85639,
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow64GiBV1,
-                ScalingCost {
-                    flat: 748593537,
-                    scale: 85639,
-                },
-            ),
-        ]
-        .iter()
-        .copied()
-        .collect(),
-        verify_post_discount: true,
-    };
-
     static ref CALICO_PRICES: PriceList = PriceList {
         compute_gas_multiplier: 1,
         storage_gas_multiplier: 1300,
@@ -521,10 +412,6 @@ impl PriceList {
 }
 
 /// Returns gas price list by Epoch for gas consumption.
-pub fn price_list_by_epoch(epoch: ChainEpoch) -> PriceList {
-    if epoch < UPGRADE_CALICO_HEIGHT {
-        BASE_PRICES.clone()
-    } else {
-        CALICO_PRICES.clone()
-    }
+pub fn price_list_by_epoch(_: ChainEpoch) -> PriceList {
+    CALICO_PRICES.clone()
 }

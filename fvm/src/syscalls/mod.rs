@@ -104,7 +104,7 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     linker.bind("rand", "get_chain_randomness", rand::get_chain_randomness)?;
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
 
-    linker.bind("gas", "charge_gas", gas::charge_gas)?;
+    linker.bind("gas", "charge", gas::charge_gas)?;
 
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;
