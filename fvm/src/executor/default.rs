@@ -13,10 +13,9 @@ use crate::{
     machine::{CallError, Machine},
     syscall_error,
 };
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::encoding::Cbor;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{
     address::Address, econ::TokenAmount, message::Message, receipt::Receipt, ActorID,
