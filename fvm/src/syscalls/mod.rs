@@ -73,7 +73,7 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
         network::total_fil_circ_supply,
     )?;
     linker.bind("network", "version", network::version)?;
-    linker.bind("network", "epoch", network::epoch)?;
+    linker.bind("network", "curr_epoch", network::curr_epoch)?;
 
     linker.bind("actor", "resolve_address", actor::resolve_address)?;
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;

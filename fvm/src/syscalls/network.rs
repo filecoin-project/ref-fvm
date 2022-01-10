@@ -4,7 +4,7 @@ use fvm_shared::sys;
 
 use super::Context;
 
-pub fn epoch(context: Context<'_, impl Kernel>) -> Result<u64> {
+pub fn curr_epoch(context: Context<'_, impl Kernel>) -> Result<u64> {
     Ok(context.kernel.network_epoch() as u64)
 }
 
