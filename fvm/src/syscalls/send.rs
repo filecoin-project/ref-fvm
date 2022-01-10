@@ -1,4 +1,4 @@
-use crate::call_manager::InvocationResult;
+use crate::call_manager::{InvocationResult, NO_DATA_BLOCK_ID};
 use crate::{kernel::Result, Kernel};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -25,7 +25,12 @@ pub fn send(
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from((value_hi as u128) << 64 | value_lo as u128);
-    let (code, params) = context.kernel.block_get(params_id)?;
+    // TODO: consider just passing the block ID directly into the kernel.
+    let (code, params) = if params_id > NO_DATA_BLOCK_ID {
+        context.kernel.block_get(params_id)?
+    } else {
+        (DAG_CBOR, Vec::new())
+    };
     debug_assert_eq!(code, DAG_CBOR);
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
