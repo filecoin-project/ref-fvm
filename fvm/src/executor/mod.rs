@@ -15,7 +15,12 @@ pub trait Executor {
     type Kernel: Kernel;
 
     /// This is the entrypoint to execute a message.
-    fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet>;
+    fn execute_message(
+        &mut self,
+        msg: Message,
+        _: ApplyKind,
+        raw_length: usize,
+    ) -> anyhow::Result<ApplyRet>;
 }
 
 /// Apply message return data.
