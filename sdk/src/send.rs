@@ -1,8 +1,10 @@
+use std::convert::TryInto;
+
 use crate::{message::NO_DATA_BLOCK_ID, sys, SyscallResult};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::ExitCode::{self, ErrIllegalArgument};
+use fvm_shared::error::ExitCode;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 use num_traits::FromPrimitive;
@@ -17,12 +19,9 @@ pub fn send(
     value: TokenAmount,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
-    let mut value_iter = value.iter_u64_digits();
-    let value_lo = value_iter.next().unwrap();
-    let value_hi = value_iter.next().unwrap_or(0);
-    if value_iter.next().is_some() {
-        return Err(ErrIllegalArgument);
-    };
+    let value: fvm_shared::sys::TokenAmount = value
+        .try_into()
+        .map_err(|_| ExitCode::ErrInsufficientFunds)?;
     unsafe {
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
@@ -33,7 +32,7 @@ pub fn send(
         };
 
         // Perform the syscall to send the message.
-        let sys::send::out::Send {
+        let fvm_shared::sys::out::send::Send {
             exit_code,
             return_id,
         } = sys::send::send(
@@ -41,8 +40,8 @@ pub fn send(
             recipient.len() as u32,
             method,
             params_id,
-            value_hi,
-            value_lo,
+            value.hi,
+            value.lo,
         )?;
 
         // Process the result.
@@ -50,7 +49,7 @@ pub fn send(
         let return_data = match exit_code {
             ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.
-                let sys::ipld::out::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
+                let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
                 let mut bytes = Vec::with_capacity(size as usize);
 
                 // Now read the return data.

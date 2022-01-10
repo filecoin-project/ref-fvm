@@ -8,6 +8,7 @@ use fvm_shared::{
 };
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::syscalls::MAX_CID_LEN;
 
 pub struct Context<'a, K> {
     pub kernel: &'a mut K,
@@ -77,8 +78,7 @@ impl Memory {
     }
 
     pub fn read_cid(&self, offset: u32) -> Result<Cid> {
-        // TODO: max CID length
-        Cid::read_bytes(self.try_slice(offset, self.len() as u32)?)
+        Cid::read_bytes(self.try_slice(offset, MAX_CID_LEN as u32)?)
             .or_error(ExitCode::SysErrIllegalArgument)
             .context("failed to parse CID")
     }

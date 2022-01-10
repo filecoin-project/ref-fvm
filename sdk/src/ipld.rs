@@ -1,13 +1,9 @@
-use crate::sys::ipld::out::IpldOpen;
 use crate::SyscallResult;
 use crate::{sself, sys, MAX_CID_LEN};
 use cid::Cid;
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;
-
-pub type BlockId = u32;
-pub type Codec = u64;
 
 /// Store a block. The block will only be persisted in the state-tree if the CID is "linked in" to
 /// the actor's state-tree before the end of the current invocation.
@@ -41,14 +37,15 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
         let mut cid_buf = [0u8; MAX_CID_LEN];
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
-        let IpldOpen { id, size, .. } = sys::ipld::open(cid_buf.as_mut_ptr())?;
+        let fvm_shared::sys::out::ipld::IpldOpen { id, size, .. } =
+            sys::ipld::open(cid_buf.as_mut_ptr())?;
         get_block(id, Some(size))
     }
 }
 
 /// Gets the data of the block referenced by BlockId. If the caller knows the
 /// size, this function will avoid statting the block.
-pub fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
+pub fn get_block(id: fvm_shared::sys::BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
     let size = match size {
         Some(size) => size,
         None => unsafe { sys::ipld::stat(id).map(|out| out.size)? },
@@ -63,7 +60,10 @@ pub fn get_block(id: BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
 }
 
 /// Writes the supplied block and returns the BlockId.
-pub fn put_block(codec: Codec, data: &[u8]) -> SyscallResult<BlockId> {
+pub fn put_block(
+    codec: fvm_shared::sys::Codec,
+    data: &[u8],
+) -> SyscallResult<fvm_shared::sys::BlockId> {
     unsafe { sys::ipld::create(codec, data.as_ptr(), data.len() as u32) }
 }
 

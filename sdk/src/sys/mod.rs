@@ -113,20 +113,3 @@ macro_rules! fvm_syscalls {
 }
 
 pub(crate) use fvm_syscalls;
-
-/// Module containing common multi-value out types used across various
-/// syscall namespaces.
-pub mod out {
-    #[repr(C)]
-    pub struct TokenAmount {
-        pub lo: u64,
-        pub hi: u64,
-    }
-
-    impl From<TokenAmount> for fvm_shared::econ::TokenAmount {
-        fn from(v: TokenAmount) -> Self {
-            fvm_shared::econ::TokenAmount::from(v.hi) << 64
-                | fvm_shared::econ::TokenAmount::from(v.lo)
-        }
-    }
-}

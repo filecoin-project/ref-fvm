@@ -61,6 +61,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 initial_pages: 0,
                 max_pages: 1024,
                 engine: Default::default(),
+                debug: true, // Enable debug mode by default.
             },
             epoch,
             base_fee,
@@ -390,6 +391,10 @@ where
 {
     fn log(&self, msg: String) {
         self.0.log(msg)
+    }
+
+    fn debug_enabled(&self) -> bool {
+        self.0.debug_enabled()
     }
 
     fn push_syscall_error(&mut self, e: SyscallError) {

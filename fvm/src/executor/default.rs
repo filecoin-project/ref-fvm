@@ -13,10 +13,9 @@ use crate::{
     machine::{CallError, Machine},
     syscall_error,
 };
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::encoding::Cbor;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{
     address::Address, econ::TokenAmount, message::Message, receipt::Receipt, ActorID,
@@ -56,12 +55,18 @@ where
 {
     type Kernel = K;
     /// This is the entrypoint to execute a message.
-    fn execute_message(&mut self, msg: Message, _: ApplyKind) -> anyhow::Result<ApplyRet> {
+    fn execute_message(
+        &mut self,
+        msg: Message,
+        _: ApplyKind,
+        raw_length: usize,
+    ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
-        let (sender_id, gas_cost, inclusion_cost) = match self.preflight_message(&msg)? {
-            Ok(res) => res,
-            Err(apply_ret) => return Ok(apply_ret),
-        };
+        let (sender_id, gas_cost, inclusion_cost) =
+            match self.preflight_message(&msg, raw_length)? {
+                Ok(res) => res,
+                Err(apply_ret) => return Ok(apply_ret),
+            };
 
         // Apply the message.
         let (res, gas_used, mut backtrace) = self.map_machine(|machine| {
@@ -170,6 +175,7 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
+        raw_length: usize,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check().or_fatal()?;
@@ -177,11 +183,8 @@ where
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context().price_list;
-        let ser_msg = msg
-            .marshal_cbor()
-            .context("failed to re-marshal message")
-            .or_fatal()?;
-        let inclusion_cost = pl.on_chain_message(ser_msg.len());
+
+        let inclusion_cost = pl.on_chain_message(raw_length);
         let inclusion_total = inclusion_cost.total();
 
         // Verify the cost of the message is not over the message gas limit.

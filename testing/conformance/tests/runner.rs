@@ -13,7 +13,9 @@ use fvm::call_manager::DefaultCallManager;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::machine::Machine;
 use fvm::DefaultKernel;
+use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::{self, MemoryBlockstore};
+use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -166,14 +168,17 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         match res {
             VariantResult::Ok { id } => {
                 report!("OK".on_green(), path.display(), id);
+                succeeded += 1;
             }
             VariantResult::Failed { reason, id } => {
                 report!("FAIL".white().on_red(), path.display(), id);
                 println!("\t|> reason: {}", reason);
+                failed += 1;
             }
             VariantResult::Skipped { reason, id } => {
                 report!("SKIP".on_yellow(), path.display(), id);
                 println!("\t|> reason: {}", reason);
+                skipped += 1;
             }
         }
     }
@@ -268,7 +273,12 @@ fn run_variant(
         let msg = Message::unmarshal_cbor(&m.bytes)?;
 
         // Execute the message.
-        let ret = match exec.execute_message(msg, ApplyKind::Explicit) {
+        let mut raw_length = m.bytes.len();
+        if msg.from.protocol() == Protocol::Secp256k1 {
+            // 65 bytes signature + 1 byte type + 3 bytes for field info.
+            raw_length += SECP_SIG_LEN + 4;
+        }
+        let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
         };

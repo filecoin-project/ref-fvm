@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -12,7 +11,9 @@ use actors_runtime::{
     ActorDowncast, MINER_ACTOR_CODE_ID, MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID,
     POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
 };
+use fvm_sdk::logc;
 use fvm_shared::address::Address;
+use fvm_shared::blockstore::Blockstore;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
@@ -82,6 +83,13 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
+
+        logc!(
+            "init actor",
+            "called exec; params.code_cid: {:?}",
+            &params.code_cid
+        );
+
         let caller_code = rt
             .get_actor_code_cid(&rt.message().caller())?
             .ok_or_else(|| {
@@ -91,6 +99,9 @@ impl Actor {
                     rt.message().caller()
                 )
             })?;
+
+        logc!("init actor", "caller code CID: {:?}", &caller_code);
+
         if !can_exec(&caller_code, &params.code_cid) {
             return Err(actor_error!(ErrForbidden;
                     "called type {} cannot exec actor type {}",
@@ -103,6 +114,8 @@ impl Actor {
         // stably address the newly created actor even if a chain re-org causes it to end up with
         // a different ID.
         let robust_address = rt.new_actor_address()?;
+
+        logc!("init actor", "robust address: {:?}", &robust_address);
 
         // Allocate an ID for this actor.
         // Store mapping of pubkey or actor address to actor ID

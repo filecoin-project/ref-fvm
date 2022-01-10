@@ -1,5 +1,6 @@
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
+use fvm_shared::sys;
 
 use super::Context;
 
@@ -7,12 +8,13 @@ pub fn resolve_address(
     context: Context<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
-) -> Result<(i32, u64)> {
+) -> Result<sys::out::actor::ResolveAddress> {
     let addr = context.memory.read_address(addr_off, addr_len)?;
-    match context.kernel.resolve_address(&addr)? {
-        Some(id) => Ok((0, id)),
-        None => Ok((-1, 0)),
-    }
+    let (resolved, value) = match context.kernel.resolve_address(&addr)? {
+        Some(id) => (0, id),
+        None => (-1, 0),
+    };
+    Ok(sys::out::actor::ResolveAddress { resolved, value })
 }
 
 pub fn get_actor_code_cid(

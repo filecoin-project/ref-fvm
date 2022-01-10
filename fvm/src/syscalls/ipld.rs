@@ -1,4 +1,5 @@
 use anyhow::Context as _;
+use fvm_shared::sys;
 
 use crate::{
     kernel::{ClassifyResult, Result},
@@ -7,10 +8,14 @@ use crate::{
 
 use super::Context;
 
-pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<(u32, u64, u32)> {
+pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
     let cid = context.memory.read_cid(cid)?;
     let (id, stat) = context.kernel.block_open(&cid)?;
-    Ok((id, stat.codec, stat.size))
+    Ok(sys::out::ipld::IpldOpen {
+        id,
+        codec: stat.codec,
+        size: stat.size,
+    })
 }
 
 pub fn create(
@@ -57,9 +62,12 @@ pub fn read(
     context.kernel.block_read(id, offset, data)
 }
 
-pub fn stat(context: Context<'_, impl Kernel>, id: u32) -> Result<(u64, u32)> {
+pub fn stat(context: Context<'_, impl Kernel>, id: u32) -> Result<sys::out::ipld::IpldStat> {
     context
         .kernel
         .block_stat(id)
-        .map(|stat| (stat.codec, stat.size))
+        .map(|stat| sys::out::ipld::IpldStat {
+            codec: stat.codec,
+            size: stat.size,
+        })
 }

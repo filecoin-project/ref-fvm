@@ -1,6 +1,7 @@
-use super::{Context, MAX_CID_LEN};
+use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
+use fvm_shared::sys;
 
 /// Returns the root CID of the actor's state by writing it in the specified buffer.
 ///
@@ -13,11 +14,9 @@ pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> 
 
     if size <= obuf_len {
         // Only write the CID if there's sufficient capacity.
-        let obuf = context
-            .memory
-            .try_slice_mut(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
+        let mut obuf = context.memory.try_slice_mut(obuf_off, size)?;
 
-        root.write_bytes(&mut obuf[..MAX_CID_LEN])
+        root.write_bytes(&mut obuf)
             .context("failed to write cid root")
             .or_fatal()?;
     }
@@ -31,10 +30,12 @@ pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<(u64, u64)> {
+pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     let balance = context.kernel.current_balance()?;
-    let mut iter = balance.iter_u64_digits();
-    Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
+    balance
+        .try_into()
+        .context("balance exceeds u128")
+        .or_fatal()
 }
 
 /// TODO it should be possible to consume an address without knowing its length a priori

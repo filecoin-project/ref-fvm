@@ -286,6 +286,9 @@ pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
 
+    /// Returns whether debug mode is enabled.
+    fn debug_enabled(&self) -> bool;
+
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.

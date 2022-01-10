@@ -1,10 +1,10 @@
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::ipld::{BlockId, Codec};
-use crate::SyscallResult;
+use crate::{logc, SyscallResult};
 use crate::{sys, vm};
 
 /// BlockID representing nil parameters or return data.
@@ -34,19 +34,24 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         return Ok((DAG_CBOR, Vec::default())); // DAG_CBOR is a lie, but we have no nil codec.
     }
     unsafe {
-        let sys::ipld::out::IpldStat { codec, size } = sys::ipld::stat(id)?;
-        crate::debug::log(format!(
-            "[params_raw] ipld stat: size={:?}; codec={:?}",
-            codec, size
-        ));
+        let fvm_shared::sys::out::ipld::IpldStat { codec, size } = sys::ipld::stat(id)?;
+        logc!(
+            "params_raw",
+            "ipld stat: size={:?}; codec={:?}",
+            codec,
+            size
+        );
 
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
-        crate::debug::log(format!(
-            "[params_raw] ipld read: bytes_read={:?}",
-            bytes_read
-        ));
+        buf.set_len(bytes_read as usize);
+        logc!(
+            "params_raw",
+            "ipld read: bytes_read={:?}, data: {:x?}",
+            bytes_read,
+            &buf
+        );
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         Ok((codec, buf))
     }

@@ -9,7 +9,7 @@ pub fn resolve_address(addr: Address) -> SyscallResult<Option<ActorID>> {
     let bytes = addr.to_bytes();
     unsafe {
         match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32)? {
-            sys::actor::out::ResolveAddress { resolved: 0, value } => Ok(Some(value)),
+            fvm_shared::sys::out::actor::ResolveAddress { resolved: 0, value } => Ok(Some(value)),
             _ => Ok(None),
         }
     }

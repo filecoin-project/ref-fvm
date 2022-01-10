@@ -78,7 +78,7 @@ pub fn compute_unsealed_sector_cid(
     pieces_len: u32,
     cid_off: u32,
     cid_len: u32,
-) -> Result<()> {
+) -> Result<u32> {
     let pieces: Vec<PieceInfo> = context.memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
     let cid = context
@@ -97,7 +97,7 @@ pub fn compute_unsealed_sector_cid(
         .into());
     }
     out[..bytes.len()].copy_from_slice(bytes.as_slice());
-    Ok(())
+    Ok(bytes.len() as u32)
 }
 
 /// Verifies a sector seal proof.
