@@ -14,9 +14,9 @@ pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> 
 
     if size <= obuf_len {
         // Only write the CID if there's sufficient capacity.
-        let obuf = context.memory.try_slice_mut(obuf_off, size)?;
+        let mut obuf = context.memory.try_slice_mut(obuf_off, size)?;
 
-        root.write_bytes(&mut obuf[..size as usize])
+        root.write_bytes(&mut obuf)
             .context("failed to write cid root")
             .or_fatal()?;
     }
