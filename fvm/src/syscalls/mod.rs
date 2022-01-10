@@ -119,7 +119,7 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
 // TODO: move this to the varint crate.
 pub(self) fn uvarint_size(num: u64) -> u32 {
     let bits = u64::BITS - num.leading_zeros();
-    (bits / 7 + (bits % 7 > 0) as u32).min(1) as u32
+    ((bits / 7) + (bits % 7 > 0) as u32).max(1) as u32
 }
 
 /// Returns the size cid would be, once encoded.
