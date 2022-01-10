@@ -7,6 +7,7 @@ pub type BlockId = u32;
 pub type Codec = u64;
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct TokenAmount {
     pub lo: u64,
     pub hi: u64,

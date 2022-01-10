@@ -1,10 +1,10 @@
 use crate::call_manager::InvocationResult;
-use crate::kernel::BlockId;
 use crate::{kernel::Result, Kernel};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys;
 
 use super::Context;
 
@@ -22,14 +22,14 @@ pub fn send(
     params_id: u32,
     value_hi: u64,
     value_lo: u64,
-) -> Result<(u32, BlockId)> {
+) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from((value_hi as u128) << 64 | value_lo as u128);
     let (code, params) = context.kernel.block_get(params_id)?;
     debug_assert_eq!(code, DAG_CBOR);
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    Ok(
+    let (exit_code, return_id) =
         match context
             .kernel
             .send(&recipient, method, &params.into(), &value)?
@@ -39,6 +39,9 @@ pub fn send(
                 context.kernel.block_create(DAG_CBOR, value.bytes())?,
             ),
             InvocationResult::Failure(code) => (code as u32, 0),
-        },
-    )
+        };
+    Ok(sys::out::send::Send {
+        exit_code,
+        return_id,
+    })
 }

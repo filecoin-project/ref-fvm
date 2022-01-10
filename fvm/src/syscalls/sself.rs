@@ -1,6 +1,7 @@
 use super::{Context, MAX_CID_LEN};
 use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
+use fvm_shared::sys;
 
 /// Returns the root CID of the actor's state by writing it in the specified buffer.
 ///
@@ -31,10 +32,13 @@ pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<(u64, u64)> {
+pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     let balance = context.kernel.current_balance()?;
     let mut iter = balance.iter_u64_digits();
-    Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
+    Ok(sys::TokenAmount {
+        lo: iter.next().unwrap(),
+        hi: iter.next().unwrap_or(0),
+    })
 }
 
 /// TODO it should be possible to consume an address without knowing its length a priori
