@@ -10,16 +10,5 @@ super::fvm_syscalls! {
         params: u32,
         value_hi: u64,
         value_lo: u64,
-    ) -> Result<self::out::Send>;
-}
-
-/// Module containing multi-value out types of these syscalls.
-pub mod out {
-    use crate::ipld::BlockId;
-
-    #[repr(C)]
-    pub struct Send {
-        pub exit_code: u32,
-        pub return_id: BlockId,
-    }
+    ) -> Result<fvm_shared::sys::out::send::Send>;
 }

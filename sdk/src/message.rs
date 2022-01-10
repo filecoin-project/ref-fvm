@@ -1,9 +1,9 @@
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::ipld::{BlockId, Codec};
 use crate::SyscallResult;
 use crate::{sys, vm};
 
@@ -34,7 +34,7 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         return Ok((DAG_CBOR, Vec::default())); // DAG_CBOR is a lie, but we have no nil codec.
     }
     unsafe {
-        let sys::ipld::out::IpldStat { codec, size } = sys::ipld::stat(id)?;
+        let fvm_shared::sys::out::ipld::IpldStat { codec, size } = sys::ipld::stat(id)?;
         crate::debug::log(format!(
             "[params_raw] ipld stat: size={:?}; codec={:?}",
             codec, size

@@ -2,7 +2,7 @@ super::fvm_syscalls! {
     module = "actor";
 
     /// Resolves the ID address of an actor.
-    pub fn resolve_address(addr_off: *const u8, addr_len: u32) -> Result<self::out::ResolveAddress>;
+    pub fn resolve_address(addr_off: *const u8, addr_len: u32) -> Result<fvm_shared::sys::out::actor::ResolveAddress>;
 
     /// Gets the CodeCID of an actor by address.
     pub fn get_actor_code_cid(
@@ -20,13 +20,4 @@ super::fvm_syscalls! {
     /// the provided address.
     /// TODO this syscall will change to calculate the address internally.
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
-}
-
-/// Module containing multi-value out types of these syscalls.
-pub mod out {
-    #[repr(C)]
-    pub struct ResolveAddress {
-        pub resolved: i32,
-        pub value: u64,
-    }
 }

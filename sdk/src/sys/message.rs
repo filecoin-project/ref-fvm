@@ -12,5 +12,5 @@ super::fvm_syscalls! {
 
     /// Returns the value that was received, as little-Endian
     /// tuple of u64 values to be concatenated in a u128.
-    pub fn value_received() -> Result<super::out::TokenAmount>;
+    pub fn value_received() -> Result<fvm_shared::sys::TokenAmount>;
 }

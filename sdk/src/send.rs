@@ -33,7 +33,7 @@ pub fn send(
         };
 
         // Perform the syscall to send the message.
-        let sys::send::out::Send {
+        let fvm_shared::sys::out::send::Send {
             exit_code,
             return_id,
         } = sys::send::send(
@@ -50,7 +50,7 @@ pub fn send(
         let return_data = match exit_code {
             ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.
-                let sys::ipld::out::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
+                let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
                 let mut bytes = Vec::with_capacity(size as usize);
 
                 // Now read the return data.

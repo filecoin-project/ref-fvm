@@ -11,7 +11,7 @@ super::fvm_syscalls! {
     pub fn set_root(cid: *const u8) -> Result<()>;
 
     /// Gets the current balance for the calling actor.
-    pub fn current_balance() -> Result<super::out::TokenAmount>;
+    pub fn current_balance() -> Result<fvm_shared::sys::TokenAmount>;
 
     /// Destroys the calling actor, sending its current balance
     /// to the supplied address, which cannot be itself.
