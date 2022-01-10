@@ -51,7 +51,7 @@ pub fn send(
             ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.
                 let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
-                let mut bytes = Vec::with_capacity(size as usize);
+                let mut bytes = vec![0; size as usize];
 
                 // Now read the return data.
                 let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), size)?;

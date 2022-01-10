@@ -18,7 +18,9 @@ pub fn resolve_address(addr: Address) -> SyscallResult<Option<ActorID>> {
 /// Look up the code ID at an actor address.
 pub fn get_actor_code_cid(addr: Address) -> SyscallResult<Option<Cid>> {
     let bytes = addr.to_bytes();
-    let mut buf = [0u8; MAX_CID_LEN];
+    // let mut buf = [0u8; MAX_CID_LEN]; // Stack allocated arrays aren't accessible through exported WASM memory.
+    // TODO this alloc is wasteful; since the SDK is single-threaded, we can allocate a buffer upfront and reuse it.
+    let mut buf = vec![0; MAX_CID_LEN]; // heap/memory-allocated
     unsafe {
         let ok = sys::actor::get_actor_code_cid(
             bytes.as_ptr(),

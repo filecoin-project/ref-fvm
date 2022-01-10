@@ -40,10 +40,9 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
             codec, size
         ));
 
-        let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
+        let mut buf: Vec<u8> = vec![0; size as usize];
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
-        buf.set_len(bytes_read as usize);
         crate::debug::log(format!(
             "[params_raw] ipld read: bytes_read={:?}, data: {:x?}",
             bytes_read, &buf,

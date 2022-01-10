@@ -39,7 +39,7 @@ pub fn verify_signature(
 /// Hashes input data using blake2b with 256 bit output.
 #[allow(unused)]
 pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Vec<u8>> {
-    let mut ret = Vec::with_capacity(32);
+    let mut ret = vec![0; 32];
     unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())? }
     Ok(ret)
 }
@@ -52,7 +52,9 @@ pub fn compute_unsealed_sector_cid(
 ) -> SyscallResult<Cid> {
     let pieces = to_vec(&pieces.to_vec()).expect("failed to marshal piece infos");
     let pieces = pieces.as_slice();
-    let mut out = [0u8; MAX_CID_LEN];
+    // let mut buf = [0u8; MAX_CID_LEN]; // Stack allocated arrays aren't accessible through exported WASM memory.
+    // TODO this alloc is wasteful; since the SDK is single-threaded, we can allocate a buffer upfront and reuse it.
+    let mut out = vec![0; MAX_CID_LEN]; // heap/memory-allocated
     unsafe {
         let len = sys::crypto::compute_unsealed_sector_cid(
             i64::from(proof_type),
