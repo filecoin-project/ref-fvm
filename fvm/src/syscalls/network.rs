@@ -1,4 +1,5 @@
-use crate::kernel::{Kernel, Result};
+use crate::kernel::{ClassifyResult, Kernel, Result};
+use anyhow::Context as _;
 use fvm_shared::sys;
 
 use super::Context;
@@ -13,20 +14,20 @@ pub fn version(context: Context<'_, impl Kernel>) -> Result<u32> {
 
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    let base_fee = context.kernel.network_base_fee();
-    let mut iter = base_fee.iter_u64_digits();
-    Ok(sys::TokenAmount {
-        lo: iter.next().unwrap(),
-        hi: iter.next().unwrap_or(0),
-    })
+    context
+        .kernel
+        .network_base_fee()
+        .try_into()
+        .context("base-fee exceeds u128 limit")
+        .or_fatal()
 }
 
 /// Returns the network circ supply split as two u64 ordered in little endian.
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    let base_fee = context.kernel.total_fil_circ_supply()?;
-    let mut iter = base_fee.iter_u64_digits();
-    Ok(sys::TokenAmount {
-        lo: iter.next().unwrap(),
-        hi: iter.next().unwrap_or(0),
-    })
+    context
+        .kernel
+        .total_fil_circ_supply()?
+        .try_into()
+        .context("circulating supply exceeds u128 limit")
+        .or_fatal()
 }

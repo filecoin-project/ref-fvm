@@ -1,4 +1,5 @@
-use crate::kernel::{Kernel, Result};
+use crate::kernel::{ClassifyResult, Kernel, Result};
+use anyhow::Context as _;
 use fvm_shared::sys;
 
 use super::Context;
@@ -16,10 +17,10 @@ pub fn method_number(context: Context<'_, impl Kernel>) -> Result<u64> {
 }
 
 pub fn value_received(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    let value = context.kernel.msg_value_received();
-    let mut iter = value.iter_u64_digits();
-    Ok(sys::TokenAmount {
-        lo: iter.next().unwrap(),
-        hi: iter.next().unwrap_or(0),
-    })
+    context
+        .kernel
+        .msg_value_received()
+        .try_into()
+        .context("invalid token amount")
+        .or_fatal()
 }

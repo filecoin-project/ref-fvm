@@ -32,11 +32,10 @@ pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {
 
 pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     let balance = context.kernel.current_balance()?;
-    let mut iter = balance.iter_u64_digits();
-    Ok(sys::TokenAmount {
-        lo: iter.next().unwrap(),
-        hi: iter.next().unwrap_or(0),
-    })
+    balance
+        .try_into()
+        .context("balance exceeds u128")
+        .or_fatal()
 }
 
 /// TODO it should be possible to consume an address without knowing its length a priori
