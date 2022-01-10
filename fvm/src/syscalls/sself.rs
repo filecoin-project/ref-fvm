@@ -1,4 +1,4 @@
-use super::{Context, MAX_CID_LEN};
+use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
 use fvm_shared::sys;
@@ -14,11 +14,9 @@ pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> 
 
     if size <= obuf_len {
         // Only write the CID if there's sufficient capacity.
-        let obuf = context
-            .memory
-            .try_slice_mut(obuf_off, obuf_off + MAX_CID_LEN as u32)?;
+        let obuf = context.memory.try_slice_mut(obuf_off, size)?;
 
-        root.write_bytes(&mut obuf[..MAX_CID_LEN])
+        root.write_bytes(&mut obuf[..size as usize])
             .context("failed to write cid root")
             .or_fatal()?;
     }
