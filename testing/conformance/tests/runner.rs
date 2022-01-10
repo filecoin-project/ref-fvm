@@ -166,14 +166,17 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         match res {
             VariantResult::Ok { id } => {
                 report!("OK".on_green(), path.display(), id);
+                succeeded += 1;
             }
             VariantResult::Failed { reason, id } => {
                 report!("FAIL".white().on_red(), path.display(), id);
                 println!("\t|> reason: {}", reason);
+                failed += 1;
             }
             VariantResult::Skipped { reason, id } => {
                 report!("SKIP".on_yellow(), path.display(), id);
                 println!("\t|> reason: {}", reason);
+                skipped += 1;
             }
         }
     }

@@ -43,9 +43,10 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
+        buf.set_len(bytes_read as usize);
         crate::debug::log(format!(
-            "[params_raw] ipld read: bytes_read={:?}",
-            bytes_read
+            "[params_raw] ipld read: bytes_read={:?}, data: {:x?}",
+            bytes_read, &buf,
         ));
         debug_assert!(bytes_read == size, "read an unexpected number of bytes");
         Ok((codec, buf))

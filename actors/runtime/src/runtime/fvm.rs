@@ -315,6 +315,10 @@ where
 pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     let method = fvm::message::method_number().expect("no method number");
     let params = if params > 0 {
+        fvm::debug::log(format!(
+            "[trampoline] fetching parameters block: {}",
+            params
+        ));
         let params = fvm::message::params_raw(params)
             .expect("params block invalid")
             .1;
@@ -323,7 +327,7 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
         RawBytes::default()
     };
 
-    fvm::debug::log(format!("[trampoline] input params: {:?}", params.bytes()));
+    fvm::debug::log(format!("[trampoline] input params: {:x?}", params.bytes()));
 
     // Construct a new runtime.
     let mut rt = FvmRuntime::default();
