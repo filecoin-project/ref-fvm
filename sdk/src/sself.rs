@@ -6,9 +6,8 @@ use fvm_shared::econ::TokenAmount;
 
 /// Get the IPLD root CID.
 pub fn root() -> SyscallResult<Cid> {
-    // let mut buf = [0u8; MAX_CID_LEN]; // Stack allocated arrays aren't accessible through exported WASM memory.
-    // TODO this alloc is wasteful; since the SDK is single-threaded, we can allocate a buffer upfront and reuse it.
-    let mut buf = vec![0; MAX_CID_LEN]; // heap/memory-allocated
+    // I really hate this CID interface. Why can't I just have bytes?
+    let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
         let len = sys::sself::root(buf.as_mut_ptr(), buf.len() as u32)? as usize;
         if len > buf.len() {
@@ -21,10 +20,8 @@ pub fn root() -> SyscallResult<Cid> {
 
 /// Set the actor's state-tree root. The CID must be in the "reachable" set.
 pub fn set_root(cid: &Cid) -> SyscallResult<()> {
-    // let mut buf = [0u8; MAX_CID_LEN]; // Stack allocated arrays aren't accessible through exported WASM memory.
-    // TODO this alloc is wasteful; since the SDK is single-threaded, we can allocate a buffer upfront and reuse it.
-    let mut buf = vec![0; MAX_CID_LEN]; // heap/memory-allocated
-    cid.write_bytes(&mut buf[0..])
+    let mut buf = [0u8; MAX_CID_LEN];
+    cid.write_bytes(&mut buf[..])
         .expect("CID encoding should not fail");
     unsafe { sys::sself::set_root(buf.as_ptr()) }
 }
