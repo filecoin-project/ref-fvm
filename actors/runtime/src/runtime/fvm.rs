@@ -291,6 +291,10 @@ where
         fvm::crypto::verify_consensus_fault(h1, h2, extra).map_err(|_| Error::msg("no fault"))
     }
 
+    fn batch_verify_seals(&self, batch: &[SealVerifyInfo]) -> anyhow::Result<Vec<bool>> {
+        fvm::crypto::batch_verify_seals(batch).map_err(|_| Error::msg("failed to verify batch"))
+    }
+
     fn verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,

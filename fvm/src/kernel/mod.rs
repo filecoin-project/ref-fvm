@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cid::Cid;
 use fvm_shared::error::ExitCode;
 
@@ -252,10 +250,7 @@ pub trait CryptoOps {
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>>;
 
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>>;
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>>;
 
     fn verify_aggregate_seals(
         &mut self,

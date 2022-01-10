@@ -544,51 +544,42 @@ where
             .context("fault not verified")
     }
 
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>> {
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
         let out = vis
             .par_iter()
             .with_min_len(vis.len() / *NUM_CPUS)
-            .map(|(&addr, seals)| {
-                let results = seals
-                    .par_iter()
-                    .map(|s| {
-                        let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
-                        match verify_seal_result {
-                            Ok(res) => {
-                                match res {
-                                    Ok(correct) => {
-                                        if !correct {
-                                            log::debug!(
-                                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
-                                            addr,
-                                            );
-                                        }
-                                        correct // all ok
-                                    }
-                                    Err(err) => {
-                                        log::debug!(
-                                        "seal verify in batch failed (miner: {}) (err: {})",
-                                        addr,
-                                        err
+            .map(|seal| {
+                let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));
+                match verify_seal_result {
+                    Ok(res) => {
+                        match res {
+                            Ok(correct) => {
+                                if !correct {
+                                    log::debug!(
+                                        "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                        seal.sector_id.miner
                                     );
-                                        false
-                                    }
                                 }
-                            },
-                            Err(_) => {
-                                log::error!("seal verify internal fail (miner: {})", addr);
+                                correct // all ok
+                            }
+                            Err(err) => {
+                                log::debug!(
+                                    "seal verify in batch failed (miner: {}) (err: {})",
+                                    seal.sector_id.miner,
+                                    err
+                                );
                                 false
                             }
                         }
-                    })
-                    .collect();
-                (addr, results)
+                    },
+                    Err(e) => {
+                        log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
+                        false
+                    }
+                }
             })
             .collect();
         log::debug!("batch verify seals end");
