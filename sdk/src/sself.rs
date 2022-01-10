@@ -1,4 +1,4 @@
-use crate::{debug, SyscallResult};
+use crate::SyscallResult;
 use crate::{sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;

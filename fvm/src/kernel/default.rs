@@ -847,6 +847,10 @@ where
         println!("{}", msg)
     }
 
+    fn debug_enabled(&self) -> bool {
+        self.call_manager.context().debug
+    }
+
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,

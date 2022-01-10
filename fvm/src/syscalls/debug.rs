@@ -8,3 +8,11 @@ pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Res
     context.kernel.log(msg);
     Ok(())
 }
+
+pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
+    Ok(if context.kernel.debug_enabled() {
+        0
+    } else {
+        -1
+    })
+}

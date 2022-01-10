@@ -181,6 +181,10 @@ where
         self.0.log(msg)
     }
 
+    fn debug_enabled(&self) -> bool {
+        self.0.debug_enabled()
+    }
+
     fn push_syscall_error(&mut self, e: SyscallError) {
         self.0.push_syscall_error(e)
     }

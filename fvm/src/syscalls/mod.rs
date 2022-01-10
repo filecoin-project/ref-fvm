@@ -111,6 +111,7 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     linker.bind("send", "send", send::send)?;
 
     linker.bind("debug", "log", debug::log)?;
+    linker.bind("debug", "enabled", debug::enabled)?;
 
     Ok(())
 }

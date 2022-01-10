@@ -72,6 +72,7 @@ where
             network_version,
             initial_state_root: state_root,
             price_list: price_list_by_epoch(epoch),
+            debug: config.debug,
         };
 
         // Initialize the WASM engine.

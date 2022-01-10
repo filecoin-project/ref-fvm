@@ -25,6 +25,16 @@ pub(crate) fn status_code_to_bool(code: i32) -> bool {
     code == 0
 }
 
+/// Conditionally logs a debug message iff debug mode is enabled.
+#[macro_export]
+macro_rules! logc {
+    ($prefix:literal, $msg:literal $(, $ex:expr)+) => {
+        if *$crate::debug::DEBUG_ENABLED {
+            $crate::debug::log(format!(concat!("[", $prefix, "] ", $msg), $($ex,)*));
+        }
+    };
+}
+
 /// SDK functions performing a syscall return a SyscallResult type, where the
 /// Error type is an ExitCode. ExitCode::Ok is translated to an Ok result, while
 /// error codes are propagated as Err(ExitCode).
