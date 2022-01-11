@@ -6,13 +6,11 @@ use async_std::stream;
 use cid::Cid;
 use colored::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
-use conformance_tests::vm::{TestCallManager, TestKernel, TestMachine};
+use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
 use futures::{StreamExt, TryStreamExt};
-use fvm::call_manager::DefaultCallManager;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::machine::Machine;
-use fvm::DefaultKernel;
 use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::{self, MemoryBlockstore};
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
@@ -172,7 +170,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
             }
             VariantResult::Failed { reason, id } => {
                 report!("FAIL".white().on_red(), path.display(), id);
-                println!("\t|> reason: {}", reason);
+                println!("\t|> reason: {:#}", reason);
                 failed += 1;
             }
             VariantResult::Skipped { reason, id } => {
@@ -264,9 +262,7 @@ fn run_variant(
 
     // Construct the Machine.
     let machine = TestMachine::new_for_vector(&v, &variant, bs);
-    let mut exec: DefaultExecutor<
-        TestKernel<DefaultKernel<TestCallManager<DefaultCallManager<_>>>>,
-    > = DefaultExecutor::new(machine);
+    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {

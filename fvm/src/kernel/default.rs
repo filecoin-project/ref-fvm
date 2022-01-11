@@ -58,8 +58,8 @@ lazy_static! {
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
-    from: ActorID,
-    to: ActorID,
+    caller: ActorID,
+    actor_id: ActorID,
     method: MethodNum,
     value_received: TokenAmount,
 
@@ -99,8 +99,8 @@ where
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
-            from,
-            to,
+            caller: from,
+            actor_id: to,
             method,
             value_received,
             caller_validated: false,
@@ -187,7 +187,7 @@ where
     C: CallManager,
 {
     fn root(&self) -> Cid {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let state_tree = self.call_manager.state_tree();
 
         state_tree
@@ -198,7 +198,7 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let state_tree = self.call_manager.state_tree_mut();
 
         state_tree.mutate_actor(&addr, |actor_state| {
@@ -210,7 +210,7 @@ where
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let balance = self
             .call_manager
             .state_tree()
@@ -238,7 +238,7 @@ where
                 // TODO this should not be an actor error, but a system error with an exit code.
                 syscall_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
 
-            if beneficiary_id == self.to {
+            if beneficiary_id == self.actor_id {
                 return Err(syscall_error!(
                     SysErrIllegalArgument,
                     "benefactor cannot be beneficiary"
@@ -249,12 +249,14 @@ where
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
                 .machine_mut()
-                .transfer(self.from, beneficiary_id, &balance)?;
+                .transfer(self.actor_id, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
         // TODO errors here are FATAL errors
-        self.call_manager.state_tree_mut().delete_actor_id(self.to)
+        self.call_manager
+            .state_tree_mut()
+            .delete_actor_id(self.actor_id)
     }
 }
 
@@ -345,11 +347,11 @@ where
     C: CallManager,
 {
     fn msg_caller(&self) -> ActorID {
-        self.from
+        self.caller
     }
 
     fn msg_receiver(&self) -> ActorID {
-        self.to
+        self.actor_id
     }
 
     fn msg_method_number(&self) -> MethodNum {
@@ -372,7 +374,7 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
-        let from = self.from;
+        let from = self.actor_id;
         self.call_manager
             .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
     }
@@ -735,7 +737,7 @@ where
     fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
         self.assert_not_validated()?;
 
-        let caller_addr = Address::new_id(self.from);
+        let caller_addr = Address::new_id(self.caller);
         if !allowed.iter().any(|a| *a == caller_addr) {
             return Err(syscall_error!(SysErrForbidden;
                 "caller {} is not one of supported", caller_addr
@@ -749,7 +751,7 @@ where
         self.assert_not_validated()?;
 
         let caller_cid = self
-            .get_actor_code_cid(&Address::new_id(self.from))?
+            .get_actor_code_cid(&Address::new_id(self.caller))?
             .ok_or_else(|| anyhow!("failed to lookup code cid for caller"))
             .or_fatal()?;
 
@@ -851,7 +853,7 @@ where
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {
         self.call_manager.push_error(CallError {
-            source: self.to,
+            source: self.actor_id,
             code,
             message,
         })
