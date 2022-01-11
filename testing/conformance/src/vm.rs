@@ -136,6 +136,10 @@ where
     fn consume(self) -> Self::Blockstore {
         self.machine.consume()
     }
+
+    fn flush(&mut self) -> Result<Cid> {
+        self.machine.flush()
+    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -223,6 +227,34 @@ where
     fn clear_error(&mut self) {
         self.0.clear_error()
     }
+
+    fn price_list(&self) -> &fvm::gas::PriceList {
+        self.0.price_list()
+    }
+
+    fn context(&self) -> &MachineContext {
+        self.0.context()
+    }
+
+    fn blockstore(&self) -> &<Self::Machine as Machine>::Blockstore {
+        self.0.blockstore()
+    }
+
+    fn externs(&self) -> &<Self::Machine as Machine>::Externs {
+        self.0.externs()
+    }
+
+    fn state_tree(&self) -> &StateTree<<Self::Machine as Machine>::Blockstore> {
+        self.0.state_tree()
+    }
+
+    fn state_tree_mut(&mut self) -> &mut StateTree<<Self::Machine as Machine>::Blockstore> {
+        self.0.state_tree_mut()
+    }
+
+    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+        self.0.charge_gas(charge)
+    }
 }
 
 /// A kernel for intercepting syscalls.
@@ -309,6 +341,10 @@ where
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
+    }
+
+    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+        self.0.block_get(id)
     }
 }
 impl<M, C, K> CircSupplyOps for TestKernel<K>
