@@ -301,6 +301,8 @@ where
             let kernel = K::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, kernel);
 
+            log::trace!("calling {} -> {}::{}", from, to, method);
+
             let result = (|| {
                 // Load parameters, if there are any.
                 let param_id = if params.len() > 0 {
@@ -330,6 +332,19 @@ where
 
                 Ok(InvocationResult::Return(return_value))
             })();
+
+            match &result {
+                Ok(val) => {
+                    log::trace!(
+                        "returning {}::{} -> {} ({})",
+                        to,
+                        method,
+                        from,
+                        val.exit_code()
+                    );
+                }
+                Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+            }
 
             (result, store.into_data().take())
         })

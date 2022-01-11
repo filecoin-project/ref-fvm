@@ -272,6 +272,8 @@ where
         self.state_tree.set_actor_id(to, to_actor)?;
         //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
 
+        log::trace!("transfered {} from {} to {}", value, from, to);
+
         Ok(())
     }
 
