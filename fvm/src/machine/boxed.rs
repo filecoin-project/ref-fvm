@@ -1,14 +1,13 @@
 use cid::Cid;
-use fvm_shared::{address::Address, econ::TokenAmount, ActorID};
+use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
-
-use crate::{
-    state_tree::{ActorState, StateTree},
-    Config,
-};
 
 use super::{Machine, MachineContext};
 use crate::kernel::Result;
+use crate::state_tree::{ActorState, StateTree};
+use crate::Config;
 
 impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;

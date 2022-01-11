@@ -1,11 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use fvm_shared::encoding::Cbor;
 use serde::de::{self, Deserializer};
 use serde::ser::{self, Serializer};
 use serde::{Deserialize, Serialize};
-
-use fvm_shared::encoding::Cbor;
 
 pub struct UnmarshallableCBOR;
 

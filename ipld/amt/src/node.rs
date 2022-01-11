@@ -1,18 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 use anyhow::anyhow;
-use cid::{multihash::Code, Cid};
-use fvm_shared::blockstore::Blockstore;
-use fvm_shared::blockstore::CborStore;
+use cid::multihash::Code;
+use cid::Cid;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::encoding::{serde_bytes, BytesSer};
 use once_cell::unsync::OnceCell;
-use serde::{
-    de::{self, DeserializeOwned},
-    ser, Deserialize, Serialize,
-};
+use serde::de::{self, DeserializeOwned};
+use serde::{ser, Deserialize, Serialize};
+
+use super::ValueMut;
+use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -545,8 +544,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use fvm_shared::encoding::{from_slice, to_vec};
+
+    use super::*;
 
     #[test]
     fn serialize_node_symmetric() {

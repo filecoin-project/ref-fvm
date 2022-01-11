@@ -3,11 +3,10 @@
 
 use actors_runtime::builtin::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
 use actors_runtime::test_utils::*;
+use fvm_actor_account::{Actor as AccountActor, State};
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
-
-use fvm_actor_account::{Actor as AccountActor, State};
 
 macro_rules! account_tests {
     ($($name:ident: $value:expr,)*) => {

@@ -5,7 +5,8 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{serde_bytes, tuple::*, BytesDe, Cbor, RawBytes};
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::{serde_bytes, BytesDe, Cbor, RawBytes};
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
 use fvm_shared::smooth::FilterEstimate;
 

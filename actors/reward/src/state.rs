@@ -1,15 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use lazy_static::lazy_static;
-use num_derive::FromPrimitive;
-
 use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{repr::*, tuple::*, Cbor};
+use fvm_shared::encoding::repr::*;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 use fvm_shared::sector::{Spacetime, StoragePower};
 use fvm_shared::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};
+use lazy_static::lazy_static;
+use num_derive::FromPrimitive;
 
 use super::logic::*;
 

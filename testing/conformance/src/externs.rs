@@ -1,9 +1,10 @@
-use crate::rand::ReplayingRand;
-use crate::vector::Randomness;
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+
+use crate::rand::ReplayingRand;
+use crate::vector::Randomness;
 
 /// The externs stub for testing. Forwards randomness requests to the randomness
 /// replayer, which replays randomness stored in the vector.

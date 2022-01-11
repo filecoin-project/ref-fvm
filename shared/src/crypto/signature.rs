@@ -1,13 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::address::Error as AddressError;
-use crate::encoding::{de, repr::*, ser, serde_bytes, Cbor, Error as EncodingError};
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 use std::borrow::Cow;
 use std::error;
+
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use thiserror::Error;
+
+use crate::address::Error as AddressError;
+use crate::encoding::repr::*;
+use crate::encoding::{de, ser, serde_bytes, Cbor, Error as EncodingError};
 
 /// BLS signature length in bytes.
 pub const BLS_SIG_LEN: usize = 96;
@@ -117,15 +120,17 @@ impl Signature {
 
 #[cfg(feature = "crypto")]
 pub mod ops {
+    use bls_signatures::{
+        verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
+    };
+    use libsecp256k1::{
+        recover, Error as SecpError, Message, RecoveryId, Signature as EcsdaSignature,
+    };
+
     use super::{Error, SECP_SIG_LEN};
     use crate::address::Address;
     use crate::crypto::signature::Signature;
     use crate::encoding::blake2b_256;
-    use bls_signatures::{
-        verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
-    };
-    use libsecp256k1::Error as SecpError;
-    use libsecp256k1::{recover, Message, RecoveryId, Signature as EcsdaSignature};
 
     /// Returns `String` error if a bls signature is invalid.
     pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
@@ -237,14 +242,15 @@ pub mod ops {
 
 #[cfg(all(test, feature = "crypto"))]
 mod tests {
-    use super::*;
-    use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
-    use crate::encoding::blake2b_256;
-    use crate::Address;
     use bls_signatures::{PrivateKey, Serialize, Signature as BlsSignature};
     use libsecp256k1::{sign, Message, PublicKey, SecretKey};
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
+
+    use super::*;
+    use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
+    use crate::encoding::blake2b_256;
+    use crate::Address;
 
     #[test]
     fn bls_agg_verify() {

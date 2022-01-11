@@ -1,7 +1,8 @@
 //! The builtin module exports identifiers and convenience functions related
 //! with built-in actors.
 
-use cid::{multihash::Code, multihash::MultihashDigest, Cid};
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
 use fvm_shared::encoding::{to_vec, DAG_CBOR};
 use lazy_static::lazy_static;
 

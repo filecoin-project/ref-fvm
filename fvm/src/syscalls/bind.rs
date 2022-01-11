@@ -1,13 +1,11 @@
 use std::mem;
 
 use fvm_shared::error::ExitCode;
-
 use wasmtime::{Caller, Linker, Trap, WasmTy};
-
-use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 use super::error::trap_from_error;
 use super::Context;
+use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
 // this type nonsense. But this was faster and will "work" for now.

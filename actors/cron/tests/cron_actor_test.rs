@@ -3,11 +3,10 @@
 
 use actors_runtime::test_utils::*;
 use actors_runtime::{SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID};
+use fvm_actor_cron::{Actor as CronActor, ConstructorParams, Entry, State};
 use fvm_shared::address::Address;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
-
-use fvm_actor_cron::{Actor as CronActor, ConstructorParams, Entry, State};
 
 fn construct_runtime() -> MockRuntime {
     MockRuntime {

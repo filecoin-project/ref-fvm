@@ -8,12 +8,12 @@
 //! details.
 
 use cid::Cid;
-use lazy_static::lazy_static;
-
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor};
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
+use lazy_static::lazy_static;
 
 use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID};
 use crate::state_tree::ActorState;

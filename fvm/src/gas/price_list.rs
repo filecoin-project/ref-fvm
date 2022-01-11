@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
-use lazy_static::lazy_static;
-use num_traits::Zero;
-
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
@@ -14,6 +11,8 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::{MethodNum, METHOD_SEND};
+use lazy_static::lazy_static;
+use num_traits::Zero;
 
 use super::GasCharge;
 

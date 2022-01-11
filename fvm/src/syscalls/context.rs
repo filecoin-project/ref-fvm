@@ -1,11 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
 use cid::Cid;
-use fvm_shared::{
-    address::Address,
-    encoding::{from_slice, Cbor},
-    error::ExitCode,
-};
+use fvm_shared::address::Address;
+use fvm_shared::encoding::{from_slice, Cbor};
+use fvm_shared::error::ExitCode;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscalls::MAX_CID_LEN;

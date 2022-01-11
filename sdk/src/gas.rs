@@ -1,5 +1,4 @@
-use crate::sys;
-use crate::SyscallResult;
+use crate::{sys, SyscallResult};
 
 /// Charge gas for the operation identified by name.
 pub fn charge(name: &str, compute: u64) -> SyscallResult<()> {

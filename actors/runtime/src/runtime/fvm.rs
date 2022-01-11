@@ -1,16 +1,11 @@
-use anyhow::{anyhow, Error};
-use cid::{
-    multihash::{Code, MultihashDigest},
-    Cid,
-};
 use std::convert::TryInto;
 
-use crate::runtime::actor_blockstore::ActorBlockstore;
-use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Syscalls};
-use crate::Runtime;
-use crate::{actor_error, ActorError};
+use anyhow::{anyhow, Error};
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
 use fvm_sdk as fvm;
 use fvm_sdk::logc;
+use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -23,8 +18,11 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::MethodNum;
-use fvm_shared::{address::Address, ActorID};
+use fvm_shared::{ActorID, MethodNum};
+
+use crate::runtime::actor_blockstore::ActorBlockstore;
+use crate::runtime::{ActorCode, ConsensusFault, MessageInfo, Syscalls};
+use crate::{actor_error, ActorError, Runtime};
 
 lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).

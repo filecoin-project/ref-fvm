@@ -1,12 +1,12 @@
-use crate::externs::TestExterns;
-use crate::vector::{MessageVector, Variant};
+use std::convert::TryFrom;
+
 use cid::Cid;
 use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::GasTracker;
+use fvm::kernel::*;
 use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::Config;
-use fvm::{kernel::*, DefaultKernel};
+use fvm::{Config, DefaultKernel};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, ToBigInt};
 use fvm_shared::blockstore::MemoryBlockstore;
@@ -24,7 +24,9 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
-use std::convert::TryFrom;
+
+use crate::externs::TestExterns;
+use crate::vector::{MessageVector, Variant};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 

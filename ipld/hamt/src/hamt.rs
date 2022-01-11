@@ -1,15 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::node::Node;
-use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
-use cid::{multihash::Code, Cid};
-use forest_hash_utils::BytesKey;
-use fvm_shared::blockstore::Blockstore;
-use fvm_shared::blockstore::CborStore;
-use serde::{de::DeserializeOwned, Serialize, Serializer};
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+
+use cid::multihash::Code;
+use cid::Cid;
+use forest_hash_utils::BytesKey;
+use fvm_shared::blockstore::{Blockstore, CborStore};
+use serde::de::DeserializeOwned;
+use serde::{Serialize, Serializer};
+
+use crate::node::Node;
+use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///

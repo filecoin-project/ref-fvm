@@ -172,9 +172,10 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        use super::super::BitWriter;
         use rand::{Rng, SeedableRng};
         use rand_xorshift::XorShiftRng;
+
+        use super::super::BitWriter;
 
         let mut rng = XorShiftRng::seed_from_u64(5);
 

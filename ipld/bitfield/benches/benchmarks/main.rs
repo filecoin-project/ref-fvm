@@ -4,9 +4,8 @@
 mod examples;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use forest_bitfield::BitField;
-
 use examples::{example1, example2};
+use forest_bitfield::BitField;
 
 fn len(c: &mut Criterion) {
     let bf = example1();

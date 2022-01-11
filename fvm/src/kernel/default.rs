@@ -1,49 +1,40 @@
-use anyhow::anyhow;
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 
-use cid::Cid;
-
+use anyhow::anyhow;
 use byteorder::{BigEndian, WriteBytesExt};
+use cid::Cid;
+use filecoin_proofs_api::seal::{
+    compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
+};
+use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
+use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
-use fvm_shared::blockstore::CborStore;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ExitCode;
-use fvm_shared::{ActorID, FILECOIN_PRECISION};
-
-use fvm_shared::blockstore::Blockstore;
-
-use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
-use crate::call_manager::{CallManager, InvocationResult};
-use crate::externs::{Consensus, Rand};
-use crate::machine::CallError;
-use crate::state_tree::ActorState;
-use crate::syscall_error;
-
-use crate::market_actor::State as MarketActorState;
-use crate::power_actor::State as PowerActorState;
-
-use filecoin_proofs_api::seal::compute_comm_d;
-use filecoin_proofs_api::{self as proofs, seal, ProverId, SectorId};
-use filecoin_proofs_api::{
-    post, seal::verify_aggregate_seal_commit_proofs, seal::verify_seal as proofs_verify_seal,
-    PublicReplicaInfo,
-};
-use fvm_shared::address::Protocol;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use fvm_shared::sector::SectorInfo;
+use fvm_shared::{ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
-
+use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
+use crate::call_manager::{CallManager, InvocationResult};
+use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
-use fvm_shared::sector::SectorInfo;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use crate::machine::CallError;
+use crate::market_actor::State as MarketActorState;
+use crate::power_actor::State as PowerActorState;
+use crate::state_tree::ActorState;
+use crate::syscall_error;
 
 pub const BURN_ACTOR_ID: ActorID = 99;
 pub const RESERVE_ACTOR_ID: ActorID = 90;

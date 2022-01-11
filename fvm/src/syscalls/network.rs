@@ -1,8 +1,8 @@
-use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
 use fvm_shared::sys;
 
 use super::Context;
+use crate::kernel::{ClassifyResult, Kernel, Result};
 
 pub fn curr_epoch(context: Context<'_, impl Kernel>) -> Result<u64> {
     Ok(context.kernel.network_epoch() as u64)

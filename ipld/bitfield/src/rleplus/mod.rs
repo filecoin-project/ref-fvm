@@ -64,12 +64,13 @@
 mod reader;
 mod writer;
 
+use std::borrow::Cow;
+
 pub use reader::BitReader;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
 use super::{BitField, Result};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Cow;
 
 // MaxEncodedSize is the maximum encoded size of a bitfield. When expanded into
 // a slice of runs, a bitfield of this size should not exceed 2MiB of memory.
@@ -183,13 +184,11 @@ impl BitField {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        super::{bitfield, ranges_from_bits},
-        BitField, BitWriter,
-    };
-
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
+
+    use super::super::{bitfield, ranges_from_bits};
+    use super::{BitField, BitWriter};
 
     #[test]
     fn test() {

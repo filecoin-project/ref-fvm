@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 
-use fvm_shared::{bigint::BigInt, econ::TokenAmount};
+use fvm_shared::bigint::BigInt;
+use fvm_shared::econ::TokenAmount;
 
 #[derive(Clone, Default)]
 pub(crate) struct GasOutputs {

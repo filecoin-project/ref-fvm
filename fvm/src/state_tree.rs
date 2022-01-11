@@ -6,15 +6,13 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
-use fvm_shared::blockstore::{Blockstore, CborStore};
-
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
-
 use ipld_hamt::Hamt;
 
 use crate::init_actor::State as InitActorState;
@@ -528,9 +526,8 @@ pub mod json {
 
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-    use crate::TokenAmount;
-
     use super::*;
+    use crate::TokenAmount;
 
     /// Wrapper for serializing and deserializing a SignedMessage from JSON.
     #[derive(Deserialize, Serialize)]
@@ -604,22 +601,20 @@ pub mod json {
 
 #[cfg(test)]
 mod tests {
+    use cid::multihash::Code::{Blake2b256, Identity};
+    use cid::multihash::MultihashDigest;
+    use cid::Cid;
+    use fvm_shared::address::{Address, SECP_PUB_LEN};
+    use fvm_shared::bigint::BigInt;
+    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
+    use fvm_shared::encoding::DAG_CBOR;
+    use fvm_shared::state::StateTreeVersion;
+    use ipld_hamt::Hamt;
+
     use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ADDR;
     use crate::state_tree::{ActorState, StateTree};
-    use cid::{
-        multihash::Code::{Blake2b256, Identity},
-        multihash::MultihashDigest,
-        Cid,
-    };
-    use fvm_shared::address::{Address, SECP_PUB_LEN};
-    use fvm_shared::bigint::BigInt;
-    use fvm_shared::blockstore::CborStore;
-    use fvm_shared::blockstore::MemoryBlockstore;
-    use fvm_shared::encoding::DAG_CBOR;
-    use fvm_shared::state::StateTreeVersion;
-    use ipld_hamt::Hamt;
 
     fn empty_cid() -> Cid {
         Cid::new_v1(DAG_CBOR, Identity.digest(&[]))

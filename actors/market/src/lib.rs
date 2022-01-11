@@ -3,14 +3,17 @@
 
 use std::collections::{HashMap, HashSet};
 
+use actors_runtime::runtime::{ActorCode, Runtime};
+use actors_runtime::{
+    actor_error, wasm_trampoline, ActorDowncast, ActorError, BURNT_FUNDS_ACTOR_ADDR,
+    CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR,
+    STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, VERIFIED_REGISTRY_ACTOR_ADDR,
+};
 use ahash::AHashMap;
 use bitfield::BitField;
-use fvm_shared::blockstore::Blockstore;
-use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed, Zero};
-
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
+use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::{ChainEpoch, QuantSpec, EPOCH_UNDEFINED};
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
@@ -20,22 +23,15 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-
-use crate::ext::verifreg::UseBytesParams;
-
-use actors_runtime::{
-    actor_error,
-    runtime::{ActorCode, Runtime},
-    wasm_trampoline, ActorDowncast, ActorError, BURNT_FUNDS_ACTOR_ADDR, CALLER_TYPES_SIGNABLE,
-    CRON_ACTOR_ADDR, MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR, STORAGE_POWER_ACTOR_ADDR,
-    SYSTEM_ACTOR_ADDR, VERIFIED_REGISTRY_ACTOR_ADDR,
-};
 use log::info;
+use num_derive::FromPrimitive;
+use num_traits::{FromPrimitive, Signed, Zero};
 
 pub use self::deal::*;
 use self::policy::*;
 pub use self::state::*;
 pub use self::types::*;
+use crate::ext::verifreg::UseBytesParams;
 
 // export for testing
 mod deal;

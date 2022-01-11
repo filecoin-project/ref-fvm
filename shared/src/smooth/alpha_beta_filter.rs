@@ -5,7 +5,6 @@ use crate::bigint::{bigint_ser, BigInt, Integer};
 use crate::clock::ChainEpoch;
 use crate::encoding::tuple::*;
 use crate::encoding::Cbor;
-
 use crate::math::PRECISION;
 
 #[derive(Default, Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq)]

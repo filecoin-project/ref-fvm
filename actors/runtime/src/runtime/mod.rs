@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
-
 use fvm_shared::address::Address;
+use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -20,9 +19,8 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::ActorError;
-
 pub use self::actor_code::*;
+use crate::ActorError;
 mod actor_code;
 
 #[cfg(feature = "runtime-wasm")]

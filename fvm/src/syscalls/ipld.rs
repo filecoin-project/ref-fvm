@@ -1,12 +1,9 @@
 use anyhow::Context as _;
 use fvm_shared::sys;
 
-use crate::{
-    kernel::{ClassifyResult, Result},
-    Kernel,
-};
-
 use super::Context;
+use crate::kernel::{ClassifyResult, Result};
+use crate::Kernel;
 
 pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
     let cid = context.memory.read_cid(cid)?;

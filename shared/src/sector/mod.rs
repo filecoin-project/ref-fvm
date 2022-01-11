@@ -5,15 +5,17 @@ pub mod post;
 mod registered_proof;
 mod seal;
 
+use std::fmt;
+
+use num_bigint::BigInt;
+use num_derive::FromPrimitive;
+
 pub use self::post::*;
 pub use self::registered_proof::*;
 pub use self::seal::*;
-
-use crate::encoding::{repr::*, tuple::*};
+use crate::encoding::repr::*;
+use crate::encoding::tuple::*;
 use crate::ActorID;
-use num_bigint::BigInt;
-use num_derive::FromPrimitive;
-use std::fmt;
 
 /// SectorNumber is a numeric identifier for a sector. It is usually relative to a miner.
 pub type SectorNumber = u64;

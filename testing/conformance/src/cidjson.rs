@@ -43,9 +43,10 @@ struct CidMap {
 }
 
 pub mod vec {
-    use super::*;
     use fvm_shared::encoding::GoVecVisitor;
     use serde::ser::SerializeSeq;
+
+    use super::*;
 
     /// Wrapper for serializing and deserializing a Cid vector from JSON.
     #[derive(Deserialize, Serialize)]
@@ -77,8 +78,9 @@ pub mod vec {
 }
 
 pub mod opt {
-    use super::{Cid, CidJson, CidJsonRef};
     use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+
+    use super::{Cid, CidJson, CidJsonRef};
 
     pub fn serialize<S>(v: &Option<Cid>, serializer: S) -> Result<S::Ok, S::Error>
     where

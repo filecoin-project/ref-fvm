@@ -5,13 +5,10 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
 use anyhow::anyhow;
-use cid::{multihash::Code, Cid};
-use fvm_shared::blockstore::MemoryBlockstore;
-
-use crate::runtime::{ActorCode, MessageInfo, Runtime, Syscalls};
-use crate::{actor_error, ActorError};
+use cid::multihash::Code;
+use cid::Cid;
 use fvm_shared::address::{Address, Protocol};
-use fvm_shared::blockstore::CborStore;
+use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -27,6 +24,9 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
+
+use crate::runtime::{ActorCode, MessageInfo, Runtime, Syscalls};
+use crate::{actor_error, ActorError};
 
 pub struct MockRuntime {
     pub epoch: ChainEpoch,

@@ -1,8 +1,8 @@
-use crate::kernel::{ClassifyResult, Result};
-use crate::{syscall_error, Kernel};
 use fvm_shared::sys;
 
 use super::Context;
+use crate::kernel::{ClassifyResult, Result};
+use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
     context: Context<'_, impl Kernel>,

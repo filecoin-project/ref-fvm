@@ -3,8 +3,7 @@
 
 use std::collections::HashSet;
 
-use actors_runtime::{actor_error, ActorError};
-use actors_runtime::{ActorDowncast, Array};
+use actors_runtime::{actor_error, ActorDowncast, ActorError, Array};
 use ahash::AHashSet;
 use anyhow::anyhow;
 use bitfield::BitField;

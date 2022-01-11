@@ -1,19 +1,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::borrow::Borrow;
+use std::fmt::Debug;
+use std::marker::PhantomData;
+
+use cid::multihash::Code;
+use fvm_shared::blockstore::{Blockstore, CborStore};
+use once_cell::unsync::OnceCell;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use cid::multihash::Code;
-use fvm_shared::blockstore::Blockstore;
-use fvm_shared::blockstore::CborStore;
-use once_cell::unsync::OnceCell;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Borrow;
-use std::fmt::Debug;
-use std::marker::PhantomData;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]

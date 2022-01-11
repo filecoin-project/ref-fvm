@@ -1,12 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::iter::FromIterator;
+
 use ahash::AHashSet;
 use forest_bitfield::{bitfield, BitField};
 use fvm_shared::encoding;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use std::iter::FromIterator;
 
 fn random_indices(range: usize, seed: u64) -> Vec<usize> {
     let mut rng = XorShiftRng::seed_from_u64(seed);

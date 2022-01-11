@@ -1,20 +1,15 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use lazy_static::lazy_static;
-use num_traits::FromPrimitive;
-
-use fvm_actor_reward::{
-    ext, Actor as RewardActor, AwardBlockRewardParams, Method, State, ThisEpochRewardReturn,
-    BASELINE_INITIAL_VALUE, PENALTY_MULTIPLIER,
-};
-
 use actors_runtime::test_utils::*;
 use actors_runtime::{
     ActorError, BURNT_FUNDS_ACTOR_ADDR, POWER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR,
     STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, SYSTEM_ACTOR_CODE_ID,
 };
-
+use fvm_actor_reward::{
+    ext, Actor as RewardActor, AwardBlockRewardParams, Method, State, ThisEpochRewardReturn,
+    BASELINE_INITIAL_VALUE, PENALTY_MULTIPLIER,
+};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntSer;
 use fvm_shared::clock::ChainEpoch;
@@ -23,6 +18,8 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::{METHOD_CONSTRUCTOR, METHOD_SEND};
+use lazy_static::lazy_static;
+use num_traits::FromPrimitive;
 
 lazy_static! {
     static ref EPOCH_ZERO_REWARD: TokenAmount =

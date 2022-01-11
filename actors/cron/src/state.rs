@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use fvm_shared::address::Address;
-use fvm_shared::encoding::{tuple::*, Cbor};
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 use fvm_shared::MethodNum;
 
 /// Cron actor state which holds entries to call during epoch tick

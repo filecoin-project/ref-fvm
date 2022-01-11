@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::{collections::HashMap, ops::AddAssign};
+use std::collections::HashMap;
+use std::ops::AddAssign;
 
 use bitfield::BitField;
-
 use fvm_shared::clock::ChainEpoch;
 
 #[derive(Default)]

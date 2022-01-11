@@ -1,11 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{BLS_PUB_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN};
-use data_encoding::DecodeError;
 use std::{io, num};
+
+use data_encoding::DecodeError;
 use thiserror::Error;
 use unsigned_varint::decode::Error as VarintError;
+
+use super::{BLS_PUB_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN};
 
 /// Address error
 #[derive(Debug, PartialEq, Error)]

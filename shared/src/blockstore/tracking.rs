@@ -3,10 +3,8 @@
 use std::cell::RefCell;
 
 use anyhow::Result;
-use cid::{
-    multihash::{self, Code},
-    Cid,
-};
+use cid::multihash::{self, Code};
+use cid::Cid;
 
 use super::{Block, Blockstore};
 
@@ -111,9 +109,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::blockstore::{Block, MemoryBlockstore};
-
     use super::*;
+    use crate::blockstore::{Block, MemoryBlockstore};
 
     #[test]
     fn basic_tracking_store() {

@@ -1,10 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::encoding::{
-    tuple::{Deserialize_tuple, Serialize_tuple},
-    {Cbor, RawBytes},
-};
+use crate::encoding::tuple::{Deserialize_tuple, Serialize_tuple};
+use crate::encoding::{Cbor, RawBytes};
 use crate::error::ExitCode;
 
 /// Result of a state transition from a message

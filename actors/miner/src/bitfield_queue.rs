@@ -3,11 +3,10 @@
 
 use std::collections::HashMap;
 
+use actors_runtime::{ActorDowncast, Array};
 use bitfield::BitField;
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
-
-use actors_runtime::{ActorDowncast, Array};
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use ipld_amt::Error as AmtError;
 

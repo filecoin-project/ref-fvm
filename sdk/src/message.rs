@@ -4,8 +4,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::{logc, SyscallResult};
-use crate::{sys, vm};
+use crate::{logc, sys, vm, SyscallResult};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;

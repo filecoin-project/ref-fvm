@@ -25,24 +25,22 @@ extern crate lazy_static;
 // workaround for a compiler bug, see https://github.com/rust-lang/rust/issues/55779
 extern crate serde;
 
-use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
-use ipld_amt::Amt;
-use serde::{de::DeserializeOwned, Serialize};
-use unsigned_varint::decode::Error as UVarintError;
-
-use crate::runtime::Runtime;
 use builtin::HAMT_BIT_WIDTH;
-pub use ipld_amt;
-pub use ipld_hamt;
+use cid::Cid;
+use fvm_shared::bigint::BigInt;
+use fvm_shared::blockstore::Blockstore;
+pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
+use ipld_amt::Amt;
 use ipld_hamt::{BytesKey, Error as HamtError, Hamt};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use unsigned_varint::decode::Error as UVarintError;
+pub use {ipld_amt, ipld_hamt};
 
 pub use self::actor_error::*;
 pub use self::builtin::*;
 pub use self::util::*;
-
-use fvm_shared::bigint::BigInt;
-pub use fvm_shared::BLOCKS_PER_EPOCH as EXPECTED_LEADERS_PER_EPOCH;
+use crate::runtime::Runtime;
 
 pub mod actor_error;
 pub mod builtin;
