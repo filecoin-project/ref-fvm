@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cid::Cid;
 use fvm_shared::error::ExitCode;
 
@@ -90,7 +88,7 @@ pub trait BlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId>;
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)>;
 
     /// Create a new block.
     ///
@@ -252,10 +250,7 @@ pub trait CryptoOps {
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>>;
 
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>>;
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>>;
 
     fn verify_aggregate_seals(
         &mut self,
@@ -288,6 +283,12 @@ pub trait RandomnessOps {
 
 /// Debugging APIs.
 pub trait DebugOps {
+    /// Log a message.
+    fn log(&self, msg: String);
+
+    /// Returns whether debug mode is enabled.
+    fn debug_enabled(&self) -> bool;
+
     /// Log a syscall error, adding it to the current error trace.
     ///
     /// Call this after a failed syscall.

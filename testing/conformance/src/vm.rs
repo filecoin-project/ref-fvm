@@ -1,12 +1,12 @@
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
 use cid::Cid;
-use fvm::call_manager::{CallManager, InvocationResult};
+use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::GasTracker;
-use fvm::kernel::*;
 use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::Config;
+use fvm::{kernel::*, DefaultKernel};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, ToBigInt};
 use fvm_shared::blockstore::MemoryBlockstore;
@@ -24,7 +24,6 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -34,7 +33,7 @@ pub struct TestData {
     circ_supply: TokenAmount,
 }
 
-pub struct TestMachine<M> {
+pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
 }
@@ -56,12 +55,19 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let state_root = v.preconditions.state_tree.root_cid;
 
         let externs = TestExterns::new(&v.randomness);
+
+        let mut wasm_conf = wasmtime::Config::default();
+        wasm_conf
+            .cache_config_load_default()
+            .expect("failed to load cache config");
+
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
                 initial_pages: 0,
                 max_pages: 1024,
-                engine: Default::default(),
+                engine: wasm_conf,
+                debug: true, // Enable debug mode by default.
             },
             epoch,
             base_fee,
@@ -136,12 +142,16 @@ where
     fn consume(self) -> Self::Blockstore {
         self.machine.consume()
     }
+
+    fn flush(&mut self) -> Result<Cid> {
+        self.machine.flush()
+    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
 // NOTE: For now, this _must_ be transparent because we transmute a pointer.
 #[repr(transparent)]
-pub struct TestCallManager<C: CallManager>(pub C);
+pub struct TestCallManager<C: CallManager = DefaultCallManager<TestMachine>>(pub C);
 
 impl<M, C> CallManager for TestCallManager<C>
 where
@@ -223,10 +233,38 @@ where
     fn clear_error(&mut self) {
         self.0.clear_error()
     }
+
+    fn price_list(&self) -> &fvm::gas::PriceList {
+        self.0.price_list()
+    }
+
+    fn context(&self) -> &MachineContext {
+        self.0.context()
+    }
+
+    fn blockstore(&self) -> &<Self::Machine as Machine>::Blockstore {
+        self.0.blockstore()
+    }
+
+    fn externs(&self) -> &<Self::Machine as Machine>::Externs {
+        self.0.externs()
+    }
+
+    fn state_tree(&self) -> &StateTree<<Self::Machine as Machine>::Blockstore> {
+        self.0.state_tree()
+    }
+
+    fn state_tree_mut(&mut self) -> &mut StateTree<<Self::Machine as Machine>::Blockstore> {
+        self.0.state_tree_mut()
+    }
+
+    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+        self.0.charge_gas(charge)
+    }
 }
 
 /// A kernel for intercepting syscalls.
-pub struct TestKernel<K>(pub K, pub TestData);
+pub struct TestKernel<K = DefaultKernel<TestCallManager>>(pub K, pub TestData);
 
 impl<M, C, K> Kernel for TestKernel<K>
 where
@@ -291,7 +329,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.0.block_open(cid)
     }
 
@@ -309,6 +347,10 @@ where
 
     fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
+    }
+
+    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+        self.0.block_get(id)
     }
 }
 impl<M, C, K> CircSupplyOps for TestKernel<K>
@@ -343,10 +385,7 @@ where
     }
 
     // forwarded
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>> {
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         self.0.batch_verify_seals(vis)
     }
 
@@ -392,6 +431,14 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
+    fn log(&self, msg: String) {
+        self.0.log(msg)
+    }
+
+    fn debug_enabled(&self) -> bool {
+        self.0.debug_enabled()
+    }
+
     fn push_syscall_error(&mut self, e: SyscallError) {
         self.0.push_syscall_error(e)
     }

@@ -16,9 +16,10 @@ use fvm_shared::sector::{
 };
 use fvm_shared::ActorID;
 use std::collections::HashMap;
+use std::iter;
 use wasmtime::{Caller, Trap};
 
-use super::Memory;
+use super::Context;
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///
@@ -26,8 +27,7 @@ use super::Memory;
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_signature(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     sig_off: u32, // Signature
     sig_len: u32,
     addr_off: u32, // Address
@@ -35,12 +35,13 @@ pub fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
-    let sig: Signature = memory.read_cbor(sig_off, sig_len)?;
-    let addr: Address = memory.read_address(addr_off, addr_len)?;
+    let sig: Signature = context.memory.read_cbor(sig_off, sig_len)?;
+    let addr: Address = context.memory.read_address(addr_off, addr_len)?;
     // plaintext doesn't need to be a mutable borrow, but otherwise we would be
     // borrowing the ctx both immutably and mutably.
-    let plaintext = memory.try_slice(plaintext_len, plaintext_off)?;
-    kernel
+    let plaintext = context.memory.try_slice(plaintext_len, plaintext_off)?;
+    context
+        .kernel
         .verify_signature(&sig, &addr, plaintext)
         .map(|v| if v { 0 } else { -1 })
 }
@@ -49,8 +50,7 @@ pub fn verify_signature(
 ///
 /// The output buffer must be sized to 32 bytes.
 pub fn hash_blake2b(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     data_off: u32,
     data_len: u32,
     obuf_off: u32,
@@ -58,11 +58,11 @@ pub fn hash_blake2b(
     const HASH_LEN: usize = 32;
 
     let hash = {
-        let data = memory.try_slice(data_len, data_off)?;
-        kernel.hash_blake2b(data)?
+        let data = context.memory.try_slice(data_len, data_off)?;
+        context.kernel.hash_blake2b(data)?
     };
     assert_eq!(hash.len(), 32);
-    let obuf = memory.try_slice_mut(obuf_off, HASH_LEN as u32)?;
+    let obuf = context.memory.try_slice_mut(obuf_off, HASH_LEN as u32)?;
     obuf.copy_from_slice(&hash[..HASH_LEN]);
     Ok(())
 }
@@ -72,18 +72,19 @@ pub fn hash_blake2b(
 ///
 /// Writes the CID in the provided output buffer.
 pub fn compute_unsealed_sector_cid(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     proof_type: i64, // RegisteredSealProof,
     pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
     cid_off: u32,
     cid_len: u32,
-) -> Result<()> {
-    let pieces: Vec<PieceInfo> = memory.read_cbor(pieces_off, pieces_len)?;
+) -> Result<u32> {
+    let pieces: Vec<PieceInfo> = context.memory.read_cbor(pieces_off, pieces_len)?;
     let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
-    let cid = kernel.compute_unsealed_sector_cid(typ, pieces.as_slice())?;
-    let mut out = memory.try_slice_mut(cid_off, cid_len)?;
+    let cid = context
+        .kernel
+        .compute_unsealed_sector_cid(typ, pieces.as_slice())?;
+    let mut out = context.memory.try_slice_mut(cid_off, cid_len)?;
 
     // The CID lib should really return the number of bytes written...
     // cid.write_bytes(&mut out).or_fatal()
@@ -96,7 +97,7 @@ pub fn compute_unsealed_sector_cid(
         .into());
     }
     out[..bytes.len()].copy_from_slice(bytes.as_slice());
-    Ok(())
+    Ok(bytes.len() as u32)
 }
 
 /// Verifies a sector seal proof.
@@ -105,13 +106,17 @@ pub fn compute_unsealed_sector_cid(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_seal(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<i32> {
-    let info = memory.read_cbor::<SealVerifyInfo>(info_off, info_len)?;
-    kernel.verify_seal(&info).map(|v| if v { 0 } else { -1 })
+    let info = context
+        .memory
+        .read_cbor::<SealVerifyInfo>(info_off, info_len)?;
+    context
+        .kernel
+        .verify_seal(&info)
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies a window proof of spacetime.
@@ -120,13 +125,17 @@ pub fn verify_seal(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_post(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<i32> {
-    let info = memory.read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
-    kernel.verify_post(&info).map(|v| if v { 0 } else { -1 })
+    let info = context
+        .memory
+        .read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
+    context
+        .kernel
+        .verify_post(&info)
+        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -144,8 +153,7 @@ pub fn verify_post(
 /// - The chain epoch at which the fault happened.
 /// - The actor at fault.
 pub fn verify_consensus_fault(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     h1_off: u32,
     h1_len: u32,
     h2_off: u32,
@@ -153,15 +161,15 @@ pub fn verify_consensus_fault(
     extra_off: u32,
     extra_len: u32,
 ) -> Result<(u32, ChainEpoch, ActorID)> {
-    let h1 = memory.try_slice(h1_off, h1_len)?;
-    let h2 = memory.try_slice(h2_off, h2_len)?;
-    let extra = memory.try_slice(extra_off, extra_len)?;
+    let h1 = context.memory.try_slice(h1_off, h1_len)?;
+    let h2 = context.memory.try_slice(h2_off, h2_len)?;
+    let extra = context.memory.try_slice(extra_off, extra_len)?;
 
     // TODO the extern should only signal an error in case there was an internal
     //  interrupting error evaluating the consensus fault. If the outcome is
     //  "no consensus fault was found", the extern should not error, as doing so
     //  would interrupt execution via the Trap (at least currently).
-    let ret = kernel.verify_consensus_fault(h1, h2, extra)?;
+    let ret = context.kernel.verify_consensus_fault(h1, h2, extra)?;
 
     match ret {
         // Consensus fault detected; return the actor as a block.
@@ -183,21 +191,39 @@ pub fn verify_consensus_fault(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_aggregate_seals(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    mut context: Context<'_, impl Kernel>,
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
 ) -> Result<i32> {
-    let info = memory.read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
-    kernel
+    let info = context
+        .memory
+        .read_cbor::<AggregateSealVerifyProofAndInfos>(agg_off, agg_len)?;
+    context
+        .kernel
         .verify_aggregate_seals(&info)
         .map(|v| if v { 0 } else { -1 })
 }
 
-// TODO implement
-fn batch_verify_seals(
-    caller: Caller<'_, impl Kernel>,
-    vis: &[(&Address, &[SealVerifyInfo])],
-) -> Result<HashMap<Address, Vec<i32>>> {
-    todo!()
+/// Verify a batch of seals encoded as a CBOR array of `SealVerifyInfo`.
+///
+/// When successful, this method will write a single byte back into the array at `result_off` for
+/// each result: 0 for failed, 1 for success.
+pub fn batch_verify_seals(
+    mut context: Context<'_, impl Kernel>,
+    batch_off: u32,
+    batch_len: u32,
+    result_off: u32,
+) -> Result<()> {
+    let batch = context
+        .memory
+        .read_cbor::<Vec<SealVerifyInfo>>(batch_off, batch_len)?;
+
+    let mut result = context.kernel.batch_verify_seals(&batch)?;
+    let output = context
+        .memory
+        .try_slice_mut(result_off, result.len() as u32)?;
+    unsafe {
+        output.copy_from_slice(&*(&*result as *const [bool] as *const [u8]));
+    }
+    Ok(())
 }

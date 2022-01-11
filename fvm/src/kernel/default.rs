@@ -58,8 +58,8 @@ lazy_static! {
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
-    from: ActorID,
-    to: ActorID,
+    caller: ActorID,
+    actor_id: ActorID,
     method: MethodNum,
     value_received: TokenAmount,
 
@@ -99,8 +99,8 @@ where
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
-            from,
-            to,
+            caller: from,
+            actor_id: to,
             method,
             value_received,
             caller_validated: false,
@@ -187,7 +187,7 @@ where
     C: CallManager,
 {
     fn root(&self) -> Cid {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let state_tree = self.call_manager.state_tree();
 
         state_tree
@@ -198,7 +198,7 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let state_tree = self.call_manager.state_tree_mut();
 
         state_tree.mutate_actor(&addr, |actor_state| {
@@ -210,7 +210,7 @@ where
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        let addr = Address::new_id(self.to);
+        let addr = Address::new_id(self.actor_id);
         let balance = self
             .call_manager
             .state_tree()
@@ -238,7 +238,7 @@ where
                 // TODO this should not be an actor error, but a system error with an exit code.
                 syscall_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
 
-            if beneficiary_id == self.to {
+            if beneficiary_id == self.actor_id {
                 return Err(syscall_error!(
                     SysErrIllegalArgument,
                     "benefactor cannot be beneficiary"
@@ -249,12 +249,14 @@ where
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
                 .machine_mut()
-                .transfer(self.from, beneficiary_id, &balance)?;
+                .transfer(self.actor_id, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
         // TODO errors here are FATAL errors
-        self.call_manager.state_tree_mut().delete_actor_id(self.to)
+        self.call_manager
+            .state_tree_mut()
+            .delete_actor_id(self.actor_id)
     }
 }
 
@@ -262,7 +264,7 @@ impl<C> BlockOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn block_open(&mut self, cid: &Cid) -> Result<BlockId> {
+    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_ipld_get())?;
 
@@ -279,8 +281,11 @@ where
 
         // We charge on open, not read, to emulate the current gas model.
         let block = Block::new(cid.codec(), data);
+        let stat = block.stat();
+
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
-        self.blocks.put(block).or_illegal_argument()
+        let id = self.blocks.put(block).or_illegal_argument()?;
+        Ok((id, stat))
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
@@ -342,11 +347,11 @@ where
     C: CallManager,
 {
     fn msg_caller(&self) -> ActorID {
-        self.from
+        self.caller
     }
 
     fn msg_receiver(&self) -> ActorID {
-        self.to
+        self.actor_id
     }
 
     fn msg_method_number(&self) -> MethodNum {
@@ -369,7 +374,7 @@ where
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
-        let from = self.from;
+        let from = self.actor_id;
         self.call_manager
             .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
     }
@@ -541,51 +546,42 @@ where
             .context("fault not verified")
     }
 
-    fn batch_verify_seals(
-        &mut self,
-        vis: &[(&Address, &[SealVerifyInfo])],
-    ) -> Result<HashMap<Address, Vec<bool>>> {
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
         let out = vis
             .par_iter()
             .with_min_len(vis.len() / *NUM_CPUS)
-            .map(|(&addr, seals)| {
-                let results = seals
-                    .par_iter()
-                    .map(|s| {
-                        let verify_seal_result = std::panic::catch_unwind(|| verify_seal(s));
-                        match verify_seal_result {
-                            Ok(res) => {
-                                match res {
-                                    Ok(correct) => {
-                                        if !correct {
-                                            log::debug!(
-                                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
-                                            addr,
-                                            );
-                                        }
-                                        correct // all ok
-                                    }
-                                    Err(err) => {
-                                        log::debug!(
-                                        "seal verify in batch failed (miner: {}) (err: {})",
-                                        addr,
-                                        err
+            .map(|seal| {
+                let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));
+                match verify_seal_result {
+                    Ok(res) => {
+                        match res {
+                            Ok(correct) => {
+                                if !correct {
+                                    log::debug!(
+                                        "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                        seal.sector_id.miner
                                     );
-                                        false
-                                    }
                                 }
-                            },
-                            Err(_) => {
-                                log::error!("seal verify internal fail (miner: {})", addr);
+                                correct // all ok
+                            }
+                            Err(err) => {
+                                log::debug!(
+                                    "seal verify in batch failed (miner: {}) (err: {})",
+                                    seal.sector_id.miner,
+                                    err
+                                );
                                 false
                             }
                         }
-                    })
-                    .collect();
-                (addr, results)
+                    },
+                    Err(e) => {
+                        log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
+                        false
+                    }
+                }
             })
             .collect();
         log::debug!("batch verify seals end");
@@ -741,7 +737,7 @@ where
     fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
         self.assert_not_validated()?;
 
-        let caller_addr = Address::new_id(self.from);
+        let caller_addr = Address::new_id(self.caller);
         if !allowed.iter().any(|a| *a == caller_addr) {
             return Err(syscall_error!(SysErrForbidden;
                 "caller {} is not one of supported", caller_addr
@@ -755,7 +751,7 @@ where
         self.assert_not_validated()?;
 
         let caller_cid = self
-            .get_actor_code_cid(&Address::new_id(self.from))?
+            .get_actor_code_cid(&Address::new_id(self.caller))?
             .ok_or_else(|| anyhow!("failed to lookup code cid for caller"))
             .or_fatal()?;
 
@@ -840,6 +836,14 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    fn log(&self, msg: String) {
+        println!("{}", msg)
+    }
+
+    fn debug_enabled(&self) -> bool {
+        self.call_manager.context().debug
+    }
+
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,
@@ -849,7 +853,7 @@ where
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {
         self.call_manager.push_error(CallError {
-            source: self.to,
+            source: self.actor_id,
             code,
             message,
         })

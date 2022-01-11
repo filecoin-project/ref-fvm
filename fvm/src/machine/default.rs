@@ -72,6 +72,7 @@ where
             network_version,
             initial_state_root: state_root,
             price_list: price_list_by_epoch(epoch),
+            debug: config.debug,
         };
 
         // Initialize the WASM engine.
@@ -259,7 +260,8 @@ where
 
         from_actor.deduct_funds(value).map_err(|e| {
             syscall_error!(SysErrInsufficientFunds;
-                "transfer failed when deducting funds ({}): {}", value, e)
+                           "transfer failed when deducting funds ({}) from balance ({}): {}",
+                           value, &from_actor.balance, e)
         })?;
         to_actor.deposit_funds(value);
 
@@ -269,6 +271,8 @@ where
         // TODO turn failures into fatal errors
         self.state_tree.set_actor_id(to, to_actor)?;
         //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
+
+        log::trace!("transfered {} from {} to {}", value, from, to);
 
         Ok(())
     }

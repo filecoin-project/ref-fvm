@@ -1,4 +1,4 @@
-use crate::error::{IntoSyscallResult, SyscallResult};
+use crate::SyscallResult;
 use crate::{status_code_to_bool, sys, MAX_CID_LEN};
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -32,7 +32,6 @@ pub fn verify_signature(
             plaintext.as_ptr(),
             plaintext.len() as u32,
         )
-        .into_syscall_result()
         .map(status_code_to_bool)
     }
 }
@@ -41,10 +40,7 @@ pub fn verify_signature(
 #[allow(unused)]
 pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Vec<u8>> {
     let mut ret = Vec::with_capacity(32);
-    unsafe {
-        sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())
-            .into_syscall_result()?
-    }
+    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())? }
     Ok(ret)
 }
 
@@ -64,8 +60,7 @@ pub fn compute_unsealed_sector_cid(
             pieces.len() as u32,
             out.as_mut_ptr(),
             out.len() as u32,
-        )
-        .into_syscall_result()?;
+        )?;
         assert!(
             len <= out.len() as u32,
             "CID too large: {} > {}",
@@ -82,11 +77,7 @@ pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal seal verification input");
-    unsafe {
-        sys::crypto::verify_seal(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
-            .map(status_code_to_bool)
-    }
+    unsafe { sys::crypto::verify_seal(info.as_ptr(), info.len() as u32).map(status_code_to_bool) }
 }
 
 /// Verifies a window proof of spacetime.
@@ -95,11 +86,7 @@ pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
         .expect("failed to marshal PoSt verification input");
-    unsafe {
-        sys::crypto::verify_post(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
-            .map(status_code_to_bool)
-    }
+    unsafe { sys::crypto::verify_post(info.as_ptr(), info.len() as u32).map(status_code_to_bool) }
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
@@ -118,7 +105,11 @@ pub fn verify_consensus_fault(
     h2: &[u8],
     extra: &[u8],
 ) -> SyscallResult<Option<ConsensusFault>> {
-    let (fault, epoch, actor) = unsafe {
+    let sys::crypto::out::VerifyConsensusFault {
+        fault,
+        epoch,
+        actor,
+    } = unsafe {
         sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
             h1.len() as u32,
@@ -126,8 +117,7 @@ pub fn verify_consensus_fault(
             h2.len() as u32,
             extra.as_ptr(),
             extra.len() as u32,
-        )
-        .into_syscall_result()?
+        )?
     };
     if fault == 0 {
         return Ok(None);
@@ -148,14 +138,24 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
         .expect("failed to marshal aggregate seal verification input");
     unsafe {
         sys::crypto::verify_aggregate_seals(info.as_ptr(), info.len() as u32)
-            .into_syscall_result()
             .map(status_code_to_bool)
     }
 }
 
 #[allow(unused)]
-fn batch_verify_seals(vis: &[(&Address, &Vec<SealVerifyInfo>)]) -> ! {
-    todo!()
+pub fn batch_verify_seals(batch: &[SealVerifyInfo]) -> SyscallResult<Vec<bool>> {
+    let encoded = to_vec(batch).expect("failed to marshal batch seal verification input");
+
+    Ok(unsafe {
+        let mut result: Vec<bool> = Vec::with_capacity(batch.len());
+        sys::crypto::batch_verify_seals(
+            encoded.as_ptr(),
+            encoded.len() as u32,
+            result.as_mut_ptr() as *mut u8,
+        )?;
+        result.set_len(batch.len());
+        result
+    })
 }
 
 // TODO implement verify_replica_update

@@ -29,6 +29,7 @@ pub mod reward;
 pub mod sector;
 pub mod smooth;
 pub mod state;
+pub mod sys;
 pub mod version;
 
 lazy_static! {

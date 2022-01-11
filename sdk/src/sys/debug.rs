@@ -1,13 +1,10 @@
-#[link(wasm_import_module = "debug")]
-extern "C" {
-    pub fn log(level: DebugLevel, message: *mut u8, message_len: u32) -> super::SyscallStatus;
-}
+super::fvm_syscalls! {
+    module = "debug";
 
-#[repr(u8)]
-pub enum DebugLevel {
-    Off,
-    Error,
-    Warn,
-    Info,
-    Debug,
+    /// Returns if we're in debug mode. A zero or positive return value means
+    /// yes, a negative return value means no.
+    pub fn enabled() -> Result<i32>;
+
+    /// Logs a message on the node.
+    pub fn log(message: *const u8, message_len: u32) -> Result<()>;
 }

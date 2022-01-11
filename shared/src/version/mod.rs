@@ -40,8 +40,7 @@ pub enum NetworkVersion {
 }
 
 impl TryFrom<u32> for NetworkVersion {
-    // TODO: better error
-    type Error = ();
+    type Error = u32;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use NetworkVersion::*;
@@ -61,7 +60,7 @@ impl TryFrom<u32> for NetworkVersion {
             12 => Ok(V12),
             13 => Ok(V13),
             14 => Ok(V14),
-            _ => Err(()),
+            _ => Err(value),
         }
     }
 }

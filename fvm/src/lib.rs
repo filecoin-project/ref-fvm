@@ -38,6 +38,8 @@ pub struct Config {
     pub max_pages: usize,
     /// Wasmtime engine configuration.
     pub engine: wasmtime::Config,
+    /// Whether debug mode is enabled or not.
+    pub debug: bool,
 }
 
 impl Default for Config {
@@ -47,6 +49,7 @@ impl Default for Config {
             max_pages: 1024,
             engine: Default::default(),
             max_call_depth: 4096,
+            debug: false,
         }
     }
 }

@@ -89,6 +89,6 @@ impl ExitCode {
 
 impl std::fmt::Display for ExitCode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "exit code: {}", self)
+        write!(f, "exit code: {}", *self as u32)
     }
 }

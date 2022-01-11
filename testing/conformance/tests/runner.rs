@@ -2,22 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::{anyhow, Result};
-use async_std::stream;
+use async_std::{stream, sync, task};
 use cid::Cid;
+use colored::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
-use conformance_tests::vm::{TestCallManager, TestKernel, TestMachine};
+use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
-use futures::{StreamExt, TryStreamExt};
-use fvm::call_manager::DefaultCallManager;
+use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
+
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
+use fvm::kernel::Context;
 use fvm::machine::Machine;
-use fvm::DefaultKernel;
-use fvm_shared::blockstore::{self, MemoryBlockstore};
+use fvm::state_tree::StateTree;
+use fvm_shared::address::Protocol;
+use fvm_shared::blockstore::MemoryBlockstore;
+use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
@@ -29,6 +35,12 @@ lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
         // currently empty.
     ];
+    /// The maximum parallelism when processing test vectors.
+    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
+        .map(|s| {
+            let s = s.to_str().unwrap();
+            s.parse().expect("parallelism must be an integer")
+        }).unwrap_or(num_cpus::get());
 }
 
 /// Checks if the file is a runnable vector.
@@ -53,7 +65,12 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
     let error = ret
         .backtrace
         .iter()
-        .map(|e| format!("{:?} {:?} {:?}", e.source, e.code, e.message))
+        .map(|e| {
+            format!(
+                "source: {:?}, code: {:?}, message: {:?}",
+                e.source, e.code, e.message
+            )
+        })
         .collect::<Vec<String>>()
         .join("\n");
     let actual_rec = &ret.msg_receipt;
@@ -93,21 +110,58 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
 
 /// Compares the resulting state root with the expected state root. Currently,
 /// this doesn't do much, but it could run a statediff.
-fn compare_state_roots(
-    _bs: &blockstore::MemoryBlockstore,
-    root: &Cid,
-    expected_root: &Cid,
-) -> Result<()> {
-    if root != expected_root {
-        // TODO consider printing a statediff.
-
-        return Err(anyhow!(
-            "wrong post root cid; expected {}, but got {}",
-            expected_root,
-            root
-        ));
+fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, expected_root: &Cid) -> Result<()> {
+    if root == expected_root {
+        return Ok(());
     }
-    Ok(())
+
+    let mut seen = HashSet::new();
+
+    let mut actual = HashMap::new();
+    StateTree::new_from_root(bs, root)
+        .context("failed to load actual state tree")?
+        .for_each(|addr, state| {
+            actual.insert(addr, state.clone());
+            Ok(())
+        })?;
+
+    let mut expected = HashMap::new();
+    StateTree::new_from_root(bs, expected_root)
+        .context("failed to load expected state tree")?
+        .for_each(|addr, state| {
+            expected.insert(addr, state.clone());
+            Ok(())
+        })?;
+    for (k, va) in &actual {
+        if seen.insert(k) {
+            continue;
+        }
+        match expected.get(k) {
+            Some(ve) if va != ve => {
+                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
+            }
+            None => log::error!("unexpected actor {}", k),
+            _ => {}
+        }
+    }
+    for (k, ve) in &expected {
+        if seen.insert(k) {
+            continue;
+        }
+        match actual.get(k) {
+            Some(va) if va != ve => {
+                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
+            }
+            None => log::error!("missing actor {}", k),
+            _ => {}
+        }
+    }
+
+    return Err(anyhow!(
+        "wrong post root cid; expected {}, but got {}",
+        expected_root,
+        root
+    ));
 }
 
 #[async_std::test]
@@ -118,7 +172,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         Ok(v) => either::Either::Left(
             iter::once(async move {
                 let path = Path::new(v.as_str()).to_path_buf();
-                let res = run_vector(&path).await?;
+                let res = run_vector(path.clone()).await?;
                 anyhow::Ok((path, res))
             })
             .map(futures::future::Either::Left),
@@ -130,56 +184,72 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .filter(is_runnable)
                 .map(|e| async move {
                     let path = e.path().to_path_buf();
-                    let res = run_vector(&path).await?;
+                    let res = run_vector(path.clone()).await?;
                     Ok((path, res))
                 })
                 .map(futures::future::Either::Right),
         ),
     };
 
-    let mut results = stream::from_iter(vector_results)
-        // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
-        // parallel (yet), but that shouldn't be too hard.
-        .buffer_unordered(100)
-        .map_ok(|(path, res)| stream::from_iter(res).map_ok(move |r| (path.clone(), r)))
-        .try_flatten();
+    let mut results = Box::pin(
+        stream::from_iter(vector_results)
+            // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
+            // parallel (yet), but that shouldn't be too hard.
+            .map(|task| {
+                async move {
+                    let (path, jobs) = task.await?;
+                    Ok(stream::from_iter(jobs).map(move |job| {
+                        let path = path.clone();
+                        Ok(async move { anyhow::Ok((path, job.await?)) })
+                    }))
+                }
+                .try_flatten_stream()
+            })
+            .flatten()
+            .try_buffer_unordered(*TEST_VECTOR_PARALLELISM),
+    );
 
     let mut succeeded = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
+    // Output the result to stdout.
+    // Doing this here instead of in an inspect so that we get streaming output.
+    macro_rules! report {
+        ($status:expr, $path:expr, $id:expr) => {
+            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+        };
+    }
+
     while let Some((path, res)) = results.next().await.transpose()? {
         match res {
             VariantResult::Ok { id } => {
-                println!("OK vector {}, variant {}", path.display(), id);
+                report!("OK".on_green(), path.display(), id);
                 succeeded += 1;
             }
             VariantResult::Failed { reason, id } => {
-                println!(
-                    "FAIL vector {}, variant {}, reason: {:?}",
-                    path.display(),
-                    id,
-                    reason
-                );
+                report!("FAIL".white().on_red(), path.display(), id);
+                println!("\t|> reason: {:#}", reason);
                 failed += 1;
             }
             VariantResult::Skipped { reason, id } => {
-                println!(
-                    "SKIP vector {}, variant {}, reason: {:?}",
-                    path.display(),
-                    id,
-                    reason
-                );
+                report!("SKIP".on_yellow(), path.display(), id);
+                println!("\t|> reason: {}", reason);
                 skipped += 1;
             }
         }
     }
 
+    println!();
     println!(
-        "conformance tests result: {}/{} tests passed ({} skipped):",
-        succeeded,
-        failed + succeeded,
-        skipped,
+        "{}",
+        format!(
+            "conformance tests result: {}/{} tests passed ({} skipped)",
+            succeeded,
+            failed + succeeded,
+            skipped,
+        )
+        .bold()
     );
 
     if failed > 0 {
@@ -202,9 +272,9 @@ enum VariantResult {
 /// Runs a single test vector and returns a list of VectorResults,
 /// one per variant.
 async fn run_vector(
-    path: &PathBuf,
-) -> anyhow::Result<impl Iterator<Item = anyhow::Result<VariantResult>>> {
-    let file = File::open(path)?;
+    path: PathBuf,
+) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
+    let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
 
@@ -214,28 +284,47 @@ async fn run_vector(
             if skip {
                 Ok(either::Either::Left(
                     v.preconditions.variants.into_iter().map(|variant| {
-                        Ok(VariantResult::Skipped {
-                            id: variant.id,
-                            reason: "selector not supported".to_owned(),
+                        futures::future::Either::Left(async move {
+                            Ok(VariantResult::Skipped {
+                                id: variant.id,
+                                reason: "selector not supported".to_owned(),
+                            })
                         })
                     }),
                 ))
             } else {
                 // First import the blockstore and do some sanity checks.
                 let (bs, imported_root) = v.seed_blockstore().await?;
-                if imported_root.len() != 1 {
-                    return Err(anyhow!("expected one root; found {}", imported_root.len()));
-                }
-                if v.preconditions.state_tree.root_cid != imported_root[0] {
+                if !imported_root.contains(&v.preconditions.state_tree.root_cid) {
                     return Err(anyhow!(
-                        "imported root does not match precondition root; imported: {}; expected: {}",
-                        imported_root[0],
+                        "imported roots ({}) do not contain precondition CID {}",
+                        imported_root.iter().join(", "),
                         v.preconditions.state_tree.root_cid
                     ));
                 }
+                if !imported_root.contains(&v.postconditions.state_tree.root_cid) {
+                    return Err(anyhow!(
+                        "imported roots ({}) do not contain postcondition CID {}",
+                        imported_root.iter().join(", "),
+                        v.preconditions.state_tree.root_cid
+                    ));
+                }
+
+                let v = sync::Arc::new(v);
                 Ok(either::Either::Right(
-                    (0..v.preconditions.variants.len())
-                        .map(move |i| run_variant(bs.clone(), &v, &v.preconditions.variants[i])),
+                    (0..v.preconditions.variants.len()).map(move |i| {
+                        let v = v.clone();
+                        let bs = bs.clone();
+                        let name =
+                            format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
+                        futures::future::Either::Right(
+                                task::Builder::new()
+                                    .name(name)
+                                    .spawn(async move {
+                                        run_variant(bs, &v, &v.preconditions.variants[i])
+                                    }).unwrap(),
+                            )
+                    }),
                 ))
             }
         }
@@ -251,16 +340,19 @@ fn run_variant(
 
     // Construct the Machine.
     let machine = TestMachine::new_for_vector(&v, &variant, bs);
-    let mut exec: DefaultExecutor<
-        TestKernel<DefaultKernel<TestCallManager<DefaultCallManager<_>>>>,
-    > = DefaultExecutor::new(machine);
+    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
         let msg = Message::unmarshal_cbor(&m.bytes)?;
 
         // Execute the message.
-        let ret = match exec.execute_message(msg, ApplyKind::Explicit) {
+        let mut raw_length = m.bytes.len();
+        if msg.from.protocol() == Protocol::Secp256k1 {
+            // 65 bytes signature + 1 byte type + 3 bytes for field info.
+            raw_length += SECP_SIG_LEN + 4;
+        }
+        let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
         };

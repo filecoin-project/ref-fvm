@@ -229,16 +229,25 @@ where
     /// Constructor for a hamt state tree given an IPLD store
     pub fn new_from_root(store: S, c: &Cid) -> Result<Self> {
         // Try to load state root, if versioned
-        let (version, info, actors) = if let Ok(Some(StateRoot {
-            version,
-            info,
-            actors,
-        })) = store.get_cbor(c)
-        {
-            (version, Some(info), actors)
-        } else {
-            // Fallback to v0 state tree if retrieval fails
-            (StateTreeVersion::V3, None, *c)
+        let (version, info, actors) = match store.get_cbor(c) {
+            Ok(Some(StateRoot {
+                version,
+                info,
+                actors,
+            })) => (version, Some(info), actors),
+            Ok(None) => {
+                return Err(ExecutionError::Fatal(anyhow!(
+                    "failed to find state tree {}",
+                    c
+                )))
+            }
+            Err(e) => {
+                return Err(ExecutionError::Fatal(anyhow!(
+                    "failed to load state tree {}: {}",
+                    c,
+                    e
+                )))
+            }
         };
 
         match version {
@@ -436,11 +445,11 @@ where
         let root = self.hamt.flush().or_fatal()?;
 
         match self.version {
-            StateTreeVersion::V3 => Ok(root),
+            StateTreeVersion::V0 => Ok(root),
             _ => {
                 let cid = self
                     .info
-                    .expect("malformed state tree, version 1 and version 2 require info");
+                    .expect("malformed state tree, version 1+ require info");
                 let obj = &StateRoot {
                     version: self.version,
                     actors: root,

@@ -99,4 +99,6 @@ pub struct MachineContext {
     pub price_list: PriceList,
     /// The network version at epoch
     pub network_version: NetworkVersion,
+    /// Whether debug mode is enabled or not.
+    pub debug: bool,
 }

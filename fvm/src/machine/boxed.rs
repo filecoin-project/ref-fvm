@@ -68,4 +68,9 @@ impl<M: Machine> Machine for Box<M> {
     fn consume(self) -> Self::Blockstore {
         (*self).consume()
     }
+
+    #[inline(always)]
+    fn flush(&mut self) -> Result<Cid> {
+        (**self).flush()
+    }
 }

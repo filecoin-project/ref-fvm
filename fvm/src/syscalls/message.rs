@@ -1,19 +1,26 @@
-use crate::kernel::{Kernel, Result};
+use crate::kernel::{ClassifyResult, Kernel, Result};
+use anyhow::Context as _;
+use fvm_shared::sys;
 
-pub fn caller(kernel: &mut impl Kernel) -> Result<u64> {
-    Ok(kernel.msg_caller())
+use super::Context;
+
+pub fn caller(context: Context<'_, impl Kernel>) -> Result<u64> {
+    Ok(context.kernel.msg_caller())
 }
 
-pub fn receiver(kernel: &mut impl Kernel) -> Result<u64> {
-    Ok(kernel.msg_receiver())
+pub fn receiver(context: Context<'_, impl Kernel>) -> Result<u64> {
+    Ok(context.kernel.msg_receiver())
 }
 
-pub fn method_number(kernel: &mut impl Kernel) -> Result<u64> {
-    Ok(kernel.msg_method_number())
+pub fn method_number(context: Context<'_, impl Kernel>) -> Result<u64> {
+    Ok(context.kernel.msg_method_number())
 }
 
-pub fn value_received(kernel: &mut impl Kernel) -> Result<(u64, u64)> {
-    let value = kernel.msg_value_received();
-    let mut iter = value.iter_u64_digits();
-    Ok((iter.next().unwrap(), iter.next().unwrap_or(0)))
+pub fn value_received(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
+    context
+        .kernel
+        .msg_value_received()
+        .try_into()
+        .context("invalid token amount")
+        .or_fatal()
 }

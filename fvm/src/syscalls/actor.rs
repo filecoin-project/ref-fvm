@@ -1,32 +1,33 @@
 use crate::kernel::{ClassifyResult, Result};
-use crate::syscalls::Memory;
 use crate::{syscall_error, Kernel};
+use fvm_shared::sys;
+
+use super::Context;
 
 pub fn resolve_address(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    context: Context<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
-) -> Result<(i32, u64)> {
-    let addr = memory.read_address(addr_off, addr_len)?;
-    match kernel.resolve_address(&addr)? {
-        Some(id) => Ok((0, id)),
-        None => Ok((-1, 0)),
-    }
+) -> Result<sys::out::actor::ResolveAddress> {
+    let addr = context.memory.read_address(addr_off, addr_len)?;
+    let (resolved, value) = match context.kernel.resolve_address(&addr)? {
+        Some(id) => (0, id),
+        None => (-1, 0),
+    };
+    Ok(sys::out::actor::ResolveAddress { resolved, value })
 }
 
 pub fn get_actor_code_cid(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    context: Context<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
     obuf_off: u32, // Cid
     obuf_len: u32,
 ) -> Result<i32> {
-    let addr = memory.read_address(addr_off, addr_len)?;
-    match kernel.get_actor_code_cid(&addr)? {
+    let addr = context.memory.read_address(addr_off, addr_len)?;
+    match context.kernel.get_actor_code_cid(&addr)? {
         Some(typ) => {
-            let obuf = memory.try_slice_mut(obuf_off, obuf_len)?;
+            let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
             // TODO: This isn't always an illegal argument error, only when the buffer is too small.
             typ.write_bytes(obuf).or_illegal_argument()?;
             Ok(0)
@@ -43,8 +44,7 @@ pub fn get_actor_code_cid(
 ///
 /// TODO this method will be merged with create_actor in the near future.
 pub fn new_actor_address(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    context: Context<'_, impl Kernel>,
     obuf_off: u32, // Address (out)
     obuf_len: u32,
 ) -> Result<u32> {
@@ -54,7 +54,7 @@ pub fn new_actor_address(
         );
     }
 
-    let addr = kernel.new_actor_address()?;
+    let addr = context.kernel.new_actor_address()?;
     let bytes = addr.to_bytes();
 
     let len = bytes.len();
@@ -66,17 +66,16 @@ pub fn new_actor_address(
         .into());
     }
 
-    let obuf = memory.try_slice_mut(obuf_off, obuf_len)?;
+    let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
     obuf[..len].copy_from_slice(bytes.as_slice());
     Ok(len as u32)
 }
 
 pub fn create_actor(
-    kernel: &mut impl Kernel,
-    memory: &mut [u8],
+    context: Context<'_, impl Kernel>,
     actor_id: u64, // Address
     typ_off: u32,  // Cid
 ) -> Result<()> {
-    let typ = memory.read_cid(typ_off)?;
-    kernel.create_actor(typ, actor_id)
+    let typ = context.memory.read_cid(typ_off)?;
+    context.kernel.create_actor(typ, actor_id)
 }

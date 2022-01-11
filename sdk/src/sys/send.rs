@@ -1,8 +1,6 @@
-use crate::ipld::BlockId;
+super::fvm_syscalls! {
+    module = "send";
 
-#[link(wasm_import_module = "send")]
-#[allow(improper_ctypes)]
-extern "C" {
     /// Sends a message to another actor, and returns the exit code and block ID of the return
     /// result.
     pub fn send(
@@ -12,5 +10,5 @@ extern "C" {
         params: u32,
         value_hi: u64,
         value_lo: u64,
-    ) -> (super::SyscallStatus, u32, BlockId);
+    ) -> Result<fvm_shared::sys::out::send::Send>;
 }
