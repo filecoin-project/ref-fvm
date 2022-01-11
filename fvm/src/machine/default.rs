@@ -260,7 +260,8 @@ where
 
         from_actor.deduct_funds(value).map_err(|e| {
             syscall_error!(SysErrInsufficientFunds;
-                "transfer failed when deducting funds ({}): {}", value, e)
+                           "transfer failed when deducting funds ({}) from balance ({}): {}",
+                           value, &from_actor.balance, e)
         })?;
         to_actor.deposit_funds(value);
 
