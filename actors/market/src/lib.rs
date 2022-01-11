@@ -426,7 +426,8 @@ impl Actor {
                     info!(
                         "invalid deal {}: failed to acquire datacap exitcode: {}",
                         di, e
-                    )
+                    );
+                    continue;
                 }
             }
 
