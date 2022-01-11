@@ -40,7 +40,7 @@ lazy_static! {
         .map(|s| {
             let s = s.to_str().unwrap();
             s.parse().expect("parallelism must be an integer")
-        }).unwrap_or(num_cpus::get());
+        }).unwrap_or_else(num_cpus::get);
 }
 
 /// Checks if the file is a runnable vector.
@@ -339,7 +339,7 @@ fn run_variant(
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(&v, &variant, bs);
+    let machine = TestMachine::new_for_vector(v, variant, bs);
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.

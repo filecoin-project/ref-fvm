@@ -50,7 +50,7 @@ impl Blockstore for CgoBlockstore {
                 // on and there is a bug in the program.
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // Otherwise, return "other". We should add error codes in the future.
-                e => Err(anyhow!("cgo blockstore 'has' failed with error code {}", e).into()),
+                e => Err(anyhow!("cgo blockstore 'has' failed with error code {}", e)),
             }
         }
     }
@@ -71,7 +71,7 @@ impl Blockstore for CgoBlockstore {
                 r @ 1.. => panic!("invalid return value from has: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 ERR_NOT_FOUND => Ok(None),
-                e => Err(anyhow!("cgo blockstore 'get' failed with error code {}", e).into()),
+                e => Err(anyhow!("cgo blockstore 'get' failed with error code {}", e)),
             }
         }
     }
@@ -91,7 +91,7 @@ impl Blockstore for CgoBlockstore {
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // This error makes no sense.
                 ERR_NOT_FOUND => panic!("not found error on put"),
-                e => Err(anyhow!("cgo blockstore 'put' failed with error code {}", e).into()),
+                e => Err(anyhow!("cgo blockstore 'put' failed with error code {}", e)),
             }
         }
     }

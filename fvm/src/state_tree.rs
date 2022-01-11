@@ -45,6 +45,7 @@ struct StateSnapLayer {
     resolve_cache: RefCell<HashMap<Address, ActorID>>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum StateCacheResult {
     Uncached,
     Exists(ActorState),

@@ -139,7 +139,7 @@ impl Actor {
             st.set_locked(
                 params.start_epoch,
                 params.unlock_duration,
-                rt.message().value_received().clone(),
+                rt.message().value_received(),
             );
         }
         rt.create(&st)?;

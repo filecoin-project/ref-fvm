@@ -189,7 +189,7 @@ impl Actor {
         Ok(InspectRuntimeReturn {
             caller: rt.message().caller(),
             receiver: rt.message().receiver(),
-            value_received: rt.message().value_received().clone(),
+            value_received: rt.message().value_received(),
             curr_epoch: rt.curr_epoch(),
             current_balance: rt.current_balance()?,
             state: rt.state()?,

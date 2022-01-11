@@ -86,7 +86,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .preconditions
                     .circ_supply
                     .map(|i| i.to_bigint().unwrap())
-                    .unwrap_or(TOTAL_FILECOIN.clone()),
+                    .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
             },
         }
     }

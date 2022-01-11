@@ -51,6 +51,8 @@ where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
+    // ISSUE: #249
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
         epoch: ChainEpoch,

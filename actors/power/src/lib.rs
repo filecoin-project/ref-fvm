@@ -109,7 +109,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_type(CALLER_TYPES_SIGNABLE.iter())?;
-        let value = rt.message().value_received().clone();
+        let value = rt.message().value_received();
 
         let constructor_params = RawBytes::serialize(ext::miner::MinerConstructorParams {
             owner: params.owner,
