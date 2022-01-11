@@ -35,6 +35,12 @@ lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
         // currently empty.
     ];
+    /// The maximum parallelism when processing test vectors.
+    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
+        .map(|s| {
+            let s = s.to_str().unwrap();
+            s.parse().expect("parallelism must be an integer")
+        }).unwrap_or(num_cpus::get());
 }
 
 /// Checks if the file is a runnable vector.
@@ -200,7 +206,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .try_flatten_stream()
             })
             .flatten()
-            .try_buffer_unordered(100),
+            .try_buffer_unordered(*TEST_VECTOR_PARALLELISM),
     );
 
     let mut succeeded = 0;
