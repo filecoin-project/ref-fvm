@@ -1,6 +1,11 @@
 //! This module contains the minimal logic for the FVM to handle account actor
-//! auto-creation (on first transfer). This coupling between the FVM and a
-//! concrete actor must eventually go. (TODO)
+//! auto-creation (on first transfer).
+//!
+//! ## Future direction
+//!
+//! This coupling between the FVM and a concrete actor must eventually be
+//! eliminated. Refer to https://github.com/filecoin-project/fvm/issues/229 for
+//! details.
 
 use cid::Cid;
 use lazy_static::lazy_static;

@@ -1,12 +1,18 @@
 //! This module contains the types and functions to process the init actor's state.
-//! While it may appear leaky to deal with a concrete actor type in FVM-land,
-//! truth is that certain syscalls can only be resolved by querying and manipulating
-//! the init actor's state.
+//! It does not contain the logic of the init actor: that lives on-chain as a WASM actor.
 //!
-//! In the future, we will revisit and redesign these components.
+//! The init actor is the special system actor that:
+//! 1. Acts as a factory for other non-singleton actors.
+//! 2. Stores the global mapping between the ID address and the robust address
+//!    of all actors.
 //!
-//! This module can only deal with the Init Actor as of actors v3 ==
-//! network version v10. The reason being that the HAMT layout changed.
+//! ## Version compatibility
+//!
+//! This module does not handle historical actors and network versions, nor
+//! does it support versioning. It handles actors v3, and network version v10,
+//! onwards. The HAMT layout changes introduced in that upgrade (codename: Trust)
+//! remain active today.
+
 use anyhow::Context;
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
@@ -24,13 +30,6 @@ pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
 
 use crate::kernel::{ClassifyResult, Result};
 
-// TODO: should this module really ExecutionError? Or should it just return anyhow errors.
-// Everything is "fatal".
-
-// TODO need to untangle all this init actor mess
-//  In theory, we should go through the actor version multiplexer to decide which
-//  state object to deserialize into. But luckily, the init actor's state hasn't
-//  undergone changes over time, so we can use a fixed object.
 #[derive(Serialize_tuple, Deserialize_tuple, Debug)]
 pub struct State {
     pub address_map: Cid,
@@ -41,14 +40,14 @@ pub struct State {
 impl Cbor for State {}
 
 impl State {
-    /// Loads the init actor state with the supplied CID from the underlying store.
+    /// Loads the init actor state from the supplied state tree.
     pub fn load<B>(state_tree: &StateTree<B>) -> Result<(Self, ActorState)>
     where
         B: Blockstore,
     {
         let init_act = state_tree
             .get_actor(&INIT_ACTOR_ADDR)?
-            .context("Init actor address could not be resolved")
+            .context("init actor address could not be resolved")
             .or_fatal()?;
 
         let state = state_tree
@@ -57,6 +56,7 @@ impl State {
             .or_fatal()?
             .context("init actor state not found")
             .or_fatal()?;
+
         Ok((state, init_act))
     }
 
@@ -77,18 +77,18 @@ impl State {
         Ok(id)
     }
 
-    // TODO(steb): I've changed this from the actors. It shouldn't make a difference in practice,
-    // but trying to distinguish between "resolved" and "unresolved" addresses was getting annoying.
     /// ResolveAddress resolves an address to an ID-address, if possible.
     /// If the provided address is an ID address, it is returned as-is.
-    /// This means that mapped ID-addresses (which should only appear as values, not keys) and
-    /// singleton actor addresses (which are not in the map) pass through unchanged.
+    /// This means that mapped ID-addresses (which should only appear as values,
+    /// not keys) and singleton actor addresses (which are not in the map) pass
+    /// through unchanged.
     ///
-    /// Returns an ID-address and `true` if the address was already an ID-address or was resolved
-    /// in the mapping.
-    /// Returns an undefined address and `false` if the address was not an ID-address and not found
-    /// in the mapping.
-    /// Returns an error only if state was inconsistent.
+    /// This method returns:
+    /// * Ok and Some ID address and if the input was already an ID address, or
+    ///   if it was successfully resolved.
+    /// * Ok and None if the address was not an ID address, and no mapping was
+    ///   found during resolution.
+    /// * Err, if state was inconsistent.
     pub fn resolve_address<B>(&self, store: B, addr: &Address) -> Result<Option<u64>>
     where
         B: Blockstore,
