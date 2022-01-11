@@ -1,10 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::error::Error;
 use cid::Cid;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
+
+use super::error::Error;
 
 pub(crate) async fn ld_read<R>(mut reader: &mut R) -> Result<Option<Vec<u8>>, Error>
 where
@@ -54,8 +55,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use async_std::io::Cursor;
+
+    use super::*;
 
     #[async_std::test]
     async fn ld_read_write() {

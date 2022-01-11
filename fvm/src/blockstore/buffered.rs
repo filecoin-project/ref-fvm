@@ -4,7 +4,6 @@
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
-
 use fvm_shared::blockstore::{Blockstore, Buffered};
 
 // TODO: figure out where to put this.
@@ -15,8 +14,8 @@ const DAG_CBOR: u64 = 0x71;
 // 1. Finish converting it to a true blockstore.
 // 2. Add bulk put methods to the blockstore.
 
-use std::cell::RefCell;
 // TODO: replace HashMap with DashMap like in forest?
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek};
 
@@ -253,13 +252,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use fvm_shared::blockstore::{Blockstore, MemoryBlockstore};
-
-    use super::*;
     use cid::multihash::{Code, MultihashDigest};
-    use fvm_shared::blockstore::CborStore;
+    use fvm_shared::blockstore::{Blockstore, CborStore, MemoryBlockstore};
     use fvm_shared::commcid;
     use serde::{Deserialize, Serialize};
+
+    use super::*;
 
     const RAW: u64 = 0x55;
 

@@ -1,6 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use futures::AsyncRead;
@@ -11,8 +14,6 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::receipt::Receipt;
 use ipld_car::load_car;
 use serde::{Deserialize, Deserializer};
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 #[derive(Debug, Deserialize)]
 pub struct StateTreeVector {
@@ -169,9 +170,11 @@ pub struct ApplyMessage {
 }
 
 mod base64_bytes {
-    use super::*;
-    use serde::de;
     use std::borrow::Cow;
+
+    use serde::de;
+
+    use super::*;
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
@@ -199,9 +202,10 @@ mod base64_bytes {
 }
 
 mod message_receipt_vec {
-    use super::*;
     use fvm_shared::encoding::RawBytes;
     use fvm_shared::error::ExitCode;
+
+    use super::*;
 
     #[derive(Deserialize)]
     pub struct MessageReceiptVector {

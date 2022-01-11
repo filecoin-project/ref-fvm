@@ -1,15 +1,15 @@
 mod default;
 
 pub use default::DefaultExecutor;
-use fvm_shared::{
-    bigint::{BigInt, Sign},
-    encoding::RawBytes,
-    message::Message,
-    receipt::Receipt,
-};
+use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::encoding::RawBytes;
+use fvm_shared::message::Message;
+use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::{kernel::SyscallError, machine::CallError, Kernel};
+use crate::kernel::SyscallError;
+use crate::machine::CallError;
+use crate::Kernel;
 
 pub trait Executor {
     type Kernel: Kernel;

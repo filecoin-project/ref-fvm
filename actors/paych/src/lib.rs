@@ -1,24 +1,21 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_shared::blockstore::Blockstore;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-
+use actors_runtime::runtime::{ActorCode, Runtime};
+use actors_runtime::{
+    actor_error, resolve_to_id_addr, wasm_trampoline, ActorDowncast, ActorError, Array,
+    ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID,
+};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::blockstore::Blockstore;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::error::ExitCode::ErrTooManyProveCommits as ErrChannelStateUpdateAfterSettled;
 use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
-
-use actors_runtime::{actor_error, wasm_trampoline, ActorError};
-use actors_runtime::{
-    resolve_to_id_addr,
-    runtime::{ActorCode, Runtime},
-    ActorDowncast, Array, ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID,
-};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 
 pub use self::state::{LaneState, Merge, State};
 pub use self::types::*;

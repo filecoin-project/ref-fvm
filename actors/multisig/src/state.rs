@@ -3,19 +3,19 @@
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::blockstore::Blockstore;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
 use indexmap::IndexMap;
 use num_traits::Zero;
 
-use fvm_shared::address::Address;
-use fvm_shared::bigint::{bigint_ser, Integer};
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor};
-
+use super::types::Transaction;
+use super::TxnID;
 use crate::make_map_with_root;
-
-use super::{types::Transaction, TxnID};
 
 /// Multisig actor state
 #[derive(Serialize_tuple, Deserialize_tuple, Clone)]

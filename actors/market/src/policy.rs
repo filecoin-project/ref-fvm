@@ -3,16 +3,15 @@
 
 use std::cmp::max;
 
-use num_traits::Zero;
-
+use actors_runtime::network::EPOCHS_IN_DAY;
+use actors_runtime::DealWeight;
 use fvm_shared::bigint::Integer;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PaddedPieceSize;
 use fvm_shared::sector::StoragePower;
 use fvm_shared::TOTAL_FILECOIN;
-
-use actors_runtime::{network::EPOCHS_IN_DAY, DealWeight};
+use num_traits::Zero;
 
 use super::deal::DealProposal;
 

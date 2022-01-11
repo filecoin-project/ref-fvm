@@ -5,12 +5,11 @@ use crate::encoding::Cbor;
 #[cfg(feature = "proofs")]
 pub mod zero;
 
-#[cfg(feature = "proofs")]
-pub use zero::zero_piece_commitment;
-
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
+#[cfg(feature = "proofs")]
+pub use zero::zero_piece_commitment;
 
 /// Size of a piece in bytes.
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]

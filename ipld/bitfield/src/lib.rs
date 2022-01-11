@@ -5,14 +5,14 @@ pub mod iter;
 mod rleplus;
 mod unvalidated;
 
-pub use unvalidated::{UnvalidatedBitField, Validate};
+use std::iter::FromIterator;
+use std::ops::{
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Range, Sub, SubAssign,
+};
 
 use ahash::AHashSet;
 use iter::{ranges_from_bits, RangeIterator};
-use std::{
-    iter::FromIterator,
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Range, Sub, SubAssign},
-};
+pub use unvalidated::{UnvalidatedBitField, Validate};
 
 type Result<T> = std::result::Result<T, &'static str>;
 
@@ -329,10 +329,11 @@ macro_rules! bitfield {
 
 #[cfg(feature = "json")]
 pub mod json {
-    use super::*;
-    use crate::iter::Ranges;
     use serde::ser::SerializeSeq;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    use super::*;
+    use crate::iter::Ranges;
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     #[serde(transparent)]

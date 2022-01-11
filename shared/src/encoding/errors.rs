@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::{fmt, io};
+
 use cid::Error as CidError;
 use serde_cbor::error::Error as CborError;
-use std::fmt;
-use std::io;
 use thiserror::Error;
 
 /// Error type for encoding and decoding data through any Forest supported protocol.

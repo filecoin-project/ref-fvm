@@ -1,10 +1,7 @@
 use cid::{multihash, Cid};
 
-use crate::encoding::DAG_CBOR;
-
-use crate::encoding::{de, from_slice, ser, to_vec};
-
 use super::{Block, Blockstore};
+use crate::encoding::{de, from_slice, ser, to_vec, DAG_CBOR};
 
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
 pub trait CborStore: Blockstore + Sized {

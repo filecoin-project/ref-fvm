@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-use crate::{message::NO_DATA_BLOCK_ID, sys, SyscallResult};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
@@ -8,6 +7,9 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 use num_traits::FromPrimitive;
+
+use crate::message::NO_DATA_BLOCK_ID;
+use crate::{sys, SyscallResult};
 
 /// Sends a message to another actor.
 // TODO: Drop the use of receipts here as we don't return the gas used. Alternatively, we _could_

@@ -1,5 +1,6 @@
-use crate::sys;
 use std::ptr;
+
+use crate::sys;
 
 /// Abort execution.
 pub fn abort(code: u32, message: Option<&str>) -> ! {

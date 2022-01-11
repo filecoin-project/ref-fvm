@@ -3,12 +3,11 @@
 
 use std::collections::HashMap;
 
-use num_traits::Zero;
-
 use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
+use num_traits::Zero;
 
 use super::VestSpec;
 

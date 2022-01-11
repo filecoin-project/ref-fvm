@@ -45,8 +45,10 @@
 //! These ranges are combined into a proper range iterator by merging overlapping
 //! ranges.
 
+use std::ops::Range;
+use std::{cmp, iter};
+
 use super::RangeIterator;
-use std::{cmp, iter, ops::Range};
 
 /// A trait for defining how two range iterators can be combined into a single new range iterator.
 ///

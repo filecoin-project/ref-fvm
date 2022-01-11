@@ -122,14 +122,17 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::Arc;
+
     use async_std::channel::bounded;
     use async_std::io::Cursor;
     use async_std::sync::RwLock;
-    use cid::multihash::{Code::Blake2b256, MultihashDigest};
+    use cid::multihash::Code::Blake2b256;
+    use cid::multihash::MultihashDigest;
     use fvm_shared::blockstore::MemoryBlockstore;
     use fvm_shared::encoding::DAG_CBOR;
-    use std::sync::Arc;
+
+    use super::*;
 
     #[test]
     fn symmetric_header() {

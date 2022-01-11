@@ -1,8 +1,8 @@
-use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
 use fvm_shared::sys;
 
 use super::Context;
+use crate::kernel::{ClassifyResult, Kernel, Result};
 
 pub fn caller(context: Context<'_, impl Kernel>) -> Result<u64> {
     Ok(context.kernel.msg_caller())

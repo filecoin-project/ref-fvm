@@ -1,23 +1,19 @@
 use derive_more::{Deref, DerefMut};
-use fvm_shared::{
-    address::{Address, Protocol},
-    econ::TokenAmount,
-    encoding::{RawBytes, DAG_CBOR},
-    error::ExitCode,
-    ActorID, MethodNum, METHOD_SEND,
-};
+use fvm_shared::address::{Address, Protocol};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{RawBytes, DAG_CBOR};
+use fvm_shared::error::ExitCode;
+use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
-use crate::{
-    gas::GasTracker,
-    kernel::{ClassifyResult, Kernel, Result, SyscallError},
-    machine::{CallError, Machine},
-    syscall_error,
-    syscalls::{bind_syscalls, error::unwrap_trap},
-};
-
 use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::gas::GasTracker;
+use crate::kernel::{ClassifyResult, Kernel, Result, SyscallError};
+use crate::machine::{CallError, Machine};
+use crate::syscall_error;
+use crate::syscalls::bind_syscalls;
+use crate::syscalls::error::unwrap_trap;
 
 /// The DefaultCallManager manages a single call stack.
 ///

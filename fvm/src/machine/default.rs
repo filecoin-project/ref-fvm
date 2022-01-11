@@ -1,27 +1,24 @@
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use log::Level::Trace;
-use log::{debug, log_enabled, trace};
-use num_traits::Signed;
-use wasmtime::{Engine, Module};
-
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
+use log::Level::Trace;
+use log::{debug, log_enabled, trace};
+use num_traits::Signed;
+use wasmtime::{Engine, Module};
 
+use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
 use crate::init_actor::{State, INIT_ACTOR_ADDR};
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
-use crate::syscall_error;
-use crate::Config;
-
-use super::{Machine, MachineContext};
+use crate::{syscall_error, Config};
 
 /// The core of the FVM.
 ///

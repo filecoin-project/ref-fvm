@@ -1,8 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::Result;
-use cid::multihash;
-use cid::Cid;
+use cid::{multihash, Cid};
 
 pub mod tracking;
 

@@ -1,7 +1,8 @@
-use super::Context;
-use crate::kernel::{ClassifyResult, Kernel, Result};
 use anyhow::Context as _;
 use fvm_shared::sys;
+
+use super::Context;
+use crate::kernel::{ClassifyResult, Kernel, Result};
 
 /// Returns the root CID of the actor's state by writing it in the specified buffer.
 ///

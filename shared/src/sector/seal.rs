@@ -1,15 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::clock;
-use crate::deal;
-use crate::randomness::Randomness;
-use crate::sector::{RegisteredAggregateProof, RegisteredSealProof, SectorID, SectorNumber};
-use crate::ActorID;
-
-use crate::encoding::{serde_bytes, tuple::*, Cbor};
 use cid::Cid;
 use clock::ChainEpoch;
+
+use crate::encoding::tuple::*;
+use crate::encoding::{serde_bytes, Cbor};
+use crate::randomness::Randomness;
+use crate::sector::{RegisteredAggregateProof, RegisteredSealProof, SectorID, SectorNumber};
+use crate::{clock, deal, ActorID};
 
 /// Randomness used for Seal proofs.
 pub type SealRandomness = Randomness;

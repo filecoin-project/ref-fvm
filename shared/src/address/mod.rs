@@ -5,20 +5,22 @@ mod errors;
 mod network;
 mod payload;
 mod protocol;
-pub use self::errors::Error;
-pub use self::network::Network;
-pub use self::payload::{BLSPublicKey, Payload};
-pub use self::protocol::Protocol;
+use std::borrow::Cow;
+use std::fmt;
+use std::hash::Hash;
+use std::str::FromStr;
 
-use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
-use crate::ActorID;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use std::hash::Hash;
-use std::str::FromStr;
-use std::{borrow::Cow, fmt};
+
+pub use self::errors::Error;
+pub use self::network::Network;
+pub use self::payload::{BLSPublicKey, Payload};
+pub use self::protocol::Protocol;
+use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
+use crate::ActorID;
 
 /// defines the encoder for base32 encoding with the provided string with no padding
 const ADDRESS_ENCODER: Encoding = new_encoding! {

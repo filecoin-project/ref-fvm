@@ -1,11 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use num_derive::FromPrimitive;
 use std::fmt::Formatter;
 
-use crate::encoding::repr::*;
+use num_derive::FromPrimitive;
 use thiserror::Error;
+
+use crate::encoding::repr::*;
 
 /// ExitCode defines the exit code from the VM execution.
 #[repr(u32)]

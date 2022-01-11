@@ -1,13 +1,10 @@
 #![allow(unused)] // TODO: remove this when we implement these
-use cid::Cid;
-
 use anyhow::Result;
-use fvm_shared::{
-    address::Address,
-    clock::ChainEpoch,
-    consensus::{ConsensusFault, ConsensusFaultType},
-    crypto::randomness::DomainSeparationTag,
-};
+use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::consensus::{ConsensusFault, ConsensusFaultType};
+use fvm_shared::crypto::randomness::DomainSeparationTag;
 
 use crate::externs::{Consensus, Externs, Rand};
 

@@ -2,7 +2,6 @@ use std::ptr;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-
 use fvm_shared::blockstore::Blockstore;
 
 const ERR_NO_STORE: i32 = -1;

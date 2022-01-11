@@ -5,16 +5,17 @@
 
 use anyhow::Context;
 use cid::Cid;
-
-use crate::kernel::{ClassifyResult, Result};
-use crate::state_tree::{ActorState, StateTree};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{tuple::*, Cbor};
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
+
+use crate::kernel::{ClassifyResult, Result};
+use crate::state_tree::{ActorState, StateTree};
 
 pub const MARKET_ACTOR_ADDR: Address = Address::new_id(5);
 

@@ -1,20 +1,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::{Cid, Version};
-
-use fvm_shared::commcid::{FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED};
-use fvm_shared::{
-    address::Address,
-    bigint::bigint_ser,
-    clock::ChainEpoch,
-    crypto::signature::Signature,
-    econ::TokenAmount,
-    encoding::{tuple::*, Cbor},
-    piece::PaddedPieceSize,
-};
-
 use actors_runtime::DealWeight;
+use cid::{Cid, Version};
+use fvm_shared::address::Address;
+use fvm_shared::bigint::bigint_ser;
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::commcid::{FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED};
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
+use fvm_shared::piece::PaddedPieceSize;
 
 /// Cid prefix for piece Cids
 pub fn is_piece_cid(c: &Cid) -> bool {

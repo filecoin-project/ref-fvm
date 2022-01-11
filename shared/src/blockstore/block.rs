@@ -1,7 +1,5 @@
-use cid::{
-    multihash::{self, MultihashDigest},
-    Cid,
-};
+use cid::multihash::{self, MultihashDigest};
+use cid::Cid;
 
 /// Block represents a typed (i.e., with codec) IPLD block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

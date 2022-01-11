@@ -5,7 +5,8 @@
 //!
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
-pub use kernel::{default::DefaultKernel, BlockError, Kernel};
+pub use kernel::default::DefaultKernel;
+pub use kernel::{BlockError, Kernel};
 
 pub mod call_manager;
 pub mod executor;
@@ -59,10 +60,10 @@ mod test {
     use fvm_shared::state::StateTreeVersion;
     use num_traits::Zero;
 
-    use crate::{
-        call_manager::DefaultCallManager, executor, externs, machine::DefaultMachine,
-        state_tree::StateTree, Config, DefaultKernel,
-    };
+    use crate::call_manager::DefaultCallManager;
+    use crate::machine::DefaultMachine;
+    use crate::state_tree::StateTree;
+    use crate::{executor, externs, Config, DefaultKernel};
 
     #[test]
     fn test_constructor() {

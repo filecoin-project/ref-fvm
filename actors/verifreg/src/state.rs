@@ -1,14 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
-
-use fvm_shared::address::Address;
-use fvm_shared::encoding::{tuple::*, Cbor};
-use fvm_shared::HAMT_BIT_WIDTH;
-
 use actors_runtime::make_empty_map;
+use cid::Cid;
+use fvm_shared::address::Address;
+use fvm_shared::blockstore::Blockstore;
+use fvm_shared::encoding::tuple::*;
+use fvm_shared::encoding::Cbor;
+use fvm_shared::HAMT_BIT_WIDTH;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct State {

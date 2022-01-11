@@ -1,16 +1,12 @@
-use num_traits::FromPrimitive;
-
 use anyhow::Context as _;
 use fvm_shared::error::ExitCode;
+use num_traits::FromPrimitive;
 use wasmtime::Trap;
-
-use crate::{
-    kernel::{ClassifyResult, ExecutionError},
-    Kernel,
-};
 
 use super::error::{trap_from_code, trap_from_error};
 use super::Context;
+use crate::kernel::{ClassifyResult, ExecutionError};
+use crate::Kernel;
 
 pub fn abort(
     context: Context<'_, impl Kernel>,

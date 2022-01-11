@@ -5,15 +5,13 @@ use std::borrow::Borrow;
 
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
-
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_hamt::Error;
 
-use crate::{make_empty_map, make_map_with_root, parse_uint_key, u64_key, Map};
-
 use super::Set;
+use crate::{make_empty_map, make_map_with_root, parse_uint_key, u64_key, Map};
 
 /// SetMultimap is a hamt with values that are also a hamt but are of the set variant.
 /// This allows hash sets to be indexable by an address.

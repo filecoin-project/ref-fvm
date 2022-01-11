@@ -3,7 +3,6 @@
 
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
-
 use fvm_shared::HAMT_BIT_WIDTH;
 use ipld_hamt::Error;
 

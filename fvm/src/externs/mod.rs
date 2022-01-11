@@ -1,8 +1,8 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
-use fvm_shared::{
-    clock::ChainEpoch, consensus::ConsensusFault, crypto::randomness::DomainSeparationTag,
-};
+use fvm_shared::clock::ChainEpoch;
+use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::randomness::DomainSeparationTag;
 
 pub mod cgo;
 

@@ -1,10 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::vector::{RandomnessKind, RandomnessMatch, RandomnessRule};
 use fvm::externs::Rand;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+
+use crate::vector::{RandomnessKind, RandomnessMatch, RandomnessRule};
 
 /// Takes recorded randomness and replays it when input parameters match.
 /// When there's no match, it falls back to TestFallbackRand, which returns a

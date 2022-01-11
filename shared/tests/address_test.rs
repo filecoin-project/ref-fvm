@@ -1,13 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::str::FromStr;
+
 use data_encoding::{DecodeError, DecodeKind};
 use fvm_shared::address::{
     checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };
 use fvm_shared::encoding::{from_slice, Cbor};
-use std::str::FromStr;
 
 #[test]
 fn bytes() {

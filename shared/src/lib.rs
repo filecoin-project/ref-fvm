@@ -4,10 +4,9 @@
 #[macro_use]
 extern crate lazy_static;
 
-use num_bigint::BigInt;
-
 use address::Address;
 use clock::ChainEpoch;
+use num_bigint::BigInt;
 
 pub mod address;
 pub mod bigint;

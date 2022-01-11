@@ -1,12 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::error::Error as StdError;
+
 use anyhow::anyhow;
 use cid::Error as CidError;
-use std::error::Error as StdError;
-use thiserror::Error;
-
 use fvm_shared::encoding::Error as EncodingError;
+use thiserror::Error;
 
 /// AMT Error
 #[derive(Debug, Error)]

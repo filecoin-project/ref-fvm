@@ -1,5 +1,3 @@
-use crate::call_manager::{InvocationResult, NO_DATA_BLOCK_ID};
-use crate::{kernel::Result, Kernel};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::DAG_CBOR;
@@ -7,6 +5,9 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
 
 use super::Context;
+use crate::call_manager::{InvocationResult, NO_DATA_BLOCK_ID};
+use crate::kernel::Result;
+use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.

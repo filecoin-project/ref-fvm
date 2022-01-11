@@ -18,13 +18,13 @@ mod hash_bits;
 mod node;
 mod pointer;
 
+pub use forest_hash_utils::{BytesKey, Hash};
+use serde::{Deserialize, Serialize};
+
 pub use self::error::Error;
 pub use self::hamt::Hamt;
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
-
-pub use forest_hash_utils::{BytesKey, Hash};
-use serde::{Deserialize, Serialize};
 
 const MAX_ARRAY_WIDTH: usize = 3;
 

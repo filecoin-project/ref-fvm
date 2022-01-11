@@ -6,11 +6,9 @@ use anyhow::anyhow;
 use crate::address::Address;
 use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use crate::econ::TokenAmount;
-use crate::encoding::{
-    de::{Deserialize, Deserializer},
-    ser::{Serialize, Serializer},
-    Cbor, RawBytes,
-};
+use crate::encoding::de::{Deserialize, Deserializer};
+use crate::encoding::ser::{Serialize, Serializer};
+use crate::encoding::{Cbor, RawBytes};
 use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition

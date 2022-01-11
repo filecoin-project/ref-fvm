@@ -1,10 +1,10 @@
 use std::convert::TryInto;
 
-use crate::sys;
-use crate::SyscallResult;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
+
+use crate::{sys, SyscallResult};
 
 pub fn curr_epoch() -> SyscallResult<ChainEpoch> {
     unsafe { Ok(sys::network::curr_epoch()? as ChainEpoch) }

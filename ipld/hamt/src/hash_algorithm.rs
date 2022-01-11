@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{Hash, HashedKey};
-use sha2::{Digest, Sha256 as Sha256Hasher};
 use std::hash::Hasher;
+
+use sha2::{Digest, Sha256 as Sha256Hasher};
+
+use crate::{Hash, HashedKey};
 
 /// Algorithm used as the hasher for the Hamt.
 pub trait HashAlgorithm {

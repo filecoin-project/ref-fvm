@@ -1,5 +1,6 @@
-use crate::sys;
 use lazy_static::lazy_static;
+
+use crate::sys;
 
 lazy_static! {
     /// Lazily memoizes if debug mode is enabled.

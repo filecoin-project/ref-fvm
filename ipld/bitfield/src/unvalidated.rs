@@ -1,9 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::{BitField, Result};
 use fvm_shared::encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
+
+use super::{BitField, Result};
 
 /// A trait for types that can produce a `&BitField` (or fail to do so).
 /// Generalizes over `&BitField` and `&mut UnvalidatedBitField`.

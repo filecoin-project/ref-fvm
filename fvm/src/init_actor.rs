@@ -15,10 +15,8 @@
 
 use anyhow::Context;
 use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
-
 use fvm_shared::address::{Address, Payload};
-use fvm_shared::blockstore::CborStore;
+use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
