@@ -1,12 +1,12 @@
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
 use cid::Cid;
-use fvm::call_manager::{CallManager, InvocationResult};
+use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::GasTracker;
-use fvm::kernel::*;
 use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::Config;
+use fvm::{kernel::*, DefaultKernel};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, ToBigInt};
 use fvm_shared::blockstore::MemoryBlockstore;
@@ -33,7 +33,7 @@ pub struct TestData {
     circ_supply: TokenAmount,
 }
 
-pub struct TestMachine<M> {
+pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
 }
@@ -145,7 +145,7 @@ where
 /// A CallManager that wraps kernels in an InterceptKernel.
 // NOTE: For now, this _must_ be transparent because we transmute a pointer.
 #[repr(transparent)]
-pub struct TestCallManager<C: CallManager>(pub C);
+pub struct TestCallManager<C: CallManager = DefaultCallManager<TestMachine>>(pub C);
 
 impl<M, C> CallManager for TestCallManager<C>
 where
@@ -258,7 +258,7 @@ where
 }
 
 /// A kernel for intercepting syscalls.
-pub struct TestKernel<K>(pub K, pub TestData);
+pub struct TestKernel<K = DefaultKernel<TestCallManager>>(pub K, pub TestData);
 
 impl<M, C, K> Kernel for TestKernel<K>
 where
