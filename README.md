@@ -51,16 +51,16 @@ Here's what you'll find in each directory:
 ## Maturity roadmap
 
 - Alpha:
-  - Focus: theoretical correctness.
   - Declared when: all test vectors passing, integrated into Lotus via FFI.
+  - Focus: theoretical correctness.
   - Estimated: end of January '22.
 - Beta: 
-  - Declared when: all test vectors passing, integrated into Lotus, syncing mainnet consistently, keeping up with chain consistently.
+  - Declared when: all of the above + syncing mainnet consistently, keeping up with chain consistently.
   - Focus: production-readiness, performance, live consensus correctness.
   - Estimated: late February '22.
 - RC:
   - Declared when: all of the above + integrated into a second client (likely Forest), successfully syncing mainnet on all.
-  - Focus: 
+  - Focus: pre-mainnet preparations.
   - Estimated: March '22.
 - Final:
   - Declared when: FVM is securing mainnet, i.e. when M1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
