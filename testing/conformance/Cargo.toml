@@ -38,6 +38,7 @@ flate2 = { version = "1.0" }
 colored = "2"
 either = "1.6.1"
 itertools = "0.10.3"
+num_cpus = "1.13.1"
 
 [dev-dependencies]
 regex = { version = "1.0" }

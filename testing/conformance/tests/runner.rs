@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::{anyhow, Result};
-use async_std::stream;
+use async_std::{stream, sync, task};
 use cid::Cid;
 use colored::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
-use futures::{StreamExt, TryStreamExt};
+use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
+
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
 use fvm::machine::Machine;
@@ -34,6 +35,12 @@ lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
         // currently empty.
     ];
+    /// The maximum parallelism when processing test vectors.
+    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
+        .map(|s| {
+            let s = s.to_str().unwrap();
+            s.parse().expect("parallelism must be an integer")
+        }).unwrap_or(num_cpus::get());
 }
 
 /// Checks if the file is a runnable vector.
@@ -165,7 +172,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         Ok(v) => either::Either::Left(
             iter::once(async move {
                 let path = Path::new(v.as_str()).to_path_buf();
-                let res = run_vector(&path).await?;
+                let res = run_vector(path.clone()).await?;
                 anyhow::Ok((path, res))
             })
             .map(futures::future::Either::Left),
@@ -177,19 +184,30 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .filter(is_runnable)
                 .map(|e| async move {
                     let path = e.path().to_path_buf();
-                    let res = run_vector(&path).await?;
+                    let res = run_vector(path.clone()).await?;
                     Ok((path, res))
                 })
                 .map(futures::future::Either::Right),
         ),
     };
 
-    let mut results = stream::from_iter(vector_results)
-        // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
-        // parallel (yet), but that shouldn't be too hard.
-        .buffer_unordered(100)
-        .map_ok(|(path, res)| stream::from_iter(res).map_ok(move |r| (path.clone(), r)))
-        .try_flatten();
+    let mut results = Box::pin(
+        stream::from_iter(vector_results)
+            // Will _load_ up to 100 vectors at once in any order. We won't actually run the vectors in
+            // parallel (yet), but that shouldn't be too hard.
+            .map(|task| {
+                async move {
+                    let (path, jobs) = task.await?;
+                    Ok(stream::from_iter(jobs).map(move |job| {
+                        let path = path.clone();
+                        Ok(async move { anyhow::Ok((path, job.await?)) })
+                    }))
+                }
+                .try_flatten_stream()
+            })
+            .flatten()
+            .try_buffer_unordered(*TEST_VECTOR_PARALLELISM),
+    );
 
     let mut succeeded = 0;
     let mut failed = 0;
@@ -254,9 +272,9 @@ enum VariantResult {
 /// Runs a single test vector and returns a list of VectorResults,
 /// one per variant.
 async fn run_vector(
-    path: &PathBuf,
-) -> anyhow::Result<impl Iterator<Item = anyhow::Result<VariantResult>>> {
-    let file = File::open(path)?;
+    path: PathBuf,
+) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
+    let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
 
@@ -266,9 +284,11 @@ async fn run_vector(
             if skip {
                 Ok(either::Either::Left(
                     v.preconditions.variants.into_iter().map(|variant| {
-                        Ok(VariantResult::Skipped {
-                            id: variant.id,
-                            reason: "selector not supported".to_owned(),
+                        futures::future::Either::Left(async move {
+                            Ok(VariantResult::Skipped {
+                                id: variant.id,
+                                reason: "selector not supported".to_owned(),
+                            })
                         })
                     }),
                 ))
@@ -289,9 +309,22 @@ async fn run_vector(
                         v.preconditions.state_tree.root_cid
                     ));
                 }
+
+                let v = sync::Arc::new(v);
                 Ok(either::Either::Right(
-                    (0..v.preconditions.variants.len())
-                        .map(move |i| run_variant(bs.clone(), &v, &v.preconditions.variants[i])),
+                    (0..v.preconditions.variants.len()).map(move |i| {
+                        let v = v.clone();
+                        let bs = bs.clone();
+                        let name =
+                            format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
+                        futures::future::Either::Right(
+                                task::Builder::new()
+                                    .name(name)
+                                    .spawn(async move {
+                                        run_variant(bs, &v, &v.preconditions.variants[i])
+                                    }).unwrap(),
+                            )
+                    }),
                 ))
             }
         }
