@@ -55,12 +55,18 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let state_root = v.preconditions.state_tree.root_cid;
 
         let externs = TestExterns::new(&v.randomness);
+
+        let mut wasm_conf = wasmtime::Config::default();
+        wasm_conf
+            .cache_config_load_default()
+            .expect("failed to load cache config");
+
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
                 initial_pages: 0,
                 max_pages: 1024,
-                engine: Default::default(),
+                engine: wasm_conf,
                 debug: true, // Enable debug mode by default.
             },
             epoch,
