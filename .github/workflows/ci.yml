@@ -36,9 +36,9 @@ jobs:
     # otherwise the include_bytes! macro fails because this file hasn't been generated
     - run: touch examples/fvm/fvm_example_actor.wasm
       shell: bash
-    - name: Run cargo clippy
-      run: cargo clippy --all --all-targets
-      shell: bash
+    - uses: actions-rs/clippy@9e02862195d5c88dabdda3c1e7fa53a45ed35ec1 # master
+      with:
+        args: --all --all-targets -- -D warnings
   build:
     runs-on: ubuntu-18.04
     steps:
