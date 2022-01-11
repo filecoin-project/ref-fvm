@@ -19,6 +19,7 @@ use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -274,21 +275,18 @@ async fn run_vector(
             } else {
                 // First import the blockstore and do some sanity checks.
                 let (bs, imported_root) = v.seed_blockstore().await?;
-                if imported_root.len() != 2 {
-                    return Err(anyhow!("expected two roots; found {}", imported_root.len()));
-                }
-                if v.preconditions.state_tree.root_cid != imported_root[0] {
+                if !imported_root.contains(&v.preconditions.state_tree.root_cid) {
                     return Err(anyhow!(
-                        "first imported root does not match precondition root; imported: {}; expected: {}",
-                        imported_root[0],
+                        "imported roots ({}) do not contain precondition CID {}",
+                        imported_root.iter().join(", "),
                         v.preconditions.state_tree.root_cid
                     ));
                 }
-                if v.postconditions.state_tree.root_cid != imported_root[1] {
+                if !imported_root.contains(&v.postconditions.state_tree.root_cid) {
                     return Err(anyhow!(
-                        "second imported root does not match postcondition root; imported: {}; expected: {}",
-                        imported_root[1],
-                        v.postconditions.state_tree.root_cid
+                        "imported roots ({}) do not contain postcondition CID {}",
+                        imported_root.iter().join(", "),
+                        v.preconditions.state_tree.root_cid
                     ));
                 }
                 Ok(either::Either::Right(
