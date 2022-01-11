@@ -10,15 +10,18 @@ use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
 use futures::{StreamExt, TryStreamExt};
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
+use fvm::kernel::Context;
 use fvm::machine::Machine;
+use fvm::state_tree::StateTree;
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::{self, MemoryBlockstore};
+use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
@@ -99,21 +102,58 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
 
 /// Compares the resulting state root with the expected state root. Currently,
 /// this doesn't do much, but it could run a statediff.
-fn compare_state_roots(
-    _bs: &blockstore::MemoryBlockstore,
-    root: &Cid,
-    expected_root: &Cid,
-) -> Result<()> {
-    if root != expected_root {
-        // TODO consider printing a statediff.
-
-        return Err(anyhow!(
-            "wrong post root cid; expected {}, but got {}",
-            expected_root,
-            root
-        ));
+fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, expected_root: &Cid) -> Result<()> {
+    if root == expected_root {
+        return Ok(());
     }
-    Ok(())
+
+    let mut seen = HashSet::new();
+
+    let mut actual = HashMap::new();
+    StateTree::new_from_root(bs, root)
+        .context("failed to load actual state tree")?
+        .for_each(|addr, state| {
+            actual.insert(addr, state.clone());
+            Ok(())
+        })?;
+
+    let mut expected = HashMap::new();
+    StateTree::new_from_root(bs, expected_root)
+        .context("failed to load expected state tree")?
+        .for_each(|addr, state| {
+            expected.insert(addr, state.clone());
+            Ok(())
+        })?;
+    for (k, va) in &actual {
+        if seen.insert(k) {
+            continue;
+        }
+        match expected.get(k) {
+            Some(ve) if va != ve => {
+                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
+            }
+            None => log::error!("unexpected actor {}", k),
+            _ => {}
+        }
+    }
+    for (k, ve) in &expected {
+        if seen.insert(k) {
+            continue;
+        }
+        match actual.get(k) {
+            Some(va) if va != ve => {
+                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
+            }
+            None => log::error!("missing actor {}", k),
+            _ => {}
+        }
+    }
+
+    return Err(anyhow!(
+        "wrong post root cid; expected {}, but got {}",
+        expected_root,
+        root
+    ));
 }
 
 #[async_std::test]
@@ -234,14 +274,21 @@ async fn run_vector(
             } else {
                 // First import the blockstore and do some sanity checks.
                 let (bs, imported_root) = v.seed_blockstore().await?;
-                if imported_root.len() != 1 {
-                    return Err(anyhow!("expected one root; found {}", imported_root.len()));
+                if imported_root.len() != 2 {
+                    return Err(anyhow!("expected two roots; found {}", imported_root.len()));
                 }
                 if v.preconditions.state_tree.root_cid != imported_root[0] {
                     return Err(anyhow!(
-                        "imported root does not match precondition root; imported: {}; expected: {}",
+                        "first imported root does not match precondition root; imported: {}; expected: {}",
                         imported_root[0],
                         v.preconditions.state_tree.root_cid
+                    ));
+                }
+                if v.postconditions.state_tree.root_cid != imported_root[1] {
+                    return Err(anyhow!(
+                        "second imported root does not match postcondition root; imported: {}; expected: {}",
+                        imported_root[1],
+                        v.postconditions.state_tree.root_cid
                     ));
                 }
                 Ok(either::Either::Right(
