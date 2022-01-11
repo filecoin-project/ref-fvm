@@ -17,18 +17,18 @@ lazy_static! {
 
     // TODO these CIDs may need to be versioned with SnapDeals; and maybe
     //  a few more times before some of these actors are moved to user-land.
-    pub static ref SYSTEM_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/system");
-    pub static ref INIT_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/init");
-    pub static ref CRON_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/cron");
-    pub static ref ACCOUNT_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/account");
-    pub static ref POWER_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/storagepower");
-    pub static ref MINER_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/storageminer");
-    pub static ref MARKET_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/storagemarket");
-    pub static ref PAYCH_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/paymentchannel");
-    pub static ref MULTISIG_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/multisig");
-    pub static ref REWARD_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/reward");
-    pub static ref VERIFREG_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/verifiedregistry");
-    pub static ref CHAOS_ACTOR_CODE_ID: Cid = make_builtin(b"fil/6/chaos");
+    pub static ref SYSTEM_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/system");
+    pub static ref INIT_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/init");
+    pub static ref CRON_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/cron");
+    pub static ref ACCOUNT_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/account");
+    pub static ref POWER_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/storagepower");
+    pub static ref MINER_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/storageminer");
+    pub static ref MARKET_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/storagemarket");
+    pub static ref PAYCH_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/paymentchannel");
+    pub static ref MULTISIG_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/multisig");
+    pub static ref REWARD_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/reward");
+    pub static ref VERIFREG_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/verifiedregistry");
+    pub static ref CHAOS_ACTOR_CODE_ID: Cid = make_builtin_code_cid(b"fil/6/chaos");
 }
 
 /// Returns a Code CID for a builtin actor.
