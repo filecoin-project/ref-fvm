@@ -23,7 +23,6 @@ pub mod init_actor;
 pub mod state_tree;
 
 mod blockstore;
-mod intercept;
 mod market_actor;
 mod power_actor;
 

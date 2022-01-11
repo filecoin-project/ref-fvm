@@ -134,7 +134,7 @@ impl Actor {
             Address::new_id(id_address),
             METHOD_CONSTRUCTOR,
             params.constructor_params,
-            rt.message().value_received().clone(),
+            rt.message().value_received(),
         )
         .map_err(|err| err.wrap("constructor failed"))?;
 

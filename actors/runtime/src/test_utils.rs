@@ -383,10 +383,10 @@ impl MockRuntime {
 
 impl MessageInfo for MockRuntime {
     fn caller(&self) -> Address {
-        self.caller.clone()
+        self.caller
     }
     fn receiver(&self) -> Address {
-        self.receiver.clone()
+        self.receiver
     }
     fn value_received(&self) -> TokenAmount {
         self.value_received.clone()

@@ -123,7 +123,7 @@ impl Actor {
         BS: Blockstore,
         RT: Runtime<BS>,
     {
-        let msg_value = rt.message().value_received().clone();
+        let msg_value = rt.message().value_received();
 
         if msg_value <= TokenAmount::from(0) {
             return Err(actor_error!(

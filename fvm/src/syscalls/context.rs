@@ -18,7 +18,7 @@ pub struct Context<'a, K> {
 impl<'a, K> Context<'a, K> {
     /// Reborrow the context with a shorter lifetime. Unfortunately, our pointers are internal so we
     /// can't use rust's normal re-borrowing logic.
-    pub fn reborrow<'b>(&'b mut self) -> Context<'b, K> {
+    pub fn reborrow(&mut self) -> Context<K> {
         Context {
             kernel: self.kernel,
             memory: self.memory,
@@ -60,7 +60,10 @@ impl DerefMut for Memory {
 }
 
 impl Memory {
+    #[allow(clippy::needless_lifetimes)]
     pub fn new<'a>(m: &'a mut [u8]) -> &'a mut Memory {
+        // We explicitly specify the lifetimes here to ensure that the cast doesn't inadvertently
+        // change them.
         unsafe { &mut *(m as *mut [u8] as *mut Memory) }
     }
 
