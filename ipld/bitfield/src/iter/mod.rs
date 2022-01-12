@@ -8,13 +8,15 @@ use std::ops::Range;
 
 use combine::{Combine, Cut, Difference, Intersection, SymmetricDifference, Union};
 
-/// A trait for iterators over `Range<usize>`.
+use crate::range::RangeSize;
+
+/// A trait for iterators over `Range<u64>`.
 ///
 /// Requirements:
 /// - all ranges are non-empty
 /// - the ranges are in ascending order
 /// - no two ranges overlap or touch
-pub trait RangeIterator: Iterator<Item = Range<usize>> + Sized {
+pub trait RangeIterator: Iterator<Item = Range<u64>> + Sized {
     /// Returns a new `RangeIterator` over the bits that are in `self`, in `other`, or in both.
     fn union<R: RangeIterator>(self, other: R) -> Combine<Self, R, Union> {
         Combine::new(self, other)
@@ -53,7 +55,7 @@ pub trait RangeIterator: Iterator<Item = Range<usize>> + Sized {
     }
 
     /// Returns a new `RangeIterator` over the bits in `self` after skipping the first `n` bits.
-    fn skip_bits(self, n: usize) -> Skip<Self> {
+    fn skip_bits(self, n: u64) -> Skip<Self> {
         Skip {
             iter: self,
             skip: n,
@@ -61,7 +63,7 @@ pub trait RangeIterator: Iterator<Item = Range<usize>> + Sized {
     }
 
     /// Returns a new `RangeIterator` over the first `n` bits in `self`.
-    fn take_bits(self, n: usize) -> Take<Self> {
+    fn take_bits(self, n: u64) -> Take<Self> {
         Take {
             iter: self,
             take: n,
@@ -72,22 +74,22 @@ pub trait RangeIterator: Iterator<Item = Range<usize>> + Sized {
 /// A `RangeIterator` that skips over `n` bits of antoher `RangeIterator`.
 pub struct Skip<I> {
     iter: I,
-    skip: usize,
+    skip: u64,
 }
 
 impl<I: RangeIterator> Iterator for Skip<I> {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let mut range = self.iter.next()?;
 
-            if range.len() > self.skip {
+            if range.size() > self.skip {
                 range.start += self.skip;
                 self.skip = 0;
                 return Some(range);
             } else {
-                self.skip -= range.len();
+                self.skip -= range.size();
             }
         }
     }
@@ -98,11 +100,11 @@ impl<I: RangeIterator> RangeIterator for Skip<I> {}
 /// A `RangeIterator` that iterates over the first `n` bits of antoher `RangeIterator`.
 pub struct Take<I> {
     iter: I,
-    take: usize,
+    take: u64,
 }
 
 impl<I: RangeIterator> Iterator for Take<I> {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.take == 0 {
@@ -111,29 +113,29 @@ impl<I: RangeIterator> Iterator for Take<I> {
 
         let mut range = self.iter.next()?;
 
-        if range.len() > self.take {
+        if range.size() > self.take {
             range.end = range.start + self.take;
         }
 
-        self.take -= range.len();
+        self.take -= range.size();
         Some(range)
     }
 }
 
 impl<I: RangeIterator> RangeIterator for Take<I> {}
 
-/// A `RangeIterator` that wraps a regular iterator over `Range<usize>` as a way to explicitly
+/// A `RangeIterator` that wraps a regular iterator over `Range<u64>` as a way to explicitly
 /// indicate that this iterator satisfies the requirements of the `RangeIterator` trait.
 pub struct Ranges<I>(I);
 
 impl<I> Ranges<I>
 where
-    I: Iterator<Item = Range<usize>>,
+    I: Iterator<Item = Range<u64>>,
 {
     /// Creates a new `Ranges` instance.
     pub fn new<II>(iter: II) -> Self
     where
-        II: IntoIterator<IntoIter = I, Item = Range<usize>>,
+        II: IntoIterator<IntoIter = I, Item = Range<u64>>,
     {
         Self(iter.into_iter())
     }
@@ -141,21 +143,21 @@ where
 
 impl<I> Iterator for Ranges<I>
 where
-    I: Iterator<Item = Range<usize>>,
+    I: Iterator<Item = Range<u64>>,
 {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
 }
 
-impl<I> RangeIterator for Ranges<I> where I: Iterator<Item = Range<usize>> {}
+impl<I> RangeIterator for Ranges<I> where I: Iterator<Item = Range<u64>> {}
 
 /// Returns a `RangeIterator` which ranges contain the values from the provided iterator.
 /// The values need to be in ascending order — if not, the returned iterator may not satisfy
 /// all `RangeIterator` requirements.
-pub fn ranges_from_bits(bits: impl IntoIterator<Item = usize>) -> impl RangeIterator {
+pub fn ranges_from_bits(bits: impl IntoIterator<Item = u64>) -> impl RangeIterator {
     let mut iter = bits.into_iter().peekable();
 
     Ranges::new(iter::from_fn(move || {
@@ -173,20 +175,20 @@ pub fn ranges_from_bits(bits: impl IntoIterator<Item = usize>) -> impl RangeIter
 mod tests {
     use super::*;
 
-    fn ranges(slice: &[Range<usize>]) -> impl RangeIterator + '_ {
+    fn ranges(slice: &[Range<u64>]) -> impl RangeIterator + '_ {
         Ranges::new(slice.iter().cloned())
     }
 
     #[test]
     fn test_combinators() {
         struct Case<'a> {
-            lhs: &'a [Range<usize>],
-            rhs: &'a [Range<usize>],
-            union: &'a [Range<usize>],
-            intersection: &'a [Range<usize>],
-            difference: &'a [Range<usize>],
-            symmetric_difference: &'a [Range<usize>],
-            cut: &'a [Range<usize>],
+            lhs: &'a [Range<u64>],
+            rhs: &'a [Range<u64>],
+            union: &'a [Range<u64>],
+            intersection: &'a [Range<u64>],
+            difference: &'a [Range<u64>],
+            symmetric_difference: &'a [Range<u64>],
+            cut: &'a [Range<u64>],
         }
 
         for &Case {
@@ -436,8 +438,8 @@ mod tests {
     #[test]
     fn test_ranges_from_bits() {
         struct Case<'a> {
-            input: &'a [usize],
-            output: &'a [Range<usize>],
+            input: &'a [u64],
+            output: &'a [Range<u64>],
         }
         for &Case { input, output } in &[
             Case {
@@ -463,10 +465,10 @@ mod tests {
     #[test]
     fn test_skip_take() {
         struct Case<'a> {
-            input: &'a [Range<usize>],
-            n: usize,
-            skip: &'a [Range<usize>],
-            take: &'a [Range<usize>],
+            input: &'a [Range<u64>],
+            n: u64,
+            skip: &'a [Range<u64>],
+            take: &'a [Range<u64>],
         }
 
         for &Case {

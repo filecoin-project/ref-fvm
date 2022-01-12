@@ -35,7 +35,7 @@ impl BitWriter {
     }
 
     /// Writes a given length to the buffer according to RLE+ encoding.
-    pub fn write_len(&mut self, len: usize) {
+    pub fn write_len(&mut self, len: u64) {
         debug_assert!(len > 0);
 
         if len == 1 {
@@ -49,8 +49,8 @@ impl BitWriter {
             // Block Long (prefix 00)
             self.write(0, 2);
 
-            let mut buffer = unsigned_varint::encode::usize_buffer();
-            for &byte in unsigned_varint::encode::usize(len, &mut buffer) {
+            let mut buffer = unsigned_varint::encode::u64_buffer();
+            for &byte in unsigned_varint::encode::u64(len, &mut buffer) {
                 self.write(byte, 8);
             }
         }

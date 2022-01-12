@@ -9,7 +9,7 @@ use fvm_shared::encoding;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
-fn random_indices(range: usize, seed: u64) -> Vec<usize> {
+fn random_indices(range: u64, seed: u64) -> Vec<u64> {
     let mut rng = XorShiftRng::seed_from_u64(seed);
     (0..range).filter(|_| rng.gen::<bool>()).collect()
 }
@@ -37,9 +37,9 @@ fn bitfield_slice_small() {
     // Test all combinations
     let vals = [1, 5, 6, 7, 10, 11, 12, 15];
 
-    let test_permutations = |start, count: usize| {
+    let test_permutations = |start: usize, count: usize| {
         let bf: BitField = vals.iter().copied().collect();
-        let sl = bf.slice(start, count).unwrap();
+        let sl = bf.slice(start as u64, count as u64).unwrap();
         let exp = &vals[start..start + count];
         let out: Vec<_> = sl.iter().collect();
         assert_eq!(out, exp);
@@ -52,7 +52,7 @@ fn bitfield_slice_small() {
     }
 }
 
-fn set_up_test_bitfields() -> (Vec<usize>, Vec<usize>, BitField, BitField) {
+fn set_up_test_bitfields() -> (Vec<u64>, Vec<u64>, BitField, BitField) {
     let a = random_indices(100, 1);
     let b = random_indices(100, 2);
 
@@ -191,7 +191,7 @@ fn bit_vec_unset_vector() {
 
     let deserialized: BitField = encoding::from_slice(&cbor_bz).unwrap();
     assert_eq!(deserialized.len(), 4);
-    assert!(bf.get(3));
+    assert!(!deserialized.get(3));
 }
 
 #[test]

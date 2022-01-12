@@ -71,6 +71,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
 use super::{BitField, Result};
+use crate::RangeSize;
 
 // MaxEncodedSize is the maximum encoded size of a bitfield. When expanded into
 // a slice of runs, a bitfield of this size should not exceed 2MiB of memory.
@@ -122,11 +123,11 @@ impl BitField {
 
         let mut next_value = reader.read(1) == 1;
         let mut ranges = Vec::new();
-        let mut index = 0;
+        let mut index = 0u64;
         let mut total_len: u64 = 0;
 
         while let Some(len) = reader.read_len()? {
-            let (new_total_len, ovf) = total_len.overflowing_add(len as u64);
+            let (new_total_len, ovf) = total_len.overflowing_add(len);
             if ovf {
                 return Err("RLE+ overflow");
             }
@@ -167,14 +168,14 @@ impl BitField {
             writer.write_len(first_range.start); // the number of leading 0s
         }
 
-        writer.write_len(first_range.len());
+        writer.write_len(first_range.size());
         let mut index = first_range.end;
 
         // for each range of 1s we first encode the number of 0s that came prior
         // before encoding the number of 1s
         for range in iter {
             writer.write_len(range.start - index); // zeros
-            writer.write_len(range.len()); // ones
+            writer.write_len(range.size()); // ones
             index = range.end;
         }
 
@@ -371,7 +372,7 @@ mod tests {
         let mut rng = XorShiftRng::seed_from_u64(1);
 
         for _i in 0..1000 {
-            let len: usize = rng.gen_range(0, 1000);
+            let len: u64 = rng.gen_range(0, 1000);
             let bits: Vec<_> = (0..len).filter(|_| rng.gen::<bool>()).collect();
 
             let ranges: Vec<_> = ranges_from_bits(bits.clone()).collect();
