@@ -5,20 +5,23 @@ on:
 
 jobs:
   rustfmt:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
       with:
         profile: minimal
         override: true
         components: rustfmt
-    - name: Check formatting
-      run: cargo fmt -- --check
+    - name: Run cargo clippy
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: fmt
+        args: -- --check
   check-clippy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
       with:
         profile: minimal
@@ -37,12 +40,37 @@ jobs:
     - run: touch examples/fvm/fvm_example_actor.wasm
       shell: bash
     - name: Run cargo clippy
-      run: cargo clippy --all --all-targets
-      shell: bash
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: clippy
+        args: --all --all-targets
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+      with:
+        target: wasm32-unknown-unknown
+        override: true
+    # we don't check the lockfile in; this is needed for cache restoration/saving
+    - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: generate-lockfile
+    - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
+      with:
+        # change this to invalidate cache for this job
+        key: v0
+    - name: Build on wasm32-unknown-unknown
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: build
+        args: --features builtin_actors
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
       with:
         go-version: 1.17.3
@@ -63,6 +91,6 @@ jobs:
       with:
         command: install
         args: cbindgen
-    - name: Build on wasm32-unknown-unknown
-      run: make RUSTFLAGS="-D warnings"
+    - name: Build examples
+      run: make examples
       shell: bash
