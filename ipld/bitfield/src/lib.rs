@@ -211,7 +211,7 @@ impl BitField {
     /// after "cutting" out the bits in `other`, and shifting remaining
     /// bits to the left if necessary. For example:
     ///
-    /// ```ignore
+    /// ```txt
     /// lhs:     xx-xxx--x
     /// rhs:     -xx-x----
     ///
