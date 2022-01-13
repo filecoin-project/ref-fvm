@@ -32,6 +32,11 @@ jobs:
     - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
+    # right now all jobs use separate caches
+    # because of this we hit 10G limit quickly and entries are often evicted
+    # once https://github.com/actions/cache/pull/489 is merged:
+    #   - use sharedKey instead of key in all jobs in this workflow
+    #   - set CACHE_SKIP_SAVE in all jobs in this workflow but build
     - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
       with:
         # change this to invalidate cache for this job
@@ -48,10 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
-      RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_VERSION: v0.2.15
-      SCCACHE_ASSET_NAME: sccache-v0.2.15-x86_64-unknown-linux-musl
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -68,32 +70,11 @@ jobs:
       with:
         # change this to invalidate cache for this job
         key: v0
-    - name: Install sccache
-      run: |
-        gh release download --repo 'mozilla/sccache' --dir '.' --pattern '${{ env.SCCACHE_ASSET_NAME }}.tar.gz' '${{ env.SCCACHE_VERSION }}'
-        tar -zxf '${{ env.SCCACHE_ASSET_NAME }}.tar.gz'
-        cp '${{ env.SCCACHE_ASSET_NAME }}/sccache' '/usr/local/bin/sccache'
-        chmod +x '/usr/local/bin/sccache'
-        mkdir -p '${{ env.SCCACHE_DIR }}'
-        rm -r '${{ env.SCCACHE_ASSET_NAME }}'
-        rm '${{ env.SCCACHE_ASSET_NAME }}.tar.gz'
-        rust_version="$(rustc -vV)"
-        rust_release="$(grep -oP 'release: \K.+' <<< "$rust_version")"
-        rust_host="$(grep -oP 'host: \K.+' <<< "$rust_version")"
-        rust_commit_hash="$(grep -oP 'commit-hash: \K.{0,12}' <<< "$rust_version")"
-        restore_key="v0-sccache-v0-build-$rust_release-$rust_host-$rust_commit_hash"
-        key="$restore_key-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') }}"
-        echo "SCCACHE_KEY=$key" >> $GITHUB_ENV
-        echo "SCCACHE_RESTORE_KEY=$restore_key" >> $GITHUB_ENV
-      shell: bash
-    - name: Cache sccache
-      uses: actions/cache@v2
+    - uses: ./.github/actions/rust-sccache
       with:
-        path: |
-          ${{ env.SCCACHE_DIR }}
-        key: ${{ env.SCCACHE_KEY }}
-        restore-keys: |
-          ${{ env.SCCACHE_RESTORE_KEY }}
+        version: v0.2.15
+        # change this to invalidate sccache for this job
+        key: v0
     - name: Build on wasm32-unknown-unknown
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
