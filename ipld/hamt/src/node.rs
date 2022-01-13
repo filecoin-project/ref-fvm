@@ -190,7 +190,7 @@ where
         &self,
         hashed_key: &mut HashBits,
         bit_width: u32,
-        depth: usize,
+        depth: u64,
         key: &Q,
         store: &S,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
@@ -238,7 +238,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         bit_width: u32,
-        depth: usize,
+        depth: u64,
         key: K,
         value: V,
         store: &S,
@@ -360,7 +360,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         bit_width: u32,
-        depth: usize,
+        depth: u64,
         key: &Q,
         store: &S,
     ) -> Result<Option<(K, V)>, Error>
@@ -454,8 +454,7 @@ where
     fn insert_child(&mut self, idx: u32, key: K, value: V) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers
-            .insert(i as usize, Pointer::from_key_value(key, value))
+        self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
     fn index_for_bit_pos(&self, bp: u32) -> usize {
