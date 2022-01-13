@@ -4,7 +4,7 @@ use crate::sys;
 
 lazy_static! {
     /// Lazily memoizes if debug mode is enabled.
-    pub static ref DEBUG_ENABLED: bool = enabled();
+    static ref DEBUG_ENABLED: bool = unsafe { sys::debug::enabled().unwrap() >= 0 };
 }
 
 /// Logs a message on the node.
@@ -16,7 +16,34 @@ pub fn log(msg: String) {
 }
 
 /// Returns whether debug mode is enabled.
-#[inline]
-pub fn enabled() -> bool {
-    unsafe { sys::debug::enabled().unwrap() >= 0 }
+#[inline(always)]
+fn enabled() -> bool {
+    *DEBUG_ENABLED
+}
+
+/// Logger is a debug-only logger that uses the FVM syscalls.
+pub struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, _: &log::Metadata) -> bool {
+        // TODO: per-level?
+        enabled()
+    }
+
+    fn log(&self, record: &log::Record) {
+        if enabled() {
+            log(format!("[{}] {}", record.level(), record.args()));
+        }
+    }
+
+    fn flush(&self) {
+        ()
+    }
+}
+
+/// Initialize logging if debuggig is enabled.
+pub fn init_logging() {
+    if enabled() {
+        log::set_logger(&Logger).expect("failed to enable logging");
+    }
 }

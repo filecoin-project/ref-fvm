@@ -10,13 +10,13 @@ repository = "https://github.com/filecoin-project/fvm"
 [dependencies]
 actors-runtime = { path = "../runtime" }
 fvm_shared = { path = "../../shared", default-features = false }
-fvm_sdk = { path = "../../sdk" }
 serde = { version = "1.0", features = ["derive"] }
 num-traits = "0.2"
 num-derive = "0.3.0"
 cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
 ipld_hamt = { path = "../../ipld/hamt" }
 anyhow = "1.0.51"
+log = "0.4.14"
 
 [dev-dependencies]
 actors-runtime = { path = "../runtime", features = ["test_utils"] }

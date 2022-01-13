@@ -4,7 +4,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::{logc, sys, vm, SyscallResult};
+use crate::{sys, vm, SyscallResult};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -34,9 +34,8 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
     }
     unsafe {
         let fvm_shared::sys::out::ipld::IpldStat { codec, size } = sys::ipld::stat(id)?;
-        logc!(
-            "params_raw",
-            "ipld stat: size={:?}; codec={:?}",
+        log::trace!(
+            "params_raw -> ipld stat: size={:?}; codec={:?}",
             size,
             codec
         );
@@ -45,9 +44,8 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
         let ptr = buf.as_mut_ptr();
         let bytes_read = sys::ipld::read(id, 0, ptr, size)?;
         buf.set_len(bytes_read as usize);
-        logc!(
-            "params_raw",
-            "ipld read: bytes_read={:?}, data: {:x?}",
+        log::trace!(
+            "params_raw -> ipld read: bytes_read={:?}, data: {:x?}",
             bytes_read,
             &buf
         );
