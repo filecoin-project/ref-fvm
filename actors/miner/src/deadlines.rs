@@ -11,14 +11,14 @@ use super::{DeadlineInfo, Deadlines, Partition};
 
 pub fn new_deadline_info(
     proving_period_start: ChainEpoch,
-    deadline_idx: usize,
+    deadline_idx: u64,
     current_epoch: ChainEpoch,
 ) -> DeadlineInfo {
     DeadlineInfo::new(
         proving_period_start,
-        deadline_idx as u64,
+        deadline_idx,
         current_epoch,
-        WPOST_PERIOD_DEADLINES as u64,
+        WPOST_PERIOD_DEADLINES,
         WPOST_PROVING_PERIOD,
         WPOST_CHALLENGE_WINDOW,
         WPOST_CHALLENGE_LOOKBACK,
@@ -33,16 +33,16 @@ impl Deadlines {
         &self,
         store: &BS,
         sector_number: SectorNumber,
-    ) -> anyhow::Result<(usize, usize)> {
+    ) -> anyhow::Result<(u64, u64)> {
         for i in 0..self.due.len() {
-            let deadline_idx = i;
+            let deadline_idx = i as u64;
             let deadline = self.load_deadline(store, deadline_idx)?;
             let partitions = Array::<Partition, _>::load(&deadline.partitions, store)?;
 
             let mut partition_idx = None;
 
             partitions.for_each_while(|i, partition| {
-                if partition.sectors.get(sector_number as usize) {
+                if partition.sectors.get(sector_number) {
                     partition_idx = Some(i);
                     Ok(false)
                 } else {
@@ -65,7 +65,7 @@ impl Deadlines {
 /// Returns true if the deadline at the given index is currently mutable.
 pub fn deadline_is_mutable(
     proving_period_start: ChainEpoch,
-    deadline_idx: usize,
+    deadline_idx: u64,
     current_epoch: ChainEpoch,
 ) -> bool {
     // Get the next non-elapsed deadline (i.e., the next time we care about
@@ -92,7 +92,7 @@ pub fn quant_spec_for_deadline(di: &DeadlineInfo) -> QuantSpec {
 // 2. Optimistic PoSts may not be disputed after the miner could have compacted the deadline.
 pub fn deadline_available_for_optimistic_post_dispute(
     proving_period_start: ChainEpoch,
-    deadline_idx: usize,
+    deadline_idx: u64,
     current_epoch: ChainEpoch,
 ) -> bool {
     if proving_period_start > current_epoch {
@@ -114,7 +114,7 @@ pub fn deadline_available_for_optimistic_post_dispute(
 //    can currently be disputed.
 pub fn deadline_available_for_compaction(
     proving_period_start: ChainEpoch,
-    deadline_idx: usize,
+    deadline_idx: u64,
     current_epoch: ChainEpoch,
 ) -> bool {
     deadline_is_mutable(proving_period_start, deadline_idx, current_epoch)
@@ -140,9 +140,5 @@ pub fn new_deadline_info_from_offset_and_epoch(
     let current_deadline_idx = ((current_epoch - current_period_start) / WPOST_CHALLENGE_WINDOW)
         as u64
         % WPOST_PERIOD_DEADLINES;
-    new_deadline_info(
-        current_period_start,
-        current_deadline_idx as usize,
-        current_epoch,
-    )
+    new_deadline_info(current_period_start, current_deadline_idx, current_epoch)
 }

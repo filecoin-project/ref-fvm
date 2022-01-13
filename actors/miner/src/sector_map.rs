@@ -11,7 +11,7 @@ use super::WPOST_PERIOD_DEADLINES;
 
 /// Maps deadlines to partition maps.
 #[derive(Default)]
-pub struct DeadlineSectorMap(HashMap<usize, PartitionSectorMap>);
+pub struct DeadlineSectorMap(HashMap<u64, PartitionSectorMap>);
 
 impl DeadlineSectorMap {
     pub fn new() -> Self {
@@ -68,11 +68,11 @@ impl DeadlineSectorMap {
     /// Records the given sector bitfield at the given deadline/partition index.
     pub fn add(
         &mut self,
-        deadline_idx: usize,
-        partition_idx: usize,
+        deadline_idx: u64,
+        partition_idx: u64,
         sector_numbers: UnvalidatedBitField,
     ) -> anyhow::Result<()> {
-        if deadline_idx >= WPOST_PERIOD_DEADLINES as usize {
+        if deadline_idx >= WPOST_PERIOD_DEADLINES {
             return Err(anyhow!("invalid deadline {}", deadline_idx));
         }
 
@@ -85,30 +85,26 @@ impl DeadlineSectorMap {
     /// Records the given sectors at the given deadline/partition index.
     pub fn add_values(
         &mut self,
-        deadline_idx: usize,
-        partition_idx: usize,
+        deadline_idx: u64,
+        partition_idx: u64,
         sector_numbers: &[u64],
     ) -> anyhow::Result<()> {
         self.add(
             deadline_idx,
             partition_idx,
-            sector_numbers
-                .iter()
-                .map(|&i| i as usize)
-                .collect::<BitField>()
-                .into(),
+            sector_numbers.iter().copied().collect::<BitField>().into(),
         )
     }
 
     /// Returns a sorted vec of deadlines in the map.
-    pub fn deadlines(&self) -> Vec<usize> {
+    pub fn deadlines(&self) -> Vec<u64> {
         let mut deadlines: Vec<_> = self.0.keys().copied().collect();
         deadlines.sort_unstable();
         deadlines
     }
 
     /// Walks the deadlines in deadline order.
-    pub fn iter(&mut self) -> impl Iterator<Item = (usize, &mut PartitionSectorMap)> + '_ {
+    pub fn iter(&mut self) -> impl Iterator<Item = (u64, &mut PartitionSectorMap)> + '_ {
         let mut vec: Vec<_> = self.0.iter_mut().map(|(&i, x)| (i, x)).collect();
         vec.sort_unstable_by_key(|&(i, _)| i);
         vec.into_iter()
@@ -117,29 +113,25 @@ impl DeadlineSectorMap {
 
 /// Maps partitions to sector bitfields.
 #[derive(Default, Serialize, Deserialize)]
-pub struct PartitionSectorMap(HashMap<usize, UnvalidatedBitField>);
+pub struct PartitionSectorMap(HashMap<u64, UnvalidatedBitField>);
 
 impl PartitionSectorMap {
     /// Records the given sectors at the given partition.
     pub fn add_values(
         &mut self,
-        partition_idx: usize,
+        partition_idx: u64,
         sector_numbers: Vec<u64>,
     ) -> anyhow::Result<()> {
         self.add(
             partition_idx,
-            sector_numbers
-                .into_iter()
-                .map(|i| i as usize)
-                .collect::<BitField>()
-                .into(),
+            sector_numbers.into_iter().collect::<BitField>().into(),
         )
     }
     /// Records the given sector bitfield at the given partition index, merging
     /// it with any existing bitfields if necessary.
     pub fn add(
         &mut self,
-        partition_idx: usize,
+        partition_idx: u64,
         mut sector_numbers: UnvalidatedBitField,
     ) -> anyhow::Result<()> {
         match self.0.get_mut(&partition_idx) {
@@ -180,14 +172,14 @@ impl PartitionSectorMap {
     }
 
     /// Returns a sorted vec of partitions in the map.
-    pub fn partitions(&self) -> Vec<usize> {
+    pub fn partitions(&self) -> Vec<u64> {
         let mut partitions: Vec<_> = self.0.keys().copied().collect();
         partitions.sort_unstable();
         partitions
     }
 
     /// Walks the partitions in the map, in order of increasing index.
-    pub fn iter(&mut self) -> impl Iterator<Item = (usize, &mut UnvalidatedBitField)> + '_ {
+    pub fn iter(&mut self) -> impl Iterator<Item = (u64, &mut UnvalidatedBitField)> + '_ {
         let mut vec: Vec<_> = self.0.iter_mut().map(|(&i, x)| (i, x)).collect();
         vec.sort_unstable_by_key(|&(i, _)| i);
         vec.into_iter()

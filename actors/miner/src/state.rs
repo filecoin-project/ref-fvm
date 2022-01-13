@@ -36,8 +36,8 @@ use super::{
     PowerPair, Sectors, TerminationResult, VestingFunds,
 };
 
-const PRECOMMIT_EXPIRY_AMT_BITWIDTH: usize = 6;
-const SECTORS_AMT_BITWIDTH: usize = 5;
+const PRECOMMIT_EXPIRY_AMT_BITWIDTH: u32 = 6;
+const SECTORS_AMT_BITWIDTH: u32 = 5;
 
 /// Balance of Miner Actor should be greater than or equal to
 /// the sum of PreCommitDeposits and LockedFunds.
@@ -98,7 +98,7 @@ pub struct State {
     /// Index of the deadline within the proving period beginning at ProvingPeriodStart that has not yet been
     /// finalized.
     /// Updated at the end of each deadline window by a cron callback.
-    pub current_deadline: usize,
+    pub current_deadline: u64,
 
     /// The sector numbers due for PoSt at each deadline in the current proving period, frozen at period start.
     /// New sectors are added and expired ones removed at proving period boundary.
@@ -126,7 +126,7 @@ impl State {
         store: &BS,
         info_cid: Cid,
         period_start: ChainEpoch,
-        deadline_idx: usize,
+        deadline_idx: u64,
     ) -> anyhow::Result<Self> {
         let empty_precommit_map = make_empty_map::<_, ()>(store, HAMT_BIT_WIDTH)
             .flush()
@@ -250,7 +250,7 @@ impl State {
     }
 
     /// Returns deadline calculations for the current (according to state) proving period.
-    pub fn quant_spec_for_deadline(&self, deadline_idx: usize) -> QuantSpec {
+    pub fn quant_spec_for_deadline(&self, deadline_idx: u64) -> QuantSpec {
         new_deadline_info(self.proving_period_start, deadline_idx, 0).quant_spec()
     }
 
@@ -451,7 +451,7 @@ impl State {
         &self,
         store: &BS,
         sector_number: SectorNumber,
-    ) -> anyhow::Result<(usize, usize)> {
+    ) -> anyhow::Result<(u64, u64)> {
         let deadlines = self.load_deadlines(store)?;
         deadlines.find_sector(store, sector_number)
     }
@@ -546,7 +546,7 @@ impl State {
                 continue;
             }
 
-            let quant = self.quant_spec_for_deadline(deadline_idx);
+            let quant = self.quant_spec_for_deadline(deadline_idx as u64);
             let deadline = deadline_vec[deadline_idx].as_mut().unwrap();
 
             // The power returned from AddSectors is ignored because it's not activated (proven) yet.
@@ -560,7 +560,7 @@ impl State {
                 quant,
             )?;
 
-            deadlines.update_deadline(store, deadline_idx, deadline)?;
+            deadlines.update_deadline(store, deadline_idx as u64, deadline)?;
         }
 
         self.save_deadlines(store, deadlines)?;
@@ -639,15 +639,15 @@ impl State {
     pub fn check_sector_health<BS: Blockstore>(
         &self,
         store: &BS,
-        deadline_idx: usize,
-        partition_idx: usize,
+        deadline_idx: u64,
+        partition_idx: u64,
         sector_number: SectorNumber,
     ) -> anyhow::Result<()> {
         let deadlines = self.load_deadlines(store)?;
         let deadline = deadlines.load_deadline(store, deadline_idx)?;
         let partition = deadline.load_partition(store, partition_idx)?;
 
-        if !partition.sectors.get(sector_number as usize) {
+        if !partition.sectors.get(sector_number) {
             return Err(actor_error!(
                 ErrNotFound;
                 "sector {} not a member of partition {}, deadline {}",
@@ -656,7 +656,7 @@ impl State {
             .into());
         }
 
-        if partition.faults.get(sector_number as usize) {
+        if partition.faults.get(sector_number) {
             return Err(actor_error!(
                 ErrForbidden;
                 "sector {} not a member of partition {}, deadline {}",
@@ -665,7 +665,7 @@ impl State {
             .into());
         }
 
-        if partition.terminated.get(sector_number as usize) {
+        if partition.terminated.get(sector_number) {
             return Err(actor_error!(
                 ErrNotFound;
                 "sector {} not of partition {}, deadline {} is terminated",
@@ -1003,15 +1003,7 @@ impl State {
         epochs.sort_unstable();
         for cleanup_epoch in epochs.iter() {
             // Can unwrap here safely because cleanup epochs are taken from the keys of that hashmap.
-            queue.add_to_queue_values(
-                *cleanup_epoch,
-                &cleanup_events
-                    .get(cleanup_epoch)
-                    .unwrap()
-                    .iter()
-                    .map(|v| *v as usize)
-                    .collect::<Vec<usize>>(),
-            )?;
+            queue.add_to_queue_values(*cleanup_epoch, &cleanup_events[cleanup_epoch])?;
         }
         self.pre_committed_sectors_cleanup = queue.amt.flush()?;
         Ok(())
@@ -1090,14 +1082,14 @@ impl State {
             });
         }
 
-        self.current_deadline = ((dl_info.index + 1) % WPOST_PERIOD_DEADLINES) as usize;
+        self.current_deadline = (dl_info.index + 1) % WPOST_PERIOD_DEADLINES;
         if self.current_deadline == 0 {
             self.proving_period_start = dl_info.period_start + WPOST_PROVING_PERIOD;
         }
 
         let mut deadlines = self.load_deadlines(store)?;
 
-        let mut deadline = deadlines.load_deadline(store, dl_info.index as usize)?;
+        let mut deadline = deadlines.load_deadline(store, dl_info.index)?;
 
         let previously_faulty_power = deadline.faulty_power.clone();
 
@@ -1138,10 +1130,10 @@ impl State {
 
         let no_early_terminations = expired.early_sectors.is_empty();
         if !no_early_terminations {
-            self.early_terminations.set(dl_info.index as usize);
+            self.early_terminations.set(dl_info.index);
         }
 
-        deadlines.update_deadline(store, dl_info.index as usize, &deadline)?;
+        deadlines.update_deadline(store, dl_info.index, &deadline)?;
 
         self.save_deadlines(store, deadlines)?;
 

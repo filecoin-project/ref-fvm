@@ -42,8 +42,8 @@ pub struct CronEventPayload {
 
 #[derive(Debug)]
 pub struct PartitionKey {
-    pub deadline: usize,
-    pub partition: usize,
+    pub deadline: u64,
+    pub partition: u64,
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -90,7 +90,7 @@ pub struct DeferredCronEventParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct PoStPartition {
     /// Partitions are numbered per-deadline, from zero.
-    pub index: usize,
+    pub index: u64,
     /// Sectors skipped while proving that weren't already declared faulty.
     pub skipped: UnvalidatedBitField,
 }
@@ -99,7 +99,7 @@ pub struct PoStPartition {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct SubmitWindowedPoStParams {
     /// The deadline index which the submission targets.
-    pub deadline: usize,
+    pub deadline: u64,
     /// The partitions being proven.
     pub partitions: Vec<PoStPartition>,
     /// Array of proofs, one per distinct registered proof type present in the sectors being proven.
@@ -130,8 +130,8 @@ pub struct ExtendSectorExpirationParams {
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct ExpirationExtension {
-    pub deadline: usize,
-    pub partition: usize,
+    pub deadline: u64,
+    pub partition: u64,
     pub sectors: UnvalidatedBitField,
     pub new_expiration: ChainEpoch,
 }
@@ -143,8 +143,8 @@ pub struct TerminateSectorsParams {
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct TerminationDeclaration {
-    pub deadline: usize,
-    pub partition: usize,
+    pub deadline: u64,
+    pub partition: u64,
     pub sectors: UnvalidatedBitField,
 }
 
@@ -166,9 +166,9 @@ pub struct DeclareFaultsParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct FaultDeclaration {
     /// The deadline to which the faulty sectors are assigned, in range [0..WPoStPeriodDeadlines)
-    pub deadline: usize,
+    pub deadline: u64,
     /// Partition index within the deadline containing the faulty sectors.
-    pub partition: usize,
+    pub partition: u64,
     /// Sectors in the partition being declared faulty.
     pub sectors: UnvalidatedBitField,
 }
@@ -181,16 +181,16 @@ pub struct DeclareFaultsRecoveredParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct RecoveryDeclaration {
     /// The deadline to which the recovered sectors are assigned, in range [0..WPoStPeriodDeadlines)
-    pub deadline: usize,
+    pub deadline: u64,
     /// Partition index within the deadline containing the recovered sectors.
-    pub partition: usize,
+    pub partition: u64,
     /// Sectors in the partition being declared recovered.
     pub sectors: UnvalidatedBitField,
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct CompactPartitionsParams {
-    pub deadline: usize,
+    pub deadline: u64,
     pub partitions: UnvalidatedBitField,
 }
 
@@ -248,8 +248,8 @@ pub struct SectorPreCommitInfo {
     /// Whether to replace a "committed capacity" no-deal sector (requires non-empty DealIDs)
     pub replace_capacity: bool,
     /// The committed capacity sector to replace, and its deadline/partition location
-    pub replace_sector_deadline: usize,
-    pub replace_sector_partition: usize,
+    pub replace_sector_deadline: u64,
+    pub replace_sector_partition: u64,
     pub replace_sector_number: SectorNumber,
 }
 
@@ -320,7 +320,7 @@ pub struct ApplyRewardParams {
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize_tuple, Deserialize_tuple)]
 pub struct DisputeWindowedPoStParams {
-    pub deadline: usize,
+    pub deadline: u64,
     pub post_index: u64, // only one is allowed at a time to avoid loading too many sector infos.
 }
 

@@ -21,7 +21,7 @@ use crate::make_map_with_root;
 #[derive(Serialize_tuple, Deserialize_tuple, Clone)]
 pub struct State {
     pub signers: Vec<Address>,
-    pub num_approvals_threshold: usize,
+    pub num_approvals_threshold: u64,
     pub next_tx_id: TxnID,
 
     // Linear unlock

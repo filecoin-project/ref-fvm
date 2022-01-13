@@ -56,7 +56,7 @@ fn construct_lane_state_amt(rt: &MockRuntime, lss: Vec<LaneState>) -> Cid {
     arr.flush().unwrap()
 }
 
-fn get_lane_state(rt: &MockRuntime, cid: &Cid, lane: usize) -> LaneState {
+fn get_lane_state(rt: &MockRuntime, cid: &Cid, lane: u64) -> LaneState {
     let arr: Amt<LaneState, _> = Amt::load(cid, &rt.store).unwrap();
 
     arr.get(lane).unwrap().unwrap().clone()
@@ -296,7 +296,7 @@ mod create_lane_tests {
                 time_lock_min: test_case.tl_min,
                 time_lock_max: test_case.tl_max,
                 secret_pre_image: test_case.secret_preimage.clone(),
-                lane: test_case.lane as usize,
+                lane: test_case.lane,
                 nonce: test_case.nonce,
                 amount: BigInt::from(test_case.amt),
                 signature: test_case.sig.clone(),
@@ -570,7 +570,7 @@ mod merge_tests {
             sv.lane = 0;
             sv.nonce = tc.voucher;
             sv.merges = vec![Merge {
-                lane: tc.lane as usize,
+                lane: tc.lane,
                 nonce: tc.merge,
             }];
             rt.set_caller(*ACCOUNT_ACTOR_CODE_ID, state.from);
@@ -605,7 +605,7 @@ mod merge_tests {
     fn lane_limit_exceeded() {
         let (mut rt, mut sv, _) = construct_runtime(1);
 
-        sv.lane = MAX_LANE as usize + 1;
+        sv.lane = MAX_LANE + 1;
         sv.nonce += 1;
         sv.amount = BigInt::from(100);
         failure_end(&mut rt, sv, ExitCode::ErrIllegalArgument);
@@ -1023,7 +1023,7 @@ fn require_add_new_lane(rt: &mut MockRuntime, param: LaneParams) -> SignedVouche
     let mut sv = SignedVoucher {
         time_lock_min: param.epoch_num,
         time_lock_max: i64::MAX,
-        lane: param.lane as usize,
+        lane: param.lane,
         nonce: param.nonce,
         amount: param.amt.clone(),
         signature: Some(sig.clone()),
@@ -1090,5 +1090,5 @@ fn verify_state(rt: &mut MockRuntime, exp_lanes: Option<u64>, expected_state: PS
 
 fn assert_lane_states_length(rt: &MockRuntime, cid: &Cid, l: u64) {
     let arr = Amt::<LaneState, _>::load(cid, &rt.store).unwrap();
-    assert_eq!(arr.count(), l as usize);
+    assert_eq!(arr.count(), l);
 }

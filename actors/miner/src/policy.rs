@@ -19,9 +19,9 @@ use super::types::SectorOnChainInfo;
 use super::{PowerPair, BASE_REWARD_FOR_DISPUTED_WINDOW_POST};
 
 /// Maximum amount of sectors that can be aggregated.
-pub const MAX_AGGREGATED_SECTORS: usize = 819;
+pub const MAX_AGGREGATED_SECTORS: u64 = 819;
 /// Minimum amount of sectors that can be aggregated.
-pub const MIN_AGGREGATED_SECTORS: usize = 4;
+pub const MIN_AGGREGATED_SECTORS: u64 = 4;
 /// Maximum total aggregated proof size.
 pub const MAX_AGGREGATED_PROOF_SIZE: usize = 81960;
 

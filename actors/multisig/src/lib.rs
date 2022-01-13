@@ -102,7 +102,7 @@ impl Actor {
             dedup_signers.insert(resolved);
         }
 
-        if params.num_approvals_threshold > params.signers.len() {
+        if params.num_approvals_threshold > params.signers.len() as u64 {
             return Err(
                 actor_error!(ErrIllegalArgument; "must not require more approvals than signers"),
             );
@@ -386,7 +386,7 @@ impl Actor {
                 return Err(actor_error!(ErrForbidden; "Cannot remove only signer"));
             }
 
-            if !params.decrease && st.signers.len() - 1 < st.num_approvals_threshold {
+            if !params.decrease && ((st.signers.len() - 1) as u64) < st.num_approvals_threshold {
                 return Err(actor_error!(
                     ErrIllegalArgument,
                     "can't reduce signers to {} below threshold {} with decrease=false",
@@ -488,7 +488,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, _| {
             // Check if valid threshold value
-            if params.new_threshold == 0 || params.new_threshold > st.signers.len() {
+            if params.new_threshold == 0 || params.new_threshold > st.signers.len() as u64 {
                 return Err(actor_error!(ErrIllegalArgument; "New threshold value not supported"));
             }
 
@@ -603,7 +603,7 @@ where
     let mut out = RawBytes::default();
     let mut code = ExitCode::Ok;
     let mut applied = false;
-    let threshold_met = txn.approved.len() >= st.num_approvals_threshold;
+    let threshold_met = txn.approved.len() as u64 >= st.num_approvals_threshold;
     if threshold_met {
         st.check_available(rt.current_balance()?, &txn.value, rt.curr_epoch())
             .map_err(|e| {

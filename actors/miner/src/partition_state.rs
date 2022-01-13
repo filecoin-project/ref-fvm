@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryInto;
 use std::ops::{self, Neg};
 
 use actors_runtime::{actor_error, ActorDowncast, Array};
@@ -22,8 +23,8 @@ use super::{
 };
 
 // Bitwidth of AMTs determined empirically from mutation patterns and projections of mainnet data.
-const PARTITION_EXPIRATION_AMT_BITWIDTH: usize = 4;
-const PARTITION_EARLY_TERMINATION_ARRAY_AMT_BITWIDTH: usize = 3;
+const PARTITION_EXPIRATION_AMT_BITWIDTH: u32 = 4;
+const PARTITION_EARLY_TERMINATION_ARRAY_AMT_BITWIDTH: u32 = 3;
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone)]
 pub struct Partition {
@@ -658,7 +659,7 @@ impl Partition {
         let mut early_terminated_queue =
             BitFieldQueue::new(store, &self.early_terminated, NO_QUANTIZATION)?;
 
-        let mut processed = Vec::<usize>::new();
+        let mut processed = Vec::<u64>::new();
         let mut remaining: Option<(BitField, ChainEpoch)> = None;
         let mut result = TerminationResult::new();
         result.partitions_processed = 1;
@@ -666,13 +667,13 @@ impl Partition {
         early_terminated_queue
             .amt
             .for_each_while(|i, sectors| {
-                let epoch = i as ChainEpoch;
-                let count = sectors.len() as u64;
+                let epoch: ChainEpoch = i.try_into()?;
+                let count = sectors.len();
                 let limit = max_sectors - result.sectors_processed;
 
                 let to_process = if limit < count {
                     let to_process = sectors
-                        .slice(0, limit as usize)
+                        .slice(0, limit)
                         .map_err(|e| anyhow!("failed to slice early terminations: {}", e))?;
                     let rest = sectors - &to_process;
                     remaining = Some((rest, epoch));
@@ -702,7 +703,7 @@ impl Partition {
         if let Some((remaining_sectors, remaining_epoch)) = remaining.take() {
             early_terminated_queue
                 .amt
-                .set(remaining_epoch as usize, remaining_sectors)
+                .set(remaining_epoch as u64, remaining_sectors)
                 .map_err(|e| {
                     e.downcast_wrap("failed to update remaining entry early terminations queue")
                 })?;
