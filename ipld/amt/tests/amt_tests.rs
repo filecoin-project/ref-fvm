@@ -10,7 +10,7 @@ use fvm_shared::encoding::ser::Serialize;
 use fvm_shared::encoding::BytesDe;
 use ipld_amt::{Amt, Error, MAX_INDEX};
 
-fn assert_get<V, BS>(a: &Amt<V, BS>, i: usize, v: &V)
+fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where
     V: Serialize + DeserializeOwned + PartialEq + Debug,
     BS: Blockstore,
@@ -108,7 +108,7 @@ fn bulk_insert() {
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
-    let iterations: usize = 5000;
+    let iterations: u64 = 5000;
 
     for i in 0..iterations {
         a.set(i, tbytes(b"foo foo bar")).unwrap();
@@ -143,7 +143,7 @@ fn flush_read() {
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
-    let iterations: usize = 100;
+    let iterations: u64 = 100;
 
     for i in 0..iterations {
         a.set(i, tbytes(b"foo foo bar")).unwrap();
@@ -316,7 +316,7 @@ fn for_each() {
         assert_eq!(a.get(*i).unwrap(), Some(&tbytes(b"value")));
     }
 
-    assert_eq!(a.count(), indexes.len() as usize);
+    assert_eq!(a.count(), indexes.len() as u64);
 
     // Iterate over amt with dirty cache
     let mut x = 0;
@@ -331,7 +331,7 @@ fn for_each() {
     // Flush and regenerate amt
     let c = a.flush().unwrap();
     let new_amt = Amt::load(&c, &db).unwrap();
-    assert_eq!(new_amt.count(), indexes.len() as usize);
+    assert_eq!(new_amt.count(), indexes.len() as u64);
 
     let mut x = 0;
     new_amt
@@ -377,7 +377,7 @@ fn for_each_mutate() {
     let c = a.flush().unwrap();
     drop(a);
     let mut new_amt = Amt::load(&c, &db).unwrap();
-    assert_eq!(new_amt.count(), indexes.len() as usize);
+    assert_eq!(new_amt.count(), indexes.len() as u64);
 
     new_amt
         .for_each_mut(|i, v: &mut ipld_amt::ValueMut<'_, BytesDe>| {

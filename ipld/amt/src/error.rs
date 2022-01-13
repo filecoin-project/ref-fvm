@@ -13,10 +13,10 @@ use thiserror::Error;
 pub enum Error {
     /// Index referenced it above arbitrary max set
     #[error("index {0} out of range for the amt")]
-    OutOfRange(usize),
+    OutOfRange(u64),
     /// Height of root node is greater than max.
     #[error("failed to load AMT: height out of bounds: {0} > {1}")]
-    MaxHeight(usize, usize),
+    MaxHeight(u32, u32),
     /// Error generating a Cid for data
     #[error(transparent)]
     Cid(#[from] CidError),

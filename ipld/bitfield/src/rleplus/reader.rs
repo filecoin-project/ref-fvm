@@ -76,15 +76,15 @@ impl<'a> BitReader<'a> {
 
     /// Reads a varint from the buffer. Returns an error if the
     /// current position on the buffer contains no valid varint.
-    fn read_varint(&mut self) -> Result<usize> {
-        let mut len = 0;
+    fn read_varint(&mut self) -> Result<u64> {
+        let mut len = 0u64;
 
         for i in 0..VARINT_MAX_BYTES {
             let byte = self.read(8);
 
             // strip off the most significant bit and add
             // it to the output
-            len |= (byte as usize & 0x7f) << (i * 7);
+            len |= (byte as u64 & 0x7f) << (i * 7);
 
             // if the most significant bit is a 0, we've
             // reached the end of the varint
@@ -102,7 +102,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Reads a length from the buffer according to RLE+ encoding.
-    pub fn read_len(&mut self) -> Result<Option<usize>> {
+    pub fn read_len(&mut self) -> Result<Option<u64>> {
         let prefix_0 = self.read(1);
 
         let len = if prefix_0 == 1 {
@@ -113,7 +113,7 @@ impl<'a> BitReader<'a> {
 
             if prefix_1 == 1 {
                 // Block Short (prefix 01)
-                self.read(4) as usize
+                self.read(4) as u64
             } else {
                 // Block Long (prefix 00)
                 self.read_varint()?
@@ -180,7 +180,7 @@ mod tests {
         let mut rng = XorShiftRng::seed_from_u64(5);
 
         for _ in 0..100 {
-            let lengths: Vec<_> = std::iter::repeat_with(|| rng.gen_range(1, 200))
+            let lengths: Vec<u64> = std::iter::repeat_with(|| rng.gen_range(1, 200))
                 .take(100)
                 .collect();
 

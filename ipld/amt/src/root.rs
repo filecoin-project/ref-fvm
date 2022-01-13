@@ -10,14 +10,14 @@ use crate::{init_sized_vec, Node};
 /// Root of an AMT vector, can be serialized and keeps track of height and count
 #[derive(PartialEq, Debug)]
 pub(super) struct Root<V> {
-    pub bit_width: usize,
-    pub height: usize,
-    pub count: usize,
+    pub bit_width: u32,
+    pub height: u32,
+    pub count: u64,
     pub node: Node<V>,
 }
 
 impl<V> Root<V> {
-    pub(super) fn new(bit_width: usize) -> Self {
+    pub(super) fn new(bit_width: u32) -> Self {
         Self {
             bit_width,
             count: 0,

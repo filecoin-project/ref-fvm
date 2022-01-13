@@ -1,6 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryInto;
+
 use actors_runtime::runtime::{ActorCode, Runtime};
 use actors_runtime::{
     actor_error, make_map_with_root_and_bitwidth, wasm_trampoline, ActorDowncast, ActorError,
@@ -481,7 +483,7 @@ impl Actor {
                         return Ok(());
                     }
 
-                    let num_proofs = arr.count();
+                    let num_proofs: usize = arr.count().try_into()?;
                     infos.reserve(num_proofs);
                     arr.for_each(|_, svi| {
                         infos.push(svi.clone());

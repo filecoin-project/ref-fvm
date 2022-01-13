@@ -11,7 +11,7 @@ use crate::{make_empty_map, make_map_with_root_and_bitwidth, Array, BytesKey, Ma
 
 /// Multimap stores multiple values per key in a Hamt of Amts.
 /// The order of insertion of values for each key is retained.
-pub struct Multimap<'a, BS>(Map<'a, BS, Cid>, usize);
+pub struct Multimap<'a, BS>(Map<'a, BS, Cid>, u32);
 impl<'a, BS> Multimap<'a, BS>
 where
     BS: Blockstore,
@@ -19,7 +19,7 @@ where
     /// Initializes a new empty multimap.
     /// The outer_bitwidth is the width of the HAMT and the
     /// inner_bitwidth is the width of the AMTs inside of it.
-    pub fn new(bs: &'a BS, outer_bitwidth: u32, inner_bitwidth: usize) -> Self {
+    pub fn new(bs: &'a BS, outer_bitwidth: u32, inner_bitwidth: u32) -> Self {
         Self(make_empty_map(bs, outer_bitwidth), inner_bitwidth)
     }
 
@@ -28,7 +28,7 @@ where
         bs: &'a BS,
         cid: &Cid,
         outer_bitwidth: u32,
-        inner_bitwidth: usize,
+        inner_bitwidth: u32,
     ) -> Result<Self, Error> {
         Ok(Self(
             make_map_with_root_and_bitwidth(cid, bs, outer_bitwidth)?,
@@ -93,7 +93,7 @@ where
     pub fn for_each<F, V>(&self, key: &[u8], f: F) -> Result<(), Error>
     where
         V: Serialize + DeserializeOwned,
-        F: FnMut(usize, &V) -> anyhow::Result<()>,
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
         if let Some(amt) = self.get::<V>(key)? {
             amt.for_each(f).map_err(|e| anyhow::anyhow!(e))?;

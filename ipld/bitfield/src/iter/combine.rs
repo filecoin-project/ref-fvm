@@ -49,6 +49,7 @@ use std::ops::Range;
 use std::{cmp, iter};
 
 use super::RangeIterator;
+use crate::range::RangeSize;
 
 /// A trait for defining how two range iterators can be combined into a single new range iterator.
 ///
@@ -61,22 +62,22 @@ pub trait Combinator: Default {
     /// - It is guaranteed that `lhs.end <= rhs.end`.
     /// - The `rhs` range can be mutated if necessary.
     /// - Can return an empty range, those will be filtered out.
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize>;
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64>;
 
     /// Produces an output range for the two given input ranges.
     ///
     /// - It is guaranteed that `lhs.end > rhs.end`.
     /// - The `lhs` range can be mutated if necessary.
     /// - Can return an empty range, those will be filtered out.
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize>;
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64>;
 
     /// Produces an output range for the given input range. Called only when the
     /// second input range iterator is empty.
-    fn advance_lhs_tail(&mut self, lhs: Range<usize>) -> Option<Range<usize>>;
+    fn advance_lhs_tail(&mut self, lhs: Range<u64>) -> Option<Range<u64>>;
 
     /// Produces an output range for the given input range. Called only when the
     /// first input range iterator is empty.
-    fn advance_rhs_tail(&mut self, rhs: Range<usize>) -> Option<Range<usize>>;
+    fn advance_rhs_tail(&mut self, rhs: Range<u64>) -> Option<Range<u64>>;
 }
 
 /// The union combinator.
@@ -86,7 +87,7 @@ pub trait Combinator: Default {
 pub struct Union;
 
 impl Combinator for Union {
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize> {
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64> {
         // the returned range needs to start from the minimum lower bound of the two ranges,
         // to ensure that the lower bounds are monotonically increasing
         //
@@ -101,16 +102,16 @@ impl Combinator for Union {
         cmp::min(lhs.start, rhs.start)..lhs.end
     }
 
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize> {
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64> {
         cmp::min(lhs.start, rhs.start)..rhs.end
     }
 
-    fn advance_lhs_tail(&mut self, lhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_lhs_tail(&mut self, lhs: Range<u64>) -> Option<Range<u64>> {
         // the union of a range and an empty range is just that range
         Some(lhs)
     }
 
-    fn advance_rhs_tail(&mut self, rhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_rhs_tail(&mut self, rhs: Range<u64>) -> Option<Range<u64>> {
         Some(rhs)
     }
 }
@@ -122,7 +123,7 @@ impl Combinator for Union {
 pub struct Intersection;
 
 impl Combinator for Intersection {
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize> {
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64> {
         // lhs:     xx----      xxxx--      --xx--
         // rhs:     ----xx  or  --xxxx  or  xxxxxx
         // output:  ------      --xx--      --xx--
@@ -130,16 +131,16 @@ impl Combinator for Intersection {
         cmp::max(lhs.start, rhs.start)..lhs.end
     }
 
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize> {
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64> {
         cmp::max(lhs.start, rhs.start)..rhs.end
     }
 
-    fn advance_lhs_tail(&mut self, _lhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_lhs_tail(&mut self, _lhs: Range<u64>) -> Option<Range<u64>> {
         // the intersection of a range and an empty range is an empty range
         None
     }
 
-    fn advance_rhs_tail(&mut self, _rhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_rhs_tail(&mut self, _rhs: Range<u64>) -> Option<Range<u64>> {
         None
     }
 }
@@ -151,7 +152,7 @@ impl Combinator for Intersection {
 pub struct Difference;
 
 impl Combinator for Difference {
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize> {
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64> {
         // lhs:     xx----      xxxx--      --xx--
         // rhs:     ----xx  or  --xxxx  or  xxxxxx
         // output:  xx----      xx----      ------
@@ -159,7 +160,7 @@ impl Combinator for Difference {
         lhs.start..cmp::min(lhs.end, rhs.start)
     }
 
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize> {
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64> {
         // since we're advancing the rhs, we need to potentially shorten the lhs
         // to avoid it from returning invalid bits in the next iteration
         //
@@ -177,12 +178,12 @@ impl Combinator for Difference {
         difference
     }
 
-    fn advance_lhs_tail(&mut self, lhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_lhs_tail(&mut self, lhs: Range<u64>) -> Option<Range<u64>> {
         // the difference between a range and an empty range is just that range
         Some(lhs)
     }
 
-    fn advance_rhs_tail(&mut self, _rhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_rhs_tail(&mut self, _rhs: Range<u64>) -> Option<Range<u64>> {
         // the difference between an empty range and a range is an empty range
         None
     }
@@ -197,7 +198,7 @@ pub struct SymmetricDifference;
 impl SymmetricDifference {
     /// Returns the symmetric difference of the two ranges where `left.end <= right.end`.
     /// Adjusts `rhs` to not return invalid bits in the next iteration.
-    fn advance(left: Range<usize>, right: &mut Range<usize>) -> Range<usize> {
+    fn advance(left: Range<u64>, right: &mut Range<u64>) -> Range<u64> {
         if left.start <= right.start {
             // left:       xxxx--      xx----
             // right:      --xxxx  or  ----xx
@@ -221,20 +222,20 @@ impl SymmetricDifference {
 }
 
 impl Combinator for SymmetricDifference {
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize> {
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64> {
         Self::advance(lhs, rhs)
     }
 
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize> {
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64> {
         Self::advance(rhs, lhs)
     }
 
-    fn advance_lhs_tail(&mut self, lhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_lhs_tail(&mut self, lhs: Range<u64>) -> Option<Range<u64>> {
         // the symmetric difference of a range and an empty range is just that range
         Some(lhs)
     }
 
-    fn advance_rhs_tail(&mut self, rhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_rhs_tail(&mut self, rhs: Range<u64>) -> Option<Range<u64>> {
         Some(rhs)
     }
 }
@@ -247,34 +248,34 @@ impl Combinator for SymmetricDifference {
 pub struct Cut {
     /// Stores the number of bits that have been cut out so far, i.e. the number of bits
     /// each output range needs to be shifted to the left by.
-    offset: usize,
+    offset: u64,
 }
 
 impl Cut {
     /// Offsets an output range by the current offset.
-    fn offset(&self, range: Range<usize>) -> Range<usize> {
+    fn offset(&self, range: Range<u64>) -> Range<u64> {
         (range.start - self.offset)..(range.end - self.offset)
     }
 }
 
 impl Combinator for Cut {
-    fn advance_lhs(&mut self, lhs: Range<usize>, rhs: &mut Range<usize>) -> Range<usize> {
+    fn advance_lhs(&mut self, lhs: Range<u64>, rhs: &mut Range<u64>) -> Range<u64> {
         // apart from the offset, these implementations are identical to those of the `Difference` combinator
         self.offset(lhs.start..cmp::min(lhs.end, rhs.start))
     }
 
-    fn advance_rhs(&mut self, lhs: &mut Range<usize>, rhs: Range<usize>) -> Range<usize> {
+    fn advance_rhs(&mut self, lhs: &mut Range<u64>, rhs: Range<u64>) -> Range<u64> {
         let cut = self.offset(lhs.start..cmp::min(lhs.end, rhs.start));
         lhs.start = cmp::max(lhs.start, rhs.end);
-        self.offset += rhs.len();
+        self.offset += rhs.size();
         cut
     }
 
-    fn advance_lhs_tail(&mut self, lhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_lhs_tail(&mut self, lhs: Range<u64>) -> Option<Range<u64>> {
         Some(self.offset(lhs))
     }
 
-    fn advance_rhs_tail(&mut self, _rhs: Range<usize>) -> Option<Range<usize>> {
+    fn advance_rhs_tail(&mut self, _rhs: Range<u64>) -> Option<Range<u64>> {
         None
     }
 }
@@ -304,7 +305,7 @@ where
     B: RangeIterator,
     C: Combinator,
 {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -349,7 +350,7 @@ where
     /// Computes the next range by inspecting the next range of each of the input
     /// range iterators and passing them to the combinator. Also advances the range
     /// iterator which corresponding range has the lowest upper bound.
-    fn next_range(&mut self) -> Option<Range<usize>> {
+    fn next_range(&mut self) -> Option<Range<u64>> {
         let (range, advance_lhs) = match (self.lhs.peek(), self.rhs.peek()) {
             (Some(lhs), Some(rhs)) => {
                 // if both iterators are non-empty, we advance the one whichever's
@@ -381,7 +382,7 @@ where
     B: RangeIterator,
     C: Combinator,
 {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // we repeatedly compute the next range until we find one that is non-empty
@@ -419,7 +420,7 @@ struct Merge<I: Iterator> {
 
 impl<I> Merge<I>
 where
-    I: Iterator<Item = Range<usize>>,
+    I: Iterator<Item = Range<u64>>,
 {
     pub fn new(iter: I) -> Self {
         Self {
@@ -430,9 +431,9 @@ where
 
 impl<I> Iterator for Merge<I>
 where
-    I: Iterator<Item = Range<usize>>,
+    I: Iterator<Item = Range<u64>>,
 {
-    type Item = Range<usize>;
+    type Item = Range<u64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut range = self.iter.next()?;
@@ -452,7 +453,7 @@ where
     }
 }
 
-impl<I> RangeIterator for Merge<I> where I: Iterator<Item = Range<usize>> {}
+impl<I> RangeIterator for Merge<I> where I: Iterator<Item = Range<u64>> {}
 
 /// An iterator wrapper that stores (and gives mutable access to) the next item of the iterator.
 ///

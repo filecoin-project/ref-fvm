@@ -62,7 +62,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
     pub fn get(&self, sector_number: SectorNumber) -> anyhow::Result<Option<SectorOnChainInfo>> {
         Ok(self
             .amt
-            .get(sector_number as usize)
+            .get(sector_number)
             .map_err(|e| e.downcast_wrap(format!("failed to get sector {}", sector_number)))?
             .cloned())
     }
@@ -75,7 +75,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
                 return Err(anyhow!("sector number {} out of range", info.sector_number));
             }
 
-            self.amt.set(sector_number as usize, info).map_err(|e| {
+            self.amt.set(sector_number, info).map_err(|e| {
                 e.downcast_wrap(format!("failed to store sector {}", sector_number))
             })?;
         }
@@ -125,13 +125,13 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         // The faults bitfield should already be a subset of the sectors bitfield.
         let sector_count = sectors.len();
 
-        let fault_set: HashSet<usize> = faults.iter().collect();
+        let fault_set: HashSet<u64> = faults.iter().collect();
 
-        let mut sector_infos = Vec::with_capacity(sector_count);
+        let mut sector_infos = Vec::with_capacity(sector_count as usize);
         for i in sectors.iter() {
             let faulty = fault_set.contains(&i);
             let sector = if !faulty {
-                self.must_get(i as u64)?
+                self.must_get(i)?
             } else {
                 stand_in_info.clone()
             };
@@ -150,7 +150,7 @@ pub(crate) fn select_sectors(
 
     let mut included = Vec::with_capacity(to_include.len());
     for s in sectors {
-        let sec = s.sector_number as usize;
+        let sec = s.sector_number;
         if !to_include.contains(&sec) {
             continue;
         }

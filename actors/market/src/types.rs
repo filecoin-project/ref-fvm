@@ -14,8 +14,8 @@ use fvm_shared::sector::RegisteredSealProof;
 
 use super::deal::{ClientDealProposal, DealProposal, DealState};
 
-pub const PROPOSALS_AMT_BITWIDTH: usize = 5;
-pub const STATES_AMT_BITWIDTH: usize = 6;
+pub const PROPOSALS_AMT_BITWIDTH: u32 = 5;
+pub const STATES_AMT_BITWIDTH: u32 = 6;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct WithdrawBalanceParams {

@@ -1,6 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::{TryFrom, TryInto};
+
 use anyhow::anyhow;
 use cid::multihash::Code;
 use cid::Cid;
@@ -118,7 +120,7 @@ where
 pub(crate) struct CollapsedNode<V>(#[serde(with = "serde_bytes")] Vec<u8>, Vec<Cid>, Vec<V>);
 
 impl<V> CollapsedNode<V> {
-    pub(crate) fn expand(self, bit_width: usize) -> Result<Node<V>, Error> {
+    pub(crate) fn expand(self, bit_width: u32) -> Result<Node<V>, Error> {
         let CollapsedNode(bmap, links, values) = self;
         if !links.is_empty() && !values.is_empty() {
             return Err(Error::LinksAndValues);
@@ -230,38 +232,41 @@ where
     pub(super) fn get<DB: Blockstore>(
         &self,
         bs: &DB,
-        height: usize,
-        bit_width: usize,
-        i: usize,
+        height: u32,
+        bit_width: u32,
+        i: u64,
     ) -> Result<Option<&V>, Error> {
-        let sub_i = i / nodes_for_height(bit_width, height);
-
         match self {
-            Node::Leaf { vals, .. } => Ok(vals.get(i).and_then(|v| v.as_ref())),
-            Node::Link { links, .. } => match links.get(sub_i).and_then(|v| v.as_ref()) {
-                Some(Link::Cid { cid, cache }) => {
-                    let cached_node = cache.get_or_try_init(|| {
-                        bs.get_cbor::<CollapsedNode<V>>(cid)?
-                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                            .expand(bit_width)
-                            .map(Box::new)
-                    })?;
+            Node::Leaf { vals, .. } => Ok(vals.get(i as usize).and_then(|v| v.as_ref())),
+            Node::Link { links, .. } => {
+                let sub_i: usize = (i / nodes_for_height(bit_width, height))
+                    .try_into()
+                    .unwrap();
+                match links.get(sub_i).and_then(|v| v.as_ref()) {
+                    Some(Link::Cid { cid, cache }) => {
+                        let cached_node = cache.get_or_try_init(|| {
+                            bs.get_cbor::<CollapsedNode<V>>(cid)?
+                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                .expand(bit_width)
+                                .map(Box::new)
+                        })?;
 
-                    cached_node.get(
+                        cached_node.get(
+                            bs,
+                            height - 1,
+                            bit_width,
+                            i % nodes_for_height(bit_width, height),
+                        )
+                    }
+                    Some(Link::Dirty(n)) => n.get(
                         bs,
                         height - 1,
                         bit_width,
                         i % nodes_for_height(bit_width, height),
-                    )
+                    ),
+                    None => Ok(None),
                 }
-                Some(Link::Dirty(n)) => n.get(
-                    bs,
-                    height - 1,
-                    bit_width,
-                    i % nodes_for_height(bit_width, height),
-                ),
-                None => Ok(None),
-            },
+            }
         }
     }
 
@@ -269,9 +274,9 @@ where
     pub(super) fn set<DB: Blockstore>(
         &mut self,
         bs: &DB,
-        height: usize,
-        bit_width: usize,
-        i: usize,
+        height: u32,
+        bit_width: u32,
+        i: u64,
         val: V,
     ) -> Result<Option<V>, Error> {
         if height == 0 {
@@ -281,7 +286,7 @@ where
         let nfh = nodes_for_height(bit_width, height);
 
         // If dividing by nodes for height should give an index for link in node
-        let idx: usize = i / nfh;
+        let idx: usize = (i / nfh).try_into().expect("index overflow");
 
         if let Node::Link { links } = self {
             links[idx] = match &mut links[idx] {
@@ -325,10 +330,13 @@ where
         }
     }
 
-    fn set_leaf(&mut self, i: usize, val: V) -> Option<V> {
+    fn set_leaf(&mut self, i: u64, val: V) -> Option<V> {
         match self {
             Node::Leaf { vals } => {
-                let prev = std::mem::replace(vals.get_mut(i).unwrap(), Some(val));
+                let prev = std::mem::replace(
+                    vals.get_mut(usize::try_from(i).unwrap()).unwrap(),
+                    Some(val),
+                );
                 prev
             }
             Node::Link { .. } => panic!("set_leaf should never be called on a shard of links"),
@@ -339,15 +347,18 @@ where
     pub(super) fn delete<DB: Blockstore>(
         &mut self,
         bs: &DB,
-        height: usize,
-        bit_width: usize,
-        i: usize,
+        height: u32,
+        bit_width: u32,
+        i: u64,
     ) -> Result<Option<V>, Error> {
-        let sub_i = i / nodes_for_height(bit_width, height);
-
         match self {
-            Self::Leaf { vals } => Ok(vals.get_mut(i).and_then(std::mem::take)),
+            Self::Leaf { vals } => Ok(vals
+                .get_mut(usize::try_from(i).unwrap())
+                .and_then(std::mem::take)),
             Self::Link { links } => {
+                let sub_i: usize = (i / nodes_for_height(bit_width, height))
+                    .try_into()
+                    .unwrap();
                 let (deleted, replace) = match &mut links[sub_i] {
                     Some(Link::Dirty(n)) => {
                         let deleted = n.delete(
@@ -411,13 +422,13 @@ where
     pub(super) fn for_each_while<S, F>(
         &self,
         bs: &S,
-        height: usize,
-        bit_width: usize,
-        offset: usize,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
         f: &mut F,
     ) -> Result<bool, Error>
     where
-        F: FnMut(usize, &V) -> anyhow::Result<bool>,
+        F: FnMut(u64, &V) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         match self {
@@ -470,13 +481,13 @@ where
     pub(super) fn for_each_while_mut<S, F>(
         &mut self,
         bs: &S,
-        height: usize,
-        bit_width: usize,
-        offset: usize,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
         f: &mut F,
     ) -> Result<(bool, bool), Error>
     where
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
+        F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
         S: Blockstore,
     {
         let mut did_mutate = false;

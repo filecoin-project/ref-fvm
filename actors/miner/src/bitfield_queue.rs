@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use actors_runtime::{ActorDowncast, Array};
 use bitfield::BitField;
@@ -32,27 +33,23 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
             return Ok(());
         }
 
-        let epoch = self.quant.quantize_up(raw_epoch);
+        let epoch: u64 = self.quant.quantize_up(raw_epoch).try_into()?;
 
         let bitfield = self
             .amt
-            .get(epoch as usize)
+            .get(epoch)
             .map_err(|e| e.downcast_wrap(format!("failed to lookup queue epoch {}", epoch)))?
             .cloned()
             .unwrap_or_default();
 
         self.amt
-            .set(epoch as usize, &bitfield | values)
+            .set(epoch, &bitfield | values)
             .map_err(|e| e.downcast_wrap(format!("failed to set queue epoch {}", epoch)))?;
 
         Ok(())
     }
 
-    pub fn add_to_queue_values(
-        &mut self,
-        epoch: ChainEpoch,
-        values: &[usize],
-    ) -> anyhow::Result<()> {
+    pub fn add_to_queue_values(&mut self, epoch: ChainEpoch, values: &[u64]) -> anyhow::Result<()> {
         if values.is_empty() {
             Ok(())
         } else {
@@ -65,7 +62,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     ///
     /// See the docs on `BitField::cut` to better understand what it does.
     pub fn cut(&mut self, to_cut: &BitField) -> anyhow::Result<()> {
-        let mut epochs_to_remove = Vec::<usize>::new();
+        let mut epochs_to_remove = Vec::<u64>::new();
 
         self.amt
             .for_each_mut(|epoch, bitfield| {
@@ -90,12 +87,12 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
 
     pub fn add_many_to_queue_values(
         &mut self,
-        values: &HashMap<ChainEpoch, Vec<usize>>,
+        values: &HashMap<ChainEpoch, Vec<u64>>,
     ) -> anyhow::Result<()> {
         // Update each epoch in-order to be deterministic.
         // Pre-quantize to reduce the number of updates.
 
-        let mut quantized_values = HashMap::<ChainEpoch, Vec<usize>>::with_capacity(values.len());
+        let mut quantized_values = HashMap::<ChainEpoch, Vec<u64>>::with_capacity(values.len());
 
         for (&raw_epoch, entries) in values {
             let epoch = self.quant.quantize_up(raw_epoch);
@@ -120,7 +117,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
     /// Modified return value indicates whether this structure has been changed by the call.
     pub fn pop_until(&mut self, until: ChainEpoch) -> anyhow::Result<(BitField, bool)> {
         let mut popped_values = BitField::new();
-        let mut popped_keys = Vec::<usize>::new();
+        let mut popped_keys = Vec::<u64>::new();
 
         self.amt.for_each_while(|epoch, bitfield| {
             if epoch as ChainEpoch > until {
@@ -128,7 +125,7 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
                 return Ok(false);
             }
 
-            popped_keys.push(epoch as usize);
+            popped_keys.push(epoch);
             popped_values |= bitfield;
             Ok(true)
         })?;

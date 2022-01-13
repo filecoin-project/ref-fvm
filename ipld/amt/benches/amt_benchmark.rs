@@ -77,7 +77,7 @@ fn insert(c: &mut Criterion) {
             let mut a = Amt::new(&db);
 
             for i in 0..black_box(ITEM_COUNT) {
-                a.set(black_box(i), black_box(BenchData::default()))
+                a.set(black_box(i as u64), black_box(BenchData::default()))
                     .unwrap();
             }
         })
@@ -93,7 +93,7 @@ fn insert_load_flush(c: &mut Criterion) {
 
             for i in 0..black_box(ITEM_COUNT) {
                 let mut a = Amt::load(&cid, &db).unwrap();
-                a.set(black_box(i), black_box(BenchData::default()))
+                a.set(black_box(i as u64), black_box(BenchData::default()))
                     .unwrap();
                 cid = a.flush().unwrap();
             }

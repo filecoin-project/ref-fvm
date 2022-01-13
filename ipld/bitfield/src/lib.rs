@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 pub mod iter;
+mod range;
 mod rleplus;
 mod unvalidated;
 
@@ -12,20 +13,21 @@ use std::ops::{
 
 use ahash::AHashSet;
 use iter::{ranges_from_bits, RangeIterator};
+pub(crate) use range::RangeSize;
 pub use unvalidated::{UnvalidatedBitField, Validate};
 
 type Result<T> = std::result::Result<T, &'static str>;
 
 /// A bit field with buffered insertion/removal that serializes to/from RLE+. Similar to
-/// `HashSet<usize>`, but more memory-efficient when long runs of 1s and 0s are present.
+/// `HashSet<u64>`, but more memory-efficient when long runs of 1s and 0s are present.
 #[derive(Debug, Default, Clone)]
 pub struct BitField {
     /// The underlying ranges of 1s.
-    ranges: Vec<Range<usize>>,
+    ranges: Vec<Range<u64>>,
     /// Bits set to 1. Never overlaps with `unset`.
-    set: AHashSet<usize>,
+    set: AHashSet<u64>,
     /// Bits set to 0. Never overlaps with `set`.
-    unset: AHashSet<usize>,
+    unset: AHashSet<u64>,
 }
 
 impl PartialEq for BitField {
@@ -34,8 +36,8 @@ impl PartialEq for BitField {
     }
 }
 
-impl FromIterator<usize> for BitField {
-    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
+impl FromIterator<u64> for BitField {
+    fn from_iter<I: IntoIterator<Item = u64>>(iter: I) -> Self {
         let mut vec: Vec<_> = iter.into_iter().collect();
         vec.sort_unstable();
         Self::from_ranges(ranges_from_bits(vec))
@@ -44,11 +46,7 @@ impl FromIterator<usize> for BitField {
 
 impl FromIterator<bool> for BitField {
     fn from_iter<I: IntoIterator<Item = bool>>(iter: I) -> Self {
-        let bits = iter
-            .into_iter()
-            .enumerate()
-            .filter(|&(_, b)| b)
-            .map(|(i, _)| i);
+        let bits = (0u64..).zip(iter).filter(|&(_, b)| b).map(|(i, _)| i);
         Self::from_ranges(ranges_from_bits(bits))
     }
 }
@@ -68,19 +66,19 @@ impl BitField {
     }
 
     /// Adds the bit at a given index to the bit field.
-    pub fn set(&mut self, bit: usize) {
+    pub fn set(&mut self, bit: u64) {
         self.unset.remove(&bit);
         self.set.insert(bit);
     }
 
     /// Removes the bit at a given index from the bit field.
-    pub fn unset(&mut self, bit: usize) {
+    pub fn unset(&mut self, bit: u64) {
         self.set.remove(&bit);
         self.unset.insert(bit);
     }
 
     /// Returns `true` if the bit field contains the bit at a given index.
-    pub fn get(&self, index: usize) -> bool {
+    pub fn get(&self, index: u64) -> bool {
         if self.set.contains(&index) {
             true
         } else if self.unset.contains(&index) {
@@ -107,17 +105,17 @@ impl BitField {
     }
 
     /// Returns the index of the lowest bit present in the bit field.
-    pub fn first(&self) -> Option<usize> {
+    pub fn first(&self) -> Option<u64> {
         // similar to `self.iter.next()`, but optimized using the fact that only the
         // lowest bit in `self.set` is a candidate, and therefore there's no need to
         // sort all bits in `self.set`
 
         let min_set_bit = self.set.iter().min();
 
-        // turns the `Option<&usize>` minimum set bit into an `Option<Range<usize>>`
+        // turns the `Option<&u64>` minimum set bit into an `Option<Range<u64>>`
         let min_range = min_set_bit.map(|&bit| bit..bit + 1);
 
-        // turns this `Option<Range<usize>>` into a `RangeIterator`, relying on the
+        // turns this `Option<Range<u64>>` into a `RangeIterator`, relying on the
         // fact that `Option<T>` is an `IntoIterator` over `T` with 0 or 1 items
         let min_range_iterator = iter::Ranges::new(min_range);
 
@@ -128,7 +126,7 @@ impl BitField {
     }
 
     /// Returns an iterator over the indices of the bit field's set bits.
-    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = u64> + '_ {
         // this code results in the same values as `self.ranges().flatten()`, but there's
         // a key difference:
         //
@@ -153,7 +151,7 @@ impl BitField {
 
     /// Returns an iterator over the indices of the bit field's set bits if the number
     /// of set bits in the bit field does not exceed `max`. Returns an error otherwise.
-    pub fn bounded_iter(&self, max: usize) -> Result<impl Iterator<Item = usize> + '_> {
+    pub fn bounded_iter(&self, max: u64) -> Result<impl Iterator<Item = u64> + '_> {
         if self.len() <= max {
             Ok(self.iter())
         } else {
@@ -169,7 +167,7 @@ impl BitField {
     /// Returns an iterator over the ranges of set bits that make up the bit field. The
     /// ranges are in ascending order, are non-empty, and don't overlap.
     pub fn ranges(&self) -> impl RangeIterator + '_ {
-        let ranges = |set: &AHashSet<usize>| {
+        let ranges = |set: &AHashSet<u64>| {
             let mut vec: Vec<_> = set.iter().copied().collect();
             vec.sort_unstable();
             ranges_from_bits(vec)
@@ -192,7 +190,7 @@ impl BitField {
     /// Returns a slice of the bit field with the start index of set bits
     /// and number of bits to include in the slice. Returns an error if the
     /// bit field contains fewer than `start + len` set bits.
-    pub fn slice(&self, start: usize, len: usize) -> Result<Self> {
+    pub fn slice(&self, start: u64, len: u64) -> Result<Self> {
         let slice = BitField::from_ranges(self.ranges().skip_bits(start).take_bits(len));
 
         if slice.len() == len {
@@ -203,8 +201,8 @@ impl BitField {
     }
 
     /// Returns the number of set bits in the bit field.
-    pub fn len(&self) -> usize {
-        self.ranges().map(|range| range.len()).sum()
+    pub fn len(&self) -> u64 {
+        self.ranges().map(|range| range.size()).sum()
     }
 
     /// Returns a new bit field containing the bits in `self` that remain
@@ -360,14 +358,11 @@ pub mod json {
     where
         S: Serializer,
     {
-        let total: usize = m.len();
-
         if !m.is_empty() {
-            let mut seq = serializer.serialize_seq(Some(total))?;
-            m.ranges().fold(Ok(0), |last_index, range| {
-                let last_index = last_index?;
-                let zero_index = (range.start - last_index) as u8;
-                let nonzero_index = (range.end - range.start) as u8;
+            let mut seq = serializer.serialize_seq(None)?;
+            m.ranges().try_fold(0, |last_index, range| {
+                let zero_index = range.start - last_index;
+                let nonzero_index = range.end - range.start;
                 seq.serialize_element(&zero_index)?;
                 seq.serialize_element(&nonzero_index)?;
                 Ok(range.end)
@@ -384,8 +379,8 @@ pub mod json {
     where
         D: Deserializer<'de>,
     {
-        let bitfield_bytes: Vec<usize> = Deserialize::deserialize(deserializer)?;
-        let mut ranges: Vec<Range<usize>> = Vec::new();
+        let bitfield_bytes: Vec<u64> = Deserialize::deserialize(deserializer)?;
+        let mut ranges: Vec<Range<u64>> = Vec::new();
         bitfield_bytes.iter().fold((false, 0), |last, index| {
             let (should_set, last_index) = last;
             let ending_index = index + last_index;

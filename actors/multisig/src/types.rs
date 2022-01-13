@@ -60,7 +60,7 @@ pub struct ProposalHashData<'a> {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct ConstructorParams {
     pub signers: Vec<Address>,
-    pub num_approvals_threshold: usize,
+    pub num_approvals_threshold: u64,
     pub unlock_duration: ChainEpoch,
     // * Added in v2
     pub start_epoch: ChainEpoch,
@@ -138,7 +138,7 @@ pub struct SwapSignerParams {
 /// Propose method call parameters
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct ChangeNumApprovalsThresholdParams {
-    pub new_threshold: usize,
+    pub new_threshold: u64,
 }
 
 /// Lock balance call params.
