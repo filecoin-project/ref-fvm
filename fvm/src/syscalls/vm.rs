@@ -16,8 +16,9 @@ pub fn abort(
 ) -> Result<(), Trap> {
     // Get the error and convert it into a "system illegal argument error" if it's invalid.
     let code = ExitCode::from_u32(code)
-        .filter(|c| !c.is_system_error())
-        .unwrap_or(ExitCode::SysErrIllegalArgument);
+        // BUG: https://github.com/filecoin-project/fvm/issues/253
+        //.filter(|c| !c.is_system_error())
+        .unwrap_or(ExitCode::SysErrIllegalActor);
 
     match (|| {
         let message = if message_len == 0 {
