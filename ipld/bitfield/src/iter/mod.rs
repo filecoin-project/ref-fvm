@@ -41,7 +41,7 @@ pub trait RangeIterator: Iterator<Item = Range<usize>> + Sized {
     /// Returns a new `RangeIterator` over the bits in `self` that remain after "cutting" out the
     /// bits in `other`, and shifting remaining bits to the left if necessary. For example:
     ///
-    /// ```ignore
+    /// ```txt
     /// lhs:     xx-xxx--x
     /// rhs:     -xx-x----
     ///

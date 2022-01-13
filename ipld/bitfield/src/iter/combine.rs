@@ -15,7 +15,7 @@
 //!
 //! For example, given the iterators over the following ranges:
 //!
-//! ```ignore
+//! ```txt
 //! lhs: -xx-xx
 //! rhs: xxxxx-
 //! ```
@@ -23,7 +23,7 @@
 //! First `-xx---` and `xxxxx-` are passed to the combinator. Then `-xx---` is
 //! discarded because it has the lowest upper bound, after which we are left with
 //!
-//! ```ignore
+//! ```txt
 //! lhs: ----xx
 //! rhs: xxxxx-
 //! ```
@@ -36,7 +36,7 @@
 //! example, the `Intersection` combinator would produce the following outputs
 //! given the inputs from above:
 //!
-//! ```ignore
+//! ```txt
 //! xxx---
 //! xxxxx-
 //! ----xx
@@ -395,7 +395,7 @@ where
 ///
 /// For example, given the ranges:
 ///
-/// ```ignore
+/// ```txt
 /// xx--------
 /// xxx-------
 /// ---xx-----
@@ -406,7 +406,7 @@ where
 ///
 /// `Merge` will produce
 ///
-/// ```ignore
+/// ```txt
 /// xxxxx--xxx
 /// ```
 ///
