@@ -25,7 +25,7 @@ lazy_static = "1.4.0"
 derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
-filecoin-proofs-api = { version = "10", features = ["opencl"], default_features = false }
+filecoin-proofs-api = { version = "10", default-features = false }
 rayon = "1"
 num_cpus = "1.13.0"
 log = "0.4.14"
@@ -64,7 +64,9 @@ default-features = false
 features = ["cranelift", "pooling-allocator", "cache", "parallel-compilation"]
 
 [features]
-default = []
+default = ["opencl"]
+opencl = ["filecoin-proofs-api/opencl"]
+cuda = ["filecoin-proofs-api/cuda"]
 builtin_actors = [
     "fvm_actor_account",
     "fvm_actor_cron",
