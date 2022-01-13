@@ -1,0 +1,54 @@
+name: rust sccache
+description: Shared Compilation Cache for Rust
+inputs:
+  version:
+    description: The version of sccache to use
+    required: true
+  key:
+    description: An additional key for the cache
+    required: false
+runs:
+  using: composite
+  steps:
+    - id: rust
+      run: |
+        version="$(rustc -vV)"
+        echo "::set-output name=release::$(grep -oP 'release: \K.+' <<< "$version")"
+        echo "::set-output name=host::$(grep -oP 'host: \K.+' <<< "$version")"
+        echo "::set-output name=commit-hash::$(grep -oP 'commit-hash: \K.{0,12}' <<< "$version")"
+      shell: bash
+    - id: cache
+      run: |
+        key='v0-sccache'
+        if [[ ! -z '${{ inputs.key }}' ]]; then
+          key="$key-${{ inputs.key }}"
+        fi
+        key="$key-${{ github.job }}-${{ steps.rust.outputs.release }}-${{ steps.rust.outputs.host }}-${{ steps.rust.outputs.commit-hash }}"
+        hash='${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') }}'
+        echo "::set-output name=key::$key-${hash:0:20}"
+        echo "::set-output name=restore-key::$key-"
+      shell: bash
+    - run: |
+        asset_name='sccache-${{ inputs.version }}-x86_64-unknown-linux-musl'
+        gh release download --repo 'mozilla/sccache' --dir '.' --pattern "$asset_name.tar.gz" '${{ inputs.version }}'
+        tar -zxf "$asset_name.tar.gz"
+        cp "$asset_name/sccache" '/usr/local/bin/sccache'
+        chmod +x '/usr/local/bin/sccache'
+        rm -r "$asset_name"
+        rm "$asset_name.tar.gz"
+      shell: bash
+    - run: |
+        if [ -z '${{ env.RUSTC_WRAPPER }}' ]; then
+          echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
+        fi
+        if [ -z '${{ env.SCCACHE_DIR }}' ]; then
+          echo "SCCACHE_DIR=$(realpath ~/.cache/sccache)" >> $GITHUB_ENV
+        fi
+      shell: bash
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ${{ env.SCCACHE_DIR }}
+        key: ${{ steps.cache.outputs.key }}
+        restore-keys: |
+          ${{ steps.cache.outputs.restore-key }}
