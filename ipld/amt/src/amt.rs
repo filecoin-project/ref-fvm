@@ -59,14 +59,14 @@ where
     }
 
     /// Construct new Amt with given bit width.
-    pub fn new_with_bit_width(block_store: BS, bit_width: usize) -> Self {
+    pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
         Self {
             root: Root::new(bit_width),
             block_store,
         }
     }
 
-    fn bit_width(&self) -> usize {
+    fn bit_width(&self) -> u32 {
         self.root.bit_width
     }
 
@@ -86,12 +86,12 @@ where
     }
 
     /// Gets the height of the `Amt`.
-    pub fn height(&self) -> usize {
+    pub fn height(&self) -> u32 {
         self.root.height
     }
 
     /// Gets count of elements added in the `Amt`.
-    pub fn count(&self) -> usize {
+    pub fn count(&self) -> u64 {
         self.root.count
     }
 
@@ -105,7 +105,7 @@ where
     }
 
     /// Get value at index of AMT
-    pub fn get(&self, i: usize) -> Result<Option<&V>, Error> {
+    pub fn get(&self, i: u64) -> Result<Option<&V>, Error> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -120,7 +120,7 @@ where
     }
 
     /// Set value at index
-    pub fn set(&mut self, i: usize, val: V) -> Result<(), Error> {
+    pub fn set(&mut self, i: u64, val: V) -> Result<(), Error> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -163,7 +163,7 @@ where
     /// Batch set (naive for now)
     // TODO Implement more efficient batch set to not have to traverse tree and keep cache for each
     pub fn batch_set(&mut self, vals: impl IntoIterator<Item = V>) -> Result<(), Error> {
-        for (i, val) in vals.into_iter().enumerate() {
+        for (i, val) in (0u64..).zip(vals) {
             self.set(i, val)?;
         }
 
@@ -171,7 +171,7 @@ where
     }
 
     /// Delete item from AMT at index
-    pub fn delete(&mut self, i: usize) -> Result<Option<V>, Error> {
+    pub fn delete(&mut self, i: u64) -> Result<Option<V>, Error> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -240,7 +240,7 @@ where
     /// Returns true if items were deleted.
     pub fn batch_delete(
         &mut self,
-        iter: impl IntoIterator<Item = usize>,
+        iter: impl IntoIterator<Item = u64>,
         strict: bool,
     ) -> Result<bool, Error> {
         // TODO: optimize this
@@ -265,7 +265,7 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values.
     ///
-    /// The index in the amt is a `usize` and the value is the generic parameter `V` as defined
+    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
     /// in the Amt.
     ///
     /// # Examples
@@ -279,7 +279,7 @@ where
     /// map.set(1, "One".to_owned()).unwrap();
     /// map.set(4, "Four".to_owned()).unwrap();
     ///
-    /// let mut values: Vec<(usize, String)> = Vec::new();
+    /// let mut values: Vec<(u64, String)> = Vec::new();
     /// map.for_each(|i, v| {
     ///    values.push((i, v.clone()));
     ///    Ok(())
@@ -289,7 +289,7 @@ where
     #[inline]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(usize, &V) -> anyhow::Result<()>,
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
         self.for_each_while(|i, x| {
             f(i, x)?;
@@ -301,7 +301,7 @@ where
     /// function keeps returning `true`.
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(usize, &V) -> anyhow::Result<bool>,
+        F: FnMut(u64, &V) -> anyhow::Result<bool>,
     {
         self.root
             .node
@@ -320,7 +320,7 @@ where
     pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Error>
     where
         V: Clone,
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<()>,
+        F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<()>,
     {
         self.for_each_while_mut(|i, x| {
             f(i, x)?;
@@ -335,7 +335,7 @@ where
         // TODO remove clone bound when go-interop doesn't require it.
         // (If needed without, this bound can be removed by duplicating function signatures)
         V: Clone,
-        F: FnMut(usize, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
+        F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
     {
         #[cfg(not(feature = "go-interop"))]
         {
