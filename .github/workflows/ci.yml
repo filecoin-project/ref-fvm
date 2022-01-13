@@ -32,6 +32,11 @@ jobs:
     - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
+    # right now all jobs use separate caches
+    # because of this we hit 10G limit quickly and entries are often evicted
+    # once https://github.com/actions/cache/pull/489 is merged:
+    #   - use sharedKey instead of key in all jobs in this workflow
+    #   - set CACHE_SKIP_SAVE in all jobs in this workflow but build
     - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
       with:
         # change this to invalidate cache for this job

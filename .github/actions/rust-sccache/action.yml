@@ -7,6 +7,9 @@ inputs:
   key:
     description: An additional key for the cache
     required: false
+  shared-key:
+    description: An additional key that is stable over multiple jobs
+    required: false
 runs:
   using: composite
   steps:
@@ -20,10 +23,15 @@ runs:
     - id: cache
       run: |
         key='v0-sccache'
-        if [[ ! -z '${{ inputs.key }}' ]]; then
-          key="$key-${{ inputs.key }}"
+        if [[ ! -z '${{ inputs.shared-key }}' ]]; then
+          key="$key-${{ inputs.shared-key }}"
+        else
+          if [[ ! -z '${{ inputs.key }}' ]]; then
+            key="$key-${{ inputs.key }}"
+          fi
+          key="$key-${{ github.job }}"
         fi
-        key="$key-${{ github.job }}-${{ steps.rust.outputs.release }}-${{ steps.rust.outputs.host }}-${{ steps.rust.outputs.commit-hash }}"
+        key="$key-${{ steps.rust.outputs.release }}-${{ steps.rust.outputs.host }}-${{ steps.rust.outputs.commit-hash }}"
         hash='${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') }}'
         echo "::set-output name=key::$key-${hash:0:20}"
         echo "::set-output name=restore-key::$key-"
