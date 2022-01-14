@@ -59,7 +59,7 @@ fvm_actor_system = { path = "../actors/system", optional = true }
 fvm_actor_verifreg = { path = "../actors/verifreg", optional = true }
 
 [dependencies.wasmtime]
-version = "0.32.0"
+version = "0.33.0"
 default-features = false
 features = ["cranelift", "pooling-allocator", "cache", "parallel-compilation"]
 
