@@ -7,7 +7,6 @@ use actors_runtime::{
     MULTISIG_ACTOR_CODE_ID, PAYCH_ACTOR_CODE_ID, POWER_ACTOR_CODE_ID, SYSTEM_ACTOR_ADDR,
 };
 use cid::Cid;
-use fvm_sdk::logc;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::encoding::RawBytes;
@@ -82,11 +81,7 @@ impl Actor {
     {
         rt.validate_immediate_caller_accept_any()?;
 
-        logc!(
-            "init actor",
-            "called exec; params.code_cid: {:?}",
-            &params.code_cid
-        );
+        log::trace!("called exec; params.code_cid: {:?}", &params.code_cid);
 
         let caller_code = rt
             .get_actor_code_cid(&rt.message().caller())?
@@ -98,7 +93,7 @@ impl Actor {
                 )
             })?;
 
-        logc!("init actor", "caller code CID: {:?}", &caller_code);
+        log::trace!("caller code CID: {:?}", &caller_code);
 
         if !can_exec(&caller_code, &params.code_cid) {
             return Err(actor_error!(ErrForbidden;
@@ -113,7 +108,7 @@ impl Actor {
         // a different ID.
         let robust_address = rt.new_actor_address()?;
 
-        logc!("init actor", "robust address: {:?}", &robust_address);
+        log::trace!("robust address: {:?}", &robust_address);
 
         // Allocate an ID for this actor.
         // Store mapping of pubkey or actor address to actor ID

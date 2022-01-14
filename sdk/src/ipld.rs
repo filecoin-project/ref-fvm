@@ -73,18 +73,3 @@ pub fn transaction(f: impl FnOnce(Cid) -> Option<Cid>) -> SyscallResult<()> {
     f(sself::root()?).as_ref().map(sself::set_root);
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // TODO: this won't actually _work_ till we have an implementation of the runtime functions.
-    #[test]
-    pub fn test_transaction() {
-        transaction(|c| {
-            let data = get(&c).unwrap();
-            Some(put(c.hash().code(), c.hash().size() as u32, c.codec(), &data).unwrap())
-        })
-        .unwrap()
-    }
-}

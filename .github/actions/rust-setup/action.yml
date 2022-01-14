@@ -1,0 +1,40 @@
+name: setup rust
+description: Setup the rust environment
+inputs:
+  cache-key:
+    description: An additional key for the cache
+    required: false
+    default: v0
+  cache-key-shared:
+    description: An additional key that is stable over multiple jobs
+    required: false
+    default: v0
+runs:
+  using: composite
+  steps:
+    - name: "Installing Rust"
+      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+      with:
+        target: wasm32-unknown-unknown
+        override: true
+    - name: "Setting up environment"
+      shell: bash
+      run: |
+        echo "RUSTFLAGS=-D warnings" >> $GITHUB_ENV
+    # we don't check the lockfile in; this is needed for cache restoration/saving
+    - name: "Generating Cargo.lock"
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: generate-lockfile
+    - name: "Restoring code cache"
+      uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
+      with:
+        # change this to invalidate cache for this job
+        key: ${{ inputs.cache-key }}
+    - name: "Restoring compile cache"
+      uses: ./.github/actions/rust-sccache
+      with:
+        version: v0.2.15
+        # change this to invalidate sccache for this job
+        key: ${{ inputs.cache-key }}
+        shared-key: ${{ inputs.cache-key-shared }}

@@ -14,6 +14,7 @@ runs:
   using: composite
   steps:
     - id: rust
+      name: "Checking rust version"
       run: |
         version="$(rustc -vV)"
         echo "::set-output name=release::$(grep -oP 'release: \K.+' <<< "$version")"
@@ -21,6 +22,7 @@ runs:
         echo "::set-output name=commit-hash::$(grep -oP 'commit-hash: \K.{0,12}' <<< "$version")"
       shell: bash
     - id: cache
+      name: "Computing cache key"
       run: |
         key='v0-sccache'
         if [[ ! -z '${{ inputs.shared-key }}' ]]; then
@@ -36,7 +38,8 @@ runs:
         echo "::set-output name=key::$key-${hash:0:20}"
         echo "::set-output name=restore-key::$key-"
       shell: bash
-    - run: |
+    - name: "Installing sccache"
+      run: |
         asset_name='sccache-${{ inputs.version }}-x86_64-unknown-linux-musl'
         gh release download --repo 'mozilla/sccache' --dir '.' --pattern "$asset_name.tar.gz" '${{ inputs.version }}'
         tar -zxf "$asset_name.tar.gz"
@@ -45,7 +48,8 @@ runs:
         rm -r "$asset_name"
         rm "$asset_name.tar.gz"
       shell: bash
-    - run: |
+    - name: "Configuring sccache environment"
+      run: |
         if [ -z '${{ env.RUSTC_WRAPPER }}' ]; then
           echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
         fi
@@ -53,7 +57,8 @@ runs:
           echo "SCCACHE_DIR=$(realpath ~/.cache/sccache)" >> $GITHUB_ENV
         fi
       shell: bash
-    - uses: actions/cache@v2
+    - name: "Deploying sccache"
+      uses: actions/cache@v2
       with:
         path: |
           ${{ env.SCCACHE_DIR }}

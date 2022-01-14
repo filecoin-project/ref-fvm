@@ -49,32 +49,50 @@ jobs:
       with:
         command: clippy
         args: --all --all-targets
-  build:
+  test:
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: -D warnings
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+    - uses: ./.github/actions/rust-setup
+    - name: Testing the root FVM crate
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
-        target: wasm32-unknown-unknown
-        override: true
-    # we don't check the lockfile in; this is needed for cache restoration/saving
-    - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+        command: test
+        args: --package fvm --no-default-features # disable default opencl feature in CI
+    - name: Testing everything else
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
-        command: generate-lockfile
-    - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
+        command: test
+        args: --all --exclude fvm --exclude conformance_tests
+  conformance:
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
       with:
-        # change this to invalidate cache for this job
-        key: v0
-    - uses: ./.github/actions/rust-sccache
+        submodules: recursive
+    - uses: ./.github/actions/rust-setup
+    - name: Running conformance tests
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
-        version: v0.2.15
-        # change this to invalidate sccache for this job
-        key: v0
+        command: test
+        args: --package conformance_tests
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ./.github/actions/rust-setup
     - name: Build on wasm32-unknown-unknown
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:

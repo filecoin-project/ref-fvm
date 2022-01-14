@@ -4,7 +4,6 @@ use anyhow::{anyhow, Error};
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_sdk as fvm;
-use fvm_sdk::logc;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
@@ -175,7 +174,7 @@ where
         let state_cid = fvm::sself::root()
             .map_err(|_| actor_error!(ErrIllegalArgument; "failed to get actor root state CID"))?;
 
-        fvm_sdk::debug::log(format!("getting cid: {}", state_cid));
+        log::debug!("getting cid: {}", state_cid);
 
         let mut state = ActorBlockstore
             .get_cbor::<C>(&state_cid)
@@ -311,6 +310,7 @@ where
 ///
 /// The trampoline takes care of boilerplate:
 ///
+/// 0.  Initialize logging if debugging is enabled.
 /// 1.  Obtains the parameter data from the FVM by fetching the parameters block.
 /// 2.  Obtains the method number for the invocation.
 /// 3.  Creates an FVM runtime shim.
@@ -318,9 +318,11 @@ where
 /// 5a. In case of error, aborts the execution with the emitted exit code, or
 /// 5b. In case of success, stores the return data as a block and returns the latter.
 pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
+    fvm::debug::init_logging();
+
     let method = fvm::message::method_number().expect("no method number");
     let params = if params > 0 {
-        logc!("trampoline", "fetching parameters block: {}", params);
+        log::debug!("fetching parameters block: {}", params);
         let params = fvm::message::params_raw(params)
             .expect("params block invalid")
             .1;
@@ -329,7 +331,7 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
         RawBytes::default()
     };
 
-    logc!("trampoline", "input params: {:x?}", params.bytes());
+    log::debug!("input params: {:x?}", params.bytes());
 
     // Construct a new runtime.
     let mut rt = FvmRuntime::default();
