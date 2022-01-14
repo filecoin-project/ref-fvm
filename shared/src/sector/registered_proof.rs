@@ -24,6 +24,9 @@ pub enum RegisteredSealProof {
     StackedDRG8MiBV1P1,
     StackedDRG32GiBV1P1,
     StackedDRG64GiBV1P1,
+    // TODO: get rid of this option once we no longer need go compat.
+    // We use it to ensure that we can deserialize bad values here because go checks this value
+    // later.
     Invalid(i64),
 }
 

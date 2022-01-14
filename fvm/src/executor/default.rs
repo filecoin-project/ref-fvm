@@ -249,12 +249,11 @@ where
         }
 
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree_mut()
-            .mutate_actor(&Address::new_id(sender_id), |act| {
-                act.deduct_funds(&gas_cost)?;
-                act.sequence += 1;
-                Ok(())
-            })?;
+        self.state_tree_mut().mutate_actor_id(sender_id, |act| {
+            act.deduct_funds(&gas_cost)?;
+            act.sequence += 1;
+            Ok(())
+        })?;
 
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }

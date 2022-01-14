@@ -121,7 +121,7 @@ pub trait BlockOps {
 /// Depends on BlockOps to read and write blocks in the state tree.
 pub trait SelfOps: BlockOps {
     /// Get the state root.
-    fn root(&self) -> Cid;
+    fn root(&self) -> Result<Cid>;
 
     /// Update the state-root.
     ///

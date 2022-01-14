@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
 use filecoin_proofs_api::seal::{
@@ -26,6 +26,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
+use crate::account_actor::is_account_actor;
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
@@ -110,14 +111,21 @@ where
         let act = state_tree
             .get_actor(addr)?
             .ok_or(anyhow!("state tree doesn't contain actor"))
-            .or_error(ExitCode::ErrIllegalArgument)?;
+            .or_illegal_argument()?;
+
+        if !is_account_actor(&act.code) {
+            return Err(
+                syscall_error!(SysErrIllegalArgument; "target actor is not an account").into(),
+            );
+        }
 
         let state: crate::account_actor::State = state_tree
             .store()
             .get_cbor(&act.state)
-            .or_fatal()?
+            .context("failed to decode actor state as an account")
+            .or_fatal()? // because we've checked and this should be an account.
             .ok_or(anyhow!("account actor state not found"))
-            .or_fatal()?;
+            .or_fatal()?; // because the state should exist.
 
         Ok(state.address)
     }
@@ -157,51 +165,66 @@ where
         let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
         Ok(market_state.total_locked())
     }
+
+    /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
+    fn get_self(&self) -> Result<Option<ActorState>> {
+        self.call_manager
+            .state_tree()
+            .get_actor_id(self.actor_id)
+            .or_fatal()
+            .context("error when finding current actor")
+    }
+
+    /// Mutates this actor's state, returning a syscall error if this actor has been deleted.
+    fn mutate_self<F>(&mut self, mutate: F) -> Result<()>
+    where
+        F: FnOnce(&mut ActorState) -> Result<()>,
+    {
+        self.call_manager
+            .state_tree_mut()
+            .maybe_mutate_actor_id(self.actor_id, mutate)
+            .context("failed to mutate self")
+            .and_then(|found| {
+                if found {
+                    Ok(())
+                } else {
+                    Err(syscall_error!(SysErrIllegalActor; "actor deleted").into())
+                }
+            })
+    }
 }
 
 impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&self) -> Cid {
-        let addr = Address::new_id(self.actor_id);
-        let state_tree = self.call_manager.state_tree();
-
-        state_tree
-            .get_actor(&addr)
-            .unwrap()
-            .expect("expected actor to exist")
-            .state
+    fn root(&self) -> Result<Cid> {
+        // This can fail during normal operations if the actor has been deleted.
+        Ok(self
+            .get_self()?
+            .context("state root requested after actor deletion")
+            .or_error(ExitCode::SysErrIllegalActor)?
+            .state)
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let addr = Address::new_id(self.actor_id);
-        let state_tree = self.call_manager.state_tree_mut();
-
-        state_tree.mutate_actor(&addr, |actor_state| {
+        self.mutate_self(|actor_state| {
             actor_state.state = new;
             Ok(())
-        })?;
-
-        Ok(())
+        })
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        let addr = Address::new_id(self.actor_id);
-        let balance = self
-            .call_manager
-            .state_tree()
-            .get_actor(&addr)
-            .or_fatal()
-            .context("error when finding current actor")?
-            .ok_or(anyhow!("state tree doesn't contain current actor"))
-            .or_fatal()?
-            .balance;
-        Ok(balance)
+        // If the actor doesn't exist, it has zero balance.
+        Ok(self
+            .get_self()?
+            .map(|a| a.balance)
+            .unwrap_or_else(|| TokenAmount::zero()))
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        // TODO abort with internal error instead of returning.
+        // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
+        // balance will be zero, and `delete_actor_id` will be a no-op.
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_delete_actor())?;
 
@@ -211,9 +234,10 @@ where
             // exists; if missing, it fails the self destruct.
             //
             // In FVM we check unconditionally, since we only support nv13+.
-            let beneficiary_id = self.resolve_address(beneficiary)?.ok_or_else(||
-                // TODO this should not be an actor error, but a system error with an exit code.
-                syscall_error!(SysErrIllegalArgument, "beneficiary doesn't exist"))?;
+            let beneficiary_id = self
+                .resolve_address(beneficiary)?
+                .context("beneficiary doesn't exist")
+                .or_error(ExitCode::SysErrIllegalArgument)?;
 
             if beneficiary_id == self.actor_id {
                 return Err(syscall_error!(
@@ -230,7 +254,6 @@ where
         }
 
         // Delete the executing actor
-        // TODO errors here are FATAL errors
         self.call_manager
             .state_tree_mut()
             .delete_actor_id(self.actor_id)
@@ -876,6 +899,9 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
         bytes_32(&vi.interactive_randomness.0),
         &vi.proof,
     )
-    .or_fatal()
-    .context("failed to verify seal proof") // TODO: Verify that this is actually a fatal error.
+    .or_illegal_argument()
+    // TODO: There are probably errors here that should be fatal, but it's hard to tell so I'm
+    // sticking with illegal argument for now.
+    // Worst case, _some_ node falls out of sync. Better than the network halting.
+    .context("failed to verify seal proof")
 }

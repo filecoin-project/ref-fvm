@@ -535,7 +535,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn root(&self) -> Cid {
+    fn root(&self) -> Result<Cid> {
         self.0.root()
     }
 
