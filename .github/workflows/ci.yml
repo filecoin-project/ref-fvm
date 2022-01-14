@@ -13,13 +13,38 @@ jobs:
         profile: minimal
         override: true
         components: rustfmt
-    - name: Run cargo clippy
+    - name: Run fmt
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: fmt
         args: -- --check
-  check-clippy:
+  cargo:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: check-clippy
+            command: clippy
+            args: --all --all-targets
+            components: clippy
+          - name: test-fvm
+            command: test
+            args: --package fvm --no-default-features
+          - name: test
+            command: test
+            args: --all --exclude fvm --exclude conformance_tests
+          - name: conformance
+            command: test
+            args: --package conformance_tests
+          - name: build
+            command: build
+            args: --features builtin_actors
+            push: true
+    env:
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    name: ${{ matrix.name }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
@@ -27,7 +52,7 @@ jobs:
         profile: minimal
         target: wasm32-unknown-unknown
         override: true
-        components: clippy
+        components: ${{ matrix.components }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
     - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
@@ -41,63 +66,20 @@ jobs:
       with:
         # change this to invalidate cache for this job
         key: v0
+    - uses: ./.github/actions/rust-sccache
+      with:
+        version: v0.2.15
+        # change this to invalidate sccache for this job
+        key: v0
     # otherwise the include_bytes! macro fails because this file hasn't been generated
-    - run: touch examples/fvm/fvm_example_actor.wasm
+    - if: ${{ matrix.command == 'clippy' }}
+      run: touch examples/fvm/fvm_example_actor.wasm
       shell: bash
-    - name: Run cargo clippy
+    - name: Run ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
-        command: clippy
-        args: --all --all-targets
-  test:
-    runs-on: ubuntu-latest
-    env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v2
-    - uses: ./.github/actions/rust-setup
-    - name: Testing the root FVM crate
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: test
-        args: --package fvm --no-default-features # disable default opencl feature in CI
-    - name: Testing everything else
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: test
-        args: --all --exclude fvm --exclude conformance_tests
-  conformance:
-    runs-on: ubuntu-latest
-    env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-    - uses: ./.github/actions/rust-setup
-    - name: Running conformance tests
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: test
-        args: --package conformance_tests
-  build:
-    runs-on: ubuntu-latest
-    env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v2
-    - uses: ./.github/actions/rust-setup
-    - name: Build on wasm32-unknown-unknown
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: build
-        args: --features builtin_actors
+        command: ${{ matrix.command }}
+        args: ${{ matrix.args }}
   examples:
     runs-on: ubuntu-latest
     steps:
