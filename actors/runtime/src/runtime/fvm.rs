@@ -286,9 +286,7 @@ where
 
     fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Error> {
         fvm::crypto::hash_blake2b(data)
-            .map_err(|e| anyhow!("failed to compute blake2b hash; exit code: {}", e))?
-            .try_into()
-            .map_err(|v: Vec<u8>| anyhow!("unexpected hash length; expected 32, got: {}", v.len()))
+            .map_err(|e| anyhow!("failed to compute blake2b hash; exit code: {}", e))
     }
 
     fn compute_unsealed_sector_cid(

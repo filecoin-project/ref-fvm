@@ -17,8 +17,7 @@ super::fvm_syscalls! {
     pub fn hash_blake2b(
         data_off: *const u8,
         data_len: u32,
-        obuf_off: *mut u8,
-    ) -> Result<()>;
+    ) -> Result<[u8; 32]>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.

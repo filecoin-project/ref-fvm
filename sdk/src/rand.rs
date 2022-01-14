@@ -1,6 +1,6 @@
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
+use fvm_shared::randomness::Randomness;
 
 use crate::{sys, SyscallResult};
 
@@ -13,16 +13,14 @@ pub fn get_chain_randomness(
     round: ChainEpoch,
     entropy: &[u8],
 ) -> SyscallResult<Randomness> {
-    let mut ret = [0u8; RANDOMNESS_LENGTH];
-    unsafe {
+    let ret = unsafe {
         sys::rand::get_chain_randomness(
             dst as i64,
             round as i64,
             entropy.as_ptr(),
             entropy.len() as u32,
-            ret.as_mut_ptr(),
         )?
-    }
+    };
     Ok(Randomness(ret.to_vec()))
 }
 
@@ -35,15 +33,13 @@ pub fn get_beacon_randomness(
     round: ChainEpoch,
     entropy: &[u8],
 ) -> SyscallResult<Randomness> {
-    let mut ret = [0u8; RANDOMNESS_LENGTH];
-    unsafe {
+    let ret = unsafe {
         sys::rand::get_beacon_randomness(
             dst as i64,
             round as i64,
             entropy.as_ptr(),
             entropy.len() as u32,
-            ret.as_mut_ptr(),
         )?
-    }
+    };
     Ok(Randomness(ret.to_vec()))
 }

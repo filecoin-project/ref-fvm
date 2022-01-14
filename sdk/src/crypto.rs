@@ -38,10 +38,8 @@ pub fn verify_signature(
 
 /// Hashes input data using blake2b with 256 bit output.
 #[allow(unused)]
-pub fn hash_blake2b(data: &[u8]) -> SyscallResult<Vec<u8>> {
-    let mut ret = Vec::with_capacity(32);
-    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32, ret.as_mut_ptr())? }
-    Ok(ret)
+pub fn hash_blake2b(data: &[u8]) -> SyscallResult<[u8; 32]> {
+    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32) }
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.

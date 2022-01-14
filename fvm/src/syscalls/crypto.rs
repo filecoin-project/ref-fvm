@@ -54,18 +54,9 @@ pub fn hash_blake2b(
     mut context: Context<'_, impl Kernel>,
     data_off: u32,
     data_len: u32,
-    obuf_off: u32,
-) -> Result<()> {
-    const HASH_LEN: usize = 32;
-
-    let hash = {
-        let data = context.memory.try_slice(data_len, data_off)?;
-        context.kernel.hash_blake2b(data)?
-    };
-    assert_eq!(hash.len(), 32);
-    let obuf = context.memory.try_slice_mut(obuf_off, HASH_LEN as u32)?;
-    obuf.copy_from_slice(&hash[..HASH_LEN]);
-    Ok(())
+) -> Result<[u8; 32]> {
+    let data = context.memory.try_slice(data_len, data_off)?;
+    context.kernel.hash_blake2b(data)
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
