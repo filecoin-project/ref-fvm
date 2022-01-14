@@ -37,7 +37,6 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
-    + ValidationOps
     + 'static
 {
     type CallManager: CallManager;
@@ -62,16 +61,6 @@ pub trait NetworkOps {
     fn network_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
     fn network_base_fee(&self) -> &TokenAmount;
-}
-
-/// Message validation operations.
-/// Exported actor methods must invoke at least one caller validation before returning.
-///
-/// TODO Kernel must track validation status.
-pub trait ValidationOps {
-    fn validate_immediate_caller_accept_any(&mut self) -> Result<()>;
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()>;
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()>;
 }
 
 /// Accessors to query attributes of the incoming message.

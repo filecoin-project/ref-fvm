@@ -567,21 +567,3 @@ where
         self.0.send(recipient, method, params, value)
     }
 }
-impl<M, C, K> ValidationOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
-{
-    fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
-        self.0.validate_immediate_caller_accept_any()
-    }
-
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
-        self.0.validate_immediate_caller_addr_one_of(allowed)
-    }
-
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()> {
-        self.0.validate_immediate_caller_type_one_of(allowed)
-    }
-}

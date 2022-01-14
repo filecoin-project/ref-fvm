@@ -9,7 +9,6 @@ pub mod network;
 pub mod rand;
 pub mod send;
 pub mod sself;
-pub mod validation;
 pub mod vm;
 
 /// Generate a set of FVM syscall shims.

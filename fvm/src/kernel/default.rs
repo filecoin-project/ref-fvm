@@ -62,7 +62,6 @@ pub struct DefaultKernel<C> {
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
-    caller_validated: bool,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -94,7 +93,6 @@ where
             actor_id: to,
             method,
             value_received,
-            caller_validated: false,
         }
     }
 }
@@ -103,18 +101,6 @@ impl<C> DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn assert_not_validated(&mut self) -> Result<()> {
-        if self.caller_validated {
-            return Err(syscall_error!(
-                SysErrIllegalActor,
-                "Method must validate caller identity exactly once"
-            )
-            .into());
-        }
-        self.caller_validated = true;
-        Ok(())
-    }
-
     pub fn resolve_to_key_addr(&self, addr: &Address) -> Result<Address> {
         if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
             return Ok(*addr);
@@ -714,44 +700,6 @@ where
             .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
             .map(|r| Randomness(r.to_vec()))
             .or_illegal_argument()
-    }
-}
-
-impl<C> ValidationOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn validate_immediate_caller_accept_any(&mut self) -> Result<()> {
-        self.assert_not_validated()
-    }
-
-    fn validate_immediate_caller_addr_one_of(&mut self, allowed: &[Address]) -> Result<()> {
-        self.assert_not_validated()?;
-
-        let caller_addr = Address::new_id(self.caller);
-        if !allowed.iter().any(|a| *a == caller_addr) {
-            return Err(syscall_error!(SysErrForbidden;
-                "caller {} is not one of supported", caller_addr
-            )
-            .into());
-        }
-        Ok(())
-    }
-
-    fn validate_immediate_caller_type_one_of(&mut self, allowed: &[Cid]) -> Result<()> {
-        self.assert_not_validated()?;
-
-        let caller_cid = self
-            .get_actor_code_cid(&Address::new_id(self.caller))?
-            .ok_or_else(|| anyhow!("failed to lookup code cid for caller"))
-            .or_fatal()?;
-
-        if !allowed.iter().any(|c| *c == caller_cid) {
-            return Err(syscall_error!(SysErrForbidden;
-                    "caller cid type {} not one of supported", caller_cid)
-            .into());
-        }
-        Ok(())
     }
 }
 
