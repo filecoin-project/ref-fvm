@@ -5,6 +5,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::encoding::{BytesDe, BytesSer};
 
+// TODO: turn this back into a 32byte array once we no longer need go compat. It's a vec so that the
+// errors match.
 /// String of random bytes usually generated from a randomness beacon or from tickets on chain.
 #[derive(PartialEq, Eq, Default, Clone, Debug)]
 pub struct Randomness(pub Vec<u8>);

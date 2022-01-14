@@ -17,7 +17,7 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::Randomness;
+use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
@@ -514,7 +514,7 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness> {
+    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         self.0
             .get_randomness_from_tickets(personalization, rand_epoch, entropy)
     }
@@ -524,7 +524,7 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness> {
+    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         self.0
             .get_randomness_from_beacon(personalization, rand_epoch, entropy)
     }

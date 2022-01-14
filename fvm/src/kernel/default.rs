@@ -677,12 +677,11 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness> {
+    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         // TODO: Check error code
         self.call_manager
             .externs()
             .get_chain_randomness_looking_forward(personalization, rand_epoch, entropy)
-            .map(|r| Randomness(r.to_vec()))
             .or_illegal_argument()
     }
 
@@ -692,13 +691,12 @@ where
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
-    ) -> Result<Randomness> {
+    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         // TODO: Check error code
         // Hyperdrive and above only.
         self.call_manager
             .externs()
             .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
-            .map(|r| Randomness(r.to_vec()))
             .or_illegal_argument()
     }
 }
