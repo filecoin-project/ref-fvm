@@ -62,7 +62,6 @@ runs:
       with:
         path: |
           ${{ env.SCCACHE_DIR }}
-          ~/.cargo/bin/
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
