@@ -44,6 +44,8 @@ jobs:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CARGO_INCREMENTAL: 0
+      CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
     name: ${{ matrix.name }}
     steps:
     - uses: actions/checkout@v2
@@ -57,20 +59,11 @@ jobs:
     - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
-    # right now all jobs use separate caches
-    # because of this we hit 10G limit quickly and entries are often evicted
-    # once https://github.com/actions/cache/pull/489 is merged:
-    #   - use sharedKey instead of key in all jobs in this workflow
-    #   - set CACHE_SKIP_SAVE in all jobs in this workflow but build
-    - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
-      with:
-        # change this to invalidate cache for this job
-        key: v0
     - uses: ./.github/actions/rust-sccache
       with:
         version: v0.2.15
         # change this to invalidate sccache for this job
-        key: v0
+        shared-key: v0
     # otherwise the include_bytes! macro fails because this file hasn't been generated
     - if: ${{ matrix.command == 'clippy' }}
       run: touch examples/fvm/fvm_example_actor.wasm
