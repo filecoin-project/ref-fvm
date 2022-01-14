@@ -16,7 +16,6 @@ mod network;
 mod rand;
 mod send;
 mod sself;
-mod validation;
 mod vm;
 
 pub(self) use context::Context;
@@ -39,22 +38,6 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Res
     linker.bind("ipld", "read", ipld::read)?;
     linker.bind("ipld", "stat", ipld::stat)?;
     linker.bind("ipld", "cid", ipld::cid)?;
-
-    linker.bind(
-        "validation",
-        "validate_immediate_caller_accept_any",
-        validation::validate_immediate_caller_accept_any,
-    )?;
-    linker.bind(
-        "validation",
-        "validate_immediate_caller_addr_one_of",
-        validation::validate_immediate_caller_addr_one_of,
-    )?;
-    linker.bind(
-        "validation",
-        "validate_immediate_caller_type_one_of",
-        validation::validate_immediate_caller_type_one_of,
-    )?;
 
     linker.bind("self", "root", sself::root)?;
     linker.bind("self", "set_root", sself::set_root)?;

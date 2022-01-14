@@ -11,6 +11,7 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, RawBytes, DAG_CBOR};
+use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -37,6 +38,8 @@ pub struct FvmRuntime<B = ActorBlockstore> {
     /// Indicates whether we are in a state transaction. During such, sending
     /// messages is prohibited.
     in_transaction: bool,
+    /// Indicates that the caller has been validated.
+    caller_validated: bool,
 }
 
 impl Default for FvmRuntime {
@@ -44,7 +47,22 @@ impl Default for FvmRuntime {
         FvmRuntime {
             blockstore: ActorBlockstore,
             in_transaction: false,
+            caller_validated: false,
         }
+    }
+}
+
+impl<B> FvmRuntime<B> {
+    fn assert_not_validated(&mut self) -> Result<(), ActorError> {
+        if self.caller_validated {
+            return Err(actor_error!(
+                SysErrIllegalActor,
+                "Method must validate caller identity exactly once"
+            )
+            .into());
+        }
+        self.caller_validated = true;
+        Ok(())
     }
 }
 
@@ -82,27 +100,43 @@ where
     }
 
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
-        Ok(fvm::validation::validate_immediate_caller_accept_any()?)
+        self.assert_not_validated()
     }
 
     fn validate_immediate_caller_is<'a, I>(&mut self, addresses: I) -> Result<(), ActorError>
     where
         I: IntoIterator<Item = &'a Address>,
     {
-        let addrs = addresses.into_iter().map(|e| *e).collect::<Vec<Address>>();
-        Ok(fvm::validation::validate_immediate_caller_addr_one_of(
-            addrs.as_slice(),
-        )?)
+        self.assert_not_validated()?;
+
+        let caller_addr = self.message().caller();
+        if addresses.into_iter().any(|a| *a == caller_addr) {
+            Ok(())
+        } else {
+            return Err(actor_error!(SysErrForbidden;
+                "caller {} is not one of supported", caller_addr
+            )
+            .into());
+        }
     }
 
     fn validate_immediate_caller_type<'a, I>(&mut self, types: I) -> Result<(), ActorError>
     where
         I: IntoIterator<Item = &'a Cid>,
     {
-        let cids = types.into_iter().map(|e| *e).collect::<Vec<Cid>>();
-        Ok(fvm::validation::validate_immediate_caller_type_one_of(
-            cids.as_slice(),
-        )?)
+        self.assert_not_validated()?;
+
+        let caller_addr = self.message().caller();
+        let caller_cid = self
+            .get_actor_code_cid(&caller_addr)?
+            .expect("failed to lookup caller code");
+        if types.into_iter().any(|c| *c == caller_cid) {
+            Ok(())
+        } else {
+            return Err(actor_error!(SysErrForbidden;
+                    "caller cid type {} not one of supported", caller_cid)
+            .into());
+        }
     }
 
     fn current_balance(&self) -> Result<TokenAmount, ActorError> {
@@ -335,11 +369,24 @@ pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
 
     // Construct a new runtime.
     let mut rt = FvmRuntime::default();
-    // Invoke the method, aborting if the actor returns an errored exit code, or
-    // handling the return data appropriately otherwise.
-    match C::invoke_method(&mut rt, method, &params) {
-        Err(err) => fvm::vm::abort(err.exit_code() as u32, Some(err.msg())),
-        Ok(ret) if ret.len() == 0 => 0,
-        Ok(ret) => fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result"),
+    // Invoke the method, aborting if the actor returns an errored exit code.
+    let ret = C::invoke_method(&mut rt, method, &params)
+        .unwrap_or_else(|err| fvm::vm::abort(err.exit_code() as u32, Some(err.msg())));
+
+    // Abort with "illegal actor" if the actor failed to validate the caller somewhere.
+    // We do this after handling the error, because the actor may have encountered an error before
+    // it even could validate the caller.
+    if !rt.caller_validated {
+        fvm::vm::abort(
+            ExitCode::SysErrIllegalActor as u32,
+            Some("failed to validate caller"),
+        )
+    }
+
+    // Then handle the return value.
+    if ret.is_empty() {
+        0
+    } else {
+        fvm::ipld::put_block(DAG_CBOR, ret.bytes()).expect("failed to write result")
     }
 }
