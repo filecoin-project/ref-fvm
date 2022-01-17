@@ -28,8 +28,7 @@ impl GasTracker {
     /// enough gas remaining for charge.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), SyscallError> {
         let to_use = charge.total();
-        let used_or = self.gas_used.checked_add(to_use);
-        match used_or {
+        match self.gas_used.checked_add(to_use) {
             None => {
                 self.gas_used = self.gas_available;
                 Err(syscall_error!(SysErrOutOfGas;
@@ -45,7 +44,7 @@ impl GasTracker {
                        used, self.gas_available
                     ))
                 } else {
-                    self.gas_used += to_use;
+                    self.gas_used = used;
                     Ok(())
                 }
             }
