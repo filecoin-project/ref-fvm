@@ -83,7 +83,7 @@ Here's what you'll find in each directory:
   - Focus: pre-mainnet preparations.
   - Estimated: June '22.
 - Final:
-  - Declared when: FVM v1 is operating mainnet, i.e. when M1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: FVM v1 is operating mainnet, i.e. when M2 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
   - Estimated: end of June '22.
 
 ## License
