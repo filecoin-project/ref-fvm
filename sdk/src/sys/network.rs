@@ -2,7 +2,7 @@ super::fvm_syscalls! {
     module = "network";
 
     /// Gets the current epoch.
-    pub fn curr_epoch() -> Result<u64>;
+    pub fn curr_epoch() -> Result<i64>;
 
     /// Gets the network version.
     pub fn version() -> Result<u32>;

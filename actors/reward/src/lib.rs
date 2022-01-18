@@ -108,7 +108,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_is(std::iter::once(&*SYSTEM_ACTOR_ADDR))?;
-        let prior_balance = rt.current_balance()?;
+        let prior_balance = rt.current_balance();
         if params.penalty.sign() == Sign::Minus {
             return Err(actor_error!(
                 ErrIllegalArgument,
@@ -140,7 +140,7 @@ impl Actor {
         }
 
         let miner_addr = rt
-            .resolve_address(&params.miner)?
+            .resolve_address(&params.miner)
             .ok_or_else(|| actor_error!(ErrNotFound, "failed to resolve given owner address"))?;
 
         let penalty: TokenAmount = &params.penalty * PENALTY_MULTIPLIER;
@@ -149,7 +149,7 @@ impl Actor {
             let mut block_reward: TokenAmount = (&st.this_epoch_reward * params.win_count)
                 .div_floor(&TokenAmount::from(EXPECTED_LEADERS_PER_EPOCH));
             let mut total_reward = &params.gas_reward + &block_reward;
-            let curr_balance = rt.current_balance()?;
+            let curr_balance = rt.current_balance();
             if total_reward > curr_balance {
                 warn!(
                     "reward actor balance {} below totalReward expected {},\

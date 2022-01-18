@@ -605,7 +605,7 @@ where
     let mut applied = false;
     let threshold_met = txn.approved.len() as u64 >= st.num_approvals_threshold;
     if threshold_met {
-        st.check_available(rt.current_balance()?, &txn.value, rt.curr_epoch())
+        st.check_available(rt.current_balance(), &txn.value, rt.curr_epoch())
             .map_err(|e| {
                 actor_error!(ErrInsufficientFunds, "insufficient funds unlocked: {}", e)
             })?;
@@ -703,7 +703,7 @@ fn compute_proposal_hash(txn: &Transaction, sys: &dyn Syscalls) -> anyhow::Resul
     let data = to_vec(&proposal_hash)
         .map_err(|e| ActorError::from(e).wrap("failed to construct multisig approval hash"))?;
 
-    sys.hash_blake2b(&data)
+    Ok(sys.hash_blake2b(&data))
 }
 
 impl ActorCode for Actor {

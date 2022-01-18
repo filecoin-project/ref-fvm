@@ -4,8 +4,8 @@ use fvm_shared::sys;
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
 
-pub fn curr_epoch(context: Context<'_, impl Kernel>) -> Result<u64> {
-    Ok(context.kernel.network_epoch() as u64)
+pub fn curr_epoch(context: Context<'_, impl Kernel>) -> Result<i64> {
+    Ok(context.kernel.network_epoch())
 }
 
 pub fn version(context: Context<'_, impl Kernel>) -> Result<u32> {

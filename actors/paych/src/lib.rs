@@ -97,7 +97,7 @@ impl Actor {
         })?;
 
         let code_cid = rt
-            .get_actor_code_cid(&resolved)?
+            .get_actor_code_cid(&resolved)
             .ok_or_else(|| actor_error!(ErrIllegalArgument, "no code for address {}", resolved))?;
 
         if code_cid != *ACCOUNT_ACTOR_CODE_ID {
@@ -162,7 +162,7 @@ impl Actor {
         })?;
 
         let pch_addr = rt.message().receiver();
-        let svpch_id_addr = rt.resolve_address(&sv.channel_addr)?.ok_or_else(|| {
+        let svpch_id_addr = rt.resolve_address(&sv.channel_addr).ok_or_else(|| {
             actor_error!(
                 ErrIllegalArgument,
                 "voucher payment channel address {} does not resolve to an ID address",
@@ -189,9 +189,7 @@ impl Actor {
         }
 
         if !sv.secret_pre_image.is_empty() {
-            let hashed_secret: &[u8] = &rt
-                .hash_blake2b(&params.secret)
-                .map_err(|e| e.downcast_fatal("unexpected error from blake2b hash"))?;
+            let hashed_secret: &[u8] = &rt.hash_blake2b(&params.secret);
             if hashed_secret != sv.secret_pre_image.as_slice() {
                 return Err(actor_error!(ErrIllegalArgument; "incorrect secret"));
             }
@@ -274,7 +272,7 @@ impl Actor {
                     "voucher would leave channel balance negative"));
             }
 
-            if new_send_balance > rt.current_balance()? {
+            if new_send_balance > rt.current_balance() {
                 return Err(actor_error!(ErrIllegalArgument;
                     "not enough funds in channel to cover voucher"));
             }

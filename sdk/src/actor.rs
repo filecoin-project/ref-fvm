@@ -7,18 +7,21 @@ use fvm_shared::ActorID;
 use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN};
 
 /// Resolves the ID address of an actor.
-pub fn resolve_address(addr: Address) -> SyscallResult<Option<ActorID>> {
+pub fn resolve_address(addr: &Address) -> Option<ActorID> {
     let bytes = addr.to_bytes();
     unsafe {
-        match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32)? {
-            fvm_shared::sys::out::actor::ResolveAddress { resolved: 0, value } => Ok(Some(value)),
-            _ => Ok(None),
+        match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32)
+            // Can only happen due to memory corruption.
+            .expect("error when resolving address")
+        {
+            fvm_shared::sys::out::actor::ResolveAddress { resolved: 0, value } => Some(value),
+            _ => None,
         }
     }
 }
 
 /// Look up the code ID at an actor address.
-pub fn get_actor_code_cid(addr: Address) -> SyscallResult<Option<Cid>> {
+pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
     let bytes = addr.to_bytes();
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
@@ -27,14 +30,14 @@ pub fn get_actor_code_cid(addr: Address) -> SyscallResult<Option<Cid>> {
             bytes.len() as u32,
             buf.as_mut_ptr(),
             MAX_CID_LEN as u32,
-        )?;
+        )
+        // Can only fail due to memory corruption
+        .expect("failed to lookup actor code cid");
         if ok == 0 {
             // Cid::read_bytes won't read until the end, just the bytes it needs.
-            Ok(Some(
-                Cid::read_bytes(&buf[..]).expect("invalid cid returned"),
-            ))
+            Some(Cid::read_bytes(&buf[..]).expect("invalid cid returned"))
         } else {
-            Ok(None)
+            None
         }
     }
 }
@@ -52,7 +55,7 @@ pub fn new_actor_address() -> SyscallResult<Address> {
 /// Creates a new actor of the specified type in the state tree, under
 /// the provided address.
 /// TODO this syscall will change to calculate the address internally.
-pub fn create_actor(actor_id: ActorID, code_cid: Cid) -> SyscallResult<()> {
+pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
 }

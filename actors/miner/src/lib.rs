@@ -672,7 +672,7 @@ impl Actor {
 
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -859,7 +859,7 @@ impl Actor {
         let aggregate_fee =
             aggregate_prove_commit_network_fee(precommits_to_confirm.len() as i64, &rt.base_fee());
         let unlocked_balance = state
-            .get_unlocked_balance(&rt.current_balance()?)
+            .get_unlocked_balance(&rt.current_balance())
             .map_err(|_e| actor_error!(ErrIllegalState, "failed to determine unlocked balance"))?;
         if unlocked_balance < aggregate_fee {
             return Err(actor_error!(
@@ -871,7 +871,7 @@ impl Actor {
         }
         burn_funds(rt, aggregate_fee)?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -1059,7 +1059,7 @@ impl Actor {
                     .repay_partial_debt_in_priority_order(
                         rt.store(),
                         current_epoch,
-                        &rt.current_balance()?,
+                        &rt.current_balance(),
                     )
                     .map_err(|e| {
                         e.downcast_default(ExitCode::ErrIllegalState, "failed to pay debt")
@@ -1093,7 +1093,7 @@ impl Actor {
         notify_pledge_changed(rt, &pledge_delta)?;
 
         let st: State = rt.state()?;
-        st.check_balance_invariants(&rt.current_balance()?)
+        st.check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -1268,7 +1268,7 @@ impl Actor {
             // this before RepayDebts. We would have to
             // subtract fee debt explicitly if we called this after.
             let available_balance = state
-                .get_available_balance(&rt.current_balance()?)
+                .get_available_balance(&rt.current_balance())
                 .map_err(|e| {
                     actor_error!(
                         ErrIllegalState,
@@ -1380,7 +1380,7 @@ impl Actor {
         burn_funds(rt, fee_to_burn)?;
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2036,7 +2036,7 @@ impl Actor {
         }
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2326,7 +2326,7 @@ impl Actor {
         burn_funds(rt, fee_to_burn)?;
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2574,15 +2574,15 @@ impl Actor {
 
             // This ensures the miner has sufficient funds to lock up amountToLock.
             // This should always be true if reward actor sends reward funds with the message.
-            let unlocked_balance =
-                st.get_unlocked_balance(&rt.current_balance()?)
-                    .map_err(|e| {
-                        actor_error!(
-                            ErrIllegalState,
-                            "failed to calculate unlocked balance: {}",
-                            e
-                        )
-                    })?;
+            let unlocked_balance = st
+                .get_unlocked_balance(&rt.current_balance())
+                .map_err(|e| {
+                    actor_error!(
+                        ErrIllegalState,
+                        "failed to calculate unlocked balance: {}",
+                        e
+                    )
+                })?;
 
             if unlocked_balance < reward_to_lock {
                 return Err(actor_error!(
@@ -2620,7 +2620,7 @@ impl Actor {
                 .repay_partial_debt_in_priority_order(
                     rt.store(),
                     rt.curr_epoch(),
-                    &rt.current_balance()?,
+                    &rt.current_balance(),
                 )
                 .map_err(|e| {
                     e.downcast_default(ExitCode::ErrIllegalState, "failed to repay penalty")
@@ -2633,7 +2633,7 @@ impl Actor {
         notify_pledge_changed(rt, &pledge_delta_total)?;
         burn_funds(rt, to_burn)?;
         let st: State = rt.state()?;
-        st.check_balance_invariants(&rt.current_balance()?)
+        st.check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2714,7 +2714,7 @@ impl Actor {
                 .repay_partial_debt_in_priority_order(
                     rt.store(),
                     rt.curr_epoch(),
-                    &rt.current_balance()?,
+                    &rt.current_balance(),
                 )
                 .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to pay fees"))?;
 
@@ -2743,7 +2743,7 @@ impl Actor {
 
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2798,7 +2798,7 @@ impl Actor {
                 // this before RepayDebts. We would have to
                 // subtract fee debt explicitly if we called this after.
                 let available_balance = state
-                    .get_available_balance(&rt.current_balance()?)
+                    .get_available_balance(&rt.current_balance())
                     .map_err(|e| {
                         actor_error!(
                             ErrIllegalState,
@@ -2849,7 +2849,7 @@ impl Actor {
         notify_pledge_changed(rt, &newly_vested.neg())?;
 
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2879,7 +2879,7 @@ impl Actor {
                 .repay_partial_debt_in_priority_order(
                     rt.store(),
                     rt.curr_epoch(),
-                    &rt.current_balance()?,
+                    &rt.current_balance(),
                 )
                 .map_err(|e| {
                     e.downcast_default(ExitCode::ErrIllegalState, "failed to unlock fee debt")
@@ -2893,7 +2893,7 @@ impl Actor {
         burn_funds(rt, burn_amount)?;
 
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -2947,7 +2947,7 @@ impl Actor {
         };
         let state: State = rt.state()?;
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,
@@ -3054,7 +3054,7 @@ where
                 .repay_partial_debt_in_priority_order(
                     rt.store(),
                     rt.curr_epoch(),
-                    &rt.current_balance()?,
+                    &rt.current_balance(),
                 )
                 .map_err(|e| {
                     e.downcast_default(ExitCode::ErrIllegalState, "failed to repay penalty")
@@ -3179,7 +3179,7 @@ where
             .repay_partial_debt_in_priority_order(
                 rt.store(),
                 rt.curr_epoch(),
-                &rt.current_balance()?,
+                &rt.current_balance(),
             )
             .map_err(|e| {
                 e.downcast_default(ExitCode::ErrIllegalState, "failed to unlock penalty")
@@ -3739,11 +3739,11 @@ where
     RT: Runtime<BS>,
 {
     let resolved = rt
-        .resolve_address(&raw)?
+        .resolve_address(&raw)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "unable to resolve address: {}", raw))?;
 
     let owner_code = rt
-        .get_actor_code_cid(&resolved)?
+        .get_actor_code_cid(&resolved)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "no code for address: {}", resolved))?;
     if !is_principal(&owner_code) {
         return Err(actor_error!(
@@ -3764,11 +3764,11 @@ where
     RT: Runtime<BS>,
 {
     let resolved = rt
-        .resolve_address(&raw)?
+        .resolve_address(&raw)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "unable to resolve address: {}", raw))?;
 
     let worker_code = rt
-        .get_actor_code_cid(&resolved)?
+        .get_actor_code_cid(&resolved)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "no code for address: {}", resolved))?;
     if worker_code != *ACCOUNT_ACTOR_CODE_ID {
         return Err(actor_error!(
@@ -3842,12 +3842,12 @@ where
 fn assign_proving_period_offset(
     addr: Address,
     current_epoch: ChainEpoch,
-    blake2b: impl FnOnce(&[u8]) -> anyhow::Result<[u8; 32]>,
+    blake2b: impl FnOnce(&[u8]) -> [u8; 32],
 ) -> anyhow::Result<ChainEpoch> {
     let mut my_addr = addr.marshal_cbor()?;
     my_addr.write_i64::<BigEndian>(current_epoch)?;
 
-    let digest = blake2b(&my_addr)?;
+    let digest = blake2b(&my_addr);
 
     let mut offset: u64 = BigEndian::read_u64(&digest);
     offset %= WPOST_PROVING_PERIOD as u64;
@@ -4022,7 +4022,7 @@ where
     BS: Blockstore,
     RT: Runtime<BS>,
 {
-    let res = state.repay_debts(&rt.current_balance()?).map_err(|e| {
+    let res = state.repay_debts(&rt.current_balance()).map_err(|e| {
         e.downcast_default(
             ExitCode::ErrIllegalState,
             "unlocked balance can not repay fee debt",
@@ -4129,7 +4129,7 @@ where
     RT: Runtime<BS>,
 {
     // get network stats from other actors
-    let circulating_supply = rt.total_fil_circ_supply()?;
+    let circulating_supply = rt.total_fil_circ_supply();
 
     // Ideally, we'd combine some of these operations, but at least we have
     // a constant number of them.
@@ -4328,7 +4328,7 @@ where
             .map_err(|e| actor_error!(ErrIllegalState, "failed to add precommit deposit: {}", e))?;
 
         let unlocked_balance = state
-            .get_unlocked_balance(&rt.current_balance()?)
+            .get_unlocked_balance(&rt.current_balance())
             .map_err(|e| {
                 actor_error!(
                     ErrIllegalState,
@@ -4350,7 +4350,7 @@ where
             .map_err(|e| actor_error!(ErrIllegalState, "failed to add initial pledge: {}", e))?;
 
         state
-            .check_balance_invariants(&rt.current_balance()?)
+            .check_balance_invariants(&rt.current_balance())
             .map_err(|e| {
                 ActorError::new(
                     ErrBalanceInvariantBroken,

@@ -4,30 +4,37 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 
-use crate::{sys, SyscallResult};
+use crate::sys;
 
-pub fn curr_epoch() -> SyscallResult<ChainEpoch> {
-    unsafe { Ok(sys::network::curr_epoch()? as ChainEpoch) }
+pub fn curr_epoch() -> ChainEpoch {
+    unsafe {
+        sys::network::curr_epoch()
+            // infallible
+            .expect("failed to get current epoch")
+    }
 }
 
-pub fn version() -> SyscallResult<NetworkVersion> {
+pub fn version() -> NetworkVersion {
     unsafe {
-        Ok(sys::network::version()?
+        sys::network::version()
+            .expect("failed to get network version")
             .try_into()
-            .expect("invalid version"))
+            .expect("invalid version")
     }
 }
 
-pub fn base_fee() -> SyscallResult<TokenAmount> {
+pub fn base_fee() -> TokenAmount {
     unsafe {
-        let v = sys::network::base_fee()?;
-        Ok(v.into())
+        sys::network::base_fee()
+            .expect("failed to get base fee")
+            .into()
     }
 }
 
-pub fn total_fil_circ_supply() -> SyscallResult<TokenAmount> {
+pub fn total_fil_circ_supply() -> TokenAmount {
     unsafe {
-        let v = sys::network::total_fil_circ_supply()?;
-        Ok(v.into())
+        sys::network::total_fil_circ_supply()
+            .expect("failed to get circulating supply")
+            .into()
     }
 }
