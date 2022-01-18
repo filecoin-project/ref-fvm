@@ -4,10 +4,8 @@ use thiserror::Error;
 /// TODO fix error system; actor errors should be transparent to the VM.
 /// The error type that gets returned by actor method calls.
 #[derive(Error, Debug, Clone, PartialEq)]
-#[error("ActorError(fatal: {fatal}, exit_code: {exit_code:?}, msg: {msg})")]
+#[error("ActorError(exit_code: {exit_code:?}, msg: {msg})")]
 pub struct ActorError {
-    /// Is this a fatal error.
-    fatal: bool,
     /// The exit code for this invocation, must not be `0`.
     exit_code: ExitCode,
     /// Message for debugging purposes,
@@ -16,24 +14,7 @@ pub struct ActorError {
 
 impl ActorError {
     pub fn new(exit_code: ExitCode, msg: String) -> Self {
-        Self {
-            fatal: false,
-            exit_code,
-            msg,
-        }
-    }
-
-    pub fn new_fatal(msg: String) -> Self {
-        Self {
-            fatal: true,
-            exit_code: ExitCode::ErrPlaceholder,
-            msg,
-        }
-    }
-
-    /// Returns true if error is fatal.
-    pub fn is_fatal(&self) -> bool {
-        self.fatal
+        Self { exit_code, msg }
     }
 
     /// Returns the exit code of the error.
@@ -62,7 +43,6 @@ impl ActorError {
 impl From<fvm_shared::encoding::Error> for ActorError {
     fn from(e: fvm_shared::encoding::Error) -> Self {
         Self {
-            fatal: false,
             exit_code: ExitCode::ErrSerialization,
             msg: e.to_string(),
         }
@@ -73,7 +53,6 @@ impl From<fvm_shared::encoding::Error> for ActorError {
 impl From<fvm_shared::encoding::error::Error> for ActorError {
     fn from(e: fvm_shared::encoding::error::Error) -> Self {
         Self {
-            fatal: false,
             exit_code: ExitCode::ErrSerialization,
             msg: e.to_string(),
         }
@@ -85,7 +64,6 @@ impl From<fvm_shared::encoding::error::Error> for ActorError {
 impl From<ExitCode> for ActorError {
     fn from(e: ExitCode) -> Self {
         ActorError {
-            fatal: false,
             exit_code: e,
             msg: "".to_string(),
         }
@@ -95,12 +73,6 @@ impl From<ExitCode> for ActorError {
 /// Convenience macro for generating Actor Errors
 #[macro_export]
 macro_rules! actor_error {
-    // Fatal Errors
-    ( fatal($msg:expr) ) => { $crate::ActorError::new_fatal($msg.to_string()) };
-    ( fatal($msg:literal $(, $ex:expr)+) ) => {
-        $crate::ActorError::new_fatal(format!($msg, $($ex,)*))
-    };
-
     // Error with only one stringable expression
     ( $code:ident; $msg:expr ) => { $crate::ActorError::new(fvm_shared::error::ExitCode::$code, $msg.to_string()) };
 
