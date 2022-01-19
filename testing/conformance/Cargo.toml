@@ -50,5 +50,9 @@ pretty_env_logger = "0.4.0"
 criterion = { version = "0.3", features = ["async_std"] }
 
 [[bench]]
-name = "bencher"
+name = "bench_conformance"
+harness = false
+
+[[bench]]
+name = "bench_conformance_overhead"
 harness = false
