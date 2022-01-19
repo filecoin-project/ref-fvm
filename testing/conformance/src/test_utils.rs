@@ -4,14 +4,22 @@ use std::fmt;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fmt::Display;
-use fvm::executor::ApplyRet;
+use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
+use fvm::machine::Machine;
 use fvm::state_tree::StateTree;
+use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::MemoryBlockstore;
+use fvm_shared::crypto::signature::SECP_SIG_LEN;
+use fvm_shared::encoding::Cbor;
+use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use lazy_static::lazy_static;
 use regex::Regex;
 use walkdir::DirEntry;
+
+use crate::vector::{MessageVector, Variant};
+use crate::vm::{TestKernel, TestMachine};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
@@ -154,4 +162,71 @@ pub enum VariantResult {
     Skipped { reason: String, id: String },
     /// A variant failed, due to the specified error.
     Failed { reason: anyhow::Error, id: String },
+}
+
+pub fn run_variant(
+    bs: MemoryBlockstore,
+    v: &MessageVector,
+    variant: &Variant,
+) -> anyhow::Result<VariantResult> {
+    let id = variant.id.clone();
+
+    // Construct the Machine.
+    let machine = TestMachine::new_for_vector(v, variant, bs);
+    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
+
+    // Apply all messages in the vector.
+    for (i, m) in v.apply_messages.iter().enumerate() {
+        let msg = Message::unmarshal_cbor(&m.bytes)?;
+
+        // Execute the message.
+        let mut raw_length = m.bytes.len();
+        if msg.from.protocol() == Protocol::Secp256k1 {
+            // 65 bytes signature + 1 byte type + 3 bytes for field info.
+            raw_length += SECP_SIG_LEN + 4;
+        }
+        let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
+            Ok(ret) => ret,
+            Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
+        };
+
+        // Compare the actual receipt with the expected receipt.
+        let expected_receipt = &v.postconditions.receipts[i];
+        if let Err(err) = check_msg_result(expected_receipt, &ret, i) {
+            return Ok(VariantResult::Failed { id, reason: err });
+        }
+    }
+
+    // Flush the machine, obtain the blockstore, and compare the
+    // resulting state root with the expected state root.
+    let final_root = match exec.flush() {
+        Ok(cid) => cid,
+        Err(err) => {
+            return Ok(VariantResult::Failed {
+                id,
+                reason: err.context("flushing executor failed"),
+            });
+        }
+    };
+
+    let machine = match exec.consume() {
+        Some(machine) => machine,
+        None => {
+            return Ok(VariantResult::Failed {
+                id,
+                reason: anyhow!("machine poisoned"),
+            })
+        }
+    };
+
+    let bs = machine.consume().consume();
+
+    if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
+        return Ok(VariantResult::Failed {
+            id,
+            reason: err.context("comparing state roots failed"),
+        });
+    }
+
+    Ok(VariantResult::Ok { id })
 }
