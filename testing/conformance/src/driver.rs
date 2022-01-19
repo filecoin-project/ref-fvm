@@ -14,6 +14,7 @@ use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use lazy_static::lazy_static;
+use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
 
@@ -103,8 +104,8 @@ fn compare_actors(
 
     match (actual, expected) {
         (Some(a), Some(e)) if a.state != e.state => {
-            let a_root: Vec<serde_cbor::Value> = bs.get_cbor(&a.state)?.unwrap();
-            let e_root: Vec<serde_cbor::Value> = bs.get_cbor(&e.state)?.unwrap();
+            let a_root: Vec<Ipld> = bs.get_cbor(&a.state)?.unwrap();
+            let e_root: Vec<Ipld> = bs.get_cbor(&e.state)?.unwrap();
             if a_root.len() != e_root.len() {
                 log::error!("states have different numbers of fields")
             } else {

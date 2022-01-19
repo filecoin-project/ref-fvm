@@ -40,12 +40,12 @@ colored = "2"
 either = "1.6.1"
 itertools = "0.10.3"
 num_cpus = "1.13.1"
-serde_cbor = { package = "cs_serde_cbor", version = "0.12", features = ["tags"]}
 serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.1.6", optional = true }
 actors-v6 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "v6" }
+libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [features]
 vtune = ["wasmtime/vtune", "ittapi-rs"]
