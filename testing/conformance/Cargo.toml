@@ -5,7 +5,7 @@ authors = ["ChainSafe Systems <info@chainsafe.io>"]
 edition = "2018"
 
 [features]
-default = []
+default = ["wasmtime/vtune"]
 
 [dependencies]
 anyhow = "1.0.47"
@@ -16,6 +16,7 @@ ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.7", default-features = false }
 multihash = { version = "0.15", default-features = false }
+actors-runtime = { path = "../../actors/runtime" }
 fvm = { path = "../../fvm", features = ["builtin_actors"], default-features = false}
 fvm_shared = { path = "../../shared" }
 ipld_hamt = { path = "../../ipld/hamt"}
@@ -41,6 +42,9 @@ itertools = "0.10.3"
 num_cpus = "1.13.1"
 serde_cbor = { package = "cs_serde_cbor", version = "0.12", features = ["tags"]}
 serde_json = { version = "1.0", features = ["raw_value"] }
+walkdir = "2.3"
+regex = { version = "1.0" }
+ittapi-rs = "0.1.6"
 
 [dev-dependencies]
 regex = { version = "1.0" }
@@ -48,3 +52,18 @@ walkdir = "2.3"
 flate2 = "1.0"
 lazy_static = "1.4"
 pretty_env_logger = "0.4.0"
+criterion = { version = "0.3", features = ["async_std"] }
+
+[[bin]]
+name = "perf-conformance"
+test = false
+bench = false
+#rustc-link-search = ["/root/ittapi/include"]
+
+[[bench]]
+name = "bench_conformance"
+harness = false
+
+[[bench]]
+name = "bench_conformance_overhead"
+harness = false
