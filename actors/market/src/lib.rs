@@ -257,7 +257,7 @@ impl Actor {
 
         // All deals should have the same provider so get worker once
         let provider_raw = params.deals[0].proposal.provider;
-        let provider = rt.resolve_address(&provider_raw)?.ok_or_else(|| {
+        let provider = rt.resolve_address(&provider_raw).ok_or_else(|| {
             actor_error!(
                 ErrNotFound,
                 "failed to resolve provider address {}",
@@ -265,7 +265,7 @@ impl Actor {
             )
         })?;
 
-        let code_id = rt.get_actor_code_cid(&provider)?.ok_or_else(|| {
+        let code_id = rt.get_actor_code_cid(&provider).ok_or_else(|| {
             actor_error!(ErrIllegalArgument, "no code ID for address {}", provider)
         })?;
         if code_id != *MINER_ACTOR_CODE_ID {
@@ -329,7 +329,7 @@ impl Actor {
                 continue;
             }
             let client = match rt.resolve_address(&deal.proposal.client) {
-                Ok(Some(client)) => client,
+                Some(client) => client,
                 _ => {
                     info!(
                         "invalid deal {}: failed to resolve proposal.client address {} for deal",
@@ -1359,7 +1359,7 @@ where
         proposal.piece_size,
         network_raw_power,
         baseline_power,
-        &rt.total_fil_circ_supply()?,
+        &rt.total_fil_circ_supply(),
     );
     if proposal.provider_collateral < min_provider_collateral
         || proposal.provider_collateral > max_provider_collateral
@@ -1418,11 +1418,11 @@ where
 {
     // Resolve the provided address to the canonical form against which the balance is held.
     let nominal = rt
-        .resolve_address(addr)?
+        .resolve_address(addr)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "failed to resolve address {}", addr))?;
 
     let code_id = rt
-        .get_actor_code_cid(&nominal)?
+        .get_actor_code_cid(&nominal)
         .ok_or_else(|| actor_error!(ErrIllegalArgument, "no code for address {}", nominal))?;
 
     if code_id == *MINER_ACTOR_CODE_ID {

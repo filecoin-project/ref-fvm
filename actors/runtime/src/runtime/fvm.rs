@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use anyhow::{anyhow, Error};
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
@@ -88,7 +86,7 @@ where
     B: Blockstore,
 {
     fn network_version(&self) -> NetworkVersion {
-        fvm::network::version().unwrap()
+        fvm::network::version()
     }
 
     fn message(&self) -> &dyn MessageInfo {
@@ -96,7 +94,7 @@ where
     }
 
     fn curr_epoch(&self) -> ChainEpoch {
-        fvm::network::curr_epoch().unwrap()
+        fvm::network::curr_epoch()
     }
 
     fn validate_immediate_caller_accept_any(&mut self) -> Result<(), ActorError> {
@@ -128,7 +126,7 @@ where
 
         let caller_addr = self.message().caller();
         let caller_cid = self
-            .get_actor_code_cid(&caller_addr)?
+            .get_actor_code_cid(&caller_addr)
             .expect("failed to lookup caller code");
         if types.into_iter().any(|c| *c == caller_cid) {
             Ok(())
@@ -139,16 +137,16 @@ where
         }
     }
 
-    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
-        Ok(fvm::sself::current_balance()?)
+    fn current_balance(&self) -> TokenAmount {
+        fvm::sself::current_balance()
     }
 
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
-        Ok(fvm::actor::resolve_address(*address)?.map(Address::new_id))
+    fn resolve_address(&self, address: &Address) -> Option<Address> {
+        fvm::actor::resolve_address(address).map(Address::new_id)
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
-        Ok(fvm::actor::get_actor_code_cid(*addr)?)
+    fn get_actor_code_cid(&self, addr: &Address) -> Option<Cid> {
+        fvm::actor::get_actor_code_cid(addr)
     }
 
     fn get_randomness_from_tickets(
@@ -248,23 +246,23 @@ where
     }
 
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<(), ActorError> {
-        Ok(fvm::actor::create_actor(actor_id, code_id)?)
+        Ok(fvm::actor::create_actor(actor_id, &code_id)?)
     }
 
     fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError> {
-        Ok(fvm::sself::self_destruct(*beneficiary)?)
+        Ok(fvm::sself::self_destruct(beneficiary)?)
     }
 
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
-        Ok(fvm::network::total_fil_circ_supply()?)
+    fn total_fil_circ_supply(&self) -> TokenAmount {
+        fvm::network::total_fil_circ_supply()
     }
 
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError> {
-        Ok(fvm::gas::charge(name, compute as u64)?)
+    fn charge_gas(&mut self, name: &'static str, compute: i64) {
+        fvm::gas::charge(name, compute as u64)
     }
 
     fn base_fee(&self) -> TokenAmount {
-        fvm::network::base_fee().unwrap()
+        fvm::network::base_fee()
     }
 }
 
@@ -284,9 +282,8 @@ where
         }
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], Error> {
+    fn hash_blake2b(&self, data: &[u8]) -> [u8; 32] {
         fvm::crypto::hash_blake2b(data)
-            .map_err(|e| anyhow!("failed to compute blake2b hash; exit code: {}", e))
     }
 
     fn compute_unsealed_sector_cid(

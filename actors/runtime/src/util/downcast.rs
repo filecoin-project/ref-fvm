@@ -16,10 +16,6 @@ pub trait ActorDowncast {
     /// into an ActorError automatically, use the provided `ExitCode` to generate a new error.
     fn downcast_default(self, default_exit_code: ExitCode, msg: impl AsRef<str>) -> ActorError;
 
-    /// Downcast a dynamic std Error into an `ActorError`. If the error cannot be downcasted
-    /// then it will convert the error into a fatal error.
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError;
-
     /// Wrap the error with a message, without overwriting an exit code.
     fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error;
 }
@@ -31,12 +27,6 @@ impl ActorDowncast for anyhow::Error {
             Err(other) => {
                 ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other))
             }
-        }
-    }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
-        match downcast_util(self) {
-            Ok(actor_error) => actor_error.wrap(msg),
-            Err(other) => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {
@@ -54,12 +44,6 @@ impl ActorDowncast for AmtError {
             other => ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
         }
     }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
-        match self {
-            AmtError::Dynamic(e) => e.downcast_fatal(msg),
-            other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
-        }
-    }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {
         match self {
             AmtError::Dynamic(e) => e.downcast_wrap(msg),
@@ -73,12 +57,6 @@ impl ActorDowncast for HamtError {
         match self {
             HamtError::Dynamic(e) => e.downcast_default(default_exit_code, msg),
             other => ActorError::new(default_exit_code, format!("{}: {}", msg.as_ref(), other)),
-        }
-    }
-    fn downcast_fatal(self, msg: impl AsRef<str>) -> ActorError {
-        match self {
-            HamtError::Dynamic(e) => e.downcast_fatal(msg),
-            other => ActorError::new_fatal(format!("{}: {}", msg.as_ref(), other)),
         }
     }
     fn downcast_wrap(self, msg: impl AsRef<str>) -> anyhow::Error {

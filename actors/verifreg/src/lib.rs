@@ -66,7 +66,7 @@ impl Actor {
 
         // root should be an ID address
         let id_addr = rt
-            .resolve_address(&root_key)?
+            .resolve_address(&root_key)
             .ok_or_else(|| actor_error!(ErrIllegalArgument, "root should be an ID address"))?;
 
         let st = State::new(rt.store(), id_addr).map_err(|e| {

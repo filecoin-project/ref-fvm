@@ -84,7 +84,7 @@ impl Actor {
         log::trace!("called exec; params.code_cid: {:?}", &params.code_cid);
 
         let caller_code = rt
-            .get_actor_code_cid(&rt.message().caller())?
+            .get_actor_code_cid(&rt.message().caller())
             .ok_or_else(|| {
                 actor_error!(
                     ErrIllegalState,

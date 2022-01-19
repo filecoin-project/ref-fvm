@@ -36,9 +36,7 @@ impl log::Log for Logger {
         }
     }
 
-    fn flush(&self) {
-        ()
-    }
+    fn flush(&self) {}
 }
 
 /// Initialize logging if debuggig is enabled.

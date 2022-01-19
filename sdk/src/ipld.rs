@@ -1,6 +1,6 @@
 use cid::Cid;
 
-use crate::{sself, sys, SyscallResult, MAX_CID_LEN};
+use crate::{sys, SyscallResult, MAX_CID_LEN};
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;
@@ -65,11 +65,4 @@ pub fn put_block(
     data: &[u8],
 ) -> SyscallResult<fvm_shared::sys::BlockId> {
     unsafe { sys::ipld::create(codec, data.as_ptr(), data.len() as u32) }
-}
-
-// Transform the IPLD DAG.
-pub fn transaction(f: impl FnOnce(Cid) -> Option<Cid>) -> SyscallResult<()> {
-    // TODO: Prevent calls, recursive transactions, etc.
-    f(sself::root()?).as_ref().map(sself::set_root);
-    Ok(())
 }

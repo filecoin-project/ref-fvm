@@ -18,7 +18,7 @@ where
     RT: Runtime<BS>,
 {
     // if we are able to resolve it to an ID address, return the resolved address
-    if let Some(addr) = rt.resolve_address(address)? {
+    if let Some(addr) = rt.resolve_address(address) {
         return Ok(addr);
     }
 
@@ -36,7 +36,7 @@ where
         ))
     })?;
 
-    rt.resolve_address(address)?.ok_or_else(|| {
+    rt.resolve_address(address).ok_or_else(|| {
         anyhow::anyhow!(
             "failed to resolve address {} to ID address even after sending zero balance",
             address,

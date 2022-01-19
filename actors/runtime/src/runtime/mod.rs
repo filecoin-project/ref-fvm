@@ -52,15 +52,15 @@ pub trait Runtime<BS: Blockstore>: Syscalls {
         I: IntoIterator<Item = &'a Cid>;
 
     /// The balance of the receiver.
-    fn current_balance(&self) -> Result<TokenAmount, ActorError>;
+    fn current_balance(&self) -> TokenAmount;
 
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError>;
+    fn resolve_address(&self, address: &Address) -> Option<Address>;
 
     /// Look up the code ID at an actor address.
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError>;
+    fn get_actor_code_cid(&self, addr: &Address) -> Option<Cid>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// ticket chain from a given epoch and incorporating requisite entropy.
@@ -142,11 +142,11 @@ pub trait Runtime<BS: Blockstore>: Syscalls {
     /// - funds burnt,
     /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
     /// - deal collateral locked by the storage market actor
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError>;
+    fn total_fil_circ_supply(&self) -> TokenAmount;
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &'static str, compute: i64) -> Result<(), ActorError>;
+    fn charge_gas(&mut self, name: &'static str, compute: i64);
 
     /// This function is a workaround for go-implementation's faulty exit code handling of
     /// parameters before version 7
@@ -193,7 +193,7 @@ pub trait Syscalls {
     ) -> Result<(), anyhow::Error>;
 
     /// Hashes input data using blake2b with 256 bit output.
-    fn hash_blake2b(&self, data: &[u8]) -> Result<[u8; 32], anyhow::Error>;
+    fn hash_blake2b(&self, data: &[u8]) -> [u8; 32];
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(

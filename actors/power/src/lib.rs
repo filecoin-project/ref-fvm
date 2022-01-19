@@ -394,7 +394,7 @@ impl Actor {
                 )
             })?;
 
-            rt.charge_gas("OnSubmitVerifySeal", GAS_ON_SUBMIT_VERIFY_SEAL)?;
+            rt.charge_gas("OnSubmitVerifySeal", GAS_ON_SUBMIT_VERIFY_SEAL);
             st.proof_validation_batch = Some(mmrc);
             Ok(())
         })?;

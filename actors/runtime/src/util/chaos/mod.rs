@@ -139,7 +139,7 @@ impl Actor {
         RT: Runtime<BS>,
     {
         rt.validate_immediate_caller_accept_any()?;
-        let resolved = rt.resolve_address(&args)?;
+        let resolved = rt.resolve_address(&args);
         Ok(ResolveAddressResponse {
             address: resolved.unwrap_or_else(|| Address::new_id(0)),
             success: resolved.is_some(),
@@ -190,7 +190,7 @@ impl Actor {
             receiver: rt.message().receiver(),
             value_received: rt.message().value_received(),
             curr_epoch: rt.curr_epoch(),
-            current_balance: rt.current_balance()?,
+            current_balance: rt.current_balance(),
             state: rt.state()?,
         })
     }

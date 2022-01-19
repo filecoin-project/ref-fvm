@@ -502,24 +502,24 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         )
     }
 
-    fn current_balance(&self) -> Result<TokenAmount, ActorError> {
+    fn current_balance(&self) -> TokenAmount {
         self.require_in_call();
-        Ok(self.balance.borrow().clone())
+        self.balance.borrow().clone()
     }
 
-    fn resolve_address(&self, address: &Address) -> Result<Option<Address>, ActorError> {
+    fn resolve_address(&self, address: &Address) -> Option<Address> {
         self.require_in_call();
         if address.protocol() == Protocol::ID {
-            return Ok(Some(*address));
+            return Some(*address);
         }
 
-        Ok(self.id_addresses.get(address).cloned())
+        self.id_addresses.get(address).cloned()
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>, ActorError> {
+    fn get_actor_code_cid(&self, addr: &Address) -> Option<Cid> {
         self.require_in_call();
 
-        Ok(self.actor_code_cids.get(addr).cloned())
+        self.actor_code_cids.get(addr).cloned()
     }
 
     fn get_randomness_from_tickets(
@@ -670,13 +670,12 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
         Ok(())
     }
 
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount, ActorError> {
+    fn total_fil_circ_supply(&self) -> TokenAmount {
         unimplemented!();
     }
 
-    fn charge_gas(&mut self, _: &'static str, _: i64) -> Result<(), ActorError> {
+    fn charge_gas(&mut self, _: &'static str, _: i64) {
         // TODO implement functionality if needed for testing
-        Ok(())
     }
 
     fn base_fee(&self) -> TokenAmount {
@@ -730,8 +729,8 @@ impl Syscalls for MockRuntime {
         Ok(())
     }
 
-    fn hash_blake2b(&self, data: &[u8]) -> anyhow::Result<[u8; 32]> {
-        Ok(blake2b_256(data))
+    fn hash_blake2b(&self, data: &[u8]) -> [u8; 32] {
+        blake2b_256(data)
     }
     fn compute_unsealed_sector_cid(
         &self,
