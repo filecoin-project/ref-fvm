@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use async_std::{stream, sync, task};
 use colored::*;
+use conformance_tests::test_utils::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};

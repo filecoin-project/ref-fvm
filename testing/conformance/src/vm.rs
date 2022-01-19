@@ -24,6 +24,7 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
+use wasmtime::Module;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -91,6 +92,26 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
             },
         }
+    }
+
+    pub fn load_builtin_actors_modules(&self) -> Result<Vec<Module>> {
+        let actor_codes = vec![
+            &*fvm::builtin::SYSTEM_ACTOR_CODE_ID,
+            &*fvm::builtin::INIT_ACTOR_CODE_ID,
+            &*fvm::builtin::CRON_ACTOR_CODE_ID,
+            &*fvm::builtin::ACCOUNT_ACTOR_CODE_ID,
+            &*fvm::builtin::POWER_ACTOR_CODE_ID,
+            &*fvm::builtin::MINER_ACTOR_CODE_ID,
+            &*fvm::builtin::MARKET_ACTOR_CODE_ID,
+            &*fvm::builtin::PAYCH_ACTOR_CODE_ID,
+            &*fvm::builtin::MULTISIG_ACTOR_CODE_ID,
+            &*fvm::builtin::REWARD_ACTOR_CODE_ID,
+            &*fvm::builtin::VERIFREG_ACTOR_CODE_ID,
+        ];
+        actor_codes
+            .iter()
+            .map(|code| self.load_module(&*code))
+            .collect()
     }
 }
 
