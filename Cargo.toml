@@ -33,11 +33,6 @@ ipld_hamt = { path = "./ipld/hamt" }
 ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }
 forest_bitfield = { path = "./ipld/bitfield" }
-filecoin-proofs-api = { git = "https://github.com/filecoin-project/rust-filecoin-proofs-api" }
-filecoin-proofs = { git = "https://github.com/filecoin-project/rust-fil-proofs" }
-storage-proofs-porep = { git = "https://github.com/filecoin-project/rust-fil-proofs" }
-sha2raw = { git = "https://github.com/filecoin-project/rust-fil-proofs" }
-fr32 = { git = "https://github.com/filecoin-project/rust-fil-proofs" }
 
 [profile.actor]
 inherits = "release"
