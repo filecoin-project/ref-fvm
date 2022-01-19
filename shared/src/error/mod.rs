@@ -19,8 +19,7 @@ pub enum ExitCode {
     /// Indicates failure to find an actor in the state tree.
     SysErrSenderInvalid = 1,
 
-    /// Indicates that the message sender was not in a valid state to send this message. This means
-    /// that the message shouldn't have been included on-chain.
+    /// Indicates that the message sender was not in a valid state to send this message.
     ///
     /// Either:
     /// - The sender's nonce nonce didn't match the message nonce.
