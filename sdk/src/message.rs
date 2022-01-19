@@ -11,20 +11,20 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 /// Returns the ID address of the caller.
 #[inline(always)]
-pub fn caller() -> SyscallResult<ActorID> {
-    unsafe { sys::message::caller() }
+pub fn caller() -> ActorID {
+    unsafe { sys::message::caller().expect("failed to lookup caller ID") }
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
-pub fn receiver() -> SyscallResult<ActorID> {
-    unsafe { sys::message::receiver() }
+pub fn receiver() -> ActorID {
+    unsafe { sys::message::receiver().expect("failed to lookup actor ID") }
 }
 
 /// Returns the message's method number.
 #[inline(always)]
-pub fn method_number() -> SyscallResult<MethodNum> {
-    unsafe { sys::message::method_number() }
+pub fn method_number() -> MethodNum {
+    unsafe { sys::message::method_number().expect("failed to lookup method number") }
 }
 
 /// Returns the message codec and parameters.
@@ -56,10 +56,11 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
-pub fn value_received() -> SyscallResult<TokenAmount> {
+pub fn value_received() -> TokenAmount {
     unsafe {
-        let v = sys::message::value_received()?;
-        Ok(v.into())
+        sys::message::value_received()
+            .expect("failed to lookup received value")
+            .into()
     }
 }
 
