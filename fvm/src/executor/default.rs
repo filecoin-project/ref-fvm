@@ -5,7 +5,8 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::econ::TokenAmount as TokenAmountBigInt;
+use fvm_shared::sys::TokenAmount as TokenAmountInts;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -172,7 +173,7 @@ where
         &mut self,
         msg: &Message,
         raw_length: usize,
-    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmountBigInt, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check().or_fatal()?;
 
@@ -239,7 +240,7 @@ where
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
+        let gas_cost: TokenAmountBigInt = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 syscall_error!(SysErrSenderStateInvalid;
@@ -282,7 +283,7 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
+        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmountBigInt| -> anyhow::Result<()> {
             if amt.sign() == Sign::Minus {
                 return Err(anyhow!("attempted to transfer negative value into actor"));
             }
@@ -315,8 +316,8 @@ where
         Ok(ApplyRet {
             msg_receipt: receipt,
             backtrace,
-            penalty: miner_penalty,
-            miner_tip,
+            penalty: TokenAmountInts::try_from(miner_penalty)?,
+            miner_tip: TokenAmountInts::try_from(miner_tip)?,
         })
     }
 

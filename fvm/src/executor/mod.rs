@@ -1,11 +1,12 @@
 mod default;
 
 pub use default::DefaultExecutor;
-use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::bigint::BigInt;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
+use fvm_shared::sys::TokenAmount;
 
 use crate::kernel::SyscallError;
 use crate::machine::CallError;
@@ -31,9 +32,9 @@ pub struct ApplyRet {
     /// A backtrace for the transaction, if it failed.
     pub backtrace: Vec<CallError>,
     /// Gas penalty from transaction, if any.
-    pub penalty: BigInt,
+    pub penalty: TokenAmount,
     /// Tip given to miner from message.
-    pub miner_tip: BigInt,
+    pub miner_tip: TokenAmount,
 }
 
 impl ApplyRet {
@@ -45,18 +46,14 @@ impl ApplyRet {
                 return_data: RawBytes::default(),
                 gas_used: 0,
             },
-            penalty: miner_penalty,
+            penalty: TokenAmount::try_from(miner_penalty).unwrap(),
             backtrace: vec![CallError {
                 source: 0,
                 code: error.1,
                 message: error.0,
             }],
-            miner_tip: BigInt::zero(),
+            miner_tip: TokenAmount::try_from(BigInt::zero()).unwrap(),
         }
-    }
-
-    pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {
-        self.miner_tip.assign_from_slice(sign, slice)
     }
 }
 
