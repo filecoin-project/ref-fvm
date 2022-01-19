@@ -10,7 +10,7 @@ use crate::kernel::{ClassifyResult, Kernel, Result};
 /// buffer is smaller, no value will have been written. The caller must retry
 /// with a larger buffer.
 pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> Result<u32> {
-    let root = context.kernel.root();
+    let root = context.kernel.root()?;
     let size = super::encoded_cid_size(&root);
 
     if size <= obuf_len {

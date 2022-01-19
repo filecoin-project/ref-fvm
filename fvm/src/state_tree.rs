@@ -362,7 +362,7 @@ where
         self.delete_actor_id(id)
     }
 
-    /// Delete actor identified by the supplied ID.
+    /// Delete actor identified by the supplied ID. Returns no error if the actor doesn't exist.
     pub fn delete_actor_id(&mut self, id: ActorID) -> Result<()> {
         // Remove value from cache
         self.snaps.delete_actor(id)?;
@@ -370,21 +370,52 @@ where
         Ok(())
     }
 
-    /// Mutate and set actor state for an Address.
+    /// Mutate and set actor state for an Address. Returns false if the actor did not exist. Returns
+    /// a fatal error if the actor doesn't exist.
     pub fn mutate_actor<F>(&mut self, addr: &Address, mutate: F) -> Result<()>
     where
         F: FnOnce(&mut ActorState) -> Result<()>,
     {
+        let id = match self.lookup_id(addr)? {
+            Some(id) => id,
+            None => return Err(anyhow!("failed to lookup actor {}", addr)).or_fatal(),
+        };
+
+        self.mutate_actor_id(id, mutate)
+    }
+
+    /// Mutate and set actor state identified by the supplied ID. Returns a fatal error if the actor
+    /// doesn't exist.
+    pub fn mutate_actor_id<F>(&mut self, id: ActorID, mutate: F) -> Result<()>
+    where
+        F: FnOnce(&mut ActorState) -> Result<()>,
+    {
+        self.maybe_mutate_actor_id(id, mutate).and_then(|found| {
+            if found {
+                Ok(())
+            } else {
+                Err(anyhow!("failed to lookup actor {}", id)).or_fatal()
+            }
+        })
+    }
+
+    /// Try to mutate the actor state identified by the supplied ID, returning false if the actor
+    /// doesn't exist.
+    pub fn maybe_mutate_actor_id<F>(&mut self, id: ActorID, mutate: F) -> Result<bool>
+    where
+        F: FnOnce(&mut ActorState) -> Result<()>,
+    {
         // Retrieve actor state from address
-        let mut act: ActorState = self
-            .get_actor(addr)?
-            .with_context(|| format!("Actor for address: {} does not exist", addr))
-            .or_fatal()?;
+        let mut act = match self.get_actor_id(id)? {
+            Some(act) => act,
+            None => return Ok(false),
+        };
 
         // Apply function of actor state
         mutate(&mut act)?;
         // Set the actor
-        self.set_actor(addr, act)
+        self.set_actor_id(id, act)?;
+        Ok(true)
     }
 
     /// Register a new address through the init actor.

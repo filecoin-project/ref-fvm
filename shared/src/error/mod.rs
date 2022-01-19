@@ -19,13 +19,17 @@ pub enum ExitCode {
     /// Indicates failure to find an actor in the state tree.
     SysErrSenderInvalid = 1,
 
-    /// Indicates failure to find the code for an actor.
+    /// Indicates that the message sender was not in a valid state to send this message.
+    ///
+    /// Either:
+    /// - The sender's nonce nonce didn't match the message nonce.
+    /// - The sender didn't have the funds to cover the message gas.
     SysErrSenderStateInvalid = 2,
 
     /// Indicates failure to find a method in an actor.
     SysErrInvalidMethod = 3,
 
-    /// Used for catching panics currently. (marked as unused/SysErrReserved1 in go impl though)
+    /// Used for catching panics currently.
     SysErrActorPanic = 4,
 
     /// Indicates that the receiver of a message is not valid (and cannot be implicitly created).

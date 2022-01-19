@@ -4,6 +4,7 @@ use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ExitCode;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::Level::Trace;
@@ -244,18 +245,17 @@ where
             .into());
         }
 
-        // TODO: make sure these are actually fatal.
         let mut from_actor = self
             .state_tree
             .get_actor_id(from)?
-            .ok_or_else(|| anyhow!("sender actor does not exist in state during transfer"))
-            .or_fatal()?;
+            .context("cannot transfer from non-existent sender")
+            .or_error(ExitCode::SysErrSenderInvalid)?;
 
         let mut to_actor = self
             .state_tree
             .get_actor_id(to)?
-            .ok_or_else(|| anyhow!("receiver actor does not exist in state during transfer"))
-            .or_fatal()?;
+            .context("cannot transfer to non-existent receiver")
+            .or_error(ExitCode::SysErrInvalidReceiver)?;
 
         from_actor.deduct_funds(value).map_err(|e| {
             syscall_error!(SysErrInsufficientFunds;
@@ -264,12 +264,8 @@ where
         })?;
         to_actor.deposit_funds(value);
 
-        // TODO turn failures into fatal errors
         self.state_tree.set_actor_id(from, from_actor)?;
-        // .map_err(|e| e.downcast_fatal("failed to set from actor"))?;
-        // TODO turn failures into fatal errors
         self.state_tree.set_actor_id(to, to_actor)?;
-        //.map_err(|e| e.downcast_fatal("failed to set to actor"))?;
 
         log::trace!("transfered {} from {} to {}", value, from, to);
 
