@@ -15,10 +15,10 @@ pub fn abort(
     message_len: u32,
 ) -> Result<(), Trap> {
     // Get the error and convert it into a "system illegal argument error" if it's invalid.
+    // BUG: https://github.com/filecoin-project/fvm/issues/253
     let code = ExitCode::from_u32(code)
-        // BUG: https://github.com/filecoin-project/fvm/issues/253
         //.filter(|c| !c.is_system_error())
-        .unwrap_or(ExitCode::SysErrIllegalActor);
+        .unwrap_or(ExitCode::SysErrIllegalActor); // TODO: will become "illegal exit"
 
     match (|| {
         let message = if message_len == 0 {
@@ -32,7 +32,7 @@ pub fn abort(
         context.kernel.push_actor_error(code, message);
         Ok(())
     })() {
-        Err(ExecutionError::Syscall(e)) if e.is_recoverable() => {
+        Err(ExecutionError::Syscall(e)) => {
             // We're logging the actor error here, not the syscall error.
             context.kernel.push_actor_error(
                 code,

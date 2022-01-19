@@ -2,14 +2,13 @@ use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
 use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, Kernel, Result, SyscallError};
+use crate::kernel::{ClassifyResult, Kernel, Result};
 use crate::machine::{CallError, Machine};
 use crate::syscall_error;
 use crate::syscalls::bind_syscalls;
@@ -99,7 +98,7 @@ where
     {
         if self.call_stack_depth > self.machine.config().max_call_depth {
             return Err(
-                syscall_error!(SysErrForbidden, "message execution exceeds call depth").into(),
+                syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
             );
         }
         self.call_stack_depth += 1;
@@ -187,11 +186,9 @@ where
         self.charge_gas(self.price_list().on_create_actor())?;
 
         if addr.is_bls_zero_address() {
-            return Err(SyscallError::new(
-                ExitCode::SysErrIllegalArgument,
-                "cannot create the bls zero address actor",
-            )
-            .into());
+            return Err(
+                syscall_error!(IllegalArgument; "cannot create the bls zero address actor").into(),
+            );
         }
 
         // Create the actor in the state tree.
@@ -202,7 +199,7 @@ where
         // instantiate a new kernel to invoke the constructor.
         let params = RawBytes::serialize(&addr)
             // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
-            .map_err(|e| syscall_error!(ErrSerialization; "failed to serialize params: {}", e))?;
+            .map_err(|e| syscall_error!(Serialization; "failed to serialize params: {}", e))?;
 
         self.send_resolved::<K>(
             crate::account_actor::SYSTEM_ACTOR_ID,
@@ -236,12 +233,7 @@ where
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor::<K>(&to)?
                 }
-                _ => {
-                    return Err(
-                        syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
-                            .into(),
-                    )
-                }
+                _ => return Err(syscall_error!(NotFound; "actor does not exist: {}", to).into()),
             },
         };
 
@@ -266,7 +258,7 @@ where
         let state = self
             .state_tree()
             .get_actor_id(to)?
-            .ok_or_else(|| syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to))?;
+            .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
         self.charge_gas(self.price_list().on_method_invocation(value, method))?;

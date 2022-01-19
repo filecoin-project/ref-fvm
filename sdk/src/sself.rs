@@ -1,20 +1,27 @@
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ErrorNumber;
 
-use crate::{sys, SyscallResult, MAX_CID_LEN};
+use crate::error::{ActorDeleteError, NoStateError};
+use crate::{sys, MAX_CID_LEN};
 
 /// Get the IPLD root CID. Fails if the actor doesn't have state (before the first call to
 /// `set_root` and after actor deletion).
-pub fn root() -> SyscallResult<Cid> {
+pub fn root() -> Result<Cid, NoStateError> {
     // I really hate this CID interface. Why can't I just have bytes?
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let len = sys::sself::root(buf.as_mut_ptr(), buf.len() as u32)? as usize;
+        let len = sys::sself::root(buf.as_mut_ptr(), buf.len() as u32).map_err(|e| match e {
+            ErrorNumber::IllegalOperation => NoStateError,
+            e => panic!("unexpected error from `self::root` syscall: {}", e),
+        })? as usize;
+
         if len > buf.len() {
             // TODO: re-try with a larger buffer?
             panic!("CID too big: {} > {}", len, buf.len())
         }
+
         Ok(Cid::read_bytes(&buf[..len]).expect("runtime returned an invalid CID"))
     }
 }
@@ -25,11 +32,17 @@ pub fn root() -> SyscallResult<Cid> {
 ///
 /// - The new root is not in the actor's "reachable" set.
 /// - Fails if the actor has been deleted.
-pub fn set_root(cid: &Cid) -> SyscallResult<()> {
+pub fn set_root(cid: &Cid) -> Result<(), NoStateError> {
     let mut buf = [0u8; MAX_CID_LEN];
     cid.write_bytes(&mut buf[..])
         .expect("CID encoding should not fail");
-    unsafe { sys::sself::set_root(buf.as_ptr()) }
+
+    unsafe {
+        sys::sself::set_root(buf.as_ptr()).map_err(|e| match e {
+            ErrorNumber::IllegalOperation => NoStateError,
+            e => panic!("unexpected error from `self::set_root` syscall: {}", e),
+        })
+    }
 }
 
 /// Gets the current balance for the calling actor.
@@ -46,7 +59,13 @@ pub fn current_balance() -> TokenAmount {
 /// to the supplied address, which cannot be itself.
 ///
 /// Fails if the beneficiary doesn't exist or is the actor being deleted.
-pub fn self_destruct(beneficiary: &Address) -> SyscallResult<()> {
+pub fn self_destruct(beneficiary: &Address) -> Result<(), ActorDeleteError> {
     let bytes = beneficiary.to_bytes();
-    unsafe { sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32) }
+    unsafe {
+        sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32).map_err(|e| match e {
+            ErrorNumber::Forbidden => ActorDeleteError::BeneficiaryIsSelf,
+            ErrorNumber::NotFound => ActorDeleteError::BeneficiaryDoesNotExist,
+            _ => panic!("unexpected error from `self::self_destruct` syscall: {}", e),
+        })
+    }
 }

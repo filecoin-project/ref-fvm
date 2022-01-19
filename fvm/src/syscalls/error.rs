@@ -8,7 +8,7 @@ use num_traits::FromPrimitive;
 use wasmtime::Trap;
 
 use crate::call_manager::InvocationResult;
-use crate::kernel::{ClassifyResult, ExecutionError, SyscallError};
+use crate::kernel::{ClassifyResult, ExecutionError};
 
 /// Wraps an execution error in a Trap.
 pub fn trap_from_error(e: ExecutionError) -> Trap {
@@ -40,7 +40,7 @@ pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<InvocationResult> {
     }
 
     if e.trap_code().is_some() {
-        return Err(SyscallError(e.to_string(), ExitCode::SysErrIllegalActor).into());
+        return Ok(InvocationResult::Failure(ExitCode::SysErrActorPanic));
     }
 
     // Do whatever we can to pull the original error back out (if it exists).

@@ -50,7 +50,7 @@ pub fn new_actor_address(
 ) -> Result<u32> {
     if obuf_len < 21 {
         return Err(
-            syscall_error!(SysErrIllegalArgument; "output buffer must have a minimum capacity of 21 bytes").into(),
+            syscall_error!(IllegalArgument; "output buffer must have a minimum capacity of 21 bytes").into(),
         );
     }
 
@@ -59,7 +59,7 @@ pub fn new_actor_address(
 
     let len = bytes.len();
     if len > obuf_len as usize {
-        return Err(syscall_error!(SysErrIllegalArgument;
+        return Err(syscall_error!(IllegalArgument;
             "insufficient output buffer capacity; {} (new address) > {} (buffer capacity)",
             len, obuf_len
         )

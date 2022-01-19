@@ -44,7 +44,7 @@ macro_rules! fvm_syscalls {
     // Returns no values.
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<()>; $($rest:tt)*) => {
         $(#[$attrs])*
-        $v unsafe fn $name($($args:$args_ty),*) -> Result<(), fvm_shared::error::ExitCode> {
+        $v unsafe fn $name($($args:$args_ty),*) -> Result<(), fvm_shared::error::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
                 #[link_name = stringify!($name)]
@@ -53,11 +53,11 @@ macro_rules! fvm_syscalls {
 
             let code = syscall($($args),*);
 
-            match num_traits::FromPrimitive::from_u32(code) {
-                Some(fvm_shared::error::ExitCode::Ok) => Ok(()),
-                Some(code) if code.is_system_error() => Err(code),
-                Some(code) => panic!("syscall returned non-system error {}", code),
-                None => panic!("syscall returned unrecognized exit code"),
+            if code == 0 {
+                Ok(())
+            } else {
+                Err(num_traits::FromPrimitive::from_u32(code)
+                    .expect("syscall returned unrecognized exit code"))
             }
         }
         $crate::sys::fvm_syscalls! {
@@ -67,7 +67,7 @@ macro_rules! fvm_syscalls {
     // Returns a value.
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<$ret:ty>; $($rest:tt)*) => {
         $(#[$attrs])*
-        $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, fvm_shared::error::ExitCode> {
+        $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, fvm_shared::error::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
                 #[link_name = stringify!($name)]
@@ -77,11 +77,11 @@ macro_rules! fvm_syscalls {
             let mut ret = std::mem::MaybeUninit::<$ret>::uninit();
             let code = syscall(ret.as_mut_ptr(), $($args),*);
 
-            match num_traits::FromPrimitive::from_u32(code) {
-                Some(fvm_shared::error::ExitCode::Ok) => Ok(ret.assume_init()),
-                Some(code) if code.is_system_error() => Err(code),
-                Some(code) => panic!("syscall returned non-system error {}", code),
-                None => panic!("syscall returned unrecognized exit code"),
+            if code == 0 {
+                Ok(ret.assume_init())
+            } else {
+                Err(num_traits::FromPrimitive::from_u32(code)
+                    .expect("syscall returned unrecognized exit code"))
             }
         }
         $crate::sys::fvm_syscalls! {

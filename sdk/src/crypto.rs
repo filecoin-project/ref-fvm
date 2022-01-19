@@ -3,7 +3,6 @@ use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{to_vec, Cbor};
-use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -18,7 +17,7 @@ pub fn verify_signature(
     signature: &Signature,
     signer: &Address,
     plaintext: &[u8],
-) -> Result<bool, ExitCode> {
+) -> SyscallResult<bool> {
     let signature = signature
         .marshal_cbor()
         .expect("failed to marshal signature");

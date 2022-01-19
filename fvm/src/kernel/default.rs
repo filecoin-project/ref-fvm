@@ -16,7 +16,7 @@ use fvm_shared::commcid::{
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
@@ -31,7 +31,7 @@ use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
-use crate::machine::CallError;
+use crate::machine::{CallError, CallErrorCode};
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
 use crate::state_tree::ActorState;
@@ -114,9 +114,7 @@ where
             .or_illegal_argument()?;
 
         if !is_account_actor(&act.code) {
-            return Err(
-                syscall_error!(SysErrIllegalArgument; "target actor is not an account").into(),
-            );
+            return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
         let state: crate::account_actor::State = state_tree
@@ -188,7 +186,7 @@ where
                 if found {
                     Ok(())
                 } else {
-                    Err(syscall_error!(SysErrIllegalActor; "actor deleted").into())
+                    Err(syscall_error!(IllegalOperation; "actor deleted").into())
                 }
             })
     }
@@ -203,7 +201,7 @@ where
         Ok(self
             .get_self()?
             .context("state root requested after actor deletion")
-            .or_error(ExitCode::SysErrIllegalActor)?
+            .or_error(ErrorNumber::IllegalOperation)?
             .state)
     }
 
@@ -237,14 +235,12 @@ where
             let beneficiary_id = self
                 .resolve_address(beneficiary)?
                 .context("beneficiary doesn't exist")
-                .or_error(ExitCode::SysErrIllegalArgument)?;
+                .or_error(ErrorNumber::IllegalArgument)?;
 
             if beneficiary_id == self.actor_id {
-                return Err(syscall_error!(
-                    SysErrIllegalArgument,
-                    "benefactor cannot be beneficiary"
-                )
-                .into());
+                return Err(
+                    syscall_error!(IllegalArgument, "benefactor cannot be beneficiary").into(),
+                );
             }
 
             // Transfer the entirety of funds to beneficiary.
@@ -313,7 +309,7 @@ where
         let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
             return Err(
-                syscall_error!(SysErrIllegalArgument; "invalid hash length: {}", hash_len).into(),
+                syscall_error!(IllegalArgument; "invalid hash length: {}", hash_len).into(),
             );
         }
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
@@ -598,7 +594,7 @@ where
                 .on_verify_aggregate_seals(aggregate),
         )?;
         if aggregate.infos.is_empty() {
-            return Err(syscall_error!(SysErrIllegalArgument; "no seal verify infos").into());
+            return Err(syscall_error!(IllegalArgument; "no seal verify infos").into());
         }
         let spt: proofs::RegisteredSealProof =
             aggregate.seal_proof.try_into().or_illegal_argument()?;
@@ -764,21 +760,18 @@ where
     // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         if !is_builtin_actor(&code_id) {
-            return Err(
-                syscall_error!(SysErrIllegalArgument; "Can only create built-in actors").into(),
-            );
+            return Err(syscall_error!(IllegalArgument; "Can only create built-in actors").into());
         }
         if is_singleton_actor(&code_id) {
             return Err(
-                syscall_error!(SysErrIllegalArgument; "can only have one instance of singleton actors").into(),
+                syscall_error!(IllegalArgument; "can only have one instance of singleton actors")
+                    .into(),
             );
         }
 
         let state_tree = self.call_manager.state_tree();
         if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
-            return Err(
-                syscall_error!(SysErrIllegalArgument; "Actor address already exists").into(),
-            );
+            return Err(syscall_error!(IllegalArgument; "Actor address already exists").into());
         }
 
         self.call_manager
@@ -807,14 +800,14 @@ where
     fn push_syscall_error(&mut self, err: SyscallError) {
         self.call_manager.push_error(CallError {
             source: 0,
-            code: err.1,
+            code: CallErrorCode::Syscall(err.1),
             message: err.0,
         })
     }
     fn push_actor_error(&mut self, code: ExitCode, message: String) {
         self.call_manager.push_error(CallError {
             source: self.actor_id,
-            code,
+            code: CallErrorCode::Exit(code),
             message,
         })
     }

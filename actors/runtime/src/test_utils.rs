@@ -215,7 +215,7 @@ impl MockRuntime {
     }
     fn check_argument(&self, predicate: bool, msg: String) -> Result<(), ActorError> {
         if !predicate {
-            return Err(actor_error!(SysErrIllegalArgument; msg));
+            return Err(actor_error!(SysErrIllegalActor; msg));
         }
         Ok(())
     }
