@@ -69,15 +69,15 @@ struct FvmMessage;
 
 impl MessageInfo for FvmMessage {
     fn caller(&self) -> Address {
-        Address::new_id(fvm::message::caller().unwrap())
+        Address::new_id(fvm::message::caller())
     }
 
     fn receiver(&self) -> Address {
-        Address::new_id(fvm::message::receiver().unwrap())
+        Address::new_id(fvm::message::receiver())
     }
 
     fn value_received(&self) -> TokenAmount {
-        fvm::message::value_received().unwrap()
+        fvm::message::value_received()
     }
 }
 
@@ -349,7 +349,7 @@ where
 pub fn trampoline<C: ActorCode>(params: u32) -> u32 {
     fvm::debug::init_logging();
 
-    let method = fvm::message::method_number().expect("no method number");
+    let method = fvm::message::method_number();
     let params = if params > 0 {
         log::debug!("fetching parameters block: {}", params);
         let params = fvm::message::params_raw(params)
