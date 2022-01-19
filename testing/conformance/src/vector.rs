@@ -79,7 +79,7 @@ impl Selector {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Variant {
     pub id: String,
     pub epoch: ChainEpoch,

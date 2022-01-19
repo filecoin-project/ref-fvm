@@ -4,5 +4,6 @@
 pub mod cidjson;
 pub mod externs;
 pub mod rand;
+pub mod test_utils;
 pub mod vector;
 pub mod vm;

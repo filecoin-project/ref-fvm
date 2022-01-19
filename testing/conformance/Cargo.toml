@@ -39,11 +39,16 @@ colored = "2"
 either = "1.6.1"
 itertools = "0.10.3"
 num_cpus = "1.13.1"
+walkdir = "2.3"
+regex = { version = "1.0" }
 
 [dev-dependencies]
-regex = { version = "1.0" }
-walkdir = "2.3"
 serde_json = "1.0"
 flate2 = "1.0"
 lazy_static = "1.4"
 pretty_env_logger = "0.4.0"
+criterion = { version = "0.3", features = ["async_std"] }
+
+[[bench]]
+name = "bencher"
+harness = false
