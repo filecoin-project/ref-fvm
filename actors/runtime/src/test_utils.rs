@@ -676,7 +676,6 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
 
     fn charge_gas(&mut self, _: &'static str, _: i64) {
         // TODO implement functionality if needed for testing
-        ()
     }
 
     fn base_fee(&self) -> TokenAmount {
