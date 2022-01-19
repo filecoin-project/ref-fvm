@@ -10,6 +10,7 @@ use std::iter;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use colored::Colorize;
 use conformance_tests::test_utils::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
@@ -20,7 +21,6 @@ use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
-use log::*;
 use walkdir::WalkDir;
 
 fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecutor<TestKernel>) {
@@ -71,7 +71,10 @@ fn bench_vector_variant(
     });
 }
 
-fn bench_vector_file(group: &mut BenchmarkGroup<measurement::WallTime>, path: PathBuf) -> anyhow::Result<Vec<VariantResult>> {
+fn bench_vector_file(
+    group: &mut BenchmarkGroup<measurement::WallTime>,
+    path: PathBuf,
+) -> anyhow::Result<Vec<VariantResult>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
@@ -79,11 +82,15 @@ fn bench_vector_file(group: &mut BenchmarkGroup<measurement::WallTime>, path: Pa
     let TestVector::Message(vector) = vector;
     let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
     if skip {
-        info!(
-            "skipped benching {}, selector not supported.",
-            path.display()
-        );
-        return Ok(vector.preconditions.variants.iter().map(|variant| VariantResult::Skipped {reason: "selector not supported.".parse().unwrap(), id:variant.id.clone()}).collect());
+        return Ok(vector
+            .preconditions
+            .variants
+            .iter()
+            .map(|variant| VariantResult::Skipped {
+                reason: "selector not supported.".parse().unwrap(),
+                id: variant.id.clone(),
+            })
+            .collect());
     }
 
     let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
@@ -93,13 +100,13 @@ fn bench_vector_file(group: &mut BenchmarkGroup<measurement::WallTime>, path: Pa
         let name = format!("{} | {}", path.display(), variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
-        // TODO might be nice add command line option to not run test first?
+        // TODO might be nice to add a command line option to not run test first?
         let testresult = run_variant(bs.clone(), &vector, variant)?;
-        if let VariantResult::Ok{..} = testresult {
+        if let VariantResult::Ok { .. } = testresult {
             bench_vector_variant(group, name, variant, &vector, &bs);
         }
         ret.push(testresult);
-    };
+    }
     Ok(ret)
 }
 
@@ -134,9 +141,65 @@ fn bench(c: &mut Criterion) {
         ),
     };
 
-    for vector in vector_results.drain(..) {
-        bench_vector_file(&mut group, vector);
+    let mut succeeded = 0;
+    let mut failed = 0;
+    let mut skipped = 0;
+    let mut corrupt_files = 0;
+
+    // Output the result to stdout.
+    // Doing this here instead of in an inspect so that we get streaming output.
+    macro_rules! report {
+        ($status:expr, $path:expr, $id:expr) => {
+            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+        };
     }
+
+    for vector in vector_results.drain(..) {
+        match bench_vector_file(&mut group, vector.clone()) {
+            Ok(vrs) => {
+                vrs.iter().map(|vr| match vr {
+                    VariantResult::Ok { id } => {
+                        report!("OKAY/BENCHED".on_green(), vector.display(), id);
+                        succeeded += 1;
+                    }
+                    VariantResult::Failed { reason, id } => {
+                        report!("FAIL/NOT BENCHED".white().on_red(), vector.display(), id);
+                        println!("\t|> reason: {:#}", reason);
+                        failed += 1;
+                    }
+                    VariantResult::Skipped { reason, id } => {
+                        report!("SKIP/NOT BENCHED".on_yellow(), vector.display(), id);
+                        println!("\t|> reason: {:#}", reason);
+                        skipped += 1;
+                    }
+                }).for_each(drop);
+            }
+            Err(e) => {
+                report!(
+                    "FILE FAIL/NOT BENCHED".white().on_purple(),
+                    vector.display(),
+                    "n/a"
+                );
+                println!("\t|> reason: {:#}", e.to_string());
+                corrupt_files += 1;
+            }
+        }
+    }
+
+    println!();
+    println!(
+        "{}",
+        format!(
+            "benchmarking tests result: {}/{} tests benchmarked ({} skipped, {} failed, {} vector files unparseable)",
+            succeeded,
+            failed + succeeded + skipped + corrupt_files,
+            skipped,
+            failed,
+            corrupt_files
+        )
+            .bold()
+    );
+
     group.finish();
 }
 
