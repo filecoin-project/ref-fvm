@@ -9,7 +9,7 @@ use std::io::BufReader;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-
+use log::*;
 use conformance_tests::test_utils::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
@@ -75,7 +75,7 @@ fn bench_vector_file(group: &mut BenchmarkGroup<measurement::WallTime>, path: Pa
     let TestVector::Message(vector) = vector;
     let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
     if skip {
-        // TODO support skipping- selector not supported idk what this means? something with chaos actor. support this.
+        info!("skipped benching {}, selector not supported.", path.display());
         return;
     }
 
@@ -93,13 +93,13 @@ fn bench_noops() {
 }
 
 fn bench(c: &mut Criterion) {
-    // TODO: this is 30 seconds per benchmark... once we get the setup running faster (by cloning VMs more efficiently), we can bring this down.
+    // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently), we can bring this down.
     let mut group = c.benchmark_group("conformance-tests");
     group.measurement_time(Duration::new(30, 0));
 
     //let vector_name = "test-vectors/corpus/specs_actors_v6/TestCronCatchedCCExpirationsAtDeadlineBoundary/cabb8135a017bfee049180ec827d4dffdd94cd2c7253180252ed6bcb9361ddd2-t0100-t0102-storageminer-5.json";
 
-    // TODO add pretty logging when you iterate over everything
+    // TODO add pretty logging when you iterate over everything?
     // pretty_env_logger::init();
 
     // TODO match globs?
