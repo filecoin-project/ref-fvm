@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ops::AddAssign;
 
 use bitfield::BitField;
@@ -10,7 +10,7 @@ use fvm_shared::clock::ChainEpoch;
 #[derive(Default)]
 pub struct TerminationResult {
     /// Sectors maps epochs at which sectors expired, to bitfields of sector numbers.
-    pub sectors: HashMap<ChainEpoch, BitField>,
+    pub sectors: BTreeMap<ChainEpoch, BitField>,
     pub partitions_processed: u64,
     pub sectors_processed: u64,
 }
@@ -46,8 +46,7 @@ impl TerminationResult {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (ChainEpoch, &BitField)> {
-        let mut epochs: Vec<_> = self.sectors.iter().collect();
-        epochs.sort_by_key(|&(&epoch, _)| epoch);
-        epochs.into_iter().map(|(&i, bf)| (i, bf))
+        // The btreemap is already sorted.
+        self.sectors.iter().map(|(&epoch, bf)| (epoch, bf))
     }
 }
