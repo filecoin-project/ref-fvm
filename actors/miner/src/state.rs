@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp;
-use std::collections::HashMap;
 use std::ops::Neg;
 
 use actors_runtime::{
@@ -987,7 +986,7 @@ impl State {
     pub fn add_pre_commit_clean_ups<BS: Blockstore>(
         &mut self,
         store: &BS,
-        cleanup_events: HashMap<ChainEpoch, Vec<u64>>,
+        cleanup_events: Vec<(ChainEpoch, u64)>,
     ) -> anyhow::Result<()> {
         // Load BitField Queue for sector expiry
         let quant = self.quant_spec_every_deadline();
@@ -995,19 +994,7 @@ impl State {
             super::BitFieldQueue::new(store, &self.pre_committed_sectors_cleanup, quant)
                 .map_err(|e| e.downcast_wrap("failed to load pre-commit clean up queue"))?;
 
-        // Sort the epoch keys for stable iteration when manipulating the queue
-        let mut epochs = Vec::with_capacity(cleanup_events.len());
-        for (expire_epoch, _) in cleanup_events.iter() {
-            epochs.push(*expire_epoch);
-        }
-        epochs.sort_unstable();
-        for cleanup_epoch in epochs.iter() {
-            // Can unwrap here safely because cleanup epochs are taken from the keys of that hashmap.
-            queue.add_to_queue_values(
-                *cleanup_epoch,
-                cleanup_events[cleanup_epoch].iter().copied(),
-            )?;
-        }
+        queue.add_many_to_queue_values(cleanup_events.into_iter())?;
         self.pre_committed_sectors_cleanup = queue.amt.flush()?;
         Ok(())
     }

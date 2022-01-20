@@ -1291,8 +1291,8 @@ impl Actor {
             }
 
             let mut chain_infos = Vec::with_capacity(params.sectors.len());
-            let mut total_deposit_required= BigInt::zero();
-            let mut clean_up_events: HashMap<ChainEpoch,Vec<u64>> = HashMap::new();
+            let mut total_deposit_required = BigInt::zero();
+            let mut clean_up_events = Vec::with_capacity(params.sectors.len());
             let deal_count_max = sector_deals_max(info.sector_size);
 
             for (i, precommit) in params.sectors.iter().enumerate() {
@@ -1343,11 +1343,7 @@ impl Actor {
 			    // due epoch, ProveCommitSector would accept it, then the expiry event would remove it, and then
 			    // ConfirmSectorProofsValid would fail to find it.
                 let clean_up_bound = curr_epoch + msd + EXPIRED_PRE_COMMIT_CLEAN_UP_DELAY;
-                if let Some(cleanups) = clean_up_events.get_mut(&clean_up_bound) {
-                    cleanups.push(precommit.sector_number);
-                } else {
-                    clean_up_events.insert(clean_up_bound, vec![precommit.sector_number]);
-                }
+                clean_up_events.push((clean_up_bound, precommit.sector_number));
             }
             // Batch update actor state.
             if available_balance < total_deposit_required {
