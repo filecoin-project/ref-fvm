@@ -1003,7 +1003,10 @@ impl State {
         epochs.sort_unstable();
         for cleanup_epoch in epochs.iter() {
             // Can unwrap here safely because cleanup epochs are taken from the keys of that hashmap.
-            queue.add_to_queue_values(*cleanup_epoch, &cleanup_events[cleanup_epoch])?;
+            queue.add_to_queue_values(
+                *cleanup_epoch,
+                cleanup_events[cleanup_epoch].iter().copied(),
+            )?;
         }
         self.pre_committed_sectors_cleanup = queue.amt.flush()?;
         Ok(())

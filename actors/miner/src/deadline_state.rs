@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp;
-use std::collections::{HashMap, HashSet};
+use std::collections::BTreeSet;
 
 use actors_runtime::{actor_error, ActorDowncast, ActorError, Array};
 use anyhow::anyhow;
@@ -293,7 +293,7 @@ impl Deadline {
         let mut queue = BitFieldQueue::new(store, &self.expirations_epochs, quant)
             .map_err(|e| e.downcast_wrap("failed to load expiration queue"))?;
         queue
-            .add_to_queue_values(expiration_epoch, partitions)
+            .add_to_queue_values(expiration_epoch, partitions.iter().copied())
             .map_err(|e| e.downcast_wrap("failed to mutate expiration queue"))?;
         self.expirations_epochs = queue
             .amt
@@ -403,7 +403,7 @@ impl Deadline {
         }
 
         // First update partitions, consuming the sectors
-        let mut partition_deadline_updates = HashMap::<ChainEpoch, Vec<u64>>::new();
+        let mut partition_deadline_updates = Vec::<(ChainEpoch, u64)>::with_capacity(sectors.len());
         self.live_sectors += sectors.len() as u64;
         self.total_sectors += sectors.len() as u64;
 
@@ -447,14 +447,11 @@ impl Deadline {
             partitions.set(partition_idx, partition)?;
 
             // Record deadline -> partition mapping so we can later update the deadlines.
-            for sector in partition_new_sectors {
-                let partition_update = partition_deadline_updates
-                    .entry(sector.expiration)
-                    .or_default();
-                if partition_update.is_empty() || partition_update.last() != Some(&partition_idx) {
-                    partition_update.push(partition_idx);
-                }
-            }
+            partition_deadline_updates.extend(
+                partition_new_sectors
+                    .iter()
+                    .map(|s| (s.expiration, partition_idx)),
+            )
         }
 
         // Save partitions back.
@@ -465,7 +462,7 @@ impl Deadline {
             BitFieldQueue::new(store, &self.expirations_epochs, quant)
                 .map_err(|e| e.downcast_wrap("failed to load expiration epochs"))?;
         deadline_expirations
-            .add_many_to_queue_values(&partition_deadline_updates)
+            .add_many_to_queue_values(partition_deadline_updates.iter().copied())
             .map_err(|e| e.downcast_wrap("failed to add expirations for new deadlines"))?;
         self.expirations_epochs = deadline_expirations.amt.flush()?;
 
@@ -635,22 +632,24 @@ impl Deadline {
             .map_err(|e| e.downcast_wrap("failed to load partitions"))?;
 
         let partition_count = old_partitions.count();
-        let to_remove_set: HashSet<_> = to_remove
+        let to_remove_set: BTreeSet<_> = to_remove
             .bounded_iter(partition_count)
             .map_err(
                 |e| actor_error!(ErrIllegalArgument; "failed to expand partitions into map: {}", e),
             )?
             .collect();
 
-        if to_remove_set.is_empty() {
+        if to_remove_set.is_empty() {}
+
+        if let Some(&max_partition) = to_remove_set.iter().max() {
+            if max_partition > partition_count {
+                return Err(
+                    actor_error!(ErrIllegalArgument; "partition index {} out of range [0, {})", max_partition, partition_count).into()
+                );
+            }
+        } else {
             // Nothing to do.
             return Ok((BitField::new(), BitField::new(), PowerPair::zero()));
-        }
-
-        if let Some(partition_idx) = to_remove_set.iter().find(|&&i| i >= partition_count) {
-            return Err(
-                actor_error!(ErrIllegalArgument; "partition index {} out of range [0, {})", partition_idx, partition_count).into()
-            );
         }
 
         // Should already be checked earlier, but we might as well check again.

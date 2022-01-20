@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
 use std::convert::TryInto;
 
 use actors_runtime::{ActorDowncast, Array};
@@ -10,6 +9,7 @@ use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use ipld_amt::Error as AmtError;
+use itertools::Itertools;
 
 /// Wrapper for working with an AMT[ChainEpoch]*Bitfield functioning as a queue, bucketed by epoch.
 /// Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.
@@ -49,12 +49,12 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
         Ok(())
     }
 
-    pub fn add_to_queue_values(&mut self, epoch: ChainEpoch, values: &[u64]) -> anyhow::Result<()> {
-        if values.is_empty() {
-            Ok(())
-        } else {
-            self.add_to_queue(epoch, &values.iter().copied().collect())
-        }
+    pub fn add_to_queue_values(
+        &mut self,
+        epoch: ChainEpoch,
+        values: impl IntoIterator<Item = u64>,
+    ) -> anyhow::Result<()> {
+        self.add_to_queue(epoch, &values.into_iter().collect())
     }
 
     /// Cut cuts the elements from the bits in the given bitfield out of the queue,
@@ -87,27 +87,26 @@ impl<'db, BS: Blockstore> BitFieldQueue<'db, BS> {
 
     pub fn add_many_to_queue_values(
         &mut self,
-        values: &HashMap<ChainEpoch, Vec<u64>>,
+        values: impl IntoIterator<Item = (ChainEpoch, u64)>,
     ) -> anyhow::Result<()> {
-        // Update each epoch in-order to be deterministic.
         // Pre-quantize to reduce the number of updates.
+        let mut quantized_values: Vec<_> = values
+            .into_iter()
+            .map(|(raw_epoch, value)| (self.quant.quantize_up(raw_epoch), value))
+            .collect();
 
-        let mut quantized_values = HashMap::<ChainEpoch, Vec<u64>>::with_capacity(values.len());
+        // Sort and dedup.
+        quantized_values.sort_unstable();
+        quantized_values.dedup();
 
-        for (&raw_epoch, entries) in values {
-            let epoch = self.quant.quantize_up(raw_epoch);
-            quantized_values.entry(epoch).or_default().extend(entries);
-        }
-
-        // Update each epoch in order to be deterministic.
-        let mut updated_epochs = Vec::with_capacity(quantized_values.len());
-        for epoch in quantized_values.keys() {
-            updated_epochs.push(*epoch);
-        }
-        updated_epochs.sort_unstable();
-
-        for epoch in updated_epochs {
-            self.add_to_queue_values(epoch, &quantized_values.remove(&epoch).unwrap_or_default())?;
+        // Add to queue.
+        let mut iter = quantized_values.into_iter().peekable();
+        while let Some(&(epoch, _)) = iter.peek() {
+            self.add_to_queue_values(
+                epoch,
+                iter.peeking_take_while(|&(e, _)| e == epoch)
+                    .map(|(_, v)| v),
+            )?;
         }
 
         Ok(())
