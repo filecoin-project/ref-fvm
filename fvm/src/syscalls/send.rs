@@ -1,8 +1,8 @@
 use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
+use fvm_shared::sys::TokenAmount;
 
 use super::Context;
 use crate::call_manager::{InvocationResult, NO_DATA_BLOCK_ID};
@@ -25,6 +25,7 @@ pub fn send(
     value_lo: u64,
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
+    // review: i assume From a tuple is possible? idk how.
     let value = TokenAmount::from((value_hi as u128) << 64 | value_lo as u128);
     // TODO: consider just passing the block ID directly into the kernel.
     let (code, params) = if params_id > NO_DATA_BLOCK_ID {
@@ -38,7 +39,7 @@ pub fn send(
     let (exit_code, return_id) =
         match context
             .kernel
-            .send(&recipient, method, &params.into(), &value)?
+            .send(&recipient, method, &params.into(), value)?
         {
             InvocationResult::Return(value) => (
                 ExitCode::Ok as u32,

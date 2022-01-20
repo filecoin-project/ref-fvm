@@ -1,8 +1,8 @@
 use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
@@ -27,7 +27,6 @@ use crate::syscalls::error::unwrap_trap;
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
-
 #[repr(transparent)]
 pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
 
@@ -92,7 +91,7 @@ where
         to: Address,
         method: MethodNum,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -209,7 +208,7 @@ where
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             &params,
-            &TokenAmount::from(0u32),
+            TokenAmount::from(0u64),
         )?;
 
         Ok(id)
@@ -222,7 +221,7 @@ where
         to: Address,
         method: MethodNum,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -240,7 +239,7 @@ where
                     return Err(
                         syscall_error!(SysErrInvalidReceiver; "actor does not exist: {}", to)
                             .into(),
-                    )
+                    );
                 }
             },
         };
@@ -257,7 +256,7 @@ where
         to: ActorID,
         method: MethodNum,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,

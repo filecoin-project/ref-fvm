@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use fvm_shared::bigint::BigInt;
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::sys::TokenAmount;
 
 #[derive(Clone, Default)]
 pub(crate) struct GasOutputs {
@@ -19,9 +19,9 @@ impl GasOutputs {
     pub fn compute(
         gas_used: i64,
         gas_limit: i64,
-        base_fee: &TokenAmount,
-        fee_cap: &TokenAmount,
-        gas_premium: &TokenAmount,
+        base_fee: TokenAmount,
+        fee_cap: TokenAmount,
+        gas_premium: TokenAmount,
     ) -> Self {
         let mut base_fee_to_pay = base_fee;
 
@@ -35,7 +35,7 @@ impl GasOutputs {
         out.base_fee_burn = base_fee_to_pay * gas_used;
 
         let mut miner_tip = gas_premium.clone();
-        if &(base_fee_to_pay + &miner_tip) > fee_cap {
+        if (base_fee_to_pay + miner_tip) > fee_cap {
             miner_tip = fee_cap - base_fee_to_pay;
         }
         out.miner_tip = &miner_tip * gas_limit;
@@ -46,11 +46,10 @@ impl GasOutputs {
 
         if out.gas_burned != 0 {
             out.over_estimation_burn = base_fee_to_pay * out.gas_burned;
-            out.miner_penalty += (base_fee - base_fee_to_pay) * out.gas_burned;
+            out.miner_penalty = out.miner_penalty + (base_fee - base_fee_to_pay) * out.gas_burned;
         }
         let required_funds = fee_cap * gas_limit;
-        let refund =
-            required_funds - &out.base_fee_burn - &out.miner_tip - &out.over_estimation_burn;
+        let refund = required_funds - out.base_fee_burn - out.miner_tip - out.over_estimation_burn;
         out.refund = refund;
 
         out

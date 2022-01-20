@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
 use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
@@ -14,13 +14,13 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
@@ -72,8 +72,8 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 debug: true, // Enable debug mode by default.
             },
             epoch,
-            base_fee,
-            BigInt::zero(),
+            base_fee.try_into().unwrap(),
+            TokenAmount::zero(),
             network_version,
             state_root,
             blockstore,
@@ -88,7 +88,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .preconditions
                     .circ_supply
                     .map(|i| i.to_bigint().unwrap())
-                    .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
+                    .unwrap_or_else(|| TOTAL_FILECOIN.clone())
+                    .try_into()
+                    .unwrap(),
             },
         }
     }
@@ -137,7 +139,7 @@ where
         self.machine.load_module(code)
     }
 
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: TokenAmount) -> Result<()> {
         self.machine.transfer(from, to, value)
     }
 
@@ -172,7 +174,7 @@ where
         to: Address,
         method: MethodNum,
         params: &fvm_shared::encoding::RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
@@ -325,6 +327,7 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 }
+
 impl<M, C, K> BlockOps for TestKernel<K>
 where
     M: Machine,
@@ -355,6 +358,7 @@ where
         self.0.block_get(id)
     }
 }
+
 impl<M, C, K> CircSupplyOps for TestKernel<K>
 where
     M: Machine,
@@ -366,6 +370,7 @@ where
         Ok(self.1.circ_supply.clone())
     }
 }
+
 impl<M, C, K> CryptoOps for TestKernel<K>
 where
     M: Machine,
@@ -427,6 +432,7 @@ where
         Ok(true)
     }
 }
+
 impl<M, C, K> DebugOps for TestKernel<K>
 where
     M: Machine,
@@ -453,6 +459,7 @@ where
         self.0.clear_error()
     }
 }
+
 impl<M, C, K> GasOps for TestKernel<K>
 where
     M: Machine,
@@ -463,6 +470,7 @@ where
         self.0.charge_gas(name, compute)
     }
 }
+
 impl<M, C, K> MessageOps for TestKernel<K>
 where
     M: Machine,
@@ -485,6 +493,7 @@ where
         self.0.msg_value_received()
     }
 }
+
 impl<M, C, K> NetworkOps for TestKernel<K>
 where
     M: Machine,
@@ -499,10 +508,11 @@ where
         self.0.network_version()
     }
 
-    fn network_base_fee(&self) -> &TokenAmount {
+    fn network_base_fee(&self) -> TokenAmount {
         self.0.network_base_fee()
     }
 }
+
 impl<M, C, K> RandomnessOps for TestKernel<K>
 where
     M: Machine,
@@ -529,6 +539,7 @@ where
             .get_randomness_from_beacon(personalization, rand_epoch, entropy)
     }
 }
+
 impl<M, C, K> SelfOps for TestKernel<K>
 where
     M: Machine,
@@ -551,6 +562,7 @@ where
         self.0.self_destruct(beneficiary)
     }
 }
+
 impl<M, C, K> SendOps for TestKernel<K>
 where
     M: Machine,
@@ -562,7 +574,7 @@ where
         recipient: &Address,
         method: u64,
         params: &fvm_shared::encoding::RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult> {
         self.0.send(recipient, method, params, value)
     }

@@ -5,7 +5,6 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -13,6 +12,7 @@ use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
 
@@ -20,6 +20,7 @@ mod blocks;
 pub mod default;
 
 mod error;
+
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 use crate::call_manager::{CallManager, InvocationResult};
@@ -60,7 +61,7 @@ pub trait Kernel:
 pub trait NetworkOps {
     fn network_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
-    fn network_base_fee(&self) -> &TokenAmount;
+    fn network_base_fee(&self) -> TokenAmount;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -166,7 +167,7 @@ pub trait SendOps {
         recipient: &Address,
         method: u64,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult>;
 }
 

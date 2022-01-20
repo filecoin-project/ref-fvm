@@ -10,9 +10,9 @@
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
+use fvm_shared::sys::TokenAmount;
 use lazy_static::lazy_static;
 
 use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID};

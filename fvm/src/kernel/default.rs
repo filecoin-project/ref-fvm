@@ -9,18 +9,18 @@ use filecoin_proofs_api::seal::{
 };
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_shared::address::Protocol;
-use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
+use num_traits::Zero;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::blocks::{Block, BlockRegistry};
@@ -141,7 +141,7 @@ where
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = BigInt::from(330_000_000) * FILECOIN_PRECISION;
+        let initial_reserve_balance = TokenAmount::from(330_000_000 as u64) * FILECOIN_PRECISION;
         initial_reserve_balance
             .checked_sub(
                 &self
@@ -158,12 +158,12 @@ where
 
     fn power_locked(&self) -> Result<TokenAmount> {
         let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())?;
-        Ok(power_state.total_locked())
+        Ok(power_state.total_locked().try_into().unwrap())
     }
 
     fn market_locked(&self) -> Result<TokenAmount> {
         let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
-        Ok(market_state.total_locked())
+        Ok(market_state.total_locked().try_into().unwrap())
     }
 
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
@@ -250,7 +250,7 @@ where
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
                 .machine_mut()
-                .transfer(self.actor_id, beneficiary_id, &balance)?;
+                .transfer(self.actor_id, beneficiary_id, balance)?;
         }
 
         // Delete the executing actor
@@ -372,7 +372,7 @@ where
         recipient: &Address,
         method: MethodNum,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult> {
         let from = self.actor_id;
         self.call_manager
@@ -576,7 +576,7 @@ where
                                 false
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
                         false
@@ -685,8 +685,8 @@ where
         self.call_manager.context().network_version
     }
 
-    fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().base_fee
+    fn network_base_fee(&self) -> TokenAmount {
+        self.call_manager.context().base_fee
     }
 }
 
@@ -787,7 +787,7 @@ where
         let state_tree = self.call_manager.state_tree_mut();
         state_tree.set_actor_id(
             actor_id,
-            ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
+            ActorState::new(code_id, *EMPTY_ARR_CID, 0u32.into(), 0),
         )
     }
 }

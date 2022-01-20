@@ -4,12 +4,12 @@
 use ahash::AHashMap;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::{MethodNum, METHOD_SEND};
 use lazy_static::lazy_static;
 use num_traits::Zero;
@@ -132,6 +132,7 @@ pub(crate) struct ScalingCost {
 
 #[derive(Clone, Debug)]
 pub(crate) struct StepCost(Vec<Step>);
+
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct Step {
     start: i64,
@@ -268,11 +269,11 @@ impl PriceList {
     #[inline]
     pub fn on_method_invocation(
         &self,
-        value: &TokenAmount,
+        value: TokenAmount,
         method_num: MethodNum,
     ) -> GasCharge<'static> {
         let mut ret = self.send_base;
-        if value != &TokenAmount::zero() {
+        if !value.is_zero() {
             ret += self.send_transfer_funds;
             if method_num == METHOD_SEND {
                 ret += self.send_transfer_only_premium;

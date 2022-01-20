@@ -2,8 +2,8 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
@@ -15,6 +15,7 @@ use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
 mod default;
+
 pub use default::DefaultMachine;
 
 mod boxed;
@@ -61,7 +62,7 @@ pub trait Machine: 'static {
     ///
     /// If either the receiver or the sender do not exist, this method fails with a FATAL error.
     /// Otherwise, if the amounts are invalid, etc., it fails with a syscall error.
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: TokenAmount) -> Result<()>;
 
     /// Flushes the state-tree and returns the new root CID.
     fn flush(&mut self) -> Result<Cid> {

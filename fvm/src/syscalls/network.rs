@@ -14,12 +14,7 @@ pub fn version(context: Context<'_, impl Kernel>) -> Result<u32> {
 
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    context
-        .kernel
-        .network_base_fee()
-        .try_into()
-        .context("base-fee exceeds u128 limit")
-        .or_fatal()
+    Ok(context.kernel.network_base_fee())
 }
 
 /// Returns the network circ supply split as two u64 ordered in little endian.

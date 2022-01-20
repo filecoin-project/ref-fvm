@@ -1,7 +1,7 @@
 use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
@@ -11,6 +11,7 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 mod default;
+
 pub use default::DefaultCallManager;
 
 /// BlockID representing nil parameters or return data.
@@ -28,7 +29,7 @@ pub trait CallManager: 'static {
         to: Address,
         method: MethodNum,
         params: &RawBytes,
-        value: &TokenAmount,
+        value: TokenAmount,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.

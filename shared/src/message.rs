@@ -4,11 +4,11 @@
 use anyhow::anyhow;
 
 use crate::address::Address;
-use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use crate::econ::TokenAmount;
 use crate::encoding::de::{Deserialize, Deserializer};
 use crate::encoding::ser::{Serialize, Serializer};
 use crate::encoding::{Cbor, RawBytes};
+use crate::sys::tokenamount_ser::{TokenAmountDe, TokenAmountSer};
+use crate::sys::TokenAmount;
 use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
@@ -58,10 +58,10 @@ impl Serialize for Message {
             &self.to,
             &self.from,
             &self.sequence,
-            BigIntSer(&self.value),
+            TokenAmountSer(&self.value),
             &self.gas_limit,
-            BigIntSer(&self.gas_fee_cap),
-            BigIntSer(&self.gas_premium),
+            TokenAmountSer(&self.gas_fee_cap),
+            TokenAmountSer(&self.gas_premium),
             &self.method_num,
             &self.params,
         )
@@ -79,10 +79,10 @@ impl<'de> Deserialize<'de> for Message {
             to,
             from,
             sequence,
-            BigIntDe(value),
+            TokenAmountDe(value),
             gas_limit,
-            BigIntDe(gas_fee_cap),
-            BigIntDe(gas_premium),
+            TokenAmountDe(gas_fee_cap),
+            TokenAmountDe(gas_premium),
             method_num,
             params,
         ) = Deserialize::deserialize(deserializer)?;

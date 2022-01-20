@@ -1,6 +1,6 @@
 use cid::Cid;
 use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
 
@@ -59,7 +59,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: TokenAmount) -> Result<()> {
         (&mut **self).transfer(from, to, value)
     }
 

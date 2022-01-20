@@ -4,11 +4,10 @@ use std::result::Result as StdResult;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, Sign};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::ActorID;
 use num_traits::Zero;
 
@@ -76,7 +75,7 @@ where
             let result = cm.with_transaction(|cm| {
                 // Invoke the message.
                 let ret =
-                    cm.send::<K>(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
+                    cm.send::<K>(sender_id, msg.to, msg.method_num, &msg.params, msg.value)?;
 
                 // Charge for including the result (before we end the transaction).
                 if let InvocationResult::Return(data) = &ret {
@@ -135,7 +134,7 @@ where
                     msg.sequence,
                     msg.method_num,
                     self.context().epoch
-                )))
+                )));
             }
         };
         self.finish_message(msg, receipt, backtrace, gas_cost)
@@ -187,7 +186,7 @@ where
         if inclusion_total > msg.gas_limit {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                &self.context().base_fee * inclusion_total,
+                self.context().base_fee * inclusion_total,
             )));
         }
 
@@ -204,7 +203,7 @@ where
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     syscall_error!(SysErrSenderInvalid; "Sender invalid"),
                     miner_penalty_amount,
-                )))
+                )));
             }
         };
 
@@ -218,7 +217,7 @@ where
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     syscall_error!(SysErrSenderInvalid; "Sender invalid"),
                     miner_penalty_amount,
-                )))
+                )));
             }
         };
 
@@ -250,7 +249,7 @@ where
 
         // Deduct message inclusion gas cost and increment sequence.
         self.state_tree_mut().mutate_actor_id(sender_id, |act| {
-            act.deduct_funds(&gas_cost)?;
+            act.deduct_funds(gas_cost)?;
             act.sequence += 1;
             Ok(())
         })?;
@@ -263,7 +262,7 @@ where
         msg: Message,
         receipt: Receipt,
         backtrace: Vec<CallError>,
-        gas_cost: BigInt,
+        gas_cost: TokenAmount,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -276,15 +275,16 @@ where
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
-            &self.context().base_fee,
-            &msg.gas_fee_cap,
-            &msg.gas_premium,
+            self.context().base_fee,
+            msg.gas_fee_cap,
+            msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
-            if amt.sign() == Sign::Minus {
-                return Err(anyhow!("attempted to transfer negative value into actor"));
-            }
+        let mut transfer_to_actor = |addr: &Address, amt: TokenAmount| -> anyhow::Result<()> {
+            // review note: there's no such thing as a negative TokenAmount anymore, but this makes me very very nervous
+            // if amt.sign() == Sign::Minus {
+            //     return Err(anyhow!("attempted to transfer negative value into actor"));
+            // }
             if amt.is_zero() {
                 return Ok(());
             }
@@ -298,16 +298,16 @@ where
             Ok(())
         };
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, base_fee_burn)?;
 
-        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(&REWARD_ACTOR_ADDR, miner_tip)?;
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, over_estimation_burn)?;
 
         // refund unused gas
-        transfer_to_actor(&msg.from, &refund)?;
+        transfer_to_actor(&msg.from, refund)?;
 
-        if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
+        if (base_fee_burn + over_estimation_burn + refund + miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             return Err(anyhow!("Gas handling math is wrong"));
         }

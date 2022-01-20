@@ -1,10 +1,10 @@
 mod default;
 
 pub use default::DefaultExecutor;
-use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::sys::TokenAmount;
 use num_traits::Zero;
 
 use crate::kernel::SyscallError;
@@ -31,14 +31,14 @@ pub struct ApplyRet {
     /// A backtrace for the transaction, if it failed.
     pub backtrace: Vec<CallError>,
     /// Gas penalty from transaction, if any.
-    pub penalty: BigInt,
+    pub penalty: TokenAmount,
     /// Tip given to miner from message.
-    pub miner_tip: BigInt,
+    pub miner_tip: TokenAmount,
 }
 
 impl ApplyRet {
     #[inline]
-    pub fn prevalidation_fail(error: SyscallError, miner_penalty: BigInt) -> ApplyRet {
+    pub fn prevalidation_fail(error: SyscallError, miner_penalty: TokenAmount) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
                 exit_code: error.1,
@@ -51,13 +51,13 @@ impl ApplyRet {
                 code: error.1,
                 message: error.0,
             }],
-            miner_tip: BigInt::zero(),
+            miner_tip: TokenAmount::zero(),
         }
     }
-
-    pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {
-        self.miner_tip.assign_from_slice(sign, slice)
-    }
+    // review: was this used?
+    // pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {
+    //     self.miner_tip.assign_from_slice(sign, slice)
+    // }
 }
 
 pub enum ApplyKind {

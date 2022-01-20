@@ -7,11 +7,10 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
 use fvm_shared::address::{Address, Payload};
-use fvm_shared::bigint::bigint_ser;
 use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
+use fvm_shared::sys::{tokenamount_ser, TokenAmount};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use ipld_hamt::Hamt;
 
@@ -204,7 +203,7 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V3 | StateTreeVersion::V4 => {
                 let cid = store
@@ -238,14 +237,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to find state tree {}",
                     c
-                )))
+                )));
             }
             Err(e) => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to load state tree {}: {}",
                     c,
                     e
-                )))
+                )));
             }
         };
 
@@ -254,7 +253,7 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V3 | StateTreeVersion::V4 => {
                 let hamt = Hamt::load_with_bit_width(&actors, store, HAMT_BIT_WIDTH)
@@ -521,7 +520,7 @@ pub struct ActorState {
     /// Sequence of the actor.
     pub sequence: u64,
     /// Tokens available to the actor.
-    #[serde(with = "bigint_ser")]
+    #[serde(with = "tokenamount_ser")]
     pub balance: TokenAmount,
 }
 
@@ -537,17 +536,17 @@ impl ActorState {
     }
     /// Safely deducts funds from an Actor
     /// TODO return a system error with exit code "insufficient funds"
-    pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<()> {
-        if &self.balance < amt {
+    pub fn deduct_funds(&mut self, amt: TokenAmount) -> Result<()> {
+        if self.balance < amt {
             return Err(syscall_error!(SysErrInsufficientFunds; "not enough funds").into());
         }
-        self.balance -= amt;
+        self.balance = self.balance - amt;
 
         Ok(())
     }
     /// Deposits funds to an Actor
-    pub fn deposit_funds(&mut self, amt: &TokenAmount) {
-        self.balance += amt;
+    pub fn deposit_funds(&mut self, amt: TokenAmount) {
+        self.balance = self.balance + amt;
     }
 }
 
@@ -640,6 +639,7 @@ mod tests {
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
+    use fvm_shared::sys::TokenAmount;
     use ipld_hamt::Hamt;
 
     use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
@@ -724,7 +724,7 @@ mod tests {
                 code: *INIT_ACTOR_CODE_ID,
                 state: state_cid,
                 balance: Default::default(),
-                sequence: 2
+                sequence: 2,
             })
         );
 
@@ -752,7 +752,7 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from(55u64),
                 1,
             ),
         )
@@ -763,7 +763,7 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from(55u64),
                 1,
             ),
         )
@@ -773,7 +773,7 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from(55u64),
                 1,
             ),
         )
@@ -786,8 +786,8 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
-                1
+                TokenAmount::from(55u64),
+                1,
             )
         );
         assert_eq!(
@@ -795,8 +795,8 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
-                1
+                TokenAmount::from(55u64),
+                1,
             )
         );
 
@@ -805,8 +805,8 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
-                1
+                TokenAmount::from(55u64),
+                1,
             )
         );
     }
@@ -825,7 +825,7 @@ mod tests {
             ActorState::new(
                 *ACCOUNT_ACTOR_CODE_ID,
                 *ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from(55u64),
                 1,
             ),
         )

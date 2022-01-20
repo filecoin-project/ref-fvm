@@ -3,13 +3,12 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::Level::Trace;
 use log::{debug, log_enabled, trace};
-use num_traits::Signed;
 use wasmtime::{Engine, Module};
 
 use super::{Machine, MachineContext};
@@ -235,15 +234,16 @@ where
         )))
     }
 
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: TokenAmount) -> Result<()> {
         if from == to {
             return Ok(());
         }
-        if value.is_negative() {
-            return Err(syscall_error!(SysErrForbidden;
-                "attempted to transfer negative transfer value {}", value)
-            .into());
-        }
+        // review: scary?
+        // if value.is_negative() {
+        //     return Err(syscall_error!(SysErrForbidden;
+        //         "attempted to transfer negative transfer value {}", value)
+        //     .into());
+        // }
 
         let mut from_actor = self
             .state_tree
