@@ -39,8 +39,12 @@ impl PartialEq for BitField {
 impl FromIterator<u64> for BitField {
     fn from_iter<I: IntoIterator<Item = u64>>(iter: I) -> Self {
         let mut vec: Vec<_> = iter.into_iter().collect();
-        vec.sort_unstable();
-        Self::from_ranges(ranges_from_bits(vec))
+        if vec.is_empty() {
+            Self::new()
+        } else {
+            vec.sort_unstable();
+            Self::from_ranges(ranges_from_bits(vec))
+        }
     }
 }
 
