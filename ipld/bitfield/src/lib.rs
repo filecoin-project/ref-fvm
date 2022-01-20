@@ -6,12 +6,12 @@ mod range;
 mod rleplus;
 mod unvalidated;
 
+use std::collections::BTreeSet;
 use std::iter::FromIterator;
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Range, Sub, SubAssign,
 };
 
-use ahash::AHashSet;
 use iter::{ranges_from_bits, RangeIterator};
 pub(crate) use range::RangeSize;
 pub use unvalidated::{UnvalidatedBitField, Validate};
@@ -25,9 +25,9 @@ pub struct BitField {
     /// The underlying ranges of 1s.
     ranges: Vec<Range<u64>>,
     /// Bits set to 1. Never overlaps with `unset`.
-    set: AHashSet<u64>,
+    set: BTreeSet<u64>,
     /// Bits set to 0. Never overlaps with `set`.
-    unset: AHashSet<u64>,
+    unset: BTreeSet<u64>,
 }
 
 impl PartialEq for BitField {
@@ -140,11 +140,9 @@ impl BitField {
         // `self.set`, not in the length of `self.unset` (as opposed to getting the first range
         // with `self.ranges().next()` which is linear in both)
 
-        let mut set_bits: Vec<_> = self.set.iter().copied().collect();
-        set_bits.sort_unstable();
-
         self.inner_ranges()
-            .union(ranges_from_bits(set_bits))
+            // set returns a sorted iterator.
+            .union(ranges_from_bits(self.set.iter().copied()))
             .flatten()
             .filter(move |i| !self.unset.contains(i))
     }
@@ -167,15 +165,9 @@ impl BitField {
     /// Returns an iterator over the ranges of set bits that make up the bit field. The
     /// ranges are in ascending order, are non-empty, and don't overlap.
     pub fn ranges(&self) -> impl RangeIterator + '_ {
-        let ranges = |set: &AHashSet<u64>| {
-            let mut vec: Vec<_> = set.iter().copied().collect();
-            vec.sort_unstable();
-            ranges_from_bits(vec)
-        };
-
         self.inner_ranges()
-            .union(ranges(&self.set))
-            .difference(ranges(&self.unset))
+            .union(ranges_from_bits(self.set.iter().copied()))
+            .difference(ranges_from_bits(self.unset.iter().copied()))
     }
 
     /// Returns `true` if the bit field is empty.
