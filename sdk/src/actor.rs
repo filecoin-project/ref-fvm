@@ -10,7 +10,7 @@ use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN};
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
 /// addresss was already an actor ID).
 pub fn resolve_address(addr: &Address) -> Option<ActorID> {
-    if &Payload::ID(id) = addr.payload() {
+    if let &Payload::ID(id) = addr.payload() {
         return Some(id);
     }
 
