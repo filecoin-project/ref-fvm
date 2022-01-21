@@ -104,6 +104,23 @@ where
             state_tree,
         })
     }
+
+    /// Attempts to load a custom actor from the blockstore. If doing so fails,
+    /// it merely logs the error and returns None.
+    #[cfg(feature = "custom_actors")]
+    #[allow(dead_code)]
+    #[inline]
+    fn load_custom_actor(&self, code: &Cid) -> Result<Option<Vec<u8>>> {
+        self.state_tree.store().get(code).or_fatal()
+    }
+
+    /// Noops when attempting to load custom actor, as the feature is disabled.
+    #[cfg(not(feature = "custom_actors"))]
+    #[allow(dead_code)]
+    #[inline]
+    fn load_custom_actor(&self, _: &Cid) -> Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
 }
 
 /// Print a trace of all actors and their state roots.
@@ -190,6 +207,7 @@ where
             .set_actor(&Address::new_id(addr_id), act)
             .context("failed to set actor")
             .or_fatal()?;
+
         Ok(addr_id)
     }
 
@@ -197,7 +215,7 @@ where
     fn load_module(&self, code: &Cid) -> Result<Module> {
         use anyhow::Context;
         // TODO: cache compiled code, and modules?
-        let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
+        let mut binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
             fvm_actor_system::wasm::WASM_BINARY
         } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
             fvm_actor_init::wasm::WASM_BINARY
@@ -223,15 +241,28 @@ where
             None
         };
 
+        // This is necessary to instruct Rust that the Vec<u8> returned by
+        // load_custom_actor must outlive the conditional block.
+        let custom: Option<Vec<u8>>;
+        if binary.is_none() {
+            custom = self.load_custom_actor(code)?;
+            binary = custom.as_ref().map(Vec::as_slice);
+        }
+
         let binary = binary.context("missing wasm binary").or_fatal()?;
         let module = Module::new(&self.engine, binary).or_fatal()?;
         Ok(module)
     }
 
     #[cfg(not(feature = "builtin_actors"))]
-    fn load_module(&self, _code: &Cid) -> Result<Module> {
+    fn load_module(&self, code: &Cid) -> Result<Module> {
+        if let Some(binary) = self.load_custom_actor(code)? {
+            return Module::new(&self.engine, binary).or_fatal();
+        }
+
         Err(crate::kernel::ExecutionError::Fatal(anyhow!(
-            "built-in actors not embedded; please run build enabling the builtin_actors feature"
+            "built-in actors not embedded; please run build enabling the builtin_actors feature; \
+        if custom actors were enabled, the code CID was not found in the blockstore"
         )))
     }
 
