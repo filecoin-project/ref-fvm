@@ -1,8 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 use std::iter;
 use std::ops::Neg;
 
@@ -1646,17 +1646,21 @@ impl Actor {
                 .map_err(|e| e.wrap("failed to load deadlines"))?;
 
             // Group declarations by deadline, and remember iteration order.
-            let mut decls_by_deadline = HashMap::<u64, Vec<ExpirationExtension>>::new();
+            //
+            // Vec::new() is a const expr, so this operation here is free (well, it'll add 576 bytes
+            // to the compiled binary and that'll get copied to the stack, but that should be pretty
+            // cheap.
+            const EMPTY_VEC: Vec<ExpirationExtension> = Vec::new();
+            let mut decls_by_deadline = [EMPTY_VEC; WPOST_PERIOD_DEADLINES as usize];
             let mut deadlines_to_load = Vec::<u64>::new();
 
             for decl in params.extensions {
-                decls_by_deadline
-                    .entry(decl.deadline)
-                    .or_insert_with(|| {
-                        deadlines_to_load.push(decl.deadline);
-                        Vec::new()
-                    })
-                    .push(decl);
+                // the deadline indices are already checked.
+                let decls = &mut decls_by_deadline[decl.deadline as usize];
+                if decls.is_empty() {
+                    deadlines_to_load.push(decl.deadline);
+                }
+                decls.push(decl);
             }
 
             let mut sectors = Sectors::load(rt.store(), &state.sectors).map_err(|e| {
@@ -1684,10 +1688,10 @@ impl Actor {
                 let quant = state.quant_spec_for_deadline(deadline_idx);
 
                 // Group modified partitions by epoch to which they are extended. Duplicates are ok.
-                let mut partitions_by_new_epoch = HashMap::<ChainEpoch, Vec<u64>>::new();
+                let mut partitions_by_new_epoch = BTreeMap::<ChainEpoch, Vec<u64>>::new();
                 let mut epochs_to_reschedule = Vec::<ChainEpoch>::new();
 
-                for decl in decls_by_deadline.get_mut(&deadline_idx).unwrap() {
+                for decl in &mut decls_by_deadline[deadline_idx as usize] {
                     let key = PartitionKey {
                         deadline: deadline_idx,
                         partition: decl.partition,
@@ -4031,7 +4035,7 @@ where
 fn replaced_sector_parameters(
     curr_epoch: ChainEpoch,
     precommit: &SectorPreCommitOnChainInfo,
-    replaced_by_num: &HashMap<SectorNumber, SectorOnChainInfo>,
+    replaced_by_num: &BTreeMap<SectorNumber, SectorOnChainInfo>,
 ) -> Result<(TokenAmount, ChainEpoch, TokenAmount), ActorError> {
     if !precommit.info.replace_capacity {
         return Ok(Default::default());
@@ -4202,7 +4206,7 @@ where
                 )
             })?;
 
-        let replaced_by_sector_number: HashMap<u64, SectorOnChainInfo> =
+        let replaced_by_sector_number: BTreeMap<u64, SectorOnChainInfo> =
             replaced.into_iter().map(|s| (s.sector_number, s)).collect();
 
         let mut new_sector_numbers = Vec::<SectorNumber>::with_capacity(valid_pre_commits.len());
