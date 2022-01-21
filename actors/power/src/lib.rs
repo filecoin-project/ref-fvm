@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use actors_runtime::runtime::{ActorCode, Runtime};
@@ -9,7 +10,6 @@ use actors_runtime::{
     Multimap, CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, INIT_ACTOR_ADDR, MINER_ACTOR_CODE_ID,
     REWARD_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
-use ahash::AHashSet;
 use anyhow::anyhow;
 use ext::init;
 use fvm_shared::address::Address;
@@ -535,7 +535,7 @@ impl Actor {
                 .map(|(info, _)| info.sector_id.number)
                 // Deduplicate
                 .filter({
-                    let mut seen = AHashSet::<_>::with_capacity(count);
+                    let mut seen = BTreeSet::<_>::new();
                     move |snum| seen.insert(*snum)
                 })
                 .collect();
