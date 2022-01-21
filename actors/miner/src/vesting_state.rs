@@ -1,12 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
+use std::{iter, mem};
 
 use fvm_shared::bigint::{bigint_ser, Integer};
 use fvm_shared::clock::{ChainEpoch, QuantSpec};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
+use itertools::{EitherOrBoth, Itertools};
 use num_traits::Zero;
 
 use super::VestSpec;
@@ -50,21 +51,20 @@ impl VestingFunds {
         proving_period_start: ChainEpoch,
         spec: &VestSpec,
     ) {
-        // maps the epochs in VestingFunds to their indices in the vec
-        let mut epoch_to_index = HashMap::<ChainEpoch, usize>::with_capacity(self.funds.len());
-
-        for (i, fund) in self.funds.iter().enumerate() {
-            epoch_to_index.insert(fund.epoch, i);
-        }
-
         // Quantization is aligned with when regular cron will be invoked, in the last epoch of deadlines.
         let vest_begin = current_epoch + spec.initial_delay; // Nothing unlocks here, this is just the start of the clock.
-        let vest_period = spec.vest_period;
+        let vest_period = TokenAmount::from(spec.vest_period);
         let mut vested_so_far = TokenAmount::zero();
 
         let mut epoch = vest_begin;
 
-        while vested_so_far < *vesting_sum {
+        // Create an iterator for the vesting schedule we're going to "join" with the current
+        // vesting schedule.
+        let new_funds = iter::from_fn(|| {
+            if vested_so_far >= *vesting_sum {
+                return None;
+            }
+
             epoch += spec.step_duration;
 
             let vest_epoch = QuantSpec {
@@ -76,31 +76,38 @@ impl VestingFunds {
             let elapsed = vest_epoch - vest_begin;
             let target_vest = if elapsed < spec.vest_period {
                 // Linear vesting
-                (vesting_sum * elapsed).div_floor(&TokenAmount::from(vest_period))
+                (vesting_sum * elapsed).div_floor(&vest_period)
             } else {
                 vesting_sum.clone()
             };
 
-            let vest_this_time = &target_vest - vested_so_far;
+            let vest_this_time = &target_vest - &vested_so_far;
             vested_so_far = target_vest;
 
-            match epoch_to_index.get(&vest_epoch) {
-                Some(&index) => {
-                    // epoch already exists. Load existing entry and update amount.
-                    self.funds[index].amount += vest_this_time;
-                }
-                None => {
-                    // append a new entry, vec will be sorted by epoch later.
-                    epoch_to_index.insert(vest_epoch, self.funds.len());
-                    self.funds.push(VestingFund {
-                        epoch: vest_epoch,
-                        amount: vest_this_time,
-                    });
-                }
-            }
-        }
+            Some(VestingFund {
+                epoch: vest_epoch,
+                amount: vest_this_time,
+            })
+        });
 
-        self.funds.sort_by_key(|fund| fund.epoch);
+        // Take the old funds array and replace it with a new one.
+        let funds_len = self.funds.len();
+        let old_funds = mem::replace(&mut self.funds, Vec::with_capacity(funds_len));
+
+        // Fill back in the funds array, merging existing and new schedule.
+        self.funds.extend(
+            old_funds
+                .into_iter()
+                .merge_join_by(new_funds, |a, b| a.epoch.cmp(&b.epoch))
+                .map(|item| match item {
+                    EitherOrBoth::Left(a) => a,
+                    EitherOrBoth::Right(b) => b,
+                    EitherOrBoth::Both(a, b) => VestingFund {
+                        epoch: a.epoch,
+                        amount: a.amount + b.amount,
+                    },
+                }),
+        );
     }
 
     pub fn unlock_unvested_funds(
