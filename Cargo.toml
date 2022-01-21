@@ -6,6 +6,7 @@ members = [
     "actors/*",
     "cgo/rust",
     "examples/actor",
+    "examples/token",
     "examples/blockstore-cgo/user",
     "testing/conformance",
     "ipld/*",
