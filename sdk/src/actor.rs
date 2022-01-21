@@ -1,13 +1,19 @@
 use core::option::Option; // no_std
 
 use cid::Cid;
-use fvm_shared::address::Address;
+use fvm_shared::address::{Address, Payload};
 use fvm_shared::ActorID;
 
 use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN};
 
-/// Resolves the ID address of an actor.
+/// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
+/// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
+/// addresss was already an actor ID).
 pub fn resolve_address(addr: &Address) -> Option<ActorID> {
+    if &Payload::ID(id) = addr.payload() {
+        return Some(id);
+    }
+
     let bytes = addr.to_bytes();
     unsafe {
         match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32)
@@ -20,7 +26,7 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
     }
 }
 
-/// Look up the code ID at an actor address.
+/// Look up the code ID at an actor address. Returns `None` if the actor cannot be found.
 pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
     let bytes = addr.to_bytes();
     let mut buf = [0u8; MAX_CID_LEN];
