@@ -29,27 +29,31 @@ impl GasOutputs {
 
         if base_fee > fee_cap {
             base_fee_to_pay = fee_cap;
-            out.miner_penalty = (base_fee - fee_cap) * gas_used
+            out.miner_penalty = ((base_fee - fee_cap).unwrap() * gas_used).unwrap();
         }
 
-        out.base_fee_burn = base_fee_to_pay * gas_used;
+        out.base_fee_burn = (base_fee_to_pay * gas_used).unwrap();
 
         let mut miner_tip = gas_premium.clone();
-        if (base_fee_to_pay + miner_tip) > fee_cap {
-            miner_tip = fee_cap - base_fee_to_pay;
+        if (base_fee_to_pay + miner_tip).unwrap() > fee_cap {
+            miner_tip = (fee_cap - base_fee_to_pay).unwrap();
         }
-        out.miner_tip = &miner_tip * gas_limit;
+        out.miner_tip = (miner_tip * gas_limit).unwrap();
 
         let (out_gas_refund, out_gas_burned) = compute_gas_overestimation_burn(gas_used, gas_limit);
         out.gas_refund = out_gas_refund;
         out.gas_burned = out_gas_burned;
 
         if out.gas_burned != 0 {
-            out.over_estimation_burn = base_fee_to_pay * out.gas_burned;
-            out.miner_penalty = out.miner_penalty + (base_fee - base_fee_to_pay) * out.gas_burned;
+            out.over_estimation_burn = (base_fee_to_pay * out.gas_burned).unwrap();
+            out.miner_penalty = (out.miner_penalty
+                + ((base_fee - base_fee_to_pay).unwrap() * out.gas_burned).unwrap())
+            .unwrap();
         }
-        let required_funds = fee_cap * gas_limit;
-        let refund = required_funds - out.base_fee_burn - out.miner_tip - out.over_estimation_burn;
+        let required_funds = (fee_cap * gas_limit).unwrap();
+        let refund = (((required_funds - out.base_fee_burn).unwrap() - out.miner_tip).unwrap()
+            - out.over_estimation_burn)
+            .unwrap();
         out.refund = refund;
 
         out

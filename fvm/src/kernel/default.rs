@@ -20,7 +20,6 @@ use fvm_shared::sector::SectorInfo;
 use fvm_shared::sys::TokenAmount;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
-use num_traits::Zero;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::blocks::{Block, BlockRegistry};
@@ -141,11 +140,10 @@ where
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = TokenAmount::from(330_000_000 as u64) * FILECOIN_PRECISION;
+        let initial_reserve_balance = TokenAmount::from(330_000_000 * FILECOIN_PRECISION as u128);
         initial_reserve_balance
             .checked_sub(
-                &self
-                    .call_manager
+                self.call_manager
                     .state_tree()
                     .get_actor_id(RESERVE_ACTOR_ID)?
                     .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
@@ -388,18 +386,18 @@ where
         self.call_manager
             .context()
             .base_circ_supply
-            .checked_add(&self.get_reserve_disbursed()?)
+            .checked_add(self.get_reserve_disbursed()?)
             .ok_or(anyhow!(
                 "overflow when adding reserve to base circulating supply"
             ))
             .or_fatal()?
-            .checked_sub(&self.get_burnt_funds()?)
+            .checked_sub(self.get_burnt_funds()?)
             .ok_or(anyhow!("underflow when subtracting burnt funds"))
             .or_fatal()?
-            .checked_sub(&self.power_locked()?)
+            .checked_sub(self.power_locked()?)
             .ok_or(anyhow!("underflow when subtracting power locked funds"))
             .or_fatal()?
-            .checked_sub(&self.market_locked()?)
+            .checked_sub(self.market_locked()?)
             .ok_or(anyhow!("underflow when subtracting market locked funds"))
             .or_fatal()
     }

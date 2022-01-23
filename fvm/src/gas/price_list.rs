@@ -12,7 +12,6 @@ use fvm_shared::sector::{
 use fvm_shared::sys::TokenAmount;
 use fvm_shared::{MethodNum, METHOD_SEND};
 use lazy_static::lazy_static;
-use num_traits::Zero;
 
 use super::GasCharge;
 

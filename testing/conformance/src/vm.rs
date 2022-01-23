@@ -23,7 +23,6 @@ use fvm_shared::sector::{
 use fvm_shared::sys::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
-use num_traits::Zero;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};

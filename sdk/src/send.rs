@@ -24,6 +24,8 @@ pub fn send(
     let value: fvm_shared::sys::TokenAmount = value
         .try_into()
         .map_err(|_| ExitCode::ErrInsufficientFunds)?;
+
+    let (value_hi, value_lo) = value.high_low();
     unsafe {
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
@@ -42,8 +44,8 @@ pub fn send(
             recipient.len() as u32,
             method,
             params_id,
-            value.hi,
-            value.lo,
+            value_hi,
+            value_lo,
         )?;
 
         // Process the result.

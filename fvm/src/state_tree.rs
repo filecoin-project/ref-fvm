@@ -540,13 +540,14 @@ impl ActorState {
         if self.balance < amt {
             return Err(syscall_error!(SysErrInsufficientFunds; "not enough funds").into());
         }
-        self.balance = self.balance - amt;
+        self.balance = (self.balance - amt).unwrap();
 
         Ok(())
     }
     /// Deposits funds to an Actor
-    pub fn deposit_funds(&mut self, amt: TokenAmount) {
-        self.balance = self.balance + amt;
+    pub fn deposit_funds(&mut self, amt: TokenAmount) -> Result<()> {
+        self.balance = (self.balance + amt).unwrap();
+        Ok(())
     }
 }
 

@@ -9,7 +9,6 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::sys::TokenAmount;
 use fvm_shared::ActorID;
-use num_traits::Zero;
 
 use super::{ApplyKind, ApplyRet, Executor};
 use crate::account_actor::is_account_actor;
@@ -186,12 +185,12 @@ where
         if inclusion_total > msg.gas_limit {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                self.context().base_fee * inclusion_total,
+                (self.context().base_fee * inclusion_total).unwrap(),
             )));
         }
 
         // Load sender actor state.
-        let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
+        let miner_penalty_amount = (self.context().base_fee * msg.gas_limit).unwrap();
 
         let sender_id = match self
             .state_tree()
@@ -238,7 +237,7 @@ where
         };
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
+        let gas_cost: TokenAmount = (msg.gas_fee_cap.clone() * msg.gas_limit).unwrap();
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 syscall_error!(SysErrSenderStateInvalid;
@@ -291,7 +290,7 @@ where
 
             self.state_tree_mut()
                 .mutate_actor(addr, |act| {
-                    act.deposit_funds(amt);
+                    act.deposit_funds(amt)?;
                     Ok(())
                 })
                 .context("failed to lookup actor for transfer")?;
@@ -307,7 +306,10 @@ where
         // refund unused gas
         transfer_to_actor(&msg.from, refund)?;
 
-        if (base_fee_burn + over_estimation_burn + refund + miner_tip) != gas_cost {
+        if (((base_fee_burn + over_estimation_burn).unwrap() + refund).unwrap() + miner_tip)
+            .unwrap()
+            != gas_cost
+        {
             // Sanity check. This could be a fatal error.
             return Err(anyhow!("Gas handling math is wrong"));
         }

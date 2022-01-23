@@ -4,7 +4,6 @@ use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys::TokenAmount;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
-use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
 use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};

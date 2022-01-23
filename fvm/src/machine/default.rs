@@ -262,7 +262,7 @@ where
                            "transfer failed when deducting funds ({}) from balance ({}): {}",
                            value, &from_actor.balance, e)
         })?;
-        to_actor.deposit_funds(value);
+        to_actor.deposit_funds(value)?;
 
         self.state_tree.set_actor_id(from, from_actor)?;
         self.state_tree.set_actor_id(to, to_actor)?;

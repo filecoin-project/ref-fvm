@@ -5,7 +5,6 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::sys::TokenAmount;
-use num_traits::Zero;
 
 use crate::kernel::SyscallError;
 use crate::machine::CallError;
