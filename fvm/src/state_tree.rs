@@ -636,7 +636,6 @@ mod tests {
     use cid::multihash::MultihashDigest;
     use cid::Cid;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
-    use fvm_shared::bigint::BigInt;
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;

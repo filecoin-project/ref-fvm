@@ -58,7 +58,7 @@ impl Default for Config {
 mod test {
     use fvm_shared::blockstore::MemoryBlockstore;
     use fvm_shared::state::StateTreeVersion;
-    use num_traits::Zero;
+    use fvm_shared::sys::TokenAmount;
 
     use crate::call_manager::DefaultCallManager;
     use crate::machine::DefaultMachine;
@@ -75,8 +75,8 @@ mod test {
         let machine = DefaultMachine::new(
             Config::default(),
             0,
-            Zero::zero(),
-            Zero::zero(),
+            TokenAmount::zero(),
+            TokenAmount::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
             bs,
