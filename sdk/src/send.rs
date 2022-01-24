@@ -25,7 +25,7 @@ pub fn send(
         .try_into()
         .map_err(|_| ExitCode::ErrInsufficientFunds)?;
 
-    let (value_hi, value_lo) = value.high_low();
+    let (value_hi, value_lo) = value.to_high_low();
     unsafe {
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.

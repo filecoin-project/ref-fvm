@@ -233,7 +233,11 @@ impl TokenAmount {
         self.hi == 0 && self.lo == 0
     }
 
-    pub fn high_low(&self) -> (u64, u64) {
+    pub fn to_high_low(&self) -> (u64, u64) {
         (self.hi, self.lo)
+    }
+
+    pub fn from_high_low(hi: u64, lo: u64) -> Self {
+        TokenAmount { hi, lo }
     }
 }
