@@ -10,7 +10,6 @@ pub use kernel::{BlockError, Kernel};
 
 pub mod call_manager;
 pub mod executor;
-pub mod externs;
 pub mod kernel;
 pub mod machine;
 pub mod syscalls;

@@ -1,10 +1,8 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-
-pub mod cgo;
+use crate::consensus::ConsensusFault;
+use crate::crypto::randomness::DomainSeparationTag;
+use crate::ChainEpoch;
 
 pub trait Externs: Rand + Consensus {}
 
@@ -30,23 +28,9 @@ pub trait Rand {
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]>;
 
-    fn get_chain_randomness_looking_forward(
-        &self,
-        pers: DomainSeparationTag,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]>;
-
     /// Gets 32 bytes of randomness for ChainRand paramaterized by the DomainSeparationTag,
     /// ChainEpoch, Entropy from the latest beacon entry.
     fn get_beacon_randomness(
-        &self,
-        pers: DomainSeparationTag,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]>;
-
-    fn get_beacon_randomness_looking_forward(
         &self,
         pers: DomainSeparationTag,
         round: ChainEpoch,

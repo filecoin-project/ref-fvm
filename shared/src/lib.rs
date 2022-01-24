@@ -19,6 +19,7 @@ pub mod deal;
 pub mod econ;
 pub mod encoding;
 pub mod error;
+pub mod externs;
 pub mod math;
 pub mod message;
 pub mod piece;
@@ -91,6 +92,7 @@ pub trait NetworkParams {
 // * This can be removed in the future if the new testnet is configred at build time
 // * but the reason to keep as is, is for an easier transition to runtime configuration.
 pub struct DefaultNetworkParams;
+
 impl NetworkParams for DefaultNetworkParams {
     const TOTAL_FILECOIN: i64 = TOTAL_FILECOIN_BASE;
     const MINING_REWARD_TOTAL: i64 = 1_400_000_000;

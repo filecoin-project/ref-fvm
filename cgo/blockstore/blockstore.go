@@ -20,7 +20,7 @@ const (
 // possible (without too many hacks). Importantly, this means avoiding locks in the happy path.
 //
 // To do this, we make liberal use of unsafe pointers and atomic operations such that looking up a
-// blockstore requires exactly one atomic read. This means that this API can be _very_ dangerious if
+// blockstore requires exactly one atomic read. This means that this API can be _very_ dangerous if
 // used incorrectly.
 //
 // NOTE: This is totally a premature optimization and we may need to ditch all of it. I got a bit
@@ -69,7 +69,7 @@ func Register(bs blockstore.Blockstore) int32 {
 // Unregister a blockstore.
 //
 // WARNING: This method must be called at most _once_ with a handle previously returned by Register.
-// Furthermore, it must not be called concurretnly with a Lookup of the same handle.
+// Furthermore, it must not be called concurrently with a Lookup of the same handle.
 func Unregister(handle int32) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -81,7 +81,7 @@ func Unregister(handle int32) {
 
 // Lookup a blockstore by handle.
 //
-// WARNING: This method must be called witha valid handle to avoid undefined behavior. It must be
+// WARNING: This method must be called with a valid handle to avoid undefined behavior. It must be
 // called between Register and Unregister, and must not be called concurrently or after
 // Unregistering the blockstore.
 func Lookup(handle int32) blockstore.Blockstore {

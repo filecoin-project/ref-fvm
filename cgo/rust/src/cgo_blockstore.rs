@@ -67,7 +67,7 @@ impl Blockstore for CgoBlockstore {
                 &mut size,
             ) {
                 0 => Ok(Some(Vec::from_raw_parts(buf, size as usize, size as usize))),
-                r @ 1.. => panic!("invalid return value from has: {}", r),
+                r @ 1.. => panic!("invalid return value from get: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 ERR_NOT_FOUND => Ok(None),
                 e => Err(anyhow!("cgo blockstore 'get' failed with error code {}", e)),
@@ -86,7 +86,7 @@ impl Blockstore for CgoBlockstore {
                 block.len() as i32,
             ) {
                 0 => Ok(()),
-                r @ 1.. => panic!("invalid return value from has: {}", r),
+                r @ 1.. => panic!("invalid return value from put: {}", r),
                 ERR_NO_STORE => panic!("blockstore {} not registered", self.handle),
                 // This error makes no sense.
                 ERR_NOT_FOUND => panic!("not found error on put"),

@@ -1,6 +1,7 @@
 package blockstore
 
 import (
+	"context"
 	"unsafe"
 
 	"github.com/filecoin-project/lotus/blockstore"
@@ -25,7 +26,7 @@ func cgobs_get(store C.int32_t, k C.buf_t, k_len C.int32_t, block **C.uint8_t, s
 	if bs == nil {
 		return ErrNoStore
 	}
-	err := bs.View(c, func(data []byte) error {
+	err := bs.View(context.Background(), c, func(data []byte) error {
 		*block = (C.buf_t)(C.CBytes(data))
 		*size = C.int32_t(len(data))
 		return nil
@@ -49,7 +50,7 @@ func cgobs_put(store C.int32_t, k C.buf_t, k_len C.int32_t, block C.buf_t, block
 		return ErrNoStore
 	}
 	b, _ := blocks.NewBlockWithCid(C.GoBytes(unsafe.Pointer(block), C.int(block_len)), c)
-	if bs.Put(b) != nil {
+	if bs.Put(context.Background(), b) != nil {
 		return ErrIO
 	}
 	return 0
@@ -65,7 +66,7 @@ func cgobs_delete(store C.int32_t, k C.buf_t, k_len C.int32_t) C.int32_t {
 	if bs == nil {
 		return ErrNoStore
 	}
-	if bs.DeleteBlock(c) != nil {
+	if bs.DeleteBlock(context.Background(), c) != nil {
 		return ErrIO
 	}
 	return 0
@@ -78,7 +79,7 @@ func cgobs_has(store C.int32_t, k C.buf_t, k_len C.int32_t) C.int32_t {
 	if bs == nil {
 		return ErrNoStore
 	}
-	has, err := bs.Has(c)
+	has, err := bs.Has(context.Background(), c)
 	switch err {
 	case nil:
 	case blockstore.ErrNotFound:

@@ -1,7 +1,7 @@
-use fvm::externs::{Consensus, Externs, Rand};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::externs::{Consensus, Externs, Rand};
 
 use crate::rand::ReplayingRand;
 use crate::vector::Randomness;
@@ -33,16 +33,6 @@ impl Rand for TestExterns {
         self.rand.get_chain_randomness(pers, round, entropy)
     }
 
-    fn get_chain_randomness_looking_forward(
-        &self,
-        pers: DomainSeparationTag,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        self.rand
-            .get_chain_randomness_looking_forward(pers, round, entropy)
-    }
-
     fn get_beacon_randomness(
         &self,
         pers: DomainSeparationTag,
@@ -50,16 +40,6 @@ impl Rand for TestExterns {
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
         self.rand.get_beacon_randomness(pers, round, entropy)
-    }
-
-    fn get_beacon_randomness_looking_forward(
-        &self,
-        pers: DomainSeparationTag,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        self.rand
-            .get_beacon_randomness_looking_forward(pers, round, entropy)
     }
 }
 

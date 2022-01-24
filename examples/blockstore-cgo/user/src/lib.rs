@@ -1,6 +1,6 @@
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
-use fvm_cgo::blockstore::CgoBlockstore;
+use fvm_cgo::cgo_blockstore::CgoBlockstore;
 use fvm_shared::blockstore::{Block, Blockstore as _};
 
 #[no_mangle]

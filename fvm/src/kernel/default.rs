@@ -17,6 +17,7 @@ use fvm_shared::commcid::{
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::externs::{Consensus, Rand};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
@@ -29,7 +30,6 @@ use super::*;
 use crate::account_actor::is_account_actor;
 use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
-use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
@@ -699,7 +699,7 @@ where
         // TODO: Check error code
         self.call_manager
             .externs()
-            .get_chain_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .get_chain_randomness(personalization, rand_epoch, entropy)
             .or_illegal_argument()
     }
 
@@ -714,7 +714,7 @@ where
         // Hyperdrive and above only.
         self.call_manager
             .externs()
-            .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .get_beacon_randomness(personalization, rand_epoch, entropy)
             .or_illegal_argument()
     }
 }

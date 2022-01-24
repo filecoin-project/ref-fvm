@@ -21,3 +21,16 @@ pub enum ConsensusFaultType {
     ParentGrinding = 2,
     TimeOffsetMining = 3,
 }
+
+impl TryFrom<u8> for ConsensusFaultType {
+    type Error = ();
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            1 => Ok(Self::DoubleForkMining),
+            2 => Ok(Self::ParentGrinding),
+            3 => Ok(Self::TimeOffsetMining),
+            _ => Err(()),
+        }
+    }
+}

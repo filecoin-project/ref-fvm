@@ -1,6 +1,7 @@
 package owner
 
 import (
+	"context"
 	"testing"
 
 	"github.com/filecoin-project/lotus/blockstore"
@@ -27,7 +28,7 @@ func BenchmarkWriteDirect(b *testing.B) {
 	block, _ := blocks.NewBlockWithCid(data, k)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = bs.Put(block)
+		_ = bs.Put(context.Background(), block)
 	}
 	if len(bs) != 1 {
 		b.Fatal("expected one element")
@@ -39,7 +40,7 @@ func BenchmarkReadCgo(b *testing.B) {
 	data := []byte("thing")
 	k, _ := builder.Sum(data)
 	block, _ := blocks.NewBlockWithCid(data, k)
-	bs.Put(block)
+	bs.Put(context.Background(), block)
 	b.ResetTimer()
 	read_blocks(bs, b.N)
 }
@@ -49,10 +50,10 @@ func BenchmarkReadDirect(b *testing.B) {
 	data := []byte("thing")
 	k, _ := builder.Sum(data)
 	block, _ := blocks.NewBlockWithCid(data, k)
-	bs.Put(block)
+	bs.Put(context.Background(), block)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		blk, _ := bs.Get(block.Cid())
+		blk, _ := bs.Get(context.Background(), block.Cid())
 		if len(blk.RawData()) != len(data) {
 			b.Fatal("wrong size")
 		}
