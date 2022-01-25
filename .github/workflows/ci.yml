@@ -29,12 +29,15 @@ jobs:
             command: clippy
             args: --all --all-targets
             components: clippy
+            # otherwise the include_bytes! macro fails because this file hasn't been generated
+            files: examples/fvm/fvm_example_actor.wasm
           - name: test-fvm
             command: test
             args: --package fvm --no-default-features
           - name: test
             command: test
             args: --all --exclude fvm --exclude conformance_tests
+            packages: ocl-icd-opencl-dev
           - name: conformance
             command: test
             args: --package conformance_tests
@@ -70,9 +73,11 @@ jobs:
         version: v0.2.15
         # change this to invalidate sccache for this job
         shared-key: v0
-    # otherwise the include_bytes! macro fails because this file hasn't been generated
-    - if: ${{ matrix.command == 'clippy' }}
-      run: touch examples/fvm/fvm_example_actor.wasm
+    - if: ${{ matrix.files != '' }}
+      run: touch ${{ matrix.files }}
+      shell: bash
+    - if: ${{ matrix.packages != '' }}
+      run: sudo apt-get install -y ${{ matrix.packages }}
       shell: bash
     - name: Runing ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
