@@ -98,8 +98,8 @@ macro_rules! encode {
 /// The state object of the token actor.
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug)]
 pub struct State {
-    pub name: Vec<u8>,
-    pub symbol: Vec<u8>,
+    pub name: String,
+    pub symbol: String,
     #[serde(with = "bigint_ser")]
     pub max_supply: TokenAmount,
     // map[ActorID] => TokenAmount
@@ -167,19 +167,13 @@ pub fn invoke(params_id: u32) -> u32 {
 /// Returns the token name. Method number 1.
 #[inline]
 pub fn name(state: State) -> RawBytes {
-    match String::from_utf8(state.name) {
-        Ok(s) => encode!(s.into_bytes()),
-        Err(err) => abort!(ErrIllegalState, "could not parse name as UTF-8: {:?}", err),
-    }
+    encode!(state.name)
 }
 
 /// Returns the symbol. Method number 2.
 #[inline]
 pub fn symbol(state: State) -> RawBytes {
-    match String::from_utf8(state.symbol) {
-        Ok(s) => encode!(s.into_bytes()),
-        Err(err) => abort!(ErrIllegalState, "could not parse name as UTF-8: {:?}", err),
-    }
+    encode!(state.symbol)
 }
 
 /// Returns the maximum supply. Method number 3.
