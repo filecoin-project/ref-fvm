@@ -22,7 +22,7 @@ pub fn verify_signature(
     let signature = signature
         .marshal_cbor()
         .expect("failed to marshal signature");
-    let signer = signer.marshal_cbor().expect("failed to marshal address");
+    let signer = signer.to_bytes();
     unsafe {
         sys::crypto::verify_signature(
             signature.as_ptr(),
