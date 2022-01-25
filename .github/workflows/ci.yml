@@ -113,6 +113,3 @@ jobs:
     - name: Making examples
       run: make examples
       shell: bash
-    - name: Testing examples
-      run: make test-examples
-      shell: bash
