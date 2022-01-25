@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
@@ -19,9 +18,9 @@ use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
 use fvm::machine::Machine;
-use fvm::state_tree::StateTree;
+use fvm::state_tree::{ActorState, StateTree};
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::MemoryBlockstore;
+use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
@@ -108,58 +107,86 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
     Ok(())
 }
 
-/// Compares the resulting state root with the expected state root. Currently,
-/// this doesn't do much, but it could run a statediff.
-fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, expected_root: &Cid) -> Result<()> {
-    if root == expected_root {
+fn compare_actors(
+    bs: &MemoryBlockstore,
+    identifier: impl Display,
+    actual: Option<ActorState>,
+    expected: Option<ActorState>,
+) -> Result<()> {
+    if actual == expected {
+        return Ok(());
+    }
+    log::error!(
+        "{} actor state differs: {:?} != {:?}",
+        identifier,
+        actual,
+        expected
+    );
+
+    match (actual, expected) {
+        (Some(a), Some(e)) if a.state != e.state => {
+            let a_root: Vec<serde_cbor::Value> = bs.get_cbor(&a.state)?.unwrap();
+            let e_root: Vec<serde_cbor::Value> = bs.get_cbor(&e.state)?.unwrap();
+            if a_root.len() != e_root.len() {
+                log::error!("states have different numbers of fields")
+            } else {
+                for (f, (af, ef)) in a_root.iter().zip(e_root.iter()).enumerate() {
+                    if af != ef {
+                        log::error!("mismatched field {}: {:#?} != {:#?}", f, af, ef);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Compares the state-root with the postcondition state-root in the test vector. If they don't
+/// match, it performs a basic actor & state-diff of the message senders and receivers in the test
+/// vector, along with all system actors.
+fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector) -> Result<()> {
+    if root == &vector.postconditions.state_tree.root_cid {
         return Ok(());
     }
 
-    let mut seen = HashSet::new();
+    let actual_st =
+        StateTree::new_from_root(bs, root).context("failed to load actual state tree")?;
+    let expected_st = StateTree::new_from_root(bs, &vector.postconditions.state_tree.root_cid)
+        .context("failed to load expected state tree")?;
 
-    let mut actual = HashMap::new();
-    StateTree::new_from_root(bs, root)
-        .context("failed to load actual state tree")?
-        .for_each(|addr, state| {
-            actual.insert(addr, state.clone());
-            Ok(())
-        })?;
+    // We only compare system actors and the send/receiver actor as we don't know what other actors
+    // might exist in the state-tree (it's usually incomplete).
 
-    let mut expected = HashMap::new();
-    StateTree::new_from_root(bs, expected_root)
-        .context("failed to load expected state tree")?
-        .for_each(|addr, state| {
-            expected.insert(addr, state.clone());
-            Ok(())
-        })?;
-    for (k, va) in &actual {
-        if seen.insert(k) {
-            continue;
-        }
-        match expected.get(k) {
-            Some(ve) if va != ve => {
-                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
-            }
-            None => log::error!("unexpected actor {}", k),
-            _ => {}
-        }
+    for m in &vector.apply_messages {
+        let msg = Message::unmarshal_cbor(&m.bytes)?;
+        let actual_actor = actual_st.get_actor(&msg.from)?;
+        let expected_actor = expected_st.get_actor(&msg.from)?;
+        compare_actors(bs, "sender", actual_actor, expected_actor)?;
+
+        let actual_actor = actual_st.get_actor(&msg.to)?;
+        let expected_actor = expected_st.get_actor(&msg.to)?;
+        compare_actors(bs, "receiver", actual_actor, expected_actor)?;
     }
-    for (k, ve) in &expected {
-        if seen.insert(k) {
-            continue;
-        }
-        match actual.get(k) {
-            Some(va) if va != ve => {
-                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
-            }
-            None => log::error!("missing actor {}", k),
-            _ => {}
-        }
+
+    // All system actors
+    for id in 0..100 {
+        let expected_actor = match expected_st.get_actor_id(id) {
+            Ok(act) => act,
+            Err(_) => continue, // we don't expect it anyways.
+        };
+        let actual_actor = actual_st.get_actor_id(id)?;
+        compare_actors(
+            bs,
+            format_args!("builtin {}", id),
+            actual_actor,
+            expected_actor,
+        )?;
     }
 
     return Err(anyhow!(
         "wrong post root cid; expected {}, but got {}",
-        expected_root,
+        &vector.postconditions.state_tree.root_cid,
         root
     ));
 }
@@ -388,7 +415,7 @@ fn run_variant(
 
     let bs = machine.consume().consume();
 
-    if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
+    if let Err(err) = compare_state_roots(&bs, &final_root, &v) {
         return Ok(VariantResult::Failed {
             id,
             reason: err.context("comparing state roots failed"),
