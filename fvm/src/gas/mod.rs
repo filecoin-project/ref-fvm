@@ -30,6 +30,7 @@ impl GasTracker {
         let to_use = charge.total();
         match self.gas_used.checked_add(to_use) {
             None => {
+                log::trace!("gas overflow: {}", charge.name);
                 self.gas_used = self.gas_available;
                 Err(syscall_error!(SysErrOutOfGas;
                     "adding gas_used={} and to_use={} overflowed",
@@ -37,7 +38,9 @@ impl GasTracker {
                 ))
             }
             Some(used) => {
+                log::trace!("charged {} gas: {}", used, charge.name);
                 if used > self.gas_available {
+                    log::trace!("out of gas: {}", charge.name);
                     self.gas_used = self.gas_available;
                     Err(syscall_error!(SysErrOutOfGas;
                             "not enough gas (used={}) (available={})",
