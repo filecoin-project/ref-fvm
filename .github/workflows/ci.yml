@@ -36,7 +36,10 @@ jobs:
             args: --package fvm --no-default-features
           - name: test
             command: test
-            args: --all --exclude fvm --exclude conformance_tests
+            args: --all --exclude fvm --exclude conformance_tests --exclude fvm_token_actor
+          - name: test-fvm-token-actor
+            command: test
+            args: --package fvm_token_actor
             packages: ocl-icd-opencl-dev
           - name: conformance
             command: test
