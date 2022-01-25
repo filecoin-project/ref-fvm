@@ -40,7 +40,7 @@ pub fn verify_signature(
     let addr: Address = context.memory.read_address(addr_off, addr_len)?;
     // plaintext doesn't need to be a mutable borrow, but otherwise we would be
     // borrowing the ctx both immutably and mutably.
-    let plaintext = context.memory.try_slice(plaintext_len, plaintext_off)?;
+    let plaintext = context.memory.try_slice(plaintext_off, plaintext_len)?;
     context
         .kernel
         .verify_signature(&sig, &addr, plaintext)
@@ -55,7 +55,7 @@ pub fn hash_blake2b(
     data_off: u32,
     data_len: u32,
 ) -> Result<[u8; 32]> {
-    let data = context.memory.try_slice(data_len, data_off)?;
+    let data = context.memory.try_slice(data_off, data_len)?;
     context.kernel.hash_blake2b(data)
 }
 

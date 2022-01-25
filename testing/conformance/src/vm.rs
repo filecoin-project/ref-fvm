@@ -391,14 +391,14 @@ where
         self.0.batch_verify_seals(vis)
     }
 
-    // NOT forwarded
+    // forwarded
     fn verify_signature(
         &mut self,
-        _signature: &Signature,
-        _signer: &Address,
-        _plaintext: &[u8],
+        signature: &Signature,
+        signer: &Address,
+        plaintext: &[u8],
     ) -> Result<bool> {
-        Ok(true)
+        self.0.verify_signature(signature, signer, plaintext)
     }
 
     // NOT forwarded

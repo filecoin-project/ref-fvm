@@ -238,7 +238,13 @@ where
         if self.in_transaction {
             return Err(actor_error!(SysErrIllegalActor; "runtime.send() is not allowed"));
         }
-        Ok(fvm::send::send(&to, method, params, value)?.return_data)
+        // TODO: distinguish between "syscall" errors and actor exit codes.
+        let res = fvm::send::send(&to, method, params, value)?;
+        if !res.exit_code.is_success() {
+            Err(ActorError::new(res.exit_code, "send failed".into()))
+        } else {
+            Ok(res.return_data)
+        }
     }
 
     fn new_actor_address(&mut self) -> Result<Address, ActorError> {
