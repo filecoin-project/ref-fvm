@@ -58,7 +58,7 @@
 //! meant for illustration and test purposes.
 //!
 
-use cid::multihash::Code;
+use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_sdk as sdk;
 use fvm_sdk::blockstore::Blockstore;
@@ -222,6 +222,27 @@ pub fn transfer(mut state: State, params: TransferParams) {
         Some(id) => id,
         None => abort!(ErrIllegalArgument, "failed to resolve address"),
     };
+
+    // Forbid sends to self.
+    if sender_id == recipient_id {
+        abort!(ErrIllegalArgument, "cannot send to self");
+    }
+
+    // Ensure that the recipient is an account actor; otherwise they will never
+    // be able to spend the funds. (At least in the current protocol)
+    match sdk::actor::get_actor_code_cid(&params.recipient) {
+        None => abort!(ErrIllegalArgument, "cannot resolve actor type of recipient"),
+        Some(cid) => {
+            /// The multicodec value for raw data.
+            const IPLD_CODEC_RAW: u64 = 0x55;
+            // TODO this is embarrassingly wrong, as hardcoding the actor version doesn't allow evolution.
+            //  but we need to figure out the upgradability story to solve this.
+            let other = Cid::new_v1(IPLD_CODEC_RAW, Code::Identity.digest(b"fil/6/account"));
+            if cid != other {
+                abort!(ErrIllegalArgument, "recipient is not an account actor")
+            }
+        }
+    }
 
     // Load the recipient's balance.
     let mut recipient_bal = match balances.get(&recipient_id) {

@@ -3,12 +3,22 @@ name = "fvm_token_actor"
 version = "0.1.0"
 edition = "2018"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
 cid = { version = "0.7.0", default-features = false }
+multihash = { version = "0.15", default-features = false, features = ["identity"] }
 fvm_sdk = { path = "../../sdk" }
 fvm_shared = { path = "../../shared" }
 ipld_hamt = { path = "../../ipld/hamt" }
 serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+fvm = { path = "../../fvm", features = ["custom_actors"] }
+libsecp256k1 = { version = "0.7" }
+rand = "0.8"
+rand_chacha = "0.3"
+anyhow = "1.0.52"
+wasmtime = "0.33.0"
+
+[build-dependencies]
+wasm-builder = "3.0.1"
+wasmtime = "0.33.0"
