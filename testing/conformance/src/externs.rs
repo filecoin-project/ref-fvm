@@ -2,6 +2,7 @@ use fvm::externs::{Consensus, Externs, Rand};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::ActorID;
 
 use crate::rand::ReplayingRand;
 use crate::vector::Randomness;
@@ -66,6 +67,7 @@ impl Rand for TestExterns {
 impl Consensus for TestExterns {
     fn verify_consensus_fault(
         &self,
+        _receiver: ActorID,
         _h1: &[u8],
         _h2: &[u8],
         _extra: &[u8],

@@ -22,13 +22,12 @@ pub fn verify_signature(
     let signature = signature
         .marshal_cbor()
         .expect("failed to marshal signature");
-    let signer = signer.marshal_cbor().expect("failed to marshal address");
     unsafe {
         sys::crypto::verify_signature(
             signature.as_ptr(),
             signature.len() as u32,
-            signer.as_ptr(),
-            signer.len() as u32,
+            signer.to_bytes().as_ptr(),
+            signer.to_bytes().len() as u32,
             plaintext.as_ptr(),
             plaintext.len() as u32,
         )

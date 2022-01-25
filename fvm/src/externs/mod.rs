@@ -3,6 +3,7 @@
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::ActorID;
 
 pub mod cgo;
 
@@ -13,6 +14,7 @@ pub trait Consensus {
     /// Verify a consensus fault.
     fn verify_consensus_fault(
         &self,
+        receiver: ActorID,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],

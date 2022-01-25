@@ -1,10 +1,13 @@
-#![allow(unused)] // TODO: remove this when we implement these
+#![allow(unused)]
+
+// TODO: remove this when we implement these
 use anyhow::Result;
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::{ConsensusFault, ConsensusFaultType};
 use fvm_shared::crypto::randomness::DomainSeparationTag;
+use fvm_shared::ActorID;
 
 use crate::externs::{Consensus, Externs, Rand};
 
@@ -66,6 +69,7 @@ impl Rand for CgoExterns {
 impl Consensus for CgoExterns {
     fn verify_consensus_fault(
         &self,
+        receiver: ActorID,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],

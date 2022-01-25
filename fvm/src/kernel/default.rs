@@ -541,7 +541,7 @@ where
         // the node boundary through an extern.
         self.call_manager
             .externs()
-            .verify_consensus_fault(h1, h2, extra)
+            .verify_consensus_fault(self.msg_receiver(), h1, h2, extra)
             .or_illegal_argument()
             .context("fault not verified")
     }
@@ -576,7 +576,7 @@ where
                                 false
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
                         false
