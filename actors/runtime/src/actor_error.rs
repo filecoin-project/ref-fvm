@@ -59,6 +59,8 @@ impl From<fvm_shared::encoding::error::Error> for ActorError {
     }
 }
 
+/// Converts an actor deletion error into an actor error with the appropriate exit code. This
+/// facilitates propagation.
 #[cfg(feature = "runtime-wasm")]
 impl From<fvm_sdk::error::ActorDeleteError> for ActorError {
     fn from(e: fvm_sdk::error::ActorDeleteError) -> Self {
@@ -75,6 +77,8 @@ impl From<fvm_sdk::error::ActorDeleteError> for ActorError {
     }
 }
 
+/// Converts a no-state error into an an actor error with the appropriate exit code (illegal actor).
+/// This facilitates propagation.
 #[cfg(feature = "runtime-wasm")]
 impl From<fvm_sdk::error::NoStateError> for ActorError {
     fn from(e: fvm_sdk::error::NoStateError) -> Self {
