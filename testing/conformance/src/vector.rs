@@ -45,9 +45,9 @@ pub struct MetaData {
 pub struct PreConditions {
     pub state_tree: StateTreeVector,
     #[serde(default)]
-    pub basefee: Option<f64>,
+    pub basefee: Option<u128>,
     #[serde(default)]
-    pub circ_supply: Option<f64>,
+    pub circ_supply: Option<u128>,
     #[serde(default)]
     pub variants: Vec<Variant>,
 }
@@ -112,13 +112,6 @@ pub struct RandomnessRule {
     pub epoch: ChainEpoch,
     #[serde(with = "base64_bytes")]
     pub entropy: Vec<u8>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "class")]
-pub enum TestVector {
-    #[serde(rename = "message")]
-    Message(MessageVector),
 }
 
 #[derive(Debug, Deserialize)]

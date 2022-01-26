@@ -8,7 +8,7 @@ use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
 use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, ToBigInt};
+use fvm_shared::bigint::BigInt;
 use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -52,7 +52,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let base_fee = v
             .preconditions
             .basefee
-            .map(|i| i.to_bigint().unwrap())
+            .map(|i| i.into())
             .unwrap_or_else(|| BigInt::from(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
         let state_root = v.preconditions.state_tree.root_cid;
@@ -90,7 +90,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 circ_supply: v
                     .preconditions
                     .circ_supply
-                    .map(|i| i.to_bigint().unwrap())
+                    .map(|i| i.into())
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list: price_list,
             },

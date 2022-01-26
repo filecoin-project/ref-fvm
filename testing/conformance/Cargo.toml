@@ -40,11 +40,11 @@ either = "1.6.1"
 itertools = "0.10.3"
 num_cpus = "1.13.1"
 serde_cbor = "0.11.2"
+serde_json = { version = "1.0", features = ["raw_value"] }
 
 [dev-dependencies]
 regex = { version = "1.0" }
 walkdir = "2.3"
-serde_json = "1.0"
 flate2 = "1.0"
 lazy_static = "1.4"
 pretty_env_logger = "0.4.0"

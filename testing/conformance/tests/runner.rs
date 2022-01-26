@@ -1,17 +1,18 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::HashMap;
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{fmt, iter};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context as _, Result};
 use async_std::{stream, sync, task};
 use cid::Cid;
 use colored::*;
-use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
+use conformance_tests::vector::{MessageVector, Selector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
@@ -303,10 +304,36 @@ async fn run_vector(
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
-    let vector: TestVector = serde_json::from_reader(reader)?;
 
-    match vector {
-        TestVector::Message(v) => {
+    // Test vectors have the form:
+    //
+    //     { "class": ..., rest... }
+    //
+    // Unfortunately:
+    // 1. That means we need to use serde's "flatten" and/or "tag" feature to decode them.
+    // 2. Serde's JSON library doesn't support arbitrary precision numbers when doing this.
+    // 3. The circulating supply doesn't fit in a u64, and f64 isn't precise enough.
+    //
+    // So we manually:
+    // 1. Decode into a map of `String` -> `raw data`.
+    // 2. Pull off the class.
+    // 3. Re-serialize.
+    // 4. Decode into the correct type.
+    //
+    // Upstream bug is https://github.com/serde-rs/serde/issues/1183 (or at least that looks like
+    // the most appropriate one out of all the related issues).
+    let mut vector: HashMap<String, Box<serde_json::value::RawValue>> =
+        serde_json::from_reader(reader)?;
+    let class_json = vector
+        .remove("class")
+        .context("expected test vector to have a class")?;
+
+    let class: &str = serde_json::from_str(class_json.get())?;
+    let vector_json = serde_json::to_string(&vector)?;
+
+    match class {
+        "message" => {
+            let v: MessageVector = serde_json::from_str(&vector_json)?;
             let skip = !v.selector.as_ref().map_or(true, Selector::supported);
             if skip {
                 Ok(either::Either::Left(
@@ -355,6 +382,7 @@ async fn run_vector(
                 ))
             }
         }
+        other => return Err(anyhow!("unknown test vector class: {}", other)),
     }
 }
 
