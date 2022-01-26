@@ -1,27 +1,27 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{fmt, iter};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context as _, Result};
 use async_std::{stream, sync, task};
 use cid::Cid;
 use colored::*;
-use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
+use conformance_tests::vector::{MessageVector, Selector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
 use fvm::machine::Machine;
-use fvm::state_tree::StateTree;
+use fvm::state_tree::{ActorState, StateTree};
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::MemoryBlockstore;
+use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
@@ -108,58 +108,86 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
     Ok(())
 }
 
-/// Compares the resulting state root with the expected state root. Currently,
-/// this doesn't do much, but it could run a statediff.
-fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, expected_root: &Cid) -> Result<()> {
-    if root == expected_root {
+fn compare_actors(
+    bs: &MemoryBlockstore,
+    identifier: impl Display,
+    actual: Option<ActorState>,
+    expected: Option<ActorState>,
+) -> Result<()> {
+    if actual == expected {
+        return Ok(());
+    }
+    log::error!(
+        "{} actor state differs: {:?} != {:?}",
+        identifier,
+        actual,
+        expected
+    );
+
+    match (actual, expected) {
+        (Some(a), Some(e)) if a.state != e.state => {
+            let a_root: Vec<serde_cbor::Value> = bs.get_cbor(&a.state)?.unwrap();
+            let e_root: Vec<serde_cbor::Value> = bs.get_cbor(&e.state)?.unwrap();
+            if a_root.len() != e_root.len() {
+                log::error!("states have different numbers of fields")
+            } else {
+                for (f, (af, ef)) in a_root.iter().zip(e_root.iter()).enumerate() {
+                    if af != ef {
+                        log::error!("mismatched field {}: {:#?} != {:#?}", f, af, ef);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Compares the state-root with the postcondition state-root in the test vector. If they don't
+/// match, it performs a basic actor & state-diff of the message senders and receivers in the test
+/// vector, along with all system actors.
+fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector) -> Result<()> {
+    if root == &vector.postconditions.state_tree.root_cid {
         return Ok(());
     }
 
-    let mut seen = HashSet::new();
+    let actual_st =
+        StateTree::new_from_root(bs, root).context("failed to load actual state tree")?;
+    let expected_st = StateTree::new_from_root(bs, &vector.postconditions.state_tree.root_cid)
+        .context("failed to load expected state tree")?;
 
-    let mut actual = HashMap::new();
-    StateTree::new_from_root(bs, root)
-        .context("failed to load actual state tree")?
-        .for_each(|addr, state| {
-            actual.insert(addr, state.clone());
-            Ok(())
-        })?;
+    // We only compare system actors and the send/receiver actor as we don't know what other actors
+    // might exist in the state-tree (it's usually incomplete).
 
-    let mut expected = HashMap::new();
-    StateTree::new_from_root(bs, expected_root)
-        .context("failed to load expected state tree")?
-        .for_each(|addr, state| {
-            expected.insert(addr, state.clone());
-            Ok(())
-        })?;
-    for (k, va) in &actual {
-        if seen.insert(k) {
-            continue;
-        }
-        match expected.get(k) {
-            Some(ve) if va != ve => {
-                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
-            }
-            None => log::error!("unexpected actor {}", k),
-            _ => {}
-        }
+    for m in &vector.apply_messages {
+        let msg = Message::unmarshal_cbor(&m.bytes)?;
+        let actual_actor = actual_st.get_actor(&msg.from)?;
+        let expected_actor = expected_st.get_actor(&msg.from)?;
+        compare_actors(bs, "sender", actual_actor, expected_actor)?;
+
+        let actual_actor = actual_st.get_actor(&msg.to)?;
+        let expected_actor = expected_st.get_actor(&msg.to)?;
+        compare_actors(bs, "receiver", actual_actor, expected_actor)?;
     }
-    for (k, ve) in &expected {
-        if seen.insert(k) {
-            continue;
-        }
-        match actual.get(k) {
-            Some(va) if va != ve => {
-                log::error!("actor {} has state {:?}, expected {:?}", k, va, ve)
-            }
-            None => log::error!("missing actor {}", k),
-            _ => {}
-        }
+
+    // All system actors
+    for id in 0..100 {
+        let expected_actor = match expected_st.get_actor_id(id) {
+            Ok(act) => act,
+            Err(_) => continue, // we don't expect it anyways.
+        };
+        let actual_actor = actual_st.get_actor_id(id)?;
+        compare_actors(
+            bs,
+            format_args!("builtin {}", id),
+            actual_actor,
+            expected_actor,
+        )?;
     }
 
     return Err(anyhow!(
         "wrong post root cid; expected {}, but got {}",
-        expected_root,
+        &vector.postconditions.state_tree.root_cid,
         root
     ));
 }
@@ -276,10 +304,36 @@ async fn run_vector(
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
-    let vector: TestVector = serde_json::from_reader(reader)?;
 
-    match vector {
-        TestVector::Message(v) => {
+    // Test vectors have the form:
+    //
+    //     { "class": ..., rest... }
+    //
+    // Unfortunately:
+    // 1. That means we need to use serde's "flatten" and/or "tag" feature to decode them.
+    // 2. Serde's JSON library doesn't support arbitrary precision numbers when doing this.
+    // 3. The circulating supply doesn't fit in a u64, and f64 isn't precise enough.
+    //
+    // So we manually:
+    // 1. Decode into a map of `String` -> `raw data`.
+    // 2. Pull off the class.
+    // 3. Re-serialize.
+    // 4. Decode into the correct type.
+    //
+    // Upstream bug is https://github.com/serde-rs/serde/issues/1183 (or at least that looks like
+    // the most appropriate one out of all the related issues).
+    let mut vector: HashMap<String, Box<serde_json::value::RawValue>> =
+        serde_json::from_reader(reader)?;
+    let class_json = vector
+        .remove("class")
+        .context("expected test vector to have a class")?;
+
+    let class: &str = serde_json::from_str(class_json.get())?;
+    let vector_json = serde_json::to_string(&vector)?;
+
+    match class {
+        "message" => {
+            let v: MessageVector = serde_json::from_str(&vector_json)?;
             let skip = !v.selector.as_ref().map_or(true, Selector::supported);
             if skip {
                 Ok(either::Either::Left(
@@ -328,6 +382,7 @@ async fn run_vector(
                 ))
             }
         }
+        other => return Err(anyhow!("unknown test vector class: {}", other)),
     }
 }
 
@@ -388,7 +443,7 @@ fn run_variant(
 
     let bs = machine.consume().consume();
 
-    if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
+    if let Err(err) = compare_state_roots(&bs, &final_root, &v) {
         return Ok(VariantResult::Failed {
             id,
             reason: err.context("comparing state roots failed"),

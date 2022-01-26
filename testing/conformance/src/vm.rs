@@ -2,13 +2,13 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
-use fvm::gas::GasTracker;
+use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
 use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, ToBigInt};
+use fvm_shared::bigint::BigInt;
 use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -33,6 +33,7 @@ const DEFAULT_BASE_FEE: u64 = 100;
 #[derive(Clone)]
 pub struct TestData {
     circ_supply: TokenAmount,
+    price_list: PriceList,
 }
 
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
@@ -51,7 +52,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let base_fee = v
             .preconditions
             .basefee
-            .map(|i| i.to_bigint().unwrap())
+            .map(|i| i.into())
             .unwrap_or_else(|| BigInt::from(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
         let state_root = v.preconditions.state_tree.root_cid;
@@ -81,14 +82,17 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         )
         .unwrap();
 
+        let price_list = machine.context().price_list.clone();
+
         TestMachine::<Box<DefaultMachine<_, _>>> {
             machine: Box::new(machine),
             data: TestData {
                 circ_supply: v
                     .preconditions
                     .circ_supply
-                    .map(|i| i.to_bigint().unwrap())
+                    .map(|i| i.into())
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
+                price_list: price_list,
             },
         }
     }
@@ -387,11 +391,6 @@ where
     }
 
     // forwarded
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
-        self.0.batch_verify_seals(vis)
-    }
-
-    // forwarded
     fn verify_signature(
         &mut self,
         signature: &Signature,
@@ -402,12 +401,21 @@ where
     }
 
     // NOT forwarded
-    fn verify_seal(&mut self, _vi: &SealVerifyInfo) -> Result<bool> {
+    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+        Ok(vec![true; vis.len()])
+    }
+
+    // NOT forwarded
+    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+        let charge = self.1.price_list.on_verify_seal(vi);
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
-    fn verify_post(&mut self, _verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
+        let charge = self.1.price_list.on_verify_post(vi);
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -418,12 +426,16 @@ where
         _h2: &[u8],
         _extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
+        let charge = self.1.price_list.on_verify_consensus_fault();
+        self.0.charge_gas(charge.name, charge.total())?;
         // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
 
     // NOT forwarded
-    fn verify_aggregate_seals(&mut self, _agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
+    fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
+        let charge = self.1.price_list.on_verify_aggregate_seals(agg);
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 }
