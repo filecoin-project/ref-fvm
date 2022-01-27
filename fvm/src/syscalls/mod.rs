@@ -52,7 +52,7 @@ pub const MAX_CID_LEN: usize = 100;
 pub fn bind_syscalls(
     linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
 ) -> anyhow::Result<()> {
-    linker.bind_keep_error("vm", "abort", vm::abort)?;
+    linker.bind("vm", "abort", vm::abort)?;
 
     linker.bind("ipld", "open", ipld::open)?;
     linker.bind("ipld", "create", ipld::create)?;

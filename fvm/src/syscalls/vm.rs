@@ -6,6 +6,7 @@ use super::error::trap_from_code;
 use super::Context;
 use crate::Kernel;
 
+// NOTE: this won't clobber the last syscall error because it directly returns a "trap".
 pub fn abort(
     _context: Context<'_, impl Kernel>,
     code: u32,

@@ -43,27 +43,6 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
         module: &'static str,
         name: &'static str,
         syscall: Func,
-    ) -> anyhow::Result<&mut Self> {
-        self.bind_syscall(module, name, syscall, false)
-    }
-
-    /// Bind a syscall to the linker, but preserve last syscall error.
-    fn bind_keep_error(
-        &mut self,
-        module: &'static str,
-        name: &'static str,
-        syscall: Func,
-    ) -> anyhow::Result<&mut Self> {
-        self.bind_syscall(module, name, syscall, true)
-    }
-
-    /// Bind a syscall to the linker.
-    fn bind_syscall(
-        &mut self,
-        module: &'static str,
-        name: &'static str,
-        syscall: Func,
-        keep_error: bool,
     ) -> anyhow::Result<&mut Self>;
 }
 
@@ -121,23 +100,22 @@ macro_rules! impl_bind_syscalls {
             Ret: IntoSyscallResult,
            $($t: WasmTy,)*
         {
-            fn bind_syscall(
+            fn bind(
                 &mut self,
                 module: &'static str,
                 name: &'static str,
                 syscall: Func,
-                keep_error: bool,
             ) -> anyhow::Result<&mut Self> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
-                        if !keep_error {
-                            data.last_error = None;
-                        }
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         Ok(match syscall(ctx $(, $t)*).into()? {
-                            Ok(_) => 0,
+                            Ok(_) => {
+                                data.last_error = None;
+                                0
+                            },
                             Err(err) => {
                                 let code = err.1;
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
@@ -149,9 +127,6 @@ macro_rules! impl_bind_syscalls {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
-                        if !keep_error {
-                            data.last_error = None;
-                        }
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
@@ -165,6 +140,7 @@ macro_rules! impl_bind_syscalls {
                         Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(value) => {
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                data.last_error = None;
                                 0
                             },
                             Err(err) => {
