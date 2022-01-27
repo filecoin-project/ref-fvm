@@ -155,9 +155,21 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        // Note: specs-actors treats this as a fatal error.
-        fvm::rand::get_chain_randomness(personalization, rand_epoch, entropy)
-            .map_err(|e| actor_error!(ErrIllegalArgument; "failed to get randomness: {}", e))
+        // Note: specs-actors treats all failures to get randomness as "fatal" errors, so we're free
+        // to return whatever errors we see fit here.
+        //
+        // At the moment, we return "illegal argument" if the lookback is exceeded (not possible
+        // with the current actors) and panic otherwise (as it indicates that we passed some
+        // unexpected bad value to the syscall).
+        fvm::rand::get_chain_randomness(personalization, rand_epoch, entropy).map_err(|e| match e {
+            ErrorNumber::LimitExceeded => {
+                actor_error!(ErrIllegalArgument; "randomness lookback exceeded: {}", e)
+            }
+            e => panic!(
+                "get chain randomness failed with an unexpected error: {}",
+                e
+            ),
+        })
     }
 
     fn get_randomness_from_beacon(
@@ -166,9 +178,18 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        // Note: specs-actors treats this as a fatal error.
-        fvm::rand::get_beacon_randomness(personalization, rand_epoch, entropy)
-            .map_err(|e| actor_error!(ErrIllegalArgument; "failed to get randomness: {}", e))
+        // Note: specs-actors treats all failures to get randomness as "fatal" errors. See above.
+        fvm::rand::get_beacon_randomness(personalization, rand_epoch, entropy).map_err(
+            |e| match e {
+                ErrorNumber::LimitExceeded => {
+                    actor_error!(ErrIllegalArgument; "randomness lookback exceeded: {}", e)
+                }
+                e => panic!(
+                    "get chain randomness failed with an unexpected error: {}",
+                    e
+                ),
+            },
+        )
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
