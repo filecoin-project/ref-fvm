@@ -8,7 +8,7 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::machine::{CallError, CallErrorCode};
+use crate::call_manager::Backtrace;
 use crate::Kernel;
 
 pub trait Executor {
@@ -29,7 +29,7 @@ pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
     /// A backtrace for the transaction, if it failed.
-    pub backtrace: Vec<CallError>,
+    pub backtrace: Backtrace,
     /// Gas penalty from transaction, if any.
     pub penalty: BigInt,
     /// Tip given to miner from message.
@@ -43,6 +43,9 @@ impl ApplyRet {
         message: impl Into<String>,
         miner_penalty: BigInt,
     ) -> ApplyRet {
+        let mut bt = Backtrace::default();
+        // TODO: propper source.
+        bt.push_exit(0, code, message.into());
         ApplyRet {
             msg_receipt: Receipt {
                 exit_code: code,
@@ -50,11 +53,7 @@ impl ApplyRet {
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            backtrace: vec![CallError {
-                source: 0,
-                code: CallErrorCode::Exit(code),
-                message: message.into(),
-            }],
+            backtrace: bt,
             miner_tip: BigInt::zero(),
         }
     }

@@ -6,13 +6,13 @@ use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
-use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, Kernel, Result};
-use crate::machine::{CallError, Machine};
+use crate::machine::Machine;
 use crate::syscall_error;
-use crate::syscalls::bind_syscalls;
 use crate::syscalls::error::unwrap_trap;
+use crate::syscalls::{bind_syscalls, InvocationData};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -48,7 +48,7 @@ pub struct InnerDefaultCallManager<M> {
     /// Current call-stack depth.
     call_stack_depth: u32,
     /// The current chain of errors, if any.
-    backtrace: Vec<CallError>,
+    backtrace: Backtrace,
 }
 
 #[doc(hidden)]
@@ -81,7 +81,7 @@ where
             nonce,
             num_actors_created: 0,
             call_stack_depth: 0,
-            backtrace: Vec::new(),
+            backtrace: Backtrace::default(),
         }))
     }
 
@@ -120,7 +120,7 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Vec<CallError>, Self::Machine) {
+    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
@@ -162,16 +162,6 @@ where
         let ret = self.num_actors_created;
         self.num_actors_created += 1;
         ret
-    }
-
-    // Helpers for error tracing.
-
-    fn push_error(&mut self, e: CallError) {
-        self.backtrace.push(e);
-    }
-
-    fn clear_error(&mut self) {
-        self.backtrace.clear();
     }
 }
 
@@ -288,14 +278,14 @@ where
         self.map_mut(|cm| {
             // Make the kernel/store.
             let kernel = K::new(cm, from, to, method, value.clone());
-            let mut store = Store::new(&engine, kernel);
+            let mut store = Store::new(&engine, InvocationData::new(kernel));
 
             log::trace!("calling {} -> {}::{}", from, to, method);
 
             let result = (|| {
                 // Load parameters, if there are any.
                 let param_id = if params.len() > 0 {
-                    store.data_mut().block_create(DAG_CBOR, params)?
+                    store.data_mut().kernel.block_create(DAG_CBOR, params)?
                 } else {
                     super::NO_DATA_BLOCK_ID
                 };
@@ -312,7 +302,7 @@ where
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
-                    let (code, ret) = store.data().block_get(return_block_id)?;
+                    let (code, ret) = store.data().kernel.block_get(return_block_id)?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
@@ -321,6 +311,10 @@ where
 
                 Ok(InvocationResult::Return(return_value))
             })();
+
+            let invocation_data = store.into_data();
+            let last_error = invocation_data.last_error;
+            let mut cm = invocation_data.kernel.take();
 
             match &result {
                 Ok(val) => {
@@ -331,11 +325,21 @@ where
                         from,
                         val.exit_code()
                     );
+                    match &val {
+                        InvocationResult::Return(_) => cm.backtrace.clear(),
+                        InvocationResult::Failure(code) => {
+                            if let Some(err) = last_error {
+                                cm.backtrace.set_cause(err);
+                            }
+                            // TODO We'll need to feed the abort message up through with the trap.
+                            cm.backtrace.push_exit(to, *code, "TODO".into());
+                        }
+                    }
                 }
                 Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
             }
 
-            (result, store.into_data().take())
+            (result, cm)
         })
     }
 

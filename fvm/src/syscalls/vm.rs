@@ -1,18 +1,16 @@
-use anyhow::Context as _;
 use fvm_shared::error::ExitCode;
 use num_traits::FromPrimitive;
 use wasmtime::Trap;
 
-use super::error::{trap_from_code, trap_from_error};
+use super::error::trap_from_code;
 use super::Context;
-use crate::kernel::{ClassifyResult, ExecutionError};
 use crate::Kernel;
 
 pub fn abort(
-    context: Context<'_, impl Kernel>,
+    _context: Context<'_, impl Kernel>,
     code: u32,
-    message_off: u32,
-    message_len: u32,
+    _message_off: u32,
+    _message_len: u32,
 ) -> Result<(), Trap> {
     // Get the error and convert it into a "system illegal argument error" if it's invalid.
     // BUG: https://github.com/filecoin-project/fvm/issues/253
@@ -20,6 +18,7 @@ pub fn abort(
         //.filter(|c| !c.is_system_error())
         .unwrap_or(ExitCode::SysErrIllegalActor); // TODO: will become "illegal exit"
 
+    /*
     match (|| {
         let message = if message_len == 0 {
             "actor aborted".to_owned()
@@ -45,6 +44,7 @@ pub fn abort(
         Err(err) => return Err(trap_from_error(err)),
         Ok(_) => (),
     }
+    */
 
     Err(trap_from_code(code))
 }

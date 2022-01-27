@@ -3,8 +3,9 @@ use std::mem;
 use fvm_shared::error::ErrorNumber;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
 
+use super::context::Memory;
 use super::error::trap_from_error;
-use super::Context;
+use super::{Context, InvocationData};
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
@@ -92,11 +93,22 @@ where
     }
 }
 
+fn memory_and_data<'a, K: Kernel>(
+    caller: &'a mut Caller<'_, InvocationData<K>>,
+) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), wasmtime::Trap> {
+    let (mem, data) = caller
+        .get_export("memory")
+        .and_then(|m| m.into_memory())
+        .ok_or_else(|| wasmtime::Trap::new("failed to lookup actor memory"))?
+        .data_and_store_mut(caller);
+    Ok((Memory::new(mem), data))
+}
+
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {
         #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<K>
+        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<InvocationData<K>>
         where
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
@@ -106,46 +118,46 @@ macro_rules! impl_bind_syscalls {
             fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                        let mut ctx = Context::try_from(&mut caller)?;
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         if !keep_error {
-                            ctx.kernel.clear_error();
+                            data.last_error = None;
                         }
-
-                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
+                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                        Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(_) => 0,
                             Err(err) => {
                                 let code = err.1;
-                                ctx.kernel.push_syscall_error(err);
+                                data.last_error = Some(err);
                                 code as u32
                             },
                         })
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, K>, ret: u32 $(, $t: $t)*| {
-                        let mut ctx = Context::try_from(&mut caller)?;
-
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         if !keep_error {
-                            ctx.kernel.clear_error();
+                            data.last_error = None;
                         }
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
-                        if (ret as u64) > (ctx.memory.len() as u64)
-                            || ctx.memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
+                        if (ret as u64) > (memory.len() as u64)
+                            || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
                             let code = ErrorNumber::IllegalArgument;
-                            ctx.kernel.push_syscall_error(SyscallError(format!("no space for return value"), code));
+                            data.last_error = Some(SyscallError(format!("no space for return value"), code));
                             return Ok(code as u32);
                         }
 
-                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
+                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                        Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(value) => {
-                                unsafe { *(ctx.memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
-                                ctx.kernel.push_syscall_error(err);
+                                data.last_error = Some(err);
                                 code as u32
                             },
                         })

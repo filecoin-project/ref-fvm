@@ -16,7 +16,7 @@ use fvm_shared::commcid::{
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
@@ -31,7 +31,6 @@ use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
-use crate::machine::{CallError, CallErrorCode};
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
 use crate::state_tree::ActorState;
@@ -795,24 +794,6 @@ where
 
     fn debug_enabled(&self) -> bool {
         self.call_manager.context().debug
-    }
-
-    fn push_syscall_error(&mut self, err: SyscallError) {
-        self.call_manager.push_error(CallError {
-            source: 0,
-            code: CallErrorCode::Syscall(err.1),
-            message: err.0,
-        })
-    }
-    fn push_actor_error(&mut self, code: ExitCode, message: String) {
-        self.call_manager.push_error(CallError {
-            source: self.actor_id,
-            code: CallErrorCode::Exit(code),
-            message,
-        })
-    }
-    fn clear_error(&mut self) {
-        self.call_manager.clear_error();
     }
 }
 
