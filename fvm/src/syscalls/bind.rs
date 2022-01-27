@@ -6,6 +6,7 @@ use wasmtime::{Caller, Linker, Trap, WasmTy};
 use super::context::Memory;
 use super::error::trap_from_error;
 use super::{Context, InvocationData};
+use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
@@ -37,15 +38,20 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     /// let mut linker = wasmtime::Linker::new(&engine);
     /// linker.bind("my_module", "zero", my_module::zero);
     /// ```
-    fn bind(&mut self, module: &str, name: &str, syscall: Func) -> anyhow::Result<&mut Self> {
+    fn bind(
+        &mut self,
+        module: &'static str,
+        name: &'static str,
+        syscall: Func,
+    ) -> anyhow::Result<&mut Self> {
         self.bind_syscall(module, name, syscall, false)
     }
 
     /// Bind a syscall to the linker, but preserve last syscall error.
     fn bind_keep_error(
         &mut self,
-        module: &str,
-        name: &str,
+        module: &'static str,
+        name: &'static str,
         syscall: Func,
     ) -> anyhow::Result<&mut Self> {
         self.bind_syscall(module, name, syscall, true)
@@ -54,8 +60,8 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     /// Bind a syscall to the linker.
     fn bind_syscall(
         &mut self,
-        module: &str,
-        name: &str,
+        module: &'static str,
+        name: &'static str,
         syscall: Func,
         keep_error: bool,
     ) -> anyhow::Result<&mut Self>;
@@ -115,7 +121,13 @@ macro_rules! impl_bind_syscalls {
             Ret: IntoSyscallResult,
            $($t: WasmTy,)*
         {
-            fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
+            fn bind_syscall(
+                &mut self,
+                module: &'static str,
+                name: &'static str,
+                syscall: Func,
+                keep_error: bool,
+            ) -> anyhow::Result<&mut Self> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
@@ -128,7 +140,7 @@ macro_rules! impl_bind_syscalls {
                             Ok(_) => 0,
                             Err(err) => {
                                 let code = err.1;
-                                data.last_error = Some(err);
+                                data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
                         })
@@ -145,7 +157,7 @@ macro_rules! impl_bind_syscalls {
                         if (ret as u64) > (memory.len() as u64)
                             || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
                             let code = ErrorNumber::IllegalArgument;
-                            data.last_error = Some(SyscallError(format!("no space for return value"), code));
+                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
                             return Ok(code as u32);
                         }
 
@@ -157,7 +169,7 @@ macro_rules! impl_bind_syscalls {
                             },
                             Err(err) => {
                                 let code = err.1;
-                                data.last_error = Some(err);
+                                data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
                         })

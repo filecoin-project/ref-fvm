@@ -1,7 +1,7 @@
 use cid::Cid;
 use wasmtime::Linker;
 
-use crate::kernel::SyscallError;
+use crate::call_manager::backtrace;
 use crate::Kernel;
 pub(crate) mod error;
 
@@ -23,8 +23,11 @@ pub(self) use context::Context;
 
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
+    /// The kernel on which this actor is being executed.
     pub kernel: K,
-    pub last_error: Option<SyscallError>,
+    /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
+    /// after receiving this error without calling any other syscalls.
+    pub last_error: Option<backtrace::Cause>,
 }
 
 impl<K> InvocationData<K> {

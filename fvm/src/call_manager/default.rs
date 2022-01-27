@@ -7,6 +7,7 @@ use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, Kernel, Result};
 use crate::machine::Machine;
@@ -332,7 +333,13 @@ where
                                 cm.backtrace.set_cause(err);
                             }
                             // TODO We'll need to feed the abort message up through with the trap.
-                            cm.backtrace.push_exit(to, *code, "TODO".into());
+                            cm.backtrace.push_frame(Frame {
+                                source: to,
+                                method,
+                                params: params.clone(),
+                                code: *code,
+                                message: "TODO".into(),
+                            });
                         }
                     }
                 }

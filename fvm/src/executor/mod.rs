@@ -3,11 +3,12 @@ mod default;
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
+use crate::call_manager::backtrace::Cause;
 use crate::call_manager::Backtrace;
 use crate::Kernel;
 
@@ -43,9 +44,15 @@ impl ApplyRet {
         message: impl Into<String>,
         miner_penalty: BigInt,
     ) -> ApplyRet {
+        // This is a little funky, but it's the simplest way to record a sane error message.
         let mut bt = Backtrace::default();
-        // TODO: propper source.
-        bt.push_exit(0, code, message.into());
+        bt.set_cause(Cause {
+            module: "system",
+            function: "execute",
+            error: ErrorNumber::IllegalOperation,
+            message: message.into(),
+        });
+
         ApplyRet {
             msg_receipt: Receipt {
                 exit_code: code,

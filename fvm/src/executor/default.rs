@@ -14,7 +14,7 @@ use num_traits::Zero;
 
 use super::{ApplyKind, ApplyRet, Executor};
 use crate::account_actor::is_account_actor;
-use crate::call_manager::{Backtrace, CallManager, InvocationResult};
+use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
@@ -128,8 +128,7 @@ where
                     }
                 };
 
-                backtrace.set_cause(err);
-
+                backtrace.set_cause(backtrace::Cause::new("send", "send", err));
                 Receipt {
                     exit_code,
                     return_data: Default::default(),

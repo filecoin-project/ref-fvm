@@ -62,17 +62,7 @@ fn is_runnable(entry: &DirEntry) -> bool {
 
 /// Compares the result of running a message with the expected result.
 fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display) -> Result<()> {
-    let error = ret
-        .backtrace
-        .iter()
-        .map(|e| {
-            format!(
-                "source: {:?}, code: {:?}, message: {:?}",
-                e.source, e.code, e.message
-            )
-        })
-        .collect::<Vec<String>>()
-        .join("\n");
+    let error = ret.backtrace.to_string();
     let actual_rec = &ret.msg_receipt;
     let (expected, actual) = (expected_rec.exit_code, actual_rec.exit_code);
     if expected != actual {

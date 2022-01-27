@@ -3,14 +3,13 @@ use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
 
 use crate::externs::Externs;
 use crate::gas::PriceList;
-use crate::kernel::{Result, SyscallError};
+use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
