@@ -3,12 +3,12 @@ mod default;
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::RawBytes;
+use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::kernel::SyscallError;
-use crate::machine::CallError;
+use crate::machine::{CallError, CallErrorCode};
 use crate::Kernel;
 
 pub trait Executor {
@@ -38,18 +38,22 @@ pub struct ApplyRet {
 
 impl ApplyRet {
     #[inline]
-    pub fn prevalidation_fail(error: SyscallError, miner_penalty: BigInt) -> ApplyRet {
+    pub fn prevalidation_fail(
+        code: ExitCode,
+        message: impl Into<String>,
+        miner_penalty: BigInt,
+    ) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
-                exit_code: error.1,
+                exit_code: code,
                 return_data: RawBytes::default(),
                 gas_used: 0,
             },
             penalty: miner_penalty,
             backtrace: vec![CallError {
                 source: 0,
-                code: error.1,
-                message: error.0,
+                code: CallErrorCode::Exit(code),
+                message: message.into(),
             }],
             miner_tip: BigInt::zero(),
         }

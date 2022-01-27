@@ -539,7 +539,7 @@ impl ActorState {
     /// TODO return a system error with exit code "insufficient funds"
     pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<()> {
         if &self.balance < amt {
-            return Err(syscall_error!(SysErrInsufficientFunds; "not enough funds").into());
+            return Err(syscall_error!(InsufficientFunds; "not enough funds").into());
         }
         self.balance -= amt;
 

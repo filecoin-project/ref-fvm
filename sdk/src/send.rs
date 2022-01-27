@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 use num_traits::FromPrimitive;
@@ -23,7 +23,7 @@ pub fn send(
     let recipient = to.to_bytes();
     let value: fvm_shared::sys::TokenAmount = value
         .try_into()
-        .map_err(|_| ExitCode::ErrInsufficientFunds)?;
+        .map_err(|_| ErrorNumber::InsufficientFunds)?;
     unsafe {
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
@@ -47,7 +47,7 @@ pub fn send(
         )?;
 
         // Process the result.
-        let exit_code = ExitCode::from_u32(exit_code).unwrap_or(ExitCode::ErrIllegalState);
+        let exit_code = ExitCode::from_u32(exit_code).unwrap_or(ExitCode::SysErrIllegalActor);
         let return_data = match exit_code {
             ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.

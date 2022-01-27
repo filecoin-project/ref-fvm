@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use derive_more::Display;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::ErrorNumber;
 
 /// Execution result.
 pub type Result<T> = std::result::Result<T, ExecutionError>;
@@ -10,11 +10,11 @@ pub type Result<T> = std::result::Result<T, ExecutionError>;
 #[macro_export]
 macro_rules! syscall_error {
     // Error with only one stringable expression
-    ( $code:ident; $msg:expr ) => { $crate::kernel::SyscallError::new(fvm_shared::error::ExitCode::$code, $msg) };
+    ( $code:ident; $msg:expr ) => { $crate::kernel::SyscallError::new(fvm_shared::error::ErrorNumber::$code, $msg) };
 
     // String with positional arguments
     ( $code:ident; $msg:literal $(, $ex:expr)+ ) => {
-        $crate::kernel::SyscallError::new(fvm_shared::error::ExitCode::$code, format_args!($msg, $($ex,)*))
+        $crate::kernel::SyscallError::new(fvm_shared::error::ErrorNumber::$code, format_args!($msg, $($ex,)*))
     };
 
     // Error with only one stringable expression, with comma separator
@@ -30,6 +30,7 @@ macro_rules! syscall_error {
 // below.
 #[derive(Display, Debug)]
 pub enum ExecutionError {
+    OutOfGas,
     Syscall(SyscallError),
     Fatal(anyhow::Error),
 }
@@ -45,18 +46,20 @@ impl ExecutionError {
     /// - A block including a message that results in a fatal error cannot be accepted (messages
     ///   cannot be skipped).
     pub fn is_fatal(&self) -> bool {
+        use ExecutionError::*;
         match self {
-            ExecutionError::Fatal(_) => true,
-            ExecutionError::Syscall(_) => false,
+            Fatal(_) => true,
+            OutOfGas | Syscall(_) => false,
         }
     }
 
     /// Returns true if an actor can catch the error. All errors except fatal and out of gas errors
     /// are recoverable.
     pub fn is_recoverable(&self) -> bool {
+        use ExecutionError::*;
         match self {
-            ExecutionError::Fatal(_) => false,
-            ExecutionError::Syscall(e) => e.is_recoverable(),
+            OutOfGas | Fatal(_) => false,
+            Syscall(_) => true,
         }
     }
 }
@@ -77,7 +80,7 @@ pub trait ClassifyResult: Sized {
     fn or_fatal(self) -> Result<Self::Value>
     where
         Self::Error: Into<anyhow::Error>;
-    fn or_error(self, code: ExitCode) -> Result<Self::Value>
+    fn or_error(self, code: ErrorNumber) -> Result<Self::Value>
     where
         Self::Error: Display;
 
@@ -85,7 +88,7 @@ pub trait ClassifyResult: Sized {
     where
         Self::Error: Display,
     {
-        self.or_error(ExitCode::ErrIllegalArgument)
+        self.or_error(ErrorNumber::IllegalArgument)
     }
 }
 
@@ -99,7 +102,7 @@ impl<T, E> ClassifyResult for std::result::Result<T, E> {
     {
         self.map_err(|e| ExecutionError::Fatal(e.into()))
     }
-    fn or_error(self, code: ExitCode) -> Result<Self::Value>
+    fn or_error(self, code: ErrorNumber) -> Result<Self::Value>
     where
         Self::Error: Display,
     {
@@ -143,6 +146,7 @@ impl Context for ExecutionError {
         match self {
             Syscall(e) => Syscall(SyscallError(format!("{}: {}", context, e.0), e.1)),
             Fatal(e) => Fatal(e.context(context.to_string())),
+            OutOfGas => OutOfGas, // no reason necessary
         }
     }
 
@@ -158,10 +162,12 @@ impl Context for ExecutionError {
 // We only use this when converting to a fatal error, so we throw away the error code.
 //
 // TODO: Ideally we wouldn't implement this conversion as it's a bit dangerous.
+// FIXME: this conversion really shouldn't exist
 impl From<ExecutionError> for anyhow::Error {
     fn from(e: ExecutionError) -> Self {
         use ExecutionError::*;
         match e {
+            OutOfGas => anyhow::anyhow!("out of gas"),
             Syscall(err) => anyhow::anyhow!(err.0),
             Fatal(err) => err,
         }
@@ -175,24 +181,10 @@ impl From<ExecutionError> for anyhow::Error {
 /// Automatic conversions from String are provided, with no advised exit code.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error("syscall error: {0} (exit_code={1:?})")]
-pub struct SyscallError(pub String, pub ExitCode);
+pub struct SyscallError(pub String, pub ErrorNumber);
 
 impl SyscallError {
-    pub fn new<D: Display>(c: ExitCode, d: D) -> Self {
+    pub fn new<D: Display>(c: ErrorNumber, d: D) -> Self {
         SyscallError(d.to_string(), c)
-    }
-
-    /// Returns true if the error can be caught by an actor.
-    pub fn is_recoverable(&self) -> bool {
-        self.1 != ExitCode::SysErrOutOfGas
-    }
-}
-
-impl ExecutionError {
-    pub fn exit_code(&self) -> ExitCode {
-        match self {
-            ExecutionError::Fatal(_) => ExitCode::ErrPlaceholder, // same as fatal before
-            ExecutionError::Syscall(SyscallError(_, exit_code)) => *exit_code,
-        }
     }
 }

@@ -3,7 +3,7 @@ use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
@@ -78,9 +78,15 @@ pub struct CallError {
     /// The source of the error or 0 for a syscall error.
     pub source: ActorID,
     /// The error code.
-    pub code: ExitCode,
+    pub code: CallErrorCode,
     /// The error message.
     pub message: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum CallErrorCode {
+    Exit(ExitCode),
+    Syscall(ErrorNumber),
 }
 
 /// Execution context supplied to the machine.

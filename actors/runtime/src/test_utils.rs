@@ -213,12 +213,6 @@ impl MockRuntime {
             "invalid runtime invocation outside of method call",
         )
     }
-    fn check_argument(&self, predicate: bool, msg: String) -> Result<(), ActorError> {
-        if !predicate {
-            return Err(actor_error!(SysErrIllegalArgument; msg));
-        }
-        Ok(())
-    }
     fn put<C: Cbor>(&self, o: &C) -> Result<Cid, ActorError> {
         Ok(self.store.put_cbor(&o, Code::Blake2b256).unwrap())
     }
@@ -426,8 +420,6 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
 
         let addrs: Vec<Address> = addresses.into_iter().cloned().collect();
 
-        self.check_argument(!addrs.is_empty(), "addrs must be non-empty".to_owned())?;
-
         assert!(
             self.expectations
                 .borrow_mut()
@@ -465,9 +457,6 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
     {
         self.require_in_call();
         let types: Vec<Cid> = types.into_iter().cloned().collect();
-
-        self.check_argument(!types.is_empty(), "types must be non-empty".to_owned())?;
-
         assert!(
             self.expectations
                 .borrow_mut()

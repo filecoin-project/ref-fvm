@@ -59,6 +59,38 @@ impl From<fvm_shared::encoding::error::Error> for ActorError {
     }
 }
 
+/// Converts an actor deletion error into an actor error with the appropriate exit code. This
+/// facilitates propagation.
+#[cfg(feature = "runtime-wasm")]
+impl From<fvm_sdk::error::ActorDeleteError> for ActorError {
+    fn from(e: fvm_sdk::error::ActorDeleteError) -> Self {
+        use fvm_sdk::error::ActorDeleteError::*;
+        Self {
+            // FIXME: These shouldn't be "system" errors, but we're trying to match existing
+            // behavior here.
+            exit_code: match e {
+                BeneficiaryIsSelf => ExitCode::SysErrIllegalActor,
+                BeneficiaryDoesNotExist => ExitCode::SysErrIllegalArgument,
+            },
+            msg: e.to_string(),
+        }
+    }
+}
+
+/// Converts a no-state error into an an actor error with the appropriate exit code (illegal actor).
+/// This facilitates propagation.
+#[cfg(feature = "runtime-wasm")]
+impl From<fvm_sdk::error::NoStateError> for ActorError {
+    fn from(e: fvm_sdk::error::NoStateError) -> Self {
+        Self {
+            // FIXME: These shouldn't be "system" errors, but we're trying to match existing
+            // behavior here.
+            exit_code: ExitCode::SysErrIllegalActor,
+            msg: e.to_string(),
+        }
+    }
+}
+
 /// Performs conversions from SyscallResult, whose error type is ExitCode,
 /// to ActorErrors. This facilitates propagation.
 impl From<ExitCode> for ActorError {

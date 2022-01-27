@@ -9,7 +9,7 @@ use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{to_vec, Cbor, RawBytes, DAG_CBOR};
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
@@ -155,11 +155,21 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        Ok(fvm::rand::get_chain_randomness(
-            personalization,
-            rand_epoch,
-            entropy,
-        )?)
+        // Note: specs-actors treats all failures to get randomness as "fatal" errors, so we're free
+        // to return whatever errors we see fit here.
+        //
+        // At the moment, we return "illegal argument" if the lookback is exceeded (not possible
+        // with the current actors) and panic otherwise (as it indicates that we passed some
+        // unexpected bad value to the syscall).
+        fvm::rand::get_chain_randomness(personalization, rand_epoch, entropy).map_err(|e| match e {
+            ErrorNumber::LimitExceeded => {
+                actor_error!(ErrIllegalArgument; "randomness lookback exceeded: {}", e)
+            }
+            e => panic!(
+                "get chain randomness failed with an unexpected error: {}",
+                e
+            ),
+        })
     }
 
     fn get_randomness_from_beacon(
@@ -168,11 +178,18 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<Randomness, ActorError> {
-        Ok(fvm::rand::get_beacon_randomness(
-            personalization,
-            rand_epoch,
-            entropy,
-        )?)
+        // Note: specs-actors treats all failures to get randomness as "fatal" errors. See above.
+        fvm::rand::get_beacon_randomness(personalization, rand_epoch, entropy).map_err(
+            |e| match e {
+                ErrorNumber::LimitExceeded => {
+                    actor_error!(ErrIllegalArgument; "randomness lookback exceeded: {}", e)
+                }
+                e => panic!(
+                    "get chain randomness failed with an unexpected error: {}",
+                    e
+                ),
+            },
+        )
     }
 
     fn create<C: Cbor>(&mut self, obj: &C) -> Result<(), ActorError> {
@@ -239,20 +256,43 @@ where
             return Err(actor_error!(SysErrIllegalActor; "runtime.send() is not allowed"));
         }
         // TODO: distinguish between "syscall" errors and actor exit codes.
-        let res = fvm::send::send(&to, method, params, value)?;
-        if !res.exit_code.is_success() {
-            Err(ActorError::new(res.exit_code, "send failed".into()))
-        } else {
-            Ok(res.return_data)
+        match fvm::send::send(&to, method, params, value) {
+            Ok(ret) => {
+                if ret.exit_code.is_success() {
+                    Ok(ret.return_data)
+                } else {
+                    Err(ActorError::from(ret.exit_code))
+                }
+            }
+            Err(err) => Err(match err {
+                ErrorNumber::NotFound => {
+                    actor_error!(SysErrInvalidReceiver; "receiver not found")
+                }
+                ErrorNumber::InsufficientFunds => {
+                    actor_error!(SysErrInsufficientFunds; "not enough funds")
+                }
+                ErrorNumber::LimitExceeded => {
+                    actor_error!(SysErrForbidden; "recursion limit exceeded")
+                }
+                err => panic!("unexpected error: {}", err),
+            }),
         }
     }
 
     fn new_actor_address(&mut self) -> Result<Address, ActorError> {
-        Ok(fvm::actor::new_actor_address()?)
+        Ok(fvm::actor::new_actor_address())
     }
 
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<(), ActorError> {
-        Ok(fvm::actor::create_actor(actor_id, &code_id)?)
+        fvm::actor::create_actor(actor_id, &code_id).map_err(|e| {
+            ActorError::new(
+                match e {
+                    ErrorNumber::IllegalArgument => ExitCode::SysErrIllegalArgument,
+                    _ => panic!("create failed with unknown error: {}", e),
+                },
+                "failed to create actor".into(),
+            )
+        })
     }
 
     fn delete_actor(&mut self, beneficiary: &Address) -> Result<(), ActorError> {

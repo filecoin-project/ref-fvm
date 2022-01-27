@@ -1,6 +1,6 @@
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
@@ -71,7 +71,7 @@ pub fn value_received() -> TokenAmount {
 /// provided.
 pub fn params_cbor<T: Cbor>(id: BlockId) -> SyscallResult<T> {
     if id == NO_DATA_BLOCK_ID {
-        return Err(ExitCode::ErrIllegalArgument);
+        return Err(ErrorNumber::IllegalArgument);
     }
     let (codec, raw) = params_raw(id)?;
     debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");

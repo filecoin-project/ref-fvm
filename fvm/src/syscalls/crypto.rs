@@ -10,7 +10,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{Cbor, DAG_CBOR};
-use fvm_shared::error::ExitCode::SysErrIllegalArgument;
+use fvm_shared::error::ErrorNumber::IllegalArgument;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
@@ -84,7 +84,7 @@ pub fn compute_unsealed_sector_cid(
     let len = bytes.len();
     if len > out.len() {
         return Err(syscall_error!(
-            SysErrIllegalArgument;
+            IllegalArgument;
             "output buffer too small; CID length: {}, buffer length: {}", len, out.len())
         .into());
     }

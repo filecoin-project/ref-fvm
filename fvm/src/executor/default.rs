@@ -6,7 +6,7 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
@@ -17,8 +17,9 @@ use crate::account_actor::is_account_actor;
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel, SyscallError};
-use crate::machine::{CallError, Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
-use crate::syscall_error;
+use crate::machine::{
+    CallError, CallErrorCode, Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR,
+};
 
 /// The core of the FVM.
 ///
@@ -109,16 +110,29 @@ where
                     gas_used,
                 }
             }
-            Err(ExecutionError::Syscall(SyscallError(errmsg, exit_code))) => {
-                if exit_code.is_success() {
-                    return Err(anyhow!(
-                        "message invocation errored with an ok status: {}",
-                        errmsg
-                    ));
-                }
+            Err(ExecutionError::OutOfGas) => Receipt {
+                exit_code: ExitCode::SysErrOutOfGas,
+                return_data: Default::default(),
+                gas_used,
+            },
+            Err(ExecutionError::Syscall(SyscallError(errmsg, err_code))) => {
+                let exit_code = match err_code {
+                    ErrorNumber::IllegalOperation => ExitCode::SysErrIllegalActor,
+                    ErrorNumber::AssertionFailed => ExitCode::SysErrIllegalArgument,
+                    ErrorNumber::InsufficientFunds => ExitCode::SysErrInsufficientFunds,
+                    ErrorNumber::NotFound => ExitCode::SysErrInvalidReceiver,
+                    code => {
+                        return Err(anyhow!(
+                            "unexpected syscall error when processing message: {} ({})",
+                            code,
+                            code as u32
+                        ))
+                    }
+                };
+
                 backtrace.push(CallError {
                     source: 0,
-                    code: exit_code,
+                    code: CallErrorCode::Syscall(err_code),
                     message: errmsg,
                 });
                 Receipt {
@@ -186,7 +200,8 @@ where
         // Verify the cost of the message is not over the message gas limit.
         if inclusion_total > msg.gas_limit {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                syscall_error!(SysErrOutOfGas; "Out of gas ({} > {})", inclusion_total, msg.gas_limit),
+                ExitCode::SysErrOutOfGas,
+                format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                 &self.context().base_fee * inclusion_total,
             )));
         }
@@ -202,7 +217,8 @@ where
             Some(id) => id,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    syscall_error!(SysErrSenderInvalid; "Sender invalid"),
+                    ExitCode::SysErrSenderInvalid,
+                    "Sender invalid",
                     miner_penalty_amount,
                 )))
             }
@@ -216,7 +232,8 @@ where
             Some(act) => act,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    syscall_error!(SysErrSenderInvalid; "Sender invalid"),
+                    ExitCode::SysErrSenderInvalid,
+                    "Sender invalid",
                     miner_penalty_amount,
                 )))
             }
@@ -225,7 +242,8 @@ where
         // If sender is not an account actor, the message is invalid.
         if !is_account_actor(&sender.code) {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                syscall_error!(SysErrSenderInvalid; "send not from account actor"),
+                ExitCode::SysErrSenderInvalid,
+                "Send not from account actor",
                 miner_penalty_amount,
             )));
         };
@@ -233,7 +251,11 @@ where
         // Check sequence is correct
         if msg.sequence != sender.sequence {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                syscall_error!(SysErrSenderStateInvalid; "actor sequence invalid: {} != {}", msg.sequence, sender.sequence),
+                ExitCode::SysErrSenderStateInvalid,
+                format!(
+                    "Actor sequence invalid: {} != {}",
+                    msg.sequence, sender.sequence
+                ),
                 miner_penalty_amount,
             )));
         };
@@ -242,8 +264,11 @@ where
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                syscall_error!(SysErrSenderStateInvalid;
-                    "actor balance less than needed: {} < {}", sender.balance, gas_cost),
+                ExitCode::SysErrSenderStateInvalid,
+                format!(
+                    "Actor balance less than needed: {} < {}",
+                    sender.balance, gas_cost
+                ),
                 miner_penalty_amount,
             )));
         }

@@ -4,12 +4,12 @@ use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::Level::Trace;
 use log::{debug, log_enabled, trace};
-use num_traits::Signed;
+use num_traits::{Signed, Zero};
 use wasmtime::{Engine, Module};
 
 use super::{Machine, MachineContext};
@@ -236,29 +236,32 @@ where
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        if from == to {
+        if from == to || value.is_zero() {
             return Ok(());
         }
+
         if value.is_negative() {
-            return Err(syscall_error!(SysErrForbidden;
+            return Err(syscall_error!(IllegalArgument;
                 "attempted to transfer negative transfer value {}", value)
             .into());
         }
 
+        // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
+        // that and the case where the _receiving_ actor doesn't exist.
         let mut from_actor = self
             .state_tree
             .get_actor_id(from)?
             .context("cannot transfer from non-existent sender")
-            .or_error(ExitCode::SysErrSenderInvalid)?;
+            .or_error(ErrorNumber::InsufficientFunds)?;
 
         let mut to_actor = self
             .state_tree
             .get_actor_id(to)?
             .context("cannot transfer to non-existent receiver")
-            .or_error(ExitCode::SysErrInvalidReceiver)?;
+            .or_error(ErrorNumber::NotFound)?;
 
         from_actor.deduct_funds(value).map_err(|e| {
-            syscall_error!(SysErrInsufficientFunds;
+            syscall_error!(InsufficientFunds;
                            "transfer failed when deducting funds ({}) from balance ({}): {}",
                            value, &from_actor.balance, e)
         })?;

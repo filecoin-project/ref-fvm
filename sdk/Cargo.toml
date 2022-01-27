@@ -13,3 +13,4 @@ fvm_shared = { path = "../shared" }
 num-traits = { version = "0.2.14", default-features = false }
 lazy_static = "1.4.0"
 log = "0.4.14"
+thiserror = "1.0.30"

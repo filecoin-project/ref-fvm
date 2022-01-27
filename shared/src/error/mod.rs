@@ -97,3 +97,38 @@ impl std::fmt::Display for ExitCode {
         write!(f, "exit code: {}", *self as u32)
     }
 }
+
+#[repr(u32)]
+#[derive(Copy, Clone, Eq, Debug, PartialEq, Error, FromPrimitive)]
+pub enum ErrorNumber {
+    IllegalArgument = 1,
+    IllegalOperation = 2,
+    LimitExceeded = 3,
+    AssertionFailed = 4,
+    InsufficientFunds = 5,
+    NotFound = 6,
+    InvalidHandle = 7,
+    IllegalCid = 8,
+    IllegalCodec = 9,
+    Serialization = 10,
+    Forbidden = 11,
+}
+
+impl std::fmt::Display for ErrorNumber {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use ErrorNumber::*;
+        f.write_str(match *self {
+            IllegalArgument => "illegal argument",
+            IllegalOperation => "illegal operation",
+            LimitExceeded => "limit exceeded",
+            AssertionFailed => "filecoin assertion failed",
+            InsufficientFunds => "insufficient funds",
+            NotFound => "resource not found",
+            InvalidHandle => "invalid ipld block handle",
+            IllegalCid => "illegal cid specification",
+            IllegalCodec => "illegal ipld codec",
+            Serialization => "serialization error",
+            Forbidden => "operation forbidden",
+        })
+    }
+}

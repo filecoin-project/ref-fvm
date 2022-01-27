@@ -4,8 +4,7 @@
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
 pub use self::price_list::{price_list_by_epoch, PriceList};
-use crate::kernel::SyscallError;
-use crate::syscall_error;
+use crate::kernel::{ExecutionError, Result};
 
 mod charge;
 mod outputs;
@@ -26,26 +25,20 @@ impl GasTracker {
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<(), SyscallError> {
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         let to_use = charge.total();
         match self.gas_used.checked_add(to_use) {
             None => {
                 log::trace!("gas overflow: {}", charge.name);
                 self.gas_used = self.gas_available;
-                Err(syscall_error!(SysErrOutOfGas;
-                    "adding gas_used={} and to_use={} overflowed",
-                    self.gas_used, to_use
-                ))
+                Err(ExecutionError::OutOfGas)
             }
             Some(used) => {
                 log::trace!("charged {} gas: {}", used, charge.name);
                 if used > self.gas_available {
                     log::trace!("out of gas: {}", charge.name);
                     self.gas_used = self.gas_available;
-                    Err(syscall_error!(SysErrOutOfGas;
-                            "not enough gas (used={}) (available={})",
-                       used, self.gas_available
-                    ))
+                    Err(ExecutionError::OutOfGas)
                 } else {
                     self.gas_used = used;
                     Ok(())
