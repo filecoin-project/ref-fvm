@@ -6,13 +6,18 @@ use super::Context;
 use crate::kernel::{ClassifyResult, Context as _};
 use crate::Kernel;
 
+/// An unihabited type. We use this in `abort` to make sure there's no way to return without
+/// returning an error.
+#[derive(Copy, Clone)]
+pub enum Never {}
+
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
 pub fn abort(
     context: Context<'_, impl Kernel>,
     code: u32,
     message_off: u32,
     message_len: u32,
-) -> Result<(), Abort> {
+) -> Result<Never, Abort> {
     // Get the error and convert it into a "system illegal argument error" if it's invalid.
     // BUG: https://github.com/filecoin-project/fvm/issues/253
     let code = ExitCode::from_u32(code)
