@@ -91,7 +91,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .circ_supply
                     .map(|i| i.into())
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
-                price_list: price_list,
+                price_list,
             },
         }
     }

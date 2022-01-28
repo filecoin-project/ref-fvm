@@ -437,7 +437,7 @@ fn run_variant(
 
     let bs = machine.consume().consume();
 
-    if let Err(err) = compare_state_roots(&bs, &final_root, &v) {
+    if let Err(err) = compare_state_roots(&bs, &final_root, v) {
         return Ok(VariantResult::Failed {
             id,
             reason: err.context("comparing state roots failed"),
