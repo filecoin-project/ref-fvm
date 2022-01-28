@@ -1,55 +1,65 @@
 //! This module contains code used to convert errors to and from wasmtime traps.
 use std::sync::Mutex;
 
-use anyhow::Context as _;
 use derive_more::Display;
 use fvm_shared::error::ExitCode;
-use num_traits::FromPrimitive;
 use wasmtime::Trap;
 
-use crate::call_manager::InvocationResult;
-use crate::kernel::{ClassifyResult, ExecutionError};
+use crate::kernel::ExecutionError;
+
+/// Represents an actor "abort".
+#[derive(Debug)]
+pub enum Abort {
+    /// The actor explicitly aborted with the given exit code (or paniced).
+    Exit(ExitCode, String),
+    /// The actor ran out of gas.
+    OutOfGas,
+    /// The system failed with a fatal error.
+    Fatal(anyhow::Error),
+}
+
+impl Abort {
+    /// Convert an execution error into an "abort". We can't directly convert because we need an
+    /// exit code, not a syscall error number.
+    pub fn from_error(code: ExitCode, e: ExecutionError) -> Self {
+        match e {
+            ExecutionError::Syscall(e) => Abort::Exit(
+                code,
+                format!(
+                    "actor aborted with an invalid message: {} (code={:?})",
+                    e.0, e.1
+                ),
+            ),
+            ExecutionError::OutOfGas => Abort::OutOfGas,
+            ExecutionError::Fatal(err) => Abort::Fatal(err),
+        }
+    }
+}
 
 /// Wraps an execution error in a Trap.
-pub fn trap_from_error(e: ExecutionError) -> Trap {
-    Trap::from(
-        Box::new(ErrorEnvelope::wrap(e)) as Box<dyn std::error::Error + Send + Sync + 'static>
-    )
+impl From<Abort> for Trap {
+    fn from(a: Abort) -> Self {
+        Trap::from(Box::new(Envelope::wrap(a)) as Box<dyn std::error::Error + Send + Sync + 'static>)
+    }
 }
 
-/// Wraps an exit code in a Trap.
-pub fn trap_from_code(code: ExitCode) -> Trap {
-    Trap::i32_exit(code as i32)
-}
+/// Unwraps a trap error from an actor into an "abort".
+impl From<Trap> for Abort {
+    fn from(t: Trap) -> Self {
+        use std::error::Error;
 
-/// Unwraps a trap error from an actor into one of:
-///
-/// 1. An invocation result with an exit code (if the trap is recoverable).
-/// 2. An "illegal actor" syscall error if the trap is caused by a WASM error.
-/// 3. A syscall error if the trap is neither fatal nor recoverable (currently just "out of gas").
-/// 4. A fatal error otherwise.
-pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<InvocationResult> {
-    use std::error::Error;
+        // Actor panic/wasm error.
+        if let Some(code) = t.trap_code() {
+            return Abort::Exit(ExitCode::SysErrActorPanic, code.to_string());
+        }
 
-    if let Some(status) = e.i32_exit_status() {
-        return Ok(InvocationResult::Failure(
-            ExitCode::from_i32(status)
-                .with_context(|| format!("invalid exit code: {}", status))
-                .or_fatal()?,
-        ));
+        // Try to get a smuggled error back.
+        t.source()
+            .and_then(|e| e.downcast_ref::<Envelope>())
+            .and_then(|e| e.take())
+            // Otherwise, treat this as a fatal error.
+            .unwrap_or_else(|| Abort::Fatal(t.into()))
     }
-
-    if e.trap_code().is_some() {
-        return Ok(InvocationResult::Failure(ExitCode::SysErrActorPanic));
-    }
-
-    // Do whatever we can to pull the original error back out (if it exists).
-    Err(e
-        .source()
-        .and_then(|e| e.downcast_ref::<ErrorEnvelope>())
-        .and_then(|e| e.inner.lock().ok())
-        .and_then(|mut e| e.take())
-        .unwrap_or_else(|| ExecutionError::Fatal(e.into())))
 }
 
 /// A super special secret error type for stapling an error to a trap in a way that allows us to
@@ -58,19 +68,22 @@ pub fn unwrap_trap(e: Trap) -> crate::kernel::Result<InvocationResult> {
 /// BE VERY CAREFUL WITH THIS ERROR TYPE: Its source is self-referential.
 #[derive(Display, Debug)]
 #[display(fmt = "wrapping error")]
-struct ErrorEnvelope {
-    inner: Mutex<Option<ExecutionError>>,
+struct Envelope {
+    inner: Mutex<Option<Abort>>,
 }
 
-impl ErrorEnvelope {
-    fn wrap(e: ExecutionError) -> Self {
+impl Envelope {
+    fn wrap(a: Abort) -> Self {
         Self {
-            inner: Mutex::new(Some(e)),
+            inner: Mutex::new(Some(a)),
         }
+    }
+    fn take(&self) -> Option<Abort> {
+        self.inner.lock().ok().and_then(|mut a| a.take()).take()
     }
 }
 
-impl std::error::Error for ErrorEnvelope {
+impl std::error::Error for Envelope {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(self)
     }

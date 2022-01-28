@@ -2,6 +2,7 @@ use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
@@ -9,10 +10,10 @@ use wasmtime::{Linker, Store};
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, Kernel, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
 use crate::syscall_error;
-use crate::syscalls::error::unwrap_trap;
+use crate::syscalls::error::Abort;
 use crate::syscalls::{bind_syscalls, InvocationData};
 
 /// The DefaultCallManager manages a single call stack.
@@ -276,77 +277,119 @@ where
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker).or_fatal()?;
 
+        log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel/store.
             let kernel = K::new(cm, from, to, method, value.clone());
             let mut store = Store::new(&engine, InvocationData::new(kernel));
 
-            log::trace!("calling {} -> {}::{}", from, to, method);
+            // Store parameters, if any.
+            let param_id = if params.len() > 0 {
+                match store.data_mut().kernel.block_create(DAG_CBOR, params) {
+                    Ok(id) => id,
+                    // This could fail if we pass some global memory limit.
+                    Err(err) => return (Err(err), store.into_data().kernel.take()),
+                }
+            } else {
+                super::NO_DATA_BLOCK_ID
+            };
 
-            let result = (|| {
-                // Load parameters, if there are any.
-                let param_id = if params.len() > 0 {
-                    store.data_mut().kernel.block_create(DAG_CBOR, params)?
-                } else {
-                    super::NO_DATA_BLOCK_ID
-                };
-
+            // From this point on, there are no more syscall errors, only aborts.
+            let result: std::result::Result<RawBytes, Abort> = (|| {
                 // Instantiate the module.
-                let instance = linker.instantiate(&mut store, &module).or_fatal()?;
+                let instance = linker
+                    .instantiate(&mut store, &module)
+                    // The module should already have been checked by the system.
+                    .map_err(Abort::Fatal)?;
+
+                // Lookup the invoke method.
+                let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, "invoke")
+                    // All actors will have an invoke method.
+                    .map_err(Abort::Fatal)?;
 
                 // Invoke it.
-                let invoke = instance.get_typed_func(&mut store, "invoke").or_fatal()?;
-                let return_block_id: u32 = match invoke.call(&mut store, (param_id,)) {
-                    Ok((block,)) => block,
-                    Err(e) => return unwrap_trap(e),
-                };
+                let return_block_id = invoke.call(&mut store, (param_id,))?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
-                    let (code, ret) = store.data().kernel.block_get(return_block_id)?;
+                    let (code, ret) = store
+                        .data()
+                        .kernel
+                        .block_get(return_block_id)
+                        .map_err(|e| Abort::from_error(ExitCode::SysErrIllegalActor, e))?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
                     RawBytes::default()
                 };
 
-                Ok(InvocationResult::Return(return_value))
+                Ok(return_value)
             })();
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let mut cm = invocation_data.kernel.take();
 
-            match &result {
-                Ok(val) => {
-                    log::trace!(
+            // Process the result, updating the backtrace if necessary.
+            let ret = match result {
+                Ok(value) => Ok(InvocationResult::Return(value)),
+                Err(abort) => {
+                    if let Some(err) = last_error {
+                        cm.backtrace.set_cause(err);
+                    }
+                    match abort {
+                        Abort::Exit(code, message) => {
+                            cm.backtrace.push_frame(Frame {
+                                method,
+                                message,
+                                source: to,
+                                params: params.clone(),
+                                code,
+                            });
+                            Ok(InvocationResult::Failure(code))
+                        }
+                        Abort::OutOfGas => {
+                            cm.backtrace.push_frame(Frame {
+                                method,
+                                message: "out of gas".to_owned(),
+                                source: to,
+                                params: params.clone(),
+                                code: ExitCode::SysErrOutOfGas,
+                            });
+                            Err(ExecutionError::OutOfGas)
+                        }
+                        Abort::Fatal(err) => {
+                            cm.backtrace.push_frame(Frame {
+                                method,
+                                message: "fatal error".to_owned(),
+                                source: to,
+                                params: params.clone(),
+                                // TODO: will be changed to a SysErrAssertionFailed when we
+                                // introduce the new exit codes.
+                                code: ExitCode::SysErrIllegalArgument,
+                            });
+                            Err(ExecutionError::Fatal(err))
+                        }
+                    }
+                }
+            };
+
+            // Log the results if tracing is enabled.
+            if log::log_enabled!(log::Level::Trace) {
+                match &ret {
+                    Ok(val) => log::trace!(
                         "returning {}::{} -> {} ({})",
                         to,
                         method,
                         from,
                         val.exit_code()
-                    );
-                    match &val {
-                        InvocationResult::Return(_) => cm.backtrace.clear(),
-                        InvocationResult::Failure(code) => {
-                            if let Some(err) = last_error {
-                                cm.backtrace.set_cause(err);
-                            }
-                            // TODO We'll need to feed the abort message up through with the trap.
-                            cm.backtrace.push_frame(Frame {
-                                source: to,
-                                method,
-                                params: params.clone(),
-                                code: *code,
-                                message: "TODO".into(),
-                            });
-                        }
-                    }
+                    ),
+                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
                 }
-                Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
             }
 
-            (result, cm)
+            (ret, cm)
         })
     }
 

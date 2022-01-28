@@ -4,7 +4,7 @@ use fvm_shared::error::ErrorNumber;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
 
 use super::context::Memory;
-use super::error::trap_from_error;
+use super::error::Abort;
 use super::{Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
@@ -51,40 +51,45 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
 #[doc(hidden)]
 pub trait IntoSyscallResult: Sized {
     type Value: Copy + Sized + 'static;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap>;
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort>;
 }
-// Implementation for syscalls that want to trap directly.
-impl<T> IntoSyscallResult for Result<T, Trap>
+
+// Implementations for syscalls that abort on error.
+impl<T> IntoSyscallResult for Result<T, Abort>
 where
     T: Copy + Sized + 'static,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
-        self.map(Ok)
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
+        Ok(Ok(self?))
     }
 }
 
+// Implementations for normal syscalls.
 impl<T> IntoSyscallResult for kernel::Result<T>
 where
     T: Copy + Sized + 'static,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
         match self {
             Ok(value) => Ok(Ok(value)),
-            Err(ExecutionError::Syscall(err)) => Ok(Err(err)),
-            Err(e) => Err(trap_from_error(e)),
+            Err(e) => match e {
+                ExecutionError::Syscall(err) => Ok(Err(err)),
+                ExecutionError::OutOfGas => Err(Abort::OutOfGas),
+                ExecutionError::Fatal(err) => Err(Abort::Fatal(err)),
+            },
         }
     }
 }
 
 fn memory_and_data<'a, K: Kernel>(
     caller: &'a mut Caller<'_, InvocationData<K>>,
-) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), wasmtime::Trap> {
+) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), Trap> {
     let (mem, data) = caller
         .get_export("memory")
         .and_then(|m| m.into_memory())
-        .ok_or_else(|| wasmtime::Trap::new("failed to lookup actor memory"))?
+        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
         .data_and_store_mut(caller);
     Ok((Memory::new(mem), data))
 }
