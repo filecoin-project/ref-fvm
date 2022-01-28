@@ -2,17 +2,19 @@ use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
+use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 use wasmtime::{Linker, Store};
 
-use super::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, Kernel, Result};
-use crate::machine::{CallError, Machine};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
+use crate::machine::Machine;
 use crate::syscall_error;
-use crate::syscalls::bind_syscalls;
-use crate::syscalls::error::unwrap_trap;
+use crate::syscalls::error::Abort;
+use crate::syscalls::{bind_syscalls, InvocationData};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -48,7 +50,7 @@ pub struct InnerDefaultCallManager<M> {
     /// Current call-stack depth.
     call_stack_depth: u32,
     /// The current chain of errors, if any.
-    backtrace: Vec<CallError>,
+    backtrace: Backtrace,
 }
 
 #[doc(hidden)]
@@ -81,7 +83,7 @@ where
             nonce,
             num_actors_created: 0,
             call_stack_depth: 0,
-            backtrace: Vec::new(),
+            backtrace: Backtrace::default(),
         }))
     }
 
@@ -120,7 +122,7 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Vec<CallError>, Self::Machine) {
+    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
@@ -162,16 +164,6 @@ where
         let ret = self.num_actors_created;
         self.num_actors_created += 1;
         ret
-    }
-
-    // Helpers for error tracing.
-
-    fn push_error(&mut self, e: CallError) {
-        self.backtrace.push(e);
-    }
-
-    fn clear_error(&mut self) {
-        self.backtrace.clear();
     }
 }
 
@@ -285,57 +277,113 @@ where
         let mut linker = Linker::new(&engine);
         bind_syscalls(&mut linker).or_fatal()?;
 
+        log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel/store.
             let kernel = K::new(cm, from, to, method, value.clone());
-            let mut store = Store::new(&engine, kernel);
+            let mut store = Store::new(&engine, InvocationData::new(kernel));
 
-            log::trace!("calling {} -> {}::{}", from, to, method);
+            // Store parameters, if any.
+            let param_id = if params.len() > 0 {
+                match store.data_mut().kernel.block_create(DAG_CBOR, params) {
+                    Ok(id) => id,
+                    // This could fail if we pass some global memory limit.
+                    Err(err) => return (Err(err), store.into_data().kernel.take()),
+                }
+            } else {
+                super::NO_DATA_BLOCK_ID
+            };
 
-            let result = (|| {
-                // Load parameters, if there are any.
-                let param_id = if params.len() > 0 {
-                    store.data_mut().block_create(DAG_CBOR, params)?
-                } else {
-                    super::NO_DATA_BLOCK_ID
-                };
-
+            // From this point on, there are no more syscall errors, only aborts.
+            let result: std::result::Result<RawBytes, Abort> = (|| {
                 // Instantiate the module.
-                let instance = linker.instantiate(&mut store, &module).or_fatal()?;
+                let instance = linker
+                    .instantiate(&mut store, &module)
+                    // The module should already have been checked by the system.
+                    .map_err(Abort::Fatal)?;
+
+                // Lookup the invoke method.
+                let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, "invoke")
+                    // All actors will have an invoke method.
+                    .map_err(Abort::Fatal)?;
 
                 // Invoke it.
-                let invoke = instance.get_typed_func(&mut store, "invoke").or_fatal()?;
-                let return_block_id: u32 = match invoke.call(&mut store, (param_id,)) {
-                    Ok((block,)) => block,
-                    Err(e) => return unwrap_trap(e),
-                };
+                let return_block_id = invoke.call(&mut store, (param_id,))?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
-                    let (code, ret) = store.data().block_get(return_block_id)?;
+                    let (code, ret) = store
+                        .data()
+                        .kernel
+                        .block_get(return_block_id)
+                        .map_err(|e| Abort::from_error(ExitCode::SysErrIllegalActor, e))?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
                     RawBytes::default()
                 };
 
-                Ok(InvocationResult::Return(return_value))
+                Ok(return_value)
             })();
 
-            match &result {
-                Ok(val) => {
-                    log::trace!(
+            let invocation_data = store.into_data();
+            let last_error = invocation_data.last_error;
+            let mut cm = invocation_data.kernel.take();
+
+            // Process the result, updating the backtrace if necessary.
+            let ret = match result {
+                Ok(value) => Ok(InvocationResult::Return(value)),
+                Err(abort) => {
+                    if let Some(err) = last_error {
+                        cm.backtrace.set_cause(err);
+                    }
+
+                    let (code, message, res) = match abort {
+                        Abort::Exit(code, message) => {
+                            (code, message, Ok(InvocationResult::Failure(code)))
+                        }
+                        Abort::OutOfGas => (
+                            ExitCode::SysErrOutOfGas,
+                            "out of gas".to_owned(),
+                            Err(ExecutionError::OutOfGas),
+                        ),
+                        Abort::Fatal(err) => (
+                            // TODO: will be changed to a SysErrAssertionFailed when we
+                            // introduce the new exit codes.
+                            ExitCode::SysErrIllegalArgument,
+                            "fatal error".to_owned(),
+                            Err(ExecutionError::Fatal(err)),
+                        ),
+                    };
+
+                    cm.backtrace.push_frame(Frame {
+                        source: to,
+                        method,
+                        message,
+                        params: params.clone(),
+                        code,
+                    });
+
+                    res
+                }
+            };
+
+            // Log the results if tracing is enabled.
+            if log::log_enabled!(log::Level::Trace) {
+                match &ret {
+                    Ok(val) => log::trace!(
                         "returning {}::{} -> {} ({})",
                         to,
                         method,
                         from,
                         val.exit_code()
-                    );
+                    ),
+                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
                 }
-                Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
             }
 
-            (result, store.into_data().take())
+            (ret, cm)
         })
     }
 

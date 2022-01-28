@@ -12,14 +12,12 @@ use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 use num_traits::Zero;
 
-use super::{ApplyKind, ApplyRet, Executor};
+use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::account_actor::is_account_actor;
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
-use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel, SyscallError};
-use crate::machine::{
-    CallError, CallErrorCode, Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR,
-};
+use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
+use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
 /// The core of the FVM.
 ///
@@ -115,8 +113,8 @@ where
                 return_data: Default::default(),
                 gas_used,
             },
-            Err(ExecutionError::Syscall(SyscallError(errmsg, err_code))) => {
-                let exit_code = match err_code {
+            Err(ExecutionError::Syscall(err)) => {
+                let exit_code = match err.1 {
                     ErrorNumber::IllegalOperation => ExitCode::SysErrIllegalActor,
                     ErrorNumber::AssertionFailed => ExitCode::SysErrIllegalArgument,
                     ErrorNumber::InsufficientFunds => ExitCode::SysErrInsufficientFunds,
@@ -130,11 +128,7 @@ where
                     }
                 };
 
-                backtrace.push(CallError {
-                    source: 0,
-                    code: CallErrorCode::Syscall(err_code),
-                    message: errmsg,
-                });
+                backtrace.set_cause(backtrace::Cause::new("send", "send", err));
                 Receipt {
                     exit_code,
                     return_data: Default::default(),
@@ -287,7 +281,7 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        backtrace: Vec<CallError>,
+        backtrace: Backtrace,
         gas_cost: BigInt,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
@@ -338,7 +332,7 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            backtrace,
+            failure_info: Some(ApplyFailure::MessageBacktrace(backtrace)),
             penalty: miner_penalty,
             miner_tip,
         })

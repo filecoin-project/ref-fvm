@@ -6,10 +6,12 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
 use crate::kernel::Result;
-use crate::machine::{CallError, Machine, MachineContext};
+use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
 use crate::Kernel;
 
+pub mod backtrace;
+pub use backtrace::Backtrace;
 mod default;
 pub use default::DefaultCallManager;
 
@@ -38,7 +40,7 @@ pub trait CallManager: 'static {
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used and the machine.
-    fn finish(self) -> (i64, Vec<CallError>, Self::Machine);
+    fn finish(self) -> (i64, backtrace::Backtrace, Self::Machine);
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
@@ -58,12 +60,6 @@ pub trait CallManager: 'static {
 
     /// Gets and increment the call-stack actor creation index.
     fn next_actor_idx(&mut self) -> u64;
-
-    /// Record an error in the current backtrace.
-    fn push_error(&mut self, e: CallError);
-
-    /// Clear the current backtrace.
-    fn clear_error(&mut self);
 
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {

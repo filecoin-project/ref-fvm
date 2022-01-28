@@ -3,7 +3,6 @@ use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use wasmtime::{Engine, Module};
@@ -70,23 +69,6 @@ pub trait Machine: 'static {
 
     /// Consumes the machine and returns the owned blockstore.
     fn consume(self) -> Self::Blockstore;
-}
-
-/// An error included in a message's backtrace on failure.
-#[derive(Clone, Debug)]
-pub struct CallError {
-    /// The source of the error or 0 for a syscall error.
-    pub source: ActorID,
-    /// The error code.
-    pub code: CallErrorCode,
-    /// The error message.
-    pub message: String,
-}
-
-#[derive(Clone, Debug)]
-pub enum CallErrorCode {
-    Exit(ExitCode),
-    Syscall(ErrorNumber),
 }
 
 /// Execution context supplied to the machine.

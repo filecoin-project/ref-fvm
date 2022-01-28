@@ -1,6 +1,7 @@
 use cid::Cid;
 use wasmtime::Linker;
 
+use crate::call_manager::backtrace;
 use crate::Kernel;
 pub(crate) mod error;
 
@@ -20,6 +21,24 @@ mod vm;
 
 pub(self) use context::Context;
 
+/// Invocation data attached to a wasm "store" and available to the syscall binding.
+pub struct InvocationData<K> {
+    /// The kernel on which this actor is being executed.
+    pub kernel: K,
+    /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
+    /// after receiving this error without calling any other syscalls.
+    pub last_error: Option<backtrace::Cause>,
+}
+
+impl<K> InvocationData<K> {
+    pub(crate) fn new(kernel: K) -> Self {
+        Self {
+            kernel,
+            last_error: None,
+        }
+    }
+}
+
 use self::bind::BindSyscall;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
@@ -30,8 +49,10 @@ pub const MAX_CID_LEN: usize = 100;
 //
 // TODO try to fix the static lifetime here. I want to tell the compiler that
 //  the Kernel will live as long as the Machine and the Linker.
-pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> anyhow::Result<()> {
-    linker.bind_keep_error("vm", "abort", vm::abort)?;
+pub fn bind_syscalls(
+    linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
+) -> anyhow::Result<()> {
+    linker.bind("vm", "abort", vm::abort)?;
 
     linker.bind("ipld", "open", ipld::open)?;
     linker.bind("ipld", "create", ipld::create)?;

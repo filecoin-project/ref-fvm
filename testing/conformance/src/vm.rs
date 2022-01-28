@@ -1,10 +1,10 @@
 use std::convert::TryFrom;
 
 use cid::Cid;
-use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{CallError, DefaultMachine, Machine, MachineContext};
+use fvm::machine::{DefaultMachine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
 use fvm_shared::address::Address;
@@ -15,7 +15,6 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
@@ -200,7 +199,7 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Vec<CallError>, Self::Machine) {
+    fn finish(self) -> (i64, Backtrace, Self::Machine) {
         self.0.finish()
     }
 
@@ -230,14 +229,6 @@ where
 
     fn next_actor_idx(&mut self) -> u64 {
         self.0.next_actor_idx()
-    }
-
-    fn push_error(&mut self, e: CallError) {
-        self.0.push_error(e)
-    }
-
-    fn clear_error(&mut self) {
-        self.0.clear_error()
     }
 
     fn price_list(&self) -> &fvm::gas::PriceList {
@@ -451,18 +442,6 @@ where
 
     fn debug_enabled(&self) -> bool {
         self.0.debug_enabled()
-    }
-
-    fn push_syscall_error(&mut self, e: SyscallError) {
-        self.0.push_syscall_error(e)
-    }
-
-    fn push_actor_error(&mut self, code: ExitCode, message: String) {
-        self.0.push_actor_error(code, message)
-    }
-
-    fn clear_error(&mut self) {
-        self.0.clear_error()
     }
 }
 impl<M, C, K> GasOps for TestKernel<K>

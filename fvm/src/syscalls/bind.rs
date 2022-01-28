@@ -3,8 +3,10 @@ use std::mem;
 use fvm_shared::error::ErrorNumber;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
 
-use super::error::trap_from_error;
-use super::Context;
+use super::context::Memory;
+use super::error::Abort;
+use super::{Context, InvocationData};
+use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
@@ -36,27 +38,11 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     /// let mut linker = wasmtime::Linker::new(&engine);
     /// linker.bind("my_module", "zero", my_module::zero);
     /// ```
-    fn bind(&mut self, module: &str, name: &str, syscall: Func) -> anyhow::Result<&mut Self> {
-        self.bind_syscall(module, name, syscall, false)
-    }
-
-    /// Bind a syscall to the linker, but preserve last syscall error.
-    fn bind_keep_error(
+    fn bind(
         &mut self,
-        module: &str,
-        name: &str,
+        module: &'static str,
+        name: &'static str,
         syscall: Func,
-    ) -> anyhow::Result<&mut Self> {
-        self.bind_syscall(module, name, syscall, true)
-    }
-
-    /// Bind a syscall to the linker.
-    fn bind_syscall(
-        &mut self,
-        module: &str,
-        name: &str,
-        syscall: Func,
-        keep_error: bool,
     ) -> anyhow::Result<&mut Self>;
 }
 
@@ -65,87 +51,106 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
 #[doc(hidden)]
 pub trait IntoSyscallResult: Sized {
     type Value: Copy + Sized + 'static;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap>;
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort>;
 }
-// Implementation for syscalls that want to trap directly.
-impl<T> IntoSyscallResult for Result<T, Trap>
+
+// Implementations for syscalls that abort on error.
+impl<T> IntoSyscallResult for Result<T, Abort>
 where
     T: Copy + Sized + 'static,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
-        self.map(Ok)
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
+        Ok(Ok(self?))
     }
 }
 
+// Implementations for normal syscalls.
 impl<T> IntoSyscallResult for kernel::Result<T>
 where
     T: Copy + Sized + 'static,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Trap> {
+    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
         match self {
             Ok(value) => Ok(Ok(value)),
-            Err(ExecutionError::Syscall(err)) => Ok(Err(err)),
-            Err(e) => Err(trap_from_error(e)),
+            Err(e) => match e {
+                ExecutionError::Syscall(err) => Ok(Err(err)),
+                ExecutionError::OutOfGas => Err(Abort::OutOfGas),
+                ExecutionError::Fatal(err) => Err(Abort::Fatal(err)),
+            },
         }
     }
+}
+
+fn memory_and_data<'a, K: Kernel>(
+    caller: &'a mut Caller<'_, InvocationData<K>>,
+) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), Trap> {
+    let (mem, data) = caller
+        .get_export("memory")
+        .and_then(|m| m.into_memory())
+        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
+        .data_and_store_mut(caller);
+    Ok((Memory::new(mem), data))
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {
         #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<K>
+        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<InvocationData<K>>
         where
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoSyscallResult,
            $($t: WasmTy,)*
         {
-            fn bind_syscall(&mut self, module: &str, name: &str, syscall: Func, keep_error: bool) -> anyhow::Result<&mut Self> {
+            fn bind(
+                &mut self,
+                module: &'static str,
+                name: &'static str,
+                syscall: Func,
+            ) -> anyhow::Result<&mut Self> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, K> $(, $t: $t)*| {
-                        let mut ctx = Context::try_from(&mut caller)?;
-                        if !keep_error {
-                            ctx.kernel.clear_error();
-                        }
-
-                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
-                            Ok(_) => 0,
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                        Ok(match syscall(ctx $(, $t)*).into()? {
+                            Ok(_) => {
+                                data.last_error = None;
+                                0
+                            },
                             Err(err) => {
                                 let code = err.1;
-                                ctx.kernel.push_syscall_error(err);
+                                data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
                         })
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, K>, ret: u32 $(, $t: $t)*| {
-                        let mut ctx = Context::try_from(&mut caller)?;
-
-                        if !keep_error {
-                            ctx.kernel.clear_error();
-                        }
+                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
-                        if (ret as u64) > (ctx.memory.len() as u64)
-                            || ctx.memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
+                        if (ret as u64) > (memory.len() as u64)
+                            || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
                             let code = ErrorNumber::IllegalArgument;
-                            ctx.kernel.push_syscall_error(SyscallError(format!("no space for return value"), code));
+                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
                             return Ok(code as u32);
                         }
 
-                        Ok(match syscall(ctx.reborrow() $(, $t)*).into()? {
+                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                        Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(value) => {
-                                unsafe { *(ctx.memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                data.last_error = None;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
-                                ctx.kernel.push_syscall_error(err);
+                                data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
                         })
