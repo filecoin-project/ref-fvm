@@ -213,10 +213,7 @@ where
 
     fn current_balance(&self) -> Result<TokenAmount> {
         // If the actor doesn't exist, it has zero balance.
-        Ok(self
-            .get_self()?
-            .map(|a| a.balance)
-            .unwrap_or_else(|| TokenAmount::zero()))
+        Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default())
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
