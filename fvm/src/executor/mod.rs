@@ -1,14 +1,15 @@
 mod default;
 
+use std::fmt::Display;
+
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::encoding::RawBytes;
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::backtrace::Cause;
 use crate::call_manager::Backtrace;
 use crate::Kernel;
 
@@ -24,17 +25,41 @@ pub trait Executor {
     ) -> anyhow::Result<ApplyRet>;
 }
 
+/// A description of some failure encountered when applying a message.
+#[derive(Debug, Clone)]
+pub enum ApplyFailure {
+    /// The backtrace from a message failure.
+    MessageBacktrace(Backtrace),
+    /// A message describing a pre-validation failure.
+    PreValidation(String),
+}
+
+impl Display for ApplyFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApplyFailure::MessageBacktrace(bt) => {
+                writeln!(f, "message failed with backtrace:")?;
+                write!(f, "{}", bt)?;
+            }
+            ApplyFailure::PreValidation(msg) => {
+                writeln!(f, "pre-validation failed: {}", msg)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Apply message return data.
 #[derive(Clone, Debug)]
 pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
-    /// A backtrace for the transaction, if it failed.
-    pub backtrace: Backtrace,
     /// Gas penalty from transaction, if any.
     pub penalty: BigInt,
     /// Tip given to miner from message.
     pub miner_tip: BigInt,
+    /// Additional failure information for debugging, if any.
+    pub failure_info: Option<ApplyFailure>,
 }
 
 impl ApplyRet {
@@ -44,15 +69,6 @@ impl ApplyRet {
         message: impl Into<String>,
         miner_penalty: BigInt,
     ) -> ApplyRet {
-        // This is a little funky, but it's the simplest way to record a sane error message.
-        let mut bt = Backtrace::default();
-        bt.set_cause(Cause {
-            module: "system",
-            function: "execute",
-            error: ErrorNumber::IllegalOperation,
-            message: message.into(),
-        });
-
         ApplyRet {
             msg_receipt: Receipt {
                 exit_code: code,
@@ -60,7 +76,7 @@ impl ApplyRet {
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            backtrace: bt,
+            failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
         }
     }

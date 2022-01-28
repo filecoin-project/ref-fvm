@@ -12,7 +12,7 @@ use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 use num_traits::Zero;
 
-use super::{ApplyKind, ApplyRet, Executor};
+use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::account_actor::is_account_actor;
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
@@ -332,7 +332,7 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            backtrace,
+            failure_info: Some(ApplyFailure::MessageBacktrace(backtrace)),
             penalty: miner_penalty,
             miner_tip,
         })
