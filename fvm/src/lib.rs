@@ -56,13 +56,47 @@ impl Default for Config {
 #[cfg(test)]
 mod test {
     use fvm_shared::blockstore::MemoryBlockstore;
+    use fvm_shared::externs::{Consensus, Externs, Rand};
     use fvm_shared::state::StateTreeVersion;
     use num_traits::Zero;
 
     use crate::call_manager::DefaultCallManager;
     use crate::machine::DefaultMachine;
     use crate::state_tree::StateTree;
-    use crate::{executor, externs, Config, DefaultKernel};
+    use crate::{executor, Config, DefaultKernel};
+
+    struct DummyExterns;
+
+    impl Externs for DummyExterns {}
+    impl Rand for DummyExterns {
+        fn get_chain_randomness(
+            &self,
+            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _round: fvm_shared::clock::ChainEpoch,
+            _entropy: &[u8],
+        ) -> anyhow::Result<[u8; 32]> {
+            todo!()
+        }
+
+        fn get_beacon_randomness(
+            &self,
+            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _round: fvm_shared::clock::ChainEpoch,
+            _entropy: &[u8],
+        ) -> anyhow::Result<[u8; 32]> {
+            todo!()
+        }
+    }
+    impl Consensus for DummyExterns {
+        fn verify_consensus_fault(
+            &self,
+            _h1: &[u8],
+            _h2: &[u8],
+            _extra: &[u8],
+        ) -> anyhow::Result<Option<fvm_shared::consensus::ConsensusFault>> {
+            todo!()
+        }
+    }
 
     #[test]
     fn test_constructor() {
@@ -79,7 +113,7 @@ mod test {
             fvm_shared::version::NetworkVersion::V14,
             root,
             bs,
-            externs::cgo::CgoExterns::new(0),
+            DummyExterns,
         )
         .unwrap();
         let _ = executor::DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(Box::new(
