@@ -6,7 +6,7 @@ use super::Context;
 use crate::kernel::{ClassifyResult, Context as _};
 use crate::Kernel;
 
-/// An unihabited type. We use this in `abort` to make sure there's no way to return without
+/// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
 #[derive(Copy, Clone)]
 pub enum Never {}
