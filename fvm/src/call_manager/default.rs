@@ -338,40 +338,34 @@ where
                     if let Some(err) = last_error {
                         cm.backtrace.set_cause(err);
                     }
-                    match abort {
+
+                    let (code, message, res) = match abort {
                         Abort::Exit(code, message) => {
-                            cm.backtrace.push_frame(Frame {
-                                method,
-                                message,
-                                source: to,
-                                params: params.clone(),
-                                code,
-                            });
-                            Ok(InvocationResult::Failure(code))
+                            (code, message, Ok(InvocationResult::Failure(code)))
                         }
-                        Abort::OutOfGas => {
-                            cm.backtrace.push_frame(Frame {
-                                method,
-                                message: "out of gas".to_owned(),
-                                source: to,
-                                params: params.clone(),
-                                code: ExitCode::SysErrOutOfGas,
-                            });
-                            Err(ExecutionError::OutOfGas)
-                        }
-                        Abort::Fatal(err) => {
-                            cm.backtrace.push_frame(Frame {
-                                method,
-                                message: "fatal error".to_owned(),
-                                source: to,
-                                params: params.clone(),
-                                // TODO: will be changed to a SysErrAssertionFailed when we
-                                // introduce the new exit codes.
-                                code: ExitCode::SysErrIllegalArgument,
-                            });
-                            Err(ExecutionError::Fatal(err))
-                        }
-                    }
+                        Abort::OutOfGas => (
+                            ExitCode::SysErrOutOfGas,
+                            "out of gas".to_owned(),
+                            Err(ExecutionError::OutOfGas),
+                        ),
+                        Abort::Fatal(err) => (
+                            // TODO: will be changed to a SysErrAssertionFailed when we
+                            // introduce the new exit codes.
+                            ExitCode::SysErrIllegalArgument,
+                            "fatal error".to_owned(),
+                            Err(ExecutionError::Fatal(err)),
+                        ),
+                    };
+
+                    cm.backtrace.push_frame(Frame {
+                        source: to,
+                        method,
+                        message,
+                        params: params.clone(),
+                        code,
+                    });
+
+                    res
                 }
             };
 
