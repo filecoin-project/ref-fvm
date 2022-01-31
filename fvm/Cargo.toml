@@ -61,7 +61,7 @@ fvm_actor_verifreg = { path = "../actors/verifreg", optional = true }
 [dependencies.wasmtime]
 version = "0.33.0"
 default-features = false
-features = ["cranelift", "pooling-allocator", "cache", "parallel-compilation"]
+features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 
 [features]
 default = ["opencl"]

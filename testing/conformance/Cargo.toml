@@ -32,7 +32,7 @@ byteorder = "1.4.3"
 futures = "0.3.19"
 ipld_car = { path="../../ipld/car" }
 async-std = { version = "1.9", features = ["attributes"] }
-wasmtime = "0.33.0" # this dependency is necessary because replacing a kernel with external data
+wasmtime = { version = "0.33.0", features = ["cache"] }
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
 colored = "2"
