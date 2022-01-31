@@ -70,10 +70,6 @@ jobs:
         version: v0.2.15
         # change this to invalidate sccache for this job
         shared-key: v0
-    # otherwise the include_bytes! macro fails because this file hasn't been generated
-    - if: ${{ matrix.command == 'clippy' }}
-      run: touch examples/fvm/fvm_example_actor.wasm
-      shell: bash
     - name: Runing ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
