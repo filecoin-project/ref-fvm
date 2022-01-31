@@ -80,3 +80,4 @@ builtin_actors = [
     "fvm_actor_system",
     "fvm_actor_verifreg"
 ]
+custom_actors = []

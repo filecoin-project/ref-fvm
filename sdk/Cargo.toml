@@ -7,6 +7,7 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
+anyhow = { version = "1.0.52", default-features = false }
 cid = { version = "0.7.0", default-features = false }
 fvm_shared = { path = "../shared" }
 ## num-traits; disabling default features makes it play nice with no_std.
