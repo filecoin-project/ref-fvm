@@ -4,16 +4,18 @@
 use actors_runtime::runtime::{ActorCode, Runtime};
 use actors_runtime::{
     actor_error, make_map_with_root_and_bitwidth, resolve_to_id_addr, wasm_trampoline,
-    ActorDowncast, ActorError, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
+    ActorDowncast, ActorError, Map, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
+use fvm_sdk as fvm;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+use ipld_hamt::BytesKey;
 use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed};
+use num_traits::{FromPrimitive, Signed, Zero};
 
 pub use self::state::State;
 pub use self::types::*;
@@ -52,6 +54,7 @@ pub enum Method {
     AddVerifiedClient = 4,
     UseBytes = 5,
     RestoreBytes = 6,
+    RemoveVerifiedClientDataCap = 7,
 }
 
 pub struct Actor;
@@ -534,6 +537,289 @@ impl Actor {
 
         Ok(())
     }
+
+    /// Removes DataCap allocated to a verified client.
+    pub fn remove_verified_client_data_cap<BS, RT>(
+        rt: &mut RT,
+        params: RemoveDataCapParams,
+    ) -> Result<RemoveDataCapReturn, ActorError>
+    where
+        BS: Blockstore,
+        RT: Runtime<BS>,
+    {
+        let client = resolve_to_id_addr(rt, &params.verified_client_to_remove).map_err(|e| {
+            e.downcast_default(
+                ExitCode::ErrIllegalArgument,
+                format!(
+                    "failed to resolve client addr {} to ID addr",
+                    params.verified_client_to_remove
+                ),
+            )
+        })?;
+
+        let verifier_1 =
+            resolve_to_id_addr(rt, &params.verifier_request_1.verifier).map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalArgument,
+                    format!(
+                        "failed to resolve verifier addr {} to ID addr",
+                        params.verifier_request_1.verifier
+                    ),
+                )
+            })?;
+
+        let verifier_2 =
+            resolve_to_id_addr(rt, &params.verifier_request_2.verifier).map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalArgument,
+                    format!(
+                        "failed to resolve verifier addr {} to ID addr",
+                        params.verifier_request_2.verifier
+                    ),
+                )
+            })?;
+
+        if verifier_1 == verifier_2 {
+            return Err(actor_error!(
+                ErrIllegalArgument,
+                "need two different verifiers to send remove datacap request"
+            ));
+        }
+
+        let mut removed_data_cap_amount = DataCap::default();
+        rt.transaction(|st: &mut State, rt| {
+            rt.validate_immediate_caller_is(std::iter::once(&st.root_key))?;
+
+            // get current verified clients
+            let mut verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+                &st.verified_clients,
+                rt.store(),
+                HAMT_BIT_WIDTH,
+            )
+            .map_err(|e| {
+                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+            })?;
+
+            // check that `client` is currently a verified client
+            if !is_verifier(rt, st, client)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    client
+                ));
+            }
+
+            // get existing cap allocated to client
+            let BigIntDe(previous_data_cap) = verified_clients
+                .get(&client.to_bytes())
+                .map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        format!("failed to get verified client {}", &client),
+                    )
+                })?
+                .cloned()
+                .unwrap_or_default();
+
+            // check that `verifier_1` is currently a verified client
+            if !is_verifier(rt, st, verifier_1)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    verifier_1
+                ));
+            }
+
+            // check that `verifier_2` is currently a verified client
+            if !is_verifier(rt, st, verifier_2)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    verifier_2
+                ));
+            }
+
+            // validate signatures
+            let mut proposal_ids = make_map_with_root_and_bitwidth::<_, RemoveDataCapProposalID>(
+                &st.remove_data_cap_proposal_ids,
+                rt.store(),
+                HAMT_BIT_WIDTH,
+            )
+            .map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalState,
+                    "failed to load datacap removal proposal ids",
+                )
+            })?;
+
+            let verifier_1_id = use_proposal_id(&mut proposal_ids, verifier_1, client)?;
+            let verifier_2_id = use_proposal_id(&mut proposal_ids, verifier_2, client)?;
+
+            remove_data_cap_request_is_valid_or_abort(
+                rt,
+                &params.verifier_request_1,
+                verifier_1_id,
+                &params.data_cap_amount_to_remove,
+                client,
+            )?;
+            remove_data_cap_request_is_valid_or_abort(
+                rt,
+                &params.verifier_request_2,
+                verifier_2_id,
+                &params.data_cap_amount_to_remove,
+                client,
+            )?;
+
+            let new_data_cap = &previous_data_cap - &params.data_cap_amount_to_remove;
+            if new_data_cap <= Zero::zero() {
+                // no DataCap remaining, delete verified client
+                verified_clients.delete(&client.to_bytes()).map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        format!("failed to delete verified client {}", &client),
+                    )
+                })?;
+                removed_data_cap_amount = previous_data_cap;
+            } else {
+                // update DataCap amount after removal
+                verified_clients
+                    .set(BytesKey::from(client.to_bytes()), BigIntDe(new_data_cap))
+                    .map_err(|e| {
+                        e.downcast_default(
+                            ExitCode::ErrIllegalState,
+                            format!("failed to update datacap for verified client {}", &client),
+                        )
+                    })?;
+                removed_data_cap_amount = params.data_cap_amount_to_remove.clone();
+            }
+
+            st.remove_data_cap_proposal_ids = proposal_ids.flush().map_err(|e| {
+                actor_error! {
+                    ErrIllegalState,
+                    "failed to flush proposal ids: {}",
+                    e
+                }
+            })?;
+            st.verified_clients = verified_clients.flush().map_err(|e| {
+                actor_error! {
+                    ErrIllegalState,
+                    "failed to flush verified clients: {}",
+                    e
+                }
+            })?;
+            Ok(())
+        })?;
+
+        Ok(RemoveDataCapReturn {
+            verified_client: params.verified_client_to_remove,
+            data_cap_removed: removed_data_cap_amount,
+        })
+    }
+}
+
+fn is_verifier<BS, RT>(rt: &RT, st: &State, address: Address) -> Result<bool, ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+{
+    let verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+        &st.verified_clients,
+        rt.store(),
+        HAMT_BIT_WIDTH,
+    )
+    .map_err(|e| {
+        e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+    })?;
+
+    // check that the `address` is currently a verified client
+    let found = verified_clients
+        .contains_key(&address.to_bytes())
+        .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier"))?;
+
+    Ok(found)
+}
+
+fn use_proposal_id<BS>(
+    proposal_ids: &mut Map<BS, RemoveDataCapProposalID>,
+    verifier: Address,
+    client: Address,
+) -> Result<RemoveDataCapProposalID, ActorError>
+where
+    BS: Blockstore,
+{
+    let key = AddrPairKey::new(verifier, client);
+
+    let maybe_id = proposal_ids.get(&key.to_bytes()).map_err(|e| {
+        actor_error!(
+            ErrIllegalState,
+            "failed to get proposal id for verifier {} and client {}: {}",
+            verifier,
+            client,
+            e
+        )
+    })?;
+
+    let curr_id = if let Some(RemoveDataCapProposalID(id)) = maybe_id {
+        RemoveDataCapProposalID(*id)
+    } else {
+        RemoveDataCapProposalID(0)
+    };
+
+    let next_id = RemoveDataCapProposalID(curr_id.0 + 1);
+    proposal_ids
+        .set(BytesKey::from(key.to_bytes()), next_id.clone())
+        .map_err(|e| {
+            actor_error!(
+                ErrIllegalState,
+                "failed to update proposal id for verifier {} and client {}: {}",
+                verifier,
+                client,
+                e
+            )
+        })?;
+
+    Ok(next_id)
+}
+
+fn remove_data_cap_request_is_valid_or_abort<BS, RT>(
+    rt: &RT,
+    request: &RemoveDataCapRequest,
+    id: RemoveDataCapProposalID,
+    to_remove: &DataCap,
+    client: Address,
+) -> Result<(), ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+{
+    let proposal = RemoveDataCapProposal {
+        removal_proposal_id: id,
+        data_cap_amount: to_remove.clone(),
+        verified_client: client,
+    };
+
+    let buf = RawBytes::serialize(proposal);
+    let b = match buf {
+        Ok(b) => b,
+        Err(e) => {
+            fvm::vm::abort(
+                ExitCode::ErrSerialization as u32,
+                Some(format!("failed to marshal remove datacap request: {:?}", e).as_str()),
+            );
+        }
+    };
+
+    // verify signature of proposal
+    let res = rt.verify_signature(&request.signature, &request.verifier, &b);
+    match res {
+        Ok(()) => return Ok(()),
+        Err(e) => {
+            fvm::vm::abort(
+                ExitCode::ErrIllegalArgument as u32,
+                Some(format!("invalid signature for datacap removal request: {:?}", e).as_str()),
+            );
+        }
+    };
 }
 
 impl ActorCode for Actor {
@@ -569,6 +855,10 @@ impl ActorCode for Actor {
             }
             Some(Method::RestoreBytes) => {
                 Self::restore_bytes(rt, rt.deserialize_params(params)?)?;
+                Ok(RawBytes::default())
+            }
+            Some(Method::RemoveVerifiedClientDataCap) => {
+                Self::remove_verified_client_data_cap(rt, rt.deserialize_params(params)?)?;
                 Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
