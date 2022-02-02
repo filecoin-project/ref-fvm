@@ -3,6 +3,7 @@
 
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
+use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::StoragePower;
 use lazy_static::lazy_static;
@@ -43,3 +44,25 @@ pub struct BytesParams {
 
 pub type UseBytesParams = BytesParams;
 pub type RestoreBytesParams = BytesParams;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
+pub struct RemoveDataCapParams {
+    pub verified_client_to_remove: Address,
+    #[serde(with = "bigint_ser")]
+    pub data_cap_amount_to_remove: DataCap,
+    pub verifier_request_1: RemoveDataCapRequest,
+    pub verifier_request_2: RemoveDataCapRequest,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
+pub struct RemoveDataCapRequest {
+    pub verifier: Address,
+    pub signature: Signature,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
+pub struct RemoveDataCapReturn {
+    pub verified_client: Address,
+    #[serde(with = "bigint_ser")]
+    pub data_cap_removed: DataCap,
+}

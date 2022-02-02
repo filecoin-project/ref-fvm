@@ -52,6 +52,7 @@ pub enum Method {
     AddVerifiedClient = 4,
     UseBytes = 5,
     RestoreBytes = 6,
+    RemoveVerifiedClientDataCap = 7,
 }
 
 pub struct Actor;
@@ -534,6 +535,61 @@ impl Actor {
 
         Ok(())
     }
+
+    /// Removes DataCap allocated to a verified client.
+    pub fn remove_verified_client_data_cap<BS, RT>(
+        rt: &mut RT,
+        params: RemoveDataCapParams,
+    ) -> Result<(), ActorError>
+    where
+        BS: Blockstore,
+        RT: Runtime<BS>,
+    {
+        let client = resolve_to_id_addr(rt, &params.verified_client_to_remove).map_err(|e| {
+            e.downcast_default(
+                ExitCode::ErrIllegalArgument,
+                format!(
+                    "failed to resolve client addr {} to ID addr",
+                    params.verified_client_to_remove
+                ),
+            )
+        })?;
+
+        let verifier_1 =
+            resolve_to_id_addr(rt, &params.verifier_request_1.verifier).map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalArgument,
+                    format!(
+                        "failed to resolve verifier addr {} to ID addr",
+                        params.verifier_request_1.verifier
+                    ),
+                )
+            })?;
+
+        let verifier_2 =
+            resolve_to_id_addr(rt, &params.verifier_request_2.verifier).map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalArgument,
+                    format!(
+                        "failed to resolve verifier addr {} to ID addr",
+                        params.verifier_request_2.verifier
+                    ),
+                )
+            })?;
+
+        if verifier_1 == verifier_2 {
+            return Err(actor_error!(
+                ErrIllegalArgument,
+                "need two different verifiers to send remove datacap request"
+            ));
+        }
+
+        let removed_data_cap_amount: DataCap = DataCap::default();
+        let st: State = rt.state()?;
+        rt.transaction(|st: &mut State, rt| Ok(()))?;
+
+        Ok(())
+    }
 }
 
 impl ActorCode for Actor {
@@ -569,6 +625,10 @@ impl ActorCode for Actor {
             }
             Some(Method::RestoreBytes) => {
                 Self::restore_bytes(rt, rt.deserialize_params(params)?)?;
+                Ok(RawBytes::default())
+            }
+            Some(Method::RemoveVerifiedClientDataCap) => {
+                Self::remove_verified_client_data_cap(rt, rt.deserialize_params(params)?)?;
                 Ok(RawBytes::default())
             }
             None => Err(actor_error!(SysErrInvalidMethod; "Invalid method")),
