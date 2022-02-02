@@ -66,3 +66,5 @@ pub struct RemoveDataCapReturn {
     #[serde(with = "bigint_ser")]
     pub data_cap_removed: DataCap,
 }
+
+pub type RemoveDataCapProposalID = u64;

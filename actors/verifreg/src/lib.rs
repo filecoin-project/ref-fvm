@@ -4,11 +4,13 @@
 use actors_runtime::runtime::{ActorCode, Runtime};
 use actors_runtime::{
     actor_error, make_map_with_root_and_bitwidth, resolve_to_id_addr, wasm_trampoline,
-    ActorDowncast, ActorError, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
+    ActorDowncast, ActorError, Map, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::blockstore::Blockstore;
+use fvm_shared::encoding::de::DeserializeOwned;
+use fvm_shared::encoding::ser::Serialize;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
@@ -540,7 +542,7 @@ impl Actor {
     pub fn remove_verified_client_data_cap<BS, RT>(
         rt: &mut RT,
         params: RemoveDataCapParams,
-    ) -> Result<(), ActorError>
+    ) -> Result<RemoveDataCapReturn, ActorError>
     where
         BS: Blockstore,
         RT: Runtime<BS>,
@@ -586,10 +588,117 @@ impl Actor {
 
         let removed_data_cap_amount: DataCap = DataCap::default();
         let st: State = rt.state()?;
-        rt.transaction(|st: &mut State, rt| Ok(()))?;
+        rt.transaction(|st: &mut State, rt| {
+            rt.validate_immediate_caller_is(std::iter::once(&st.root_key))?;
 
-        Ok(())
+            // get current verified clients
+            let verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+                &st.verified_clients,
+                rt.store(),
+                HAMT_BIT_WIDTH,
+            )
+            .map_err(|e| {
+                e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+            })?;
+
+            // check that `client` is currently a verified client
+            if !is_verifier(rt, st, client)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    client
+                ));
+            }
+
+            // get existing cap allocated to client
+            let BigIntDe(vc_cap) = verified_clients
+                .get(&client.to_bytes())
+                .map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        format!("failed to get verified client {}", &client),
+                    )
+                })?
+                .cloned()
+                .unwrap_or_default();
+
+            // check that `verifier_1` is currently a verified client
+            if !is_verifier(rt, st, verifier_1)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    verifier_1
+                ));
+            }
+
+            // check that `verifier_2` is currently a verified client
+            if !is_verifier(rt, st, verifier_2)? {
+                return Err(actor_error!(
+                    ErrNotFound,
+                    "{} is not a verified client",
+                    verifier_2
+                ));
+            }
+
+            // validate signatures
+            let proposal_ids = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+                &st.remove_data_cap_proposal_ids,
+                rt.store(),
+                HAMT_BIT_WIDTH,
+            )
+            .map_err(|e| {
+                e.downcast_default(
+                    ExitCode::ErrIllegalState,
+                    "failed to load datacap removal proposal ids",
+                )
+            })?;
+
+            let verifier_1_id = use_proposal_id(rt, proposal_ids, verifier_1, client)?;
+
+            Ok(())
+        })?;
+
+        Ok(RemoveDataCapReturn {
+            verified_client: params.verified_client_to_remove,
+            data_cap_removed: removed_data_cap_amount,
+        })
     }
+}
+
+fn is_verifier<BS, RT>(rt: &RT, st: &State, address: Address) -> Result<bool, ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+{
+    let verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+        &st.verified_clients,
+        rt.store(),
+        HAMT_BIT_WIDTH,
+    )
+    .map_err(|e| {
+        e.downcast_default(ExitCode::ErrIllegalState, "failed to load verified clients")
+    })?;
+
+    // check that the `address` is currently a verified client
+    let found = verified_clients
+        .contains_key(&address.to_bytes())
+        .map_err(|e| e.downcast_default(ExitCode::ErrIllegalState, "failed to get verifier"))?;
+
+    Ok(found)
+}
+
+fn use_proposal_id<BS, RT, V>(
+    rt: &RT,
+    proposal_ids: Map<BS, V>,
+    verifier: Address,
+    client: Address,
+) -> Result<RemoveDataCapProposalID, ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+    V: DeserializeOwned + Serialize,
+{
+    Ok(0)
 }
 
 impl ActorCode for Actor {
