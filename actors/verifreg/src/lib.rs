@@ -748,6 +748,7 @@ where
         verified_client: client,
     };
 
+    // TODO: in lotus this does rt.Abortf, what's the equivalent here?
     let buf = RawBytes::serialize(proposal).map_err(|e| {
         actor_error!(
             ErrSerialization,
@@ -757,6 +758,15 @@ where
     })?;
 
     // verify signature of proposal
+    // TOOD: same here w/ the Abortf
+    rt.verify_signature(&request.signature, &request.verifier, &buf)
+        .map_err(|e| {
+            actor_error!(
+                ErrIllegalArgument,
+                "invalid signature for datacap removal request: {}",
+                e
+            )
+        })?;
 
     Ok(())
 }
