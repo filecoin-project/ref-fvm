@@ -7,7 +7,8 @@ use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, SealVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof,
+    ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
 use fvm_shared::{MethodNum, METHOD_SEND};
@@ -94,6 +95,7 @@ lazy_static! {
         .collect(),
 
         verify_consensus_fault: 495422,
+        verify_replica_update: 36316136,
         verify_post_lookup: [
             (
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
@@ -241,6 +243,7 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_post_discount: bool,
     pub(crate) verify_consensus_fault: i64,
+    pub(crate) verify_replica_update: i64,
 }
 
 impl PriceList {
@@ -379,6 +382,18 @@ impl PriceList {
         GasCharge::new(
             "OnVerifyAggregateSeals",
             per_proof * num + step.lookup(num),
+            0,
+        )
+    }
+    /// Returns gas required for replica verification.
+    #[inline]
+    pub fn on_verify_replica_info(
+        &self,
+        _replica: &ReplicaUpdateInfo,
+    ) -> GasCharge<'static> {
+        GasCharge::new(
+            "OnVerifyReplicaInfo",
+            self.verify_replica_update,
             0,
         )
     }

@@ -7,7 +7,8 @@ use clock::ChainEpoch;
 use crate::encoding::tuple::*;
 use crate::encoding::{serde_bytes, Cbor};
 use crate::randomness::Randomness;
-use crate::sector::{RegisteredAggregateProof, RegisteredSealProof, SectorID, SectorNumber};
+use crate::sector::{RegisteredAggregateProof, RegisteredSealProof,
+    RegisteredUpdateProof, SectorID, SectorNumber};
 use crate::{clock, deal, ActorID};
 
 /// Randomness used for Seal proofs.
@@ -71,3 +72,16 @@ pub struct AggregateSealVerifyProofAndInfos {
 
 // For syscall marshalling.
 impl Cbor for AggregateSealVerifyProofAndInfos {}
+
+/// Information needed to verify a replica update
+#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+pub struct ReplicaUpdateInfo {
+    pub update_proof_type: RegisteredUpdateProof,
+    pub old_sealed_sector_cid: Cid,
+    pub new_sealed_sector_cid: Cid,
+    pub new_unsealed_sector_cid: Cid,
+    pub proof: Vec<u8>,
+}
+
+// For syscall marshalling.
+impl Cbor for ReplicaUpdateInfo {}

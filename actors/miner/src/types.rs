@@ -13,7 +13,8 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::{serde_bytes, BytesDe};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
-    PoStProof, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StoragePower,
+    PoStProof, RegisteredPoStProof, RegisteredSealProof, RegisteredUpdateProof,
+    SectorNumber, StoragePower,
 };
 use fvm_shared::smooth::FilterEstimate;
 
@@ -269,7 +270,7 @@ pub struct SectorPreCommitOnChainInfo {
 }
 
 /// Information stored on-chain for a proven sector.
-#[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]
 pub struct SectorOnChainInfo {
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
@@ -301,6 +302,8 @@ pub struct SectorOnChainInfo {
     /// Day reward of sector this sector replace or zero
     #[serde(with = "bigint_ser")]
     pub replaced_day_reward: TokenAmount,
+    /// The original SealedSectorCID, only gets set on the first ReplicaUpdate
+    pub sector_key_cid: Cid,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize_tuple, Deserialize_tuple)]
@@ -330,3 +333,19 @@ pub struct ProveCommitAggregateParams {
     #[serde(with = "serde_bytes")]
     pub aggregate_proof: Vec<u8>,
 }
+
+#[derive(Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+ pub struct ReplicaUpdate {
+     pub sector_number: SectorNumber,
+     pub deadline: u64,
+     pub partition: u64,
+     pub new_sealed_sector_cid: Cid,
+     pub deals: Vec<DealID>,
+     pub update_proof_type: RegisteredUpdateProof,
+     pub replica_proof: Vec<u8>,
+ }
+
+ #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
+ pub struct ProveReplicaUpdatesParams {
+     pub updates: Vec<ReplicaUpdate>,
+ }

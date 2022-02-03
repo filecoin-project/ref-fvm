@@ -18,7 +18,8 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
@@ -426,6 +427,13 @@ where
     // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
+        self.0.charge_gas(charge.name, charge.total())?;
+        Ok(true)
+    }
+
+    // NOT forwarded
+    fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
+        let charge = self.1.price_list.on_verify_replica_info(rep);
         self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }

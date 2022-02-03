@@ -5,7 +5,8 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{to_vec, Cbor};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use num_traits::FromPrimitive;
 
@@ -137,6 +138,17 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
         .expect("failed to marshal aggregate seal verification input");
     unsafe {
         sys::crypto::verify_aggregate_seals(info.as_ptr(), info.len() as u32)
+            .map(status_code_to_bool)
+    }
+}
+
+#[allow(unused)]
+pub fn verify_replica_update(info: &ReplicaUpdateInfo) -> SyscallResult<bool> {
+    let info = info
+        .marshal_cbor()
+        .expect("failed to marshal replica update verification input");
+    unsafe {
+        sys::crypto::verify_replica_update(info.as_ptr(), info.len() as u32)
             .map(status_code_to_bool)
     }
 }

@@ -14,7 +14,8 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
@@ -231,8 +232,14 @@ pub trait Syscalls {
             .map(|si| self.verify_seal(si).is_ok())
             .collect())
     }
+
     fn verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
+    ) -> Result<(), anyhow::Error>;
+
+    fn verify_replica_update(
+        &self,
+        replica: &ReplicaUpdateInfo,
     ) -> Result<(), anyhow::Error>;
 }

@@ -10,7 +10,8 @@ use fvm_shared::encoding::RawBytes;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
@@ -242,6 +243,11 @@ pub trait CryptoOps {
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
+    ) -> Result<bool>;
+
+    fn verify_replica_update(
+        &mut self,
+        replica: &ReplicaUpdateInfo,
     ) -> Result<bool>;
 }
 

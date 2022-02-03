@@ -20,7 +20,8 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
@@ -836,6 +837,13 @@ impl Syscalls for MockRuntime {
         &self,
         _aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> anyhow::Result<()> {
+        // TODO: Implement this if we need it. Currently don't have a need.
+        todo!()
+    }
+    fn verify_replica_update(
+        &self,
+        _replica: &ReplicaUpdateInfo,
+    ) -> Result<(), anyhow::Error> {
         // TODO: Implement this if we need it. Currently don't have a need.
         todo!()
     }
