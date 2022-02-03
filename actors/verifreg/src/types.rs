@@ -8,6 +8,7 @@ use fvm_shared::encoding::tuple::*;
 use fvm_shared::sector::StoragePower;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
 #[cfg(not(feature = "devnet"))]
 lazy_static! {
@@ -67,4 +68,35 @@ pub struct RemoveDataCapReturn {
     pub data_cap_removed: DataCap,
 }
 
-pub type RemoveDataCapProposalID = u64;
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct RemoveDataCapProposalID(pub u64);
+
+#[derive(Debug, Serialize_tuple, Deserialize_tuple)]
+pub struct RemoveDataCapProposal {
+    pub verified_client: Address,
+    #[serde(with = "bigint_ser")]
+    pub data_cap_amount: DataCap,
+    pub removal_proposal_id: RemoveDataCapProposalID,
+}
+
+pub struct AddrPairKey {
+    pub first: Address,
+    pub second: Address,
+}
+
+impl AddrPairKey {
+    pub fn new(first: Address, second: Address) -> Self {
+        AddrPairKey {
+            first: first,
+            second: second,
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut first = self.first.to_bytes();
+        let mut second = self.second.to_bytes();
+        first.append(&mut second);
+        first
+    }
+}

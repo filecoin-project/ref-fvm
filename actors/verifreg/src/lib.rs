@@ -10,10 +10,10 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::encoding::de::DeserializeOwned;
-use fvm_shared::encoding::ser::Serialize;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
+use ipld_hamt::BytesKey;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed};
 
@@ -641,7 +641,7 @@ impl Actor {
             }
 
             // validate signatures
-            let proposal_ids = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+            let mut proposal_ids = make_map_with_root_and_bitwidth::<_, RemoveDataCapProposalID>(
                 &st.remove_data_cap_proposal_ids,
                 rt.store(),
                 HAMT_BIT_WIDTH,
@@ -653,7 +653,8 @@ impl Actor {
                 )
             })?;
 
-            let verifier_1_id = use_proposal_id(rt, proposal_ids, verifier_1, client)?;
+            let verifier_1_id = use_proposal_id(rt, &mut proposal_ids, verifier_1, client)?;
+            let verifier_2_id = use_proposal_id(rt, &mut proposal_ids, verifier_2, client)?;
 
             Ok(())
         })?;
@@ -687,18 +688,77 @@ where
     Ok(found)
 }
 
-fn use_proposal_id<BS, RT, V>(
+fn use_proposal_id<BS, RT>(
     rt: &RT,
-    proposal_ids: Map<BS, V>,
+    proposal_ids: &mut Map<BS, RemoveDataCapProposalID>,
     verifier: Address,
     client: Address,
 ) -> Result<RemoveDataCapProposalID, ActorError>
 where
     BS: Blockstore,
     RT: Runtime<BS>,
-    V: DeserializeOwned + Serialize,
+    //  V: DeserializeOwned + Serialize,
 {
-    Ok(0)
+    let key = AddrPairKey::new(verifier, client);
+
+    let maybe_id = proposal_ids.get(&key.to_bytes()).map_err(|e| {
+        actor_error!(
+            ErrIllegalState,
+            "failed to get proposal id for verifier {} and client {}",
+            verifier,
+            client
+        )
+    })?;
+
+    let curr_id = if let Some(RemoveDataCapProposalID(id)) = maybe_id {
+        RemoveDataCapProposalID(*id)
+    } else {
+        RemoveDataCapProposalID(0)
+    };
+
+    let next_id = RemoveDataCapProposalID(curr_id.0 + 1);
+    proposal_ids
+        .set(BytesKey::from(key.to_bytes()), next_id.clone())
+        .map_err(|e| {
+            actor_error!(
+                ErrIllegalState,
+                "failed to update proposal id for verifier {} and client {}",
+                verifier,
+                client
+            )
+        })?;
+
+    Ok(next_id)
+}
+
+fn remove_data_cap_request_is_valid_or_abort<BS, RT>(
+    rt: &RT,
+    request: RemoveDataCapRequest,
+    id: RemoveDataCapProposalID,
+    to_remove: DataCap,
+    client: Address,
+) -> Result<(), ActorError>
+where
+    BS: Blockstore,
+    RT: Runtime<BS>,
+{
+    let proposal = RemoveDataCapProposal {
+        removal_proposal_id: id,
+        data_cap_amount: to_remove,
+        verified_client: client,
+    };
+
+    let buf = RawBytes::serialize(proposal).map_err(|e| {
+        actor_error!(
+            ErrSerialization,
+            "failed to marshal remove datacap request: {}",
+            e
+        )
+    })?;
+
+    // verify signature of proposal
+
+    Ok(())
 }
 
 impl ActorCode for Actor {
