@@ -15,7 +15,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
 use ipld_hamt::BytesKey;
 use num_derive::FromPrimitive;
-use num_traits::{FromPrimitive, Signed};
+use num_traits::{FromPrimitive, Signed, Zero};
 
 pub use self::state::State;
 pub use self::types::*;
@@ -586,13 +586,13 @@ impl Actor {
             ));
         }
 
-        let removed_data_cap_amount: DataCap = DataCap::default();
+        let mut removed_data_cap_amount = DataCap::default();
         let st: State = rt.state()?;
         rt.transaction(|st: &mut State, rt| {
             rt.validate_immediate_caller_is(std::iter::once(&st.root_key))?;
 
             // get current verified clients
-            let verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
+            let mut verified_clients = make_map_with_root_and_bitwidth::<_, BigIntDe>(
                 &st.verified_clients,
                 rt.store(),
                 HAMT_BIT_WIDTH,
@@ -611,7 +611,7 @@ impl Actor {
             }
 
             // get existing cap allocated to client
-            let BigIntDe(vc_cap) = verified_clients
+            let BigIntDe(previous_data_cap) = verified_clients
                 .get(&client.to_bytes())
                 .map_err(|e| {
                     e.downcast_default(
@@ -656,6 +656,58 @@ impl Actor {
             let verifier_1_id = use_proposal_id(rt, &mut proposal_ids, verifier_1, client)?;
             let verifier_2_id = use_proposal_id(rt, &mut proposal_ids, verifier_2, client)?;
 
+            remove_data_cap_request_is_valid_or_abort(
+                rt,
+                &params.verifier_request_1,
+                verifier_1_id,
+                &params.data_cap_amount_to_remove,
+                client,
+            )?;
+            remove_data_cap_request_is_valid_or_abort(
+                rt,
+                &params.verifier_request_2,
+                verifier_2_id,
+                &params.data_cap_amount_to_remove,
+                client,
+            )?;
+
+            let new_data_cap = &previous_data_cap - &params.data_cap_amount_to_remove;
+            if new_data_cap <= Zero::zero() {
+                // no DataCap remaining, delete verified client
+                verified_clients.delete(&client.to_bytes()).map_err(|e| {
+                    e.downcast_default(
+                        ExitCode::ErrIllegalState,
+                        format!("failed to delete verified client {}", &client),
+                    )
+                })?;
+                removed_data_cap_amount = previous_data_cap;
+            } else {
+                // update DataCap amount after removal
+                verified_clients
+                    .set(BytesKey::from(client.to_bytes()), BigIntDe(new_data_cap))
+                    .map_err(|e| {
+                        e.downcast_default(
+                            ExitCode::ErrIllegalState,
+                            format!("failed to update datacap for verified client {}", &client),
+                        )
+                    })?;
+                removed_data_cap_amount = params.data_cap_amount_to_remove.clone();
+            }
+
+            st.remove_data_cap_proposal_ids = proposal_ids.flush().map_err(|e| {
+                actor_error! {
+                    ErrIllegalState,
+                    "failed to flush proposal ids: {}",
+                    e
+                }
+            })?;
+            st.verified_clients = verified_clients.flush().map_err(|e| {
+                actor_error! {
+                    ErrIllegalState,
+                    "failed to flush verified clients: {}",
+                    e
+                }
+            })?;
             Ok(())
         })?;
 
@@ -733,9 +785,9 @@ where
 
 fn remove_data_cap_request_is_valid_or_abort<BS, RT>(
     rt: &RT,
-    request: RemoveDataCapRequest,
+    request: &RemoveDataCapRequest,
     id: RemoveDataCapProposalID,
-    to_remove: DataCap,
+    to_remove: &DataCap,
     client: Address,
 ) -> Result<(), ActorError>
 where
@@ -744,7 +796,7 @@ where
 {
     let proposal = RemoveDataCapProposal {
         removal_proposal_id: id,
-        data_cap_amount: to_remove,
+        data_cap_amount: to_remove.clone(),
         verified_client: client,
     };
 
