@@ -6,6 +6,7 @@ use actors_runtime::{
     actor_error, make_map_with_root_and_bitwidth, resolve_to_id_addr, wasm_trampoline,
     ActorDowncast, ActorError, Map, STORAGE_MARKET_ACTOR_ADDR, SYSTEM_ACTOR_ADDR,
 };
+use fvm_sdk as fvm;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::blockstore::Blockstore;
@@ -797,27 +798,28 @@ where
         verified_client: client,
     };
 
-    // TODO: in lotus this does rt.Abortf, what's the equivalent here?
-    let buf = RawBytes::serialize(proposal).map_err(|e| {
-        actor_error!(
-            ErrSerialization,
-            "failed to marshal remove datacap request: {}",
-            e
-        )
-    })?;
+    let buf = RawBytes::serialize(proposal);
+    let b = match buf {
+        Ok(b) => b,
+        Err(e) => {
+            fvm::vm::abort(
+                ExitCode::ErrSerialization as u32,
+                Some(format!("failed to marshal remove datacap request: {:?}", e).as_str()),
+            );
+        }
+    };
 
     // verify signature of proposal
-    // TOOD: same here w/ the Abortf
-    rt.verify_signature(&request.signature, &request.verifier, &buf)
-        .map_err(|e| {
-            actor_error!(
-                ErrIllegalArgument,
-                "invalid signature for datacap removal request: {}",
-                e
-            )
-        })?;
-
-    Ok(())
+    let res = rt.verify_signature(&request.signature, &request.verifier, &b);
+    match res {
+        Ok(()) => return Ok(()),
+        Err(e) => {
+            fvm::vm::abort(
+                ExitCode::ErrIllegalArgument as u32,
+                Some(format!("invalid signature for datacap removal request: {:?}", e).as_str()),
+            );
+        }
+    };
 }
 
 impl ActorCode for Actor {
