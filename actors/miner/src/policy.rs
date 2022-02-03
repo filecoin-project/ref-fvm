@@ -28,6 +28,9 @@ pub const MAX_AGGREGATED_PROOF_SIZE: usize = 81960;
 /// The maximum number of sector pre-commitments in a single batch.
 /// 32 sectors per epoch would support a single miner onboarding 1EiB of 32GiB sectors in 1 year.
 pub const PRE_COMMIT_SECTOR_BATCH_MAX_SIZE: usize = 256;
+/// The maximum number of sector replica updates in a single batch.
+/// Same as PRE_COMMIT_SECTOR_BATCH_MAX_SIZE for consistency
+pub const PROVE_REPLICA_UPDATES_MAX_SIZE: usize = PRE_COMMIT_SECTOR_BATCH_MAX_SIZE;
 /// The delay between pre commit expiration and clean up from state. This enforces that expired pre-commits
 /// stay in state for a period of time creating a grace period during which a late-running aggregated prove-commit
 /// can still prove its non-expired precommits without resubmitting a message

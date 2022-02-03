@@ -634,7 +634,50 @@ impl State {
         Ok((result, !no_early_terminations))
     }
 
-    // /Returns an error if the target sector cannot be found and/or is faulty/terminated.
+    /// Returns an error if the target sector cannot be found, or some other bad state is reached.
+    /// Returns Ok(false) if the target sector is faulty, terminated, or unproven
+    /// Returns Ok(true) otherwise
+    pub fn check_sector_active<BS: Blockstore>(
+        &self,
+        store: &BS,
+        deadline_idx: u64,
+        partition_idx: u64,
+        sector_number: SectorNumber,
+        require_proven: bool,
+    ) -> anyhow::Result<bool> {
+        let dls = self.load_deadlines(store)?;
+        let dl = dls.load_deadline(store, deadline_idx)?;
+        let partition = dl.load_partition(store, partition_idx)?;
+
+        let exists = partition.sectors.get(sector_number);
+        if !exists {
+            return Err(actor_error!(
+                ErrNotFound;
+                "sector {} not a member of partition {}, deadline {}",
+                sector_number, partition_idx, deadline_idx
+            )
+            .into());
+        }
+
+        let faulty = partition.faults.get(sector_number);
+        if faulty {
+            return Ok(false);
+        }
+
+        let terminated = partition.terminated.get(sector_number);
+        if terminated {
+            return Ok(false);
+        }
+
+        let unproven = partition.unproven.get(sector_number);
+        if unproven && require_proven {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    /// Returns an error if the target sector cannot be found and/or is faulty/terminated.
     pub fn check_sector_health<BS: Blockstore>(
         &self,
         store: &BS,

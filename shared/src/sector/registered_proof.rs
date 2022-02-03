@@ -87,6 +87,12 @@ impl RegisteredSealProof {
     }
 }
 
+impl Default for RegisteredSealProof {
+    fn default() -> Self {
+        Self::Invalid(0)
+    }
+}
+
 /// Proof of spacetime type, indicating version and sector size of the proof.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum RegisteredPoStProof {
@@ -236,12 +242,39 @@ impl RegisteredSealProof {
             )),
         }
     }
+
+    /// Produces the update RegisteredProof corresponding to the receiving RegisteredProof.
+    pub fn registered_update_proof(self) -> Result<RegisteredUpdateProof, String> {
+        use RegisteredUpdateProof::*;
+        match self {
+            Self::StackedDRG64GiBV1 | Self::StackedDRG64GiBV1P1 => Ok(StackedDRG64GiBV1),
+            Self::StackedDRG32GiBV1 | Self::StackedDRG32GiBV1P1 => Ok(StackedDRG32GiBV1),
+            Self::StackedDRG2KiBV1 | Self::StackedDRG2KiBV1P1 => Ok(StackedDRG2KiBV1),
+            Self::StackedDRG8MiBV1 | Self::StackedDRG8MiBV1P1 => Ok(StackedDRG8MiBV1),
+            Self::StackedDRG512MiBV1 | Self::StackedDRG512MiBV1P1 => Ok(StackedDRG512MiBV1),
+            Self::Invalid(_) => Err(format!(
+                "Unsupported mapping from {:?} to Update RegisteredProof",
+                self
+            )),
+        }
+    }
 }
 
 /// Seal proof type which defines the version and sector size.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum RegisteredAggregateProof {
     SnarkPackV1,
+    Invalid(i64),
+}
+
+/// Proof of update type
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+pub enum RegisteredUpdateProof {
+    StackedDRG2KiBV1,
+    StackedDRG8MiBV1,
+    StackedDRG512MiBV1,
+    StackedDRG32GiBV1,
+    StackedDRG64GiBV1,
     Invalid(i64),
 }
 
@@ -299,6 +332,15 @@ i64_conversion! {
     RegisteredAggregateProof;
     SnarkPackV1 => 0,
 }
+
+i64_conversion! {
+    RegisteredUpdateProof;
+    StackedDRG2KiBV1 => 0,
+    StackedDRG8MiBV1 => 1,
+    StackedDRG512MiBV1 => 2,
+    StackedDRG32GiBV1 => 3,
+    StackedDRG64GiBV1 => 4,
+}
 #[cfg(feature = "proofs")]
 impl TryFrom<RegisteredAggregateProof> for filecoin_proofs_api::RegisteredAggregationProof {
     type Error = String;
@@ -353,6 +395,22 @@ impl TryFrom<RegisteredPoStProof> for filecoin_proofs_api::RegisteredPoStProof {
     }
 }
 
+#[cfg(feature = "proofs")]
+impl TryFrom<RegisteredUpdateProof> for filecoin_proofs_api::RegisteredUpdateProof {
+    type Error = String;
+    fn try_from(p: RegisteredUpdateProof) -> Result<Self, Self::Error> {
+        use RegisteredUpdateProof::*;
+        match p {
+            StackedDRG2KiBV1 => Ok(Self::StackedDrg2KiBV1),
+            StackedDRG8MiBV1 => Ok(Self::StackedDrg8MiBV1),
+            StackedDRG512MiBV1 => Ok(Self::StackedDrg512MiBV1),
+            StackedDRG32GiBV1 => Ok(Self::StackedDrg32GiBV1),
+            StackedDRG64GiBV1 => Ok(Self::StackedDrg64GiBV1),
+            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+        }
+    }
+}
+
 impl Serialize for RegisteredPoStProof {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -401,6 +459,25 @@ impl Serialize for RegisteredAggregateProof {
 }
 
 impl<'de> Deserialize<'de> for RegisteredAggregateProof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let val = i64::deserialize(deserializer)?;
+        Ok(Self::from(val))
+    }
+}
+
+impl Serialize for RegisteredUpdateProof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        i64::from(*self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for RegisteredUpdateProof {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
