@@ -9,7 +9,6 @@ use actors_runtime::{
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser::BigIntDe;
 use fvm_shared::blockstore::Blockstore;
-use fvm_shared::encoding::de::DeserializeOwned;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, METHOD_CONSTRUCTOR};
@@ -587,7 +586,6 @@ impl Actor {
         }
 
         let mut removed_data_cap_amount = DataCap::default();
-        let st: State = rt.state()?;
         rt.transaction(|st: &mut State, rt| {
             rt.validate_immediate_caller_is(std::iter::once(&st.root_key))?;
 
@@ -653,8 +651,8 @@ impl Actor {
                 )
             })?;
 
-            let verifier_1_id = use_proposal_id(rt, &mut proposal_ids, verifier_1, client)?;
-            let verifier_2_id = use_proposal_id(rt, &mut proposal_ids, verifier_2, client)?;
+            let verifier_1_id = use_proposal_id(&mut proposal_ids, verifier_1, client)?;
+            let verifier_2_id = use_proposal_id(&mut proposal_ids, verifier_2, client)?;
 
             remove_data_cap_request_is_valid_or_abort(
                 rt,
@@ -740,25 +738,23 @@ where
     Ok(found)
 }
 
-fn use_proposal_id<BS, RT>(
-    rt: &RT,
+fn use_proposal_id<BS>(
     proposal_ids: &mut Map<BS, RemoveDataCapProposalID>,
     verifier: Address,
     client: Address,
 ) -> Result<RemoveDataCapProposalID, ActorError>
 where
     BS: Blockstore,
-    RT: Runtime<BS>,
-    //  V: DeserializeOwned + Serialize,
 {
     let key = AddrPairKey::new(verifier, client);
 
     let maybe_id = proposal_ids.get(&key.to_bytes()).map_err(|e| {
         actor_error!(
             ErrIllegalState,
-            "failed to get proposal id for verifier {} and client {}",
+            "failed to get proposal id for verifier {} and client {}: {}",
             verifier,
-            client
+            client,
+            e
         )
     })?;
 
@@ -774,9 +770,10 @@ where
         .map_err(|e| {
             actor_error!(
                 ErrIllegalState,
-                "failed to update proposal id for verifier {} and client {}",
+                "failed to update proposal id for verifier {} and client {}: {}",
                 verifier,
-                client
+                client,
+                e
             )
         })?;
 
