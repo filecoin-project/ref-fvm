@@ -7,6 +7,7 @@ use cid::Cid;
 use filecoin_proofs_api::seal::{
     compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
 };
+use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
@@ -667,6 +668,26 @@ where
             inp,
         )
         .or_illegal_argument()
+    }
+
+    fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_verify_replica_info(replica),
+        )?;
+
+        let up: proofs::RegisteredUpdateProof =
+            replica.update_proof_type.try_into().or_illegal_argument()?;
+
+        let commr_old =
+            cid_to_replica_commitment_v1(&replica.old_sealed_cid).or_illegal_argument()?;
+        let commr_new =
+            cid_to_replica_commitment_v1(&replica.new_sealed_cid).or_illegal_argument()?;
+        let commd = cid_to_data_commitment_v1(&replica.new_unsealed_cid).or_illegal_argument()?;
+
+        verify_empty_sector_update_proof(up, &replica.proof, commr_old, commr_new, commd)
+            .or_illegal_argument()
     }
 }
 
