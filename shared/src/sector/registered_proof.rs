@@ -243,7 +243,7 @@ impl RegisteredSealProof {
         }
     }
 
-    // TODO: doc comment
+    /// Produces the update RegisteredProof corresponding to the receiving RegisteredProof.
     pub fn registered_update_proof(self) -> Result<RegisteredUpdateProof, String> {
         use RegisteredUpdateProof::*;
         match self {
