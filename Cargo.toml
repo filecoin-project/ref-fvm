@@ -4,15 +4,11 @@ members = [
     "sdk",
     "shared",
     "actors/*",
-    "cgo/rust",
     "examples/actor",
-    "examples/blockstore-cgo/user",
     "testing/conformance",
     "ipld/*",
 ]
-exclude = [
-    "examples/blockstore-cgo"
-]
+exclude = []
 
 default-members = [
     "fvm",

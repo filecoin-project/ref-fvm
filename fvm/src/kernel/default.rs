@@ -696,7 +696,7 @@ where
         // TODO: Check error code
         self.call_manager
             .externs()
-            .get_chain_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .get_chain_randomness(personalization, rand_epoch, entropy)
             .or_illegal_argument()
     }
 
@@ -711,7 +711,7 @@ where
         // Hyperdrive and above only.
         self.call_manager
             .externs()
-            .get_beacon_randomness_looking_forward(personalization, rand_epoch, entropy)
+            .get_beacon_randomness(personalization, rand_epoch, entropy)
             .or_illegal_argument()
     }
 }

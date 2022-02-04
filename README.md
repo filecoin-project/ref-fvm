@@ -41,8 +41,6 @@ Here's what you'll find in each directory:
   - the canonical built-in actors, adapted to be deployed _inside_ the FVM, with trimmed down dependencies, and their Runtime bridging to the FVM SDK. Largely based off the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/shared`
   - A crate of core types and primitives shared between the FVM and the SDK.
-- `/cgo`
-  - Components serving the Cgo boundary between Go and Rust. Concretely, today it contains a blockstore adapter used to inject a blockstore owned by Go code, to the FVM built in Rust.
 - `/ipld`
   - IPLD libraries. Some of which are based on, and adapted from, the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/examples`

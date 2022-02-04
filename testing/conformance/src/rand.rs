@@ -29,25 +29,7 @@ impl Rand for TestFallbackRand {
         Ok(*b"i_am_random_____i_am_random_____")
     }
 
-    fn get_chain_randomness_looking_forward(
-        &self,
-        _: DomainSeparationTag,
-        _: ChainEpoch,
-        _: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        Ok(*b"i_am_random_____i_am_random_____")
-    }
-
     fn get_beacon_randomness(
-        &self,
-        _: DomainSeparationTag,
-        _: ChainEpoch,
-        _: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        Ok(*b"i_am_random_____i_am_random_____")
-    }
-
-    fn get_beacon_randomness_looking_forward(
         &self,
         _: DomainSeparationTag,
         _: ChainEpoch,
@@ -96,26 +78,6 @@ impl Rand for ReplayingRand {
             self.fallback.get_chain_randomness(dst, epoch, entropy)
         }
     }
-
-    fn get_chain_randomness_looking_forward(
-        &self,
-        dst: DomainSeparationTag,
-        epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        let rule = RandomnessRule {
-            kind: RandomnessKind::Chain,
-            dst,
-            epoch,
-            entropy: entropy.to_vec(),
-        };
-        if let Some(bz) = self.matches(rule) {
-            Ok(bz)
-        } else {
-            self.fallback
-                .get_chain_randomness_looking_forward(dst, epoch, entropy)
-        }
-    }
     fn get_beacon_randomness(
         &self,
         dst: DomainSeparationTag,
@@ -132,26 +94,6 @@ impl Rand for ReplayingRand {
             Ok(bz)
         } else {
             self.fallback.get_beacon_randomness(dst, epoch, entropy)
-        }
-    }
-    // TODO: Check if this is going to be correct for when we integrate v5 Actors test vectors
-    fn get_beacon_randomness_looking_forward(
-        &self,
-        dst: DomainSeparationTag,
-        epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        let rule = RandomnessRule {
-            kind: RandomnessKind::Beacon,
-            dst,
-            epoch,
-            entropy: entropy.to_vec(),
-        };
-        if let Some(bz) = self.matches(rule) {
-            Ok(bz)
-        } else {
-            self.fallback
-                .get_beacon_randomness_looking_forward(dst, epoch, entropy)
         }
     }
 }
