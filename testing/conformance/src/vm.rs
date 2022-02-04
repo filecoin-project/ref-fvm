@@ -4,7 +4,7 @@ use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Machine, MachineContext};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
 use fvm_shared::address::Address;
@@ -45,6 +45,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
+        engine: Engine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -58,19 +59,14 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
-        let mut wasm_conf = wasmtime::Config::default();
-        wasm_conf
-            .cache_config_load_default()
-            .expect("failed to load cache config");
-
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
                 initial_pages: 0,
                 max_pages: 1024,
-                engine: wasm_conf,
                 debug: true, // Enable debug mode by default.
             },
+            engine,
             epoch,
             base_fee,
             BigInt::zero(),

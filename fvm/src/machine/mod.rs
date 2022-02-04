@@ -5,7 +5,7 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
-use wasmtime::{Engine, Module};
+use wasmtime::Module;
 
 use crate::externs::Externs;
 use crate::gas::PriceList;
@@ -15,6 +15,9 @@ use crate::Config;
 
 mod default;
 pub use default::DefaultMachine;
+
+mod engine;
+pub use engine::Engine;
 
 mod boxed;
 
@@ -28,7 +31,7 @@ pub trait Machine: 'static {
 
     /// Returns the underlying wasmtime engine. Cloning it will simply create a new handle
     /// with a static lifetime.
-    fn engine(&self) -> &Engine;
+    fn engine(&self) -> &wasmtime::Engine;
 
     /// Returns the FVM's configuration.
     fn config(&self) -> &Config;

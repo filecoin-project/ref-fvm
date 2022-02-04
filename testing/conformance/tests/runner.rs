@@ -18,7 +18,7 @@ use fmt::Display;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
-use fvm::machine::Machine;
+use fvm::machine::{Engine, Machine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
@@ -190,11 +190,13 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
 async fn conformance_test_runner() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
+    let engine = Engine::default();
+
     let vector_results = match var("VECTOR") {
         Ok(v) => either::Either::Left(
             iter::once(async move {
                 let path = Path::new(v.as_str()).to_path_buf();
-                let res = run_vector(path.clone()).await?;
+                let res = run_vector(path.clone(), engine).await?;
                 anyhow::Ok((path, res))
             })
             .map(futures::future::Either::Left),
@@ -203,10 +205,13 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
             WalkDir::new("test-vectors/corpus")
                 .into_iter()
                 .filter_ok(is_runnable)
-                .map(|e| async move {
-                    let path = e?.path().to_path_buf();
-                    let res = run_vector(path.clone()).await?;
-                    Ok((path, res))
+                .map(|e| {
+                    let engine = engine.clone();
+                    async move {
+                        let path = e?.path().to_path_buf();
+                        let res = run_vector(path.clone(), engine).await?;
+                        Ok((path, res))
+                    }
                 })
                 .map(futures::future::Either::Right),
         ),
@@ -294,6 +299,7 @@ enum VariantResult {
 /// one per variant.
 async fn run_vector(
     path: PathBuf,
+    engine: Engine,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -362,15 +368,17 @@ async fn run_vector(
                     (0..v.preconditions.variants.len()).map(move |i| {
                         let v = v.clone();
                         let bs = bs.clone();
+                        let engine = engine.clone();
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         futures::future::Either::Right(
-                                task::Builder::new()
-                                    .name(name)
-                                    .spawn(async move {
-                                        run_variant(bs, &v, &v.preconditions.variants[i])
-                                    }).unwrap(),
-                            )
+                            task::Builder::new()
+                                .name(name)
+                                .spawn(async move {
+                                    run_variant(bs, &v, &v.preconditions.variants[i], engine)
+                                })
+                                .unwrap(),
+                        )
                     }),
                 ))
             }
@@ -383,11 +391,12 @@ fn run_variant(
     bs: MemoryBlockstore,
     v: &MessageVector,
     variant: &Variant,
+    engine: Engine,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs);
+    let machine = TestMachine::new_for_vector(v, variant, bs, engine);
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.

@@ -36,8 +36,6 @@ pub struct Config {
     /// Maximum number of memory pages an invocation container's memory
     /// can expand to.
     pub max_pages: usize,
-    /// Wasmtime engine configuration.
-    pub engine: wasmtime::Config,
     /// Whether debug mode is enabled or not.
     pub debug: bool,
 }
@@ -47,7 +45,6 @@ impl Default for Config {
         Self {
             initial_pages: 0,
             max_pages: 1024,
-            engine: Default::default(),
             max_call_depth: 4096,
             debug: false,
         }
@@ -62,7 +59,7 @@ mod test {
 
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Consensus, Externs, Rand};
-    use crate::machine::DefaultMachine;
+    use crate::machine::{DefaultMachine, Engine};
     use crate::state_tree::StateTree;
     use crate::{executor, Config, DefaultKernel};
 
@@ -108,6 +105,7 @@ mod test {
 
         let machine = DefaultMachine::new(
             Config::default(),
+            Engine::default(),
             0,
             Zero::zero(),
             Zero::zero(),
