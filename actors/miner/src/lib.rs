@@ -1109,7 +1109,7 @@ impl Actor {
         let mut deadlines_to_load = Vec::<u64>::new();
         for (i, with_sector_info) in validated_updates.iter().enumerate() {
             let dl = with_sector_info.update.deadline;
-            if let None = decls_by_deadline.get(&dl) {
+            if decls_by_deadline.get(&dl).is_none() {
                 deadlines_to_load.push(dl);
                 decls_by_deadline.insert(dl, vec![]);
             }
@@ -1117,7 +1117,7 @@ impl Actor {
                 .get_mut(&dl)
                 .unwrap()
                 .push(UpdateWithDetails {
-                    update: &with_sector_info.update,
+                    update: with_sector_info.update,
                     sector_info: &with_sector_info.sector_info,
                     deal_weight: &deal_weights.sectors[i],
                     unsealed_sector_cid: unsealed_sector_cids[i],
@@ -1236,7 +1236,7 @@ impl Actor {
                         &rt.total_fil_circ_supply(),
                     );
 
-                    if &initial_pledge_at_upgrade > &with_details.sector_info.initial_pledge {
+                    if initial_pledge_at_upgrade > with_details.sector_info.initial_pledge {
                         let deficit = &initial_pledge_at_upgrade - &with_details.sector_info.initial_pledge;
 
                         let unlocked_balance = state
@@ -1336,7 +1336,7 @@ impl Actor {
             sectors.store(new_sectors).map_err(|e| {
                 e.downcast_default(
                     ExitCode::ErrIllegalState,
-                    format!("failed to update sector infos"),
+                    "failed to update sector infos",
                 )
             })?;
 
