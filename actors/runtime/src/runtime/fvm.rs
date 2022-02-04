@@ -13,8 +13,8 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
-    SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
@@ -381,10 +381,7 @@ where
         }
     }
 
-    fn verify_replica_update(
-        &self,
-        replica: &ReplicaUpdateInfo,
-    ) -> Result<(), Error> {
+    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<(), Error> {
         match fvm::crypto::verify_replica_update(replica) {
             Ok(true) => Ok(()),
             Ok(false) | Err(_) => Err(Error::msg("invalid replica")),

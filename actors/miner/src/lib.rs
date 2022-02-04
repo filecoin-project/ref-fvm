@@ -966,9 +966,7 @@ impl Actor {
             if update.deadline >= WPOST_PERIOD_DEADLINES {
                 info!(
                     "deadline {} not in range 0..{}, skipping sector {}",
-                    update.deadline,
-                    WPOST_PERIOD_DEADLINES,
-                    update.sector_number
+                    update.deadline, WPOST_PERIOD_DEADLINES, update.sector_number
                 );
                 continue;
             }
@@ -978,8 +976,7 @@ impl Actor {
             if !is_sealed_sector(&update.new_sealed_sector_cid) {
                 info!(
                     "new sealed CID had wrong prefix {}, skipping sector {}",
-                    update.new_sealed_sector_cid,
-                    update.sector_number
+                    update.new_sealed_sector_cid, update.sector_number
                 );
                 continue;
             }
@@ -993,8 +990,7 @@ impl Actor {
             ) {
                 info!(
                     "cannot upgrade sectors in immutable deadline {}, skipping sector {}",
-                    update.deadline,
-                    update.sector_number
+                    update.deadline, update.sector_number
                 );
                 continue;
             }
@@ -1004,7 +1000,7 @@ impl Actor {
                 update.deadline,
                 update.partition,
                 update.sector_number,
-                true
+                true,
             ) {
                 if !healthy {
                     info!(
@@ -1047,7 +1043,7 @@ impl Actor {
                     deal_ids: update.deals.clone(),
                     sector_expiry: sector_info.expiration,
                 })?,
-                TokenAmount::zero()
+                TokenAmount::zero(),
             );
 
             if res.is_err() {
@@ -1076,10 +1072,7 @@ impl Actor {
         }
 
         if validated_updates.is_empty() {
-            return Err(actor_error!(
-                ErrIllegalArgument,
-                "no valid updates"
-            ));
+            return Err(actor_error!(ErrIllegalArgument, "no valid updates"));
         }
 
         // Errors past this point cause the prove_replica_updates call to fail (no more skipping sectors)
@@ -1118,7 +1111,7 @@ impl Actor {
             let dl = with_sector_info.update.deadline;
             if let None = decls_by_deadline.get(&dl) {
                 deadlines_to_load.push(dl);
-                decls_by_deadline.insert(dl, vec!());
+                decls_by_deadline.insert(dl, vec![]);
             }
             decls_by_deadline
                 .get_mut(&dl)

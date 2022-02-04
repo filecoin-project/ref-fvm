@@ -7,8 +7,9 @@ use clock::ChainEpoch;
 use crate::encoding::tuple::*;
 use crate::encoding::{serde_bytes, Cbor};
 use crate::randomness::Randomness;
-use crate::sector::{RegisteredAggregateProof, RegisteredSealProof,
-    RegisteredUpdateProof, SectorID, SectorNumber};
+use crate::sector::{
+    RegisteredAggregateProof, RegisteredSealProof, RegisteredUpdateProof, SectorID, SectorNumber,
+};
 use crate::{clock, deal, ActorID};
 
 /// Randomness used for Seal proofs.

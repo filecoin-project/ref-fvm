@@ -5,8 +5,8 @@ use fvm_shared::crypto::signature::Signature;
 use fvm_shared::encoding::{to_vec, Cbor};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
-    SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use num_traits::FromPrimitive;
 

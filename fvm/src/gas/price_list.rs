@@ -7,9 +7,8 @@ use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof,
-    ReplicaUpdateInfo, SealVerifyInfo,
-    WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::{MethodNum, METHOD_SEND};
 use lazy_static::lazy_static;
@@ -387,15 +386,8 @@ impl PriceList {
     }
     /// Returns gas required for replica verification.
     #[inline]
-    pub fn on_verify_replica_info(
-        &self,
-        _replica: &ReplicaUpdateInfo,
-    ) -> GasCharge<'static> {
-        GasCharge::new(
-            "OnVerifyReplicaInfo",
-            self.verify_replica_update,
-            0,
-        )
+    pub fn on_verify_replica_info(&self, _replica: &ReplicaUpdateInfo) -> GasCharge<'static> {
+        GasCharge::new("OnVerifyReplicaInfo", self.verify_replica_update, 0)
     }
     /// Returns gas required for PoSt verification.
     #[inline]

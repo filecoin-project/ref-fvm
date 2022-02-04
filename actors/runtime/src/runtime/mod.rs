@@ -14,8 +14,8 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo,
-    SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
@@ -238,8 +238,5 @@ pub trait Syscalls {
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<(), anyhow::Error>;
 
-    fn verify_replica_update(
-        &self,
-        replica: &ReplicaUpdateInfo,
-    ) -> Result<(), anyhow::Error>;
+    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<(), anyhow::Error>;
 }
