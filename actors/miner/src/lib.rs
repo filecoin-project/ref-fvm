@@ -2434,7 +2434,7 @@ impl Actor {
             })?;
 
             for (deadline_idx, partition_sectors) in to_process.iter() {
-                // If the deadline the current or next deadline to prove, don't allow terminating sectors.
+                // If the deadline is the current or next deadline to prove, don't allow terminating sectors.
                 // We assume that deadlines are immutable when being proven.
                 if !deadline_is_mutable(
                     state.current_proving_period_start(curr_epoch),
