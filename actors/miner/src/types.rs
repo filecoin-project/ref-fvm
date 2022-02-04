@@ -339,7 +339,7 @@ pub struct ReplicaUpdate {
     pub sector_number: SectorNumber,
     pub deadline: u64,
     pub partition: u64,
-    pub new_sealed_sector_cid: Cid,
+    pub new_sealed_cid: Cid,
     pub deals: Vec<DealID>,
     pub update_proof_type: RegisteredUpdateProof,
     pub replica_proof: Vec<u8>,

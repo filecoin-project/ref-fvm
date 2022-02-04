@@ -78,9 +78,9 @@ impl Cbor for AggregateSealVerifyProofAndInfos {}
 #[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
 pub struct ReplicaUpdateInfo {
     pub update_proof_type: RegisteredUpdateProof,
-    pub old_sealed_sector_cid: Cid,
-    pub new_sealed_sector_cid: Cid,
-    pub new_unsealed_sector_cid: Cid,
+    pub old_sealed_cid: Cid,
+    pub new_sealed_cid: Cid,
+    pub new_unsealed_cid: Cid,
     pub proof: Vec<u8>,
 }
 

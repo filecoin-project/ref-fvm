@@ -973,10 +973,10 @@ impl Actor {
 
             // Skip checking if CID is defined because it cannot be so in Rust
 
-            if !is_sealed_sector(&update.new_sealed_sector_cid) {
+            if !is_sealed_sector(&update.new_sealed_cid) {
                 info!(
                     "new sealed CID had wrong prefix {}, skipping sector {}",
-                    update.new_sealed_sector_cid, update.sector_number
+                    update.new_sealed_cid, update.sector_number
                 );
                 continue;
             }
@@ -1101,7 +1101,7 @@ impl Actor {
             update: &'a ReplicaUpdate,
             sector_info: &'a SectorOnChainInfo,
             deal_weight: &'a ext::market::SectorWeights,
-            unsealed_sector_cid: Cid,
+            unsealed_cid: Cid,
         }
 
         // Group declarations by deadline
@@ -1120,7 +1120,7 @@ impl Actor {
                     update: with_sector_info.update,
                     sector_info: &with_sector_info.sector_info,
                     deal_weight: &deal_weights.sectors[i],
-                    unsealed_sector_cid: unsealed_sector_cids[i],
+                    unsealed_cid: unsealed_sector_cids[i],
                 });
         }
 
@@ -1178,9 +1178,9 @@ impl Actor {
                     rt.verify_replica_update(
                         &ReplicaUpdateInfo {
                             update_proof_type,
-                            new_sealed_sector_cid: with_details.update.new_sealed_sector_cid,
-                            old_sealed_sector_cid: with_details.sector_info.sealed_cid,
-                            new_unsealed_sector_cid: with_details.unsealed_sector_cid,
+                            new_sealed_cid: with_details.update.new_sealed_cid,
+                            old_sealed_cid: with_details.sector_info.sealed_cid,
+                            new_unsealed_cid: with_details.unsealed_cid,
                             proof: with_details.update.replica_proof.clone(),
                         }
                     )
@@ -1193,7 +1193,7 @@ impl Actor {
 
                     let mut new_sector_info = with_details.sector_info.clone();
 
-                    new_sector_info.sealed_cid = with_details.update.new_sealed_sector_cid;
+                    new_sector_info.sealed_cid = with_details.update.new_sealed_cid;
                     // Skip checking if CID is defined because it cannot be so in Rust
 
                     new_sector_info.deal_ids = with_details.update.deals.clone();

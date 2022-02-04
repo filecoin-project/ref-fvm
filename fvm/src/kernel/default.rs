@@ -666,11 +666,11 @@ where
             replica.update_proof_type.try_into().or_illegal_argument()?;
 
         let commr_old =
-            cid_to_replica_commitment_v1(&replica.old_sealed_sector_cid).or_illegal_argument()?;
+            cid_to_replica_commitment_v1(&replica.old_sealed_cid).or_illegal_argument()?;
         let commr_new =
-            cid_to_replica_commitment_v1(&replica.new_sealed_sector_cid).or_illegal_argument()?;
+            cid_to_replica_commitment_v1(&replica.new_sealed_cid).or_illegal_argument()?;
         let commd =
-            cid_to_data_commitment_v1(&replica.new_unsealed_sector_cid).or_illegal_argument()?;
+            cid_to_data_commitment_v1(&replica.new_unsealed_cid).or_illegal_argument()?;
 
         verify_empty_sector_update_proof(up, &replica.proof, commr_old, commr_new, commd)
             .or_illegal_argument()
