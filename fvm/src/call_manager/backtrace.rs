@@ -29,6 +29,11 @@ impl Display for Backtrace {
 }
 
 impl Backtrace {
+    /// Returns true if the backtrace is completely empty.
+    pub fn is_empty(&self) -> bool {
+        self.frames.is_empty() && self.cause.is_none()
+    }
+
     /// Clear the backtrace. This should be called:
     ///
     /// 1. Before all syscalls except "abort"
