@@ -9,9 +9,9 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
 use num_traits::{Signed, Zero};
-use wasmtime::{Engine, Module};
+use wasmtime::Module;
 
-use super::{Machine, MachineContext};
+use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
@@ -51,6 +51,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
+        engine: Engine,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
         base_circ_supply: TokenAmount,
@@ -72,9 +73,6 @@ where
             price_list: price_list_by_epoch(epoch),
             debug: config.debug,
         };
-
-        // Initialize the WASM engine.
-        let engine = Engine::new(&config.engine)?;
 
         if !blockstore
             .has(&context.initial_state_root)
@@ -108,7 +106,7 @@ where
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
 
-    fn engine(&self) -> &Engine {
+    fn engine(&self) -> &wasmtime::Engine {
         &self.engine
     }
 
@@ -166,8 +164,13 @@ where
 
     #[cfg(feature = "builtin_actors")]
     fn load_module(&self, code: &Cid) -> Result<Module> {
+        // If we've already loaded the module, return it.
+        if let Some(code) = self.engine.get(code) {
+            return Ok(code);
+        }
+
+        // Otherwise, load it.
         use anyhow::Context;
-        // TODO: cache compiled code, and modules?
         let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
             fvm_actor_system::wasm::WASM_BINARY
         } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
@@ -195,7 +198,8 @@ where
         };
 
         let binary = binary.context("missing wasm binary").or_fatal()?;
-        let module = Module::new(&self.engine, binary).or_fatal()?;
+        // Then compile & cache it.
+        let module = self.engine.load(code, binary).or_fatal()?;
         Ok(module)
     }
 
