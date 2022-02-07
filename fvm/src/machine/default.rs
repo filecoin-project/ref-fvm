@@ -64,6 +64,11 @@ where
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
             epoch, &base_fee, network_version, state_root
         );
+
+        if network_version != NetworkVersion::V14 {
+            return Err(anyhow!("unsupported network version: {}", network_version));
+        }
+
         let context = MachineContext {
             epoch,
             base_fee,
