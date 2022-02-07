@@ -14,7 +14,7 @@ use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::account_actor::is_account_actor;
-use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
+use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
@@ -53,12 +53,12 @@ where
     fn execute_message(
         &mut self,
         msg: Message,
-        _: ApplyKind,
+        apply_kind: ApplyKind,
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) =
-            match self.preflight_message(&msg, raw_length)? {
+            match self.preflight_message(&msg, apply_kind, raw_length)? {
                 Ok(res) => res,
                 Err(apply_ret) => return Ok(apply_ret),
             };
@@ -146,7 +146,22 @@ where
                 )))
             }
         };
-        self.finish_message(msg, receipt, backtrace, gas_cost)
+
+        let failure_info = if backtrace.is_empty() || receipt.exit_code.is_success() {
+            None
+        } else {
+            Some(ApplyFailure::MessageBacktrace(backtrace))
+        };
+
+        match apply_kind {
+            ApplyKind::Explicit => self.finish_message(msg, receipt, failure_info, gas_cost),
+            ApplyKind::Implicit => Ok(ApplyRet {
+                msg_receipt: receipt,
+                failure_info,
+                penalty: TokenAmount::zero(),
+                miner_tip: TokenAmount::zero(),
+            }),
+        }
     }
 }
 
@@ -179,6 +194,7 @@ where
     fn preflight_message(
         &mut self,
         msg: &Message,
+        apply_kind: ApplyKind,
         raw_length: usize,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
@@ -188,21 +204,27 @@ where
         //  these across the boundary is also a no-go.
         let pl = &self.context().price_list;
 
-        let inclusion_cost = pl.on_chain_message(raw_length);
-        let inclusion_total = inclusion_cost.total();
+        let (inclusion_cost, miner_penalty_amount) = match apply_kind {
+            ApplyKind::Implicit => (GasCharge::new("none", 0, 0), Default::default()),
+            ApplyKind::Explicit => {
+                let inclusion_cost = pl.on_chain_message(raw_length);
+                let inclusion_total = inclusion_cost.total();
 
-        // Verify the cost of the message is not over the message gas limit.
-        if inclusion_total > msg.gas_limit {
-            return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrOutOfGas,
-                format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                &self.context().base_fee * inclusion_total,
-            )));
-        }
+                // Verify the cost of the message is not over the message gas limit.
+                if inclusion_total > msg.gas_limit {
+                    return Ok(Err(ApplyRet::prevalidation_fail(
+                        ExitCode::SysErrOutOfGas,
+                        format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
+                        &self.context().base_fee * inclusion_total,
+                    )));
+                }
+
+                let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
+                (inclusion_cost, miner_penalty_amount)
+            }
+        };
 
         // Load sender actor state.
-        let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
-
         let sender_id = match self
             .state_tree()
             .lookup_id(&msg.from)
@@ -217,6 +239,10 @@ where
                 )))
             }
         };
+
+        if apply_kind == ApplyKind::Implicit {
+            return Ok(Ok((sender_id, TokenAmount::zero(), inclusion_cost)));
+        }
 
         let sender = match self
             .state_tree()
@@ -281,7 +307,7 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        backtrace: Backtrace,
+        failure_info: Option<ApplyFailure>,
         gas_cost: BigInt,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
@@ -332,7 +358,7 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            failure_info: Some(ApplyFailure::MessageBacktrace(backtrace)),
+            failure_info,
             penalty: miner_penalty,
             miner_tip,
         })
