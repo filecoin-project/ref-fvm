@@ -202,10 +202,9 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         Err(_) => either::Either::Right(
             WalkDir::new("test-vectors/corpus")
                 .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(is_runnable)
+                .filter_ok(is_runnable)
                 .map(|e| async move {
-                    let path = e.path().to_path_buf();
+                    let path = e?.path().to_path_buf();
                     let res = run_vector(path.clone()).await?;
                     Ok((path, res))
                 })
