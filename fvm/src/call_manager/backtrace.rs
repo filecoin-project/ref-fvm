@@ -18,7 +18,7 @@ pub struct Backtrace {
 
 impl Display for Backtrace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (i, frame) in self.frames.iter().enumerate() {
+        for (i, frame) in self.frames.iter().rev().enumerate() {
             writeln!(f, "{:02}: {}", i, frame)?;
         }
         if let Some(cause) = &self.cause {
