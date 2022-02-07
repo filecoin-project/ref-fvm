@@ -3606,6 +3606,7 @@ where
             miner: miner_actor_id,
             number: params.sector_num,
         },
+        deal_ids: params.deal_ids,
         interactive_randomness,
         proof: params.proof,
         randomness,

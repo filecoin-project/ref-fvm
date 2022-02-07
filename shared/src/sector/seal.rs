@@ -21,6 +21,7 @@ pub type InteractiveSealRandomness = Randomness;
 pub struct SealVerifyInfo {
     pub registered_proof: RegisteredSealProof,
     pub sector_id: SectorID,
+    pub deal_ids: Vec<deal::DealID>,
     pub randomness: SealRandomness,
     pub interactive_randomness: InteractiveSealRandomness,
     #[serde(with = "serde_bytes")]
