@@ -54,7 +54,7 @@ where
         engine: Engine,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
-        base_circ_supply: TokenAmount,
+        fil_vested: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
         blockstore: B,
@@ -72,7 +72,7 @@ where
         let context = MachineContext {
             epoch,
             base_fee,
-            base_circ_supply,
+            fil_vested,
             network_version,
             initial_state_root: state_root,
             price_list: price_list_by_epoch(epoch),

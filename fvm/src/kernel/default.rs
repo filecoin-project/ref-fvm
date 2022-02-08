@@ -33,6 +33,7 @@ use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
+use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -151,6 +152,11 @@ where
             )
             .ok_or_else(|| anyhow!("failed to subtract"))
             .or_fatal()
+    }
+
+    fn get_fil_mined(&self) -> Result<TokenAmount> {
+        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())?;
+        Ok(reward_state.total_storage_power_reward())
     }
 
     fn power_locked(&self) -> Result<TokenAmount> {
@@ -379,7 +385,10 @@ where
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
         self.call_manager
             .context()
-            .base_circ_supply
+            .fil_vested
+            .checked_add(&self.get_fil_mined()?)
+            .ok_or(anyhow!("overflow when adding mined fil to vested fil"))
+            .or_fatal()?
             .checked_add(&self.get_reserve_disbursed()?)
             .ok_or(anyhow!(
                 "overflow when adding reserve to base circulating supply"
