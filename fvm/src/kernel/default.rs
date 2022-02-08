@@ -138,7 +138,7 @@ where
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = BigInt::from(330_000_000) * FILECOIN_PRECISION;
+        let initial_reserve_balance = BigInt::from(300_000_000) * FILECOIN_PRECISION;
         initial_reserve_balance
             .checked_sub(
                 &self
