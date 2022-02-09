@@ -140,18 +140,14 @@ where
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
         let initial_reserve_balance = BigInt::from(300_000_000) * FILECOIN_PRECISION;
-        initial_reserve_balance
-            .checked_sub(
-                &self
-                    .call_manager
-                    .state_tree()
-                    .get_actor_id(RESERVE_ACTOR_ID)?
-                    .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
-                    .or_fatal()?
-                    .balance,
-            )
-            .ok_or_else(|| anyhow!("failed to subtract"))
-            .or_fatal()
+        let reserve_balance = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(RESERVE_ACTOR_ID)?
+            .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
+            .or_fatal()?
+            .balance;
+        Ok(initial_reserve_balance - reserve_balance)
     }
 
     fn get_fil_mined(&self) -> Result<TokenAmount> {
@@ -383,26 +379,13 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        self.call_manager
-            .context()
-            .fil_vested
-            .checked_add(&self.get_fil_mined()?)
-            .ok_or(anyhow!("overflow when adding mined fil to vested fil"))
-            .or_fatal()?
-            .checked_add(&self.get_reserve_disbursed()?)
-            .ok_or(anyhow!(
-                "overflow when adding reserve to base circulating supply"
-            ))
-            .or_fatal()?
-            .checked_sub(&self.get_burnt_funds()?)
-            .ok_or(anyhow!("underflow when subtracting burnt funds"))
-            .or_fatal()?
-            .checked_sub(&self.power_locked()?)
-            .ok_or(anyhow!("underflow when subtracting power locked funds"))
-            .or_fatal()?
-            .checked_sub(&self.market_locked()?)
-            .ok_or(anyhow!("underflow when subtracting market locked funds"))
-            .or_fatal()
+        Ok((&self.call_manager.context().fil_vested
+            + &self.get_fil_mined()?
+            + &self.get_reserve_disbursed()?
+            - &self.get_burnt_funds()?
+            - &self.power_locked()?
+            - &self.market_locked()?)
+            .max(Zero::zero()))
     }
 }
 
