@@ -118,11 +118,13 @@ macro_rules! impl_bind_syscalls {
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(_) => {
+                                log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
+                                log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
@@ -144,12 +146,14 @@ macro_rules! impl_bind_syscalls {
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(value) => {
+                                log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
+                                log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
                                 code as u32
                             },
