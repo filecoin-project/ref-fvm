@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 use bitfield::{BitField, UnvalidatedBitField, Validate};
@@ -11,7 +11,7 @@ use super::WPOST_PERIOD_DEADLINES;
 
 /// Maps deadlines to partition maps.
 #[derive(Default)]
-pub struct DeadlineSectorMap(HashMap<u64, PartitionSectorMap>);
+pub struct DeadlineSectorMap(BTreeMap<u64, PartitionSectorMap>);
 
 impl DeadlineSectorMap {
     pub fn new() -> Self {
@@ -97,23 +97,19 @@ impl DeadlineSectorMap {
     }
 
     /// Returns a sorted vec of deadlines in the map.
-    pub fn deadlines(&self) -> Vec<u64> {
-        let mut deadlines: Vec<_> = self.0.keys().copied().collect();
-        deadlines.sort_unstable();
-        deadlines
+    pub fn deadlines(&self) -> impl Iterator<Item = u64> + '_ {
+        self.0.keys().copied()
     }
 
     /// Walks the deadlines in deadline order.
     pub fn iter(&mut self) -> impl Iterator<Item = (u64, &mut PartitionSectorMap)> + '_ {
-        let mut vec: Vec<_> = self.0.iter_mut().map(|(&i, x)| (i, x)).collect();
-        vec.sort_unstable_by_key(|&(i, _)| i);
-        vec.into_iter()
+        self.0.iter_mut().map(|(&i, x)| (i, x))
     }
 }
 
 /// Maps partitions to sector bitfields.
 #[derive(Default, Serialize, Deserialize)]
-pub struct PartitionSectorMap(HashMap<u64, UnvalidatedBitField>);
+pub struct PartitionSectorMap(BTreeMap<u64, UnvalidatedBitField>);
 
 impl PartitionSectorMap {
     /// Records the given sectors at the given partition.
@@ -172,17 +168,13 @@ impl PartitionSectorMap {
     }
 
     /// Returns a sorted vec of partitions in the map.
-    pub fn partitions(&self) -> Vec<u64> {
-        let mut partitions: Vec<_> = self.0.keys().copied().collect();
-        partitions.sort_unstable();
-        partitions
+    pub fn partitions(&self) -> impl Iterator<Item = u64> + '_ {
+        self.0.keys().copied()
     }
 
     /// Walks the partitions in the map, in order of increasing index.
     pub fn iter(&mut self) -> impl Iterator<Item = (u64, &mut UnvalidatedBitField)> + '_ {
-        let mut vec: Vec<_> = self.0.iter_mut().map(|(&i, x)| (i, x)).collect();
-        vec.sort_unstable_by_key(|&(i, _)| i);
-        vec.into_iter()
+        self.0.iter_mut().map(|(&i, x)| (i, x))
     }
 
     pub fn len(&self) -> usize {

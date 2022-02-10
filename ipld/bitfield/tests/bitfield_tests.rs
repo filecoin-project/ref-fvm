@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::HashSet;
 use std::iter::FromIterator;
 
-use ahash::AHashSet;
 use forest_bitfield::{bitfield, BitField};
 use fvm_shared::encoding;
 use rand::{Rng, SeedableRng};
@@ -66,7 +66,7 @@ fn set_up_test_bitfields() -> (Vec<u64>, Vec<u64>, BitField, BitField) {
 fn bitfield_union() {
     let (a, b, bf_a, bf_b) = set_up_test_bitfields();
 
-    let mut expected: AHashSet<_> = a.iter().copied().collect();
+    let mut expected: HashSet<_> = a.iter().copied().collect();
     expected.extend(b);
 
     let merged = &bf_a | &bf_b;
@@ -77,9 +77,9 @@ fn bitfield_union() {
 fn bitfield_intersection() {
     let (a, b, bf_a, bf_b) = set_up_test_bitfields();
 
-    let hs_a: AHashSet<_> = a.into_iter().collect();
-    let hs_b: AHashSet<_> = b.into_iter().collect();
-    let expected: AHashSet<_> = hs_a.intersection(&hs_b).copied().collect();
+    let hs_a: HashSet<_> = a.into_iter().collect();
+    let hs_b: HashSet<_> = b.into_iter().collect();
+    let expected: HashSet<_> = hs_a.intersection(&hs_b).copied().collect();
 
     let merged = &bf_a & &bf_b;
     assert_eq!(expected, merged.iter().collect());
@@ -89,7 +89,7 @@ fn bitfield_intersection() {
 fn bitfield_difference() {
     let (a, b, bf_a, bf_b) = set_up_test_bitfields();
 
-    let mut expected: AHashSet<_> = a.into_iter().collect();
+    let mut expected: HashSet<_> = a.into_iter().collect();
     for i in b.iter() {
         expected.remove(i);
     }

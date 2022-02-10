@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use actors_runtime::runtime::{ActorCode, Runtime};
 use actors_runtime::{
@@ -9,7 +9,6 @@ use actors_runtime::{
     CALLER_TYPES_SIGNABLE, CRON_ACTOR_ADDR, MINER_ACTOR_CODE_ID, REWARD_ACTOR_ADDR,
     STORAGE_POWER_ACTOR_ADDR, SYSTEM_ACTOR_ADDR, VERIFIED_REGISTRY_ACTOR_ADDR,
 };
-use ahash::AHashMap;
 use bitfield::BitField;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -22,7 +21,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::reward::ThisEpochRewardReturn;
 use fvm_shared::sector::StoragePower;
-use fvm_shared::{MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
+use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR, METHOD_SEND};
 use log::info;
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, Signed, Zero};
@@ -297,10 +296,10 @@ impl Actor {
         let (network_raw_power, _) = request_current_network_power(rt)?;
 
         // Drop invalid deals
-        let mut proposal_cid_lookup = HashSet::new();
+        let mut proposal_cid_lookup = BTreeSet::new();
         let mut valid_proposal_cids = Vec::new();
         let mut valid_deals = Vec::with_capacity(params.deals.len());
-        let mut total_client_lockup: HashMap<Address, TokenAmount> = HashMap::new();
+        let mut total_client_lockup: BTreeMap<ActorID, TokenAmount> = BTreeMap::new();
         let mut total_provider_lockup = TokenAmount::zero();
 
         let mut valid_input_bf = BitField::default();
@@ -340,7 +339,10 @@ impl Actor {
             };
 
             // drop deals with insufficient lock up to cover costs
-            let lockup = total_client_lockup.entry(client).or_default();
+            let client_id = client
+                .id()
+                .expect("resolved address should be an ID address");
+            let lockup = total_client_lockup.entry(client_id).or_default();
             *lockup += deal.proposal.client_balance_requirement();
 
             let client_balance_ok = msm.balance_covered(client, lockup).map_err(|e| {
@@ -848,7 +850,7 @@ impl Actor {
 
         rt.transaction(|st: &mut State, rt| {
             let last_cron = st.last_cron;
-            let mut updates_needed: AHashMap<ChainEpoch, Vec<DealID>> = AHashMap::new();
+            let mut updates_needed: BTreeMap<ChainEpoch, Vec<DealID>> = BTreeMap::new();
             let mut msm = st.mutator(rt.store());
             msm.with_deal_states(Permission::Write)
                 .with_locked_table(Permission::Write)
@@ -1105,20 +1107,12 @@ impl Actor {
                     })?;
             }
 
-            // Iterate changes in sorted order to ensure that loads/stores
-            // are deterministic. Otherwise, we could end up charging an
-            // inconsistent amount of gas.
-            let mut changed_epochs: Vec<ChainEpoch> = updates_needed.keys().cloned().collect();
-            changed_epochs.sort_unstable();
-
-            for epoch in changed_epochs {
+            // updates_needed is already sorted by epoch.
+            for (epoch, deals) in updates_needed {
                 msm.deals_by_epoch
                     .as_mut()
                     .unwrap()
-                    .put_many(
-                        epoch,
-                        updates_needed.get(&epoch).expect("key checked to exist"),
-                    )
+                    .put_many(epoch, &deals)
                     .map_err(|e| {
                         e.downcast_default(
                             ExitCode::ErrIllegalState,
@@ -1198,7 +1192,7 @@ pub fn validate_and_compute_deal_weight<BS>(
 where
     BS: Blockstore,
 {
-    let mut seen_deal_ids = HashSet::new();
+    let mut seen_deal_ids = BTreeSet::new();
     let mut total_deal_space = 0;
     let mut total_deal_space_time = BigInt::zero();
     let mut total_verified_space_time = BigInt::zero();

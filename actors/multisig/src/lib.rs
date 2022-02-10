@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use actors_runtime::runtime::{ActorCode, Runtime, Syscalls};
 use actors_runtime::{
@@ -85,7 +85,7 @@ impl Actor {
 
         // resolve signer addresses and do not allow duplicate signers
         let mut resolved_signers = Vec::with_capacity(params.signers.len());
-        let mut dedup_signers = HashSet::with_capacity(params.signers.len());
+        let mut dedup_signers = BTreeSet::new();
         for signer in &params.signers {
             let resolved = resolve_to_id_addr(rt, signer).map_err(|e| {
                 e.downcast_default(
@@ -93,13 +93,12 @@ impl Actor {
                     format!("failed to resolve addr {} to ID addr", signer),
                 )
             })?;
-            if dedup_signers.contains(&resolved) {
+            if !dedup_signers.insert(resolved.id().expect("address should be resolved")) {
                 return Err(
                     actor_error!(ErrIllegalArgument; "duplicate signer not allowed: {}", signer),
                 );
             }
             resolved_signers.push(resolved);
-            dedup_signers.insert(resolved);
         }
 
         if params.num_approvals_threshold > params.signers.len() as u64 {

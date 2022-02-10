@@ -1,10 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use actors_runtime::{actor_error, ActorDowncast, ActorError, Array};
-use ahash::AHashSet;
 use anyhow::anyhow;
 use bitfield::BitField;
 use cid::Cid;
@@ -125,7 +124,7 @@ impl<'db, BS: Blockstore> Sectors<'db, BS> {
         // The faults bitfield should already be a subset of the sectors bitfield.
         let sector_count = sectors.len();
 
-        let fault_set: HashSet<u64> = faults.iter().collect();
+        let fault_set: BTreeSet<u64> = faults.iter().collect();
 
         let mut sector_infos = Vec::with_capacity(sector_count as usize);
         for i in sectors.iter() {
@@ -146,17 +145,12 @@ pub(crate) fn select_sectors(
     sectors: &[SectorOnChainInfo],
     field: &BitField,
 ) -> anyhow::Result<Vec<SectorOnChainInfo>> {
-    let mut to_include: AHashSet<_> = field.iter().collect();
-
-    let mut included = Vec::with_capacity(to_include.len());
-    for s in sectors {
-        let sec = s.sector_number;
-        if !to_include.contains(&sec) {
-            continue;
-        }
-        included.push(s.clone());
-        to_include.remove(&sec);
-    }
+    let mut to_include: BTreeSet<_> = field.iter().collect();
+    let included = sectors
+        .iter()
+        .filter(|si| to_include.remove(&si.sector_number))
+        .cloned()
+        .collect();
 
     if !to_include.is_empty() {
         return Err(anyhow!(

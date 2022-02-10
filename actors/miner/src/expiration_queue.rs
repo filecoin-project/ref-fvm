@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
 use actors_runtime::{ActorDowncast, Array};
@@ -365,7 +365,7 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         sectors: Vec<SectorOnChainInfo>,
         sector_size: SectorSize,
     ) -> anyhow::Result<PowerPair> {
-        let mut remaining: HashSet<SectorNumber> =
+        let mut remaining: BTreeSet<SectorNumber> =
             sectors.iter().map(|sector| sector.sector_number).collect();
 
         // Traverse the expiration queue once to find each recovering sector and remove it from early/faulty there.
@@ -375,14 +375,14 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         let mut recovered_power = PowerPair::zero();
 
         self.iter_while_mut(|_epoch, expiration_set| {
-            let on_time_sectors: HashSet<SectorNumber> = expiration_set
+            let on_time_sectors: BTreeSet<SectorNumber> = expiration_set
                 .on_time_sectors
                 .bounded_iter(ENTRY_SECTORS_MAX)
                 .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
-            let early_sectors: HashSet<SectorNumber> = expiration_set
+            let early_sectors: BTreeSet<SectorNumber> = expiration_set
                 .early_sectors
                 .bounded_iter(ENTRY_SECTORS_MAX)
                 .map_err(|e| anyhow!(e))?
@@ -475,16 +475,17 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         recovering: &BitField,
         sector_size: SectorSize,
     ) -> anyhow::Result<(ExpirationSet, PowerPair)> {
-        let mut remaining: HashSet<_> = sectors.iter().map(|sector| sector.sector_number).collect();
+        let mut remaining: BTreeSet<_> =
+            sectors.iter().map(|sector| sector.sector_number).collect();
 
         // ADDRESSED_SECTORS_MAX is defined as 25000, so this will not error.
-        let faults_map: HashSet<_> = faults
+        let faults_map: BTreeSet<_> = faults
             .bounded_iter(ADDRESSED_SECTORS_MAX)
             .map_err(|e| anyhow!("failed to expand faults: {}", e))?
             .map(|i| i as SectorNumber)
             .collect();
 
-        let recovering_map: HashSet<_> = recovering
+        let recovering_map: BTreeSet<_> = recovering
             .bounded_iter(ADDRESSED_SECTORS_MAX)
             .map_err(|e| anyhow!("failed to expand recoveries: {}", e))?
             .map(|i| i as SectorNumber)
@@ -525,14 +526,14 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         // queue is quantized, we should be able to stop traversing the queue
         // after 14 entries.
         self.iter_while_mut(|_epoch, expiration_set| {
-            let on_time_sectors: HashSet<SectorNumber> = expiration_set
+            let on_time_sectors: BTreeSet<SectorNumber> = expiration_set
                 .on_time_sectors
                 .bounded_iter(ENTRY_SECTORS_MAX)
                 .map_err(|e| anyhow!(e))?
                 .map(|i| i as SectorNumber)
                 .collect();
 
-            let early_sectors: HashSet<SectorNumber> = expiration_set
+            let early_sectors: BTreeSet<SectorNumber> = expiration_set
                 .early_sectors
                 .bounded_iter(ENTRY_SECTORS_MAX)
                 .map_err(|e| anyhow!(e))?
@@ -801,10 +802,9 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
         sector_size: SectorSize,
         sectors: &[SectorOnChainInfo],
     ) -> anyhow::Result<Vec<SectorExpirationSet>> {
-        let mut declared_expirations = HashMap::<ChainEpoch, bool>::with_capacity(sectors.len());
-        let mut sectors_by_number =
-            HashMap::<u64, &SectorOnChainInfo>::with_capacity(sectors.len());
-        let mut all_remaining = HashSet::<u64>::with_capacity(sectors.len());
+        let mut declared_expirations = BTreeMap::<ChainEpoch, bool>::new();
+        let mut sectors_by_number = BTreeMap::<u64, &SectorOnChainInfo>::new();
+        let mut all_remaining = BTreeSet::<u64>::new();
         let mut expiration_groups =
             Vec::<SectorExpirationSet>::with_capacity(declared_expirations.len());
 
@@ -867,7 +867,11 @@ impl<'db, BS: Blockstore> ExpirationQueue<'db, BS> {
             return Err(anyhow!("some sectors not found in expiration queue"));
         }
 
-        expiration_groups.sort_unstable_by_key(|g| g.sector_epoch_set.epoch);
+        // The built-in stable sort is timsort. It will find the two sorted runs and merge them.
+        //
+        // We could also just assume they're sorted and use itertools.merge..., but this is safe and
+        // the perf shouldn't be much different.
+        expiration_groups.sort_by_key(|g| g.sector_epoch_set.epoch);
 
         Ok(expiration_groups)
     }
@@ -897,7 +901,7 @@ fn group_new_sectors_by_declared_expiration<'a>(
     sectors: impl IntoIterator<Item = &'a SectorOnChainInfo>,
     quant: QuantSpec,
 ) -> Vec<SectorEpochSet> {
-    let mut sectors_by_expiration = HashMap::<ChainEpoch, Vec<&SectorOnChainInfo>>::new();
+    let mut sectors_by_expiration = BTreeMap::<ChainEpoch, Vec<&SectorOnChainInfo>>::new();
 
     for sector in sectors {
         let q_expiration = quant.quantize_up(sector.expiration);
@@ -907,8 +911,8 @@ fn group_new_sectors_by_declared_expiration<'a>(
             .push(sector);
     }
 
-    // This map iteration is non-deterministic but safe because we sort by epoch below.
-    let mut sector_epoch_sets: Vec<_> = sectors_by_expiration
+    // The result is sorted by expiration because the BTreeMap iterates in sorted order.
+    sectors_by_expiration
         .into_iter()
         .map(|(expiration, epoch_sectors)| {
             let mut sector_numbers = Vec::<u64>::with_capacity(epoch_sectors.len());
@@ -928,16 +932,13 @@ fn group_new_sectors_by_declared_expiration<'a>(
                 pledge: total_pledge,
             }
         })
-        .collect();
-
-    sector_epoch_sets.sort_by_key(|epoch_set| epoch_set.epoch);
-    sector_epoch_sets
+        .collect()
 }
 
 fn group_expiration_set(
     sector_size: SectorSize,
-    sectors: &HashMap<u64, &SectorOnChainInfo>,
-    include_set: &mut HashSet<u64>,
+    sectors: &BTreeMap<u64, &SectorOnChainInfo>,
+    include_set: &mut BTreeSet<u64>,
     es: ExpirationSet,
     expiration: ChainEpoch,
 ) -> SectorExpirationSet {
@@ -967,7 +968,7 @@ fn group_expiration_set(
 }
 
 /// Checks for invalid overlap between bitfield and a set's early sectors.
-fn check_no_early_sectors(set: &HashSet<u64>, es: &ExpirationSet) -> anyhow::Result<()> {
+fn check_no_early_sectors(set: &BTreeSet<u64>, es: &ExpirationSet) -> anyhow::Result<()> {
     for u in es.early_sectors.iter() {
         if set.contains(&(u as u64)) {
             return Err(anyhow!(
