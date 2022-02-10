@@ -1,9 +1,14 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use futures::AsyncRead;
@@ -15,7 +20,7 @@ use fvm_shared::receipt::Receipt;
 use ipld_car::load_car;
 use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct StateTreeVector {
     #[serde(with = "super::cidjson")]
     pub root_cid: Cid,
@@ -41,7 +46,7 @@ pub struct MetaData {
     pub gen: Vec<GenerationData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PreConditions {
     pub state_tree: StateTreeVector,
     #[serde(default)]
@@ -52,7 +57,7 @@ pub struct PreConditions {
     pub variants: Vec<Variant>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PostConditions {
     pub state_tree: StateTreeVector,
     #[serde(with = "message_receipt_vec")]
@@ -61,7 +66,7 @@ pub struct PostConditions {
     pub receipts_roots: Vec<Cid>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Selector {
     #[serde(default)]
     pub chaos_actor: Option<String>,
@@ -79,7 +84,7 @@ impl Selector {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Variant {
     pub id: String,
     pub epoch: ChainEpoch,
@@ -114,7 +119,7 @@ pub struct RandomnessRule {
     pub entropy: Vec<u8>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct MessageVector {
     pub selector: Option<Selector>,
     #[serde(rename = "_meta")]
@@ -128,6 +133,51 @@ pub struct MessageVector {
 
     #[serde(default)]
     pub randomness: Randomness,
+}
+
+impl MessageVector {
+    /// Loads a message vector from a file.
+    pub fn from_file(path: &Path) -> anyhow::Result<Self> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        // Test vectors have the form:
+        //
+        //     { "class": ..., rest... }
+        //
+        // Unfortunately:
+        // 1. That means we need to use serde's "flatten" and/or "tag" feature to decode them.
+        // 2. Serde's JSON library doesn't support arbitrary precision numbers when doing this.
+        // 3. The circulating supply doesn't fit in a u64, and f64 isn't precise enough.
+        //
+        // So we manually:
+        // 1. Decode into a map of `String` -> `raw data`.
+        // 2. Pull off the class.
+        // 3. Re-serialize.
+        // 4. Decode into the correct type.
+        //
+        // Upstream bug is https://github.com/serde-rs/serde/issues/1183 (or at least that looks like
+        // the most appropriate one out of all the related issues).
+        let mut vector: HashMap<String, Box<serde_json::value::RawValue>> =
+            serde_json::from_reader(reader)?;
+
+        let class_json = vector
+            .remove("class")
+            .context("expected test vector to have a class")?;
+
+        let class: &str = serde_json::from_str(class_json.get())?;
+        if class != "message" {
+            return Err(anyhow!("unknown test vector class: {}", class));
+        }
+
+        let vector_json = serde_json::to_string(&vector)?;
+        Ok(serde_json::from_str(&vector_json)?)
+    }
+
+    /// Returns true if the vector is supported.
+    pub fn is_supported(&self) -> bool {
+        self.selector.as_ref().map_or(true, Selector::supported)
+    }
 }
 
 impl MessageVector {
@@ -154,7 +204,7 @@ impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ApplyMessage {
     #[serde(with = "base64_bytes")]
     pub bytes: Vec<u8>,

@@ -45,6 +45,21 @@ Here's what you'll find in each directory:
   - IPLD libraries. Some of which are based on, and adapted from, the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/examples`
   - A directory eventually containing actor examples.
+- `/testing/conformance`
+  - Contains the test vector runner, as well as benchmarking utilities on top of it.
+  - The conformance test runner feeds the test vector corpus located at https://github.com/filecoin-project/fvm-test-vectors into ref-fvm, in order to validate spec conformance.
+  - The benchmarking utilities use the `criterion` Rust library to measure the performance and overhead of ref-fvm across various facets.
+  - Instructions
+    - To run a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo test -- conformance --nocapture`
+    - To bench a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo bench -- conformance --nocapture`
+    - To bench the system's overhead for the setup of the machine for a given test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo bench -- overhead --nocapture`. Note that the vector choice doesn't matter much, because the Machine initialization procedure is identicall for all vectors.
+    - To get a perf flamegraph, run `CARGO_PROFILE_BENCH_DEBUG=true VECTOR=testing/conformance/test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json  cargo flamegraph --bench bench_conformance -- --nocapture`. The output SVG will be in `flamegraph.svg`.
+  - Overhead measurement scenarios. There are two overhead measurement scenarios included.
+    1. `bench_init_only`: measure the overhead of running the benchmark itself, it doesn't send any messages to the FVM to process.
+    2. `bench_500_simple_state_access`: measures the overhead of calling the `pubkey_address` method on an account actor 500 times, this is the most lightweight message possible to send that actually executes actor logic (unlike a bare send).
+  - Disclaimers
+    - Benchmarks are currently very slow to run, setup and teardown. This is due to using default WASM cache, and will be fixed soon.
+
 
 ## Maturity roadmap
 

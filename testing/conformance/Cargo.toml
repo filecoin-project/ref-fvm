@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>"]
 edition = "2018"
 
-[features]
-default = []
-
 [dependencies]
 anyhow = "1.0.47"
 thiserror = "1.0.30"
@@ -32,7 +29,7 @@ byteorder = "1.4.3"
 futures = "0.3.19"
 ipld_car = { path="../../ipld/car" }
 async-std = { version = "1.9", features = ["attributes"] }
-wasmtime = { version = "0.33.0", features = ["cache"] }
+wasmtime = { version = "0.33.0" }
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
 colored = "2"
@@ -41,10 +38,27 @@ itertools = "0.10.3"
 num_cpus = "1.13.1"
 serde_cbor = { package = "cs_serde_cbor", version = "0.12", features = ["tags"]}
 serde_json = { version = "1.0", features = ["raw_value"] }
+walkdir = "2.3"
+regex = { version = "1.0" }
+ittapi-rs = { version = "0.1.6", optional = true }
+
+[features]
+vtune = ["wasmtime/vtune", "ittapi-rs"]
 
 [dev-dependencies]
-regex = { version = "1.0" }
-walkdir = "2.3"
-flate2 = "1.0"
-lazy_static = "1.4"
 pretty_env_logger = "0.4.0"
+criterion = { version = "0.3", features = ["async_std"] }
+
+[[bin]]
+name = "perf-conformance"
+test = false
+bench = false
+required-features = ["vtune"]
+
+[[bench]]
+name = "bench_conformance"
+harness = false
+
+[[bench]]
+name = "bench_conformance_overhead"
+harness = false
