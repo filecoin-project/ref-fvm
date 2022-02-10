@@ -13,7 +13,7 @@ use fvm_shared::message::Message;
 use walkdir::WalkDir;
 
 mod bench_drivers;
-use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig, CheckStrength};
+use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(
@@ -28,15 +28,13 @@ fn bench_init_only(
             "chosen vector was filtered out by selector"
         ));
     }
+    message_vector.preconditions.variants.truncate(1);
+    message_vector.apply_messages = Vec::new();
     bench_vector_file(
         group,
-        &mut message_vector,
-        BenchVectorFileConfig {
-            replacement_apply_messages: Some(vec![]),
-            only_first_variant: true,
-            bench_name: "bench_init_only".to_owned(),
-            check_strength: CheckStrength::OnlyCheckSuccess,
-        },
+        &message_vector,
+        CheckStrength::OnlyCheckSuccess,
+        "bench_init_only",
         engine,
     )
 }
@@ -73,15 +71,13 @@ fn bench_500_simple_state_access(
             "chosen vector was filtered out by selector"
         ));
     }
+    message_vector.preconditions.variants.truncate(1);
+    message_vector.apply_messages = five_hundred_state_accesses;
     bench_vector_file(
         group,
-        &mut message_vector,
-        BenchVectorFileConfig {
-            only_first_variant: true,
-            check_strength: CheckStrength::OnlyCheckSuccess,
-            replacement_apply_messages: Some(five_hundred_state_accesses),
-            bench_name: "bench_500_simple_state_access".to_owned(),
-        },
+        &message_vector,
+        CheckStrength::OnlyCheckSuccess,
+        "bench_500_simple_state_access",
         engine,
     )
 }

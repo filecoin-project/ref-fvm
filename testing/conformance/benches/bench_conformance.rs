@@ -16,7 +16,7 @@ use walkdir::WalkDir;
 
 mod bench_drivers;
 
-use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig, CheckStrength};
+use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
 /// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
@@ -68,15 +68,12 @@ fn bench_conformance(c: &mut Criterion) {
                 continue;
             }
         };
+
         match bench_vector_file(
             &mut group,
             &mut message_vector,
-            BenchVectorFileConfig {
-                only_first_variant: false,
-                check_strength: CheckStrength::default(),
-                replacement_apply_messages: None,
-                bench_name: vector_path.display().to_string().clone(),
-            },
+            CheckStrength::FullTest,
+            &vector_path.display().to_string(),
             &engine,
         ) {
             Ok(()) => report!(

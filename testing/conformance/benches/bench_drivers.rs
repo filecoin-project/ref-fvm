@@ -1,7 +1,7 @@
 extern crate criterion;
 
 use conformance_tests::driver::*;
-use conformance_tests::vector::{ApplyMessage, MessageVector, Variant};
+use conformance_tests::vector::{MessageVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
@@ -78,40 +78,21 @@ impl Default for CheckStrength {
     }
 }
 
-#[derive(Default)]
-/// configuration for all the various tweaks in ways you might want to bench a given vector file
-pub struct BenchVectorFileConfig {
-    /// should only the first variant be run, or all of them?
-    pub only_first_variant: bool,
-    /// should we check whether the vector executes correctly or just without error before benching, or even run no checks at all?
-    pub check_strength: CheckStrength,
-    /// optionally, should we replace the messages to apply here? useful when you just want to pull out the initial FVM setup and run something else.
-    pub replacement_apply_messages: Option<Vec<ApplyMessage>>,
-    /// name for the benchmark as stored on disk.
-    pub bench_name: String,
-}
-
 /// benches each variant in a vector file. returns an err if a vector fails to parse the messages out in run_variant, or if a test fails before benching if you set FullTest or OnlyCheckSuccess.
 pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
-    vector: &mut MessageVector,
-    conf: BenchVectorFileConfig,
+    vector: &MessageVector,
+    check_strength: CheckStrength,
+    name: &str,
     engine: &Engine,
 ) -> anyhow::Result<()> {
-    if let Some(replacement_apply_messages) = conf.replacement_apply_messages {
-        vector.apply_messages = replacement_apply_messages;
-    }
-    if conf.only_first_variant {
-        vector.preconditions.variants = vec![vector.preconditions.variants[0].clone()];
-    }
-
     let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
 
     for variant in vector.preconditions.variants.iter() {
-        let name = format!("{} | {}", conf.bench_name, variant.id);
+        let name = format!("{} | {}", name, variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
-        let testresult = match conf.check_strength {
+        let testresult = match check_strength {
             CheckStrength::FullTest => run_variant(bs.clone(), vector, variant, engine, true)
                 .map_err(|e| {
                     anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
@@ -150,7 +131,7 @@ pub fn bench_vector_file(
                 engine,
             );
         } else {
-            return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", conf.check_strength ,name));
+            return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", check_strength, name));
         };
     }
     Ok(())
