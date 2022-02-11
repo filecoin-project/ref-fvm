@@ -13,8 +13,8 @@ num-traits = "0.2"
 derive_builder = "0.10"
 ahash = "0.7"
 num-derive = "0.3.3"
-cid = { version = "0.7", default-features = false, features = ["serde-codec"] }
-multihash = { version = "0.15", default-features = false, features = ["identity"] }
+cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
+multihash = { version = "0.16.1", default-features = false, features = ["identity"] }
 fvm_shared = { path = "../shared", features = ["crypto"] }
 ipld_hamt = { path = "../ipld/hamt"}
 ipld_amt = { path = "../ipld/amt"}

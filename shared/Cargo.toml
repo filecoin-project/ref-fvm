@@ -22,8 +22,8 @@ data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
 # TODO: remove std dep once we can implement debug without it.
-cid = { version = "0.7", default-features = false, features = ["serde-codec", "std"] }
-multihash = { version = "0.15", default-features = false, features = ["blake2b", "multihash-impl"] }
+cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
+multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
 unsigned-varint = "0.7.1"
 anyhow = "1.0.51"
 
@@ -39,7 +39,7 @@ byteorder = "1.4.3"
 rand = "0.8"
 rand_chacha = "0.3"
 serde_json = "1.0.56"
-multihash = { version = "0.15", default-features = false, features = ["blake2b", "multihash-impl", "identity"] }
+multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl", "identity"] }
 
 [features]
 default = []
