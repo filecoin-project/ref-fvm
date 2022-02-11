@@ -3,7 +3,6 @@ members = [
     "fvm",
     "sdk",
     "shared",
-    "actors/*",
     "examples/actor",
     "testing/conformance",
     "ipld/*",
@@ -14,7 +13,6 @@ default-members = [
     "fvm",
     "sdk",
     "shared",
-    "actors/*",
     "testing/conformance",
     "ipld/*"
     # don't build the examples by default, as they require a specific target and profile.
