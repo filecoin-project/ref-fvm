@@ -183,11 +183,36 @@ impl Address {
             _ => Err(Error::NonIDAddress),
         }
     }
+
+    /// encode converts the address into a string
+    pub fn encode(&self) -> String {
+        match self.protocol() {
+            Protocol::Secp256k1 | Protocol::Actor | Protocol::BLS => {
+                let ingest = self.to_bytes();
+                let mut bz = self.payload_bytes();
+
+                // payload bytes followed by calculated checksum
+                bz.extend(checksum(&ingest));
+                format!(
+                    "{}{}{}",
+                    self.network.to_prefix(),
+                    self.protocol(),
+                    ADDRESS_ENCODER.encode(bz.as_mut()),
+                )
+            }
+            Protocol::ID => format!(
+                "{}{}{}",
+                self.network.to_prefix(),
+                self.protocol(),
+                from_leb_bytes(&self.payload_bytes()).expect("should read encoded bytes"),
+            ),
+        }
+    }
 }
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", encode(self))
+        write!(f, "{}", self.encode())
     }
 }
 
@@ -278,31 +303,6 @@ impl<'de> Deserialize<'de> for Address {
 
         // Create and return created address of unmarshalled bytes
         Address::from_bytes(&bz).map_err(de::Error::custom)
-    }
-}
-
-/// encode converts the address into a string
-fn encode(addr: &Address) -> String {
-    match addr.protocol() {
-        Protocol::Secp256k1 | Protocol::Actor | Protocol::BLS => {
-            let ingest = addr.to_bytes();
-            let mut bz = addr.payload_bytes();
-
-            // payload bytes followed by calculated checksum
-            bz.extend(checksum(&ingest));
-            format!(
-                "{}{}{}",
-                addr.network.to_prefix(),
-                addr.protocol(),
-                ADDRESS_ENCODER.encode(bz.as_mut()),
-            )
-        }
-        Protocol::ID => format!(
-            "{}{}{}",
-            addr.network.to_prefix(),
-            addr.protocol(),
-            from_leb_bytes(&addr.payload_bytes()).expect("should read encoded bytes"),
-        ),
     }
 }
 
