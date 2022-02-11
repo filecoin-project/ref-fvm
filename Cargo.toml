@@ -23,12 +23,7 @@ default-members = [
 ]
 
 [patch.crates-io]
-multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
 cid = { git = "https://github.com/multiformats/rust-cid", branch = "steb/cbor-hack" }
-ipld_hamt = { path = "./ipld/hamt" }
-ipld_amt = { path = "./ipld/amt" }
-fvm_shared = { path = "./shared" }
-forest_bitfield = { path = "./ipld/bitfield" }
 
 [profile.actor]
 inherits = "release"
