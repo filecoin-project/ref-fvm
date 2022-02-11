@@ -4,7 +4,7 @@ all: build examples
 .PHONY: all
 
 build:
-	cargo build --features builtin_actors
+	cargo build
 .PHONY: build
 
 examples: example-actor
