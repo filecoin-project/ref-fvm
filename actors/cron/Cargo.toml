@@ -26,6 +26,6 @@ runtime-wasm = ["actors-runtime/runtime-wasm"]
 
 
 [build-dependencies]
-wasm-builder = "3.0.1"
+wasm-builder = { package = "substrate-wasm-builder", git = "https://github.com/paritytech/substrate" }
 
 

@@ -46,4 +46,4 @@ test_utils = ["hex"]
 runtime-wasm = ["fvm_sdk"]
 
 [build-dependencies]
-wasm-builder = "3.0.1"
+wasm-builder = { package = "substrate-wasm-builder", git = "https://github.com/paritytech/substrate" }

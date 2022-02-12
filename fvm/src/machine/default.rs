@@ -172,27 +172,27 @@ where
         // Otherwise, load it.
         use anyhow::Context;
         let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
-            fvm_actor_system::wasm::WASM_BINARY
+            fvm_actor_system::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
-            fvm_actor_init::wasm::WASM_BINARY
+            fvm_actor_init::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::CRON_ACTOR_CODE_ID {
-            fvm_actor_cron::wasm::WASM_BINARY
+            fvm_actor_cron::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::ACCOUNT_ACTOR_CODE_ID {
-            fvm_actor_account::wasm::WASM_BINARY
+            fvm_actor_account::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::POWER_ACTOR_CODE_ID {
-            fvm_actor_power::wasm::WASM_BINARY
+            fvm_actor_power::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MINER_ACTOR_CODE_ID {
-            fvm_actor_miner::wasm::WASM_BINARY
+            fvm_actor_miner::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MARKET_ACTOR_CODE_ID {
-            fvm_actor_market::wasm::WASM_BINARY
+            fvm_actor_market::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::PAYCH_ACTOR_CODE_ID {
-            fvm_actor_paych::wasm::WASM_BINARY
+            fvm_actor_paych::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MULTISIG_ACTOR_CODE_ID {
-            fvm_actor_multisig::wasm::WASM_BINARY
+            fvm_actor_multisig::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::REWARD_ACTOR_CODE_ID {
-            fvm_actor_reward::wasm::WASM_BINARY
+            fvm_actor_reward::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::VERIFREG_ACTOR_CODE_ID {
-            fvm_actor_verifreg::wasm::WASM_BINARY
+            fvm_actor_verifreg::wasm::WASM_BINARY_BLOATY
         } else {
             None
         };
