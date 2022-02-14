@@ -33,6 +33,7 @@ use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
+use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -41,6 +42,7 @@ pub const RESERVE_ACTOR_ID: ActorID = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
+    static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -132,34 +134,37 @@ where
             .call_manager
             .state_tree()
             .get_actor_id(BURN_ACTOR_ID)?
-            .ok_or_else(|| anyhow!("burn actor state couldn't be loaded"))
+            .context("burn actor state couldn't be loaded")
             .or_fatal()?
             .balance)
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = BigInt::from(330_000_000) * FILECOIN_PRECISION;
-        initial_reserve_balance
-            .checked_sub(
-                &self
-                    .call_manager
-                    .state_tree()
-                    .get_actor_id(RESERVE_ACTOR_ID)?
-                    .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
-                    .or_fatal()?
-                    .balance,
-            )
-            .ok_or_else(|| anyhow!("failed to subtract"))
-            .or_fatal()
+        let reserve_balance = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(RESERVE_ACTOR_ID)?
+            .context("failed to load reserve actor when determining reserve disbursed")
+            .or_fatal()?
+            .balance;
+        Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
+    }
+
+    fn get_fil_mined(&self) -> Result<TokenAmount> {
+        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())
+            .context("failed to load reward actor state when getting FIL mined")?;
+        Ok(reward_state.total_storage_power_reward())
     }
 
     fn power_locked(&self) -> Result<TokenAmount> {
-        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())?;
+        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())
+            .context("failed to load power actor state when determining locked FIL")?;
         Ok(power_state.total_locked())
     }
 
     fn market_locked(&self) -> Result<TokenAmount> {
-        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
+        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())
+            .context("failed to load market actor state when determining locked FIL")?;
         Ok(market_state.total_locked())
     }
 
@@ -377,23 +382,13 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        self.call_manager
-            .context()
-            .base_circ_supply
-            .checked_add(&self.get_reserve_disbursed()?)
-            .ok_or(anyhow!(
-                "overflow when adding reserve to base circulating supply"
-            ))
-            .or_fatal()?
-            .checked_sub(&self.get_burnt_funds()?)
-            .ok_or(anyhow!("underflow when subtracting burnt funds"))
-            .or_fatal()?
-            .checked_sub(&self.power_locked()?)
-            .ok_or(anyhow!("underflow when subtracting power locked funds"))
-            .or_fatal()?
-            .checked_sub(&self.market_locked()?)
-            .ok_or(anyhow!("underflow when subtracting market locked funds"))
-            .or_fatal()
+        Ok((&self.call_manager.context().fil_vested
+            + &self.get_fil_mined()?
+            + &self.get_reserve_disbursed()?
+            - &self.get_burnt_funds()?
+            - &self.power_locked()?
+            - &self.market_locked()?)
+            .max(Zero::zero()))
     }
 }
 

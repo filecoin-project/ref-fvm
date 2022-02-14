@@ -34,7 +34,7 @@ impl GasTracker {
                 Err(ExecutionError::OutOfGas)
             }
             Some(used) => {
-                log::trace!("charged {} gas: {}", used, charge.name);
+                log::trace!("charged {} gas: {}", to_use, charge.name);
                 if used > self.gas_available {
                     log::trace!("out of gas: {}", charge.name);
                     self.gas_used = self.gas_available;

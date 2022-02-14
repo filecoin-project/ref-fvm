@@ -17,15 +17,17 @@ pub mod syscalls;
 
 // TODO Public only for conformance tests.
 //  Consider exporting only behind a feature.
-pub mod account_actor;
 pub mod builtin;
 pub mod gas;
-pub mod init_actor;
 pub mod state_tree;
 
 mod blockstore;
+
+mod account_actor;
+mod init_actor;
 mod market_actor;
 mod power_actor;
+mod reward_actor;
 
 #[derive(Clone)]
 pub struct Config {

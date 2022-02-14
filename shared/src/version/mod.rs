@@ -1,6 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::fmt::Display;
+
 use crate::encoding::repr::Serialize_repr;
 
 /// Specifies the network version
@@ -37,6 +39,12 @@ pub enum NetworkVersion {
     V13,
     /// actors v6
     V14,
+}
+
+impl Display for NetworkVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self as u32)
+    }
 }
 
 impl TryFrom<u32> for NetworkVersion {

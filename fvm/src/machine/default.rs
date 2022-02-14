@@ -54,7 +54,7 @@ where
         engine: Engine,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
-        base_circ_supply: TokenAmount,
+        fil_vested: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
         blockstore: B,
@@ -64,10 +64,15 @@ where
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
             epoch, &base_fee, network_version, state_root
         );
+
+        if network_version != NetworkVersion::V14 {
+            return Err(anyhow!("unsupported network version: {}", network_version));
+        }
+
         let context = MachineContext {
             epoch,
             base_fee,
-            base_circ_supply,
+            fil_vested,
             network_version,
             initial_state_root: state_root,
             price_list: price_list_by_epoch(epoch),
