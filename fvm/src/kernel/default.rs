@@ -42,6 +42,7 @@ pub const RESERVE_ACTOR_ID: ActorID = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
+    static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -139,7 +140,6 @@ where
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = BigInt::from(300_000_000) * FILECOIN_PRECISION;
         let reserve_balance = self
             .call_manager
             .state_tree()
@@ -147,7 +147,7 @@ where
             .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
             .or_fatal()?
             .balance;
-        Ok(initial_reserve_balance - reserve_balance)
+        Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
     }
 
     fn get_fil_mined(&self) -> Result<TokenAmount> {
