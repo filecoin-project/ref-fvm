@@ -134,7 +134,7 @@ where
             .call_manager
             .state_tree()
             .get_actor_id(BURN_ACTOR_ID)?
-            .ok_or_else(|| anyhow!("burn actor state couldn't be loaded"))
+            .context("burn actor state couldn't be loaded")
             .or_fatal()?
             .balance)
     }
@@ -144,24 +144,27 @@ where
             .call_manager
             .state_tree()
             .get_actor_id(RESERVE_ACTOR_ID)?
-            .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
+            .context("failed to load reserve actor when determining reserve disbursed")
             .or_fatal()?
             .balance;
         Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
     }
 
     fn get_fil_mined(&self) -> Result<TokenAmount> {
-        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())?;
+        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())
+            .context("failed to load reward actor state when getting FIL mined")?;
         Ok(reward_state.total_storage_power_reward())
     }
 
     fn power_locked(&self) -> Result<TokenAmount> {
-        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())?;
+        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())
+            .context("failed to load power actor state when determining locked FIL")?;
         Ok(power_state.total_locked())
     }
 
     fn market_locked(&self) -> Result<TokenAmount> {
-        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
+        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())
+            .context("failed to load market actor state when determining locked FIL")?;
         Ok(market_state.total_locked())
     }
 
