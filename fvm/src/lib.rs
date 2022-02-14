@@ -68,6 +68,7 @@ mod test {
     struct DummyExterns;
 
     impl Externs for DummyExterns {}
+
     impl Rand for DummyExterns {
         fn get_chain_randomness(
             &self,
@@ -87,13 +88,14 @@ mod test {
             todo!()
         }
     }
+
     impl Consensus for DummyExterns {
         fn verify_consensus_fault(
             &self,
             _h1: &[u8],
             _h2: &[u8],
             _extra: &[u8],
-        ) -> anyhow::Result<Option<fvm_shared::consensus::ConsensusFault>> {
+        ) -> anyhow::Result<fvm_shared::consensus::ConsensusFaultWithGas> {
             todo!()
         }
     }

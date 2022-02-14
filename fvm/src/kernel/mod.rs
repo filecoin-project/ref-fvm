@@ -19,6 +19,7 @@ mod blocks;
 pub mod default;
 
 mod error;
+
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 use crate::call_manager::{CallManager, InvocationResult};

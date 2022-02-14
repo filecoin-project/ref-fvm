@@ -44,3 +44,15 @@ pub mod send {
         pub return_id: BlockId,
     }
 }
+
+pub mod crypto {
+    use crate::{ActorID, ChainEpoch};
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct VerifyConsensusFault {
+        pub fault: u32,
+        pub epoch: ChainEpoch,
+        pub target: ActorID,
+    }
+}

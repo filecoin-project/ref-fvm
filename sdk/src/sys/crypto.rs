@@ -50,21 +50,11 @@ super::fvm_syscalls! {
         h2_len: u32,
         extra_off: *const u8,
         extra_len: u32,
-    ) -> Result<self::out::VerifyConsensusFault>;
+    ) -> Result<fvm_shared::sys::out::crypto::VerifyConsensusFault>;
 
     /// Verifies an aggregated batch of sector seal proofs.
     pub fn verify_aggregate_seals(agg_off: *const u8, agg_len: u32) -> Result<i32>;
 
     /// Verifies an aggregated batch of sector seal proofs.
     pub fn batch_verify_seals(batch_off: *const u8, batch_len: u32, result_off: *const u8) -> Result<()>;
-}
-
-/// Module containing multi-value out types of these syscalls.
-pub mod out {
-    #[repr(C)]
-    pub struct VerifyConsensusFault {
-        pub fault: u32,
-        pub epoch: fvm_shared::clock::ChainEpoch,
-        pub actor: fvm_shared::ActorID,
-    }
 }
