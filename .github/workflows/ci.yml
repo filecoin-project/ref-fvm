@@ -30,14 +30,14 @@ jobs:
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            command: test
-            args: --package fvm --no-default-features
+            command: nextest
+            args: run --package fvm --no-default-features
           - name: test
-            command: test
-            args: --all --exclude fvm --exclude conformance_tests
+            command: nextest
+            args: run --all --exclude fvm --exclude conformance_tests
           - name: conformance
-            command: test
-            args: --package conformance_tests
+            command: nextest
+            args: run --package conformance_tests
             submodules: true
           - name: build
             command: build
@@ -73,6 +73,12 @@ jobs:
         version: v0.2.15
         # change this to invalidate sccache for this job
         shared-key: v0
+    - if: matrix.command == 'nextest'
+      name: Installing nextest
+      uses: baptiste0928/cargo-install@40656ea54f7fb235999e7df2ba13f374f188952a # v1.1.0
+      with:
+        crate: cargo-nextest
+        version: 0.9.3
     - name: Runing ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
