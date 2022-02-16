@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::RawBytes;
@@ -40,7 +42,7 @@ pub trait CallManager: 'static {
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used and the machine.
-    fn finish(self) -> (i64, backtrace::Backtrace, Self::Machine);
+    fn finish(self) -> (i64, backtrace::Backtrace, WasmStats, Self::Machine);
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
@@ -117,4 +119,12 @@ impl InvocationResult {
             Self::Failure(e) => *e,
         }
     }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct WasmStats {
+    /// Wasm fuel used over the course of the message execution.
+    pub fuel_used: u64,
+    /// Time spent inside wasm code.
+    pub wasm_duration: Duration,
 }

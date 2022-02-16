@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult, WasmStats};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
@@ -225,7 +225,7 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(self) -> (i64, Backtrace, WasmStats, Self::Machine) {
         self.0.finish()
     }
 
