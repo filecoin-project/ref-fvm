@@ -103,13 +103,14 @@ impl<C> DefaultKernel<C>
 where
     C: CallManager,
 {
-    pub fn resolve_to_key_addr(&self, addr: &Address) -> Result<Address> {
+    fn resolve_to_key_addr(&mut self, addr: &Address, charge_gas: bool) -> Result<Address> {
         if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
             return Ok(*addr);
         }
 
-        let state_tree = self.call_manager.state_tree();
-        let act = state_tree
+        let act = self
+            .call_manager
+            .state_tree()
             .get_actor(addr)?
             .ok_or(anyhow!("state tree doesn't contain actor"))
             .or_illegal_argument()?;
@@ -118,7 +119,14 @@ where
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
-        let state: crate::account_actor::State = state_tree
+        if charge_gas {
+            self.call_manager
+                .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+        }
+
+        let state: crate::account_actor::State = self
+            .call_manager
+            .state_tree()
             .store()
             .get_cbor(&act.state)
             .context("failed to decode actor state as an account")
@@ -409,7 +417,7 @@ where
         )?;
 
         // Resolve to key address before verifying signature.
-        let signing_addr = self.resolve_to_key_addr(signer)?;
+        let signing_addr = self.resolve_to_key_addr(signer, true)?;
         Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
@@ -731,7 +739,7 @@ where
 
     fn new_actor_address(&mut self) -> Result<Address> {
         let oa = self
-            .resolve_to_key_addr(&self.call_manager.origin())
+            .resolve_to_key_addr(&self.call_manager.origin(), false)
             // This is already an execution error, but we're _making_ it fatal.
             .or_fatal()?;
 
