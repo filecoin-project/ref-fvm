@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, CallStats, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
@@ -222,8 +222,18 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(self) -> (i64, Backtrace, CallStats, Self::Machine) {
         self.0.finish()
+    }
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        context: fvm::gas::tracer::Context,
+        point: fvm::gas::tracer::Point,
+        consumption: fvm::gas::tracer::Consumption,
+    ) {
+        self.0.record_trace(context, point, consumption)
     }
 
     fn machine(&self) -> &Self::Machine {
@@ -324,6 +334,15 @@ where
             ),
             data,
         )
+    }
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        point: fvm::gas::tracer::Point,
+        consumption: fvm::gas::tracer::Consumption,
+    ) {
+        self.0.record_trace(point, consumption)
     }
 }
 

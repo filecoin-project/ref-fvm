@@ -114,9 +114,43 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
-                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
+                        #[cfg(feature = "tracing")]
+                        let (label, fuel_consumed) = ([module, name].join("::"), caller.fuel_consumed());
+
+                        let (mut memory, data) = memory_and_data(&mut caller)?;
+
+                        #[cfg(feature = "tracing")]
+                        {
+                            let point = crate::gas::tracer::Point{
+                                event: crate::gas::tracer::Event::PreSyscall,
+                                label: label.clone(),
+                            };
+                            let consumption = crate::gas::tracer::Consumption{
+                                fuel_consumed,
+                                gas_consumed: None,
+                            };
+                            (&mut data.kernel).record_trace(point, consumption);
+                        }
+
+                        let sys_ret = {
+                            let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                            syscall(ctx $(, $t)*)
+                        };
+
+                        #[cfg(feature = "tracing")]
+                        {
+                            let point = crate::gas::tracer::Point{
+                                event: crate::gas::tracer::Event::PostSyscall,
+                                label,
+                            };
+                            let consumption = crate::gas::tracer::Consumption{
+                                fuel_consumed,
+                                gas_consumed: None,
+                            };
+                            (&mut data.kernel).record_trace(point, consumption);
+                        }
+
+                        Ok(match sys_ret.into()? {
                             Ok(_) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
@@ -133,18 +167,50 @@ macro_rules! impl_bind_syscalls {
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        #[cfg(feature = "tracing")]
+                        let (label, fuel_consumed) = ([module, name].join("::"), caller.fuel_consumed());
 
+                        let (mut memory, data) = memory_and_data(&mut caller)?;
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
                             || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
-                            let code = ErrorNumber::IllegalArgument;
-                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
-                            return Ok(code as u32);
+                                let code = ErrorNumber::IllegalArgument;
+                                data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
+                                return Ok(code as u32);
+                            }
+
+                        #[cfg(feature = "tracing")]
+                        {
+                            let point = crate::gas::tracer::Point{
+                                event: crate::gas::tracer::Event::PreSyscall,
+                                label: label.clone(),
+                            };
+                            let consumption = crate::gas::tracer::Consumption{
+                                fuel_consumed,
+                                gas_consumed: None,
+                            };
+                            (&mut data.kernel).record_trace(point, consumption);
                         }
 
-                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
+                        let sys_ret = {
+                            let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                            syscall(ctx $(, $t)*)
+                        };
+
+                        #[cfg(feature = "tracing")]
+                        {
+                            let point = crate::gas::tracer::Point{
+                                event: crate::gas::tracer::Event::PostSyscall,
+                                label,
+                            };
+                            let consumption = crate::gas::tracer::Consumption{
+                                fuel_consumed,
+                                gas_consumed: None,
+                            };
+                            (&mut data.kernel).record_trace(point, consumption);
+                        }
+
+                        Ok(match sys_ret.into()? {
                             Ok(value) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };

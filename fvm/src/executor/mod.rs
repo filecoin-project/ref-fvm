@@ -1,6 +1,7 @@
 mod default;
 
 use std::fmt::Display;
+use std::ops::{Deref, DerefMut};
 
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
@@ -10,7 +11,7 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::Backtrace;
+use crate::call_manager::{Backtrace, CallManager, CallStats};
 use crate::Kernel;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
@@ -18,7 +19,10 @@ use crate::Kernel;
 /// 1. Validating messages (nonce, sender, etc).
 /// 2. Creating message receipts.
 /// 3. Charging message inclusion gas, overestimation gas, miner tip, etc.
-pub trait Executor {
+pub trait Executor: DerefMut
+where
+    Self: Deref<Target = <<Self::Kernel as Kernel>::CallManager as CallManager>::Machine>,
+{
     /// The [`Kernel`] on which messages will be applied. We specify a [`Kernel`] here, not a
     /// [`Machine`](crate::machine::Machine), because the [`Kernel`] implies the
     /// [`Machine`](crate::machine::Machine).
@@ -71,6 +75,20 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
+    /// Wasm execution stats.
+    pub wasm_stats: Option<CallStats>,
+}
+
+impl From<Receipt> for ApplyRet {
+    fn from(receipt: Receipt) -> Self {
+        ApplyRet {
+            msg_receipt: receipt,
+            penalty: BigInt::zero(),
+            miner_tip: BigInt::zero(),
+            failure_info: None,
+            wasm_stats: None,
+        }
+    }
 }
 
 impl ApplyRet {
@@ -80,16 +98,14 @@ impl ApplyRet {
         message: impl Into<String>,
         miner_penalty: BigInt,
     ) -> ApplyRet {
-        ApplyRet {
-            msg_receipt: Receipt {
-                exit_code: code,
-                return_data: RawBytes::default(),
-                gas_used: 0,
-            },
-            penalty: miner_penalty,
-            failure_info: Some(ApplyFailure::PreValidation(message.into())),
-            miner_tip: BigInt::zero(),
-        }
+        let mut ret = ApplyRet::from(Receipt {
+            exit_code: code,
+            return_data: RawBytes::default(),
+            gas_used: 0,
+        });
+        ret.penalty = miner_penalty;
+        ret.failure_info = Some(ApplyFailure::PreValidation(message.into()));
+        ret
     }
 
     pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {

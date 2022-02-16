@@ -1,3 +1,8 @@
+use std::io::Write;
+use std::ops::DerefMut;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -8,7 +13,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, CallStats, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
@@ -39,6 +44,12 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+
+    /// Stats related to the message execution.
+    call_stats: CallStats,
+
+    #[cfg(feature = "tracing")]
+    gas_tracer: Option<std::cell::RefCell<crate::gas::tracer::GasTracer>>,
 }
 
 #[doc(hidden)]
@@ -57,6 +68,13 @@ impl<M> std::ops::DerefMut for DefaultCallManager<M> {
     }
 }
 
+lazy_static::lazy_static! {
+    static ref TRACE_FILE : Mutex<std::io::BufWriter<std::fs::File>> = {
+        let f = std::fs::File::options().create(true).write(true).append(true).open("fuel_tqrace.json").unwrap();
+        Mutex::new(std::io::BufWriter::new(f))
+    };
+}
+
 impl<M> CallManager for DefaultCallManager<M>
 where
     M: Machine,
@@ -72,6 +90,22 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
+            call_stats: CallStats::default(),
+
+            #[cfg(feature = "tracing")]
+            gas_tracer: {
+                use crate::gas::tracer::Point;
+                let mut tracer = crate::gas::tracer::GasTracer::new();
+                tracer.record(
+                    Default::default(),
+                    Point {
+                        event: crate::gas::tracer::Event::Started,
+                        label: Default::default(),
+                    },
+                    Default::default(),
+                );
+                Some(std::cell::RefCell::new(tracer))
+            },
         }))
     }
 
@@ -123,12 +157,52 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
-        let gas_used = self.gas_tracker.gas_used().max(0);
+    fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
+        #[cfg(feature = "tracing")]
+        {
+            use crate::gas::tracer::{Consumption, Point};
+            let tracer = self.gas_tracer.take().unwrap();
+            let traces = {
+                let mut tracer = tracer.into_inner();
+                tracer.record(
+                    Default::default(),
+                    Point {
+                        event: crate::gas::tracer::Event::Finished,
+                        label: Default::default(),
+                    },
+                    Consumption {
+                        fuel_consumed: None,
+                        gas_consumed: Some(self.gas_tracker.gas_used()),
+                    },
+                );
+                tracer.finish()
+            };
+            let mut tf = TRACE_FILE.lock().unwrap();
+            serde_json::to_writer(tf.deref_mut(), &traces).unwrap();
+            tf.flush().unwrap();
+        }
 
         let inner = self.0.take().expect("call manager is poisoned");
+        let gas_used = inner.gas_tracker.gas_used().max(0);
+        let mut stats = inner.call_stats;
+        stats.compute_gas = inner.gas_tracker.compute_gas_real().max(0) as u64;
+
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.machine)
+        (gas_used, inner.backtrace, stats, inner.machine)
+    }
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        context: crate::gas::tracer::Context,
+        point: crate::gas::tracer::Point,
+        consumption: crate::gas::tracer::Consumption,
+    ) {
+        self.gas_tracer
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .record(context, point, consumption)
     }
 
     // Accessor methods so the trait can implement some common methods by default.
@@ -272,6 +346,27 @@ where
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::Return(Default::default()));
         }
+        let call_start = Instant::now();
+
+        #[cfg(feature = "tracing")]
+        {
+            use crate::gas::tracer::{Consumption, Context, Point};
+            let gas_used = self.gas_tracker.gas_used();
+            self.gas_tracer.as_mut().unwrap().get_mut().record(
+                Context {
+                    code_cid: state.code.clone(),
+                    method_num: method,
+                },
+                Point {
+                    event: crate::gas::tracer::Event::EnterCall,
+                    label: Default::default(),
+                },
+                Consumption {
+                    fuel_consumed: None,
+                    gas_consumed: Some(gas_used),
+                },
+            );
+        }
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
@@ -295,6 +390,7 @@ where
 
             // Make a store.
             let mut store = engine.new_store(kernel);
+            store.add_fuel(u64::MAX).expect("failed to add fuel");
 
             // Instantiate the module.
             let instance = match engine
@@ -314,7 +410,7 @@ where
                     // All actors will have an invoke method.
                     .map_err(Abort::Fatal)?;
 
-                // Invoke it.
+                // Invoke (and time) it.
                 let return_block_id = invoke.call(&mut store, (param_id,))?;
 
                 // Extract the return value, if there is one.
@@ -333,9 +429,42 @@ where
                 Ok(return_value)
             })();
 
+            let fuel_used = store.fuel_consumed().expect("fuel not enabled?");
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let mut cm = invocation_data.kernel.take();
+
+            #[cfg(feature = "tracing")]
+            {
+                use crate::gas::tracer::{Consumption, Context, Point};
+                let gas_used = cm.gas_tracker.gas_used();
+                cm.gas_tracer.as_mut().unwrap().get_mut().record(
+                    Context {
+                        code_cid: state.code.clone(),
+                        method_num: method,
+                    },
+                    Point {
+                        event: crate::gas::tracer::Event::ExitCall,
+                        label: Default::default(),
+                    },
+                    Consumption {
+                        fuel_consumed: Some(fuel_used),
+                        gas_consumed: Some(gas_used),
+                    },
+                );
+            }
+
+            // We're ignoring the backtrace collection time, because that will be disabled on
+            // mainnet unless explicitly enabled.
+            let call_duration = call_start.elapsed();
+
+            cm.call_stats.fuel_used += fuel_used;
+            cm.call_stats.call_count += 1;
+            cm.call_stats.call_overhead +=
+                (call_duration - invocation_data.actor_time).max(Default::default());
+            cm.call_stats.wasm_duration += (invocation_data.actor_time
+                - invocation_data.syscall_time)
+                .max(Duration::default());
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
