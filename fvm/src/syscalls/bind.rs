@@ -1,4 +1,5 @@
 use std::mem;
+use std::time::Instant;
 
 use fvm_shared::error::ErrorNumber;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
@@ -114,50 +115,59 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
-                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
-                            Ok(_) => {
-                                log::trace!("syscall {}::{}: ok", module, name);
-                                data.last_error = None;
-                                0
-                            },
-                            Err(err) => {
-                                let code = err.1;
-                                log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
-                            },
-                        })
+                        let start = Instant::now();
+                        let (mut memory, data) = memory_and_data(&mut caller)?;
+                        let result = (|| {
+                            let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                            Ok(match syscall(ctx $(, $t)*).into()? {
+                                Ok(_) => {
+                                    log::trace!("syscall {}::{}: ok", module, name);
+                                    data.last_error = None;
+                                    0
+                                },
+                                Err(err) => {
+                                    let code = err.1;
+                                    log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
+                                    data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                    code as u32
+                                },
+                            })
+                        })();
+                        data.syscall_time += start.elapsed();
+                        result
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let start = Instant::now();
+                        let (mut memory, data) = memory_and_data(&mut caller)?;
+                        let result = (|| {
+                            // We need to check to make sure we can store the return value _before_ we do anything.
+                            if (ret as u64) > (memory.len() as u64)
+                                || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
+                                    let code = ErrorNumber::IllegalArgument;
+                                    data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
+                                    return Ok(code as u32);
+                                }
 
-                        // We need to check to make sure we can store the return value _before_ we do anything.
-                        if (ret as u64) > (memory.len() as u64)
-                            || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
-                            let code = ErrorNumber::IllegalArgument;
-                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
-                            return Ok(code as u32);
-                        }
-
-                        let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
-                            Ok(value) => {
-                                log::trace!("syscall {}::{}: ok", module, name);
-                                unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
-                                data.last_error = None;
-                                0
-                            },
-                            Err(err) => {
-                                let code = err.1;
-                                log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
-                            },
-                        })
+                            let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
+                            Ok(match syscall(ctx $(, $t)*).into()? {
+                                Ok(value) => {
+                                    log::trace!("syscall {}::{}: ok", module, name);
+                                    unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
+                                    data.last_error = None;
+                                    0
+                                },
+                                Err(err) => {
+                                    let code = err.1;
+                                    log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
+                                    data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                    code as u32
+                                },
+                            })
+                        })();
+                        data.syscall_time += start.elapsed();
+                        result
                     })
                 }
             }

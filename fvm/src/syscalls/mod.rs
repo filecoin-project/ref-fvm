@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use cid::Cid;
 use wasmtime::Linker;
 
@@ -28,6 +30,9 @@ pub struct InvocationData<K> {
     /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
     /// after receiving this error without calling any other syscalls.
     pub last_error: Option<backtrace::Cause>,
+    /// The time spent processing syscalls, including sends to other actors.
+    /// TODO: make this optional.
+    pub syscall_time: Duration,
 }
 
 impl<K> InvocationData<K> {
@@ -35,6 +40,7 @@ impl<K> InvocationData<K> {
         Self {
             kernel,
             last_error: None,
+            syscall_time: Duration::default(),
         }
     }
 }

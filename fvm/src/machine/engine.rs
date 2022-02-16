@@ -13,12 +13,6 @@ use crate::Kernel;
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 
-impl Default for Engine {
-    fn default() -> Self {
-        Engine::new(&wasmtime::Config::default()).unwrap()
-    }
-}
-
 struct EngineInner {
     engine: wasmtime::Engine,
     module_cache: Mutex<HashMap<Cid, Module>>,
@@ -33,10 +27,16 @@ impl Deref for Engine {
     }
 }
 
+impl Default for Engine {
+    fn default() -> Self {
+        Engine::new(&wasmtime::Config::new()).unwrap()
+    }
+}
+
 impl Engine {
     /// Create a new Engine from a wasmtime config.
     pub fn new(c: &wasmtime::Config) -> anyhow::Result<Self> {
-        Ok(wasmtime::Engine::new(c)?.into())
+        Ok(wasmtime::Engine::new(c.clone().consume_fuel(true))?.into())
     }
 }
 

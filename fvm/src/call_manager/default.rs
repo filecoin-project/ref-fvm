@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
@@ -7,7 +9,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, InvocationResult, WasmStats, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
@@ -50,6 +52,7 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+    wasm_stats: WasmStats,
 }
 
 #[doc(hidden)]
@@ -83,6 +86,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
+            wasm_stats: WasmStats::default(),
         }))
     }
 
@@ -121,12 +125,12 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(mut self) -> (i64, Backtrace, WasmStats, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.machine)
+        (gas_used, inner.backtrace, inner.wasm_stats, inner.machine)
     }
 
     // Accessor methods so the trait can implement some common methods by default.
@@ -287,6 +291,7 @@ where
 
             // Make a store.
             let mut store = engine.new_store(kernel);
+            store.add_fuel(u64::MAX).expect("failed to add fuel");
 
             // Instantiate the module.
             let instance = match engine
@@ -298,6 +303,7 @@ where
                 Err(err) => return (Err(err), store.into_data().kernel.take()),
             };
 
+            let mut call_duration = None;
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
                 // Lookup the invoke method.
@@ -306,8 +312,11 @@ where
                     // All actors will have an invoke method.
                     .map_err(Abort::Fatal)?;
 
-                // Invoke it.
-                let return_block_id = invoke.call(&mut store, (param_id,))?;
+                // Invoke (and time) it.
+                let start = Instant::now();
+                let result = invoke.call(&mut store, (param_id,));
+                call_duration = Some(start.elapsed());
+                let return_block_id = result?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
@@ -325,9 +334,17 @@ where
                 Ok(return_value)
             })();
 
+            let fuel_used = store.fuel_consumed().expect("fuel not enabled?");
+
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let mut cm = invocation_data.kernel.take();
+
+            cm.wasm_stats.fuel_used += fuel_used;
+            cm.wasm_stats.wasm_duration += call_duration
+                .map(|d| d - invocation_data.syscall_time)
+                .unwrap_or(Duration::default())
+                .max(Duration::default());
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {

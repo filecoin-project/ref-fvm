@@ -64,12 +64,12 @@ where
             };
 
         // Apply the message.
-        let (res, gas_used, mut backtrace) = self.map_machine(|machine| {
+        let (res, gas_used, stats, mut backtrace) = self.map_machine(|machine| {
             let mut cm = K::CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             // This error is fatal because it should have already been acounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
-                return (Err(e), cm.finish().2);
+                return (Err(e), cm.finish().3);
             }
 
             let result = cm.with_transaction(|cm| {
@@ -84,8 +84,8 @@ where
 
                 Ok(ret)
             });
-            let (gas_used, backtrace, machine) = cm.finish();
-            (Ok((result, gas_used, backtrace)), machine)
+            let (gas_used, backtrace, stats, machine) = cm.finish();
+            (Ok((result, gas_used, stats, backtrace)), machine)
         })?;
 
         // Extract the exit code and build the result of the message application.
@@ -153,15 +153,14 @@ where
             Some(ApplyFailure::MessageBacktrace(backtrace))
         };
 
-        match apply_kind {
-            ApplyKind::Explicit => self.finish_message(msg, receipt, failure_info, gas_cost),
-            ApplyKind::Implicit => Ok(ApplyRet {
-                msg_receipt: receipt,
-                failure_info,
-                penalty: TokenAmount::zero(),
-                miner_tip: TokenAmount::zero(),
-            }),
-        }
+        let mut ret = match apply_kind {
+            ApplyKind::Explicit => self.finish_message(msg, receipt, gas_cost)?,
+            ApplyKind::Implicit => ApplyRet::from(receipt),
+        };
+
+        ret.failure_info = failure_info;
+        ret.wasm_stats = Some(stats);
+        Ok(ret)
     }
 }
 
@@ -307,7 +306,6 @@ where
         &mut self,
         msg: Message,
         receipt: Receipt,
-        failure_info: Option<ApplyFailure>,
         gas_cost: BigInt,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
@@ -358,7 +356,8 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            failure_info,
+            failure_info: None,
+            wasm_stats: None,
             penalty: miner_penalty,
             miner_tip,
         })
