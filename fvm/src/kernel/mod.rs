@@ -186,7 +186,7 @@ pub trait CircSupplyOps {
 ///
 /// TODO this is unsafe; most gas charges should occur as part of syscalls, but
 ///  some built-in actors currently charge gas explicitly for concrete actions.
-///  In the future (M1), this should disappear and be replaced by gas instrumentation
+///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
 ///  at the WASM level.
 pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
