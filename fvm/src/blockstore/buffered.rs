@@ -26,7 +26,7 @@ use std::io::{Cursor, Read, Seek};
 #[derive(Debug)]
 pub struct BufferedBlockstore<BS> {
     base: BS,
-    write: RefCell<HashMap<Cid, Vec<u8>>>,
+    write: RefCell<HashMap<Cid, Option<Vec<u8>>>>,
 }
 
 impl<BS> BufferedBlockstore<BS>
@@ -175,7 +175,7 @@ where
 /// Copies the IPLD DAG under `root` from the cache to the base store.
 fn copy_rec<'a, BS>(
     base: &BS,
-    cache: &'a HashMap<Cid, Vec<u8>>,
+    cache: &'a HashMap<Cid, Option<Vec<u8>>>,
     root: Cid,
     buffer: &mut Vec<(Cid, &'a [u8])>,
 ) -> Result<()>
@@ -188,21 +188,14 @@ where
         return Ok(());
     }
 
-    let block = &*cache
-        .get(&root)
-        .ok_or_else(|| anyhow!("Invalid link ({}) in flushing buffered store", root))?;
+    // If the block isn't in the cache, or we've put a sentinel "none" in the cache, it already
+    // exists in the underlying store.
+    let block = match cache.get(&root) {
+        None | Some(None) => return Ok(()),
+        Some(Some(buf)) => &*buf,
+    };
 
     scan_for_links(&mut Cursor::new(block), |link| {
-        if link.codec() != DAG_CBOR {
-            return Ok(());
-        }
-
-        // DB reads are expensive. So we check if it exists in the cache.
-        // If it doesnt exist in the DB, which is likely, we proceed with using the cache.
-        if !cache.contains_key(&link) {
-            return Ok(());
-        }
-
         // Recursively find more links under the links we're iterating over.
         copy_rec(base, cache, link, buffer)
     })?;
@@ -217,15 +210,23 @@ where
     BS: Blockstore,
 {
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
-        Ok(if let Some(data) = self.write.borrow().get(cid) {
+        let mut buf = self.write.borrow_mut();
+        Ok(if let Some(Some(data)) = buf.get(cid) {
             Some(data.clone())
         } else {
-            self.base.get(cid)?
+            let blk = self.base.get(cid)?;
+            if blk.is_some() {
+                buf.insert(*cid, None);
+            }
+            blk
         })
     }
 
     fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {
-        self.write.borrow_mut().insert(*cid, Vec::from(buf));
+        self.write
+            .borrow_mut()
+            .entry(*cid)
+            .or_insert_with(|| Some(Vec::from(buf)));
         Ok(())
     }
 
@@ -243,9 +244,11 @@ where
         D: AsRef<[u8]>,
         I: IntoIterator<Item = (Cid, D)>,
     {
-        self.write
-            .borrow_mut()
-            .extend(blocks.into_iter().map(|(k, v)| (k, v.as_ref().into())));
+        self.write.borrow_mut().extend(
+            blocks
+                .into_iter()
+                .map(|(k, v)| (k, Some(v.as_ref().into()))),
+        );
         Ok(())
     }
 }
@@ -273,7 +276,7 @@ mod tests {
         buf_store.flush(&cid).unwrap();
         assert_eq!(buf_store.get_cbor::<u8>(&cid).unwrap(), Some(8));
         assert_eq!(mem.get_cbor::<u8>(&cid).unwrap(), Some(8));
-        assert!(buf_store.write.borrow().get(&cid).is_none());
+        assert!(buf_store.write.borrow().get(&cid).unwrap().is_none());
     }
 
     #[test]
