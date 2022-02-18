@@ -535,17 +535,14 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        let ret = self
+        let (fault, gas) = self
             .call_manager
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
-        self.call_manager.charge_gas(GasCharge::new(
-            "verify_consensus_fault_accesses",
-            ret.gas_used,
-            0,
-        ))?;
-        Ok(ret.fault)
+        self.call_manager
+            .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
+        Ok(fault)
     }
 
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {

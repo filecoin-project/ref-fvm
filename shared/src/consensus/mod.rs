@@ -13,16 +13,6 @@ pub struct ConsensusFault {
     pub fault_type: ConsensusFaultType,
 }
 
-/// Result of checking two headers for a consensus fault, with the gas used
-/// Only for v14 and earlier
-#[derive(Clone, Debug)]
-pub struct ConsensusFaultWithGas {
-    /// The fault.
-    pub fault: Option<ConsensusFault>,
-    /// Gas used in checking the fault
-    pub gas_used: i64,
-}
-
 /// Consensus fault types in VM.
 #[derive(FromPrimitive, Clone, Copy, Debug)]
 #[repr(u8)]

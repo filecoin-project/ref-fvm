@@ -95,7 +95,7 @@ mod test {
             _h1: &[u8],
             _h2: &[u8],
             _extra: &[u8],
-        ) -> anyhow::Result<fvm_shared::consensus::ConsensusFaultWithGas> {
+        ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
             todo!()
         }
     }

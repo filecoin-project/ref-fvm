@@ -1,7 +1,7 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFaultWithGas;
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 
 pub trait Externs: Rand + Consensus {}
@@ -14,7 +14,7 @@ pub trait Consensus {
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
-    ) -> anyhow::Result<ConsensusFaultWithGas>;
+    ) -> anyhow::Result<(Option<ConsensusFault>, i64)>;
 }
 
 /// Randomness provider trait

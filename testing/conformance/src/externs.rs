@@ -1,6 +1,6 @@
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFaultWithGas;
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 
 use crate::rand::ReplayingRand;
@@ -49,7 +49,7 @@ impl Consensus for TestExterns {
         _h1: &[u8],
         _h2: &[u8],
         _extra: &[u8],
-    ) -> anyhow::Result<ConsensusFaultWithGas> {
+    ) -> anyhow::Result<(Option<ConsensusFault>, i64)> {
         todo!()
     }
 }
