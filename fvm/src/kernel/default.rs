@@ -322,7 +322,7 @@ where
                 syscall_error!(IllegalArgument; "invalid hash length: {}", hash_len).into(),
             );
         }
-        let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
+        let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
         self.call_manager
@@ -333,7 +333,7 @@ where
     }
 
     fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        let data = &self.blocks.get(id).or_illegal_argument()?.data;
+        let data = self.blocks.get(id).or_illegal_argument()?.data();
         Ok(if offset as usize >= data.len() {
             0
         } else {

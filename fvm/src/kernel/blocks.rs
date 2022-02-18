@@ -1,5 +1,4 @@
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use cid::Cid;
 use thiserror::Error;
@@ -24,13 +23,12 @@ pub struct BlockStat {
 
 #[derive(Clone)]
 pub struct Block {
-    // TODO rm pub, provide accessors and constructor instead?
-    pub(crate) codec: u64,
-    pub(crate) data: Rc<[u8]>,
+    codec: u64,
+    data: Box<[u8]>,
 }
 
 impl Block {
-    pub fn new(codec: u64, data: impl Into<Rc<[u8]>>) -> Self {
+    pub fn new(codec: u64, data: impl Into<Box<[u8]>>) -> Self {
         // TODO: check size on the way in?
         Self {
             codec,
@@ -38,18 +36,22 @@ impl Block {
         }
     }
 
+    #[inline(always)]
     pub fn codec(&self) -> u64 {
         self.codec
     }
 
+    #[inline(always)]
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
+    #[inline(always)]
     pub fn size(&self) -> u32 {
         self.data.len() as u32
     }
 
+    #[inline(always)]
     pub fn stat(&self) -> BlockStat {
         BlockStat {
             codec: self.codec(),
