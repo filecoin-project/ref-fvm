@@ -14,6 +14,7 @@ use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
@@ -534,11 +535,14 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        self.call_manager
+        let (fault, gas) = self
+            .call_manager
             .externs()
             .verify_consensus_fault(h1, h2, extra)
-            .or_illegal_argument()
-            .context("fault not verified")
+            .or_illegal_argument()?;
+        self.call_manager
+            .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
+        Ok(fault)
     }
 
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
@@ -571,7 +575,7 @@ where
                                 false
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
                         false

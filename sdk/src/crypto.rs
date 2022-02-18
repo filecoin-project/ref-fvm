@@ -97,17 +97,17 @@ pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
 /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
-/// Returns nil and an error if the headers don't prove a fault.
+/// Returns None and an error if the headers don't prove a fault.
 #[allow(unused)]
 pub fn verify_consensus_fault(
     h1: &[u8],
     h2: &[u8],
     extra: &[u8],
 ) -> SyscallResult<Option<ConsensusFault>> {
-    let sys::crypto::out::VerifyConsensusFault {
+    let fvm_shared::sys::out::crypto::VerifyConsensusFault {
         fault,
         epoch,
-        actor,
+        target,
     } = unsafe {
         sys::crypto::verify_consensus_fault(
             h1.as_ptr(),
@@ -125,8 +125,8 @@ pub fn verify_consensus_fault(
         FromPrimitive::from_u32(fault).expect("received an invalid fault type from the runtime");
     Ok(Some(ConsensusFault {
         epoch,
+        target: Address::new_id(target),
         fault_type,
-        target: Address::new_id(actor),
     }))
 }
 

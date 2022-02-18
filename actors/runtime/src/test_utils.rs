@@ -156,6 +156,7 @@ pub struct ExpectCreateActor {
     pub code_id: Cid,
     pub actor_id: ActorID,
 }
+
 #[derive(Clone, Debug)]
 pub struct ExpectedMessage {
     pub to: Address,
@@ -594,8 +595,8 @@ impl Runtime<MemoryBlockstore> for MockRuntime {
             .unwrap();
 
         assert!(expected_msg.to == to && expected_msg.method == method && expected_msg.params == params && expected_msg.value == value,
-            "expectedMessage being sent does not match expectation.\nMessage -\t to: {:?} method: {:?} value: {:?} params: {:?}\nExpected -\t {:?}",
-            to, method, value, params, expected_msg);
+                "expectedMessage being sent does not match expectation.\nMessage -\t to: {:?} method: {:?} value: {:?} params: {:?}\nExpected -\t {:?}",
+                to, method, value, params, expected_msg);
 
         {
             let mut balance = self.balance.borrow_mut();

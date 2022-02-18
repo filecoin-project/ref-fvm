@@ -15,7 +15,7 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
-use fvm_shared::ActorID;
+use fvm_shared::{sys, ActorID};
 use wasmtime::{Caller, Trap};
 
 use super::Context;
@@ -140,42 +140,38 @@ pub fn verify_post(
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 ///
-/// Returns:
-/// - The fault type (1-3) or 0 for no fault.
-/// - The chain epoch at which the fault happened.
-/// - The actor at fault.
 pub fn verify_consensus_fault(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     h1_off: u32,
     h1_len: u32,
     h2_off: u32,
     h2_len: u32,
     extra_off: u32,
     extra_len: u32,
-) -> Result<(u32, ChainEpoch, ActorID)> {
+) -> Result<sys::out::crypto::VerifyConsensusFault> {
     let h1 = context.memory.try_slice(h1_off, h1_len)?;
     let h2 = context.memory.try_slice(h2_off, h2_len)?;
     let extra = context.memory.try_slice(extra_off, extra_len)?;
 
-    // TODO the extern should only signal an error in case there was an internal
-    //  interrupting error evaluating the consensus fault. If the outcome is
-    //  "no consensus fault was found", the extern should not error, as doing so
-    //  would interrupt execution via the Trap (at least currently).
     let ret = context.kernel.verify_consensus_fault(h1, h2, extra)?;
 
     match ret {
-        // Consensus fault detected; return the actor as a block.
-        Some(fault) => Ok((
-            fault.fault_type as u32,
-            fault.epoch,
-            fault
+        // Consensus fault detected
+        Some(fault) => Ok(sys::out::crypto::VerifyConsensusFault {
+            fault: fault.fault_type as u32,
+            epoch: fault.epoch,
+            target: fault
                 .target
                 .id()
-                .context("expected a resolved actor address")
+                .context("kernel returned non-id target address")
                 .or_fatal()?,
-        )),
+        }),
         // No consensus fault.
-        None => Ok((0, 0, 0)),
+        None => Ok(sys::out::crypto::VerifyConsensusFault {
+            fault: 0,
+            epoch: 0,
+            target: 0,
+        }),
     }
 }
 
