@@ -83,6 +83,7 @@ pub fn bind_syscalls(
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
     linker.bind("actor", "new_actor_address", actor::new_actor_address)?;
     linker.bind("actor", "create_actor", actor::create_actor)?;
+    linker.bind("actor", "is_builtin_actor", actor::is_builtin_actor)?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind("crypto", "hash_blake2b", crypto::hash_blake2b)?;

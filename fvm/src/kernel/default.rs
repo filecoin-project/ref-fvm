@@ -8,6 +8,7 @@ use filecoin_proofs_api::seal::{
     compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
 };
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::blockstore::{Blockstore, CborStore};
@@ -785,6 +786,15 @@ where
             actor_id,
             ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
         )
+    }
+
+    fn is_builtin_actor(&self, code_cid: Cid) -> Result<Option<Type>> {
+        Ok(self
+            .call_manager
+            .machine()
+            .builtin_actors()
+            .get(&code_cid)
+            .cloned())
     }
 }
 

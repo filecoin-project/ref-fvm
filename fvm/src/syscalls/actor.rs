@@ -1,4 +1,5 @@
-use fvm_shared::sys;
+use fvm_shared::{actor, sys};
+use num_derive::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
@@ -78,4 +79,13 @@ pub fn create_actor(
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.create_actor(typ, actor_id)
+}
+
+pub fn is_builtin_actor(
+    context: Context<'_, impl Kernel>,
+    code_cid_off: u32, // Cid
+) -> Result<i32> {
+    let cid = context.memory.read_cid(code_cid_off)?;
+    let result = context.kernel.is_builtin_actor(cid)?;
+    Ok(result.map(|v| v as i32).unwrap_or(0))
 }

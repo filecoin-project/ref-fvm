@@ -6,6 +6,7 @@ use wasmtime::{Engine, Module};
 
 use super::{Machine, MachineContext};
 use crate::kernel::Result;
+use crate::machine::BuiltinActorIndex;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
@@ -36,6 +37,11 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn externs(&self) -> &Self::Externs {
         (&**self).externs()
+    }
+
+    #[inline(always)]
+    fn builtin_actors(&self) -> &BuiltinActorIndex {
+        (&**self).builtin_actors()
     }
 
     #[inline(always)]

@@ -3,6 +3,7 @@ use core::option::Option; // no_std
 use cid::Cid;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::ActorID;
+use num_traits::FromPrimitive;
 
 use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN};
 
@@ -65,4 +66,15 @@ pub fn new_actor_address() -> Address {
 pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
+}
+
+pub fn is_builtin_actor(code_cid: &Cid) -> Option<fvm_shared::actor::builtin::Type> {
+    let cid = code_cid.to_bytes();
+    unsafe {
+        let res = sys::actor::is_builtin_actor(cid.as_ptr())
+            .expect("failed to determine if CID belongs to builtin actor");
+        // The zero value represents "unknown" and is not modelled in the enum,
+        // so it'll be converted to a None.
+        FromPrimitive::from_i32(res)
+    }
 }

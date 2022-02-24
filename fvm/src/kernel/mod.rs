@@ -13,7 +13,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::{actor, ActorID, MethodNum};
 
 mod blocks;
 pub mod default;
@@ -154,9 +154,12 @@ pub trait ActorOps {
     /// Always an ActorExec address.
     fn new_actor_address(&mut self) -> Result<Address>;
 
-    /// Creates an actor with code `codeID` and id `actor_id`, with empty state.
+    /// Creates an actor with code `code_cid` and id `actor_id`, with empty state.
     /// May only be called by Init actor.
-    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()>;
+    fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
+
+    /// Returns whether the supplied code_cid belongs to a known built-in actor type.
+    fn is_builtin_actor(&self, code_cid: Cid) -> Result<Option<actor::builtin::Type>>;
 }
 
 /// Operations to send messages to other actors.

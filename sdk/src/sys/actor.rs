@@ -20,4 +20,8 @@ super::fvm_syscalls! {
     /// the provided address.
     /// TODO this syscall will change to calculate the address internally.
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
+
+    /// Determines whether the specified CodeCID belongs to that of a builtin
+    /// actor and which.
+    pub fn is_builtin_actor(cid_off: *const u8) -> Result<i32>;
 }
