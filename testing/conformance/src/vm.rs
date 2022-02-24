@@ -337,6 +337,7 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 }
+
 impl<M, C, K> BlockOps for TestKernel<K>
 where
     M: Machine,
@@ -367,6 +368,7 @@ where
         self.0.block_get(id)
     }
 }
+
 impl<M, C, K> CircSupplyOps for TestKernel<K>
 where
     M: Machine,
@@ -378,6 +380,7 @@ where
         Ok(self.1.circ_supply.clone())
     }
 }
+
 impl<M, C, K> CryptoOps for TestKernel<K>
 where
     M: Machine,
@@ -447,6 +450,7 @@ where
         Ok(true)
     }
 }
+
 impl<M, C, K> DebugOps for TestKernel<K>
 where
     M: Machine,
@@ -461,6 +465,7 @@ where
         self.0.debug_enabled()
     }
 }
+
 impl<M, C, K> GasOps for TestKernel<K>
 where
     M: Machine,
@@ -471,6 +476,7 @@ where
         self.0.charge_gas(name, compute)
     }
 }
+
 impl<M, C, K> MessageOps for TestKernel<K>
 where
     M: Machine,
@@ -493,6 +499,7 @@ where
         self.0.msg_value_received()
     }
 }
+
 impl<M, C, K> NetworkOps for TestKernel<K>
 where
     M: Machine,
@@ -511,6 +518,7 @@ where
         self.0.network_base_fee()
     }
 }
+
 impl<M, C, K> RandomnessOps for TestKernel<K>
 where
     M: Machine,
@@ -537,6 +545,7 @@ where
             .get_randomness_from_beacon(personalization, rand_epoch, entropy)
     }
 }
+
 impl<M, C, K> SelfOps for TestKernel<K>
 where
     M: Machine,
@@ -559,6 +568,7 @@ where
         self.0.self_destruct(beneficiary)
     }
 }
+
 impl<M, C, K> SendOps for TestKernel<K>
 where
     M: Machine,

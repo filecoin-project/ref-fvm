@@ -70,7 +70,7 @@ Here's what you'll find in each directory:
   - Focus: theoretical correctness.
   - Estimated: end of January '22.
 - Beta: 
-  - Declared when: all of the above + syncing mainnet consistently, keeping up with chain consistently.
+  - Declared when: all of the above + syncing mainnet consistently, keeping up with chain consistently, i.e. when Phase 0 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
   - Focus: production-readiness, performance, live consensus correctness.
   - Estimated: late February '22.
 - RC:
@@ -78,7 +78,7 @@ Here's what you'll find in each directory:
   - Focus: pre-mainnet preparations.
   - Estimated: March '22.
 - Final:
-  - Declared when: FVM v0 is securing mainnet, i.e. when M1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: FVM v0 is securing mainnet, i.e. when Phase 1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
   - Estimated: end of March '22.
 
 ### v1: Fully-programmable FVM (with EVM foreign runtime support)
@@ -96,7 +96,7 @@ Here's what you'll find in each directory:
   - Focus: pre-mainnet preparations.
   - Estimated: June '22.
 - Final:
-  - Declared when: FVM v1 is operating mainnet, i.e. when M2 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: FVM v1 is operating mainnet, i.e. when Phase 2 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
   - Estimated: end of June '22.
 
 ## License
