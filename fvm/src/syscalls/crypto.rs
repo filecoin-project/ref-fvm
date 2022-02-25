@@ -13,7 +13,8 @@ use fvm_shared::encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::ErrorNumber::IllegalArgument;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use fvm_shared::{sys, ActorID};
 
@@ -188,6 +189,23 @@ pub fn verify_aggregate_seals(
     context
         .kernel
         .verify_aggregate_seals(&info)
+        .map(|v| if v { 0 } else { -1 })
+}
+
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
+pub fn verify_replica_update(
+    mut context: Context<'_, impl Kernel>,
+    rep_off: u32, // ReplicaUpdateInfo
+    rep_len: u32,
+) -> Result<i32> {
+    let info = context
+        .memory
+        .read_cbor::<ReplicaUpdateInfo>(rep_off, rep_len)?;
+    context
+        .kernel
+        .verify_replica_update(&info)
         .map(|v| if v { 0 } else { -1 })
 }
 
