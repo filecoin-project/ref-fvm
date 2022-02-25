@@ -168,6 +168,3 @@ pub fn batch_verify_seals(batch: &[SealVerifyInfo]) -> SyscallResult<Vec<bool>> 
         result
     })
 }
-
-// TODO implement verify_replica_update
-// fn verify_replica_update();
