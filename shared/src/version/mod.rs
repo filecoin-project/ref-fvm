@@ -39,6 +39,8 @@ pub enum NetworkVersion {
     V13,
     /// actors v6
     V14,
+    /// actors v7
+    V15,
 }
 
 impl Display for NetworkVersion {
@@ -68,6 +70,7 @@ impl TryFrom<u32> for NetworkVersion {
             12 => Ok(V12),
             13 => Ok(V13),
             14 => Ok(V14),
+            15 => Ok(V15),
             _ => Err(value),
         }
     }
