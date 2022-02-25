@@ -25,9 +25,6 @@ mod blockstore;
 
 mod account_actor;
 mod init_actor;
-mod market_actor;
-mod power_actor;
-mod reward_actor;
 
 #[derive(Clone)]
 pub struct Config {

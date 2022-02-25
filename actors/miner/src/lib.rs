@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::iter;
 use std::ops::Neg;
 
@@ -1184,12 +1184,12 @@ impl Actor {
                             proof: with_details.update.replica_proof.clone(),
                         }
                     )
-                    .map_err(|e|
-                        e.downcast_default(
-                            ExitCode::ErrIllegalArgument,
-                            format!("failed to verify replica proof for sector {}", with_details.sector_info.sector_number)
-                        )
-                    )?;
+                        .map_err(|e|
+                            e.downcast_default(
+                                ExitCode::ErrIllegalArgument,
+                                format!("failed to verify replica proof for sector {}", with_details.sector_info.sector_number)
+                            )
+                        )?;
 
                     let mut new_sector_info = with_details.sector_info.clone();
 
@@ -1277,10 +1277,10 @@ impl Actor {
 
                     let (partition_power_delta, partition_pledge_delta) = partition
                         .replace_sectors(rt.store(),
-                            &[with_details.sector_info.clone()],
-                            &[new_sector_info.clone()],
-                            info.sector_size,
-                            quant
+                                         &[with_details.sector_info.clone()],
+                                         &[new_sector_info.clone()],
+                                         info.sector_size,
+                                         quant
                         )
                         .map_err(|e| {
                             e.downcast_default(
@@ -1725,19 +1725,19 @@ impl Actor {
         }
         let mut fee_to_burn = TokenAmount::from(0_u32);
         let mut needs_cron = false;
-        rt.transaction(|state: &mut State, rt|{
+        rt.transaction(|state: &mut State, rt| {
             // Aggregate fee applies only when batching.
             if params.sectors.len() > 1 {
                 let aggregate_fee = aggregate_pre_commit_network_fee(params.sectors.len() as i64, &rt.base_fee());
                 // AggregateFee applied to fee debt to consolidate burn with outstanding debts
                 state.apply_penalty(&aggregate_fee)
-                .map_err(|e| {
-                    actor_error!(
+                    .map_err(|e| {
+                        actor_error!(
                         ErrIllegalState,
                         "failed to apply penalty: {}",
                         e
                     )
-                })?;
+                    })?;
             }
             // available balance already accounts for fee debt so it is correct to call
             // this before RepayDebts. We would have to
@@ -1773,9 +1773,9 @@ impl Actor {
             for (i, precommit) in params.sectors.iter().enumerate() {
                 // Sector must have the same Window PoSt proof type as the miner's recorded seal type.
                 let sector_wpost_proof = precommit.seal_proof
-                .registered_window_post_proof()
-                .map_err(|_e|
-                    actor_error!(
+                    .registered_window_post_proof()
+                    .map_err(|_e|
+                        actor_error!(
                         ErrIllegalArgument,
                         "failed to lookup Window PoSt proof type for sector seal proof {}",
                         i64::from(precommit.seal_proof)
@@ -1796,13 +1796,13 @@ impl Actor {
                     validate_replace_sector(state, store, precommit)?
                 }
                 // Estimate the sector weight using the current epoch as an estimate for activation,
-            	// and compute the pre-commit deposit using that weight.
-		    	// The sector's power will be recalculated when it's proven.
+                // and compute the pre-commit deposit using that weight.
+                // The sector's power will be recalculated when it's proven.
                 let duration = precommit.expiration - curr_epoch;
                 let sector_weight = qa_power_for_weight(info.sector_size, duration, &deal_weight.deal_weight, &deal_weight.verified_deal_weight);
-                let deposit_req = pre_commit_deposit_for_power(&reward_stats.this_epoch_reward_smoothed,&power_total.quality_adj_power_smoothed , &sector_weight);
+                let deposit_req = pre_commit_deposit_for_power(&reward_stats.this_epoch_reward_smoothed, &power_total.quality_adj_power_smoothed, &sector_weight);
                 // Build on-chain record.
-                chain_infos.push(SectorPreCommitOnChainInfo{
+                chain_infos.push(SectorPreCommitOnChainInfo {
                     info: precommit.clone(),
                     pre_commit_deposit: deposit_req.clone(),
                     pre_commit_epoch: curr_epoch,
@@ -1813,10 +1813,10 @@ impl Actor {
 
                 // Calculate pre-commit cleanup
                 let msd = max_prove_commit_duration(precommit.seal_proof)
-                .ok_or_else(|| actor_error!(ErrIllegalArgument, "no max seal duration set for proof type: {}", i64::from(precommit.seal_proof)))?;
+                    .ok_or_else(|| actor_error!(ErrIllegalArgument, "no max seal duration set for proof type: {}", i64::from(precommit.seal_proof)))?;
                 // PreCommitCleanUpDelay > 0 here is critical for the batch verification of proofs. Without it, if a proof arrived exactly on the
-			    // due epoch, ProveCommitSector would accept it, then the expiry event would remove it, and then
-			    // ConfirmSectorProofsValid would fail to find it.
+                // due epoch, ProveCommitSector would accept it, then the expiry event would remove it, and then
+                // ConfirmSectorProofsValid would fail to find it.
                 let clean_up_bound = curr_epoch + msd + EXPIRED_PRE_COMMIT_CLEAN_UP_DELAY;
                 clean_up_events.push((clean_up_bound, precommit.sector_number));
             }
@@ -1833,7 +1833,7 @@ impl Actor {
                 ))?;
             state.allocate_sector_numbers(store, &sector_numbers, CollisionPolicy::DenyCollisions)
                 .map_err(|e|
-                     e.wrap("failed to allocate sector numbers")
+                    e.wrap("failed to allocate sector numbers")
                 )?;
             state.put_precommitted_sectors(store, chain_infos)
                 .map_err(|e|
@@ -2079,7 +2079,7 @@ impl Actor {
                         decl.deadline,
                         decl.partition,
                         e
-                    ))
+                    ));
                 }
             };
 
@@ -4592,6 +4592,7 @@ fn check_peer_info(peer_id: &[u8], multiaddrs: &[BytesDe]) -> Result<(), ActorEr
 
     Ok(())
 }
+
 fn confirm_sector_proofs_valid_internal<BS, RT>(
     rt: &mut RT,
     pre_commits: Vec<SectorPreCommitOnChainInfo>,

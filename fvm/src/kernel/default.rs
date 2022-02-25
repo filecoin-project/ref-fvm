@@ -33,9 +33,6 @@ use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
-use crate::market_actor::State as MarketActorState;
-use crate::power_actor::State as PowerActorState;
-use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -137,45 +134,6 @@ where
             .or_fatal()?; // because the state should exist.
 
         Ok(state.address)
-    }
-
-    fn get_burnt_funds(&self) -> Result<TokenAmount> {
-        Ok(self
-            .call_manager
-            .state_tree()
-            .get_actor_id(BURN_ACTOR_ID)?
-            .context("burn actor state couldn't be loaded")
-            .or_fatal()?
-            .balance)
-    }
-
-    fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let reserve_balance = self
-            .call_manager
-            .state_tree()
-            .get_actor_id(RESERVE_ACTOR_ID)?
-            .context("failed to load reserve actor when determining reserve disbursed")
-            .or_fatal()?
-            .balance;
-        Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
-    }
-
-    fn get_fil_mined(&self) -> Result<TokenAmount> {
-        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())
-            .context("failed to load reward actor state when getting FIL mined")?;
-        Ok(reward_state.total_storage_power_reward())
-    }
-
-    fn power_locked(&self) -> Result<TokenAmount> {
-        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())
-            .context("failed to load power actor state when determining locked FIL")?;
-        Ok(power_state.total_locked())
-    }
-
-    fn market_locked(&self) -> Result<TokenAmount> {
-        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())
-            .context("failed to load market actor state when determining locked FIL")?;
-        Ok(market_state.total_locked())
     }
 
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
@@ -384,21 +342,6 @@ where
         let from = self.actor_id;
         self.call_manager
             .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
-    }
-}
-
-impl<C> CircSupplyOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        Ok((&self.call_manager.context().fil_vested
-            + &self.get_fil_mined()?
-            + &self.get_reserve_disbursed()?
-            - &self.get_burnt_funds()?
-            - &self.power_locked()?
-            - &self.market_locked()?)
-            .max(Zero::zero()))
     }
 }
 
@@ -707,6 +650,10 @@ where
 
     fn network_base_fee(&self) -> &TokenAmount {
         &self.call_manager.context().base_fee
+    }
+
+    fn network_total_fil_circ_supply(&self) -> &TokenAmount {
+        &self.call_manager.context().circ_supply
     }
 }
 

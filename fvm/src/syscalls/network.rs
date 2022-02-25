@@ -26,7 +26,7 @@ pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     context
         .kernel
-        .total_fil_circ_supply()?
+        .network_total_fil_circ_supply()
         .try_into()
         .context("circulating supply exceeds u128 limit")
         .or_fatal()

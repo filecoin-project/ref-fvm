@@ -13,9 +13,11 @@ use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
 mod default;
+
 pub use default::DefaultMachine;
 
 mod engine;
+
 pub use engine::Engine;
 
 mod boxed;
@@ -77,8 +79,8 @@ pub struct MachineContext {
     pub epoch: ChainEpoch,
     /// The base fee that's in effect when the Machine runs.
     pub base_fee: TokenAmount,
-    /// The amount of FIL that has vested from genesis actors.
-    pub fil_vested: TokenAmount,
+    /// The amount of FIL that is circulating at the start of this epoch.
+    pub circ_supply: TokenAmount,
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,
     /// The price list.

@@ -29,7 +29,6 @@ use crate::machine::Machine;
 pub trait Kernel:
     ActorOps
     + BlockOps
-    + CircSupplyOps
     + CryptoOps
     + DebugOps
     + GasOps
@@ -62,6 +61,7 @@ pub trait NetworkOps {
     fn network_epoch(&self) -> ChainEpoch;
     fn network_version(&self) -> NetworkVersion;
     fn network_base_fee(&self) -> &TokenAmount;
+    fn network_total_fil_circ_supply(&self) -> &TokenAmount;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -169,19 +169,6 @@ pub trait SendOps {
         params: &RawBytes,
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
-}
-
-/// Operations to query the circulating supply.
-pub trait CircSupplyOps {
-    /// Returns the total token supply in circulation at the beginning of the current epoch.
-    /// The circulating supply is the sum of:
-    /// - rewards emitted by the reward actor,
-    /// - funds vested from lock-ups in the genesis state,
-    /// less the sum of:
-    /// - funds burnt,
-    /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
-    /// - deal collateral locked by the storage market actor
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount>;
 }
 
 /// Operations for explicit gas charging.

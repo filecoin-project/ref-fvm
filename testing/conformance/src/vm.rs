@@ -22,7 +22,7 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use fvm_shared::{ActorID, MethodNum};
 use num_traits::Zero;
 
 use crate::externs::TestExterns;
@@ -32,7 +32,6 @@ const DEFAULT_BASE_FEE: u64 = 100;
 
 #[derive(Clone)]
 pub struct TestData {
-    circ_supply: TokenAmount,
     price_list: PriceList,
 }
 
@@ -82,14 +81,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         TestMachine::<Box<DefaultMachine<_, _>>> {
             machine: Box::new(machine),
-            data: TestData {
-                circ_supply: v
-                    .preconditions
-                    .circ_supply
-                    .map(|i| i.into())
-                    .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
-                price_list,
-            },
+            data: TestData { price_list },
         }
     }
 }
@@ -345,18 +337,6 @@ where
     }
 }
 
-impl<M, C, K> CircSupplyOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
-{
-    // Not forwarded. Circulating supply is taken from the TestData.
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        Ok(self.1.circ_supply.clone())
-    }
-}
-
 impl<M, C, K> CryptoOps for TestKernel<K>
 where
     M: Machine,
@@ -499,6 +479,10 @@ where
 
     fn network_base_fee(&self) -> &TokenAmount {
         self.0.network_base_fee()
+    }
+
+    fn network_total_fil_circ_supply(&self) -> &TokenAmount {
+        self.0.network_total_fil_circ_supply()
     }
 }
 
