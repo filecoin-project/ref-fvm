@@ -68,6 +68,8 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
 }
 
+/// Determines whether the supplied CodeCID belongs to a built-in actor type,
+/// and to which.
 pub fn is_builtin_actor(code_cid: &Cid) -> Option<fvm_shared::actor::builtin::Type> {
     let cid = code_cid.to_bytes();
     unsafe {

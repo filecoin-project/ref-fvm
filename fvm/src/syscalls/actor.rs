@@ -1,5 +1,4 @@
-use fvm_shared::{actor, sys};
-use num_derive::FromPrimitive;
+use fvm_shared::sys;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};

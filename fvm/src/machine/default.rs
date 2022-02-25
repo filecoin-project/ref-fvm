@@ -96,7 +96,7 @@ where
         }
 
         // Load the built-in actor index.
-        let builtin_actors: BTreeMap<actor::builtin::Type, Cid> = blockstore
+        let builtin_actors: BTreeMap<Cid, actor::builtin::Type> = blockstore
             .get_cbor(&builtin_actors_idx)
             .context("failed to load built-in actor index")?
             .ok_or_else(|| {
@@ -105,12 +105,6 @@ where
                     &builtin_actors_idx
                 )
             })?;
-
-        // Invert the map so that it's CID => Type.
-        let builtin_actors: BTreeMap<_, _> = builtin_actors
-            .into_iter()
-            .map(|(typ, cid)| (cid, typ))
-            .collect();
 
         let bstore = BufferedBlockstore::new(blockstore);
 
