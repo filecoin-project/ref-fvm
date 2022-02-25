@@ -3,6 +3,7 @@ use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
 use crate::Kernel;
+
 pub(crate) mod error;
 
 mod actor;
@@ -112,6 +113,11 @@ pub fn bind_syscalls(
         "crypto",
         "verify_aggregate_seals",
         crypto::verify_aggregate_seals,
+    )?;
+    linker.bind(
+        "crypto",
+        "verify_replica_update",
+        crypto::verify_replica_update,
     )?;
     linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
 
