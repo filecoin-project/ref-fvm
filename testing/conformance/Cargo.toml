@@ -3,6 +3,7 @@ name = "conformance_tests"
 version = "0.1.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>"]
 edition = "2018"
+exclude = ["/test-vectors"]
 
 [dependencies]
 anyhow = "1.0.47"
