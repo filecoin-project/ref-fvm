@@ -9,7 +9,6 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
 use num_traits::{Signed, Zero};
-use wasmtime::Module;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
@@ -29,7 +28,7 @@ pub struct DefaultMachine<B, E> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
-    /// The wasmtime engine is created on construction of the DefaultMachine, and
+    /// The WASM engine is created on construction of the DefaultMachine, and
     /// is dropped when the DefaultMachine is dropped.
     engine: Engine,
     /// Boundary A calls are handled through externs. These are calls from the
@@ -111,7 +110,7 @@ where
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
 
-    fn engine(&self) -> &wasmtime::Engine {
+    fn engine(&self) -> &Engine {
         &self.engine
     }
 
@@ -165,54 +164,6 @@ where
             .context("failed to set actor")
             .or_fatal()?;
         Ok(addr_id)
-    }
-
-    #[cfg(feature = "builtin_actors")]
-    fn load_module(&self, code: &Cid) -> Result<Module> {
-        // If we've already loaded the module, return it.
-        if let Some(code) = self.engine.get(code) {
-            return Ok(code);
-        }
-
-        // Otherwise, load it.
-        use anyhow::Context;
-        let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
-            fvm_actor_system::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
-            fvm_actor_init::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::CRON_ACTOR_CODE_ID {
-            fvm_actor_cron::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::ACCOUNT_ACTOR_CODE_ID {
-            fvm_actor_account::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::POWER_ACTOR_CODE_ID {
-            fvm_actor_power::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::MINER_ACTOR_CODE_ID {
-            fvm_actor_miner::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::MARKET_ACTOR_CODE_ID {
-            fvm_actor_market::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::PAYCH_ACTOR_CODE_ID {
-            fvm_actor_paych::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::MULTISIG_ACTOR_CODE_ID {
-            fvm_actor_multisig::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::REWARD_ACTOR_CODE_ID {
-            fvm_actor_reward::wasm::WASM_BINARY_BLOATY
-        } else if code == &*crate::builtin::VERIFREG_ACTOR_CODE_ID {
-            fvm_actor_verifreg::wasm::WASM_BINARY_BLOATY
-        } else {
-            None
-        };
-
-        let binary = binary.context("missing wasm binary").or_fatal()?;
-        // Then compile & cache it.
-        let module = self.engine.load(code, binary).or_fatal()?;
-        Ok(module)
-    }
-
-    #[cfg(not(feature = "builtin_actors"))]
-    fn load_module(&self, _code: &Cid) -> Result<Module> {
-        Err(crate::kernel::ExecutionError::Fatal(anyhow!(
-            "built-in actors not embedded; please run build enabling the builtin_actors feature"
-        )))
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {

@@ -57,6 +57,7 @@ fvm_actor_power = { path = "../actors/power", optional = true }
 fvm_actor_reward = { path = "../actors/reward", optional = true }
 fvm_actor_system = { path = "../actors/system", optional = true }
 fvm_actor_verifreg = { path = "../actors/verifreg", optional = true }
+anymap = "0.12.1"
 
 [dependencies.wasmtime]
 version = "0.33.0"

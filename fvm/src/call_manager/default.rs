@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
@@ -5,7 +6,6 @@ use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
-use wasmtime::{Linker, Store};
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
@@ -14,7 +14,6 @@ use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
 use crate::syscall_error;
 use crate::syscalls::error::Abort;
-use crate::syscalls::{bind_syscalls, InvocationData};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -266,42 +265,41 @@ where
             return Ok(InvocationResult::Return(Default::default()));
         }
 
-        // Finally, handle the code.
-        let module = self.load_module(&state.code)?;
-
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        // Create a new linker.
-        let mut linker = Linker::new(&engine);
-        bind_syscalls(&mut linker).or_fatal()?;
-
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
-            // Make the kernel/store.
-            let kernel = K::new(cm, from, to, method, value.clone());
-            let mut store = Store::new(&engine, InvocationData::new(kernel));
+            // Make the kernel.
+            let mut kernel = K::new(cm, from, to, method, value.clone());
 
             // Store parameters, if any.
             let param_id = if params.len() > 0 {
-                match store.data_mut().kernel.block_create(DAG_CBOR, params) {
+                match kernel.block_create(DAG_CBOR, params) {
                     Ok(id) => id,
                     // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), store.into_data().kernel.take()),
+                    Err(err) => return (Err(err), kernel.take()),
                 }
             } else {
                 super::NO_DATA_BLOCK_ID
             };
 
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            // Instantiate the module.
+            let instance = match engine
+                .get_instance(&mut store, &state.code)
+                .and_then(|i| i.context("actor code not found"))
+                .or_fatal()
+            {
+                Ok(ret) => ret,
+                Err(err) => return (Err(err), store.into_data().kernel.take()),
+            };
+
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
-                // Instantiate the module.
-                let instance = linker
-                    .instantiate(&mut store, &module)
-                    // The module should already have been checked by the system.
-                    .map_err(Abort::Fatal)?;
-
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
