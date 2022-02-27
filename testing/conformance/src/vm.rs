@@ -23,7 +23,6 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
-use wasmtime::Module;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -92,26 +91,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             },
         }
     }
-
-    pub fn load_builtin_actors_modules(&self) -> Result<Vec<Module>> {
-        let actor_codes = vec![
-            &*fvm::builtin::SYSTEM_ACTOR_CODE_ID,
-            &*fvm::builtin::INIT_ACTOR_CODE_ID,
-            &*fvm::builtin::CRON_ACTOR_CODE_ID,
-            &*fvm::builtin::ACCOUNT_ACTOR_CODE_ID,
-            &*fvm::builtin::POWER_ACTOR_CODE_ID,
-            &*fvm::builtin::MINER_ACTOR_CODE_ID,
-            &*fvm::builtin::MARKET_ACTOR_CODE_ID,
-            &*fvm::builtin::PAYCH_ACTOR_CODE_ID,
-            &*fvm::builtin::MULTISIG_ACTOR_CODE_ID,
-            &*fvm::builtin::REWARD_ACTOR_CODE_ID,
-            &*fvm::builtin::VERIFREG_ACTOR_CODE_ID,
-        ];
-        actor_codes
-            .iter()
-            .map(|code| self.load_module(*code))
-            .collect()
-    }
 }
 
 impl<M> Machine for TestMachine<M>
@@ -121,7 +100,7 @@ where
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
 
-    fn engine(&self) -> &wasmtime::Engine {
+    fn engine(&self) -> &Engine {
         self.machine.engine()
     }
 
@@ -151,10 +130,6 @@ where
 
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         self.machine.create_actor(addr, act)
-    }
-
-    fn load_module(&self, code: &Cid) -> Result<wasmtime::Module> {
-        self.machine.load_module(code)
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {

@@ -5,7 +5,6 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
-use wasmtime::Module;
 
 use crate::externs::Externs;
 use crate::gas::PriceList;
@@ -29,9 +28,9 @@ pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
 
-    /// Returns the underlying wasmtime engine. Cloning it will simply create a new handle
-    /// with a static lifetime.
-    fn engine(&self) -> &wasmtime::Engine;
+    /// Returns the underlying WASM engine. Cloning it will simply create a new handle with a
+    /// static lifetime.
+    fn engine(&self) -> &Engine;
 
     /// Returns the FVM's configuration.
     fn config(&self) -> &Config;
@@ -55,9 +54,6 @@ pub trait Machine: 'static {
     /// Creates an uninitialized actor.
     // TODO: Remove
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID>;
-
-    /// Loads a wasm module by CID.
-    fn load_module(&self, code: &Cid) -> Result<Module>;
 
     /// Transfers tokens from one actor to another.
     ///

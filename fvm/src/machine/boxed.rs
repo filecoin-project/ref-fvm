@@ -2,9 +2,8 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
-use wasmtime::{Engine, Module};
 
-use super::{Machine, MachineContext};
+use super::{Engine, Machine, MachineContext};
 use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
@@ -51,11 +50,6 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         (&mut **self).create_actor(addr, act)
-    }
-
-    #[inline(always)]
-    fn load_module(&self, code: &Cid) -> Result<Module> {
-        (&**self).load_module(code)
     }
 
     #[inline(always)]
