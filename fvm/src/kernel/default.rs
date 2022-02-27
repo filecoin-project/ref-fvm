@@ -804,6 +804,17 @@ where
             .get(code_cid)
             .cloned()
     }
+
+    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+        self.call_manager
+            .machine()
+            .builtin_actors()
+            .iter()
+            .find_map(|(cid, t)| if *t == typ { Some(cid) } else { None })
+            .cloned()
+            .ok_or_else(|| anyhow!("tried to resolve CID of unrecognized actor type"))
+            .or_illegal_argument()
+    }
 }
 
 impl<C> DebugOps for DefaultKernel<C>

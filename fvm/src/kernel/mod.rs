@@ -160,6 +160,9 @@ pub trait ActorOps {
 
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.
     fn is_builtin_actor(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
+
+    /// Returns the CodeCID for the supplied built-in actor type.
+    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid>;
 }
 
 /// Operations to send messages to other actors.

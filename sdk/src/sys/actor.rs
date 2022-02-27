@@ -22,6 +22,13 @@ super::fvm_syscalls! {
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
 
     /// Determines whether the specified CodeCID belongs to that of a builtin
-    /// actor and which.
+    /// actor and which. Returns 0 if unrecognized. Can only fail due to
+    /// internal errors.
     pub fn is_builtin_actor(cid_off: *const u8) -> Result<i32>;
+
+     /// Returns the CodeCID for the given built-in actor type. Aborts with exit
+     /// code IllegalArgument if the supplied type is invalid. Returns the
+     /// length of the written CID written to the output buffer. Can only
+     /// return a failure due to internal errors.
+    pub fn get_code_cid_for_type(typ: i32, obuf_off: *mut u8, obuf_len: u32) -> Result<i32>;
 }

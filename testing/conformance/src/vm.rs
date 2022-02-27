@@ -362,6 +362,10 @@ where
     fn is_builtin_actor(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
         self.0.is_builtin_actor(code_cid)
     }
+
+    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+        self.0.get_code_cid_for_type(typ)
+    }
 }
 
 impl<M, C, K> BlockOps for TestKernel<K>
