@@ -7,10 +7,10 @@ use futures::executor::block_on;
 use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{BuiltinActorIndex, DefaultMachine, Engine, Machine, MachineContext};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
-use fvm_shared::actor::builtin::Type;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::blockstore::MemoryBlockstore;
@@ -25,7 +25,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
 use ipld_car::load_car;
 use num_traits::Zero;
 use wasmtime::Module;
@@ -69,7 +69,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let nv_actors = TestMachine::import_actors(&blockstore);
 
         // Get the builtin actors index for the concrete network version.
-        let builtin_actors_idx = nv_actors
+        let builtin_actors = nv_actors
             .get(&network_version)
             .expect("no builtin actors index for nv")
             .clone();
@@ -87,7 +87,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             BigInt::zero(),
             network_version,
             state_root,
-            builtin_actors_idx,
+            builtin_actors,
             blockstore,
             externs,
         )
@@ -121,23 +121,15 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn load_builtin_actors_modules(&self) -> Result<Vec<Module>> {
-        let actor_codes = vec![
-            &*fvm::builtin::SYSTEM_ACTOR_CODE_ID,
-            &*fvm::builtin::INIT_ACTOR_CODE_ID,
-            &*fvm::builtin::CRON_ACTOR_CODE_ID,
-            &*fvm::builtin::ACCOUNT_ACTOR_CODE_ID,
-            &*fvm::builtin::POWER_ACTOR_CODE_ID,
-            &*fvm::builtin::MINER_ACTOR_CODE_ID,
-            &*fvm::builtin::MARKET_ACTOR_CODE_ID,
-            &*fvm::builtin::PAYCH_ACTOR_CODE_ID,
-            &*fvm::builtin::MULTISIG_ACTOR_CODE_ID,
-            &*fvm::builtin::REWARD_ACTOR_CODE_ID,
-            &*fvm::builtin::VERIFREG_ACTOR_CODE_ID,
-        ];
-        actor_codes
-            .iter()
-            .map(|code| self.load_module(*code))
-            .collect()
+        Ok(self
+            .machine
+            .builtin_actors()
+            .keys()
+            .map(|code| {
+                self.load_module(code)
+                    .expect("failed to load code for builtin actor")
+            })
+            .collect())
     }
 }
 
@@ -168,7 +160,7 @@ where
         self.machine.externs()
     }
 
-    fn builtin_actors(&self) -> &BuiltinActorIndex {
+    fn builtin_actors(&self) -> &Manifest {
         self.machine.builtin_actors()
     }
 
@@ -368,7 +360,7 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn is_builtin_actor(&self, code_cid: Cid) -> Result<Option<Type>> {
+    fn is_builtin_actor(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
         self.0.is_builtin_actor(code_cid)
     }
 }

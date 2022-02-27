@@ -1,4 +1,5 @@
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
@@ -6,7 +7,6 @@ use wasmtime::{Engine, Module};
 
 use super::{Machine, MachineContext};
 use crate::kernel::Result;
-use crate::machine::BuiltinActorIndex;
 use crate::state_tree::{ActorState, StateTree};
 use crate::Config;
 
@@ -40,7 +40,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn builtin_actors(&self) -> &BuiltinActorIndex {
+    fn builtin_actors(&self) -> &Manifest {
         (&**self).builtin_actors()
     }
 

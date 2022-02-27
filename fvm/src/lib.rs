@@ -17,7 +17,6 @@ pub mod syscalls;
 
 // TODO Public only for conformance tests.
 //  Consider exporting only behind a feature.
-pub mod builtin;
 pub mod gas;
 pub mod state_tree;
 
@@ -28,6 +27,18 @@ mod init_actor;
 mod market_actor;
 mod power_actor;
 mod reward_actor;
+
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
+use fvm_shared::encoding::{to_vec, DAG_CBOR};
+
+lazy_static::lazy_static! {
+    /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
+    pub static ref EMPTY_ARR_CID: Cid = {
+        let empty = to_vec::<[(); 0]>(&[]).unwrap();
+        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty))
+    };
+}
 
 #[derive(Clone)]
 pub struct Config {
@@ -116,6 +127,7 @@ mod test {
             fvm_shared::version::NetworkVersion::V14,
             root,
             bs,
+            Default::default(),
             DummyExterns,
         )
         .unwrap();

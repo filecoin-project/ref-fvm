@@ -1,12 +1,11 @@
-use std::collections::BTreeMap;
-
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{actor, ActorID};
+use fvm_shared::ActorID;
 use wasmtime::Module;
 
 use crate::externs::Externs;
@@ -26,9 +25,6 @@ mod boxed;
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
 /// Distinguished AccountActor that is the destination of all burnt funds.
 pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
-
-/// Type alias for the builtin actor index.
-pub type BuiltinActorIndex = BTreeMap<Cid, actor::builtin::Type>;
 
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
@@ -52,7 +48,7 @@ pub trait Machine: 'static {
     fn externs(&self) -> &Self::Externs;
 
     /// Returns the builtin actor index.
-    fn builtin_actors(&self) -> &BuiltinActorIndex;
+    fn builtin_actors(&self) -> &Manifest;
 
     /// Returns an immutable reference to the state tree.
     fn state_tree(&self) -> &StateTree<Self::Blockstore>;

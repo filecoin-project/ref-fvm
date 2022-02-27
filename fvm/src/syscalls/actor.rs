@@ -85,6 +85,6 @@ pub fn is_builtin_actor(
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
     let cid = context.memory.read_cid(code_cid_off)?;
-    let result = context.kernel.is_builtin_actor(cid)?;
+    let result = context.kernel.is_builtin_actor(&cid);
     Ok(result.map(|v| v as i32).unwrap_or(0))
 }

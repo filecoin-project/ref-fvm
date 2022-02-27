@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered, CborStore};
 use fvm_shared::clock::ChainEpoch;
@@ -18,7 +19,6 @@ use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::gas::price_list_by_epoch;
 use crate::kernel::{ClassifyResult, Context as _, Result};
-use crate::machine::BuiltinActorIndex;
 use crate::state_tree::{ActorState, StateTree};
 use crate::{syscall_error, Config};
 
@@ -44,7 +44,7 @@ pub struct DefaultMachine<B, E> {
     /// Owned.
     state_tree: StateTree<BufferedBlockstore<B>>,
     /// Mapping of CIDs to builtin actor types.
-    builtin_actors: BTreeMap<Cid, actor::builtin::Type>,
+    builtin_actors: Manifest,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -62,7 +62,7 @@ where
         fil_vested: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        builtin_actors_idx: Cid,
+        builtin_actors: Cid,
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
@@ -97,12 +97,12 @@ where
 
         // Load the built-in actor index.
         let builtin_actors: BTreeMap<Cid, actor::builtin::Type> = blockstore
-            .get_cbor(&builtin_actors_idx)
+            .get_cbor(&builtin_actors)
             .context("failed to load built-in actor index")?
             .ok_or_else(|| {
                 anyhow!(
                     "blockstore doesn't contain builtin actors index with CID {}",
-                    &builtin_actors_idx
+                    &builtin_actors
                 )
             })?;
 
@@ -149,7 +149,7 @@ where
         &self.externs
     }
 
-    fn builtin_actors(&self) -> &BuiltinActorIndex {
+    fn builtin_actors(&self) -> &Manifest {
         &self.builtin_actors
     }
 

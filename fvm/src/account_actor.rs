@@ -13,21 +13,11 @@ use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::Cbor;
-use lazy_static::lazy_static;
 
-use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, EMPTY_ARR_CID};
 use crate::state_tree::ActorState;
+use crate::EMPTY_ARR_CID;
 
 pub const SYSTEM_ACTOR_ID: u64 = 0;
-
-lazy_static! {
-    pub static ref ZERO_STATE: ActorState = ActorState {
-        code: *ACCOUNT_ACTOR_CODE_ID,
-        state: *EMPTY_ARR_CID,
-        sequence: 0,
-        balance: TokenAmount::zero(),
-    };
-}
 
 /// State specifies the key address for the actor.
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -35,9 +25,14 @@ pub struct State {
     pub address: Address,
 }
 
-impl Cbor for State {}
-
-/// Returns true if the code belongs to an account actor.
-pub fn is_account_actor(code: &Cid) -> bool {
-    code == &*ACCOUNT_ACTOR_CODE_ID
+/// Returns an ActorState representing a brand new account with no balance.
+pub fn zero_state(code_cid: Cid) -> ActorState {
+    ActorState {
+        code: code_cid,
+        state: *EMPTY_ARR_CID,
+        sequence: 0,
+        balance: TokenAmount::zero(),
+    }
 }
+
+impl Cbor for State {}
