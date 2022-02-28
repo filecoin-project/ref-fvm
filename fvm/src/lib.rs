@@ -66,8 +66,10 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
-    use fvm_shared::blockstore::MemoryBlockstore;
+    use fvm_shared::actor::builtin::Manifest;
+    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::state::StateTreeVersion;
+    use multihash::Code;
     use num_traits::Zero;
 
     use crate::call_manager::DefaultCallManager;
@@ -118,6 +120,12 @@ mod test {
         let root = st.flush().unwrap();
         bs = st.consume();
 
+        // An empty built-in actors manifest.
+        let manifest_cid = {
+            let manifest = Manifest::new();
+            bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
+        };
+
         let machine = DefaultMachine::new(
             Config::default(),
             Engine::default(),
@@ -126,8 +134,8 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
+            manifest_cid,
             bs,
-            Default::default(),
             DummyExterns,
         )
         .unwrap();

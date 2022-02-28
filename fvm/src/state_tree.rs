@@ -640,12 +640,20 @@ mod tests {
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
+    use fvm_shared::IPLD_RAW;
     use ipld_hamt::Hamt;
+    use lazy_static::lazy_static;
 
-    use crate::builtin::{ACCOUNT_ACTOR_CODE_ID, INIT_ACTOR_CODE_ID};
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ADDR;
     use crate::state_tree::{ActorState, StateTree};
+
+    lazy_static! {
+        pub static ref DUMMY_ACCOUNT_ACTOR_CODE_ID: Cid =
+            Cid::new_v1(IPLD_RAW, Identity.digest(b"fil/test/dummyaccount"));
+        pub static ref DUMMY_INIT_ACTOR_CODE_ID: Cid =
+            Cid::new_v1(IPLD_RAW, Identity.digest(b"fil/test/dummyinit"));
+    }
 
     fn empty_cid() -> Cid {
         Cid::new_v1(DAG_CBOR, Identity.digest(&[]))
@@ -706,7 +714,7 @@ mod tests {
             .map_err(|e| e.to_string())
             .unwrap();
 
-        let act_s = ActorState::new(*INIT_ACTOR_CODE_ID, state_cid, Default::default(), 1);
+        let act_s = ActorState::new(*DUMMY_INIT_ACTOR_CODE_ID, state_cid, Default::default(), 1);
 
         tree.begin_transaction();
         tree.set_actor(&INIT_ACTOR_ADDR, act_s).unwrap();
@@ -721,7 +729,7 @@ mod tests {
         assert_eq!(
             new_init_s,
             Some(ActorState {
-                code: *INIT_ACTOR_CODE_ID,
+                code: *DUMMY_INIT_ACTOR_CODE_ID,
                 state: state_cid,
                 balance: Default::default(),
                 sequence: 2
@@ -750,8 +758,8 @@ mod tests {
         tree.set_actor(
             &addresses[0],
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1,
             ),
@@ -761,8 +769,8 @@ mod tests {
         tree.set_actor(
             &addresses[1],
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1,
             ),
@@ -771,8 +779,8 @@ mod tests {
         tree.set_actor(
             &addresses[2],
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1,
             ),
@@ -784,8 +792,8 @@ mod tests {
         assert_eq!(
             tree.get_actor(&addresses[0]).unwrap().unwrap(),
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1
             )
@@ -793,8 +801,8 @@ mod tests {
         assert_eq!(
             tree.get_actor(&addresses[1]).unwrap().unwrap(),
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1
             )
@@ -803,8 +811,8 @@ mod tests {
         assert_eq!(
             tree.get_actor(&addresses[2]).unwrap().unwrap(),
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1
             )
@@ -823,8 +831,8 @@ mod tests {
         tree.set_actor(
             &addr,
             ActorState::new(
-                *ACCOUNT_ACTOR_CODE_ID,
-                *ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
+                *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 BigInt::from(55),
                 1,
             ),
