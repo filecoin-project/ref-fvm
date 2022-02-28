@@ -21,9 +21,11 @@ use super::{
     BitFieldQueue, ExpirationSet, Partition, PartitionSectorMap, PoStPartition, PowerPair,
     SectorOnChainInfo, Sectors, TerminationResult, WPOST_PERIOD_DEADLINES,
 };
+use crate::SECTORS_AMT_BITWIDTH;
 
 // Bitwidth of AMTs determined empirically from mutation patterns and projections of mainnet data.
-const DEADLINE_PARTITIONS_AMT_BITWIDTH: u32 = 3; // Usually a small array
+const DEADLINE_PARTITIONS_AMT_BITWIDTH: u32 = 3;
+// Usually a small array
 const DEADLINE_EXPIRATIONS_AMT_BITWIDTH: u32 = 5;
 
 // Given that 4 partitions can be proven in one post, this AMT's height will
@@ -145,6 +147,10 @@ pub struct Deadline {
     // verified on-chain do not appear in this AMT
     pub optimistic_post_submissions: Cid,
 
+    // Snapshot of the miner's sectors AMT at the end of the previous challenge
+    // window for this deadline.
+    pub sectors_snapshot: Cid,
+
     // Snapshot of partition state at the end of the previous challenge
     // window for this deadline.
     partitions_snapshot: Cid,
@@ -156,6 +162,7 @@ pub struct Deadline {
     // disputed window PoSts are removed from the snapshot.
     optimistic_post_submissions_snapshot: Cid,
 }
+
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct WindowedPoSt {
     // Partitions proved by this WindowedPoSt.
@@ -192,6 +199,9 @@ impl Deadline {
         )
         .flush()
         .map_err(|e| e.downcast_wrap("Failed to create empty states array"))?;
+        let empty_sectors_array = Array::<(), BS>::new_with_bit_width(store, SECTORS_AMT_BITWIDTH)
+            .flush()
+            .map_err(|e| e.downcast_wrap("Failed to construct empty sectors snapshot array"))?;
         Ok(Self {
             partitions: empty_partitions_array,
             expirations_epochs: empty_deadline_expiration_array,
@@ -202,6 +212,7 @@ impl Deadline {
             partitions_posted: BitField::new(),
             optimistic_post_submissions: empty_post_submissions_array,
             partitions_snapshot: empty_partitions_array,
+            sectors_snapshot: empty_sectors_array,
             optimistic_post_submissions_snapshot: empty_post_submissions_array,
         })
     }
@@ -867,6 +878,7 @@ impl Deadline {
         store: &BS,
         quant: QuantSpec,
         fault_expiration_epoch: ChainEpoch,
+        sectors: Cid,
     ) -> Result<(PowerPair, PowerPair), ActorError> {
         let mut partitions = self.partitions_amt(store).map_err(|e| {
             e.downcast_default(ExitCode::ErrIllegalState, "failed to load partitions")
@@ -961,6 +973,7 @@ impl Deadline {
         // Reset PoSt submissions.
         self.partitions_posted = BitField::new();
         self.partitions_snapshot = self.partitions;
+        self.sectors_snapshot = sectors;
         self.optimistic_post_submissions_snapshot = self.optimistic_post_submissions;
         self.optimistic_post_submissions = Array::<(), BS>::new_with_bit_width(
             store,

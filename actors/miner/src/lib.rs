@@ -1153,7 +1153,7 @@ impl Actor {
                     .map_err(|e|
                         e.downcast_default(
                             ExitCode::ErrIllegalState,
-                            format!("failed to load partitions for deadline {}", dl_idx)
+                            format!("failed to load partitions for deadline {}", dl_idx),
                         )
                     )?;
 
@@ -1187,7 +1187,7 @@ impl Actor {
                         .map_err(|e|
                             e.downcast_default(
                                 ExitCode::ErrIllegalArgument,
-                                format!("failed to verify replica proof for sector {}", with_details.sector_info.sector_number)
+                                format!("failed to verify replica proof for sector {}", with_details.sector_info.sector_number),
                             )
                         )?;
 
@@ -1209,7 +1209,7 @@ impl Actor {
                         info.sector_size,
                         duration,
                         &new_sector_info.deal_weight,
-                        &new_sector_info.verified_deal_weight
+                        &new_sector_info.verified_deal_weight,
                     );
 
                     new_sector_info.replaced_day_reward = with_details.sector_info.expected_day_reward.clone();
@@ -1269,7 +1269,7 @@ impl Actor {
                         .map_err(|e|
                             e.downcast_default(
                                 ExitCode::ErrIllegalState,
-                                format!("failed to load deadline {} partition {}", with_details.update.deadline, with_details.update.partition)
+                                format!("failed to load deadline {} partition {}", with_details.update.deadline, with_details.update.partition),
                             )
                         )?
                         .cloned()
@@ -1280,7 +1280,7 @@ impl Actor {
                                          &[with_details.sector_info.clone()],
                                          &[new_sector_info.clone()],
                                          info.sector_size,
-                                         quant
+                                         quant,
                         )
                         .map_err(|e| {
                             e.downcast_default(
@@ -1450,9 +1450,13 @@ impl Actor {
                 let penalised_power = dispute_info.disputed_power.clone();
 
                 // Load sectors for the dispute.
-                let sectors = Sectors::load(rt.store(), &st.sectors).map_err(|e| {
-                    e.downcast_default(ExitCode::ErrIllegalState, "failed to load sectors array")
-                })?;
+                let sectors =
+                    Sectors::load(rt.store(), &dl_current.sectors_snapshot).map_err(|e| {
+                        e.downcast_default(
+                            ExitCode::ErrIllegalState,
+                            "failed to load sectors array",
+                        )
+                    })?;
                 let sector_infos = sectors
                     .load_for_proof(
                         &dispute_info.all_sector_nos,

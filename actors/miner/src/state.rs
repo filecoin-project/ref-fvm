@@ -36,7 +36,7 @@ use super::{
 };
 
 const PRECOMMIT_EXPIRY_AMT_BITWIDTH: u32 = 6;
-const SECTORS_AMT_BITWIDTH: u32 = 5;
+pub const SECTORS_AMT_BITWIDTH: u32 = 5;
 
 /// Balance of Miner Actor should be greater than or equal to
 /// the sum of PreCommitDeposits and LockedFunds.
@@ -1142,7 +1142,7 @@ impl State {
         let fault_expiration = dl_info.last() + FAULT_MAX_AGE;
 
         let (mut power_delta, detected_faulty_power) =
-            deadline.process_deadline_end(store, quant, fault_expiration)?;
+            deadline.process_deadline_end(store, quant, fault_expiration, self.sectors.clone())?;
 
         // Capture deadline's faulty power after new faults have been detected, but before it is
         // dropped along with faulty sectors expiring this round.
