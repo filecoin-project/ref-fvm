@@ -27,7 +27,6 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
 use ipld_car::load_car;
 use num_traits::Zero;
-use wasmtime::Module;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -118,18 +117,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             })
             .collect()
     }
-
-    pub fn load_builtin_actors_modules(&self) -> Result<Vec<Module>> {
-        Ok(self
-            .machine
-            .builtin_actors()
-            .keys()
-            .map(|code| {
-                self.load_module(code)
-                    .expect("failed to load code for builtin actor")
-            })
-            .collect())
-    }
 }
 
 impl<M> Machine for TestMachine<M>
@@ -139,7 +126,7 @@ where
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
 
-    fn engine(&self) -> &wasmtime::Engine {
+    fn engine(&self) -> &Engine {
         self.machine.engine()
     }
 
@@ -173,10 +160,6 @@ where
 
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         self.machine.create_actor(addr, act)
-    }
-
-    fn load_module(&self, code: &Cid) -> Result<wasmtime::Module> {
-        self.machine.load_module(code)
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {

@@ -16,7 +16,6 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::{sys, ActorID};
-use wasmtime::{Caller, Trap};
 
 use super::Context;
 use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result, SyscallError};

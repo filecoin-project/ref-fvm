@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_shared::actor::builtin::Manifest;
@@ -9,10 +7,9 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{actor, ActorID};
+use fvm_shared::ActorID;
 use log::debug;
 use num_traits::{Signed, Zero};
-use wasmtime::Module;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
@@ -32,7 +29,7 @@ pub struct DefaultMachine<B, E> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
-    /// The wasmtime engine is created on construction of the DefaultMachine, and
+    /// The WASM engine is created on construction of the DefaultMachine, and
     /// is dropped when the DefaultMachine is dropped.
     engine: Engine,
     /// Boundary A calls are handled through externs. These are calls from the
@@ -85,6 +82,7 @@ where
             debug: config.debug,
         };
 
+        // Sanity check that the blockstore contains the supplied state root.
         if !blockstore
             .has(&context.initial_state_root)
             .context("failed to load initial state-root")?
@@ -95,8 +93,8 @@ where
             ));
         }
 
-        // Load the built-in actor index.
-        let builtin_actors: BTreeMap<Cid, actor::builtin::Type> = blockstore
+        // Load the built-in actors manifest.
+        let builtin_actors: Manifest = blockstore
             .get_cbor(&builtin_actors)
             .context("failed to load built-in actor index")?
             .ok_or_else(|| {
@@ -106,9 +104,17 @@ where
                 )
             })?;
 
-        let bstore = BufferedBlockstore::new(blockstore);
+        // Preload any uncached modules.
+        // This interface works for now because we know all actor CIDs
+        // ahead of time, but with user-supplied code, we won't have that
+        // guarantee.
+        engine.preload_uncached(&blockstore, builtin_actors.keys())?;
 
-        let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
+        // Create a new state tree from the supplied root.
+        let state_tree = {
+            let bstore = BufferedBlockstore::new(blockstore);
+            StateTree::new_from_root(bstore, &context.initial_state_root)?
+        };
 
         Ok(DefaultMachine {
             config,
@@ -129,7 +135,7 @@ where
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
 
-    fn engine(&self) -> &wasmtime::Engine {
+    fn engine(&self) -> &Engine {
         &self.engine
     }
 
@@ -187,27 +193,6 @@ where
             .context("failed to set actor")
             .or_fatal()?;
         Ok(addr_id)
-    }
-
-    fn load_module(&self, code: &Cid) -> Result<Module> {
-        // If we've already loaded the module, return it.
-        if let Some(code) = self.engine.get(code) {
-            return Ok(code);
-        }
-
-        // Load the Wasm bytecode for the actor from the blockstore.
-        // Fail if not found.
-        let binary = self
-            .state_tree
-            .store()
-            .get(code)
-            .or_fatal()?
-            .context("missing wasm binary")
-            .or_fatal()?;
-
-        // Then compile & cache it.
-        let module = self.engine.load(code, binary.as_slice()).or_fatal()?;
-        Ok(module)
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {

@@ -1,16 +1,38 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use cid::Cid;
-use derive_more::Deref;
-use wasmtime::Module;
+use fvm_shared::blockstore::Blockstore;
+use wasmtime::{Linker, Module};
+
+use crate::syscalls::{bind_syscalls, InvocationData};
+use crate::Kernel;
 
 /// A caching wasmtime engine.
-#[derive(Deref, Default, Clone)]
-pub struct Engine {
-    #[deref]
+#[derive(Clone)]
+pub struct Engine(Arc<EngineInner>);
+
+impl Default for Engine {
+    fn default() -> Self {
+        Engine::new(&wasmtime::Config::default()).unwrap()
+    }
+}
+
+struct EngineInner {
     engine: wasmtime::Engine,
-    modules: Arc<RwLock<HashMap<Cid, Module>>>,
+    module_cache: Mutex<HashMap<Cid, Module>>,
+    instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
+}
+
+impl Deref for Engine {
+    type Target = wasmtime::Engine;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.engine
+    }
 }
 
 impl Engine {
@@ -22,40 +44,125 @@ impl Engine {
 
 impl From<wasmtime::Engine> for Engine {
     fn from(engine: wasmtime::Engine) -> Self {
-        Engine {
+        let engine = Engine(Arc::new(EngineInner {
             engine,
-            modules: Default::default(),
-        }
+            module_cache: Default::default(),
+            instance_cache: Mutex::new(anymap::Map::new()),
+        }));
+
+        engine
     }
 }
 
+struct Cache<K> {
+    linker: wasmtime::Linker<InvocationData<K>>,
+    instances: HashMap<Cid, wasmtime::InstancePre<InvocationData<K>>>,
+}
+
 impl Engine {
-    /// Lookup a loaded wasmtime module.
-    pub fn get(&self, k: &Cid) -> Option<Module> {
-        self.modules
-            .read()
-            .expect("modules poisoned")
-            .get(k)
-            .cloned()
+    /// Instantiates and caches the Wasm modules for the bytecodes addressed by
+    /// the supplied CIDs. Only uncached entries are actually fetched and
+    /// instantiated. Blockstore failures and entry inexistence shortcircuit
+    /// make this method return an Err immediately.
+    pub fn preload_uncached<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
+    where
+        BS: Blockstore,
+        I: IntoIterator<Item = &'a Cid>,
+    {
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        for cid in cids {
+            if cache.contains_key(cid) {
+                continue;
+            }
+            let wasm = blockstore.get(&cid)?.ok_or_else(|| {
+                anyhow!(
+                    "no wasm bytecode in blockstore for CID {}",
+                    &cid.to_string()
+                )
+            })?;
+            let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+            cache.insert(*cid, module.clone());
+        }
+        Ok(())
     }
 
     /// Load some wasm code into the engine.
-    pub fn load(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::from_binary(&self.engine, wasm)?;
-        self.modules
-            .write()
-            .expect("modules poisoned")
-            .insert(*k, module.clone());
+    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match cache.get(k) {
+            Some(module) => module.clone(),
+            None => {
+                let module = Module::from_binary(&self.0.engine, wasm)?;
+                cache.insert(*k, module.clone());
+                module
+            }
+        };
         Ok(module)
     }
 
     /// Load compiled wasm code into the engine.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::deserialize(&self.engine, compiled)?;
-        self.modules
-            .write()
-            .expect("modules poisoned")
-            .insert(*k, module.clone());
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match cache.get(k) {
+            Some(module) => module.clone(),
+            None => {
+                let module = Module::deserialize(&self.0.engine, compiled)?;
+                cache.insert(*k, module.clone());
+                module
+            }
+        };
         Ok(module)
+    }
+
+    /// Lookup a loaded wasmtime module.
+    pub fn get_module(&self, k: &Cid) -> Option<Module> {
+        self.0
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned")
+            .get(k)
+            .cloned()
+    }
+
+    /// Lookup and instantiate a loaded wasmtime module with the given store. This will cache the
+    /// linker, syscalls, "pre" isntance, etc.
+    pub fn get_instance<K: Kernel>(
+        &self,
+        store: &mut wasmtime::Store<InvocationData<K>>,
+        k: &Cid,
+    ) -> anyhow::Result<Option<wasmtime::Instance>> {
+        let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
+
+        let cache = match instance_cache.entry() {
+            anymap::Entry::Occupied(e) => e.into_mut(),
+            anymap::Entry::Vacant(e) => e.insert({
+                let mut linker = Linker::new(&self.0.engine);
+                bind_syscalls(&mut linker)?;
+                Cache {
+                    linker,
+                    instances: HashMap::new(),
+                }
+            }),
+        };
+        let instance_pre = match cache.instances.entry(*k) {
+            Entry::Occupied(e) => e.into_mut(),
+            Entry::Vacant(e) => {
+                let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+                let module = match module_cache.get(k) {
+                    Some(module) => module,
+                    None => return Ok(None),
+                };
+                // We can cache the "pre instance" because our linker only has host functions.
+                let pre = cache.linker.instantiate_pre(&mut *store, module)?;
+                e.insert(pre)
+            }
+        };
+        let instance = instance_pre.instantiate(&mut *store)?;
+        Ok(Some(instance))
+    }
+
+    /// Construct a new wasmtime "store" from the given kernel.
+    pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
+        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
     }
 }
