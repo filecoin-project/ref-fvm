@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use cid::Cid;
-use filecoin_canonical_actors_bundle as actors_v6;
 use futures::executor::block_on;
 use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
