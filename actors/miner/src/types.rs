@@ -19,6 +19,7 @@ use fvm_shared::sector::{
 use fvm_shared::smooth::FilterEstimate;
 
 pub type CronEvent = i64;
+
 pub const CRON_EVENT_WORKER_KEY_CHANGE: CronEvent = 0;
 pub const CRON_EVENT_PROVING_DEADLINE: CronEvent = 1;
 pub const CRON_EVENT_PROCESS_EARLY_TERMINATIONS: CronEvent = 2;
@@ -303,7 +304,7 @@ pub struct SectorOnChainInfo {
     #[serde(with = "bigint_ser")]
     pub replaced_day_reward: TokenAmount,
     /// The original SealedSectorCID, only gets set on the first ReplicaUpdate
-    pub sector_key_cid: Cid,
+    pub sector_key_cid: Option<Cid>,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize_tuple, Deserialize_tuple)]

@@ -1194,6 +1194,10 @@ impl Actor {
                     let mut new_sector_info = with_details.sector_info.clone();
 
                     new_sector_info.sealed_cid = with_details.update.new_sealed_cid;
+                    new_sector_info.sector_key_cid = match new_sector_info.sector_key_cid {
+                        None => Some(with_details.sector_info.sealed_cid),
+                        Some(x) => Some(x),
+                    };
                     // Skip checking if CID is defined because it cannot be so in Rust
 
                     new_sector_info.deal_ids = with_details.update.deals.clone();
@@ -4766,7 +4770,7 @@ where
                 expected_storage_pledge: storage_pledge,
                 replaced_sector_age,
                 replaced_day_reward,
-                sector_key_cid: Cid::default(),
+                sector_key_cid: None,
             };
 
             new_sector_numbers.push(new_sector_info.sector_number);
