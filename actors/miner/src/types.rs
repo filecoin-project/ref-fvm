@@ -343,6 +343,7 @@ pub struct ReplicaUpdate {
     pub new_sealed_cid: Cid,
     pub deals: Vec<DealID>,
     pub update_proof_type: RegisteredUpdateProof,
+    #[serde(with = "serde_bytes")]
     pub replica_proof: Vec<u8>,
 }
 
