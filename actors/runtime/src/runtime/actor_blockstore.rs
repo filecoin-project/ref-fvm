@@ -9,6 +9,9 @@ use fvm_shared::blockstore::Block;
 use crate::actor_error;
 
 /// A blockstore suitable for use within actors.
+///
+/// Cloning simply clones a reference and does not copy the underlying blocks.
+#[derive(Debug, Clone)]
 pub struct ActorBlockstore;
 
 /// Implements a blockstore delegating to IPLD syscalls.
