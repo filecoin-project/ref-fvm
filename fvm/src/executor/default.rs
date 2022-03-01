@@ -262,7 +262,7 @@ where
         // If sender is not an account actor, the message is invalid.
         let sender_is_account = self
             .builtin_actors()
-            .get(&sender.code)
+            .get_by_left(&sender.code)
             .map(Type::is_account_actor)
             .unwrap_or(false);
 

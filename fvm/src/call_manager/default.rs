@@ -185,16 +185,9 @@ where
 
         // Create the actor in the state tree.
         let id = {
-            let builtins = self.builtin_actors();
-            let code_cid = builtins
-                .iter()
-                .find_map(|(cid, typ)| {
-                    if *typ == Type::Account {
-                        Some(cid)
-                    } else {
-                        None
-                    }
-                })
+            let code_cid = self
+                .builtin_actors()
+                .get_by_right(&Type::Account)
                 .expect("failed to determine account actor CodeCID");
             let state = account_actor::zero_state(code_cid.clone());
             self.create_actor(addr, state)?

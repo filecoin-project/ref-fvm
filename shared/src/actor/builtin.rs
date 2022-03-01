@@ -1,10 +1,7 @@
-use std::collections::BTreeMap;
-
+use bimap::BiBTreeMap;
 use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::version::NetworkVersion;
 
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.
@@ -86,7 +83,4 @@ impl TryFrom<&str> for Type {
 }
 
 /// A mapping of builtin actor CIDs to their respective types.
-pub type Manifest = BTreeMap<Cid, Type>;
-
-/// A mapping of network versions to builtin actor Manifests.
-pub type NetworksManifests = BTreeMap<NetworkVersion, Manifest>;
+pub type Manifest = BiBTreeMap<Cid, Type>;

@@ -26,6 +26,7 @@ cid = { version = "0.8.2", default-features = false, features = ["serde-codec", 
 multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
 unsigned-varint = "0.7.1"
 anyhow = "1.0.51"
+bimap = { version = "0.6.2", features = ["serde"] }
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but

@@ -120,7 +120,7 @@ where
             .call_manager
             .machine()
             .builtin_actors()
-            .get(&act.code)
+            .get_by_left(&act.code)
             .map(Type::is_account_actor)
             .unwrap_or(false);
 
@@ -800,7 +800,7 @@ where
         self.call_manager
             .machine()
             .builtin_actors()
-            .get(code_cid)
+            .get_by_left(code_cid)
             .cloned()
     }
 
@@ -808,8 +808,7 @@ where
         self.call_manager
             .machine()
             .builtin_actors()
-            .iter()
-            .find_map(|(cid, t)| if *t == typ { Some(cid) } else { None })
+            .get_by_right(&typ)
             .cloned()
             .ok_or_else(|| anyhow!("tried to resolve CID of unrecognized actor type"))
             .or_illegal_argument()
