@@ -82,12 +82,12 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id)
 }
 
-pub fn is_builtin_actor(
+pub fn resolve_builtin_actor_type(
     context: Context<'_, impl Kernel>,
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
     let cid = context.memory.read_cid(code_cid_off)?;
-    let result = context.kernel.is_builtin_actor(&cid);
+    let result = context.kernel.resolve_builtin_actor_type(&cid);
     Ok(result.map(|v| v as i32).unwrap_or(0))
 }
 

@@ -7,7 +7,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::version::NetworkVersion;
 
 /// Identifies the builtin actor types for usage with the
-/// actor::is_builtin_actor syscall.
+/// actor::resolve_builtin_actor_type syscall.
 #[derive(
     PartialEq,
     Eq,

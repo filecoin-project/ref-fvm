@@ -71,10 +71,10 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
 
 /// Determines whether the supplied CodeCID belongs to a built-in actor type,
 /// and to which.
-pub fn is_builtin_actor(code_cid: &Cid) -> Option<actor::builtin::Type> {
+pub fn resolve_builtin_actor_type(code_cid: &Cid) -> Option<actor::builtin::Type> {
     let cid = code_cid.to_bytes();
     unsafe {
-        let res = sys::actor::is_builtin_actor(cid.as_ptr())
+        let res = sys::actor::resolve_builtin_actor_type(cid.as_ptr())
             .expect("failed to determine if CID belongs to builtin actor");
         // The zero value represents "unknown" and is not modelled in the enum,
         // so it'll be converted to a None.

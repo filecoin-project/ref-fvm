@@ -772,7 +772,7 @@ where
     // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         let typ = self
-            .is_builtin_actor(&code_id)
+            .resolve_builtin_actor_type(&code_id)
             .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
 
         if is_singleton_actor(typ) {
@@ -797,7 +797,7 @@ where
         )
     }
 
-    fn is_builtin_actor(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
         self.call_manager
             .machine()
             .builtin_actors()

@@ -342,8 +342,8 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn is_builtin_actor(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
-        self.0.is_builtin_actor(code_cid)
+    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+        self.0.resolve_builtin_actor_type(code_cid)
     }
 
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
