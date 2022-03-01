@@ -108,7 +108,7 @@ where
         // This interface works for now because we know all actor CIDs
         // ahead of time, but with user-supplied code, we won't have that
         // guarantee.
-        engine.preload_uncached(&blockstore, builtin_actors.keys())?;
+        engine.preload(&blockstore, builtin_actors.keys())?;
 
         // Create a new state tree from the supplied root.
         let state_tree = {

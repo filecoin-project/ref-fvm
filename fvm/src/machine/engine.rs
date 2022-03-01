@@ -64,7 +64,7 @@ impl Engine {
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
     /// make this method return an Err immediately.
-    pub fn preload_uncached<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
+    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
     where
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
