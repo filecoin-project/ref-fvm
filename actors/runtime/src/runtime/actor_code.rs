@@ -17,6 +17,8 @@ pub trait ActorCode {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: Blockstore,
+        // TODO: remove the clone requirement on the blockstore when we fix "replica update" to not
+        // hold onto state between transactions.
+        BS: Blockstore + Clone,
         RT: Runtime<BS>;
 }

@@ -887,7 +887,8 @@ impl Actor {
         params: ProveReplicaUpdatesParams,
     ) -> Result<BitField, ActorError>
     where
-        BS: Blockstore,
+        // + Clone because we messed up and need to keep a copy around between transactions.
+        BS: Blockstore + Clone,
         RT: Runtime<BS>,
     {
         // Validate inputs
@@ -910,7 +911,8 @@ impl Actor {
                 .chain(&[info.owner, info.worker]),
         )?;
 
-        let sectors = Sectors::load(rt.store(), &state.sectors).map_err(|e| {
+        let sector_store = rt.store().clone();
+        let mut sectors = Sectors::load(&sector_store, &state.sectors).map_err(|e| {
             e.downcast_default(ExitCode::ErrIllegalState, "failed to load sectors array")
         })?;
 
@@ -1131,11 +1133,6 @@ impl Actor {
             let mut bf = BitField::new();
             let mut deadlines = state
                 .load_deadlines(rt.store())?;
-
-            // TODO: is this ok regarding gas usage?
-            let mut sectors = Sectors::load(rt.store(), &state.sectors).map_err(|e| {
-                e.downcast_default(ExitCode::ErrIllegalState, "failed to load sectors array")
-            })?;
 
             let mut new_sectors = vec!(SectorOnChainInfo::default(); validated_updates.len());
             for &dl_idx in deadlines_to_load.iter() {
@@ -4859,7 +4856,7 @@ impl ActorCode for Actor {
         params: &RawBytes,
     ) -> Result<RawBytes, ActorError>
     where
-        BS: Blockstore,
+        BS: Blockstore + Clone,
         RT: Runtime<BS>,
     {
         match FromPrimitive::from_u64(method) {
