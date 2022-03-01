@@ -3,13 +3,14 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::{actor, ActorID};
+use fvm_shared::ActorID;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
@@ -262,8 +263,7 @@ where
         let sender_is_account = self
             .builtin_actors()
             .get(&sender.code)
-            .cloned()
-            .map(actor::builtin::is_account_actor)
+            .map(Type::is_account_actor)
             .unwrap_or(false);
 
         if !sender_is_account {

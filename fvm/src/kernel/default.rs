@@ -8,7 +8,7 @@ use filecoin_proofs_api::seal::{
     compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
 };
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
-use fvm_shared::actor::builtin::is_singleton_actor;
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::blockstore::{Blockstore, CborStore};
@@ -121,8 +121,7 @@ where
             .machine()
             .builtin_actors()
             .get(&act.code)
-            .cloned()
-            .map(actor::builtin::is_account_actor)
+            .map(Type::is_account_actor)
             .unwrap_or(false);
 
         if !is_account {
@@ -775,7 +774,7 @@ where
             .resolve_builtin_actor_type(&code_id)
             .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
 
-        if is_singleton_actor(typ) {
+        if typ.is_singleton_actor() {
             return Err(
                 syscall_error!(IllegalArgument; "can only have one instance of singleton actors")
                     .into(),

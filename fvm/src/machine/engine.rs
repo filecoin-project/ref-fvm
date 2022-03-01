@@ -81,7 +81,7 @@ impl Engine {
                 )
             })?;
             let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
-            cache.insert(*cid, module.clone());
+            cache.insert(*cid, module);
         }
         Ok(())
     }

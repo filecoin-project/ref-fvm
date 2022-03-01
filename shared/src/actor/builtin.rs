@@ -36,6 +36,31 @@ pub enum Type {
     VerifiedRegistry = 11,
 }
 
+impl Type {
+    /// Returns true if the actor kind represents a singleton actor. That is, an actor
+    /// that cannot be constructed by a user.
+    pub fn is_singleton_actor(&self) -> bool {
+        self == &Type::System
+            || self == &Type::Init
+            || self == &Type::Reward
+            || self == &Type::Cron
+            || self == &Type::Power
+            || self == &Type::Market
+            || self == &Type::VerifiedRegistry
+    }
+
+    /// Returns true if the code belongs to an account actor.
+    pub fn is_account_actor(&self) -> bool {
+        self == &Type::Account
+    }
+
+    /// Tests whether an actor type represents an actor that can be an external
+    /// principal: i.e. an account or multisig.
+    pub fn is_principal(&self) -> bool {
+        self == &Type::Account || self == &Type::Multisig
+    }
+}
+
 pub const CALLER_TYPES_SIGNABLE: &[Type] = &[Type::Account, Type::Multisig];
 
 impl TryFrom<&str> for Type {
@@ -58,29 +83,6 @@ impl TryFrom<&str> for Type {
         };
         Ok(ret)
     }
-}
-
-/// Returns true if the actor kind represents a singleton actor. That is, an actor
-/// that cannot be constructed by a user.
-pub fn is_singleton_actor(typ: Type) -> bool {
-    typ == Type::System
-        || typ == Type::Init
-        || typ == Type::Reward
-        || typ == Type::Cron
-        || typ == Type::Power
-        || typ == Type::Market
-        || typ == Type::VerifiedRegistry
-}
-
-/// Returns true if the code belongs to an account actor.
-pub fn is_account_actor(typ: Type) -> bool {
-    typ == Type::Account
-}
-
-/// Tests whether an actor type represents an actor that can be an external
-/// principal: i.e. an account or multisig.
-pub fn is_principal(typ: Type) -> bool {
-    typ == Type::Account || typ == Type::Multisig
 }
 
 /// A mapping of builtin actor CIDs to their respective types.
