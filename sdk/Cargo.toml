@@ -3,7 +3,7 @@ name = "fvm_sdk"
 description = "Filecoin Virtual Machine actor development SDK"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
-authors = ["Filecoin Core Devs"]
+authors = ["Protocol Labs", "Filecoin Core Devs"]
 edition = "2018"
 repository = "https://github.com/filecoin-project/ref-fvm"
 

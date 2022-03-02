@@ -4,7 +4,7 @@ description = "Filecoin Virtual Machine shared types and functions"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-authors = ["Filecoin Core Devs"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]

@@ -2,7 +2,7 @@
 name = "fvm_conformance_tests"
 description = "Filecoin Virtual Machine conformance tests"
 version = "0.1.0"
-authors = ["Filecoin Core Devs"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
 exclude = ["/test-vectors"]
 repository = "https://github.com/filecoin-project/ref-fvm"

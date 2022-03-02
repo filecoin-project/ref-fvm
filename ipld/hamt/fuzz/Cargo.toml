@@ -1,8 +1,7 @@
-
 [package]
 name = "ipld_hamt-fuzz"
 version = "0.0.0"
-authors = ["Filecoin Core Devs"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
 edition = "2018"
 
