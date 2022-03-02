@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ipld_amt::Amt;
+use fvm_ipld_amt::Amt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 const ITEM_COUNT: usize = 60;

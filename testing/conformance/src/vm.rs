@@ -9,6 +9,7 @@ use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
+use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -25,7 +26,6 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
-use ipld_car::load_car;
 use num_traits::Zero;
 
 use crate::externs::TestExterns;

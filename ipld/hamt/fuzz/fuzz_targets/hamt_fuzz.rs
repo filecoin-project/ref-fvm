@@ -3,7 +3,7 @@
 
 #![no_main]
 use arbitrary::Arbitrary;
-use ipld_hamt::Hamt;
+use fvm_ipld_hamt::Hamt;
 use libfuzzer_sys::fuzz_target;
 
 #[derive(Debug, Arbitrary)]

@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ipld_bitfield::BitField;
+use fvm_ipld_bitfield::BitField;
 
 /// An example bit field.
 pub fn example1() -> BitField {

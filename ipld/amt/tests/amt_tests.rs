@@ -3,12 +3,12 @@
 
 use std::fmt::Debug;
 
+use fvm_ipld_amt::{Amt, Error, MAX_INDEX};
 use fvm_shared::blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::encoding::de::DeserializeOwned;
 use fvm_shared::encoding::ser::Serialize;
 use fvm_shared::encoding::BytesDe;
-use ipld_amt::{Amt, Error, MAX_INDEX};
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where
@@ -380,7 +380,7 @@ fn for_each_mutate() {
     assert_eq!(new_amt.count(), indexes.len() as u64);
 
     new_amt
-        .for_each_mut(|i, v: &mut ipld_amt::ValueMut<'_, BytesDe>| {
+        .for_each_mut(|i, v: &mut fvm_ipld_amt::ValueMut<'_, BytesDe>| {
             if let 1 | 74 = i {
                 // Value it's set to doesn't matter, just cloning for expedience
                 **v = v.clone();

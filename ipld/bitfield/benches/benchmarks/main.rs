@@ -5,7 +5,7 @@ mod examples;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use examples::{example1, example2};
-use ipld_bitfield::BitField;
+use fvm_ipld_bitfield::BitField;
 
 fn len(c: &mut Criterion) {
     let bf = example1();
@@ -32,7 +32,7 @@ fn decode_encode(c: &mut Criterion) {
 
 fn from_ranges(c: &mut Criterion) {
     let vec: Vec<_> = example1().ranges().collect();
-    let ranges = || ipld_bitfield::iter::Ranges::new(vec.iter().cloned());
+    let ranges = || fvm_ipld_bitfield::iter::Ranges::new(vec.iter().cloned());
     c.bench_function("from_ranges", |b| {
         b.iter(|| BitField::from_ranges(ranges()))
     });

@@ -4,8 +4,8 @@
 extern crate serde;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fvm_ipld_hamt::Hamt;
 use fvm_shared::encoding::tuple::*;
-use ipld_hamt::Hamt;
 
 const ITEM_COUNT: u8 = 40;
 

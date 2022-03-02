@@ -3,7 +3,7 @@
 
 #![no_main]
 use arbitrary::Arbitrary;
-use ipld_amt::{Amt, MAX_INDEX};
+use fvm_ipld_amt::{Amt, MAX_INDEX};
 use libfuzzer_sys::fuzz_target;
 
 #[derive(Debug, Arbitrary)]

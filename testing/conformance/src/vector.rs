@@ -12,12 +12,12 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use futures::AsyncRead;
+use fvm_ipld_car::load_car;
 use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::receipt::Receipt;
-use ipld_car::load_car;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Deserialize, Clone)]
