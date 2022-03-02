@@ -973,7 +973,6 @@ impl Deadline {
         // Reset PoSt submissions.
         self.partitions_posted = BitField::new();
         self.partitions_snapshot = self.partitions;
-        self.sectors_snapshot = sectors;
         self.optimistic_post_submissions_snapshot = self.optimistic_post_submissions;
         self.optimistic_post_submissions = Array::<(), BS>::new_with_bit_width(
             store,
@@ -986,6 +985,21 @@ impl Deadline {
                 "failed to clear pending proofs array",
             )
         })?;
+
+        // only snapshot sectors if there's a proof that might be disputed (this is equivalent to asking if the OptimisticPoStSubmissionsSnapshot is empty)
+        if self.optimistic_post_submissions != self.optimistic_post_submissions_snapshot {
+            self.sectors_snapshot = sectors;
+        } else {
+            self.sectors_snapshot =
+                Array::<(), BS>::new_with_bit_width(store, SECTORS_AMT_BITWIDTH)
+                    .flush()
+                    .map_err(|e| {
+                        e.downcast_default(
+                            ExitCode::ErrIllegalState,
+                            "failed to clear sectors snapshot array",
+                        )
+                    })?;
+        }
         Ok((power_delta, penalized_power))
     }
     pub fn for_each<BS: Blockstore>(

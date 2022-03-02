@@ -1146,7 +1146,7 @@ impl Actor {
                     )?;
 
                 let mut partitions = deadline
-                    .partitions_snapshot_amt(rt.store())
+                    .partitions_amt(rt.store())
                     .map_err(|e|
                         e.downcast_default(
                             ExitCode::ErrIllegalState,
