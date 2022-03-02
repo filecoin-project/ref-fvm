@@ -19,7 +19,7 @@ use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
 /// # Examples
 ///
 /// ```
-/// use ipld_hamt::Hamt;
+/// use fvm_ipld_hamt::Hamt;
 ///
 /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
 ///
@@ -123,7 +123,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
@@ -153,7 +153,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
@@ -188,7 +188,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
@@ -220,7 +220,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
@@ -252,7 +252,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
@@ -289,7 +289,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
     ///

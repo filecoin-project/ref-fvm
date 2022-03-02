@@ -21,7 +21,7 @@ use crate::{
 ///
 /// Usage:
 /// ```
-/// use ipld_amt::Amt;
+/// use fvm_ipld_amt::Amt;
 ///
 /// let db = fvm_shared::blockstore::MemoryBlockstore::default();
 /// let mut amt = Amt::new(&db);
@@ -271,7 +271,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ipld_amt::Amt;
+    /// use fvm_ipld_amt::Amt;
     ///
     /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
     ///

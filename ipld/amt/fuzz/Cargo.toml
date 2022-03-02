@@ -1,8 +1,7 @@
-
 [package]
 name = "ipld_amt-fuzz"
 version = "0.0.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
 edition = "2018"
 
@@ -14,7 +13,7 @@ libfuzzer-sys = "0.3"
 arbitrary = { version = "0.4", features = ["derive"] }
 ahash = "0.6"
 
-[dependencies.ipld_amt]
+[dependencies.fvm_ipld_amt]
 path = ".."
 
 # Prevent this from interfering with workspaces

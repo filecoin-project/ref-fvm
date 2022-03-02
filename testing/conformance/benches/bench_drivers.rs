@@ -1,11 +1,11 @@
 extern crate criterion;
 
-use conformance_tests::driver::*;
-use conformance_tests::vector::{MessageVector, Variant};
-use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm::machine::Engine;
+use fvm_conformance_tests::driver::*;
+use fvm_conformance_tests::vector::{MessageVector, Variant};
+use fvm_conformance_tests::vm::{TestKernel, TestMachine};
 use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;

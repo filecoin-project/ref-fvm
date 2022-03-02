@@ -1,17 +1,17 @@
 [package]
-name = "ipld_bitfield"
+name = "fvm_ipld_bitfield"
 description = "Bitfield logic for use in Filecoin actors"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2018"
-repository = "https://github.com/ChainSafe/forest"
+repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 unsigned-varint = "0.7.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
-fvm_shared = { path = "../../shared" }
+fvm_shared = { version = "0.1.0", path = "../../shared" }
 
 [dev-dependencies]
 rand_xorshift = "0.2.0"

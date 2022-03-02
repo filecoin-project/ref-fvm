@@ -1,8 +1,7 @@
-
 [package]
 name = "ipld_hamt-fuzz"
 version = "0.0.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
 edition = "2018"
 
@@ -15,7 +14,7 @@ arbitrary = { version = "0.4", features = ["derive"] }
 ahash = "0.6"
 fvm_shared = { path = "../../../shared" }
 
-[dependencies.ipld_hamt]
+[dependencies.fvm_ipld_hamt]
 path = ".."
 
 # Prevent this from interfering with workspaces

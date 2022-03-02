@@ -1,8 +1,11 @@
 [package]
-name = "ipld_car"
+name = "fvm_ipld_car"
+description = "IPLD CAR handling library"
 version = "0.1.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 cid = "0.8.2"
@@ -10,7 +13,7 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 futures = "0.3.5"
 integer-encoding = { version = "3.0", features = ["futures_async"] }
-fvm_shared = { path = "../../shared" }
+fvm_shared = { version = "0.1.0", path = "../../shared" }
 
 [dev-dependencies]
 async-std = { version = "1.9", features = ["attributes"] }

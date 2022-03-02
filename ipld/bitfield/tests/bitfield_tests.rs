@@ -4,8 +4,8 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
+use fvm_ipld_bitfield::{bitfield, BitField};
 use fvm_shared::encoding;
-use ipld_bitfield::{bitfield, BitField};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 

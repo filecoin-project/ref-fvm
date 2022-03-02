@@ -299,7 +299,7 @@ impl BitXorAssign<&BitField> for BitField {
 /// # Examples
 ///
 /// ```
-/// use ipld_bitfield::bitfield;
+/// use fvm_ipld_bitfield::bitfield;
 ///
 /// let mut bf = bitfield![0, 1, 1, 0, 1, 0, 0, 0, 1, 1];
 /// assert!(bf.get(1));

@@ -1,11 +1,19 @@
 [package]
-name = "conformance_tests"
+name = "fvm_conformance_tests"
+description = "Filecoin Virtual Machine conformance tests"
 version = "0.1.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
 exclude = ["/test-vectors"]
+repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
+fvm = { version = "0.1.0", path = "../../fvm", default-features = false }
+fvm_shared = { version = "0.1.0", path = "../../shared" }
+fvm_ipld_hamt = { version = "0.1.0", path = "../../ipld/hamt"}
+fvm_ipld_amt = { version = "0.1.0", path = "../../ipld/amt"}
+fvm_ipld_car = { version = "0.1.0", path = "../../ipld/car" }
+
 anyhow = "1.0.47"
 thiserror = "1.0.30"
 num-traits = "0.2"
@@ -14,10 +22,6 @@ ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.8.2", default-features = false }
 multihash = { version = "0.16.1", default-features = false }
-fvm = { path = "../../fvm", default-features = false}
-fvm_shared = { path = "../../shared" }
-ipld_hamt = { path = "../../ipld/hamt"}
-ipld_amt = { path = "../../ipld/amt"}
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
@@ -28,7 +32,6 @@ replace_with = "0.1.7"
 log = "0.4.14"
 byteorder = "1.4.3"
 futures = "0.3.19"
-ipld_car = { path="../../ipld/car" }
 async-std = { version = "1.9", features = ["attributes"] }
 wasmtime = { version = "0.33.0" }
 base64 = "0.13.0"

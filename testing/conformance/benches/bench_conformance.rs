@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use colored::Colorize;
-use conformance_tests::driver::*;
-use conformance_tests::report;
-use conformance_tests::vector::MessageVector;
 use criterion::*;
 use fvm::machine::Engine;
+use fvm_conformance_tests::driver::*;
+use fvm_conformance_tests::report;
+use fvm_conformance_tests::vector::MessageVector;
 use walkdir::WalkDir;
 
 mod bench_drivers;

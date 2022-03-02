@@ -34,10 +34,10 @@ jobs:
             args: --package fvm --no-default-features
           - name: test
             command: test
-            args: --all --exclude fvm --exclude conformance_tests
+            args: --all --exclude fvm --exclude fvm_conformance_tests
           - name: conformance
             command: test
-            args: --package conformance_tests
+            args: --package fvm_conformance_tests
             submodules: true
           - name: build
             command: build

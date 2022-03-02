@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
+use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::blockstore::{Blockstore, CborStore};
@@ -13,7 +14,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
-use ipld_hamt::Hamt;
 
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
@@ -635,13 +635,13 @@ mod tests {
     use cid::multihash::Code::{Blake2b256, Identity};
     use cid::multihash::MultihashDigest;
     use cid::Cid;
+    use fvm_ipld_hamt::Hamt;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
     use fvm_shared::bigint::BigInt;
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::IPLD_RAW;
-    use ipld_hamt::Hamt;
     use lazy_static::lazy_static;
 
     use crate::init_actor;
