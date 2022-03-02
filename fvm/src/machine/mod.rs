@@ -1,4 +1,5 @@
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::Blockstore;
 use fvm_shared::clock::ChainEpoch;
@@ -44,6 +45,9 @@ pub trait Machine: 'static {
 
     /// Returns a reference to all "node" supplied APIs.
     fn externs(&self) -> &Self::Externs;
+
+    /// Returns the builtin actor index.
+    fn builtin_actors(&self) -> &Manifest;
 
     /// Returns an immutable reference to the state tree.
     fn state_tree(&self) -> &StateTree<Self::Blockstore>;

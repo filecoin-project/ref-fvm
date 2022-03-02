@@ -1,5 +1,6 @@
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{RawBytes, DAG_CBOR};
@@ -12,8 +13,8 @@ use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
-use crate::syscall_error;
 use crate::syscalls::error::Abort;
+use crate::{account_actor, syscall_error};
 
 /// The DefaultCallManager manages a single call stack.
 ///
@@ -183,8 +184,14 @@ where
         }
 
         // Create the actor in the state tree.
-        let act = crate::account_actor::ZERO_STATE.clone();
-        let id = self.create_actor(addr, act)?;
+        let id = {
+            let code_cid = self
+                .builtin_actors()
+                .get_by_right(&Type::Account)
+                .expect("failed to determine account actor CodeCID");
+            let state = account_actor::zero_state(code_cid.clone());
+            self.create_actor(addr, state)?
+        };
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
@@ -193,7 +200,7 @@ where
             .map_err(|e| syscall_error!(Serialization; "failed to serialize params: {}", e))?;
 
         self.send_resolved::<K>(
-            crate::account_actor::SYSTEM_ACTOR_ID,
+            account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             &params,

@@ -3,6 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
@@ -13,7 +14,6 @@ use fvm_shared::ActorID;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
-use crate::account_actor::is_account_actor;
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
@@ -260,7 +260,13 @@ where
         };
 
         // If sender is not an account actor, the message is invalid.
-        if !is_account_actor(&sender.code) {
+        let sender_is_account = self
+            .builtin_actors()
+            .get_by_left(&sender.code)
+            .map(Type::is_account_actor)
+            .unwrap_or(false);
+
+        if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SysErrSenderInvalid,
                 "Send not from account actor",

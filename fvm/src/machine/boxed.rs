@@ -1,4 +1,5 @@
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
@@ -35,6 +36,11 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn externs(&self) -> &Self::Externs {
         (&**self).externs()
+    }
+
+    #[inline(always)]
+    fn builtin_actors(&self) -> &Manifest {
+        (&**self).builtin_actors()
     }
 
     #[inline(always)]

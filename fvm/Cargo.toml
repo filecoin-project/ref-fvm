@@ -30,33 +30,6 @@ rayon = "1"
 num_cpus = "1.13.0"
 log = "0.4.14"
 byteorder = "1.4.3"
-
-## These are the built-in actors that we ship with the FVM in Milestone 0.
-## Starting with Milestone 1, the bytecode will no longer be inlined within the
-## FVM library. Instead, it will be stored in the blockstore managed by the node.
-##
-## How does the WASM bytecode inlining work?
-##
-## Each crate has a build script that uses wasm-builder to produce the WASM
-## bytecode. Cargo runs build scripts _before_ the ordinary build. The ordinary
-## build then embeds the WASM output into a constant in the library. The fvm
-## crate then imports those constants.
-##
-## Why are they optional?
-##
-## In order to speed up development builds, these dependencies are only activated
-## when the `builtin_actors` feature is enabled.
-fvm_actor_account = { path = "../actors/account", optional = true }
-fvm_actor_cron = { path = "../actors/cron", optional = true }
-fvm_actor_init = { path = "../actors/init", optional = true }
-fvm_actor_market = { path = "../actors/market", optional = true }
-fvm_actor_miner = { path = "../actors/miner", optional = true }
-fvm_actor_multisig = { path = "../actors/multisig", optional = true }
-fvm_actor_paych = { path = "../actors/paych", optional = true }
-fvm_actor_power = { path = "../actors/power", optional = true }
-fvm_actor_reward = { path = "../actors/reward", optional = true }
-fvm_actor_system = { path = "../actors/system", optional = true }
-fvm_actor_verifreg = { path = "../actors/verifreg", optional = true }
 anymap = "0.12.1"
 
 [dependencies.wasmtime]
@@ -68,16 +41,3 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
-builtin_actors = [
-    "fvm_actor_account",
-    "fvm_actor_cron",
-    "fvm_actor_init",
-    "fvm_actor_market",
-    "fvm_actor_miner",
-    "fvm_actor_multisig",
-    "fvm_actor_paych",
-    "fvm_actor_power",
-    "fvm_actor_reward",
-    "fvm_actor_system",
-    "fvm_actor_verifreg"
-]

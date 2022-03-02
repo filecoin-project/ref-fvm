@@ -2,7 +2,7 @@
 name = "conformance_tests"
 version = "0.1.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>"]
-edition = "2018"
+edition = "2021"
 exclude = ["/test-vectors"]
 
 [dependencies]
@@ -14,7 +14,7 @@ ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.8.2", default-features = false }
 multihash = { version = "0.16.1", default-features = false }
-fvm = { path = "../../fvm", features = ["builtin_actors"], default-features = false}
+fvm = { path = "../../fvm", default-features = false}
 fvm_shared = { path = "../../shared" }
 ipld_hamt = { path = "../../ipld/hamt"}
 ipld_amt = { path = "../../ipld/amt"}
@@ -42,6 +42,7 @@ serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.1.6", optional = true }
+actors-v6 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors" }
 
 [features]
 vtune = ["wasmtime/vtune", "ittapi-rs"]

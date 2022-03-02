@@ -1,4 +1,6 @@
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::sys;
+use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
@@ -78,4 +80,39 @@ pub fn create_actor(
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.create_actor(typ, actor_id)
+}
+
+pub fn resolve_builtin_actor_type(
+    context: Context<'_, impl Kernel>,
+    code_cid_off: u32, // Cid
+) -> Result<i32> {
+    let cid = context.memory.read_cid(code_cid_off)?;
+    let result = context.kernel.resolve_builtin_actor_type(&cid);
+    Ok(result.map(|v| v as i32).unwrap_or(0))
+}
+
+pub fn get_code_cid_for_type(
+    context: Context<'_, impl Kernel>,
+    typ: i32,
+    obuf_off: u32, // Cid
+    obuf_len: u32,
+) -> Result<i32> {
+    let typ: Type = FromPrimitive::from_i32(typ)
+        .ok_or_else(|| syscall_error!(IllegalArgument; "invalid actor type"))?;
+    let cid = context
+        .kernel
+        .get_code_cid_for_type(typ)
+        .or_illegal_argument()?;
+    let len = {
+        let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
+        let bytes = cid.to_bytes();
+        let len = bytes.len();
+        if len > obuf_len as usize {
+            return Err(syscall_error!(IllegalArgument; "insufficient output buffer capacity; {} > {}", len, obuf_len)
+                .into());
+        }
+        obuf[..len].copy_from_slice(bytes.as_slice());
+        len
+    };
+    Ok(len as i32)
 }

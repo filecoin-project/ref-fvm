@@ -41,7 +41,6 @@ jobs:
             submodules: true
           - name: build
             command: build
-            args: --features builtin_actors
             push: true
     env:
       SCCACHE_CACHE_SIZE: 2G

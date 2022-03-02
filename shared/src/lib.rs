@@ -8,6 +8,7 @@ use address::Address;
 use clock::ChainEpoch;
 use num_bigint::BigInt;
 
+pub mod actor;
 pub mod address;
 pub mod bigint;
 pub mod blockstore;
@@ -42,6 +43,9 @@ lazy_static! {
     /// signature verification.
     pub static ref ZERO_ADDRESS: Address = "f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a".parse().unwrap();
 }
+
+/// Codec for raw data.
+pub const IPLD_RAW: u64 = 0x55;
 
 /// Identifier for Actors, includes builtin and initialized actors
 pub type ActorID = u64;

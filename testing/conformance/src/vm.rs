@@ -1,12 +1,15 @@
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use cid::Cid;
+use futures::executor::block_on;
 use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::blockstore::MemoryBlockstore;
@@ -21,7 +24,8 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
+use ipld_car::load_car;
 use num_traits::Zero;
 
 use crate::externs::TestExterns;
@@ -59,6 +63,15 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
+        // Load the builtin actors bundles into the blockstore.
+        let nv_actors = TestMachine::import_actors(&blockstore);
+
+        // Get the builtin actors index for the concrete network version.
+        let builtin_actors = nv_actors
+            .get(&network_version)
+            .expect("no builtin actors index for nv")
+            .clone();
+
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
@@ -72,6 +85,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             BigInt::zero(),
             network_version,
             state_root,
+            builtin_actors,
             blockstore,
             externs,
         )
@@ -90,6 +104,18 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 price_list,
             },
         }
+    }
+
+    pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
+        let bundles = [(NetworkVersion::V14, actors_v6::BUNDLE_CAR)];
+        bundles
+            .into_iter()
+            .map(|(nv, car)| {
+                let roots = block_on(async { load_car(blockstore, car).await.unwrap() });
+                assert_eq!(roots.len(), 1);
+                (nv, roots[0])
+            })
+            .collect()
     }
 }
 
@@ -118,6 +144,10 @@ where
 
     fn externs(&self) -> &Self::Externs {
         self.machine.externs()
+    }
+
+    fn builtin_actors(&self) -> &Manifest {
+        self.machine.builtin_actors()
     }
 
     fn state_tree(&self) -> &StateTree<Self::Blockstore> {
@@ -310,6 +340,14 @@ where
 
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         self.0.create_actor(code_id, actor_id)
+    }
+
+    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+        self.0.resolve_builtin_actor_type(code_cid)
+    }
+
+    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+        self.0.get_code_cid_for_type(typ)
     }
 }
 

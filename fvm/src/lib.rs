@@ -17,7 +17,6 @@ pub mod syscalls;
 
 // TODO Public only for conformance tests.
 //  Consider exporting only behind a feature.
-pub mod builtin;
 pub mod gas;
 pub mod state_tree;
 
@@ -28,6 +27,18 @@ mod init_actor;
 mod market_actor;
 mod power_actor;
 mod reward_actor;
+
+use cid::multihash::{Code, MultihashDigest};
+use cid::Cid;
+use fvm_shared::encoding::{to_vec, DAG_CBOR};
+
+lazy_static::lazy_static! {
+    /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
+    pub static ref EMPTY_ARR_CID: Cid = {
+        let empty = to_vec::<[(); 0]>(&[]).unwrap();
+        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty))
+    };
+}
 
 #[derive(Clone)]
 pub struct Config {
@@ -55,8 +66,10 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
-    use fvm_shared::blockstore::MemoryBlockstore;
+    use fvm_shared::actor::builtin::Manifest;
+    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::state::StateTreeVersion;
+    use multihash::Code;
     use num_traits::Zero;
 
     use crate::call_manager::DefaultCallManager;
@@ -107,6 +120,12 @@ mod test {
         let root = st.flush().unwrap();
         bs = st.consume();
 
+        // An empty built-in actors manifest.
+        let manifest_cid = {
+            let manifest = Manifest::new();
+            bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
+        };
+
         let machine = DefaultMachine::new(
             Config::default(),
             Engine::default(),
@@ -115,6 +134,7 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
+            manifest_cid,
             bs,
             DummyExterns,
         )

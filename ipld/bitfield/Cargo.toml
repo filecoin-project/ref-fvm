@@ -1,5 +1,5 @@
 [package]
-name = "forest_bitfield"
+name = "ipld_bitfield"
 description = "Bitfield logic for use in Filecoin actors"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"

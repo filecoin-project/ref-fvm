@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
+use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, Buffered};
+use fvm_shared::blockstore::{Blockstore, Buffered, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -39,6 +40,8 @@ pub struct DefaultMachine<B, E> {
     ///
     /// Owned.
     state_tree: StateTree<BufferedBlockstore<B>>,
+    /// Mapping of CIDs to builtin actor types.
+    builtin_actors: Manifest,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -56,6 +59,7 @@ where
         fil_vested: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
+        builtin_actors: Cid,
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
@@ -78,6 +82,7 @@ where
             debug: config.debug,
         };
 
+        // Sanity check that the blockstore contains the supplied state root.
         if !blockstore
             .has(&context.initial_state_root)
             .context("failed to load initial state-root")?
@@ -88,9 +93,28 @@ where
             ));
         }
 
-        let bstore = BufferedBlockstore::new(blockstore);
+        // Load the built-in actors manifest.
+        let builtin_actors: Manifest = blockstore
+            .get_cbor(&builtin_actors)
+            .context("failed to load built-in actor index")?
+            .ok_or_else(|| {
+                anyhow!(
+                    "blockstore doesn't contain builtin actors index with CID {}",
+                    &builtin_actors
+                )
+            })?;
 
-        let state_tree = StateTree::new_from_root(bstore, &context.initial_state_root)?;
+        // Preload any uncached modules.
+        // This interface works for now because we know all actor CIDs
+        // ahead of time, but with user-supplied code, we won't have that
+        // guarantee.
+        engine.preload(&blockstore, builtin_actors.left_values())?;
+
+        // Create a new state tree from the supplied root.
+        let state_tree = {
+            let bstore = BufferedBlockstore::new(blockstore);
+            StateTree::new_from_root(bstore, &context.initial_state_root)?
+        };
 
         Ok(DefaultMachine {
             config,
@@ -98,6 +122,7 @@ where
             engine,
             externs,
             state_tree,
+            builtin_actors,
         })
     }
 }
@@ -128,6 +153,10 @@ where
 
     fn externs(&self) -> &Self::Externs {
         &self.externs
+    }
+
+    fn builtin_actors(&self) -> &Manifest {
+        &self.builtin_actors
     }
 
     fn state_tree(&self) -> &StateTree<Self::Blockstore> {

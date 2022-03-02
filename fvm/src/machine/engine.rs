@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use cid::Cid;
+use fvm_shared::blockstore::Blockstore;
 use wasmtime::{Linker, Module};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
@@ -48,9 +50,6 @@ impl From<wasmtime::Engine> for Engine {
             instance_cache: Mutex::new(anymap::Map::new()),
         }));
 
-        #[cfg(feature = "builtin_actors")]
-        engine.preload();
-
         engine
     }
 }
@@ -61,80 +60,57 @@ struct Cache<K> {
 }
 
 impl Engine {
-    #[cfg(feature = "builtin_actors")]
-    fn preload(&self) {
-        let actors = [
-            (
-                &*crate::builtin::SYSTEM_ACTOR_CODE_ID,
-                fvm_actor_system::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::INIT_ACTOR_CODE_ID,
-                fvm_actor_init::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::CRON_ACTOR_CODE_ID,
-                fvm_actor_cron::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::ACCOUNT_ACTOR_CODE_ID,
-                fvm_actor_account::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::POWER_ACTOR_CODE_ID,
-                fvm_actor_power::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::MINER_ACTOR_CODE_ID,
-                fvm_actor_miner::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::MARKET_ACTOR_CODE_ID,
-                fvm_actor_market::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::PAYCH_ACTOR_CODE_ID,
-                fvm_actor_paych::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::MULTISIG_ACTOR_CODE_ID,
-                fvm_actor_multisig::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::REWARD_ACTOR_CODE_ID,
-                fvm_actor_reward::wasm::WASM_BINARY_BLOATY,
-            ),
-            (
-                &*crate::builtin::VERIFREG_ACTOR_CODE_ID,
-                fvm_actor_verifreg::wasm::WASM_BINARY_BLOATY,
-            ),
-        ];
-
-        for (k, bytecode) in actors {
-            self.load_bytecode(k, bytecode.expect("precompiled actor not found"))
-                .expect("failed to compile built-in actor");
+    /// Instantiates and caches the Wasm modules for the bytecodes addressed by
+    /// the supplied CIDs. Only uncached entries are actually fetched and
+    /// instantiated. Blockstore failures and entry inexistence shortcircuit
+    /// make this method return an Err immediately.
+    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
+    where
+        BS: Blockstore,
+        I: IntoIterator<Item = &'a Cid>,
+    {
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        for cid in cids {
+            if cache.contains_key(cid) {
+                continue;
+            }
+            let wasm = blockstore.get(&cid)?.ok_or_else(|| {
+                anyhow!(
+                    "no wasm bytecode in blockstore for CID {}",
+                    &cid.to_string()
+                )
+            })?;
+            let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+            cache.insert(*cid, module);
         }
+        Ok(())
     }
 
     /// Load some wasm code into the engine.
     pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::from_binary(&self.0.engine, wasm)?;
-        self.0
-            .module_cache
-            .lock()
-            .expect("module_cache poisoned")
-            .insert(*k, module.clone());
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match cache.get(k) {
+            Some(module) => module.clone(),
+            None => {
+                let module = Module::from_binary(&self.0.engine, wasm)?;
+                cache.insert(*k, module.clone());
+                module
+            }
+        };
         Ok(module)
     }
 
     /// Load compiled wasm code into the engine.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::deserialize(&self.0.engine, compiled)?;
-        self.0
-            .module_cache
-            .lock()
-            .expect("module_cache poisoned")
-            .insert(*k, module.clone());
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match cache.get(k) {
+            Some(module) => module.clone(),
+            None => {
+                let module = Module::deserialize(&self.0.engine, compiled)?;
+                cache.insert(*k, module.clone());
+                module
+            }
+        };
         Ok(module)
     }
 

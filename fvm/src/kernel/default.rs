@@ -8,6 +8,7 @@ use filecoin_proofs_api::seal::{
     compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
 };
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
+use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::blockstore::{Blockstore, CborStore};
@@ -27,8 +28,6 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
-use crate::account_actor::is_account_actor;
-use crate::builtin::{is_builtin_actor, is_singleton_actor, EMPTY_ARR_CID};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
@@ -36,7 +35,7 @@ use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
 use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
-use crate::syscall_error;
+use crate::{syscall_error, EMPTY_ARR_CID};
 
 pub const BURN_ACTOR_ID: ActorID = 99;
 pub const RESERVE_ACTOR_ID: ActorID = 90;
@@ -111,12 +110,21 @@ where
 
         let act = self
             .call_manager
+            .machine()
             .state_tree()
             .get_actor(addr)?
             .ok_or(anyhow!("state tree doesn't contain actor"))
             .or_illegal_argument()?;
 
-        if !is_account_actor(&act.code) {
+        let is_account = self
+            .call_manager
+            .machine()
+            .builtin_actors()
+            .get_by_left(&act.code)
+            .map(Type::is_account_actor)
+            .unwrap_or(false);
+
+        if !is_account {
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
@@ -762,15 +770,16 @@ where
 
     // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
-        if !is_builtin_actor(&code_id) {
-            return Err(syscall_error!(IllegalArgument; "Can only create built-in actors").into());
-        }
-        if is_singleton_actor(&code_id) {
+        let typ = self
+            .resolve_builtin_actor_type(&code_id)
+            .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
+
+        if typ.is_singleton_actor() {
             return Err(
                 syscall_error!(IllegalArgument; "can only have one instance of singleton actors")
                     .into(),
             );
-        }
+        };
 
         let state_tree = self.call_manager.state_tree();
         if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
@@ -785,6 +794,24 @@ where
             actor_id,
             ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
         )
+    }
+
+    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+        self.call_manager
+            .machine()
+            .builtin_actors()
+            .get_by_left(code_cid)
+            .cloned()
+    }
+
+    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+        self.call_manager
+            .machine()
+            .builtin_actors()
+            .get_by_right(&typ)
+            .cloned()
+            .ok_or_else(|| anyhow!("tried to resolve CID of unrecognized actor type"))
+            .or_illegal_argument()
     }
 }
 
