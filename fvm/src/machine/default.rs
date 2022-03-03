@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_shared::actor::builtin::Manifest;
@@ -63,12 +65,15 @@ where
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
+        const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
+            NetworkVersion::V14..=NetworkVersion::V15;
+
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
             epoch, &base_fee, network_version, state_root
         );
 
-        if network_version != NetworkVersion::V14 {
+        if !SUPPORTED_VERSIONS.contains(&network_version) {
             return Err(anyhow!("unsupported network version: {}", network_version));
         }
 
@@ -94,6 +99,7 @@ where
         }
 
         // Load the built-in actors manifest.
+        // TODO: Check that the actor bundle is sane for the network version.
         let builtin_actors: Manifest = blockstore
             .get_cbor(&builtin_actors)
             .context("failed to load built-in actor index")?
