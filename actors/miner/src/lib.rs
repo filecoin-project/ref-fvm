@@ -1691,26 +1691,13 @@ impl Actor {
                 precommit.seal_proof,
             )?;
 
-            if precommit.replace_capacity && precommit.deal_ids.is_empty() {
+            if precommit.replace_capacity {
                 return Err(actor_error!(
-                    ErrIllegalArgument,
-                    "cannot replace sector without committing deals"
+                    SysErrForbidden,
+                    "cc upgrade through precommit discontinued, use ProveReplicaUpdate"
                 ));
             }
-            if precommit.replace_sector_deadline as u64 >= WPOST_PERIOD_DEADLINES {
-                return Err(actor_error!(
-                    ErrIllegalArgument,
-                    "invalid deadline {}",
-                    precommit.replace_sector_deadline
-                ));
-            }
-            if precommit.replace_sector_number > MAX_SECTOR_NUMBER {
-                return Err(actor_error!(
-                    ErrIllegalArgument,
-                    "invalid sector number {}",
-                    precommit.replace_sector_number
-                ));
-            }
+
             sectors_deals.push(ext::market::SectorDeals {
                 sector_expiry: precommit.expiration,
                 deal_ids: precommit.deal_ids.clone(),
@@ -4512,37 +4499,6 @@ where
     Ok(res)
 }
 
-fn replaced_sector_parameters(
-    curr_epoch: ChainEpoch,
-    precommit: &SectorPreCommitOnChainInfo,
-    replaced_by_num: &BTreeMap<SectorNumber, SectorOnChainInfo>,
-) -> Result<(TokenAmount, ChainEpoch, TokenAmount), ActorError> {
-    if !precommit.info.replace_capacity {
-        return Ok(Default::default());
-    }
-
-    let replaced = replaced_by_num
-        .get(&precommit.info.replace_sector_number)
-        .ok_or_else(|| {
-            actor_error!(
-                ErrNotFound,
-                "no such sector {} to replace",
-                precommit.info.replace_sector_number
-            )
-        })?;
-
-    let age = std::cmp::max(0, curr_epoch - replaced.activation);
-
-    // The sector will actually be active for the period between activation and its next
-    // proving deadline, but this covers the period for which we will be looking to the old sector
-    // for termination fees.
-    Ok((
-        replaced.initial_pledge.clone(),
-        age,
-        replaced.expected_day_reward.clone(),
-    ))
-}
-
 fn check_control_addresses(control_addrs: &[Address]) -> Result<(), ActorError> {
     if control_addrs.len() > MAX_CONTROL_ADDRESSES {
         return Err(actor_error!(
@@ -4614,8 +4570,6 @@ where
 
     // Ideally, we'd combine some of these operations, but at least we have
     // a constant number of them.
-    // Committed-capacity sectors licensed for early removal by new sectors being proven.
-    let mut replace_sectors = DeadlineSectorMap::new();
     let activation = rt.curr_epoch();
     // Pre-commits for new sectors.
     let mut valid_pre_commits = Vec::<SectorPreCommitOnChainInfo>::new();
@@ -4642,21 +4596,7 @@ where
                 continue;
             }
         }
-        if pre_commit.info.replace_capacity {
-            replace_sectors
-                .add_values(
-                    pre_commit.info.replace_sector_deadline,
-                    pre_commit.info.replace_sector_partition,
-                    &[pre_commit.info.replace_sector_number],
-                )
-                .map_err(|e| {
-                    actor_error!(
-                        ErrIllegalArgument,
-                        "failed to record sectors for replacement: {}",
-                        e
-                    )
-                })?;
-        }
+
         valid_pre_commits.push(pre_commit);
     }
 
@@ -4671,24 +4611,6 @@ where
     let (total_pledge, newly_vested) = rt.transaction(|state: &mut State, rt| {
         let store = rt.store();
         let info = get_miner_info(store, state)?;
-        // Schedule expiration for replaced sectors to the end of their next deadline window.
-        // They can't be removed right now because we want to challenge them immediately before termination.
-        let replaced = state
-            .reschedule_sector_expirations(
-                store,
-                rt.curr_epoch(),
-                info.sector_size,
-                replace_sectors,
-            )
-            .map_err(|e| {
-                e.downcast_default(
-                    ExitCode::ErrIllegalState,
-                    "failed to replace sector expirations",
-                )
-            })?;
-
-        let replaced_by_sector_number: BTreeMap<u64, SectorOnChainInfo> =
-            replaced.into_iter().map(|s| (s.sector_number, s)).collect();
 
         let mut new_sector_numbers = Vec::<SectorNumber>::with_capacity(valid_pre_commits.len());
         let mut deposit_to_unlock = TokenAmount::zero();
@@ -4732,23 +4654,13 @@ where
                 INITIAL_PLEDGE_PROJECTION_PERIOD,
             );
 
-            let mut initial_pledge = initial_pledge_for_power(
+            let initial_pledge = initial_pledge_for_power(
                 &power,
                 this_epoch_baseline_power,
                 this_epoch_reward_smoothed,
                 quality_adj_power_smoothed,
                 &circulating_supply,
             );
-
-            // Lower-bound the pledge by that of the sector being replaced.
-            // Record the replaced age and reward rate for termination fee calculations.
-            let (replaced_pledge, replaced_sector_age, replaced_day_reward) =
-                replaced_sector_parameters(
-                    rt.curr_epoch(),
-                    &pre_commit,
-                    &replaced_by_sector_number,
-                )?;
-            initial_pledge = std::cmp::max(initial_pledge, replaced_pledge);
 
             deposit_to_unlock += &pre_commit.pre_commit_deposit;
             total_pledge += &initial_pledge;
@@ -4765,8 +4677,8 @@ where
                 initial_pledge,
                 expected_day_reward: day_reward,
                 expected_storage_pledge: storage_pledge,
-                replaced_sector_age,
-                replaced_day_reward,
+                replaced_sector_age: ChainEpoch::zero(),
+                replaced_day_reward: TokenAmount::zero(),
                 sector_key_cid: None,
             };
 
