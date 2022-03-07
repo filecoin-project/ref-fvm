@@ -196,10 +196,6 @@ where
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        if from == to || value.is_zero() {
-            return Ok(());
-        }
-
         if value.is_negative() {
             return Err(syscall_error!(IllegalArgument;
                 "attempted to transfer negative transfer value {}", value)
@@ -213,6 +209,15 @@ where
             .get_actor_id(from)?
             .context("cannot transfer from non-existent sender")
             .or_error(ErrorNumber::InsufficientFunds)?;
+
+        if from_actor.balance.lt(value) {
+            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
+        }
+
+        if from == to {
+            debug!("attempting to self-transfer: noop (from/to: {})", from);
+            return Ok(());
+        }
 
         let mut to_actor = self
             .state_tree
@@ -230,7 +235,7 @@ where
         self.state_tree.set_actor_id(from, from_actor)?;
         self.state_tree.set_actor_id(to, to_actor)?;
 
-        log::trace!("transfered {} from {} to {}", value, from, to);
+        log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
     }
