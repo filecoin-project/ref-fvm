@@ -6,7 +6,7 @@ This repository contains the reference implementation of the Filecoin VM ([specs
 
 ## Build requirements
 
-* The current MSRV (Minimum Supported Rust Version) is 1.59 (nightly). A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
+* The current MSRV (Minimum Supported Rust Version) is 1.58.1 (stable). A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
 * Install [rustup](https://rustup.rs/).
 
 ## Build instructions
