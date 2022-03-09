@@ -22,6 +22,7 @@ use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
+use fvm_shared::version::NetworkVersion::V14;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -400,13 +401,17 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        Ok((&self.call_manager.context().circ_supply
-            + &self.get_fil_mined()?
-            + &self.get_reserve_disbursed()?
-            - &self.get_burnt_funds()?
-            - &self.power_locked()?
-            - &self.market_locked()?)
-            .max(Zero::zero()))
+        if self.network_version() <= V14 {
+            return Ok((&self.call_manager.context().circ_supply
+                + &self.get_fil_mined()?
+                + &self.get_reserve_disbursed()?
+                - &self.get_burnt_funds()?
+                - &self.power_locked()?
+                - &self.market_locked()?)
+                .max(Zero::zero()));
+        }
+
+        Ok(self.call_manager.context().circ_supply.clone())
     }
 }
 
