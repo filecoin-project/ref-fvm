@@ -400,7 +400,7 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        Ok((&self.call_manager.context().fil_vested
+        Ok((&self.call_manager.context().circ_supply
             + &self.get_fil_mined()?
             + &self.get_reserve_disbursed()?
             - &self.get_burnt_funds()?
