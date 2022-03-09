@@ -133,6 +133,7 @@ pub(crate) struct ScalingCost {
 
 #[derive(Clone, Debug)]
 pub(crate) struct StepCost(Vec<Step>);
+
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct Step {
     start: i64,
@@ -386,8 +387,8 @@ impl PriceList {
     }
     /// Returns gas required for replica verification.
     #[inline]
-    pub fn on_verify_replica_info(&self, _replica: &ReplicaUpdateInfo) -> GasCharge<'static> {
-        GasCharge::new("OnVerifyReplicaInfo", self.verify_replica_update, 0)
+    pub fn on_verify_replica_update(&self, _replica: &ReplicaUpdateInfo) -> GasCharge<'static> {
+        GasCharge::new("OnVerifyReplicaUpdate", self.verify_replica_update, 0)
     }
     /// Returns gas required for PoSt verification.
     #[inline]
