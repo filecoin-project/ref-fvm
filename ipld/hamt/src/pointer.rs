@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp::Ordering;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
+use libipld_core::ipld::Ipld;
 use once_cell::unsync::OnceCell;
-use serde::de::DeserializeOwned;
+use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
@@ -34,25 +35,7 @@ impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
     }
 }
 
-#[derive(Serialize)]
-#[serde(untagged)]
-enum PointerSer<'a, K, V> {
-    Vals(&'a [KeyValuePair<K, V>]),
-    Link(&'a Cid),
-}
-
-impl<'a, K, V, H> TryFrom<&'a Pointer<K, V, H>> for PointerSer<'a, K, V> {
-    type Error = &'static str;
-
-    fn try_from(pointer: &'a Pointer<K, V, H>) -> Result<Self, Self::Error> {
-        match pointer {
-            Pointer::Values(vals) => Ok(PointerSer::Vals(vals.as_ref())),
-            Pointer::Link { cid, .. } => Ok(PointerSer::Link(cid)),
-            Pointer::Dirty(_) => Err("Cannot serialize cached values"),
-        }
-    }
-}
-
+/// Serialize the Pointer like an untagged enum.
 impl<K, V, H> Serialize for Pointer<K, V, H>
 where
     K: Serialize,
@@ -62,31 +45,41 @@ where
     where
         S: Serializer,
     {
-        PointerSer::try_from(self)
-            .map_err(ser::Error::custom)?
-            .serialize(serializer)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(untagged)]
-enum PointerDe<K, V> {
-    Vals(Vec<KeyValuePair<K, V>>),
-    Link(Cid),
-}
-
-impl<K, V, H> From<PointerDe<K, V>> for Pointer<K, V, H> {
-    fn from(pointer: PointerDe<K, V>) -> Self {
-        match pointer {
-            PointerDe::Link(cid) => Pointer::Link {
-                cid,
-                cache: Default::default(),
-            },
-            PointerDe::Vals(vals) => Pointer::Values(vals),
+        match self {
+            Pointer::Values(vals) => vals.serialize(serializer),
+            Pointer::Link { cid, .. } => cid.serialize(serializer),
+            Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
         }
     }
 }
 
+impl<K, V, H> TryFrom<Ipld> for Pointer<K, V, H>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+{
+    type Error = String;
+
+    fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
+        match ipld {
+            ipld_list @ Ipld::List(_) => {
+                let values: Vec<KeyValuePair<K, V>> =
+                    Deserialize::deserialize(ipld_list).map_err(|error| error.to_string())?;
+                Ok(Self::Values(values))
+            }
+            Ipld::Link(cid) => Ok(Self::Link {
+                cid,
+                cache: Default::default(),
+            }),
+            other => Err(format!(
+                "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
+                other
+            )),
+        }
+    }
+}
+
+/// Deserialize the Pointer like an untagged enum.
 impl<'de, K, V, H> Deserialize<'de> for Pointer<K, V, H>
 where
     K: DeserializeOwned,
@@ -96,8 +89,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        let pointer_de: PointerDe<K, V> = Deserialize::deserialize(deserializer)?;
-        Ok(Pointer::from(pointer_de))
+        Ipld::deserialize(deserializer).and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
     }
 }
 

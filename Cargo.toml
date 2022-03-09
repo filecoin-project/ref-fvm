@@ -20,9 +20,6 @@ default-members = [
     # "examples/*"
 ]
 
-[patch.crates-io]
-cid = { git = "https://github.com/multiformats/rust-cid", branch = "steb/cbor-hack" }
-
 [profile.actor]
 inherits = "release"
 panic = "abort"

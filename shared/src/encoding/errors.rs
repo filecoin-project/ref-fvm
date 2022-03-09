@@ -4,7 +4,7 @@
 use std::{fmt, io};
 
 use cid::Error as CidError;
-use serde_cbor::error::Error as CborError;
+use serde_ipld_dagcbor::error::Error as CborError;
 use thiserror::Error;
 
 /// Error type for encoding and decoding data through any Forest supported protocol.
