@@ -9,7 +9,6 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::version::NetworkVersion::V15;
 use fvm_shared::ActorID;
 use log::debug;
 use num_traits::{Signed, Zero};
@@ -203,7 +202,7 @@ where
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        if self.context.network_version >= V15 {
+        if self.context.network_version >= NetworkVersion::V15 {
             if value.is_negative() {
                 return Err(syscall_error!(IllegalArgument;
                 "attempted to transfer negative transfer value {}", value)

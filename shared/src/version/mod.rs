@@ -39,7 +39,7 @@ pub enum NetworkVersion {
     V13,
     /// actors v6
     V14,
-    /// actors v6
+    /// actors v7
     V15,
 }
 

@@ -22,7 +22,7 @@ use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
-use fvm_shared::version::NetworkVersion::V14;
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -401,17 +401,24 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        if self.network_version() <= V14 {
-            return Ok((&self.call_manager.context().circ_supply
+        let circ_supply = if self.network_version() <= NetworkVersion::V14 {
+            // Pre-v15 the circ supply was dynamically calculated on the Filecoin mainnet,
+            // meaning it fluctuated within an epoch (as messages were executed). This forced the FVM
+            // to do much of the calculation in order to support v14.
+            (&self.call_manager.context().circ_supply
                 + &self.get_fil_mined()?
                 + &self.get_reserve_disbursed()?
                 - &self.get_burnt_funds()?
                 - &self.power_locked()?
                 - &self.market_locked()?)
-                .max(Zero::zero()));
-        }
-
-        Ok(self.call_manager.context().circ_supply.clone())
+                .max(Zero::zero())
+        } else {
+            // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
+            // The value reported to the FVM from clients is now the static value,
+            // the FVM simply reports that value to actors.
+            self.call_manager.context().circ_supply.clone()
+        };
+        Ok(circ_supply)
     }
 }
 
@@ -679,7 +686,7 @@ where
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_verify_replica_info(replica),
+                .on_verify_replica_update(replica),
         )?;
 
         let up: proofs::RegisteredUpdateProof =

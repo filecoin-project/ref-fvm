@@ -466,7 +466,7 @@ where
 
     // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_replica_info(rep);
+        let charge = self.1.price_list.on_verify_replica_update(rep);
         self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }

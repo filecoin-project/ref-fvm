@@ -89,7 +89,7 @@ impl RegisteredSealProof {
 
 impl Default for RegisteredSealProof {
     fn default() -> Self {
-        Self::Invalid(0)
+        Self::Invalid(-1)
     }
 }
 
