@@ -1,6 +1,7 @@
 mod default;
 
 use std::fmt::Display;
+use std::ops::{Deref, DerefMut};
 
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -10,10 +11,13 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::{Backtrace, WasmStats};
+use crate::call_manager::{Backtrace, CallManager, WasmStats};
 use crate::Kernel;
 
-pub trait Executor {
+pub trait Executor: DerefMut
+where
+    Self: Deref<Target = <<Self::Kernel as Kernel>::CallManager as CallManager>::Machine>,
+{
     type Kernel: Kernel;
 
     /// This is the entrypoint to execute a message.
