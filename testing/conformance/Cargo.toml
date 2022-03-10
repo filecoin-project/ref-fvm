@@ -5,14 +5,15 @@ version = "0.1.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
 exclude = ["/test-vectors"]
+publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "0.1.0", path = "../../fvm", default-features = false }
-fvm_shared = { version = "0.1.0", path = "../../shared" }
-fvm_ipld_hamt = { version = "0.1.0", path = "../../ipld/hamt"}
-fvm_ipld_amt = { version = "0.1.0", path = "../../ipld/amt"}
-fvm_ipld_car = { version = "0.1.0", path = "../../ipld/car" }
+fvm = { version = "0.2.0", path = "../../fvm", default-features = false }
+fvm_shared = { version = "0.2.0", path = "../../shared" }
+fvm_ipld_hamt = { version = "0.2.0", path = "../../ipld/hamt"}
+fvm_ipld_amt = { version = "0.2.0", path = "../../ipld/amt"}
+fvm_ipld_car = { version = "0.2.0", path = "../../ipld/car" }
 
 anyhow = "1.0.47"
 thiserror = "1.0.30"
