@@ -47,6 +47,9 @@ lazy_static! {
 /// Codec for raw data.
 pub const IPLD_RAW: u64 = 0x55;
 
+/// Multihash code for the identity hash function.
+pub const IDENTITY_HASH: u64 = 0x0;
+
 /// Identifier for Actors, includes builtin and initialized actors
 pub type ActorID = u64;
 

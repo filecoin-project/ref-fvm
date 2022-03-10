@@ -632,8 +632,8 @@ pub mod json {
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::Code::{Blake2b256, Identity};
-    use cid::multihash::MultihashDigest;
+    use cid::multihash::Code::Blake2b256;
+    use cid::multihash::Multihash;
     use cid::Cid;
     use fvm_ipld_hamt::Hamt;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
@@ -641,7 +641,7 @@ mod tests {
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
-    use fvm_shared::IPLD_RAW;
+    use fvm_shared::{IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;
 
     use crate::init_actor;
@@ -649,14 +649,18 @@ mod tests {
     use crate::state_tree::{ActorState, StateTree};
 
     lazy_static! {
-        pub static ref DUMMY_ACCOUNT_ACTOR_CODE_ID: Cid =
-            Cid::new_v1(IPLD_RAW, Identity.digest(b"fil/test/dummyaccount"));
-        pub static ref DUMMY_INIT_ACTOR_CODE_ID: Cid =
-            Cid::new_v1(IPLD_RAW, Identity.digest(b"fil/test/dummyinit"));
+        pub static ref DUMMY_ACCOUNT_ACTOR_CODE_ID: Cid = Cid::new_v1(
+            IPLD_RAW,
+            Multihash::wrap(IDENTITY_HASH, b"fil/test/dummyaccount").unwrap()
+        );
+        pub static ref DUMMY_INIT_ACTOR_CODE_ID: Cid = Cid::new_v1(
+            IPLD_RAW,
+            Multihash::wrap(IDENTITY_HASH, b"fil/test/dummyinit").unwrap()
+        );
     }
 
     fn empty_cid() -> Cid {
-        Cid::new_v1(DAG_CBOR, Identity.digest(&[]))
+        Cid::new_v1(DAG_CBOR, Multihash::wrap(IDENTITY_HASH, &[]).unwrap())
     }
 
     #[test]

@@ -252,9 +252,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::{Code, MultihashDigest};
+    use cid::multihash::{Code, Multihash};
     use fvm_shared::blockstore::{Blockstore, CborStore, MemoryBlockstore};
-    use fvm_shared::commcid;
+    use fvm_shared::{commcid, IDENTITY_HASH};
     use serde::{Deserialize, Serialize};
 
     use super::*;
@@ -285,7 +285,7 @@ mod tests {
         let arr_cid = buf_store
             .put_cbor(&(str_val.clone(), value), Code::Blake2b256)
             .unwrap();
-        let identity_cid = Cid::new_v1(RAW, Code::Identity.digest(&[0u8]));
+        let identity_cid = Cid::new_v1(RAW, Multihash::wrap(IDENTITY_HASH, &[0]).unwrap());
 
         // Create map to insert into store
         let sealed_comm_cid = commcid::commitment_to_cid(
