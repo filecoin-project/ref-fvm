@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
 exclude = ["/test-vectors"]
+publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
