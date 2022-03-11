@@ -43,8 +43,6 @@ Here's what you'll find in each directory:
   - A crate of core types and primitives shared between the FVM and the SDK.
 - `/ipld`
   - IPLD libraries. Some of which are based on, and adapted from, the [Forest](https://github.com/ChainSafe/forest) implementation.
-- `/examples`
-  - A directory eventually containing actor examples.
 - `/testing/conformance`
   - Contains the test vector runner, as well as benchmarking utilities on top of it.
   - The conformance test runner feeds the test vector corpus located at https://github.com/filecoin-project/fvm-test-vectors into ref-fvm, in order to validate spec conformance.
