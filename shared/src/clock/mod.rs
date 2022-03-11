@@ -6,9 +6,6 @@ pub use quantize::*;
 
 const _ISO_FORMAT: &str = "%FT%X.%.9F";
 
-/// Duration of each tipset epoch.
-pub const EPOCH_DURATION_SECONDS: i64 = 30;
-
 /// Epoch number of a chain. This acts as a proxy for time within the VM.
 pub type ChainEpoch = i64;
 
