@@ -110,23 +110,37 @@ impl BitField {
 
     /// Returns the index of the lowest bit present in the bit field.
     pub fn first(&self) -> Option<u64> {
-        // similar to `self.iter.next()`, but optimized using the fact that only the
-        // lowest bit in `self.set` is a candidate, and therefore there's no need to
-        // sort all bits in `self.set`
+        match (
+            self.set.iter().min().copied(),
+            self.ranges
+                .iter()
+                .cloned()
+                .flatten()
+                .find(|i| !self.unset.contains(i)),
+        ) {
+            (None, None) => None,
+            (Some(v), None) | (None, Some(v)) => Some(v),
+            (Some(a), Some(b)) => Some(std::cmp::min(a, b)),
+        }
+    }
 
-        let min_set_bit = self.set.iter().min();
-
-        // turns the `Option<&u64>` minimum set bit into an `Option<Range<u64>>`
-        let min_range = min_set_bit.map(|&bit| bit..bit + 1);
-
-        // turns this `Option<Range<u64>>` into a `RangeIterator`, relying on the
-        // fact that `Option<T>` is an `IntoIterator` over `T` with 0 or 1 items
-        let min_range_iterator = iter::Ranges::new(min_range);
-
-        self.inner_ranges()
-            .union(min_range_iterator)
-            .flatten()
-            .find(|i| !self.unset.contains(i))
+    /// Returns the index of the highest bit present in the bit field.
+    pub fn last(&self) -> Option<u64> {
+        match (
+            self.set.iter().max().copied(),
+            self.ranges
+                .iter()
+                // Last range first
+                .rev()
+                // Then reverse the ranges themselves and flatten.
+                .flat_map(|range| range.clone().rev())
+                // Finally find the first bit that isn't explicitly _unset_.
+                .find(|i| !self.unset.contains(i)),
+        ) {
+            (None, None) => None,
+            (Some(v), None) | (None, Some(v)) => Some(v),
+            (Some(a), Some(b)) => Some(std::cmp::max(a, b)),
+        }
     }
 
     /// Returns an iterator over the indices of the bit field's set bits.
