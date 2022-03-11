@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
-use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -10,6 +9,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
     SealVerifyInfo, WindowPoStVerifyInfo,
 };
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
 use lazy_static::lazy_static;
 use num_traits::Zero;
@@ -17,7 +17,7 @@ use num_traits::Zero;
 use super::GasCharge;
 
 lazy_static! {
-    static ref CALICO_PRICES: PriceList = PriceList {
+    static ref OH_SNAP_PRICES: PriceList = PriceList {
         compute_gas_multiplier: 1,
         storage_gas_multiplier: 1300,
 
@@ -418,7 +418,7 @@ impl PriceList {
     }
 }
 
-/// Returns gas price list by Epoch for gas consumption.
-pub fn price_list_by_epoch(_: ChainEpoch) -> PriceList {
-    CALICO_PRICES.clone()
+/// Returns gas price list by NetworkVersion for gas consumption.
+pub fn price_list_by_network_version(_: NetworkVersion) -> PriceList {
+    OH_SNAP_PRICES.clone()
 }
