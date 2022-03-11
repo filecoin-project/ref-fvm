@@ -16,7 +16,7 @@ use num_traits::{Signed, Zero};
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
-use crate::gas::price_list_by_epoch;
+use crate::gas::price_list_by_network_version;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
 use crate::{syscall_error, Config};
@@ -83,7 +83,7 @@ where
             circ_supply,
             network_version,
             initial_state_root: state_root,
-            price_list: price_list_by_epoch(epoch),
+            price_list: price_list_by_network_version(network_version),
             debug: config.debug,
         };
 
