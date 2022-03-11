@@ -3,21 +3,8 @@ members = [
     "fvm",
     "sdk",
     "shared",
-    "examples/actor",
     "testing/conformance",
     "ipld/*",
-]
-exclude = []
-
-default-members = [
-    "fvm",
-    "sdk",
-    "shared",
-    "testing/conformance",
-    "ipld/*"
-    # don't build the examples by default, as they require a specific target and profile.
-    # build them with cargo make examples
-    # "examples/*"
 ]
 
 [profile.actor]

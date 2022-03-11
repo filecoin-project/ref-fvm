@@ -77,37 +77,3 @@ jobs:
       with:
         command: ${{ matrix.command }}
         args: ${{ matrix.args }}
-  examples:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checking out fvm
-      uses: actions/checkout@v2
-    - name: Installing Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.17.3
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        target: wasm32-unknown-unknown
-        override: true
-    # we don't check the lockfile in; this is needed for cache restoration/saving
-    - name: Generating Cargo.lock
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: generate-lockfile
-    - name: Setting up Go cache
-      uses: protocol/cache-go-action@v1
-    - name: Setting up Rust cache
-      uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # v1.3.0
-      with:
-        # change this to invalidate cache for this job
-        key: v0
-    - name: Installing cbindgen
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: install
-        args: cbindgen
-    - name: Making examples
-      run: make examples
-      shell: bash
