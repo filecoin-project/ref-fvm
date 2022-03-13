@@ -3,6 +3,8 @@ use std::fmt::Display;
 use derive_more::Display;
 use fvm_shared::error::ErrorNumber;
 
+use crate::kernel::ExecutionError::{Fatal, OutOfGas, Syscall};
+
 /// Execution result.
 pub type Result<T> = std::result::Result<T, ExecutionError>;
 
@@ -26,13 +28,23 @@ macro_rules! syscall_error {
     };
 }
 
-// NOTE: this intentionally does not implemnent error so we can make the context impl work out
+// NOTE: this intentionally does not implement error so we can make the context impl work out
 // below.
 #[derive(Display, Debug)]
 pub enum ExecutionError {
     OutOfGas,
     Syscall(SyscallError),
     Fatal(anyhow::Error),
+}
+
+impl Clone for ExecutionError {
+    fn clone(&self) -> Self {
+        match self {
+            OutOfGas => OutOfGas,
+            Syscall(v) => Syscall(v.clone()),
+            Fatal(v) => Fatal(anyhow::Error::msg(v.to_string())),
+        }
+    }
 }
 
 impl ExecutionError {

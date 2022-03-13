@@ -30,6 +30,8 @@ mod power_actor;
 mod reward_actor;
 mod system_actor;
 
+pub mod trace;
+
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};

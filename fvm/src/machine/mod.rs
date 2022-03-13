@@ -149,6 +149,7 @@ impl NetworkConfig {
             initial_state_root: initial_state,
             base_fee: TokenAmount::zero(),
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
+            tracing: false,
         }
     }
 }
@@ -178,18 +179,26 @@ pub struct MachineContext {
     ///
     /// DEFAULT: Total FIL supply (likely not what you want).
     pub circ_supply: TokenAmount,
+
+    pub tracing: bool,
 }
 
 impl MachineContext {
-    /// Sets [`EpochContext::base_fee`].
+    /// Sets [`MachineContext::base_fee`].
     pub fn set_base_fee(&mut self, amt: TokenAmount) -> &mut Self {
         self.base_fee = amt;
         self
     }
 
-    /// Set [`EpochContext::circ_supply`].
+    /// Set [`MachineContext::circ_supply`].
     pub fn set_circulating_supply(&mut self, amt: TokenAmount) -> &mut Self {
         self.circ_supply = amt;
+        self
+    }
+
+    /// Set [`MachineContext::tracing`].
+    pub fn enable_tracing(&mut self) -> &mut Self {
+        self.tracing = true;
         self
     }
 }
