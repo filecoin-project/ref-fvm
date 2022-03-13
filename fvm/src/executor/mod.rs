@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::encoding::tuple::*;
 use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -60,6 +61,43 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
+    /// Execution trace information, for debugging.
+    pub exec_trace: ExecutionTrace,
+}
+
+/// Execution Trace, only for informational and debugging purposes.
+#[derive(Clone, Debug, Serialize_tuple, Deserialize_tuple)]
+pub struct ExecutionTrace {
+    // pub msg: Message,
+    // pub msg_receipt: Receipt,
+    pub error: String,
+    // pub subcalls: Vec<ExecutionTrace>,
+}
+
+impl ExecutionTrace {
+    pub fn empty() -> ExecutionTrace {
+        return ExecutionTrace {
+            // msg_receipt: Receipt {
+            //     exit_code: ExitCode::Ok,
+            //     return_data: Default::default(),
+            //     gas_used: 0,
+            // },
+            // msg: Message {
+            //     version: 0,
+            //     from: Address::new_id(0),
+            //     to: Address::new_id(0),
+            //     sequence: 0,
+            //     value: Default::default(),
+            //     method_num: 0,
+            //     params: Default::default(),
+            //     gas_limit: 0,
+            //     gas_fee_cap: Default::default(),
+            //     gas_premium: Default::default(),
+            // },
+            error: "alison".to_string(),
+            // subcalls: vec![],
+        };
+    }
 }
 
 impl ApplyRet {
@@ -78,6 +116,7 @@ impl ApplyRet {
             penalty: miner_penalty,
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
+            exec_trace: ExecutionTrace::empty(),
         }
     }
 
