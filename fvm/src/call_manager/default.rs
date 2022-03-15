@@ -10,7 +10,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, InvocationResult, WasmStats, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, CallStats, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
@@ -53,7 +53,8 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
-    wasm_stats: WasmStats,
+    /// Stats related to the message execution.
+    call_stats: CallStats,
 }
 
 #[doc(hidden)]
@@ -87,7 +88,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
-            wasm_stats: WasmStats::default(),
+            call_stats: CallStats::default(),
         }))
     }
 
@@ -126,12 +127,12 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, WasmStats, Self::Machine) {
+    fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.wasm_stats, inner.machine)
+        (gas_used, inner.backtrace, inner.call_stats, inner.machine)
     }
 
     // Accessor methods so the trait can implement some common methods by default.
@@ -275,6 +276,7 @@ where
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::Return(Default::default()));
         }
+        let call_start = Instant::now();
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
@@ -310,7 +312,6 @@ where
                 Err(err) => return (Err(err), store.into_data().kernel.take()),
             };
 
-            let mut call_duration = None;
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
                 // Lookup the invoke method.
@@ -320,10 +321,7 @@ where
                     .map_err(Abort::Fatal)?;
 
                 // Invoke (and time) it.
-                let start = Instant::now();
-                let result = invoke.call(&mut store, (param_id,));
-                call_duration = Some(start.elapsed());
-                let return_block_id = result?;
+                let return_block_id = invoke.call(&mut store, (param_id,))?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
@@ -346,11 +344,16 @@ where
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let mut cm = invocation_data.kernel.take();
+            // We're ignoring the backtrace collection time, because that will be disabled on
+            // mainnet unless explicitly enabled.
+            let call_duration = call_start.elapsed();
 
-            cm.wasm_stats.fuel_used += fuel_used;
-            cm.wasm_stats.wasm_duration += call_duration
-                .map(|d| d - invocation_data.syscall_time)
-                .unwrap_or(Duration::default())
+            cm.call_stats.fuel_used += fuel_used;
+            cm.call_stats.call_count += 1;
+            cm.call_stats.call_overhead +=
+                (call_duration - invocation_data.actor_time).max(Default::default());
+            cm.call_stats.wasm_duration += (invocation_data.actor_time
+                - invocation_data.syscall_time)
                 .max(Duration::default());
 
             // Process the result, updating the backtrace if necessary.

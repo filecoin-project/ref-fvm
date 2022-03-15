@@ -11,7 +11,7 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::{Backtrace, CallManager, WasmStats};
+use crate::call_manager::{Backtrace, CallManager, CallStats};
 use crate::Kernel;
 
 pub trait Executor: DerefMut
@@ -65,7 +65,7 @@ pub struct ApplyRet {
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
     /// Wasm execution stats.
-    pub wasm_stats: Option<WasmStats>,
+    pub wasm_stats: Option<CallStats>,
 }
 
 impl From<Receipt> for ApplyRet {

@@ -2,11 +2,12 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_shared::blockstore::Blockstore;
-use wasmtime::{Linker, Module};
+use wasmtime::{Linker, Module, Trap};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
@@ -163,6 +164,34 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
+        fn call_hook(
+            data: &mut InvocationData<impl Kernel>,
+            h: wasmtime::CallHook,
+        ) -> Result<(), Trap> {
+            use wasmtime::CallHook::*;
+            match h {
+                CallingWasm => data.last_actor_call = Some(Instant::now()),
+                CallingHost => data.last_syscall_call = Some(Instant::now()),
+                ReturningFromWasm => {
+                    data.actor_time += data
+                        .last_actor_call
+                        .take()
+                        .expect("wasm return with no matching call")
+                        .elapsed();
+                }
+
+                ReturningFromHost => {
+                    data.syscall_time += data
+                        .last_syscall_call
+                        .take()
+                        .expect("syscall return with no matching call")
+                        .elapsed();
+                }
+            }
+            Ok(())
+        }
+        let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
+        store.call_hook(call_hook);
+        store
     }
 }
