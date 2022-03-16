@@ -72,15 +72,15 @@ pub struct Selector {
     pub chaos_actor: Option<String>,
     #[serde(default)]
     pub min_protocol_version: Option<String>,
+    #[serde(default, rename = "requires:consensus_fault_extern")]
+    pub consensus_fault: Option<String>,
 }
 
 impl Selector {
     /// Returns whether this runner supports applying vectors with this selector.
     pub fn supported(&self) -> bool {
-        self.chaos_actor
-            .as_ref()
-            .filter(|s| s.as_str() == "true")
-            .is_none()
+        self.chaos_actor.as_deref() != Some("true")
+            && self.consensus_fault.as_deref() != Some("true")
     }
 }
 
