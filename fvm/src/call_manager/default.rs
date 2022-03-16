@@ -128,11 +128,13 @@ where
     }
 
     fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
-        let gas_used = self.gas_tracker.gas_used().max(0);
-
         let inner = self.0.take().expect("call manager is poisoned");
+        let gas_used = inner.gas_tracker.gas_used().max(0);
+        let mut stats = inner.call_stats;
+        stats.compute_gas = inner.gas_tracker.compute_gas_real().max(0) as u64;
+
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.call_stats, inner.machine)
+        (gas_used, inner.backtrace, stats, inner.machine)
     }
 
     // Accessor methods so the trait can implement some common methods by default.

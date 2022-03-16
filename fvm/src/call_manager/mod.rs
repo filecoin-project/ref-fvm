@@ -131,4 +131,6 @@ pub struct CallStats {
     pub call_overhead: Duration,
     /// Total number of actor calls (that invoke wasm).
     pub call_count: u64,
+    /// Compute gas actually used.
+    pub compute_gas: u64,
 }
