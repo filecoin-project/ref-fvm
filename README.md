@@ -6,7 +6,7 @@ This repository contains the reference implementation of the Filecoin VM ([specs
 
 ## Build requirements
 
-* The current MSRV (Minimum Supported Rust Version) is 1.58.1 (stable). A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
+* The MSRV (Minimum Supported Rust Version) is `stable`. A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
 * Install [rustup](https://rustup.rs/).
 
 ## Build instructions
@@ -37,8 +37,6 @@ Here's what you'll find in each directory:
   - Reference SDK implementation to write Filecoin native actors, used by the canonical built-in actors through the Actors FVM Runtime shim.
   - User-defined FVM actors written in Rust can also use this SDK, although it is currently quite rough around the edges. In the next weeks, we expect to sweeten it for improved developer experience.
   - Alternative SDKs will emerge in the community. We also expect community teams to develop SDKs in other WASM-compilable languages such as Swift, Kotlin (using Kotlin Native), and even Go (via the TinyGo compiler).
-- `/actors`
-  - the canonical built-in actors, adapted to be deployed _inside_ the FVM, with trimmed down dependencies, and their Runtime bridging to the FVM SDK. Largely based off the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/shared`
   - A crate of core types and primitives shared between the FVM and the SDK.
 - `/ipld`
