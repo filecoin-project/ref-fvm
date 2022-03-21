@@ -19,14 +19,7 @@ use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
-/// The core of the FVM.
-///
-/// ## Generic types
-/// * B => Blockstore.
-/// * E => Externs.
-/// * K => Kernel.
-//
-// If the inner value is `None` it means the machine got poisend and is unusable.
+// If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
 pub struct DefaultExecutor<K: Kernel>(Option<<K::CallManager as CallManager>::Machine>);
 
@@ -49,6 +42,7 @@ where
     K: Kernel,
 {
     type Kernel = K;
+
     /// This is the entrypoint to execute a message.
     fn execute_message(
         &mut self,
@@ -186,21 +180,19 @@ where
     }
 
     // TODO: The return type here is very strange because we have three cases:
-    // 1. Continue (return actor ID & gas).
-    // 2. Short-circuit (return ApplyRet).
-    // 3. Fail (return an error).
-    //
-    // We could use custom types, but that would be even more annoying.
+    //  1. Continue (return actor ID & gas).
+    //  2. Short-circuit (return ApplyRet).
+    //  3. Fail (return an error).
+    //  We could use custom types, but that would be even more annoying.
     fn preflight_message(
         &mut self,
         msg: &Message,
         apply_kind: ApplyKind,
         raw_length: usize,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
-        // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check().or_fatal()?;
 
-        // TODO I don't like having price lists _inside_ the FVM, but passing
+        // TODO We don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
         let pl = &self.context().price_list;
 

@@ -21,13 +21,8 @@ use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
 use crate::{syscall_error, Config};
 
-/// The core of the FVM.
-///
-/// ## Generic types
-/// * B => Blockstore.
-/// * E => Externs.
-/// * K => Kernel.
 pub struct DefaultMachine<B, E> {
+    /// The machine's configuration for this instantiation.
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -35,7 +30,7 @@ pub struct DefaultMachine<B, E> {
     /// is dropped when the DefaultMachine is dropped.
     engine: Engine,
     /// Boundary A calls are handled through externs. These are calls from the
-    /// FVM to the Filecoin node.
+    /// FVM to the Filecoin client.
     externs: E,
     /// The state tree. It is updated with the results from every message
     /// execution as the call stack for every message concludes.
