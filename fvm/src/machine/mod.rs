@@ -24,9 +24,21 @@ pub use engine::Engine;
 mod boxed;
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
-/// Distinguished AccountActor that is the destination of all burnt funds.
+
+/// Distinguished Account actor that is the destination of all burnt funds.
 pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 
+/// The Machine is the top-level object of the FVM.
+///
+/// The Machine operates at a concrete network version and epoch, over an
+/// initial state root, all of which must be specified at instantiation time.
+///
+/// It is instantiated by the node with concrete Blockstore and Externs
+/// implementations.
+///
+/// The Machine is designed to be used in conjunction with the Executor, which
+/// is bound to a concrete Machine and is in charge of facilitating message
+/// execution.
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;

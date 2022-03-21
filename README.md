@@ -56,7 +56,6 @@ Here's what you'll find in each directory:
   - Disclaimers
     - Benchmarks are currently very slow to run, setup and teardown. This is due to using default WASM cache, and will be fixed soon.
 
-
 ## Maturity roadmap
 
 ### v0: FVM running built-in actors
@@ -64,36 +63,28 @@ Here's what you'll find in each directory:
 - Alpha:
   - Declared when: all test vectors passing, integrated into Lotus via FFI.
   - Focus: theoretical correctness.
-  - Estimated: end of January '22.
 - Beta: 
-  - Declared when: all of the above + syncing mainnet consistently, keeping up with chain consistently, i.e. when Phase 0 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: all the above + syncing mainnet consistently, keeping up with chain consistently, i.e. when Phase 0 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
   - Focus: production-readiness, performance, live consensus correctness.
-  - Estimated: late February '22.
 - RC:
-  - Declared when: all of the above + integrated into a second client (likely Forest), successfully syncing mainnet on all.
+  - Declared when: all the above + integrated into a second client (likely Forest), successfully syncing mainnet on all.
   - Focus: pre-mainnet preparations.
-  - Estimated: March '22.
 - Final:
   - Declared when: FVM v0 is securing mainnet, i.e. when Phase 1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
-  - Estimated: end of March '22.
 
-### v1: Fully-programmable FVM (with EVM foreign runtime support)
+### v1: Fully-programmable FVM
 
 - Alpha:
   - Declared when: all functionality implemented, 70%+ test coverage, integrated into Lotus via FFI.
   - Focus: feature completeness.
-  - Estimated: end of April '22.
 - Beta:
   - Declared when: testnets deployed (user and automatic), running successfully for 1 week.
   - Focus: testing and hardening.
-  - Estimated: May '22.
 - RC:
   - Declared when: code audited; network-upgrade releases ready for all Filecoin clients.
   - Focus: pre-mainnet preparations.
-  - Estimated: June '22.
 - Final:
   - Declared when: FVM v1 is operating mainnet, i.e. when Phase 2 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
-  - Estimated: end of June '22.
 
 ## License
 
