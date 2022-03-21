@@ -72,7 +72,7 @@ Here's what you'll find in each directory:
 - Final:
   - Declared when: FVM v0 is securing mainnet, i.e. when Phase 1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
 
-### v1: Fully-programmable FVM (with EVM foreign runtime support)
+### v1: Fully-programmable FVM
 
 - Alpha:
   - Declared when: all functionality implemented, 70%+ test coverage, integrated into Lotus via FFI.
