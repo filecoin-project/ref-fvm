@@ -82,5 +82,5 @@ impl TryFrom<&str> for Type {
     }
 }
 
-/// A mapping of builtin actor CIDs to their respective types.
-pub type Manifest = BiBTreeMap<Cid, Type>;
+/// A mapping of builtin actor names to CIDs.
+pub type Manifest = BiBTreeMap<String, Cid>;
