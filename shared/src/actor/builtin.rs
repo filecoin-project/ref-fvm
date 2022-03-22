@@ -3,6 +3,8 @@ use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::blockstore::{Blockstore, CborStore};
+
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.
 #[derive(
@@ -82,5 +84,42 @@ impl TryFrom<&str> for Type {
     }
 }
 
+impl From<&Type> for String {
+    fn from(t: &Type) -> String {
+        match t {
+            Type::System => String::from("system"),
+            Type::Init => String::from("init"),
+            Type::Cron => String::from("cron"),
+            Type::Account => String::from("account"),
+            Type::Power => String::from("storagepower"),
+            Type::Miner => String::from("storageminer"),
+            Type::Market => String::from("storagemarket"),
+            Type::PaymentChannel => String::from("paymentchannel"),
+            Type::Multisig => String::from("multisig"),
+            Type::Reward => String::from("reward"),
+            Type::VerifiedRegistry => String::from("verifiedregistry"),
+        }
+    }
+}
+
+
 /// A mapping of builtin actor CIDs to their respective types.
 pub type Manifest = BiBTreeMap<Cid, Type>;
+
+pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> Result<Manifest, String> {
+    let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid) {
+        Ok(Some(vec)) => vec,
+        Ok(None) => {
+            return Err("cannot find manifest root cid".to_string());
+        },
+        Err(what) => {
+            return Err(what.to_string());
+        }
+    };
+    let mut manifest = Manifest::default();
+    for (name, code_cid) in vec {
+        let t = Type::try_from(name.as_str())?;
+        manifest.insert(code_cid, t);
+    }
+    Ok(manifest)
+}
