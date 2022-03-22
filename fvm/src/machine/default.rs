@@ -2,7 +2,7 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_shared::actor::builtin::{Manifest, load_manifest};
+use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
 use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;

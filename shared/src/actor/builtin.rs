@@ -102,7 +102,6 @@ impl From<&Type> for String {
     }
 }
 
-
 /// A mapping of builtin actor CIDs to their respective types.
 pub type Manifest = BiBTreeMap<Cid, Type>;
 
@@ -111,7 +110,7 @@ pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> Result<Manifest, 
         Ok(Some(vec)) => vec,
         Ok(None) => {
             return Err("cannot find manifest root cid".to_string());
-        },
+        }
         Err(what) => {
             return Err(what.to_string());
         }
