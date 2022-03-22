@@ -189,7 +189,7 @@ where
                 .builtin_actors()
                 .get_by_right(&Type::Account)
                 .expect("failed to determine account actor CodeCID");
-            let state = account_actor::zero_state(code_cid.clone());
+            let state = account_actor::zero_state(*code_cid);
             self.create_actor(addr, state)?
         };
 

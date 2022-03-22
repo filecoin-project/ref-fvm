@@ -68,10 +68,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let nv_actors = TestMachine::import_actors(&blockstore);
 
         // Get the builtin actors index for the concrete network version.
-        let builtin_actors = nv_actors
+        let builtin_actors = *nv_actors
             .get(&network_version)
-            .expect("no builtin actors index for nv")
-            .clone();
+            .expect("no builtin actors index for nv");
 
         let machine = DefaultMachine::new(
             Config {

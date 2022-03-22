@@ -71,7 +71,7 @@ fn bench_conformance(c: &mut Criterion) {
 
         match bench_vector_file(
             &mut group,
-            &mut message_vector,
+            &message_vector,
             CheckStrength::FullTest,
             &vector_path.display().to_string(),
             &engine,

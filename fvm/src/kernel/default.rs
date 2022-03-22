@@ -115,7 +115,7 @@ where
             .machine()
             .state_tree()
             .get_actor(addr)?
-            .ok_or(anyhow!("state tree doesn't contain actor"))
+            .context("state tree doesn't contain actor")
             .or_illegal_argument()?;
 
         let is_account = self
@@ -142,7 +142,7 @@ where
             .get_cbor(&act.state)
             .context("failed to decode actor state as an account")
             .or_fatal()? // because we've checked and this should be an account.
-            .ok_or(anyhow!("account actor state not found"))
+            .context("account actor state not found")
             .or_fatal()?; // because the state should exist.
 
         Ok(state.address)
@@ -843,7 +843,7 @@ where
             .builtin_actors()
             .get_by_right(&typ)
             .cloned()
-            .ok_or_else(|| anyhow!("tried to resolve CID of unrecognized actor type"))
+            .context("tried to resolve CID of unrecognized actor type")
             .or_illegal_argument()
     }
 }
