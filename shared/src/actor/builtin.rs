@@ -2,6 +2,7 @@ use bimap::BiBTreeMap;
 use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use anyhow::anyhow;
 
 use crate::blockstore::{Blockstore, CborStore};
 
@@ -105,20 +106,24 @@ impl From<&Type> for String {
 /// A mapping of builtin actor CIDs to their respective types.
 pub type Manifest = BiBTreeMap<Cid, Type>;
 
-pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> Result<Manifest, String> {
-    let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid) {
-        Ok(Some(vec)) => vec,
-        Ok(None) => {
-            return Err("cannot find manifest root cid".to_string());
-        }
-        Err(what) => {
-            return Err(what.to_string());
+pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
+    let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid)? {
+        Some(vec) => vec,
+        None => {
+            return Err(anyhow!("cannot find manifest root cid"));
         }
     };
     let mut manifest = Manifest::new();
     for (name, code_cid) in vec {
-        let t = Type::try_from(name.as_str())?;
-        manifest.insert(code_cid, t);
+        let t = Type::try_from(name.as_str());
+        match t {
+            Ok(t) => {
+                manifest.insert(code_cid, t);
+            }
+            Err(what) => {
+                return Err(anyhow!(what));
+            }
+        }
     }
     Ok(manifest)
 }
