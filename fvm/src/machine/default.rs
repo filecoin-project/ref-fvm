@@ -2,9 +2,9 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_shared::actor::builtin::Manifest;
+use fvm_shared::actor::builtin::{Manifest, load_manifest};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, Buffered, CborStore};
+use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -95,15 +95,14 @@ where
 
         // Load the built-in actors manifest.
         // TODO: Check that the actor bundle is sane for the network version.
-        let builtin_actors: Manifest = blockstore
-            .get_cbor(&builtin_actors)
-            .context("failed to load built-in actor index")?
-            .ok_or_else(|| {
-                anyhow!(
-                    "blockstore doesn't contain builtin actors index with CID {}",
-                    &builtin_actors
-                )
-            })?;
+        let maybe_builtin_actors = load_manifest(&blockstore, &builtin_actors);
+        if maybe_builtin_actors.is_err() {
+            return Err(anyhow!(
+                "blockstore doesn't contain builtin actors index with CID {}",
+                &builtin_actors
+            ));
+        }
+        let builtin_actors = maybe_builtin_actors.unwrap();
 
         // Preload any uncached modules.
         // This interface works for now because we know all actor CIDs
