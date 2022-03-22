@@ -87,18 +87,18 @@ impl TryFrom<&str> for Type {
 impl From<&Type> for String {
     fn from(t: &Type) -> String {
         match t {
-            Type::System => String::from("system"),
-            Type::Init => String::from("init"),
-            Type::Cron => String::from("cron"),
-            Type::Account => String::from("account"),
-            Type::Power => String::from("storagepower"),
-            Type::Miner => String::from("storageminer"),
-            Type::Market => String::from("storagemarket"),
-            Type::PaymentChannel => String::from("paymentchannel"),
-            Type::Multisig => String::from("multisig"),
-            Type::Reward => String::from("reward"),
-            Type::VerifiedRegistry => String::from("verifiedregistry"),
-        }
+            Type::System => "system",
+            Type::Init => "init",
+            Type::Cron => "cron",
+            Type::Account => "account",
+            Type::Power => "storagepower",
+            Type::Miner => "storageminer",
+            Type::Market => "storagemarket",
+            Type::PaymentChannel => "paymentchannel",
+            Type::Multisig => "multisig",
+            Type::Reward => "reward",
+            Type::VerifiedRegistry => "verifiedregistry",
+        }.to_string()
     }
 }
 
