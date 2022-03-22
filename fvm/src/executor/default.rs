@@ -252,11 +252,14 @@ where
         };
 
         // If sender is not an account actor, the message is invalid.
-        let sender_is_account = self
+        let sender_type = self
             .builtin_actors()
-            .get_by_left(&sender.code)
-            .map(Type::is_account_actor)
-            .unwrap_or(false);
+            .get_by_right(&sender.code)
+            .map(Type::from_name);
+        let sender_is_account = match sender_type {
+            Some(Ok(t)) => t.is_account_actor(),
+            _ => false,
+        };
 
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(

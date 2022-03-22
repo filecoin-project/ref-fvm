@@ -187,7 +187,7 @@ where
         let id = {
             let code_cid = self
                 .builtin_actors()
-                .get_by_right(&Type::Account)
+                .get_by_left(&Type::Account.name())
                 .expect("failed to determine account actor CodeCID");
             let state = account_actor::zero_state(code_cid.clone());
             self.create_actor(addr, state)?

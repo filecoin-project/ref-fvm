@@ -118,13 +118,16 @@ where
             .ok_or(anyhow!("state tree doesn't contain actor"))
             .or_illegal_argument()?;
 
-        let is_account = self
+        let act_type = self
             .call_manager
             .machine()
             .builtin_actors()
-            .get_by_left(&act.code)
-            .map(Type::is_account_actor)
-            .unwrap_or(false);
+            .get_by_right(&act.code)
+            .map(Type::from_name);
+        let is_account = match act_type {
+            Some(Ok(t)) => t.is_account_actor(),
+            _ => false,
+        };
 
         if !is_account {
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
@@ -830,18 +833,24 @@ where
     }
 
     fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
-        self.call_manager
+        let actor_type = self
+            .call_manager
             .machine()
             .builtin_actors()
-            .get_by_left(code_cid)
-            .cloned()
+            .get_by_right(code_cid)
+            .map(actor::builtin::Type::from_name);
+
+        match actor_type {
+            Some(Ok(t)) => Some(t),
+            _ => None,
+        }
     }
 
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
         self.call_manager
             .machine()
             .builtin_actors()
-            .get_by_right(&typ)
+            .get_by_left(&typ.name())
             .cloned()
             .ok_or_else(|| anyhow!("tried to resolve CID of unrecognized actor type"))
             .or_illegal_argument()
