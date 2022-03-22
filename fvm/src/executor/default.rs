@@ -19,6 +19,7 @@ use crate::gas::{GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
+/// The default [`Executor`].
 // If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
 pub struct DefaultExecutor<K: Kernel>(Option<<K::CallManager as CallManager>::Machine>);
@@ -163,6 +164,7 @@ impl<K> DefaultExecutor<K>
 where
     K: Kernel,
 {
+    /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
     pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
         Self(Some(m))
     }

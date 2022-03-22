@@ -85,16 +85,16 @@ where
 
     fn new(
         mgr: C,
-        from: ActorID,
-        to: ActorID,
+        caller: ActorID,
+        actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
-            caller: from,
-            actor_id: to,
+            caller,
+            actor_id,
             method,
             value_received,
         }

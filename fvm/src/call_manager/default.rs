@@ -16,19 +16,7 @@ use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::{account_actor, syscall_error};
 
-/// The DefaultCallManager manages a single call stack.
-///
-/// When a top-level message is executed:
-///
-/// 1. The machine creates a call manager for that message, giving itself to the call manager.
-/// 2. The machine calls the call specified actor/method using the call manager.
-/// 3. The call manager then executes the actual actor code.
-/// 4. If an actor calls another actor, the kernel will:
-///    1. Detach the call manager from itself.
-///    2. Call `send` on the call manager to execute the new message.
-///    3. Re-attach the call manager.
-///    4. Return.
-
+/// The default [`CallManager`] implementation.
 #[repr(transparent)]
 pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
 

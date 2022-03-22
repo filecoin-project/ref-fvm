@@ -305,8 +305,8 @@ where
 
     fn new(
         mgr: Self::CallManager,
-        from: ActorID,
-        to: ActorID,
+        caller: ActorID,
+        actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self
@@ -317,7 +317,13 @@ where
         let data = mgr.machine().data.clone();
 
         TestKernel(
-            K::new(TestCallManager(mgr), from, to, method, value_received),
+            K::new(
+                TestCallManager(mgr),
+                caller,
+                actor_id,
+                method,
+                value_received,
+            ),
             data,
         )
     }
