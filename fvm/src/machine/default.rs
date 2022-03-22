@@ -95,14 +95,7 @@ where
 
         // Load the built-in actors manifest.
         // TODO: Check that the actor bundle is sane for the network version.
-        let maybe_builtin_actors = load_manifest(&blockstore, &builtin_actors);
-        if maybe_builtin_actors.is_err() {
-            return Err(anyhow!(
-                "blockstore doesn't contain builtin actors index with CID {}",
-                &builtin_actors
-            ));
-        }
-        let builtin_actors = maybe_builtin_actors.unwrap();
+        let builtin_actors = load_manifest(&blockstore, &builtin_actors)?;
 
         // Preload any uncached modules.
         // This interface works for now because we know all actor CIDs
