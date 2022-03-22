@@ -110,7 +110,7 @@ pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Ma
     let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid)? {
         Some(vec) => vec,
         None => {
-            return Err(anyhow!("cannot find manifest root cid"));
+            return Err(anyhow!("cannot find manifest root cid {}", root_cid));
         }
     };
     let mut manifest = Manifest::new();
@@ -121,7 +121,7 @@ pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Ma
                 manifest.insert(code_cid, t);
             }
             Err(what) => {
-                return Err(anyhow!(what));
+                return Err(anyhow!("bad builtin actor name: {}: {} ", name, what));
             }
         }
     }
