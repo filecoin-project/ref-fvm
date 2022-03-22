@@ -1,8 +1,8 @@
+use anyhow::anyhow;
 use bimap::BiBTreeMap;
 use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use anyhow::anyhow;
 
 use crate::blockstore::{Blockstore, CborStore};
 
@@ -99,7 +99,8 @@ impl From<&Type> for String {
             Type::Multisig => "multisig",
             Type::Reward => "reward",
             Type::VerifiedRegistry => "verifiedregistry",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
