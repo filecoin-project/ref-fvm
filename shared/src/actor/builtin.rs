@@ -116,7 +116,7 @@ pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid) -> Result<Manifest, 
             return Err(what.to_string());
         }
     };
-    let mut manifest = Manifest::default();
+    let mut manifest = Manifest::new();
     for (name, code_cid) in vec {
         let t = Type::try_from(name.as_str())?;
         manifest.insert(code_cid, t);
