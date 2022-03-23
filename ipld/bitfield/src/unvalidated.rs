@@ -1,6 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryFrom;
+
 use fvm_shared::encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -56,6 +58,17 @@ impl UnvalidatedBitField {
 impl From<BitField> for UnvalidatedBitField {
     fn from(bf: BitField) -> Self {
         Self::Validated(bf)
+    }
+}
+
+impl TryFrom<UnvalidatedBitField> for BitField {
+    type Error = Error;
+
+    fn try_from(bf: UnvalidatedBitField) -> Result<Self, Self::Error> {
+        match bf {
+            UnvalidatedBitField::Validated(bf) => Ok(bf),
+            UnvalidatedBitField::Unvalidated(bf) => BitField::from_bytes(&bf),
+        }
     }
 }
 
