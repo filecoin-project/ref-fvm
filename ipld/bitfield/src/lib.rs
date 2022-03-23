@@ -14,9 +14,8 @@ use std::ops::{
 
 use iter::{ranges_from_bits, RangeIterator};
 pub(crate) use range::RangeSize;
+pub use rleplus::Error;
 pub use unvalidated::{UnvalidatedBitField, Validate};
-
-type Result<T> = std::result::Result<T, &'static str>;
 
 /// A bit field with buffered insertion/removal that serializes to/from RLE+. Similar to
 /// `HashSet<u64>`, but more memory-efficient when long runs of 1s and 0s are present.
@@ -165,12 +164,12 @@ impl BitField {
     }
 
     /// Returns an iterator over the indices of the bit field's set bits if the number
-    /// of set bits in the bit field does not exceed `max`. Returns an error otherwise.
-    pub fn bounded_iter(&self, max: u64) -> Result<impl Iterator<Item = u64> + '_> {
+    /// of set bits in the bit field does not exceed `max`. Returns `None` otherwise.
+    pub fn bounded_iter(&self, max: u64) -> Option<impl Iterator<Item = u64> + '_> {
         if self.len() <= max {
-            Ok(self.iter())
+            Some(self.iter())
         } else {
-            Err("Bits set exceeds max in retrieval")
+            None
         }
     }
 
@@ -197,15 +196,15 @@ impl BitField {
     }
 
     /// Returns a slice of the bit field with the start index of set bits
-    /// and number of bits to include in the slice. Returns an error if the
-    /// bit field contains fewer than `start + len` set bits.
-    pub fn slice(&self, start: u64, len: u64) -> Result<Self> {
+    /// and number of bits to include in the slice. Returns `None` if the bit
+    /// field contains fewer than `start + len` set bits.
+    pub fn slice(&self, start: u64, len: u64) -> Option<Self> {
         let slice = BitField::from_ranges(self.ranges().skip_bits(start).take_bits(len));
 
         if slice.len() == len {
-            Ok(slice)
+            Some(slice)
         } else {
-            Err("Not enough bits")
+            None
         }
     }
 

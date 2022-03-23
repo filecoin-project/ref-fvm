@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use super::Result;
+use super::Error;
 
 // https://github.com/multiformats/unsigned-varint#practical-maximum-of-9-bytes-for-security
 const VARINT_MAX_BYTES: usize = 9;
@@ -76,7 +76,7 @@ impl<'a> BitReader<'a> {
 
     /// Reads a varint from the buffer. Returns an error if the
     /// current position on the buffer contains no valid varint.
-    fn read_varint(&mut self) -> Result<u64> {
+    fn read_varint(&mut self) -> Result<u64, Error> {
         let mut len = 0u64;
 
         for i in 0..VARINT_MAX_BYTES {
@@ -98,11 +98,11 @@ impl<'a> BitReader<'a> {
             }
         }
 
-        Err("Invalid varint")
+        Err(Error::InvalidVarint)
     }
 
     /// Reads a length from the buffer according to RLE+ encoding.
-    pub fn read_len(&mut self) -> Result<Option<u64>> {
+    pub fn read_len(&mut self) -> Result<Option<u64>, Error> {
         let prefix_0 = self.read(1);
 
         let len = if prefix_0 == 1 {
