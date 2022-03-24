@@ -93,6 +93,7 @@ pub struct DefaultKernel<C> {
     debug: DebugInfo,
 }
 
+#[cfg(feature = "tracing")]
 #[derive(Default)]
 struct DebugInfo {
     code_cid: Cid,
@@ -120,6 +121,7 @@ where
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self {
+        #[allow(unused_mut)]
         let mut ret = DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),

@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use anyhow::Context as _;
@@ -13,7 +12,6 @@ use num_traits::Zero;
 
 use super::{Backtrace, CallManager, CallStats, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
-use crate::gas::tracer::{Consumption, Context, Point};
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
@@ -48,7 +46,7 @@ pub struct InnerDefaultCallManager<M> {
     call_stats: CallStats,
 
     #[cfg(feature = "tracing")]
-    gas_tracer: Option<RefCell<crate::gas::tracer::GasTracer>>,
+    gas_tracer: Option<std::cell::RefCell<crate::gas::tracer::GasTracer>>,
 }
 
 #[doc(hidden)]
@@ -86,6 +84,7 @@ where
 
             #[cfg(feature = "tracing")]
             gas_tracer: {
+                use crate::gas::tracer::Point;
                 let mut tracer = crate::gas::tracer::GasTracer::new();
                 tracer.record(
                     Default::default(),
@@ -95,7 +94,7 @@ where
                     },
                     Default::default(),
                 );
-                Some(RefCell::new(tracer))
+                Some(std::cell::RefCell::new(tracer))
             },
         }))
     }
@@ -138,6 +137,7 @@ where
     fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
         #[cfg(feature = "tracing")]
         {
+            use crate::gas::tracer::{Consumption, Point};
             let tracer = self.gas_tracer.take().unwrap();
             let traces = {
                 let mut tracer = tracer.into_inner();
@@ -325,6 +325,7 @@ where
 
         #[cfg(feature = "tracing")]
         {
+            use crate::gas::tracer::{Consumption, Context, Point};
             let gas_used = self.gas_tracker.gas_used();
             self.gas_tracer.as_mut().unwrap().get_mut().record(
                 Context {
@@ -410,6 +411,7 @@ where
 
             #[cfg(feature = "tracing")]
             {
+                use crate::gas::tracer::{Consumption, Context, Point};
                 let gas_used = cm.gas_tracker.gas_used();
                 cm.gas_tracer.as_mut().unwrap().get_mut().record(
                     Context {
