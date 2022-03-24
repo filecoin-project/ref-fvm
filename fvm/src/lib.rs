@@ -125,8 +125,9 @@ mod test {
         // An empty built-in actors manifest.
         let manifest_cid = {
             let manifest = Manifest::new();
-            let manifest_data: Vec<(String, Cid)> =
-                manifest.iter().map(|(&c, t)| (t.into(), c.clone()))
+            let manifest_data: Vec<(String, Cid)> = manifest
+                .iter()
+                .map(|(&c, t)| (t.into(), c.clone()))
                 .collect();
             bs.put_cbor(&manifest_data, Code::Blake2b256).unwrap()
         };

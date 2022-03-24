@@ -109,8 +109,7 @@ where
                 state.builtin_actors
             }
         };
-        let builtin_actors =
-            load_manifest(state_tree.store(), &builtin_actors_cid, 1)?;
+        let builtin_actors = load_manifest(state_tree.store(), &builtin_actors_cid, 1)?;
 
         // Preload any uncached modules.
         // This interface works for now because we know all actor CIDs
