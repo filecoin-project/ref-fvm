@@ -25,17 +25,23 @@ pub struct BitReader<'a> {
 
 impl<'a> BitReader<'a> {
     /// Creates a new `BitReader`.
-    pub fn new(bytes: &'a [u8]) -> Self {
+    pub fn new(bytes: &'a [u8]) -> Result<Self, Error> {
+        // There are infinite implicit "0"s, so we don't expect any trailing zeros in the actual
+        // data.
+        if bytes.last() == Some(&0) {
+            return Err(Error::NotMinimal);
+        }
+
         let &byte1 = bytes.get(0).unwrap_or(&0);
         let &byte2 = bytes.get(1).unwrap_or(&0);
         let bytes = if bytes.len() > 2 { &bytes[2..] } else { &[] };
 
-        Self {
+        Ok(Self {
             bytes,
             bits: byte1 as u16,
             next_byte: byte2,
             num_bits: 8,
-        }
+        })
     }
 
     /// Reads a given number of bits from the buffer. Will keep returning 0 once
@@ -103,8 +109,12 @@ impl<'a> BitReader<'a> {
 
     /// Reads a length from the buffer according to RLE+ encoding.
     pub fn read_len(&mut self) -> Result<Option<u64>, Error> {
-        let prefix_0 = self.read(1);
+        // We're done.
+        if !self.has_more() {
+            return Ok(None);
+        }
 
+        let prefix_0 = self.read(1);
         let len = if prefix_0 == 1 {
             // Block Single (prefix 1)
             1
@@ -113,16 +123,27 @@ impl<'a> BitReader<'a> {
 
             if prefix_1 == 1 {
                 // Block Short (prefix 01)
-                self.read(4) as u64
+                let val = self.read(4) as u64;
+                if val < 2 {
+                    return Err(Error::NotMinimal);
+                }
+                val
             } else {
                 // Block Long (prefix 00)
-                self.read_varint()?
+                let val = self.read_varint()?;
+                if val < 16 {
+                    return Err(Error::NotMinimal);
+                }
+                val
             }
         };
 
-        // decoding ends when a length of 0 is encountered, regardless of
-        // whether it is a short block or a long block
-        Ok(if len > 0 { Some(len) } else { None })
+        Ok(Some(len))
+    }
+
+    /// Returns true if there are more non-zero bits to be read.
+    pub fn has_more(&self) -> bool {
+        self.bits > 0 || self.next_byte > 0 || !self.bytes.is_empty()
     }
 }
 
@@ -133,7 +154,7 @@ mod tests {
     #[test]
     fn read() {
         let bytes = &[0b1011_1110, 0b0111_0010, 0b0010_1010];
-        let mut reader = BitReader::new(bytes);
+        let mut reader = BitReader::new(bytes).unwrap();
 
         assert_eq!(reader.read(0), 0);
         assert_eq!(reader.read(1), 0);
@@ -152,7 +173,7 @@ mod tests {
     #[test]
     fn read_len() {
         let bytes = &[0b0001_0101, 0b1101_0111, 0b0110_0111, 0b00110010];
-        let mut reader = BitReader::new(bytes);
+        let mut reader = BitReader::new(bytes).unwrap();
 
         assert_eq!(reader.read_len().unwrap(), Some(1)); // prefix: 1
         assert_eq!(reader.read_len().unwrap(), Some(2)); // prefix: 01, value: 0100 (LSB to MSB)
@@ -166,7 +187,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "assertion failed")]
     fn too_many_bits_at_once() {
-        let mut reader = BitReader::new(&[]);
+        let mut reader = BitReader::new(&[]).unwrap();
         reader.read(16);
     }
 
@@ -191,7 +212,7 @@ mod tests {
             }
 
             let bytes = writer.finish();
-            let mut reader = BitReader::new(&bytes);
+            let mut reader = BitReader::new(&bytes).unwrap();
 
             for &len in &lengths {
                 assert_eq!(reader.read_len().unwrap(), Some(len));
