@@ -67,6 +67,7 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
+    use cid::Cid;
     use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::state::StateTreeVersion;
@@ -124,7 +125,10 @@ mod test {
         // An empty built-in actors manifest.
         let manifest_cid = {
             let manifest = Manifest::new();
-            bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
+            let manifest_data: Vec<(String, Cid)> =
+                manifest.iter().map(|(&c, t)| (t.into(), c.clone()))
+                .collect();
+            bs.put_cbor(&manifest_data, Code::Blake2b256).unwrap()
         };
 
         let machine = DefaultMachine::new(
@@ -135,7 +139,7 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
-            (0, Some(manifest_cid)),
+            Some(manifest_cid),
             bs,
             DummyExterns,
         )
