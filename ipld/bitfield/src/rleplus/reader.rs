@@ -3,8 +3,8 @@
 
 use super::Error;
 
-// https://github.com/multiformats/unsigned-varint#practical-maximum-of-9-bytes-for-security
-const VARINT_MAX_BYTES: usize = 9;
+// Unlike the multiformats "uvarint", we allow 10 bytes here so we can encode a full uint64.
+const VARINT_MAX_BYTES: usize = 10;
 
 /// A `BitReader` allows for efficiently reading bits from a byte buffer, up to a byte at a time.
 ///
@@ -89,12 +89,12 @@ impl<'a> BitReader<'a> {
             // if the most significant bit is a 0, we've
             // reached the end of the varint
             if byte & 0x80 == 0 {
-                if i == 0 || byte != 0 {
-                    // only the first byte can be zero in a varint
-                    return Ok(len);
+                // 1. We only allow the 9th byte to be 1 (overflows u64).
+                // 2. The last byte cannot be 0 (not minimally encoded).
+                if (i == 9 && byte > 1) || (byte == 0 && i != 0) {
+                    break;
                 }
-                // not minimally encoded
-                break;
+                return Ok(len);
             }
         }
 
