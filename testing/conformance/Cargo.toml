@@ -51,6 +51,7 @@ libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [features]
 vtune = ["wasmtime/vtune", "ittapi-rs"]
+tracing = ["fvm/tracing"]
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"

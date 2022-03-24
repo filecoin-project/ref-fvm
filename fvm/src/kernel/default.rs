@@ -47,15 +47,36 @@ lazy_static! {
     static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
 
+macro_rules! record_trace {
+    ($self:ident, $event:ident, $name:literal) => {
+        #[cfg(feature = "tracing")]
+        $self.record_trace(
+            crate::gas::tracer::Point {
+                event: crate::gas::tracer::Event::$event,
+                label: $name.to_string(),
+            },
+            crate::gas::tracer::Consumption {
+                fuel_consumed: None,
+                gas_consumed: Some($self.call_manager.gas_tracker().gas_used()),
+            },
+        );
+    };
+}
+
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
+    /// The actor ID of the caller.
     caller: ActorID,
+    /// The actor ID of the executing actor (aka receiver).
     actor_id: ActorID,
+    /// The method number that was invoked. This is part of the legacy
+    /// calling convention.
     method: MethodNum,
+    /// The value received in filecoin tokens.
     value_received: TokenAmount,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
@@ -66,6 +87,15 @@ pub struct DefaultKernel<C> {
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
+
+    /// Tracing information.
+    #[cfg(feature = "tracing")]
+    debug: DebugInfo,
+}
+
+#[derive(Default)]
+struct DebugInfo {
+    code_cid: Cid,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -90,14 +120,38 @@ where
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self {
-        DefaultKernel {
+        let mut ret = DefaultKernel {
             call_manager: mgr,
             blocks: BlockRegistry::new(),
             caller,
             actor_id,
             method,
             value_received,
-        }
+
+            #[cfg(feature = "tracing")]
+            debug: Default::default(),
+        };
+
+        #[cfg(feature = "tracing")]
+        ret.prepare_tracing();
+
+        ret
+    }
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        point: crate::gas::tracer::Point,
+        mut consumption: crate::gas::tracer::Consumption,
+    ) {
+        // Create the context from our debug info.
+        let context = crate::gas::tracer::Context {
+            code_cid: self.debug.code_cid,
+            method_num: self.method,
+        };
+        // Stamp with gas consumed.
+        consumption.gas_consumed = Some(self.call_manager.gas_tracker().gas_used());
+        self.call_manager.record_trace(context, point, consumption)
     }
 }
 
@@ -105,6 +159,18 @@ impl<C> DefaultKernel<C>
 where
     C: CallManager,
 {
+    #[cfg(feature = "tracing")]
+    fn prepare_tracing(&mut self) {
+        self.debug.code_cid = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(self.actor_id)
+            .context("tracing: failed to lookup actor to get code CID")
+            .unwrap()
+            .map(|act| act.code)
+            .unwrap();
+    }
+
     fn resolve_to_key_addr(&mut self, addr: &Address, charge_gas: bool) -> Result<Address> {
         if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
             return Ok(*addr);
@@ -554,6 +620,8 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
+        record_trace!(self, PreExtern, "verify_consensus_fault");
+
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
         let (fault, gas) = self
@@ -561,6 +629,9 @@ where
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
+
+        record_trace!(self, PostExtern, "verify_consensus_fault");
+
         self.call_manager
             .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
         Ok(fault)
@@ -741,11 +812,18 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        record_trace!(self, PreExtern, "get_chain_randomness");
+
         // TODO: Check error code
-        self.call_manager
+        let ret = self
+            .call_manager
             .externs()
             .get_chain_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+            .or_illegal_argument();
+
+        record_trace!(self, PostExtern, "get_chain_randomness");
+
+        ret
     }
 
     #[allow(unused)]
@@ -755,12 +833,19 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        record_trace!(self, PreExtern, "get_beacon_randomness");
+
         // TODO: Check error code
         // Hyperdrive and above only.
-        self.call_manager
+        let ret = self
+            .call_manager
             .externs()
             .get_beacon_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+            .or_illegal_argument();
+
+        record_trace!(self, PostExtern, "get_beacon_randomness");
+
+        ret
     }
 }
 

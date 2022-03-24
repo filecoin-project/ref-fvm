@@ -116,6 +116,15 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().charge_gas(charge)?;
         Ok(())
     }
+
+    /// Record a gas trace.
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        context: crate::gas::tracer::Context,
+        point: crate::gas::tracer::Point,
+        consumption: crate::gas::tracer::Consumption,
+    );
 }
 
 /// The result of a method invocation.

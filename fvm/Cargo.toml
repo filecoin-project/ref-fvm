@@ -25,6 +25,7 @@ fvm_ipld_hamt = { version = "0.2.0", path = "../ipld/hamt"}
 fvm_ipld_amt = { version = "0.2.0", path = "../ipld/amt"}
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
+serde_json = { version = "1.0.79", optional = true }
 serde_repr = "0.1"
 lazy_static = "1.4.0"
 derive-getters = "0.2.0"
@@ -46,3 +47,4 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+tracing = ["serde_json"]

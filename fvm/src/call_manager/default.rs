@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use anyhow::Context as _;
@@ -12,6 +13,7 @@ use num_traits::Zero;
 
 use super::{Backtrace, CallManager, CallStats, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
+use crate::gas::tracer::{Consumption, Context, Point};
 use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
@@ -41,8 +43,12 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+
     /// Stats related to the message execution.
     call_stats: CallStats,
+
+    #[cfg(feature = "tracing")]
+    gas_tracer: Option<RefCell<crate::gas::tracer::GasTracer>>,
 }
 
 #[doc(hidden)]
@@ -77,6 +83,20 @@ where
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
             call_stats: CallStats::default(),
+
+            #[cfg(feature = "tracing")]
+            gas_tracer: {
+                let mut tracer = crate::gas::tracer::GasTracer::new();
+                tracer.record(
+                    Default::default(),
+                    Point {
+                        event: crate::gas::tracer::Event::Started,
+                        label: Default::default(),
+                    },
+                    Default::default(),
+                );
+                Some(RefCell::new(tracer))
+            },
         }))
     }
 
@@ -116,6 +136,27 @@ where
     }
 
     fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
+        #[cfg(feature = "tracing")]
+        {
+            let tracer = self.gas_tracer.take().unwrap();
+            let traces = {
+                let mut tracer = tracer.into_inner();
+                tracer.record(
+                    Default::default(),
+                    Point {
+                        event: crate::gas::tracer::Event::Finished,
+                        label: Default::default(),
+                    },
+                    Consumption {
+                        fuel_consumed: None,
+                        gas_consumed: Some(self.gas_tracker.gas_used()),
+                    },
+                );
+                tracer.finish()
+            };
+            println!("{}", serde_json::to_string(&traces).unwrap());
+        }
+
         let inner = self.0.take().expect("call manager is poisoned");
         let gas_used = inner.gas_tracker.gas_used().max(0);
         let mut stats = inner.call_stats;
@@ -123,6 +164,20 @@ where
 
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
         (gas_used, inner.backtrace, stats, inner.machine)
+    }
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        context: crate::gas::tracer::Context,
+        point: crate::gas::tracer::Point,
+        consumption: crate::gas::tracer::Consumption,
+    ) {
+        self.gas_tracer
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .record(context, point, consumption)
     }
 
     // Accessor methods so the trait can implement some common methods by default.
@@ -268,6 +323,25 @@ where
         }
         let call_start = Instant::now();
 
+        #[cfg(feature = "tracing")]
+        {
+            let gas_used = self.gas_tracker.gas_used();
+            self.gas_tracer.as_mut().unwrap().get_mut().record(
+                Context {
+                    code_cid: state.code.clone(),
+                    method_num: method,
+                },
+                Point {
+                    event: crate::gas::tracer::Event::EnterCall,
+                    label: Default::default(),
+                },
+                Consumption {
+                    fuel_consumed: None,
+                    gas_consumed: Some(gas_used),
+                },
+            );
+        }
+
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
         let engine = self.engine().clone();
@@ -330,10 +404,29 @@ where
             })();
 
             let fuel_used = store.fuel_consumed().expect("fuel not enabled?");
-
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let mut cm = invocation_data.kernel.take();
+
+            #[cfg(feature = "tracing")]
+            {
+                let gas_used = cm.gas_tracker.gas_used();
+                cm.gas_tracer.as_mut().unwrap().get_mut().record(
+                    Context {
+                        code_cid: state.code.clone(),
+                        method_num: method,
+                    },
+                    Point {
+                        event: crate::gas::tracer::Event::ExitCall,
+                        label: Default::default(),
+                    },
+                    Consumption {
+                        fuel_consumed: Some(fuel_used),
+                        gas_consumed: Some(gas_used),
+                    },
+                );
+            }
+
             // We're ignoring the backtrace collection time, because that will be disabled on
             // mainnet unless explicitly enabled.
             let call_duration = call_start.elapsed();

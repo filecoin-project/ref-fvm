@@ -64,6 +64,13 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
+
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &self,
+        point: crate::gas::tracer::Point,
+        consumption: crate::gas::tracer::Consumption,
+    );
 }
 
 /// Network-related operations.
