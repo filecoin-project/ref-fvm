@@ -55,7 +55,7 @@ where
     fn flush(&self, root: &Cid) -> Result<()> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
-        copy_rec(&self.base, &s, *root, &mut buffer)?;
+        copy_rec(&s, *root, &mut buffer)?;
 
         self.base.put_many_keyed(buffer)?;
         *s = Default::default();
@@ -173,15 +173,11 @@ where
 }
 
 /// Copies the IPLD DAG under `root` from the cache to the base store.
-fn copy_rec<'a, BS>(
-    base: &BS,
+fn copy_rec<'a>(
     cache: &'a HashMap<Cid, Vec<u8>>,
     root: Cid,
     buffer: &mut Vec<(Cid, &'a [u8])>,
-) -> Result<()>
-where
-    BS: Blockstore,
-{
+) -> Result<()> {
     // TODO: Make this non-recursive.
     // Skip identity and Filecoin commitment Cids
     if root.codec() != DAG_CBOR {
@@ -204,7 +200,7 @@ where
         }
 
         // Recursively find more links under the links we're iterating over.
-        copy_rec(base, cache, link, buffer)
+        copy_rec(cache, link, buffer)
     })?;
 
     buffer.push((root, block));
