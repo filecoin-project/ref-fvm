@@ -18,12 +18,9 @@ use fvm_shared::message::Message;
 ///
 /// * `messages` - mutable vector of (message, usize) tuples with the message and its raw length. will be removed from vector and applied in order
 /// * `exec` - test executor
-pub fn apply_messages(
-    messages: &mut Vec<(Message, usize)>,
-    exec: &mut DefaultExecutor<TestKernel>,
-) {
+pub fn apply_messages(messages: Vec<(Message, usize)>, mut exec: DefaultExecutor<TestKernel>) {
     // Apply all messages in the vector.
-    for (msg, raw_length) in messages.drain(..) {
+    for (msg, raw_length) in messages.into_iter() {
         // Execute the message.
         // can assume this works because it passed a test before this ran
         exec.execute_message(msg, ApplyKind::Explicit, raw_length)
@@ -43,7 +40,7 @@ pub fn bench_vector_variant(
     engine: &Engine,
 ) {
     group.bench_function(name, move |b| {
-        b.iter_batched_ref(
+        b.iter_batched(
             || {
                 let vector = &(*vector).clone();
                 let bs = bs.clone();

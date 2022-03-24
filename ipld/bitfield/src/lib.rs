@@ -109,15 +109,13 @@ impl BitField {
     }
 
     /// Returns the index of the lowest bit present in the bit field.
-    #[allow(clippy::iter_overeager_cloned)]
     pub fn first(&self) -> Option<u64> {
         match (
             self.set.iter().min().copied(),
             self.ranges
                 .iter()
-                .cloned()
-                .flatten()
-                .find(|i| !self.unset.contains(i)),
+                .filter_map(|r| r.clone().find(|i| !self.unset.contains(i)))
+                .next(),
         ) {
             (None, None) => None,
             (Some(v), None) | (None, Some(v)) => Some(v),
