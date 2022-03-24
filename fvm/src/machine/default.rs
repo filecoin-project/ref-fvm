@@ -57,7 +57,7 @@ where
         circ_supply: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        builtin_actors: (u32, Option<Cid>),
+        builtin_actors: Option<Cid>,
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
@@ -102,7 +102,7 @@ where
 
         // Load the built-in actors manifest.
         // TODO: Check that the actor bundle is sane for the network version.
-        let builtin_actors_cid = match builtin_actors.1 {
+        let builtin_actors_cid = match builtin_actors {
             Some(cid) => cid,
             None => {
                 let (state, _) = SystemActorState::load(&state_tree)?;
@@ -110,7 +110,7 @@ where
             }
         };
         let builtin_actors =
-            load_manifest(state_tree.store(), &builtin_actors_cid, builtin_actors.0)?;
+            load_manifest(state_tree.store(), &builtin_actors_cid, 1)?;
 
         // Preload any uncached modules.
         // This interface works for now because we know all actor CIDs

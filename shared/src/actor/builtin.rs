@@ -109,16 +109,8 @@ pub type Manifest = BiBTreeMap<Cid, Type>;
 
 pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid, ver: u32) -> anyhow::Result<Manifest> {
     match ver {
-        0 => load_manifest_v0(bs, root_cid),
         1 => load_manifest_v1(bs, root_cid),
         _ => Err(anyhow!("unknown manifest version {}", ver)),
-    }
-}
-
-pub fn load_manifest_v0<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
-    match bs.get_cbor::<Manifest>(root_cid)? {
-        Some(mf) => Ok(mf),
-        None => Err(anyhow!("cannot find manifest root cid {}", root_cid)),
     }
 }
 
