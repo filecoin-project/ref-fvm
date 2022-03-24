@@ -20,12 +20,30 @@ pub use default::DefaultCallManager;
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
+/// The `CallManager` manages a single call stack.
+///
+/// When a top-level message is executed:
+///
+/// 1. The [`crate::executor::Executor`] creates a [`CallManager`] for that message, giving itself
+///    to the [`CallManager`].
+/// 2. The [`crate::executor::Executor`] calls the specified actor/method using
+///    [`CallManager::send()`].
+/// 3. The [`CallManager`] then constructs a [`Kernel`] and executes the actual actor code on that
+///    kernel.
+/// 4. If an actor calls another actor, the [`Kernel`] will:
+///    1. Detach the [`CallManager`] from itself.
+///    2. Call [`CallManager::send()`] to execute the new message.
+///    3. Re-attach the [`CallManager`].
+///    4. Return.
 pub trait CallManager: 'static {
+    /// The underlying [`Machine`] on top of which this [`CallManager`] executes.
     type Machine: Machine;
 
+    /// Construct a new call manager.
     fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self;
 
-    /// Send a message.
+    /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
+    /// actor should execute.
     fn send<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
@@ -102,7 +120,9 @@ pub trait CallManager: 'static {
 
 /// The result of a method invocation.
 pub enum InvocationResult {
+    /// Indicates that the actor sucessfully returned. The value may be empty.
     Return(RawBytes),
+    /// Indicates taht the actor aborted with the given exit code.
     Failure(ExitCode),
 }
 
@@ -113,6 +133,8 @@ impl Default for InvocationResult {
 }
 
 impl InvocationResult {
+    /// Get the exit code for the invocation result. [`ExitCode::Ok`] on success, or the exit code
+    /// from the [`Failure`](InvocationResult::Failure) variant otherwise.
     pub fn exit_code(&self) -> ExitCode {
         match self {
             Self::Return(_) => ExitCode::Ok,

@@ -45,13 +45,11 @@ impl Engine {
 
 impl From<wasmtime::Engine> for Engine {
     fn from(engine: wasmtime::Engine) -> Self {
-        let engine = Engine(Arc::new(EngineInner {
+        Engine(Arc::new(EngineInner {
             engine,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
-        }));
-
-        engine
+        }))
     }
 }
 
@@ -75,7 +73,7 @@ impl Engine {
             if cache.contains_key(cid) {
                 continue;
             }
-            let wasm = blockstore.get(&cid)?.ok_or_else(|| {
+            let wasm = blockstore.get(cid)?.ok_or_else(|| {
                 anyhow!(
                     "no wasm bytecode in blockstore for CID {}",
                     &cid.to_string()
@@ -109,6 +107,10 @@ impl Engine {
     }
 
     /// Load compiled wasm code into the engine.
+    ///
+    /// # Safety
+    ///
+    /// See [`wasmtime::Module::deserialize`] for safety information.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {

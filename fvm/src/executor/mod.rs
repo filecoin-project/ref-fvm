@@ -1,7 +1,6 @@
 mod default;
 
 use std::fmt::Display;
-use std::ops::{Deref, DerefMut};
 
 pub use default::DefaultExecutor;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -11,20 +10,28 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::{Backtrace, CallManager, CallStats};
+use crate::call_manager::{Backtrace, CallStats};
 use crate::Kernel;
 
-pub trait Executor: DerefMut
-where
-    Self: Deref<Target = <<Self::Kernel as Kernel>::CallManager as CallManager>::Machine>,
-{
+/// An executor executes messages on the underlying machine/kernel. It's responsible for:
+///
+/// 1. Validating messages (nonce, sender, etc).
+/// 2. Creating message receipts.
+/// 3. Charging message inclusion gas, overestimation gas, miner tip, etc.
+pub trait Executor {
+    /// The [`Kernel`] on which messages will be applied. We specify a [`Kernel`] here, not a
+    /// [`Machine`](crate::machine::Machine), because the [`Kernel`] implies the
+    /// [`Machine`](crate::machine::Machine).
     type Kernel: Kernel;
 
     /// This is the entrypoint to execute a message.
+    ///
+    /// NOTE: The "raw length" is the length of the message as it appears on-chain and is used to
+    /// charge message inclusion gas.
     fn execute_message(
         &mut self,
         msg: Message,
-        _: ApplyKind,
+        apply_kind: ApplyKind,
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet>;
 }

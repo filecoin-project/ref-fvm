@@ -26,6 +26,7 @@ pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::machine::Machine;
 
+/// The "kernel" implements
 pub trait Kernel:
     ActorOps
     + BlockOps
@@ -40,16 +41,24 @@ pub trait Kernel:
     + SendOps
     + 'static
 {
+    /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
 
+    /// Consume the [`Kernel`] and return the underlying [`CallManager`].
     fn take(self) -> Self::CallManager
     where
         Self: Sized;
 
+    /// Construct a new [`Kernel`] from the given [`CallManager`].
+    ///
+    /// - `caller` is the ID of the _immediate_ caller.
+    /// - `actor_id` is the ID of _this_ actor.
+    /// - `method` is the method that has been invoked.
+    /// - `value_received` is value received due to the current call.
     fn new(
         mgr: Self::CallManager,
-        from: ActorID,
-        to: ActorID,
+        caller: ActorID,
+        actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self
@@ -59,16 +68,28 @@ pub trait Kernel:
 
 /// Network-related operations.
 pub trait NetworkOps {
+    /// The current network epoch (constant).
     fn network_epoch(&self) -> ChainEpoch;
+
+    /// The current network version (constant).
     fn network_version(&self) -> NetworkVersion;
+
+    /// The current base-fee (constant).
     fn network_base_fee(&self) -> &TokenAmount;
 }
 
 /// Accessors to query attributes of the incoming message.
 pub trait MessageOps {
+    /// The calling actor (constant).
     fn msg_caller(&self) -> ActorID;
+
+    /// The receiving actor (this actor) (constant).
     fn msg_receiver(&self) -> ActorID;
+
+    /// The method number used to invoke this actor (constant).
     fn msg_method_number(&self) -> MethodNum;
+
+    /// The value received from the caller (constant).
     fn msg_value_received(&self) -> TokenAmount;
 }
 
@@ -245,13 +266,21 @@ pub trait CryptoOps {
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>>;
 
+    /// Verifies a batch of seals. This is a privledged syscall, may _only_ be called by the
+    /// power actor during cron.
+    ///
+    /// Gas: This syscall intentionally _does not_ charge any gas (as said gas would be charged to
+    /// cron). Instead, gas is pre-paid by the storage provider on pre-commit.
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>>;
 
+    /// Verify aggregate seals verifies an aggregated batch of prove-commits.
     fn verify_aggregate_seals(
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<bool>;
 
+    /// Verify replica update verifies a snap deal: an upgrade from a CC sector to a sector with
+    /// deals.
     fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool>;
 }
 

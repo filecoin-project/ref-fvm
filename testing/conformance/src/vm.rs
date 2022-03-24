@@ -68,10 +68,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let nv_actors = TestMachine::import_actors(&blockstore);
 
         // Get the builtin actors index for the concrete network version.
-        let builtin_actors = nv_actors
+        let builtin_actors = *nv_actors
             .get(&network_version)
-            .expect("no builtin actors index for nv")
-            .clone();
+            .expect("no builtin actors index for nv");
 
         let machine = DefaultMachine::new(
             Config {
@@ -306,8 +305,8 @@ where
 
     fn new(
         mgr: Self::CallManager,
-        from: ActorID,
-        to: ActorID,
+        caller: ActorID,
+        actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
     ) -> Self
@@ -318,7 +317,13 @@ where
         let data = mgr.machine().data.clone();
 
         TestKernel(
-            K::new(TestCallManager(mgr), from, to, method, value_received),
+            K::new(
+                TestCallManager(mgr),
+                caller,
+                actor_id,
+                method,
+                value_received,
+            ),
             data,
         )
     }

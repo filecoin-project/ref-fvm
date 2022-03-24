@@ -3,6 +3,9 @@ name: Continuous integration
 on:
   push:
 
+env:
+  RUSTFLAGS: -Dwarnings
+
 jobs:
   rustfmt:
     runs-on: ubuntu-latest

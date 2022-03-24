@@ -23,7 +23,7 @@ fn bench_conformance(c: &mut Criterion) {
     pretty_env_logger::init();
 
     // TODO match globs to get whole folders?
-    let (mut vector_results, _is_many): (Vec<PathBuf>, bool) = match var("VECTOR") {
+    let (vector_results, _is_many): (Vec<PathBuf>, bool) = match var("VECTOR") {
         Ok(v) => (
             iter::once(Path::new(v.as_str()).to_path_buf()).collect(),
             false,
@@ -45,8 +45,8 @@ fn bench_conformance(c: &mut Criterion) {
     let mut group = c.benchmark_group("conformance-tests");
     group.measurement_time(Duration::new(30, 0));
 
-    for vector_path in vector_results.drain(..) {
-        let mut message_vector = match MessageVector::from_file(&vector_path) {
+    for vector_path in vector_results.into_iter() {
+        let message_vector = match MessageVector::from_file(&vector_path) {
             Ok(mv) => {
                 if !mv.is_supported() {
                     report!(
@@ -71,7 +71,7 @@ fn bench_conformance(c: &mut Criterion) {
 
         match bench_vector_file(
             &mut group,
-            &mut message_vector,
+            &message_vector,
             CheckStrength::FullTest,
             &vector_path.display().to_string(),
             &engine,
