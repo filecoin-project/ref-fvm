@@ -27,6 +27,7 @@ mod init_actor;
 mod market_actor;
 mod power_actor;
 mod reward_actor;
+mod system_actor;
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
@@ -134,7 +135,7 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
-            manifest_cid,
+            (0, Some(manifest_cid)),
             bs,
             DummyExterns,
         )

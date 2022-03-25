@@ -1,7 +1,10 @@
+use anyhow::anyhow;
 use bimap::BiBTreeMap;
 use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+
+use crate::blockstore::{Blockstore, CborStore};
 
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.
@@ -82,5 +85,61 @@ impl TryFrom<&str> for Type {
     }
 }
 
+impl From<&Type> for String {
+    fn from(t: &Type) -> String {
+        match t {
+            Type::System => "system",
+            Type::Init => "init",
+            Type::Cron => "cron",
+            Type::Account => "account",
+            Type::Power => "storagepower",
+            Type::Miner => "storageminer",
+            Type::Market => "storagemarket",
+            Type::PaymentChannel => "paymentchannel",
+            Type::Multisig => "multisig",
+            Type::Reward => "reward",
+            Type::VerifiedRegistry => "verifiedregistry",
+        }
+        .to_string()
+    }
+}
+
 /// A mapping of builtin actor CIDs to their respective types.
 pub type Manifest = BiBTreeMap<Cid, Type>;
+
+pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid, ver: u32) -> anyhow::Result<Manifest> {
+    match ver {
+        0 => load_manifest_v0(bs, root_cid),
+        1 => load_manifest_v1(bs, root_cid),
+        _ => Err(anyhow!("unknown manifest version {}", ver)),
+    }
+}
+
+pub fn load_manifest_v0<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
+    match bs.get_cbor::<Manifest>(root_cid)? {
+        Some(mf) => Ok(mf),
+        None => Err(anyhow!("cannot find manifest root cid {}", root_cid)),
+    }
+}
+
+pub fn load_manifest_v1<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
+    let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid)? {
+        Some(vec) => vec,
+        None => {
+            return Err(anyhow!("cannot find manifest root cid {}", root_cid));
+        }
+    };
+    let mut manifest = Manifest::new();
+    for (name, code_cid) in vec {
+        let t = Type::try_from(name.as_str());
+        match t {
+            Ok(t) => {
+                manifest.insert(code_cid, t);
+            }
+            Err(what) => {
+                return Err(anyhow!("bad builtin actor name: {}: {} ", name, what));
+            }
+        }
+    }
+    Ok(manifest)
+}

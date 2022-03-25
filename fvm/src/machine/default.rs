@@ -2,9 +2,9 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_shared::actor::builtin::Manifest;
+use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, Buffered, CborStore};
+use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -19,6 +19,7 @@ use crate::externs::Externs;
 use crate::gas::price_list_by_network_version;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
+use crate::system_actor::State as SystemActorState;
 use crate::{syscall_error, Config};
 
 pub struct DefaultMachine<B, E> {
@@ -56,7 +57,7 @@ where
         circ_supply: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        builtin_actors: Cid,
+        builtin_actors: (u32, Option<Cid>),
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
@@ -93,29 +94,29 @@ where
             ));
         }
 
-        // Load the built-in actors manifest.
-        // TODO: Check that the actor bundle is sane for the network version.
-        let builtin_actors: Manifest = blockstore
-            .get_cbor(&builtin_actors)
-            .context("failed to load built-in actor index")?
-            .ok_or_else(|| {
-                anyhow!(
-                    "blockstore doesn't contain builtin actors index with CID {}",
-                    &builtin_actors
-                )
-            })?;
-
-        // Preload any uncached modules.
-        // This interface works for now because we know all actor CIDs
-        // ahead of time, but with user-supplied code, we won't have that
-        // guarantee.
-        engine.preload(&blockstore, builtin_actors.left_values())?;
-
         // Create a new state tree from the supplied root.
         let state_tree = {
             let bstore = BufferedBlockstore::new(blockstore);
             StateTree::new_from_root(bstore, &context.initial_state_root)?
         };
+
+        // Load the built-in actors manifest.
+        // TODO: Check that the actor bundle is sane for the network version.
+        let builtin_actors_cid = match builtin_actors.1 {
+            Some(cid) => cid,
+            None => {
+                let (state, _) = SystemActorState::load(&state_tree)?;
+                state.builtin_actors
+            }
+        };
+        let builtin_actors =
+            load_manifest(state_tree.store(), &builtin_actors_cid, builtin_actors.0)?;
+
+        // Preload any uncached modules.
+        // This interface works for now because we know all actor CIDs
+        // ahead of time, but with user-supplied code, we won't have that
+        // guarantee.
+        engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
         Ok(DefaultMachine {
             config,
