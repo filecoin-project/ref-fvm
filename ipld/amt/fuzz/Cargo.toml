@@ -16,6 +16,9 @@ ahash = "0.6"
 [dependencies.fvm_ipld_amt]
 path = ".."
 
+[dependencies.fvm_shared]
+path = "../../../shared"
+
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
