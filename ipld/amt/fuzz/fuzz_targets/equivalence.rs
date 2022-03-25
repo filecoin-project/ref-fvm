@@ -6,6 +6,7 @@ use arbitrary::Arbitrary;
 use fvm_ipld_amt::{Amt, MAX_INDEX};
 use libfuzzer_sys::fuzz_target;
 use cid::Cid;
+use itertools::Itertools;
 
 
 #[derive(Debug, Arbitrary)]
@@ -58,11 +59,10 @@ fn execute(ops: Vec<Operation>) -> (Cid, ahash::AHashMap<u64, u64>) {
 fuzz_target!(|ops: Vec<Operation>| {
     let (res_cid, m) = execute(ops);
 
-    let simplified_ops = m.iter().map(|(k ,v)| {
+    let simplified_ops = m.iter().sorted_by_key(|(_, v)| *v).map(|(k ,v)| {
         Operation{idx: *k, method: Method::Insert(*v)}
     }).collect();
 
     let (simplified_cid, _) = execute(simplified_ops);
-
     assert_eq!(res_cid, simplified_cid)
 });
