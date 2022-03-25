@@ -15,8 +15,8 @@ ahash = "0.6"
 
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
 
-fvm_ipld_amt = {path = ".."}
-fvm_shared = {path = "../../../shared"}
+fvm_ipld_amt = { path = ".."}
+fvm_shared = { path = "../../../shared" }
 
 # Prevent this from interfering with workspaces
 [workspace]

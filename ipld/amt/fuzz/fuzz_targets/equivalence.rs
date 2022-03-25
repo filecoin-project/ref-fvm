@@ -51,14 +51,18 @@ fn execute(ops: Vec<Operation>) -> (Cid, ahash::AHashMap<u64, u64>) {
     (amt.flush().unwrap(), elements)
 }
 
+// Verifies that AMT created by this order of operations results in the same CID as
+// AMT created by minimal number of operations required.
+// The aim is to verify lack of past memory in the AMT structures.
+// AMT with same elements should have the same CID, regardless of their past.
 fuzz_target!(|ops: Vec<Operation>| {
     let (res_cid, m) = execute(ops);
 
-    let simplfied_ops = m.iter().map(|(k ,v)| {
+    let simplified_ops = m.iter().map(|(k ,v)| {
         Operation{idx: *k, method: Method::Insert(*v)}
     }).collect();
 
-    let (simplified_cid, _) = execute(simplfied_ops);
+    let (simplified_cid, _) = execute(simplified_ops);
 
     assert_eq!(res_cid, simplified_cid)
 });
