@@ -6,15 +6,16 @@ use arbitrary::Arbitrary;
 use fvm_ipld_amt::{Amt, MAX_INDEX};
 use libfuzzer_sys::fuzz_target;
 
+
 #[derive(Debug, Arbitrary)]
 struct Operation {
-    idx: usize,
+    idx: u64,
     method: Method,
 }
 
 #[derive(Debug, Arbitrary)]
 enum Method {
-    Insert(usize),
+    Insert(u64),
     Remove,
     Get,
 }
