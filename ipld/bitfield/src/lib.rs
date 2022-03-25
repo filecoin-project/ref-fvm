@@ -113,8 +113,7 @@ impl BitField {
             self.set.iter().min().copied(),
             self.ranges
                 .iter()
-                .filter_map(|r| r.clone().find(|i| !self.unset.contains(i)))
-                .next(),
+                .find_map(|r| r.clone().find(|i| !self.unset.contains(i))),
         ) {
             (None, None) => None,
             (Some(v), None) | (None, Some(v)) => Some(v),
