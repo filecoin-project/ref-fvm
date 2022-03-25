@@ -12,17 +12,17 @@ cargo-fuzz = true
 libfuzzer-sys = "0.3"
 arbitrary = { version = "0.4", features = ["derive"] }
 ahash = "0.6"
-fvm_shared = { path = "../../../shared" }
 
-[dependencies.fvm_ipld_hamt]
-path = ".."
+fvm_ipld_hamt = {path = ".."}
+fvm_shared = {path = "../../../shared"}
+
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
 [[bin]]
-name = "hamt_fuzz"
-path = "fuzz_targets/hamt_fuzz.rs"
+name = "simple"
+path = "fuzz_targets/simple.rs"
 test = false
 doc = false

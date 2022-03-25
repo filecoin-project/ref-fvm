@@ -13,18 +13,23 @@ libfuzzer-sys = "0.3"
 arbitrary = { version = "0.4", features = ["derive"] }
 ahash = "0.6"
 
-[dependencies.fvm_ipld_amt]
-path = ".."
+cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
 
-[dependencies.fvm_shared]
-path = "../../../shared"
+fvm_ipld_amt = {path = ".."}
+fvm_shared = {path = "../../../shared"}
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
 [[bin]]
-name = "amt_fuzz"
-path = "fuzz_targets/amt_fuzz.rs"
+name = "simple"
+path = "fuzz_targets/simple.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "equivalence"
+path = "fuzz_targets/equivalence.rs"
 test = false
 doc = false
