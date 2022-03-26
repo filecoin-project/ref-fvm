@@ -1,3 +1,6 @@
 [submodule "testing/conformance/test-vectors"]
 	path = testing/conformance/test-vectors
 	url = https://github.com/filecoin-project/fvm-test-vectors
+[submodule "testing/fuzz-corpora"]
+	path = testing/fuzz-corpora
+	url = https://github.com/filecoin-project/ref-fvm-fuzz-corpora.git
