@@ -1,7 +1,7 @@
 name: ClusterFuzzLite cron tasks
 on:
   schedule:
-    - cron: '0 0 * * *'  # Once a day at midnight.
+    - cron: '30 1 * * *'  # Once a day at 1:30 to run past batch job
 permissions: read-all
 jobs:
   Pruning:
@@ -18,7 +18,7 @@ jobs:
         fuzz-seconds: 600
         mode: 'prune'
         storage-repo: https://${{ secrets.FILHELPER_PAT }}@github.com/filecoin-project/ref-fvm-fuzz-corpora.git
-        storage-repo-branch: lite
+        storage-repo-branch: master
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
   Coverage:
     runs-on: ubuntu-latest
@@ -37,6 +37,6 @@ jobs:
         mode: 'coverage'
         sanitizer: 'coverage'
         storage-repo: https://${{ secrets.FILHELPER_PAT }}@github.com/filecoin-project/ref-fvm-fuzz-corpora.git
-        storage-repo-branch: lite
+        storage-repo-branch: master
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
 

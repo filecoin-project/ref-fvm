@@ -29,7 +29,7 @@ jobs:
         # by the PR.
         # See later section on "Git repo for storage".
         storage-repo: https://${{ secrets.FILHELPER_PAT }}@github.com/filecoin-project/ref-fvm-fuzz-corpora.git
-        storage-repo-branch: lite
+        storage-repo-branch: master
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
     - name: Run Fuzzers (${{ matrix.sanitizer }})
       id: run
@@ -43,6 +43,6 @@ jobs:
         # batch fuzzing.
         # See later section on "Git repo for storage".
         storage-repo: https://${{ secrets.FILHELPER_PAT }}@github.com/filecoin-project/ref-fvm-fuzz-corpora.git
-        storage-repo-branch: lite
+        storage-repo-branch: master
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
 
