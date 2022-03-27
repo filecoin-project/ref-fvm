@@ -25,8 +25,6 @@ jobs:
         fuzz-seconds: 3600
         mode: 'batch'
         sanitizer: ${{ matrix.sanitizer }}
-        # Optional but recommended: For storing certain artifacts from fuzzing.
-        # See later section on "Git repo for storage".
         storage-repo: https://${{ secrets.FILHELPER_PAT }}@github.com/filecoin-project/ref-fvm-fuzz-corpora.git
         storage-repo-branch: master
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".

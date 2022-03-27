@@ -2,7 +2,7 @@ name: ClusterFuzzLite continuous builds
 on:
   push:
     branches:
-      - master  # Use your actual default branch here.
+      - master
 permissions: read-all
 jobs:
   Build:
@@ -14,7 +14,7 @@ jobs:
      fail-fast: false
      matrix:
         sanitizer:
-        - address
+          - address
    steps:
    - name: Build Fuzzers (${{ matrix.sanitizer }})
      id: build
