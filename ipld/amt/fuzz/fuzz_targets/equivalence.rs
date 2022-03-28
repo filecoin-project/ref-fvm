@@ -3,7 +3,7 @@
 
 #![no_main]
 use arbitrary::Arbitrary;
-use fvm_ipld_amt::{Amt, MAX_INDEX};
+use fvm_ipld_amt::Amt;
 use libfuzzer_sys::fuzz_target;
 use cid::Cid;
 use itertools::Itertools;
@@ -11,8 +11,9 @@ use itertools::Itertools;
 
 #[derive(Debug, Arbitrary)]
 struct Operation {
-    idx: u64,
+    idx: u16,
     method: Method,
+    flush: u8, // flush in 5% of cases on expectation so > (255 - 13)
 }
 
 #[derive(Debug, Arbitrary)]
@@ -21,15 +22,17 @@ enum Method {
     Remove,
     Get,
 }
-
 fn execute(ops: Vec<Operation>) -> (Cid, ahash::AHashMap<u64, u64>) {
     let db = fvm_shared::blockstore::MemoryBlockstore::default();
     let mut amt = Amt::new(&db);
     let mut elements = ahash::AHashMap::new();
 
-    for (i, Operation { idx, method }) in ops.into_iter().enumerate() {
-        if idx > MAX_INDEX {
-            continue;
+    for (i, Operation { idx, method, flush}) in ops.into_iter().enumerate() {
+        let idx = idx as u64;
+        if flush > 255 - 13 {
+            // Periodic flushing and reloading of Amt to fuzz blockstore usage also
+            let cid = amt.flush().unwrap();
+            amt = Amt::load(&cid, &db).unwrap();
         }
 
         match method {
@@ -60,7 +63,7 @@ fuzz_target!(|ops: Vec<Operation>| {
     let (res_cid, m) = execute(ops);
 
     let simplified_ops = m.iter().sorted_by_key(|(_, v)| *v).map(|(k ,v)| {
-        Operation{idx: *k, method: Method::Insert(*v)}
+        Operation{idx: *k as u16, method: Method::Insert(*v), flush: 0}
     }).collect();
 
     let (simplified_cid, _) = execute(simplified_ops);
