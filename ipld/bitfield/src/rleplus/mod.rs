@@ -67,6 +67,8 @@ mod writer;
 
 use std::borrow::Cow;
 
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{size_hint, Arbitrary, Unstructured};
 pub use error::Error;
 pub use reader::BitReader;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -106,6 +108,48 @@ impl<'de> Deserialize<'de> for BitField {
         Self::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
 }
+#[cfg(feature = "enable-arbitrary")]
+impl<'a> Arbitrary<'a> for BitField {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let mut next_value: bool = bool::arbitrary(u)?;
+        let mut ranges = Vec::new();
+        let mut index = 0u64;
+        let mut total_len: u64 = 0;
+
+        let size = u.arbitrary_len::<(u64, u8)>()?;
+
+        for _ in 0..size {
+            // 3 line crappy "power-law" distribution
+            let len = u64::arbitrary(u)?;
+            let shift = u.int_in_range(0..=63)?;
+            let len = (len & (u64::MAX >> shift)).saturating_add(1);
+
+            let (new_total_len, ovf) = total_len.overflowing_add(len);
+            if ovf {
+                break;
+            }
+            total_len = new_total_len;
+            let start = index;
+            index += len;
+            let end = index;
+
+            if next_value {
+                ranges.push(start..end);
+            }
+
+            next_value = !next_value;
+        }
+
+        Ok(Self {
+            ranges,
+            ..Default::default()
+        })
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        size_hint::and(<usize as Arbitrary>::size_hint(depth), (0, None))
+    }
+}
 
 impl BitField {
     /// Decodes RLE+ encoded bytes into a bit field.
@@ -137,6 +181,12 @@ impl BitField {
             }
 
             next_value = !next_value;
+        }
+
+        // next_value equal true means we just read a run of zeros
+        // which means that there is a trailing run of zeros
+        if next_value {
+            return Err(Error::NotMinimal);
         }
 
         Ok(Self {
@@ -184,10 +234,9 @@ mod tests {
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::iter::Ranges;
-
     use super::super::{bitfield, ranges_from_bits};
     use super::{BitField, BitWriter, Error};
+    use crate::iter::Ranges;
 
     #[test]
     fn test() {
@@ -370,6 +419,45 @@ mod tests {
                 ],
                 Err(Error::NotMinimal),
             ),
+            // tailing runs of zeros
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    1, // run of one
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0,
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    1, // starts with 1
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    1, // trailing run of zeros
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 1
+                    1, //run of one
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    0, 1, 0, 0, 1, 0, // 2 trailing zeros
+                ],
+                Err(Error::NotMinimal),
+            ),
         ]
         .into_iter()
         .enumerate()
@@ -419,6 +507,20 @@ mod tests {
 
         let last = bf.last().unwrap();
         assert_eq!(2, last);
+    }
+
+    #[test]
+    fn test_unset_max() {
+        // Create any bitfield
+        let ranges: Vec<u64> = vec![0, 1, 2, 3];
+        let iter = ranges_from_bits(ranges);
+        let mut bf = BitField::from_ranges(iter);
+
+        // Unset u64::MAX
+        bf.unset(u64::MAX);
+
+        let last = bf.ranges().last().unwrap();
+        assert_eq!(0..4, last);
     }
 
     #[test]
