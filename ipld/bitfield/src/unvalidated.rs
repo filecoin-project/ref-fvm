@@ -6,9 +6,8 @@ use std::convert::TryFrom;
 use fvm_shared::encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::Error;
-
 use super::BitField;
+use crate::Error;
 
 /// A trait for types that can produce a `&BitField` (or fail to do so).
 /// Generalizes over `&BitField` and `&mut UnvalidatedBitField`.

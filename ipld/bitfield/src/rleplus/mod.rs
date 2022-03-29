@@ -67,6 +67,8 @@ mod writer;
 
 use std::borrow::Cow;
 
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{size_hint, Arbitrary, Unstructured};
 pub use error::Error;
 pub use reader::BitReader;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -104,6 +106,48 @@ impl<'de> Deserialize<'de> for BitField {
     {
         let bytes: Cow<'de, [u8]> = serde_bytes::deserialize(deserializer)?;
         Self::from_bytes(&bytes).map_err(serde::de::Error::custom)
+    }
+}
+#[cfg(feature = "enable-arbitrary")]
+impl<'a> Arbitrary<'a> for BitField {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let mut next_value: bool = bool::arbitrary(u)?;
+        let mut ranges = Vec::new();
+        let mut index = 0u64;
+        let mut total_len: u64 = 0;
+
+        let size = u.arbitrary_len::<(u64, u8)>()?;
+
+        for _ in 0..size {
+            // 3 line crappy "power-law" distribution
+            let len = u64::arbitrary(u)?;
+            let shift = u.int_in_range(0..=63)?;
+            let len = (len & (u64::MAX >> shift)).saturating_add(1);
+
+            let (new_total_len, ovf) = total_len.overflowing_add(len);
+            if ovf {
+                break;
+            }
+            total_len = new_total_len;
+            let start = index;
+            index += len;
+            let end = index;
+
+            if next_value {
+                ranges.push(start..end);
+            }
+
+            next_value = !next_value;
+        }
+
+        Ok(Self {
+            ranges,
+            ..Default::default()
+        })
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        size_hint::and(<usize as Arbitrary>::size_hint(depth), (0, None))
     }
 }
 
@@ -184,10 +228,9 @@ mod tests {
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::iter::Ranges;
-
     use super::super::{bitfield, ranges_from_bits};
     use super::{BitField, BitWriter, Error};
+    use crate::iter::Ranges;
 
     #[test]
     fn test() {
