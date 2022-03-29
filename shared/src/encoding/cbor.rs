@@ -22,7 +22,7 @@ pub trait Cbor: ser::Serialize + de::DeserializeOwned {
 
     /// Unmarshals cbor encoded bytes to object
     fn unmarshal_cbor(bz: &[u8]) -> Result<Self, Error> {
-        Ok(from_slice(bz)?)
+        from_slice(bz)
     }
 
     /// Returns the content identifier of the raw block of data
@@ -101,6 +101,6 @@ impl RawBytes {
 
     /// Deserializes the serialized bytes into a defined type.
     pub fn deserialize<O: de::DeserializeOwned>(&self) -> Result<O, Error> {
-        Ok(from_slice(&self.bytes)?)
+        from_slice(&self.bytes)
     }
 }
