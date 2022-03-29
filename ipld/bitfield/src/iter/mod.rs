@@ -133,6 +133,9 @@ where
     I: Iterator<Item = Range<u64>>,
 {
     /// Creates a new `Ranges` instance.
+    ///
+    /// WARNING: This is asserting that the underlying iterator obeys the `RangeIterator`
+    /// constraints. Using this incorrectly could lead to panics, etc.
     pub fn new<II>(iter: II) -> Self
     where
         II: IntoIterator<IntoIter = I, Item = Range<u64>>,
@@ -155,16 +158,21 @@ where
 impl<I> RangeIterator for Ranges<I> where I: Iterator<Item = Range<u64>> {}
 
 /// Returns a `RangeIterator` which ranges contain the values from the provided iterator.
-/// The values need to be in ascending order — if not, the returned iterator may not satisfy
-/// all `RangeIterator` requirements.
-pub fn ranges_from_bits(bits: impl IntoIterator<Item = u64>) -> impl RangeIterator {
+/// The values need to be in ascending order and may not include u64::MAX. Otherwise, the iterator
+/// will panic.
+pub(crate) fn ranges_from_bits(bits: impl IntoIterator<Item = u64>) -> impl RangeIterator {
     let mut iter = bits.into_iter().peekable();
 
     Ranges::new(iter::from_fn(move || {
         let start = iter.next()?;
-        let mut end = start + 1;
-        while iter.peek() == Some(&end) {
-            end += 1;
+        let mut end = start.checked_add(1).expect("bitfield overflow");
+        while let Some(&next) = iter.peek() {
+            if next < end {
+                panic!("out of order bitfield")
+            } else if next > end {
+                break;
+            }
+            end = end.checked_add(1).expect("bitfield overflow");
             iter.next();
         }
         Some(start..end)

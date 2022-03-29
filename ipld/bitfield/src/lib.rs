@@ -1,22 +1,35 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+// disable this lint because it can actually cause performance regressions, and usually leads to
+// hard to read code.
+#![allow(clippy::comparison_chain)]
+
 pub mod iter;
 mod range;
 mod rleplus;
 mod unvalidated;
 
 use std::collections::BTreeSet;
-use std::iter::FromIterator;
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Range, Sub, SubAssign,
 };
 
 use iter::{ranges_from_bits, RangeIterator};
 pub(crate) use range::RangeSize;
+pub use rleplus::Error;
+use thiserror::Error;
 pub use unvalidated::{UnvalidatedBitField, Validate};
 
-type Result<T> = std::result::Result<T, &'static str>;
+#[derive(Clone, Error, Debug)]
+#[error("bitfields may not include u64::MAX")]
+pub struct OutOfRangeError;
+
+impl From<OutOfRangeError> for Error {
+    fn from(_: OutOfRangeError) -> Self {
+        Error::RLEOverflow
+    }
+}
 
 /// A bit field with buffered insertion/removal that serializes to/from RLE+. Similar to
 /// `HashSet<u64>`, but more memory-efficient when long runs of 1s and 0s are present.
@@ -36,22 +49,79 @@ impl PartialEq for BitField {
     }
 }
 
-impl FromIterator<u64> for BitField {
-    fn from_iter<I: IntoIterator<Item = u64>>(iter: I) -> Self {
-        let mut vec: Vec<_> = iter.into_iter().collect();
-        if vec.is_empty() {
-            Self::new()
-        } else {
-            vec.sort_unstable();
-            Self::from_ranges(ranges_from_bits(vec))
+/// Possibly a valid bitfield, or an out of bounds error. Ideally we'd just use a result, but we
+/// can't implement [`FromIterator`] on a [`Result`] due to coherence.
+///
+/// You probably want to call [`BitField::try_from_bits`] instead of using this directly.
+#[doc(hidden)]
+pub enum MaybeBitField {
+    /// A valid bitfield.
+    Ok(BitField),
+    /// Out of bounds.
+    OutOfBounds,
+}
+
+impl MaybeBitField {
+    pub fn unwrap(self) -> BitField {
+        use MaybeBitField::*;
+        match self {
+            Ok(bf) => bf,
+            OutOfBounds => panic!("bitfield bit out of bounds"),
+        }
+    }
+
+    pub fn expect(self, message: &str) -> BitField {
+        use MaybeBitField::*;
+        match self {
+            Ok(bf) => bf,
+            OutOfBounds => panic!("{}", message),
         }
     }
 }
 
-impl FromIterator<bool> for BitField {
-    fn from_iter<I: IntoIterator<Item = bool>>(iter: I) -> Self {
-        let bits = (0u64..).zip(iter).filter(|&(_, b)| b).map(|(i, _)| i);
-        Self::from_ranges(ranges_from_bits(bits))
+impl TryFrom<MaybeBitField> for BitField {
+    type Error = OutOfRangeError;
+
+    fn try_from(value: MaybeBitField) -> Result<Self, Self::Error> {
+        match value {
+            MaybeBitField::Ok(bf) => Ok(bf),
+            MaybeBitField::OutOfBounds => Err(OutOfRangeError),
+        }
+    }
+}
+
+impl FromIterator<bool> for MaybeBitField {
+    fn from_iter<T: IntoIterator<Item = bool>>(iter: T) -> MaybeBitField {
+        let mut iter = iter.into_iter().fuse();
+        let bits = (0u64..u64::MAX)
+            .zip(&mut iter)
+            .filter(|&(_, b)| b)
+            .map(|(i, _)| i);
+        let bf = BitField::from_ranges(ranges_from_bits(bits));
+
+        // Now, if we have remaining bits, raise an error. Otherwise, we're good.
+        if iter.next().is_some() {
+            MaybeBitField::OutOfBounds
+        } else {
+            MaybeBitField::Ok(bf)
+        }
+    }
+}
+
+impl FromIterator<u64> for MaybeBitField {
+    fn from_iter<T: IntoIterator<Item = u64>>(iter: T) -> MaybeBitField {
+        let mut vec: Vec<_> = iter.into_iter().collect();
+        if vec.is_empty() {
+            MaybeBitField::Ok(BitField::new())
+        } else {
+            vec.sort_unstable();
+            vec.dedup();
+            if vec.last() == Some(&u64::MAX) {
+                MaybeBitField::OutOfBounds
+            } else {
+                MaybeBitField::Ok(BitField::from_ranges(ranges_from_bits(vec)))
+            }
+        }
     }
 }
 
@@ -69,10 +139,33 @@ impl BitField {
         }
     }
 
-    /// Adds the bit at a given index to the bit field.
+    /// Tries to create a new bitfield from a bit iterator. It fails if the resulting bitfield would
+    /// contain values not in the range `0..u64::MAX` (non-inclusive).
+    pub fn try_from_bits<I>(iter: I) -> Result<Self, OutOfRangeError>
+    where
+        I: IntoIterator,
+        MaybeBitField: FromIterator<I::Item>,
+    {
+        iter.into_iter().collect::<MaybeBitField>().try_into()
+    }
+
+    /// Adds the bit at a given index to the bit field, panicing if it's out of range.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit` is `u64::MAX`.
     pub fn set(&mut self, bit: u64) {
+        self.try_set(bit).unwrap()
+    }
+
+    /// Adds the bit at a given index to the bit field, returning an error if it's out of range.
+    pub fn try_set(&mut self, bit: u64) -> Result<(), OutOfRangeError> {
+        if bit == u64::MAX {
+            return Err(OutOfRangeError);
+        }
         self.unset.remove(&bit);
         self.set.insert(bit);
+        Ok(())
     }
 
     /// Removes the bit at a given index from the bit field.
@@ -114,8 +207,7 @@ impl BitField {
             self.set.iter().min().copied(),
             self.ranges
                 .iter()
-                .filter_map(|r| r.clone().find(|i| !self.unset.contains(i)))
-                .next(),
+                .find_map(|r| r.clone().find(|i| !self.unset.contains(i))),
         ) {
             (None, None) => None,
             (Some(v), None) | (None, Some(v)) => Some(v),
@@ -165,12 +257,12 @@ impl BitField {
     }
 
     /// Returns an iterator over the indices of the bit field's set bits if the number
-    /// of set bits in the bit field does not exceed `max`. Returns an error otherwise.
-    pub fn bounded_iter(&self, max: u64) -> Result<impl Iterator<Item = u64> + '_> {
+    /// of set bits in the bit field does not exceed `max`. Returns `None` otherwise.
+    pub fn bounded_iter(&self, max: u64) -> Option<impl Iterator<Item = u64> + '_> {
         if self.len() <= max {
-            Ok(self.iter())
+            Some(self.iter())
         } else {
-            Err("Bits set exceeds max in retrieval")
+            None
         }
     }
 
@@ -197,15 +289,15 @@ impl BitField {
     }
 
     /// Returns a slice of the bit field with the start index of set bits
-    /// and number of bits to include in the slice. Returns an error if the
-    /// bit field contains fewer than `start + len` set bits.
-    pub fn slice(&self, start: u64, len: u64) -> Result<Self> {
+    /// and number of bits to include in the slice. Returns `None` if the bit
+    /// field contains fewer than `start + len` set bits.
+    pub fn slice(&self, start: u64, len: u64) -> Option<Self> {
         let slice = BitField::from_ranges(self.ranges().skip_bits(start).take_bits(len));
 
         if slice.len() == len {
-            Ok(slice)
+            Some(slice)
         } else {
-            Err("Not enough bits")
+            None
         }
     }
 
@@ -330,7 +422,7 @@ macro_rules! bitfield {
         std::iter::once($head != 0_u32).chain(bitfield!(@iter $($tail),*))
     };
     ($($val:literal),* $(,)?) => {
-        bitfield!(@iter $($val),*).collect::<$crate::BitField>()
+        bitfield!(@iter $($val),*).collect::<$crate::MaybeBitField>().unwrap()
     };
 }
 

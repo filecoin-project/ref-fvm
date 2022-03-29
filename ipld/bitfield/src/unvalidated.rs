@@ -1,27 +1,31 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryFrom;
+
 use fvm_shared::encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::{BitField, Result};
+use crate::Error;
+
+use super::BitField;
 
 /// A trait for types that can produce a `&BitField` (or fail to do so).
 /// Generalizes over `&BitField` and `&mut UnvalidatedBitField`.
 pub trait Validate<'a> {
-    fn validate(self) -> Result<&'a BitField>;
+    fn validate(self) -> Result<&'a BitField, Error>;
 }
 
 impl<'a> Validate<'a> for &'a mut UnvalidatedBitField {
     /// Validates the RLE+ encoding of the bit field, returning a shared
     /// reference to the decoded bit field.
-    fn validate(self) -> Result<&'a BitField> {
+    fn validate(self) -> Result<&'a BitField, Error> {
         self.validate_mut().map(|bf| &*bf)
     }
 }
 
 impl<'a> Validate<'a> for &'a BitField {
-    fn validate(self) -> Result<&'a BitField> {
+    fn validate(self) -> Result<&'a BitField, Error> {
         Ok(self)
     }
 }
@@ -39,7 +43,7 @@ pub enum UnvalidatedBitField {
 impl UnvalidatedBitField {
     /// Validates the RLE+ encoding of the bit field, returning a unique
     /// reference to the decoded bit field.
-    pub fn validate_mut(&mut self) -> Result<&mut BitField> {
+    pub fn validate_mut(&mut self) -> Result<&mut BitField, Error> {
         if let Self::Unvalidated(bytes) = self {
             *self = Self::Validated(BitField::from_bytes(bytes)?);
         }
@@ -54,6 +58,17 @@ impl UnvalidatedBitField {
 impl From<BitField> for UnvalidatedBitField {
     fn from(bf: BitField) -> Self {
         Self::Validated(bf)
+    }
+}
+
+impl TryFrom<UnvalidatedBitField> for BitField {
+    type Error = Error;
+
+    fn try_from(bf: UnvalidatedBitField) -> Result<Self, Self::Error> {
+        match bf {
+            UnvalidatedBitField::Validated(bf) => Ok(bf),
+            UnvalidatedBitField::Unvalidated(bf) => BitField::from_bytes(&bf),
+        }
     }
 }
 

@@ -4,7 +4,7 @@ description = "Bitfield logic for use in Filecoin actors"
 version = "0.3.0"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
@@ -12,6 +12,7 @@ unsigned-varint = "0.7.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
 fvm_shared = { version = "0.3.1", path = "../../shared" }
+thiserror = "1.0.30"
 
 [dev-dependencies]
 rand_xorshift = "0.2.0"
