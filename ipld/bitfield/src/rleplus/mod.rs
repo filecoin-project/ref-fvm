@@ -183,6 +183,12 @@ impl BitField {
             next_value = !next_value;
         }
 
+        // next_value equal true means we just read a run of zeros
+        // which means that there is a trailing run of zeros
+        if next_value {
+            return Err(Error::NotMinimal);
+        }
+
         Ok(Self {
             ranges,
             ..Default::default()
@@ -410,6 +416,45 @@ mod tests {
                     0, 1, // fits into 4 bits
                     1, 0, 0, 0, // 1 - 1
                     1, 1, 1, 1, 1, 1, 1,
+                ],
+                Err(Error::NotMinimal),
+            ),
+            // tailing runs of zeros
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    1, // run of one
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0,
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    1, // starts with 1
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    1, // trailing run of zeros
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 1
+                    1, //run of one
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    0, 1, 0, 0, 1, 0, // 2 trailing zeros
                 ],
                 Err(Error::NotMinimal),
             ),
