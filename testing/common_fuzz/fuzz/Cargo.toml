@@ -35,3 +35,9 @@ name = "rle_decode"
 path = "fuzz_targets/rle_decode.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rle_encode"
+path = "fuzz_targets/rle_encode.rs"
+test = false
+doc = false
