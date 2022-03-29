@@ -135,7 +135,7 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
-            (0, Some(manifest_cid)),
+            Some(manifest_cid),
             bs,
             DummyExterns,
         )

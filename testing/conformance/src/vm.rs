@@ -85,7 +85,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             BigInt::zero(),
             network_version,
             state_root,
-            (0, Some(builtin_actors)),
+            Some(builtin_actors),
             blockstore,
             externs,
         )
