@@ -127,6 +127,8 @@ mod test {
             bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
         };
 
+        let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
+
         let machine = DefaultMachine::new(
             Config::default(),
             Engine::default(),
@@ -135,7 +137,7 @@ mod test {
             Zero::zero(),
             fvm_shared::version::NetworkVersion::V14,
             root,
-            (0, Some(manifest_cid)),
+            Some(actors_cid),
             bs,
             DummyExterns,
         )
