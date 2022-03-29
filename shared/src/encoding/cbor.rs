@@ -17,7 +17,7 @@ pub const DAG_CBOR: u64 = 0x71;
 pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes
     fn marshal_cbor(&self) -> Result<Vec<u8>, Error> {
-        Ok(to_vec(&self)?)
+        to_vec(&self)
     }
 
     /// Unmarshals cbor encoded bytes to object
