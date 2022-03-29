@@ -170,6 +170,9 @@ impl BitField {
 
     /// Removes the bit at a given index from the bit field.
     pub fn unset(&mut self, bit: u64) {
+        if bit == u64::MAX {
+            return;
+        }
         self.set.remove(&bit);
         self.unset.insert(bit);
     }

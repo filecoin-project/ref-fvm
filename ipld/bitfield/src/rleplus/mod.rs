@@ -510,6 +510,20 @@ mod tests {
     }
 
     #[test]
+    fn test_unset_max() {
+        // Create any bitfield
+        let ranges: Vec<u64> = vec![0, 1, 2, 3];
+        let iter = ranges_from_bits(ranges);
+        let mut bf = BitField::from_ranges(iter);
+
+        // Unset u64::MAX
+        bf.unset(u64::MAX);
+
+        let last = bf.ranges().last().unwrap();
+        assert_eq!(0..4, last);
+    }
+
+    #[test]
     fn test_zero_last() {
         let mut bf = BitField::new();
         bf.set(0);
