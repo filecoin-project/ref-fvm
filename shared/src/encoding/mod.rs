@@ -9,7 +9,7 @@ mod vec;
 
 pub use serde::{de, ser};
 pub use serde_bytes;
-pub use serde_ipld_dagcbor::{error, from_reader, from_slice, to_writer};
+pub use serde_ipld_dagcbor::{from_reader, from_slice, to_writer};
 
 pub use self::bytes::*;
 pub use self::cbor::*;
@@ -32,7 +32,7 @@ pub mod repr {
 // TODO: upstream this. Upstream doesn't allow encoding unsized types (e.g., slices).
 
 /// Serializes a value to a vector.
-pub fn to_vec<T>(value: &T) -> serde_ipld_dagcbor::Result<Vec<u8>>
+pub fn to_vec<T>(value: &T) -> Result<Vec<u8>, Error>
 where
     T: ser::Serialize + ?Sized,
 {
