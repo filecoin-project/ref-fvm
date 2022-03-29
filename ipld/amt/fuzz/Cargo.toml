@@ -1,5 +1,5 @@
 [package]
-name = "ipld_amt-fuzz"
+name = "ipld_amt_fuzz"
 version = "0.0.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
@@ -23,11 +23,6 @@ fvm_shared = { path = "../../../shared" }
 [workspace]
 members = ["."]
 
-[[bin]]
-name = "simple"
-path = "fuzz_targets/simple.rs"
-test = false
-doc = false
 
 [[bin]]
 name = "equivalence"
