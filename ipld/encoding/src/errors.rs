@@ -4,7 +4,7 @@
 use std::{fmt, io};
 
 use cid::Error as CidError;
-use serde_ipld_dagcbor::error::Error as CborError;
+use serde_ipld_dagcbor::{DecodeError, EncodeError};
 use thiserror::Error;
 
 /// Error type for encoding and decoding data through any Forest supported protocol.
@@ -18,8 +18,17 @@ pub struct Error {
     pub protocol: CodecProtocol,
 }
 
-impl From<CborError> for Error {
-    fn from(err: CborError) -> Error {
+impl<T: fmt::Debug> From<DecodeError<T>> for Error {
+    fn from(err: DecodeError<T>) -> Self {
+        Self {
+            description: err.to_string(),
+            protocol: CodecProtocol::Cbor,
+        }
+    }
+}
+
+impl<T: fmt::Debug> From<EncodeError<T>> for Error {
+    fn from(err: EncodeError<T>) -> Self {
         Self {
             description: err.to_string(),
             protocol: CodecProtocol::Cbor,

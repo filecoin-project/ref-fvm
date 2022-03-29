@@ -82,9 +82,11 @@ impl Memory {
 
 #[cfg(test)]
 mod test {
-    use cid::multihash::MultihashDigest;
-
     use super::*;
+
+    const RAW: u64 = 0x55;
+    const SHA2_256: u64 = 0x12;
+    const HASH: &[u8] = b"\x2C\x26\xB4\x6B\x68\xFF\xC6\x8F\xF9\x9B\x45\x3C\x1D\x30\x41\x34\x13\x42\x2D\x70\x64\x83\xBF\xA0\xF9\x8A\x5E\x88\x62\x66\xE7\xAE";
 
     // TODO: move this somewhere more useful.
     macro_rules! expect_syscall_err {
@@ -117,7 +119,8 @@ mod test {
 
     #[test]
     fn test_read_cid() {
-        let k = Cid::new_v1(0x55, cid::multihash::Code::Sha2_256.digest(b"foo"));
+        let hash = cid::multihash::Multihash::wrap(SHA2_256, HASH).unwrap();
+        let k = Cid::new_v1(RAW, hash);
         let mut k_bytes = k.to_bytes();
         let mem = Memory::new(&mut k_bytes);
         let k2 = mem.read_cid(0).expect("failed to read cid");
@@ -126,7 +129,8 @@ mod test {
 
     #[test]
     fn test_read_cid_truncated() {
-        let k = Cid::new_v1(0x55, cid::multihash::Code::Sha2_256.digest(b"foo"));
+        let hash = cid::multihash::Multihash::wrap(SHA2_256, HASH).unwrap();
+        let k = Cid::new_v1(RAW, hash);
         let mut k_bytes = k.to_bytes();
         let mem = Memory::new(&mut k_bytes[..20]);
         expect_syscall_err!(IllegalArgument, mem.read_cid(0));
