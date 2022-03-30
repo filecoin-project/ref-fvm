@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 #![no_main]
+#![allow(clippy::eq_op)]
 
 use fvm_ipld_bitfield::BitField;
 use libfuzzer_sys::fuzz_target;
@@ -31,6 +32,4 @@ fuzz_target!(|bfs: [BitField; 3]| {
         assert_eq!(&(bf1 - bf2) - bf3, &(bf1 - bf3) - bf2);
         assert_eq!(&(bf1 ^ bf2) ^ bf3, &(bf1 ^ bf3) ^ bf2);
     }
-
-    ()
 });
