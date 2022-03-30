@@ -1,7 +1,7 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
-use fvm_ipld_bitfield::BitField;
 use arbitrary::Arbitrary;
+use fvm_ipld_bitfield::BitField;
+use libfuzzer_sys::fuzz_target;
 
 #[derive(Debug, Arbitrary)]
 enum Operation {
@@ -14,8 +14,12 @@ fuzz_target!(|data: (BitField, Vec<Operation>)| {
 
     for op in ops {
         match op {
-            Operation::Set(x) => { _ = bf.try_set(x);}
-            Operation::Unset(x) => {bf.unset(x);}
+            Operation::Set(x) => {
+                let _ = bf.try_set(x);
+            }
+            Operation::Unset(x) => {
+                bf.unset(x);
+            }
         };
     }
 
