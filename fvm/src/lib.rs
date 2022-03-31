@@ -45,11 +45,6 @@ lazy_static::lazy_static! {
 pub struct Config {
     /// The maximum call depth.
     pub max_call_depth: u32,
-    /// Initial number of memory pages to allocate for the invocation container.
-    pub initial_pages: usize,
-    /// Maximum number of memory pages an invocation container's memory
-    /// can expand to.
-    pub max_pages: usize,
     /// Whether debug mode is enabled or not.
     pub debug: bool,
 }
@@ -57,8 +52,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            initial_pages: 0,
-            max_pages: 1024,
             max_call_depth: 4096,
             debug: false,
         }

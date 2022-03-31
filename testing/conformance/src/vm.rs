@@ -75,8 +75,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
-                initial_pages: 0,
-                max_pages: 1024,
                 debug: true, // Enable debug mode by default.
             },
             engine,
