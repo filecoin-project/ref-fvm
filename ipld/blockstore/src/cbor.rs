@@ -1,7 +1,10 @@
 use cid::{multihash, Cid};
-use fvm_ipld_encoding::{de, from_slice, ser, to_vec, DAG_CBOR};
+use serde::{de, ser};
 
 use super::{Block, Blockstore};
+
+// TODO find something to reference.
+pub const DAG_CBOR: u64 = 0x71;
 
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
 pub trait CborStore: Blockstore + Sized {
@@ -11,7 +14,10 @@ pub trait CborStore: Blockstore + Sized {
         T: de::DeserializeOwned,
     {
         match self.get(cid)? {
-            Some(bz) => Ok(Some(from_slice(&bz)?)),
+            Some(bz) => {
+                let res = serde_ipld_dagcbor::from_slice(&bz)?;
+                Ok(Some(res))
+            }
             None => Ok(None),
         }
     }
@@ -21,7 +27,8 @@ pub trait CborStore: Blockstore + Sized {
     where
         S: ser::Serialize,
     {
-        let bytes = to_vec(obj)?;
+        let mut bytes = Vec::new();
+        obj.serialize(&mut serde_ipld_dagcbor::Serializer::new(&mut bytes))?;
         self.put(
             code,
             &Block {
