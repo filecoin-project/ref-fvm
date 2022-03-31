@@ -15,6 +15,7 @@ ahash = "0.7.6"
 
 fvm_ipld_hamt = { path = ".." }
 fvm_shared = { path = "../../../shared" }
+fvm_ipld_blockstore = { path = "../../blockstore" }
 
 
 # Prevent this from interfering with workspaces
