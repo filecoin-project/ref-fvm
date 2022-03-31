@@ -18,12 +18,13 @@ pub fn abort(
     message_len: u32,
 ) -> Result<Never, Abort> {
     let code = ExitCode::new(code);
-    if code.is_system_error() {
-        return Err(Abort::Exit(
-            SystemExitCode::ILLEGAL_EXIT_CODE,
-            format!("actor aborted with code {}", code),
-        ));
-    }
+    // Uncomment to fix https://github.com/filecoin-project/ref-fvm/issues/253
+    // if code.is_system_error() {
+    //     return Err(Abort::Exit(
+    //         SystemExitCode::ILLEGAL_EXIT_CODE,
+    //         format!("actor aborted with code {}", code),
+    //     ));
+    // }
 
     let message = if message_len == 0 {
         "actor aborted".to_owned()
