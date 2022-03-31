@@ -4,10 +4,8 @@
 use std::fmt::Display;
 
 use cid::multihash::Code;
-use fvm_ipld_blockstore::{
-    tracking::{BSStats, TrackingBlockstore},
-    {CborStore, MemoryBlockstore},
-};
+use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
+use fvm_ipld_blockstore::{CborStore, MemoryBlockstore};
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Hamt};

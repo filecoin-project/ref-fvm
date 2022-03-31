@@ -4,11 +4,9 @@
 use std::u64;
 
 use byteorder::{BigEndian, ByteOrder};
-use fvm_ipld_encoding::{
-    de::{Deserialize, Deserializer},
-    ser::{Serialize, Serializer},
-    serde_bytes,
-};
+use fvm_ipld_encoding::de::{Deserialize, Deserializer};
+use fvm_ipld_encoding::ser::{Serialize, Serializer};
+use fvm_ipld_encoding::serde_bytes;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);

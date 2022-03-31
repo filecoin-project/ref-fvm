@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
+use fvm_ipld_encoding::Cbor;
 use serde_tuple::*;
 
 use super::*;
 use crate::randomness::Randomness;
 use crate::ActorID;
-use fvm_ipld_encoding::Cbor;
 
 /// Randomness type used for generating PoSt proof randomness.
 pub type PoStRandomness = Randomness;

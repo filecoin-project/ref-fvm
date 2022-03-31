@@ -20,7 +20,6 @@ pub use self::errors::Error;
 pub use self::network::Network;
 pub use self::payload::{BLSPublicKey, Payload};
 pub use self::protocol::Protocol;
-
 use crate::ActorID;
 
 /// defines the encoder for base32 encoding with the provided string with no padding

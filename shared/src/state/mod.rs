@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use serde::{Deserialize, Serialize};
-
 use fvm_ipld_encoding::repr::*;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
+use serde::{Deserialize, Serialize};
 
 /// Specifies the version of the state tree
 #[derive(Debug, PartialEq, Clone, Copy, PartialOrd, Serialize_repr, Deserialize_repr)]

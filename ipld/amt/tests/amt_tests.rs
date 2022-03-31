@@ -4,11 +4,11 @@
 use std::fmt::Debug;
 
 use fvm_ipld_amt::{Amt, Error, MAX_INDEX};
-use fvm_ipld_blockstore::{
-    tracking::{BSStats, TrackingBlockstore},
-    Blockstore, MemoryBlockstore,
-};
-use fvm_ipld_encoding::{de::DeserializeOwned, ser::Serialize, BytesDe};
+use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::ser::Serialize;
+use fvm_ipld_encoding::BytesDe;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where

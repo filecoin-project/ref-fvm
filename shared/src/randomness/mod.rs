@@ -1,9 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 use fvm_ipld_encoding::{BytesDe, BytesSer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // TODO: turn this back into a 32byte array once we no longer need go compat. It's a vec so that the
 // errors match.
