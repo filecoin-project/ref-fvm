@@ -3,7 +3,7 @@
 
 use std::error::Error as StdError;
 
-use fvm_shared::encoding::Error as EncodingError;
+use fvm_ipld_encoding::Error as EncodingError;
 use thiserror::Error;
 
 /// HAMT Error

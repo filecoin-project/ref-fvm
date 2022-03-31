@@ -22,7 +22,7 @@ enum Method {
     Get,
 }
 fn execute(ops: Vec<Operation>) -> (Cid, ahash::AHashMap<u64, u64>) {
-    let db = fvm_shared::blockstore::MemoryBlockstore::default();
+    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut amt = Amt::new(&db);
     let mut elements = ahash::AHashMap::new();
 

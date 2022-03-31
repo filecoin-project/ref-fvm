@@ -1,10 +1,10 @@
 use anyhow::Context;
 use fvm_shared::bigint::bigint_ser;
-use fvm_shared::blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::{Blockstore, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::encoding::Cbor;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::Cbor;
 use fvm_shared::sector::{Spacetime, StoragePower};
 use fvm_shared::smooth::FilterEstimate;
 use fvm_shared::ActorID;

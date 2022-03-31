@@ -6,8 +6,8 @@ use std::convert::{TryFrom, TryInto};
 use anyhow::anyhow;
 use cid::multihash::Code;
 use cid::Cid;
-use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::encoding::{serde_bytes, BytesSer};
+use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_encoding::{serde_bytes, BytesSer};
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Serialize};
@@ -555,7 +555,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use fvm_shared::encoding::{from_slice, to_vec};
+    use fvm_ipld_encoding::{from_slice, to_vec};
 
     use super::*;
 

@@ -8,7 +8,7 @@ use fvm_shared::address::{
     checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };
-use fvm_shared::encoding::{from_slice, Cbor};
+use fvm_ipld_encoding::{from_slice, Cbor};
 
 #[test]
 fn bytes() {

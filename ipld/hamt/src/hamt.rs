@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use cid::multihash::Code;
 use cid::Cid;
 use forest_hash_utils::BytesKey;
-use fvm_shared::blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::{Blockstore, CborStore};
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
@@ -21,7 +21,7 @@ use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
 /// ```
 /// use fvm_ipld_hamt::Hamt;
 ///
-/// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+/// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
 ///
 /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
 /// map.set(1, "a".to_string()).unwrap();
@@ -126,7 +126,7 @@ where
     /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(37, "a".to_string()).unwrap();
@@ -156,7 +156,7 @@ where
     /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
@@ -191,7 +191,7 @@ where
     /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -223,7 +223,7 @@ where
     /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -255,7 +255,7 @@ where
     /// use fvm_ipld_hamt::Hamt;
     /// use std::rc::Rc;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
     /// map.set(1, "a".to_string()).unwrap();
@@ -291,7 +291,7 @@ where
     /// ```
     /// use fvm_ipld_hamt::Hamt;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
     /// map.set(1, 1).unwrap();

@@ -4,8 +4,8 @@
 extern crate serde;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
-use fvm_shared::encoding::tuple::*;
 
 const ITEM_COUNT: u8 = 40;
 
@@ -37,7 +37,7 @@ impl BenchData {
 fn insert(c: &mut Criterion) {
     c.bench_function("HAMT bulk insert (no flush)", |b| {
         b.iter(|| {
-            let db = fvm_shared::blockstore::MemoryBlockstore::default();
+            let db = fvm_ipld_blockstore::MemoryBlockstore::default();
             let mut a = Hamt::<_, _>::new(&db);
 
             for i in 0..black_box(ITEM_COUNT) {
@@ -51,7 +51,7 @@ fn insert(c: &mut Criterion) {
 fn insert_load_flush(c: &mut Criterion) {
     c.bench_function("HAMT bulk insert with flushing and loading", |b| {
         b.iter(|| {
-            let db = fvm_shared::blockstore::MemoryBlockstore::default();
+            let db = fvm_ipld_blockstore::MemoryBlockstore::default();
             let mut empt = Hamt::<_, ()>::new(&db);
             let mut cid = empt.flush().unwrap();
 
@@ -66,7 +66,7 @@ fn insert_load_flush(c: &mut Criterion) {
 }
 
 fn delete(c: &mut Criterion) {
-    let db = fvm_shared::blockstore::MemoryBlockstore::default();
+    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = Hamt::<_, _>::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
         a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
@@ -84,7 +84,7 @@ fn delete(c: &mut Criterion) {
 }
 
 fn for_each(c: &mut Criterion) {
-    let db = fvm_shared::blockstore::MemoryBlockstore::default();
+    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = Hamt::<_, _>::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
         a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();

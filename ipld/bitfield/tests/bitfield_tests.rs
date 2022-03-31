@@ -4,7 +4,6 @@
 use std::collections::HashSet;
 
 use fvm_ipld_bitfield::{bitfield, BitField};
-use fvm_shared::encoding;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -175,8 +174,8 @@ fn ranges() {
 #[test]
 fn serialize_node_symmetric() {
     let bit_field = bitfield![0, 1, 0, 1, 1, 1, 1, 1, 1];
-    let cbor_bz = encoding::to_vec(&bit_field).unwrap();
-    let deserialized: BitField = encoding::from_slice(&cbor_bz).unwrap();
+    let cbor_bz = fvm_ipld_encoding::to_vec(&bit_field).unwrap();
+    let deserialized: BitField = fvm_ipld_encoding::from_slice(&cbor_bz).unwrap();
     assert_eq!(deserialized.len(), 7);
     assert_eq!(deserialized, bit_field);
 }
@@ -197,10 +196,10 @@ fn bit_vec_unset_vector() {
     assert_eq!(bf.len(), 4);
 
     // Test cbor marshal and unmarshal
-    let cbor_bz = encoding::to_vec(&bf).unwrap();
+    let cbor_bz = fvm_ipld_encoding::to_vec(&bf).unwrap();
     assert_eq!(&cbor_bz, &[0x42, 0xa8, 0x54]);
 
-    let deserialized: BitField = encoding::from_slice(&cbor_bz).unwrap();
+    let deserialized: BitField = fvm_ipld_encoding::from_slice(&cbor_bz).unwrap();
     assert_eq!(deserialized.len(), 4);
     assert!(!deserialized.get(3));
 }
@@ -216,8 +215,8 @@ fn padding() {
     bf.set(1);
     bf.set(3);
 
-    let cbor = encoding::to_vec(&bf).unwrap();
-    let deserialized: BitField = encoding::from_slice(&cbor).unwrap();
+    let cbor = fvm_ipld_encoding::to_vec(&bf).unwrap();
+    let deserialized: BitField = fvm_ipld_encoding::from_slice(&cbor).unwrap();
     assert_eq!(deserialized, bf);
 }
 

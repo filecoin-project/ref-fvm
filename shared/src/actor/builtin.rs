@@ -4,7 +4,7 @@ use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::{Blockstore, CborStore};
 
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.

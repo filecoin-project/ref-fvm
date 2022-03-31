@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::encoding::{BytesDe, BytesSer};
+use fvm_ipld_encoding::{BytesDe, BytesSer};
 
 // TODO: turn this back into a 32byte array once we no longer need go compat. It's a vec so that the
 // errors match.

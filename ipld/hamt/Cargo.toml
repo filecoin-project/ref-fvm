@@ -10,15 +10,16 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 byteorder = "1.3.2"
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
+cid = { version = "0.8.2", features = ["serde-codec"] }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
 thiserror = "1.0"
 sha2 = "0.10"
 once_cell = "1.5"
 forest_hash_utils = "0.1"
-fvm_shared = { version = "0.3.1", path = "../../shared" }
 anyhow = "1.0.51"
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
+fvm_ipld_encoding = { version = "0.1", path = "../encoding" }
+fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
 
 [features]
 identity = []

@@ -52,7 +52,7 @@ pub trait Blockstore {
     ///
     /// ```rust
     /// use multihash::Code::Blake2b256;
-    /// use fvm_shared::blockstore::{Blockstore, MemoryBlockstore, Block};
+    /// use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
     /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];

@@ -4,13 +4,13 @@
 use std::borrow::Cow;
 use std::error;
 
+use fvm_ipld_encoding::repr::*;
+use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use thiserror::Error;
 
 use crate::address::Error as AddressError;
-use crate::encoding::repr::*;
-use crate::encoding::{de, ser, serde_bytes, Cbor, Error as EncodingError};
 
 /// BLS signature length in bytes.
 pub const BLS_SIG_LEN: usize = 96;
@@ -130,7 +130,6 @@ pub mod ops {
     use super::{Error, SECP_SIG_LEN};
     use crate::address::Address;
     use crate::crypto::signature::Signature;
-    use crate::encoding::blake2b_256;
 
     /// Returns `String` error if a bls signature is invalid.
     pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
@@ -167,12 +166,17 @@ pub mod ops {
         }
 
         // blake2b 256 hash
-        let hash = blake2b_256(data);
+        let hash = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(data)
+            .finalize();
 
         // Ecrecover with hash and signature
         let mut sig = [0u8; SECP_SIG_LEN];
         sig[..].copy_from_slice(signature);
-        let rec_addr = ecrecover(&hash, &sig).map_err(|e| e.to_string())?;
+        let rec_addr = ecrecover(hash.as_bytes().try_into().expect("fixed array size"), &sig)
+            .map_err(|e| e.to_string())?;
 
         // check address against recovered address
         if &rec_addr == addr {
@@ -249,7 +253,6 @@ mod tests {
 
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
-    use crate::encoding::blake2b_256;
     use crate::Address;
 
     #[test]
@@ -293,7 +296,15 @@ mod tests {
         let pub_key = PublicKey::from_secret_key(&priv_key);
         let secp_addr = Address::new_secp256k1(&pub_key.serialize()).unwrap();
 
-        let hash = blake2b_256(&[8, 8]);
+        let hash: [u8; 32] = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&[8, 8])
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .expect("fixed array size");
+
         let msg = Message::parse(&hash);
 
         // Generate signature

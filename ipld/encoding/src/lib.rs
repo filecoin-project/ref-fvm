@@ -4,7 +4,6 @@
 mod bytes;
 mod cbor;
 mod errors;
-mod hash;
 mod vec;
 
 use std::io;
@@ -15,7 +14,6 @@ pub use serde_bytes;
 pub use self::bytes::*;
 pub use self::cbor::*;
 pub use self::errors::*;
-pub use self::hash::*;
 pub use self::vec::*;
 
 // TODO: these really don't work all that well in a shared context like this as anyone importing

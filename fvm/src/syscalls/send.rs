@@ -1,6 +1,6 @@
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::DAG_CBOR;
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
 

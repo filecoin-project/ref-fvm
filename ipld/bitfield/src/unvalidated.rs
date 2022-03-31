@@ -3,7 +3,7 @@
 
 use std::convert::TryFrom;
 
-use fvm_shared::encoding::serde_bytes;
+use fvm_ipld_encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::BitField;

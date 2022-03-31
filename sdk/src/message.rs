@@ -1,5 +1,5 @@
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, DAG_CBOR};
+use fvm_ipld_encoding::{Cbor, DAG_CBOR};
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
@@ -75,7 +75,7 @@ pub fn params_cbor<T: Cbor>(id: BlockId) -> SyscallResult<T> {
     }
     let (codec, raw) = params_raw(id)?;
     debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");
-    match fvm_shared::encoding::from_slice(raw.as_slice()) {
+    match fvm_ipld_encoding::from_slice(raw.as_slice()) {
         Ok(v) => Ok(v),
         Err(e) => vm::abort(
             ExitCode::ErrSerialization as u32,

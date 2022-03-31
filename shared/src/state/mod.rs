@@ -4,9 +4,9 @@
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
-use crate::encoding::repr::*;
-use crate::encoding::tuple::*;
-use crate::encoding::Cbor;
+use fvm_ipld_encoding::repr::*;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::Cbor;
 
 /// Specifies the version of the state tree
 #[derive(Debug, PartialEq, Clone, Copy, PartialOrd, Serialize_repr, Deserialize_repr)]
