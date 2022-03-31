@@ -4,10 +4,10 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use cid::multihash::Code;
 use cid::Cid;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::{Blockstore, CborStore};
+use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 

@@ -3,12 +3,12 @@
 
 use std::fmt::Display;
 
-use cid::multihash::Code;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{CborStore, MemoryBlockstore};
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Hamt};
+use multihash::Code;
 use serde_bytes::ByteBuf;
 
 // Redeclaring max array size of Hamt to avoid exposing value

@@ -5,8 +5,8 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use cid::multihash::Code;
 use fvm_ipld_blockstore::{Blockstore, CborStore};
+use multihash::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
