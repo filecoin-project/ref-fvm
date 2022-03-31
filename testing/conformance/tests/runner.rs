@@ -39,7 +39,9 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         Ok(v) => either::Either::Left(
             iter::once(async move {
                 let path = Path::new(v.as_str()).to_path_buf();
-                let res = run_vector(path.clone(), engine).await?;
+                let res = run_vector(path.clone(), engine)
+                    .await
+                    .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
             })
             .map(futures::future::Either::Left),
@@ -52,7 +54,9 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                     let engine = engine.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engine).await?;
+                        let res = run_vector(path.clone(), engine)
+                            .await
+                            .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
                     }
                 })
@@ -147,17 +151,19 @@ async fn run_vector(
     // Upstream bug is https://github.com/serde-rs/serde/issues/1183 (or at least that looks like
     // the most appropriate one out of all the related issues).
     let mut vector: HashMap<String, Box<serde_json::value::RawValue>> =
-        serde_json::from_reader(reader)?;
+        serde_json::from_reader(reader).context("failed to parse vector")?;
     let class_json = vector
         .remove("class")
         .context("expected test vector to have a class")?;
 
-    let class: &str = serde_json::from_str(class_json.get())?;
+    let class: &str =
+        serde_json::from_str(class_json.get()).context("failed to parse test vector class")?;
     let vector_json = serde_json::to_string(&vector)?;
 
     match class {
         "message" => {
-            let v: MessageVector = serde_json::from_str(&vector_json)?;
+            let v: MessageVector =
+                serde_json::from_str(&vector_json).context("failed to parse message vector")?;
             let skip = !v.selector.as_ref().map_or(true, Selector::supported);
             if skip {
                 Ok(either::Either::Left(
