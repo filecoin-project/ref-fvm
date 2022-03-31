@@ -2,11 +2,12 @@ use std::fmt::Formatter;
 
 use fvm_ipld_encoding::repr::*;
 use num_derive::FromPrimitive;
-use serde::{Deserializer, Serializer};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// ExitCode defines the exit code from the VM invocation.
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ExitCode {
     value: u32,
 }
@@ -41,24 +42,6 @@ impl ExitCode {
 impl std::fmt::Display for ExitCode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
-    }
-}
-
-impl serde::Serialize for ExitCode {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u32(self.value)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ExitCode {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(ExitCode { value: 0 }) // FIXME figure this out
     }
 }
 
