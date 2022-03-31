@@ -9,17 +9,10 @@ use fvm_shared::blockstore::{Blockstore, Buffered};
 // TODO: figure out where to put this.
 const DAG_CBOR: u64 = 0x71;
 
-// NOTE: This code doesn't currently work. It was taken from the ipld/blockstore crate but now lives here because that "blockstore" is really the actor store.
-// TODO:
-// 1. Finish converting it to a true blockstore.
-// 2. Add bulk put methods to the blockstore.
-
 // TODO: replace HashMap with DashMap like in forest?
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek};
-
-// TODO: This is going to live in the kernel so it should be a Blockstore, not an ActorStore.
 
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
