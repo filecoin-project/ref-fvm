@@ -2,7 +2,7 @@
 use std::sync::Mutex;
 
 use derive_more::Display;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ExitCode, SystemExitCode};
 use wasmtime::Trap;
 
 use crate::kernel::ExecutionError;
@@ -50,7 +50,7 @@ impl From<Trap> for Abort {
 
         // Actor panic/wasm error.
         if let Some(code) = t.trap_code() {
-            return Abort::Exit(ExitCode::SysErrActorPanic, code.to_string());
+            return Abort::Exit(SystemExitCode::ILLEGAL_INSTRUCTION, code.to_string());
         }
 
         // Try to get a smuggled error back.

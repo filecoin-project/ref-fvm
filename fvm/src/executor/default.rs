@@ -7,7 +7,7 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::{ErrorNumber, ExitCode, SystemExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
@@ -88,7 +88,7 @@ where
             Ok(InvocationResult::Return(return_data)) => {
                 backtrace.clear();
                 Receipt {
-                    exit_code: ExitCode::Ok,
+                    exit_code: ExitCode::OK,
                     return_data,
                     gas_used,
                 }
@@ -104,16 +104,16 @@ where
                 }
             }
             Err(ExecutionError::OutOfGas) => Receipt {
-                exit_code: ExitCode::SysErrOutOfGas,
+                exit_code: SystemExitCode::OUT_OF_GAS,
                 return_data: Default::default(),
                 gas_used,
             },
             Err(ExecutionError::Syscall(err)) => {
                 let exit_code = match err.1 {
-                    ErrorNumber::IllegalOperation => ExitCode::SysErrIllegalActor,
-                    ErrorNumber::AssertionFailed => ExitCode::SysErrIllegalArgument,
-                    ErrorNumber::InsufficientFunds => ExitCode::SysErrInsufficientFunds,
-                    ErrorNumber::NotFound => ExitCode::SysErrInvalidReceiver,
+                    ErrorNumber::IllegalOperation => SystemExitCode::ILLEGAL_ACTOR,
+                    ErrorNumber::AssertionFailed => SystemExitCode::ASSERTION_FAILED,
+                    ErrorNumber::InsufficientFunds => SystemExitCode::INSUFFICIENT_FUNDS,
+                    ErrorNumber::NotFound => SystemExitCode::INVALID_RECEIVER,
                     code => {
                         return Err(anyhow!(
                             "unexpected syscall error when processing message: {} ({})",
@@ -207,7 +207,7 @@ where
                 // Verify the cost of the message is not over the message gas limit.
                 if inclusion_total > msg.gas_limit {
                     return Ok(Err(ApplyRet::prevalidation_fail(
-                        ExitCode::SysErrOutOfGas,
+                        SystemExitCode::OUT_OF_GAS,
                         format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                         &self.context().base_fee * inclusion_total,
                     )));
@@ -227,7 +227,7 @@ where
             Some(id) => id,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    SystemExitCode::SENDER_INVALID,
                     "Sender invalid",
                     miner_penalty_amount,
                 )))
@@ -246,7 +246,7 @@ where
             Some(act) => act,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    SystemExitCode::SENDER_INVALID,
                     "Sender invalid",
                     miner_penalty_amount,
                 )))
@@ -262,7 +262,7 @@ where
 
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderInvalid,
+                SystemExitCode::SENDER_INVALID,
                 "Send not from account actor",
                 miner_penalty_amount,
             )));
@@ -271,7 +271,7 @@ where
         // Check sequence is correct
         if msg.sequence != sender.sequence {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                SystemExitCode::SENDER_STATE_INVALID,
                 format!(
                     "Actor sequence invalid: {} != {}",
                     msg.sequence, sender.sequence
@@ -284,7 +284,7 @@ where
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                SystemExitCode::SENDER_STATE_INVALID,
                 format!(
                     "Actor balance less than needed: {} < {}",
                     sender.balance, gas_cost

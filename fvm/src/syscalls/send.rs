@@ -11,10 +11,6 @@ use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.
-///
-/// TODO result is a Receipt, but messages within a call stack don't
-///  actually produce receipts.
-///  See https://github.com/filecoin-project/fvm/issues/168.
 pub fn send(
     context: Context<'_, impl Kernel>,
     recipient_off: u32,
@@ -41,10 +37,10 @@ pub fn send(
             .send(&recipient, method, &params.into(), &value)?
         {
             InvocationResult::Return(value) => (
-                ExitCode::Ok as u32,
+                ExitCode::OK.value(),
                 context.kernel.block_create(DAG_CBOR, value.bytes())?,
             ),
-            InvocationResult::Failure(code) => (code as u32, 0),
+            InvocationResult::Failure(code) => (code.value(), 0),
         };
     Ok(sys::out::send::Send {
         exit_code,
