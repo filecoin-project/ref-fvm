@@ -17,7 +17,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
 pub use self::network::Network;
-pub use self::payload::{BLSPublicKey, Payload};
+pub use self::payload::Payload;
 pub use self::protocol::Protocol;
 use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use crate::ActorID;
@@ -41,7 +41,7 @@ pub const BLS_PUB_LEN: usize = 48;
 pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
 
 lazy_static::lazy_static! {
-    static ref BLS_ZERO_ADDR_BYTES: BLSPublicKey = {
+    static ref BLS_ZERO_ADDR_BYTES: [u8; BLS_PUB_LEN] = {
         let bz_addr = Address::from_str("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
         if let Ok(Address {payload: Payload::BLS(pubkey), ..}) = bz_addr {
             pubkey
@@ -127,7 +127,7 @@ impl Address {
         key.copy_from_slice(pubkey);
         Ok(Self {
             network: NETWORK_DEFAULT,
-            payload: Payload::BLS(key.into()),
+            payload: Payload::BLS(key),
         })
     }
 

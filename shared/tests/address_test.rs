@@ -392,11 +392,11 @@ fn invalid_byte_addresses() {
         // BLS Protocol
         StringAddrVec {
             input: bls_l,
-            expected: Error::InvalidBLSLength(49),
+            expected: Error::InvalidPayloadLength(49),
         },
         StringAddrVec {
             input: bls_s,
-            expected: Error::InvalidBLSLength(47),
+            expected: Error::InvalidPayloadLength(47),
         },
     ];
 
