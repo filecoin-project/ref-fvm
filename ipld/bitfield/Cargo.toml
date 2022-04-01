@@ -25,6 +25,9 @@ serde_json = "1.0"
 json = []
 enable-arbitrary = ["arbitrary"]
 
+[lib]
+bench = false
+
 [[bench]]
 name = "benchmarks"
 harness = false

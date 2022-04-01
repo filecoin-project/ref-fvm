@@ -24,9 +24,13 @@ fn new(c: &mut Criterion) {
 }
 
 fn decode_encode(c: &mut Criterion) {
-    let bf = example1();
     c.bench_function("decode_encode", |b| {
-        b.iter(|| BitField::from_ranges(bf.ranges()))
+        b.iter(|| BitField::from_ranges(example1().ranges()))
+    });
+}
+fn decode(c: &mut Criterion) {
+    c.bench_function("decode", |b| {
+        b.iter(|| example1())
     });
 }
 
@@ -99,6 +103,7 @@ criterion_group!(
     len,
     bits,
     new,
+    decode,
     decode_encode,
     from_ranges,
     is_empty,
