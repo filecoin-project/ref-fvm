@@ -437,13 +437,6 @@ where
     }
 
     // NOT forwarded
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
-        Ok(true)
-    }
-
-    // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
         self.0.charge_gas(charge.name, charge.total())?;

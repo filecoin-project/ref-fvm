@@ -92,25 +92,6 @@ pub fn compute_unsealed_sector_cid(
     Ok(bytes.len() as u32)
 }
 
-/// Verifies a sector seal proof.
-///
-/// The return i32 indicates the status code of the verification:
-///  - 0: verification ok.
-///  - -1: verification failed.
-pub fn verify_seal(
-    mut context: Context<'_, impl Kernel>,
-    info_off: u32, // SealVerifyInfo
-    info_len: u32,
-) -> Result<i32> {
-    let info = context
-        .memory
-        .read_cbor::<SealVerifyInfo>(info_off, info_len)?;
-    context
-        .kernel
-        .verify_seal(&info)
-        .map(|v| if v { 0 } else { -1 })
-}
-
 /// Verifies a window proof of spacetime.
 ///
 /// The return i32 indicates the status code of the verification:

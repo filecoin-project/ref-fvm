@@ -504,13 +504,6 @@ where
         data_commitment_v1_to_cid(&comm_d).or_illegal_argument()
     }
 
-    /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
-        verify_seal(vi)
-    }
-
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;

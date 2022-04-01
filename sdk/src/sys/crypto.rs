@@ -32,9 +32,6 @@ super::fvm_syscalls! {
         cid_len: u32,
     ) -> Result<u32>;
 
-    /// Verifies a sector seal proof.
-    pub fn verify_seal(info_off: *const u8, info_len: u32) -> Result<i32>;
-
     /// Verifies a window proof of spacetime.
     pub fn verify_post(info_off: *const u8, info_len: u32) -> Result<i32>;
 

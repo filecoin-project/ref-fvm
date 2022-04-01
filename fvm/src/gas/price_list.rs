@@ -7,7 +7,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
-    SealVerifyInfo, WindowPoStVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
@@ -45,51 +45,92 @@ lazy_static! {
 
         hashing_base: 31355,
         compute_unsealed_sector_cid_base: 98647,
-        verify_seal_base: 2000, // TODO revisit potential removal of this
 
         verify_aggregate_seal_base: 0,
         verify_aggregate_seal_per: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                449900
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                359272
-            )
-        ].iter().copied().collect(),
+            (RegisteredSealProof::StackedDRG32GiBV1P1, 449900),
+            (RegisteredSealProof::StackedDRG64GiBV1P1, 359272)
+        ]
+        .iter()
+        .copied()
+        .collect(),
         verify_aggregate_seal_steps: [
             (
                 RegisteredSealProof::StackedDRG32GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: 103994170},
-                        Step{start: 7, cost: 112356810},
-                        Step{start: 13, cost: 122912610},
-                        Step{start: 26, cost: 137559930},
-                        Step{start: 52, cost: 162039100},
-                        Step{start: 103, cost: 210960780},
-                        Step{start: 205, cost: 318351180},
-                        Step{start: 410, cost: 528274980},
-                    ]
-                )
+                StepCost(vec![
+                    Step {
+                        start: 4,
+                        cost: 103994170
+                    },
+                    Step {
+                        start: 7,
+                        cost: 112356810
+                    },
+                    Step {
+                        start: 13,
+                        cost: 122912610
+                    },
+                    Step {
+                        start: 26,
+                        cost: 137559930
+                    },
+                    Step {
+                        start: 52,
+                        cost: 162039100
+                    },
+                    Step {
+                        start: 103,
+                        cost: 210960780
+                    },
+                    Step {
+                        start: 205,
+                        cost: 318351180
+                    },
+                    Step {
+                        start: 410,
+                        cost: 528274980
+                    },
+                ])
             ),
             (
                 RegisteredSealProof::StackedDRG64GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: 102581240},
-                        Step{start: 7, cost: 110803030},
-                        Step{start: 13, cost: 120803700},
-                        Step{start: 26, cost: 134642130},
-                        Step{start: 52, cost: 157357890},
-                        Step{start: 103, cost: 203017690},
-                        Step{start: 205, cost: 304253590},
-                        Step{start: 410, cost: 509880640},
-                    ]
-                )
+                StepCost(vec![
+                    Step {
+                        start: 4,
+                        cost: 102581240
+                    },
+                    Step {
+                        start: 7,
+                        cost: 110803030
+                    },
+                    Step {
+                        start: 13,
+                        cost: 120803700
+                    },
+                    Step {
+                        start: 26,
+                        cost: 134642130
+                    },
+                    Step {
+                        start: 52,
+                        cost: 157357890
+                    },
+                    Step {
+                        start: 103,
+                        cost: 203017690
+                    },
+                    Step {
+                        start: 205,
+                        cost: 304253590
+                    },
+                    Step {
+                        start: 410,
+                        cost: 509880640
+                    },
+                ])
             )
-        ].iter()
+        ]
+        .iter()
         .cloned()
         .collect(),
 
@@ -234,7 +275,6 @@ pub struct PriceList {
     pub(crate) hashing_base: i64,
 
     pub(crate) compute_unsealed_sector_cid_base: i64,
-    pub(crate) verify_seal_base: i64,
     #[allow(unused)]
     pub(crate) verify_aggregate_seal_base: i64,
     pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, i64>,
@@ -344,11 +384,6 @@ impl PriceList {
             self.compute_unsealed_sector_cid_base,
             0,
         )
-    }
-    /// Returns gas required for seal verification.
-    #[inline]
-    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge<'static> {
-        GasCharge::new("OnVerifySeal", self.verify_seal_base, 0)
     }
     #[inline]
     pub fn on_verify_aggregate_seals(
