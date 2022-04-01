@@ -212,15 +212,17 @@ pub trait CircSupplyOps {
 }
 
 /// Operations for explicit gas charging.
-///
-/// TODO this is unsafe; most gas charges should occur as part of syscalls, but
-///  some built-in actors currently charge gas explicitly for concrete actions.
-///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
-///  at the WASM level.
 pub trait GasOps {
+    /// TODO this is unsafe; most gas charges should occur as part of syscalls, but
+    ///  some built-in actors currently charge gas explicitly for concrete actions.
+    ///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
+    ///  at the WASM level
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
+
+    /// Charges the gas associated with submitting a seal proof for future bulk verification
+    fn on_submit_verify_seal(&mut self) -> Result<()>;
 }
 
 /// Cryptographic primitives provided by the kernel.

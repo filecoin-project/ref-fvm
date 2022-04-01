@@ -1,16 +1,7 @@
-use std::str;
-
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::Result;
 use crate::Kernel;
 
-pub fn charge_gas(
-    context: Context<'_, impl Kernel>,
-    name_off: u32,
-    name_len: u32,
-    compute: i64,
-) -> Result<()> {
-    let name =
-        str::from_utf8(context.memory.try_slice(name_off, name_len)?).or_illegal_argument()?;
-    context.kernel.charge_gas(name, compute)
+pub fn on_submit_verify_seal(context: Context<'_, impl Kernel>) -> Result<()> {
+    context.kernel.on_submit_verify_seal()
 }

@@ -704,6 +704,11 @@ where
         let charge = GasCharge::new(name, compute, 0);
         self.call_manager.charge_gas(charge)
     }
+
+    fn on_submit_verify_seal(&mut self) -> Result<()> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_submit_verify_seal())
+    }
 }
 
 impl<C> NetworkOps for DefaultKernel<C>

@@ -495,6 +495,10 @@ where
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         self.0.charge_gas(name, compute)
     }
+
+    fn on_submit_verify_seal(&mut self) -> Result<()> {
+        self.0.on_submit_verify_seal()
+    }
 }
 
 impl<M, C, K> MessageOps for TestKernel<K>

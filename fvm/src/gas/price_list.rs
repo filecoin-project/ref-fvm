@@ -136,6 +136,7 @@ lazy_static! {
 
         verify_consensus_fault: 495422,
         verify_replica_update: 36316136,
+        verify_seal_proof: 34721049,
         verify_post_lookup: [
             (
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
@@ -284,6 +285,7 @@ pub struct PriceList {
     pub(crate) verify_post_discount: bool,
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
+    pub(crate) verify_seal_proof: i64,
 }
 
 impl PriceList {
@@ -450,6 +452,11 @@ impl PriceList {
     #[inline]
     pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
+    }
+    /// Returns gas required for submitting a seal proof.
+    #[inline]
+    pub fn on_submit_verify_seal(&self) -> GasCharge<'static> {
+        GasCharge::new("OnSubmitVerifySeal", self.verify_seal_proof, 0)
     }
 }
 

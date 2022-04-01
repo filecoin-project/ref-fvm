@@ -123,7 +123,7 @@ pub fn bind_syscalls(
     linker.bind("rand", "get_chain_randomness", rand::get_chain_randomness)?;
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
 
-    linker.bind("gas", "charge", gas::charge_gas)?;
+    linker.bind("gas", "on_submit_verify_seal", gas::on_submit_verify_seal)?;
 
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;

@@ -1,8 +1,6 @@
 use crate::sys;
 
 /// Charge gas for the operation identified by name.
-pub fn charge(name: &str, compute: u64) {
-    unsafe { sys::gas::charge(name.as_ptr(), name.len() as u32, compute) }
-        // can only happen if name isn't utf8, memory corruption, etc.
-        .expect("failed to charge gas")
+pub fn on_submit_verify_seal() {
+    unsafe { sys::gas::on_submit_verify_seal() }.expect("failed to charge gas for bulk verify")
 }
