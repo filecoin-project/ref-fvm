@@ -132,7 +132,7 @@ where
 
         if charge_gas {
             self.call_manager
-                .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+                .charge_gas(self.call_manager.price_list().on_block_open())?;
         }
 
         let state: crate::account_actor::State = self
@@ -282,7 +282,7 @@ where
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+            .charge_gas(self.call_manager.price_list().on_block_open())?;
 
         let data = self
             .call_manager
@@ -305,6 +305,9 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_create())?;
+
         self.blocks
             .put(Block::new(codec, data))
             .or_illegal_argument()
@@ -323,7 +326,7 @@ where
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_ipld_put(block.size().try_into().or_illegal_argument()?),
+                .on_block_link(block.size().try_into().or_illegal_argument()?),
         )?;
 
         let hash = code.digest(block.data());
@@ -342,7 +345,10 @@ where
         Ok(k)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_read())?;
+
         let data = self.blocks.get(id).or_illegal_argument()?.data();
         Ok(if offset as usize >= data.len() {
             0
@@ -353,7 +359,10 @@ where
         })
     }
 
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_stat())?;
+
         self.blocks.stat(id).or_illegal_argument()
     }
 }
@@ -559,6 +568,8 @@ where
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         self.call_manager
+            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
+        self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
@@ -568,8 +579,14 @@ where
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
-        self.call_manager
-            .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
+        if self.network_version() <= NetworkVersion::V15 {
+            self.call_manager.charge_gas(GasCharge::new(
+                "verify_consensus_fault_accesses",
+                gas,
+                0,
+            ))?;
+        }
+
         Ok(fault)
     }
 
@@ -714,9 +731,21 @@ impl<C> GasOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    fn gas_available(&self) -> i64 {
+        self.call_manager.gas_tracker().gas_available()
+    }
+
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
         self.call_manager.charge_gas(charge)
+    }
+
+    fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
+        self.call_manager.charge_fuel(fuel)
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.call_manager.price_list()
     }
 }
 
@@ -743,11 +772,13 @@ where
 {
     #[allow(unused)]
     fn get_randomness_from_tickets(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
         // TODO: Check error code
         self.call_manager
             .externs()
@@ -757,11 +788,13 @@ where
 
     #[allow(unused)]
     fn get_randomness_from_beacon(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
         // TODO: Check error code
         // Hyperdrive and above only.
         self.call_manager

@@ -94,6 +94,23 @@ fn memory_and_data<'a, K: Kernel>(
     Ok((Memory::new(mem), data))
 }
 
+fn charge_fuel_for_gas<K: Kernel>(caller: &mut Caller<InvocationData<K>>) -> Result<(), Trap> {
+    let fuel = caller.data_mut().calculate_fuel_for_gas();
+    caller.consume_fuel(fuel)?;
+    Ok(())
+}
+
+fn charge_gas_for_fuel<K: Kernel>(caller: &mut Caller<InvocationData<K>>) -> Result<(), Trap> {
+    let fuel_consumed = caller
+        .fuel_consumed()
+        .ok_or_else(|| Trap::new("expected to find fuel consumed"))?;
+
+    caller
+        .data_mut()
+        .charge_gas_for_fuel(fuel_consumed)
+        .map_err(|_| Trap::new("failed to charge fuel"))
+}
+
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {
@@ -114,18 +131,22 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let caller_mut = &mut caller;
+                        charge_gas_for_fuel(caller_mut)?;
+                        let (mut memory, mut data) = memory_and_data(caller_mut)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         Ok(match syscall(ctx $(, $t)*).into()? {
                             Ok(_) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
+                                charge_fuel_for_gas(caller_mut)?;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                charge_fuel_for_gas(caller_mut)?;
                                 code as u32
                             },
                         })
@@ -133,7 +154,9 @@ macro_rules! impl_bind_syscalls {
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let caller_mut = &mut caller;
+                        charge_gas_for_fuel(caller_mut)?;
+                        let (mut memory, mut data) = memory_and_data(caller_mut)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
@@ -149,12 +172,14 @@ macro_rules! impl_bind_syscalls {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
+                                charge_fuel_for_gas(caller_mut)?;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                charge_fuel_for_gas(caller_mut)?;
                                 code as u32
                             },
                         })

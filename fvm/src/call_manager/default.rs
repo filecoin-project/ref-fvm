@@ -1,10 +1,11 @@
-use anyhow::Context as _;
+use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -294,7 +295,19 @@ where
             };
 
             // Make a store.
+            let gas_available = kernel.gas_available();
+            let fuel_to_add = match kernel.network_version() {
+                NetworkVersion::V14 | NetworkVersion::V15 => u64::MAX,
+                _ => kernel.price_list().gas_to_fuel(gas_available),
+            };
+
             let mut store = engine.new_store(kernel);
+            if let Err(err) = store.add_fuel(fuel_to_add) {
+                return (
+                    Err(ExecutionError::Fatal(err)),
+                    store.into_data().kernel.take(),
+                );
+            }
 
             // Instantiate the module.
             let instance = match engine
@@ -315,12 +328,26 @@ where
                     .map_err(Abort::Fatal)?;
 
                 // Invoke it.
-                let return_block_id = invoke.call(&mut store, (param_id,))?;
+                let res = invoke.call(&mut store, (param_id,));
+
+                // First, charge gas for the "latest" fuel use (all the fuel used since the most recent syscall)
+                let fuel_consumed = store
+                    .fuel_consumed()
+                    // TODO: Check whether this ever returns None (eg if 0 fuel has been consumed)
+                    .ok_or_else(|| Abort::Fatal(anyhow!("expected to find fuel consumed")))?;
+                store
+                    .data_mut()
+                    .charge_gas_for_fuel(fuel_consumed)
+                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
+
+                // If the invocation failed due to running out of fuel, we have already detected it and returned OutOfGas above.
+                // Any other invocation failure is returned here as an Abort
+                let return_block_id = res?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
                     let (code, ret) = store
-                        .data()
+                        .data_mut()
                         .kernel
                         .block_get(return_block_id)
                         .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;

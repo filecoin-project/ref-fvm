@@ -2,6 +2,7 @@ use cid::Cid;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
+use crate::kernel::Result;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -29,14 +30,53 @@ pub struct InvocationData<K> {
     /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
     /// after receiving this error without calling any other syscalls.
     pub last_error: Option<backtrace::Cause>,
+
+    /// A snapshot is _taken_ every time execution returns _from_ WASM.
+    /// This happens at the start of a syscall invocation as well as the end of WASM invocation.
+    /// The snapshot is _updated_ every time execution moves _into_ WASM.
+    /// This happens at the first WASM invocation, and at the end of a syscall invocation.
+    /// Before a snapshot is _updated_, fuel is consumed based on the delta.
+    pub gas_available_snapshot: i64,
+
+    /// A snapshot is _taken_ every time execution moves _into_ WASM.
+    /// This happens at the first WASM invocation, and at the end of a syscall invocation.
+    /// The snapshot is _updated_ every time execution returns _from_ WASM.
+    /// This happens at the start of a syscall invocation as well as the end of WASM invocation.
+    /// Before a snapshot is _updated_, gas is consumed based on the delta.
+    pub fuel_consumed_snapshot: u64,
 }
 
 impl<K> InvocationData<K> {
-    pub(crate) fn new(kernel: K) -> Self {
+    pub(crate) fn new(kernel: K, gas_available: i64) -> Self {
         Self {
             kernel,
             last_error: None,
+            gas_available_snapshot: gas_available,
+            fuel_consumed_snapshot: 0,
         }
+    }
+}
+
+impl<K: Kernel> InvocationData<K> {
+    // This method:
+    // 1) calculates the available_gas delta from the previous snapshot,
+    // 2) updates the available_gas snapshot with the new value
+    // 3) returns the value calculated in 1) for its caller to actually consume that fuel
+    pub(crate) fn calculate_fuel_for_gas(&mut self) -> u64 {
+        let gas_available = self.kernel.gas_available();
+        let gas_used = gas_available - self.gas_available_snapshot;
+        self.gas_available_snapshot = gas_available;
+        self.kernel.price_list().gas_to_fuel(gas_used)
+    }
+
+    // This method:
+    // 1) charges gas corresponding to the fuel_consumed delta based on the previous snapshot
+    // 2) updates the fuel_consumed_snapshot
+    pub(crate) fn charge_gas_for_fuel(&mut self, fuel_consumed: u64) -> Result<()> {
+        self.kernel
+            .charge_fuel(fuel_consumed - self.fuel_consumed_snapshot)?;
+        self.fuel_consumed_snapshot = fuel_consumed;
+        Ok(())
     }
 }
 

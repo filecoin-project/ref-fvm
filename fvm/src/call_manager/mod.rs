@@ -11,8 +11,11 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
+
 pub use backtrace::Backtrace;
+
 mod default;
+
 pub use default::DefaultCallManager;
 
 /// BlockID representing nil parameters or return data.
@@ -114,13 +117,19 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().charge_gas(charge)?;
         Ok(())
     }
+
+    /// Charge fuel.
+    fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
+        self.charge_gas(self.price_list().on_consume_fuel(fuel))?;
+        Ok(())
+    }
 }
 
 /// The result of a method invocation.
 pub enum InvocationResult {
-    /// Indicates that the actor sucessfully returned. The value may be empty.
+    /// Indicates that the actor successfully returned. The value may be empty.
     Return(RawBytes),
-    /// Indicates taht the actor aborted with the given exit code.
+    /// Indicates that the actor aborted with the given exit code.
     Failure(ExitCode),
 }
 
