@@ -5,6 +5,7 @@ mod examples;
 
 use std::fs;
 use std::path::Path;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use examples::{example1, example2};
 use fvm_ipld_bitfield::BitField;
@@ -15,7 +16,7 @@ struct Profiler;
 impl criterion::profiler::Profiler for Profiler {
     fn start_profiling(&mut self, benchmark_id: &str, benchmark_dir: &Path) {
         fs::create_dir_all(benchmark_dir).unwrap();
-        let bench_file =benchmark_id.to_owned() + ".prof";
+        let bench_file = benchmark_id.to_owned() + ".prof";
         let bench_path = benchmark_dir.join(bench_file);
         let bench_str = bench_path.to_str().unwrap();
 
@@ -28,9 +29,8 @@ impl criterion::profiler::Profiler for Profiler {
 }
 
 fn profiled() -> Criterion {
-    Criterion::default().with_profiler(Profiler{})
+    Criterion::default().with_profiler(Profiler {})
 }
-
 
 fn len(c: &mut Criterion) {
     let bf = example1();
@@ -54,9 +54,7 @@ fn decode_encode(c: &mut Criterion) {
     });
 }
 fn decode(c: &mut Criterion) {
-    c.bench_function("decode", |b| {
-        b.iter(|| example1())
-    });
+    c.bench_function("decode", |b| b.iter(|| example1()));
 }
 
 fn from_ranges(c: &mut Criterion) {

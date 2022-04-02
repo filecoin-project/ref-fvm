@@ -31,7 +31,7 @@ impl<'a> BitReader<'a> {
         let mut bits = 0u64;
         for i in 0..2 {
             let byte = bytes.get(i).unwrap_or(&0);
-            bits |= (*byte as u64) << (8*i);
+            bits |= (*byte as u64) << (8 * i);
         }
 
         let bytes = bytes.get(2..).unwrap_or(&[]);
@@ -61,7 +61,6 @@ impl<'a> BitReader<'a> {
         // removes the bits
         self.bits >>= num_bits;
         self.num_bits -= num_bits;
-
 
         // not sure why this being outside of the if improves the performance
         // bit it does, probably related to keeping caches warm
@@ -122,28 +121,26 @@ impl<'a> BitReader<'a> {
 
         let peek6 = self.peek(6);
 
-        let len = if peek6 & 0b1 != 0 {
+        let len = if peek6 & 0b01 != 0 {
             // Block Single (prefix 1)
             self.drop(1);
             1
-        } else {
-            if peek6 & 0b10 != 0 {
-                // Block Short (prefix 01)
-                let val = ((peek6 >> 2) & 0x0f) as u64;
-                self.drop(6);
-                if val < 2 {
-                    return Err(Error::NotMinimal);
-                }
-                val
-            } else {
-                // Block Long (prefix 00)
-                self.drop(2);
-                let val = self.read_varint()?;
-                if val < 16 {
-                    return Err(Error::NotMinimal);
-                }
-                val
+        } else if peek6 & 0b10 != 0 {
+            // Block Short (prefix 01)
+            let val = ((peek6 >> 2) & 0x0f) as u64;
+            self.drop(6);
+            if val < 2 {
+                return Err(Error::NotMinimal);
             }
+            val
+        } else {
+            // Block Long (prefix 00)
+            self.drop(2);
+            let val = self.read_varint()?;
+            if val < 16 {
+                return Err(Error::NotMinimal);
+            }
+            val
         };
 
         Ok(Some(len))
