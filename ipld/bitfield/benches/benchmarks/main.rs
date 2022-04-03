@@ -54,7 +54,7 @@ fn decode_encode(c: &mut Criterion) {
     });
 }
 fn decode(c: &mut Criterion) {
-    c.bench_function("decode", |b| b.iter(|| example1()));
+    c.bench_function("decode", |b| b.iter(example1));
 }
 
 fn from_ranges(c: &mut Criterion) {
