@@ -1,7 +1,7 @@
 use anyhow::Context;
-use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::{Cbor, CborStore};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;

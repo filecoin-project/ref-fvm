@@ -3,9 +3,9 @@
 
 mod bytes;
 mod cbor;
+mod cbor_store;
 mod errors;
 mod vec;
-
 use std::io;
 
 pub use serde::{de, ser};
@@ -13,6 +13,7 @@ pub use serde_bytes;
 
 pub use self::bytes::*;
 pub use self::cbor::*;
+pub use self::cbor_store::CborStore;
 pub use self::errors::*;
 pub use self::vec::*;
 

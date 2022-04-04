@@ -67,7 +67,8 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
-    use fvm_ipld_blockstore::{CborStore, MemoryBlockstore};
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::CborStore;
     use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;

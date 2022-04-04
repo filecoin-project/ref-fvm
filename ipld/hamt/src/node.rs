@@ -5,7 +5,8 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use multihash::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;

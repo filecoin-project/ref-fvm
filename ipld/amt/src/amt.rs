@@ -4,9 +4,10 @@
 use anyhow::anyhow;
 use cid::multihash::Code;
 use cid::Cid;
-use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
+use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
 
 use super::ValueMut;

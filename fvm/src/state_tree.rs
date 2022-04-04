@@ -6,8 +6,8 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
-use fvm_ipld_blockstore::{Blockstore, CborStore};
-use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{tuple::*, CborStore};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
@@ -635,8 +635,8 @@ mod tests {
     use cid::multihash::Code::Blake2b256;
     use cid::multihash::Multihash;
     use cid::Cid;
-    use fvm_ipld_blockstore::{CborStore, MemoryBlockstore};
-    use fvm_ipld_encoding::DAG_CBOR;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_ipld_hamt::Hamt;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
     use fvm_shared::bigint::BigInt;

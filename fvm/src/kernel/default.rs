@@ -9,8 +9,8 @@ use filecoin_proofs_api::seal::{
 };
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
-use fvm_ipld_blockstore::{Blockstore, CborStore};
-use fvm_ipld_encoding::{bytes_32, to_vec, RawBytes};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};

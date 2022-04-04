@@ -1,7 +1,8 @@
 use anyhow::anyhow;
 use bimap::BiBTreeMap;
 use cid::Cid;
-use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 

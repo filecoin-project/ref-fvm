@@ -6,7 +6,8 @@ use std::marker::PhantomData;
 
 use cid::Cid;
 use forest_hash_utils::BytesKey;
-use fvm_ipld_blockstore::{Blockstore, CborStore};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};

@@ -7,8 +7,8 @@ use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
 use fvm::machine::{Engine, Machine};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm_ipld_blockstore::{CborStore, MemoryBlockstore};
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::{Cbor, CborStore};
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
@@ -109,7 +109,7 @@ fn compare_actors(
             if a_root.len() != e_root.len() {
                 log::error!("states have different numbers of fields")
             } else {
-                for (f, (af, ef)) in a_root.iter().zip(e_root.iter()).enumerate() {
+                for (f, (af, ef)) in a_root.itexr().zip(e_root.iter()).enumerate() {
                     if af != ef {
                         log::error!("mismatched field {}: {:#?} != {:#?}", f, af, ef);
                     }

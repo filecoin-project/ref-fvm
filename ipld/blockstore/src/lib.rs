@@ -5,9 +5,6 @@ use cid::{multihash, Cid};
 
 pub mod tracking;
 
-mod cbor;
-pub use cbor::CborStore;
-
 mod memory;
 pub use memory::MemoryBlockstore;
 

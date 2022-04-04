@@ -10,8 +10,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
 anyhow = "1.0.51"
-serde = { version = "1", default-features = false }
-serde_ipld_dagcbor = "0.1.2"
+
 
 [dev-dependencies]
 multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
