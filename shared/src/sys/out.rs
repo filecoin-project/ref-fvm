@@ -7,6 +7,13 @@
 //!
 //! Read more at https://github.com/rust-lang/rust/issues/73755.
 
+// NOTE: When possible, pack fields such that loads will be power-of-two aligned. Un-aligned loads
+// _can_ be done (LLVM will generate the appropriate code) but are slower.
+//
+// Read up on https://doc.rust-lang.org/reference/type-layout.html for more information.
+//
+// Also, please also read the docs on super::SyscallSafe before modifying any of these types.
+
 pub mod actor {
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]

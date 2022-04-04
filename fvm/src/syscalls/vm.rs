@@ -1,7 +1,6 @@
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys::SyscallSafe;
 use fvm_shared::version::NetworkVersion;
-use num_traits::FromPrimitive;
 
 use super::error::Abort;
 use super::Context;
