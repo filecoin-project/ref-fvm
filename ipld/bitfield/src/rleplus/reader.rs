@@ -45,6 +45,7 @@ impl<'a> BitReader<'a> {
 
     /// Peeks a given number of bits from the buffer.Will keep returning 0 once
     /// the buffer has been exhausted.
+    #[inline(always)]
     pub fn peek(&self, num_bits: u32) -> u8 {
         debug_assert!(num_bits <= 8);
 
@@ -55,6 +56,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Drops a number of bits from the buffer
+    #[inline(always)]
     pub fn drop(&mut self, num_bits: u32) {
         debug_assert!(num_bits <= 8);
 
@@ -64,7 +66,7 @@ impl<'a> BitReader<'a> {
 
         // not sure why this being outside of the if improves the performance
         // bit it does, probably related to keeping caches warm
-        let byte = self.bytes.get(0).unwrap_or(&0);
+        let byte = self.bytes.first().unwrap_or(&0);
         self.bits |= (*byte as u64) << self.num_bits;
 
         // if fewer than 8 bits remain, we skip to loading the next byte
