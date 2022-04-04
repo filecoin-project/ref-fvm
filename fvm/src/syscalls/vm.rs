@@ -1,5 +1,7 @@
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::SyscallSafe;
 use fvm_shared::version::NetworkVersion;
+use num_traits::FromPrimitive;
 
 use super::error::Abort;
 use super::Context;
@@ -10,6 +12,8 @@ use crate::Kernel;
 /// returning an error.
 #[derive(Copy, Clone)]
 pub enum Never {}
+
+unsafe impl SyscallSafe for Never {}
 
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
 pub fn abort(

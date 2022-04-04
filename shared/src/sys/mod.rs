@@ -43,3 +43,38 @@ impl<'a> TryFrom<&'a crate::econ::TokenAmount> for TokenAmount {
         })
     }
 }
+
+/// An unsafe trait to mark "syscall safe" types. These types must be safe to memcpy to and from
+/// WASM. This means:
+///
+/// 1. Repr C & packed alignment (no reordering, no padding).
+/// 2. Copy, Sized, and no pointers.
+/// 3. No floats (non-determinism).
+///
+/// # Safety
+///
+/// Incorrectly implementing this could lead to undefined behavior in types passed between wasm and
+/// rust.
+pub unsafe trait SyscallSafe: Copy + Sized + 'static {}
+
+macro_rules! assert_syscall_safe {
+    ($($t:ty,)*) => {
+        $(unsafe impl SyscallSafe for $t {})*
+    }
+}
+
+assert_syscall_safe! {
+    (),
+
+    u8, u16, u32, u64,
+    i8, i16, i32, i64,
+
+    TokenAmount,
+    out::actor::ResolveAddress,
+    out::ipld::IpldOpen,
+    out::ipld::IpldStat,
+    out::send::Send,
+    out::crypto::VerifyConsensusFault,
+}
+
+unsafe impl<T, const N: usize> SyscallSafe for [T; N] where T: SyscallSafe {}

@@ -1,6 +1,7 @@
 use std::mem;
 
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::sys::SyscallSafe;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
 
 use super::context::Memory;
@@ -50,14 +51,14 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
 /// results that can be handled by wasmtime. See the documentation on `BindSyscall` for details.
 #[doc(hidden)]
 pub trait IntoSyscallResult: Sized {
-    type Value: Copy + Sized + 'static;
+    type Value: SyscallSafe;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort>;
 }
 
 // Implementations for syscalls that abort on error.
 impl<T> IntoSyscallResult for Result<T, Abort>
 where
-    T: Copy + Sized + 'static,
+    T: SyscallSafe,
 {
     type Value = T;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
@@ -68,7 +69,7 @@ where
 // Implementations for normal syscalls.
 impl<T> IntoSyscallResult for kernel::Result<T>
 where
-    T: Copy + Sized + 'static,
+    T: SyscallSafe,
 {
     type Value = T;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
@@ -135,7 +136,7 @@ macro_rules! impl_bind_syscalls {
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoSyscallResult,
-           $($t: WasmTy,)*
+           $($t: WasmTy+SyscallSafe,)*
         {
             fn bind(
                 &mut self,
