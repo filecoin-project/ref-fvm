@@ -1,8 +1,8 @@
 use anyhow::Context;
 use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{Cbor, CborStore};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::encoding::Cbor;
 use serde::{Deserialize, Serialize};
 
 use crate::kernel::{ClassifyResult, Result};

@@ -11,9 +11,9 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 unsigned-varint = "0.7.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
-fvm_shared = { version = "0.3.1", path = "../../shared" }
 thiserror = "1.0.30"
 arbitrary = { version = "1.1.0", optional = true}
+fvm_ipld_encoding = { version = "0.1", path = "../encoding" }
 
 [dev-dependencies]
 rand_xorshift = "0.2.0"

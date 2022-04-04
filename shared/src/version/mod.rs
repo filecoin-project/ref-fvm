@@ -3,7 +3,7 @@
 
 use std::fmt::Display;
 
-use crate::encoding::repr::Serialize_repr;
+use fvm_ipld_encoding::repr::Serialize_repr;
 
 /// Specifies the network version
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd, Serialize_repr)]

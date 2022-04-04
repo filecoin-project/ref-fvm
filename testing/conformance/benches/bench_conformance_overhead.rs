@@ -7,8 +7,8 @@ use criterion::*;
 use fvm::machine::{Engine, BURNT_FUNDS_ACTOR_ADDR};
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
+use fvm_ipld_encoding::{Cbor, RawBytes};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::message::Message;
 use walkdir::WalkDir;
 

@@ -110,7 +110,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blockstore::{Block, MemoryBlockstore};
+    use crate::{Block, MemoryBlockstore};
 
     #[test]
     fn basic_tracking_store() {

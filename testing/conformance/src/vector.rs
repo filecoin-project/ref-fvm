@@ -12,11 +12,11 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use futures::AsyncRead;
+use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
-use fvm_shared::blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::tuple::*;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::encoding::tuple::*;
 use fvm_shared::receipt::Receipt;
 use serde::{Deserialize, Deserializer};
 
@@ -245,7 +245,7 @@ mod base64_bytes {
 }
 
 mod message_receipt_vec {
-    use fvm_shared::encoding::RawBytes;
+    use fvm_ipld_encoding::RawBytes;
     use fvm_shared::error::ExitCode;
 
     use super::*;

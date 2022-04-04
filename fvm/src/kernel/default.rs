@@ -9,16 +9,16 @@ use filecoin_proofs_api::seal::{
 };
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{bytes_32, to_vec, CborStore, RawBytes};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
-use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
@@ -446,8 +446,15 @@ where
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
-
-        Ok(blake2b_256(data))
+        let digest = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(data)
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .expect("fixed array size");
+        Ok(digest)
     }
 
     fn compute_unsealed_sector_cid(

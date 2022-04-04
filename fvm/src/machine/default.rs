@@ -2,9 +2,10 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
+use fvm_ipld_blockstore::{Blockstore, Buffered};
+use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, Buffered, CborStore};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;

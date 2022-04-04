@@ -23,6 +23,8 @@ multihash = { version = "0.16.1", default-features = false }
 fvm_shared = { version = "0.3.1", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.3.0", path = "../ipld/hamt"}
 fvm_ipld_amt = { version = "0.3.0", path = "../ipld/amt"}
+fvm_ipld_blockstore = { version = "0.1.0", path = "../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.1.0", path = "../ipld/encoding" }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
@@ -36,6 +38,7 @@ num_cpus = "1.13.0"
 log = "0.4.14"
 byteorder = "1.4.3"
 anymap = "0.12.1"
+blake2b_simd = "1.0.0"
 
 [dependencies.wasmtime]
 version = "0.33.0"

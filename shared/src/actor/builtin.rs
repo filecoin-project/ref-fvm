@@ -1,10 +1,10 @@
 use anyhow::anyhow;
 use bimap::BiBTreeMap;
 use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::blockstore::{Blockstore, CborStore};
 
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.

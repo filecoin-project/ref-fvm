@@ -3,10 +3,9 @@
 
 use std::fmt::Formatter;
 
+use fvm_ipld_encoding::repr::*;
 use num_derive::FromPrimitive;
 use thiserror::Error;
-
-use crate::encoding::repr::*;
 
 /// ExitCode defines the exit code from the VM execution.
 #[repr(u32)]

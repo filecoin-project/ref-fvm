@@ -31,7 +31,7 @@ mod system_actor;
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
-use fvm_shared::encoding::{to_vec, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 
 lazy_static::lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
@@ -60,8 +60,9 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::CborStore;
     use fvm_shared::actor::builtin::Manifest;
-    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;
     use num_traits::Zero;

@@ -7,14 +7,14 @@ mod seal;
 
 use std::fmt;
 
+use fvm_ipld_encoding::repr::*;
+use fvm_ipld_encoding::tuple::*;
 use num_bigint::BigInt;
 use num_derive::FromPrimitive;
 
 pub use self::post::*;
 pub use self::registered_proof::*;
 pub use self::seal::*;
-use crate::encoding::repr::*;
-use crate::encoding::tuple::*;
 use crate::ActorID;
 
 /// SectorNumber is a numeric identifier for a sector. It is usually relative to a miner.

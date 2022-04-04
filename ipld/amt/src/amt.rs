@@ -4,9 +4,10 @@
 use anyhow::anyhow;
 use cid::multihash::Code;
 use cid::Cid;
-use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::encoding::de::DeserializeOwned;
-use fvm_shared::encoding::ser::Serialize;
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::ser::Serialize;
+use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
 
 use super::ValueMut;
@@ -23,7 +24,7 @@ use crate::{
 /// ```
 /// use fvm_ipld_amt::Amt;
 ///
-/// let db = fvm_shared::blockstore::MemoryBlockstore::default();
+/// let db = fvm_ipld_blockstore::MemoryBlockstore::default();
 /// let mut amt = Amt::new(&db);
 ///
 /// // Insert or remove any serializable values
@@ -273,7 +274,7 @@ where
     /// ```
     /// use fvm_ipld_amt::Amt;
     ///
-    /// let store = fvm_shared::blockstore::MemoryBlockstore::default();
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Amt<String, _> = Amt::new(&store);
     /// map.set(1, "One".to_owned()).unwrap();
