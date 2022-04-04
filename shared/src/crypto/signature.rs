@@ -35,8 +35,8 @@ pub enum SignatureType {
 /// A cryptographic signature, represented in bytes, of any key protocol.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Signature {
-    sig_type: SignatureType,
-    bytes: Vec<u8>,
+    pub sig_type: SignatureType,
+    pub bytes: Vec<u8>,
 }
 
 impl Cbor for Signature {}
