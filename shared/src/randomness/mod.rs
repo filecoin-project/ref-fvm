@@ -5,11 +5,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::encoding::{BytesDe, BytesSer};
 
-// TODO: turn this back into a 32byte array once we no longer need go compat. It's a vec so that the
-// errors match.
 /// String of random bytes usually generated from a randomness beacon or from tickets on chain.
 #[derive(PartialEq, Eq, Default, Clone, Debug)]
-pub struct Randomness(pub Vec<u8>);
+pub struct Randomness(pub [u8; 32]);
 
 pub const RANDOMNESS_LENGTH: usize = 32;
 
@@ -18,7 +16,7 @@ impl Serialize for Randomness {
     where
         S: Serializer,
     {
-        BytesSer(&self.0).serialize(serializer)
+        BytesSer(&self.0[..]).serialize(serializer)
     }
 }
 
@@ -27,7 +25,11 @@ impl<'de> Deserialize<'de> for Randomness {
     where
         D: Deserializer<'de>,
     {
-        let bytes = BytesDe::deserialize(deserializer)?;
-        Ok(Self(bytes.0))
+        let v = BytesDe::deserialize(deserializer)?.0;
+        let len = v.len();
+        let bytes = v
+            .try_into()
+            .map_err(|_| serde::de::Error::custom(format!("incorrect size {}", len)))?;
+        Ok(Self(bytes))
     }
 }

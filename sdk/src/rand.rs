@@ -21,7 +21,7 @@ pub fn get_chain_randomness(
             entropy.len() as u32,
         )?
     };
-    Ok(Randomness(ret.to_vec()))
+    Ok(Randomness(ret))
 }
 
 /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -41,5 +41,5 @@ pub fn get_beacon_randomness(
             entropy.len() as u32,
         )?
     };
-    Ok(Randomness(ret.to_vec()))
+    Ok(Randomness(ret))
 }
