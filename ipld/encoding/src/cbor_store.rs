@@ -1,7 +1,6 @@
 use cid::{multihash, Cid};
-use serde::{de, ser};
-
 use fvm_ipld_blockstore::{Block, Blockstore};
+use serde::{de, ser};
 
 use crate::DAG_CBOR;
 
