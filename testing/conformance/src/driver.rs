@@ -109,7 +109,7 @@ fn compare_actors(
             if a_root.len() != e_root.len() {
                 log::error!("states have different numbers of fields")
             } else {
-                for (f, (af, ef)) in a_root.itexr().zip(e_root.iter()).enumerate() {
+                for (f, (af, ef)) in a_root.iter().zip(e_root.iter()).enumerate() {
                     if af != ef {
                         log::error!("mismatched field {}: {:#?} != {:#?}", f, af, ef);
                     }
