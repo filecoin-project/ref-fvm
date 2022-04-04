@@ -11,8 +11,8 @@ pub mod actor {
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
     pub struct ResolveAddress {
-        pub resolved: i32,
         pub value: u64,
+        pub resolved: i32,
     }
 }
 
