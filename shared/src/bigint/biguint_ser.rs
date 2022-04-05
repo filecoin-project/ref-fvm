@@ -6,13 +6,15 @@ use std::borrow::Cow;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
+use super::MAX_BIGINT_SIZE;
+
 /// Wrapper for serializing big ints to match filecoin spec. Serializes as bytes.
 #[derive(Serialize)]
 #[serde(transparent)]
 pub struct BigUintSer<'a>(#[serde(with = "self")] pub &'a BigUint);
 
 /// Wrapper for deserializing as BigUint from bytes.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(transparent)]
 pub struct BigUintDe(#[serde(with = "self")] pub BigUint);
 
@@ -27,6 +29,10 @@ where
         bz = Vec::new()
     } else {
         bz.insert(0, 0);
+    }
+
+    if dbg!(bz.len()) > MAX_BIGINT_SIZE {
+        return Err(<S::Error as serde::ser::Error>::custom("BigInt too large"));
     }
 
     // Serialize as bytes
@@ -48,5 +54,45 @@ where
         ));
     }
 
+    if bz.len() > MAX_BIGINT_SIZE {
+        return Err(<D::Error as serde::de::Error>::custom("BigInt too large"));
+    }
+
     Ok(BigUint::from_bytes_be(&bz[1..]))
+}
+
+#[cfg(test)]
+mod tests {
+    use fvm_ipld_encoding::{from_slice, to_vec};
+
+    use super::*;
+
+    #[test]
+    fn test_biguint_max() {
+        let max_limbs = MAX_BIGINT_SIZE / 4; // u32 -> u8
+        let good = BigUint::new(vec![u32::MAX; max_limbs - 1]);
+
+        let good_bytes = to_vec(&BigUintSer(&good)).expect("should be good");
+        let good_back: BigUintDe = from_slice(&good_bytes).unwrap();
+        assert_eq!(good_back.0, good);
+
+        let bad1 = BigUint::new(vec![u32::MAX; max_limbs]);
+        let bad2 = BigUint::new(vec![u32::MAX; max_limbs + 1]);
+
+        assert!(to_vec(&BigUintSer(&bad1)).is_err());
+        assert!(to_vec(&BigUintSer(&bad2)).is_err());
+
+        let bad_bytes = {
+            let mut source = bad1.to_bytes_be();
+            source.insert(0, 0);
+            to_vec(&serde_bytes::Bytes::new(&source)).unwrap()
+        };
+
+        let res: Result<BigUintDe, _> = from_slice(&bad_bytes);
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Serialization error for Cbor protocol: BigInt too large"
+        );
+    }
 }
