@@ -3,10 +3,12 @@
 
 use std::fmt::Display;
 
+use serde::Deserialize;
+
 use crate::encoding::repr::Serialize_repr;
 
 /// Specifies the network version
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd, Serialize_repr)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd, Serialize_repr, Deserialize)]
 #[repr(u32)]
 pub enum NetworkVersion {
     /// genesis (specs-actors v0.9.3)
