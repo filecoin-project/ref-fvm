@@ -1,4 +1,4 @@
-use fvm_shared::error::{ExitCode, SystemExitCode};
+use fvm_shared::error::{ExitCode};
 
 use super::error::Abort;
 use super::Context;

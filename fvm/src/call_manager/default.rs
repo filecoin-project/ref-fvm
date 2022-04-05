@@ -323,7 +323,7 @@ where
                         .data()
                         .kernel
                         .block_get(return_block_id)
-                        .map_err(|e| Abort::from_error(SystemExitCode::MISSING_RETURN, e))?;
+                        .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
@@ -350,12 +350,12 @@ where
                             (code, message, Ok(InvocationResult::Failure(code)))
                         }
                         Abort::OutOfGas => (
-                            SystemExitCode::OUT_OF_GAS,
+                            ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
                             Err(ExecutionError::OutOfGas),
                         ),
                         Abort::Fatal(err) => (
-                            SystemExitCode::ASSERTION_FAILED,
+                            ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
                         ),
