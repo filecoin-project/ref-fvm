@@ -1,100 +1,113 @@
-// Copyright 2019-2022 ChainSafe Systems
-// SPDX-License-Identifier: Apache-2.0, MIT
-
 use std::fmt::Formatter;
 
-use fvm_ipld_encoding::repr::*;
 use num_derive::FromPrimitive;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// ExitCode defines the exit code from the VM execution.
-#[repr(u32)]
-#[derive(
-    PartialEq, Eq, Debug, Clone, Copy, FromPrimitive, Serialize_repr, Deserialize_repr, Error,
-)]
-pub enum ExitCode {
-    Ok = 0,
-
-    /// Indicates failure to find an actor in the state tree.
-    SysErrSenderInvalid = 1,
-
-    /// Indicates that the message sender was not in a valid state to send this message.
-    ///
-    /// Either:
-    /// - The sender's nonce nonce didn't match the message nonce.
-    /// - The sender didn't have the funds to cover the message gas.
-    SysErrSenderStateInvalid = 2,
-
-    /// Indicates failure to find a method in an actor.
-    SysErrInvalidMethod = 3,
-
-    /// Used for catching panics currently.
-    SysErrActorPanic = 4,
-
-    /// Indicates that the receiver of a message is not valid (and cannot be implicitly created).
-    SysErrInvalidReceiver = 5,
-
-    /// Indicates a message sender has insufficient funds for a message's execution.
-    SysErrInsufficientFunds = 6,
-
-    /// Indicates message execution (including subcalls) used more gas than the specified limit.
-    SysErrOutOfGas = 7,
-
-    /// Indicates a message execution is forbidden for the caller.
-    SysErrForbidden = 8,
-
-    /// Indicates actor code performed a disallowed operation. Disallowed operations include:
-    /// - mutating state outside of a state acquisition block
-    /// - failing to invoke caller validation
-    /// - aborting with a reserved exit code (including success or a system error).
-    SysErrIllegalActor = 9,
-
-    /// Indicates an invalid argument passed to a runtime method.
-    SysErrIllegalArgument = 10,
-
-    /// Reserved exit codes, do not use.
-    SysErrReserved2 = 11,
-    SysErrReserved3 = 12,
-    SysErrReserved4 = 13,
-    SysErrReserved5 = 14,
-    SysErrReserved6 = 15,
-
-    // -------Actor Error Codes-------
-    /// Indicates a method parameter is invalid.
-    ErrIllegalArgument = 16,
-    /// Indicates a requested resource does not exist.
-    ErrNotFound = 17,
-    /// Indicates an action is disallowed.
-    ErrForbidden = 18,
-    /// Indicates a balance of funds is insufficient.
-    ErrInsufficientFunds = 19,
-    /// Indicates an actor's internal state is invalid.
-    ErrIllegalState = 20,
-    /// Indicates de/serialization failure within actor code.
-    ErrSerialization = 21,
-    /// Power actor specific exit code.
-    // * remove this and support custom codes if there is overlap on actor specific codes in future
-    ErrTooManyProveCommits = 32,
-
-    ErrPlaceholder = 1000,
+/// ExitCode defines the exit code from the VM invocation.
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct ExitCode {
+    value: u32,
 }
 
 impl ExitCode {
-    /// Returns true if the exit code was a success
-    pub fn is_success(self) -> bool {
-        self == ExitCode::Ok
+    pub const fn new(value: u32) -> Self {
+        Self { value }
     }
 
-    /// Returns true if the error code is a system error.
+    pub fn value(self) -> u32 {
+        self.value
+    }
+
+    /// Returns true if the exit code indicates success.
+    pub fn is_success(self) -> bool {
+        self.value == 0
+    }
+
+    /// Returns true if the error code is in the range of exit codes reserved for the VM
+    /// (including Ok).
     pub fn is_system_error(self) -> bool {
-        (self as u32) < (ExitCode::ErrIllegalArgument as u32)
+        self.value < (Self::FIRST_USER_EXIT_CODE)
+    }
+}
+
+impl From<u32> for ExitCode {
+    fn from(value: u32) -> Self {
+        ExitCode { value }
     }
 }
 
 impl std::fmt::Display for ExitCode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "exit code: {}", *self as u32)
+        write!(f, "{}", self.value)
     }
+}
+
+impl ExitCode {
+    // Exit codes which originate inside the VM.
+    // These values may not be used by actors when aborting.
+
+    /// The code indicating successful execution.
+    pub const OK: ExitCode = ExitCode::new(0);
+    /// Indicates the message sender doesn't exist.
+    pub const SYS_SENDER_INVALID: ExitCode = ExitCode::new(1);
+    /// Indicates that the message sender was not in a valid state to send this message.
+    /// Either:
+    /// - The sender's nonce nonce didn't match the message nonce.
+    /// - The sender didn't have the funds to cover the message gas.
+    pub const SYS_SENDER_STATE_INVALID: ExitCode = ExitCode::new(2);
+    /// Indicates failure to find a method in an actor.
+    pub const SYS_INVALID_METHOD: ExitCode = ExitCode::new(3); // FIXME: reserved
+    /// Indicates the message receiver trapped (panicked).
+    pub const SYS_ILLEGAL_INSTRUCTION: ExitCode = ExitCode::new(4);
+    /// Indicates the message receiver doesn't exist and can't be automatically created
+    pub const SYS_INVALID_RECEIVER: ExitCode = ExitCode::new(5);
+    /// Indicates the message sender didn't have the requisite funds.
+    pub const SYS_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(6);
+    /// Indicates message execution (including subcalls) used more gas than the specified limit.
+    pub const SYS_OUT_OF_GAS: ExitCode = ExitCode::new(7);
+    // pub const SYS_RESERVED_8: ExitCode = ExitCode::new(8);
+    /// Indicates the message receiver aborted with a reserved exit code.
+    pub const SYS_ILLEGAL_EXIT_CODE: ExitCode = ExitCode::new(9);
+    /// Indicates an internal VM assertion failed.
+    pub const SYS_ASSERTION_FAILED: ExitCode = ExitCode::new(10);
+    /// Indicates the actor returned a block handle that doesn't exist
+    pub const SYS_MISSING_RETURN: ExitCode = ExitCode::new(11);
+    // pub const SYS_RESERVED_12: ExitCode = ExitCode::new(12);
+    // pub const SYS_RESERVED_13: ExitCode = ExitCode::new(13);
+    // pub const SYS_RESERVED_14: ExitCode = ExitCode::new(14);
+    // pub const SYS_RESERVED_15: ExitCode = ExitCode::new(15);
+
+    /// The lowest exit code that an actor may abort with.
+    pub const FIRST_USER_EXIT_CODE: u32 = 16;
+
+    // Standard exit codes according to the built-in actors' calling convention.
+    /// Indicates a method parameter is invalid.
+    pub const USR_ILLEGAL_ARGUMENT: ExitCode = ExitCode::new(16);
+    /// Indicates a requested resource does not exist.
+    pub const USR_NOT_FOUND: ExitCode = ExitCode::new(17);
+    /// Indicates an action is disallowed.
+    pub const USR_FORBIDDEN: ExitCode = ExitCode::new(18);
+    /// Indicates a balance of funds is insufficient.
+    pub const USR_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(19);
+    /// Indicates an actor's internal state is invalid.
+    pub const USR_ILLEGAL_STATE: ExitCode = ExitCode::new(20);
+    /// Indicates de/serialization failure within actor code.
+    pub const USR_SERIALIZATION: ExitCode = ExitCode::new(21);
+    /// Indicates the actor cannot handle this message.
+    pub const USR_UNHANDLED_MESSAGE: ExitCode = ExitCode::new(22);
+    /// Indicates the actor failed with an unspecified error.
+    pub const USR_UNSPECIFIED: ExitCode = ExitCode::new(23);
+    // pub const RESERVED_24: ExitCode = ExitCode::new(24);
+    // pub const RESERVED_25: ExitCode = ExitCode::new(25);
+    // pub const RESERVED_26: ExitCode = ExitCode::new(26);
+    // pub const RESERVED_27: ExitCode = ExitCode::new(27);
+    // pub const RESERVED_28: ExitCode = ExitCode::new(28);
+    // pub const RESERVED_29: ExitCode = ExitCode::new(29);
+    // pub const RESERVED_30: ExitCode = ExitCode::new(30);
+    // pub const RESERVED_31: ExitCode = ExitCode::new(31);
 }
 
 #[repr(u32)]

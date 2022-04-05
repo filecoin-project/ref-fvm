@@ -135,7 +135,7 @@ impl InvocationResult {
     /// from the [`Failure`](InvocationResult::Failure) variant otherwise.
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::Return(_) => ExitCode::Ok,
+            Self::Return(_) => ExitCode::OK,
             Self::Failure(e) => *e,
         }
     }

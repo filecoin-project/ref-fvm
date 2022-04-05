@@ -323,7 +323,7 @@ where
                         .data()
                         .kernel
                         .block_get(return_block_id)
-                        .map_err(|e| Abort::from_error(ExitCode::SysErrIllegalActor, e))?;
+                        .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
@@ -350,14 +350,12 @@ where
                             (code, message, Ok(InvocationResult::Failure(code)))
                         }
                         Abort::OutOfGas => (
-                            ExitCode::SysErrOutOfGas,
+                            ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
                             Err(ExecutionError::OutOfGas),
                         ),
                         Abort::Fatal(err) => (
-                            // TODO: will be changed to a SysErrAssertionFailed when we
-                            // introduce the new exit codes.
-                            ExitCode::SysErrIllegalArgument,
+                            ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
                         ),
