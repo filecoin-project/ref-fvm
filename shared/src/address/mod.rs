@@ -70,6 +70,15 @@ pub struct Address {
     payload: Payload,
 }
 
+impl<'a> IntoIterator for &'a Address {
+    type Item = &'a Address;
+    type IntoIter = std::array::IntoIter<&'a Address, 1>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [self].into_iter()
+    }
+}
+
 impl Cbor for Address {}
 
 impl Address {
