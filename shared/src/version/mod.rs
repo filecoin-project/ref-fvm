@@ -3,13 +3,13 @@
 
 use std::fmt::Display;
 
-use serde::Deserialize;
-
 use crate::encoding::repr::Serialize_repr;
+use serde::Deserialize;
 
 /// Specifies the network version
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd, Serialize_repr, Deserialize)]
 #[repr(u32)]
+#[serde(tag = "version")]
 pub enum NetworkVersion {
     /// genesis (specs-actors v0.9.3)
     V0 = 0,
@@ -75,5 +75,26 @@ impl TryFrom<u32> for NetworkVersion {
             15 => Ok(V15),
             _ => Err(value),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NetworkVersion;
+
+    #[test]
+    pub fn test_happy_deserialize_network_version() {
+        let input_string = r#" version = "V11" "#;
+
+        let out: NetworkVersion = toml::from_str(input_string).unwrap();
+        assert_eq!(out, NetworkVersion::V11)
+    }
+
+    #[test]
+    pub fn test_invalid_network_version_should_panic() {
+        let input_string = r#" version = "V25" "#;
+
+        let out: Result<NetworkVersion, toml::de::Error> = toml::from_str(input_string);
+        assert!(out.is_err())
     }
 }
