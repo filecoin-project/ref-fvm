@@ -1,6 +1,5 @@
 use std::fmt::Formatter;
 
-use fvm_ipld_encoding::repr::*;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
