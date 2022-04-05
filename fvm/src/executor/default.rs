@@ -109,21 +109,22 @@ where
                 gas_used,
             },
             Err(ExecutionError::Syscall(err)) => {
-                // Errors indicate the message couldn't be dispatched at all.
-                // Some of these errors are mapped to exit codes that persist on chain.
-                // The remainder propagate in the Result as error numbers and cannot be persisted.
-                // TODO: map them all to exit codes, https://github.com/filecoin-project/ref-fvm/issues/438
+                // Errors indicate the message couldn't be dispatched at all
+                // (as opposed to failing during execution of the receiving actor).
+                // These errors are mapped to exit codes that persist on chain.
                 let exit_code = match err.1 {
-                    ErrorNumber::AssertionFailed => ExitCode::SYS_ASSERTION_FAILED,
                     ErrorNumber::InsufficientFunds => ExitCode::SYS_INSUFFICIENT_FUNDS,
                     ErrorNumber::NotFound => ExitCode::SYS_INVALID_RECEIVER,
-                    code => {
-                        return Err(anyhow!(
-                            "unexpected syscall error when processing message: {} ({})",
-                            code,
-                            code as u32
-                        ))
-                    }
+
+                    ErrorNumber::IllegalArgument => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalOperation => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::LimitExceeded => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::AssertionFailed => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::InvalidHandle => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalCid => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalCodec => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::Serialization => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
                 backtrace.set_cause(backtrace::Cause::new("send", "send", err));
