@@ -36,7 +36,7 @@ impl ExitCode {
 
 impl From<u32> for ExitCode {
     fn from(value: u32) -> Self {
-        ExitCode{ value }
+        ExitCode { value }
     }
 }
 

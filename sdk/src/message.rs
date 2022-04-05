@@ -1,9 +1,10 @@
-use fvm_shared::{ActorID, MethodNum};
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::{BlockId, Codec};
+use fvm_shared::{ActorID, MethodNum};
 
-use crate::{sys, SyscallResult, vm};
+use crate::{sys, SyscallResult};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -62,4 +63,3 @@ pub fn value_received() -> TokenAmount {
             .into()
     }
 }
-

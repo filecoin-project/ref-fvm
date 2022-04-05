@@ -2,7 +2,7 @@
 use std::sync::Mutex;
 
 use derive_more::Display;
-use fvm_shared::error::{ExitCode};
+use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
 use crate::kernel::ExecutionError;
