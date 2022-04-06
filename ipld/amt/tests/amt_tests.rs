@@ -322,7 +322,7 @@ fn for_each() {
     let mut x = 0;
     a.for_each(|_, _: &BytesDe| {
         x += 1;
-        Ok(())
+        Ok::<(), ()>(())
     })
     .unwrap();
 
@@ -343,13 +343,13 @@ fn for_each() {
                 );
             }
             x += 1;
-            Ok(())
+            Ok::<(), ()>(())
         })
         .unwrap();
     assert_eq!(x, indexes.len());
 
     // Iteration again will be read diff with go-interop, since they do not cache
-    new_amt.for_each(|_, _: &BytesDe| Ok(())).unwrap();
+    new_amt.for_each(|_, _: &BytesDe| Ok::<(), ()>(())).unwrap();
 
     assert_eq!(
         c.to_string().as_str(),
@@ -385,7 +385,7 @@ fn for_each_mutate() {
                 // Value it's set to doesn't matter, just cloning for expedience
                 **v = v.clone();
             }
-            Ok(())
+            Ok::<(), ()>(())
         })
         .unwrap();
 
