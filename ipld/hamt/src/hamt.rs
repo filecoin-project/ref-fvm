@@ -12,6 +12,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
+use crate::error::EitherError;
 use crate::node::Node;
 use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
 
@@ -82,12 +83,12 @@ where
     }
 
     /// Lazily instantiate a hamt from this root Cid.
-    pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
+    pub fn load(cid: &Cid, store: BS) -> Result<Self, Error<BS>> {
         Self::load_with_bit_width(cid, store, DEFAULT_BIT_WIDTH)
     }
 
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
-    pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
+    pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error<BS>> {
         match store.get_cbor(cid)? {
             Some(root) => Ok(Self {
                 root,
@@ -100,7 +101,7 @@ where
     }
 
     /// Sets the root based on the Cid of the root node using the Hamt store
-    pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
+    pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error<BS>> {
         match self.store.get_cbor(cid)? {
             Some(root) => self.root = root,
             None => return Err(Error::CidNotFound(cid.to_string())),
@@ -136,7 +137,7 @@ where
     /// map.set(37, "b".to_string()).unwrap();
     /// map.set(37, "c".to_string()).unwrap();
     /// ```
-    pub fn set(&mut self, key: K, value: V) -> Result<Option<V>, Error>
+    pub fn set(&mut self, key: K, value: V) -> Result<Option<V>, Error<BS>>
     where
         V: PartialEq,
     {
@@ -171,7 +172,7 @@ where
     /// let c = map.set_if_absent(30, "c".to_string()).unwrap();
     /// assert_eq!(c, true);
     /// ```
-    pub fn set_if_absent(&mut self, key: K, value: V) -> Result<bool, Error>
+    pub fn set_if_absent(&mut self, key: K, value: V) -> Result<bool, Error<BS>>
     where
         V: PartialEq,
     {
@@ -200,7 +201,7 @@ where
     /// assert_eq!(map.get(&2).unwrap(), None);
     /// ```
     #[inline]
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, Error>
+    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, Error<BS>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -232,7 +233,7 @@ where
     /// assert_eq!(map.contains_key(&2).unwrap(), false);
     /// ```
     #[inline]
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, Error>
+    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, Error<BS>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -263,7 +264,7 @@ where
     /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
     /// assert_eq!(map.delete(&1).unwrap(), None);
     /// ```
-    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error>
+    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error<BS>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -273,7 +274,7 @@ where
     }
 
     /// Flush root and return Cid for hamt
-    pub fn flush(&mut self) -> Result<Cid, Error> {
+    pub fn flush(&mut self) -> Result<Cid, Error<BS>> {
         self.root.flush(self.store.borrow())?;
         Ok(self.store.put_cbor(&self.root, Code::Blake2b256)?)
     }
@@ -301,15 +302,15 @@ where
     /// let mut total = 0;
     /// map.for_each(|_, v: &u64| {
     ///    total += v;
-    ///    Ok(())
+    ///    Ok::<(), ()>(())
     /// }).unwrap();
     /// assert_eq!(total, 3);
     /// ```
     #[inline]
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
+    pub fn for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS>>
     where
         V: DeserializeOwned,
-        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        F: FnMut(&K, &V) -> Result<(), U>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
     }

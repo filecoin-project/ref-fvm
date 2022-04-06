@@ -3,7 +3,7 @@
 
 use std::cmp::Ordering;
 
-use crate::{Error, HashedKey};
+use crate::{HashBitsError, HashedKey};
 
 /// Helper struct which indexes and allows returning bits from a hashed key
 #[derive(Debug, Clone, Copy)]
@@ -32,12 +32,12 @@ impl<'a> HashBits<'a> {
 
     /// Returns next `i` bits of the hash and returns the value as an integer and returns
     /// Error when maximum depth is reached
-    pub fn next(&mut self, i: u32) -> Result<u32, Error> {
+    pub fn next(&mut self, i: u32) -> Result<u32, HashBitsError> {
         if i > 8 {
-            return Err(Error::InvalidHashBitLen);
+            return Err(HashBitsError::InvalidLen);
         }
         if (self.consumed + i) as usize > self.b.len() * 8 {
-            return Err(Error::MaxDepth);
+            return Err(HashBitsError::MaxDepth);
         }
         Ok(self.next_bits(i))
     }
@@ -94,11 +94,11 @@ mod tests {
         assert_eq!(hb.next(5).unwrap(), 0b01010);
         assert_eq!(hb.next(6).unwrap(), 0b111111);
         assert_eq!(hb.next(8).unwrap(), 0b11111111);
-        assert!(matches!(hb.next(9), Err(Error::InvalidHashBitLen)));
+        assert!(matches!(hb.next(9), Err(HashBitsError::InvalidLen)));
         for _ in 0..28 {
             // Iterate through rest of key to test depth
             hb.next(8).unwrap();
         }
-        assert!(matches!(hb.next(1), Err(Error::MaxDepth)));
+        assert!(matches!(hb.next(1), Err(HashBitsError::MaxDepth)));
     }
 }

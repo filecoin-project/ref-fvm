@@ -273,7 +273,7 @@ fn for_each() {
     hamt.for_each(|k, v| {
         assert_eq!(k, v);
         count += 1;
-        Ok(())
+        Ok::<(), ()>(())
     })
     .unwrap();
     assert_eq!(count, 200);
@@ -291,7 +291,7 @@ fn for_each() {
     hamt.for_each(|k, v| {
         assert_eq!(k, v);
         count += 1;
-        Ok(())
+        Ok::<(), ()>(())
     })
     .unwrap();
     assert_eq!(count, 200);
@@ -301,7 +301,7 @@ fn for_each() {
     hamt.for_each(|k, v| {
         assert_eq!(k, v);
         count += 1;
-        Ok(())
+        Ok::<(), ()>(())
     })
     .unwrap();
     assert_eq!(count, 200);

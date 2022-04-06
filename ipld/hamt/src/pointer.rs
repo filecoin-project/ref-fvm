@@ -5,6 +5,7 @@ use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
 use libipld_core::ipld::Ipld;
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
@@ -111,7 +112,7 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean(&mut self) -> Result<(), Error> {
+    pub(crate) fn clean<BS: Blockstore>(&mut self) -> Result<(), Error<BS>> {
         match self {
             Pointer::Dirty(n) => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),

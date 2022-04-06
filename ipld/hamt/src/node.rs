@@ -16,6 +16,7 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use crate::error::EitherError;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
@@ -85,7 +86,7 @@ where
         store: &S,
         bit_width: u32,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error>
+    ) -> Result<(Option<V>, bool), Error<S>>
     where
         V: PartialEq,
     {
@@ -107,7 +108,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&V>, Error>
+    ) -> Result<Option<&V>, Error<S>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -121,7 +122,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<(K, V)>, Error>
+    ) -> Result<Option<(K, V)>, Error<S>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -135,9 +136,9 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
+    pub(crate) fn for_each<S, F, U>(&self, store: &S, f: &mut F) -> Result<(), EitherError<U, S>>
     where
-        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        F: FnMut(&K, &V) -> Result<(), U>,
         S: Blockstore,
     {
         for p in &self.pointers {
@@ -150,7 +151,7 @@ where
                             node
                         } else {
                             #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()));
+                            return Err(Error::CidNotFound(cid.to_string()).into());
 
                             #[cfg(feature = "ignore-dead-links")]
                             continue;
@@ -164,7 +165,7 @@ where
                 Pointer::Dirty(n) => n.for_each(store, f)?,
                 Pointer::Values(kvs) => {
                     for kv in kvs {
-                        f(kv.0.borrow(), kv.1.borrow())?;
+                        f(kv.0.borrow(), kv.1.borrow()).map_err(EitherError::User)?;
                     }
                 }
             }
@@ -178,7 +179,7 @@ where
         q: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error>
+    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -194,7 +195,7 @@ where
         depth: u64,
         key: &Q,
         store: &S,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error>
+    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -244,7 +245,7 @@ where
         value: V,
         store: &S,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error>
+    ) -> Result<(Option<V>, bool), Error<S>>
     where
         V: PartialEq,
     {
@@ -364,7 +365,7 @@ where
         depth: u64,
         key: &Q,
         store: &S,
-    ) -> Result<Option<(K, V)>, Error>
+    ) -> Result<Option<(K, V)>, Error<S>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -427,7 +428,7 @@ where
         }
     }
 
-    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error> {
+    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error<S>> {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
