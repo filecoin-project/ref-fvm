@@ -13,8 +13,8 @@ pub use block::*;
 /// An IPLD blockstore suitable for injection into the FVM.
 ///
 /// The cgo blockstore adapter implements this trait.
-pub trait Blockstore: std::fmt::Debug {
-    type Error: std::error::Error + std::fmt::Debug;
+pub trait Blockstore {
+    type Error: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 
     /// Gets the block from the blockstore.
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error>;

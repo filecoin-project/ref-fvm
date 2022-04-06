@@ -5,9 +5,9 @@ use serde::{de, ser};
 use crate::DAG_CBOR;
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error<BS: Blockstore> {
+pub enum Error<E> {
     #[error("blockstore: {0}")]
-    Blockstore(BS::Error),
+    Blockstore(E),
     #[error("encoding: {0}")]
     Encoding(#[from] crate::errors::Error),
 }
@@ -15,7 +15,7 @@ pub enum Error<BS: Blockstore> {
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
 pub trait CborStore: Blockstore + Sized {
     /// Get typed object from block store by Cid.
-    fn get_cbor<T>(&self, cid: &Cid) -> Result<Option<T>, Error<Self>>
+    fn get_cbor<T>(&self, cid: &Cid) -> Result<Option<T>, Error<Self::Error>>
     where
         T: de::DeserializeOwned,
     {
@@ -29,7 +29,7 @@ pub trait CborStore: Blockstore + Sized {
     }
 
     /// Put an object in the block store and return the Cid identifier.
-    fn put_cbor<S>(&self, obj: &S, code: multihash::Code) -> Result<Cid, Error<Self>>
+    fn put_cbor<S>(&self, obj: &S, code: multihash::Code) -> Result<Cid, Error<Self::Error>>
     where
         S: ser::Serialize,
     {

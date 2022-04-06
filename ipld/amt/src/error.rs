@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Error as CidError;
-use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CborStoreError, Error as EncodingError};
 use thiserror::Error;
 
 /// AMT Error
 #[derive(Debug, Error)]
-pub enum Error<BS: Blockstore> {
+pub enum Error<E> {
     /// Index referenced it above arbitrary max set
     #[error("index {0} out of range for the amt")]
     OutOfRange(u64),
@@ -29,13 +28,13 @@ pub enum Error<BS: Blockstore> {
     #[error("no such index {0} in Amt for batch delete")]
     BatchDelteNotFound(u64),
     #[error("blockstore {0}")]
-    Blockstore(BS::Error),
+    Blockstore(E),
     #[error("encoding error {0}")]
     Encoding(#[from] EncodingError),
 }
 
-impl<BS: Blockstore> From<CborStoreError<BS>> for Error<BS> {
-    fn from(err: CborStoreError<BS>) -> Self {
+impl<E> From<CborStoreError<E>> for Error<E> {
+    fn from(err: CborStoreError<E>) -> Self {
         match err {
             CborStoreError::Blockstore(err) => Error::Blockstore(err),
             CborStoreError::Encoding(err) => Error::Encoding(err),
@@ -44,15 +43,15 @@ impl<BS: Blockstore> From<CborStoreError<BS>> for Error<BS> {
 }
 
 #[derive(Debug, Error)]
-pub enum EitherError<U, BS: Blockstore> {
+pub enum EitherError<U, E> {
     #[error("user: {0}")]
     User(U),
     #[error("hamt: {0}")]
-    Hamt(#[from] Error<BS>),
+    Hamt(#[from] Error<E>),
 }
 
-impl<U, BS: Blockstore> From<CborStoreError<BS>> for EitherError<U, BS> {
-    fn from(err: CborStoreError<BS>) -> Self {
+impl<U, E> From<CborStoreError<E>> for EitherError<U, E> {
+    fn from(err: CborStoreError<E>) -> Self {
         EitherError::Hamt(err.into())
     }
 }

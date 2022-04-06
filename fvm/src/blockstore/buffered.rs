@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
@@ -38,6 +37,14 @@ where
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error<E> {
+    #[error("flush: {0}")]
+    Flush(#[from] FlushError),
+    #[error("blockstore: {0}")]
+    Blockstore(E),
+}
+
 impl<BS> Buffered for BufferedBlockstore<BS>
 where
     BS: Blockstore,
@@ -45,16 +52,44 @@ where
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
     /// root Cid.
-    fn flush(&self, root: &Cid) -> Result<()> {
+    fn flush(&self, root: &Cid) -> Result<(), Error<BS::Error>> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
         copy_rec(&s, *root, &mut buffer)?;
 
-        self.base.put_many_keyed(buffer)?;
+        self.base
+            .put_many_keyed(buffer)
+            .map_err(Error::Blockstore)?;
         *s = Default::default();
 
         Ok(())
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FlushError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("cid: {0}")]
+    Cid(#[from] cid::Error),
+    #[error("cbor input was not canonical (lval 24 with value < 24)")]
+    HeaderLval24,
+    #[error("cbor input was not canonical (lval 25 with value <= MaxUint8)")]
+    HeaderLval25,
+    #[error("cbor input was not canonical (lval 26 with value <= MaxUint16)")]
+    HeaderLval26,
+    #[error("cbor input was not canonical (lval 27 with value <= MaxUint32)")]
+    HeaderLval27,
+    #[error("invalid header cbor_read_header_buf")]
+    HeaderInvalid,
+    #[error("expected cbor type byte string in input")]
+    UnexpectedByteString,
+    #[error("string in cbor input too long")]
+    StringTooLong,
+    #[error("Invalid link ({0}) in flushing buffered store")]
+    InvalidLink(Cid),
+    #[error("unhandled cbor type: {0}")]
+    UnhandledCborType(u8),
 }
 
 /// Given a CBOR encoded Buffer, returns a tuple of:
@@ -64,7 +99,10 @@ where
 /// This was implemented because the CBOR library we use does not expose low
 /// methods like this, requiring us to deserialize the whole CBOR payload, which
 /// is unnecessary and quite inefficient for our usecase here.
-fn cbor_read_header_buf<B: Read>(br: &mut B, scratch: &mut [u8]) -> anyhow::Result<(u8, usize)> {
+fn cbor_read_header_buf<B: Read>(
+    br: &mut B,
+    scratch: &mut [u8],
+) -> Result<(u8, usize), FlushError> {
     let first = br.read_u8()?;
     let maj = (first & 0xe0) >> 5;
     let low = first & 0x1f;
@@ -74,49 +112,41 @@ fn cbor_read_header_buf<B: Read>(br: &mut B, scratch: &mut [u8]) -> anyhow::Resu
     } else if low == 24 {
         let val = br.read_u8()?;
         if val < 24 {
-            return Err(anyhow!(
-                "cbor input was not canonical (lval 24 with value < 24)"
-            ));
+            return Err(FlushError::HeaderLval24);
         }
         Ok((maj, val as usize))
     } else if low == 25 {
         br.read_exact(&mut scratch[..2])?;
         let val = BigEndian::read_u16(&scratch[..2]);
         if val <= u8::MAX as u16 {
-            return Err(anyhow!(
-                "cbor input was not canonical (lval 25 with value <= MaxUint8)"
-            ));
+            return Err(FlushError::HeaderLval25);
         }
         Ok((maj, val as usize))
     } else if low == 26 {
         br.read_exact(&mut scratch[..4])?;
         let val = BigEndian::read_u32(&scratch[..4]);
         if val <= u16::MAX as u32 {
-            return Err(anyhow!(
-                "cbor input was not canonical (lval 26 with value <= MaxUint16)"
-            ));
+            return Err(FlushError::HeaderLval26);
         }
         Ok((maj, val as usize))
     } else if low == 27 {
         br.read_exact(&mut scratch[..8])?;
         let val = BigEndian::read_u64(&scratch[..8]);
         if val <= u32::MAX as u64 {
-            return Err(anyhow!(
-                "cbor input was not canonical (lval 27 with value <= MaxUint32)"
-            ));
+            return Err(FlushError::HeaderLval27);
         }
         Ok((maj, val as usize))
     } else {
-        Err(anyhow!("invalid header cbor_read_header_buf"))
+        Err(FlushError::HeaderInvalid)
     }
 }
 
 /// Given a CBOR serialized IPLD buffer, read through all of it and return all the Links.
 /// This function is useful because it is quite a bit more fast than doing this recursively on a
 /// deserialized IPLD object.
-fn scan_for_links<B: Read + Seek, F>(buf: &mut B, mut callback: F) -> Result<()>
+fn scan_for_links<B: Read + Seek, F>(buf: &mut B, mut callback: F) -> Result<(), FlushError>
 where
-    F: FnMut(Cid) -> anyhow::Result<()>,
+    F: FnMut(Cid) -> Result<(), FlushError>,
 {
     let mut scratch: [u8; 100] = [0; 100];
     let mut remaining = 1;
@@ -136,10 +166,10 @@ where
                     let (maj, extra) = cbor_read_header_buf(buf, &mut scratch)?;
                     // The actual CID is expected to be a byte string
                     if maj != 2 {
-                        return Err(anyhow!("expected cbor type byte string in input"));
+                        return Err(FlushError::UnexpectedByteString);
                     }
                     if extra > 100 {
-                        return Err(anyhow!("string in cbor input too long"));
+                        return Err(FlushError::StringTooLong);
                     }
                     buf.read_exact(&mut scratch[..extra])?;
                     let c = Cid::try_from(&scratch[1..extra])?;
@@ -157,7 +187,7 @@ where
                 remaining += extra * 2;
             }
             _ => {
-                return Err(anyhow!("unhandled cbor type: {}", maj));
+                return Err(FlushError::UnhandledCborType(maj));
             }
         }
         remaining -= 1;
@@ -170,16 +200,14 @@ fn copy_rec<'a>(
     cache: &'a HashMap<Cid, Vec<u8>>,
     root: Cid,
     buffer: &mut Vec<(Cid, &'a [u8])>,
-) -> Result<()> {
+) -> Result<(), FlushError> {
     // TODO: Make this non-recursive.
     // Skip identity and Filecoin commitment Cids
     if root.codec() != DAG_CBOR {
         return Ok(());
     }
 
-    let block = &*cache
-        .get(&root)
-        .ok_or_else(|| anyhow!("Invalid link ({}) in flushing buffered store", root))?;
+    let block = &*cache.get(&root).ok_or(FlushError::InvalidLink(root))?;
 
     scan_for_links(&mut Cursor::new(block), |link| {
         if link.codec() != DAG_CBOR {
@@ -205,28 +233,30 @@ impl<BS> Blockstore for BufferedBlockstore<BS>
 where
     BS: Blockstore,
 {
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+    type Error = Error<BS::Error>;
+
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         Ok(if let Some(data) = self.write.borrow().get(cid) {
             Some(data.clone())
         } else {
-            self.base.get(cid)?
+            self.base.get(cid).map_err(Error::Blockstore)?
         })
     }
 
-    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {
+    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<(), Self::Error> {
         self.write.borrow_mut().insert(*cid, Vec::from(buf));
         Ok(())
     }
 
-    fn has(&self, k: &Cid) -> Result<bool> {
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
         if self.write.borrow().contains_key(k) {
             Ok(true)
         } else {
-            Ok(self.base.has(k)?)
+            Ok(self.base.has(k).map_err(Error::Blockstore)?)
         }
     }
 
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
     where
         Self: Sized,
         D: AsRef<[u8]>,

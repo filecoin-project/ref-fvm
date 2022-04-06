@@ -141,7 +141,7 @@ impl<V> CollapsedNode<V> {
                     *v = Some(Link::from(
                         links_iter
                             .next()
-                            .ok_or_else(|| CollapsedNodeError::MoreBitsThanLinks)?,
+                            .ok_or(CollapsedNodeError::MoreBitsThanLinks)?,
                     ))
                 }
             }
@@ -157,7 +157,7 @@ impl<V> CollapsedNode<V> {
                     *v = Some(
                         val_iter
                             .next()
-                            .ok_or_else(|| CollapsedNodeError::MoreBitsThanValues)?,
+                            .ok_or(CollapsedNodeError::MoreBitsThanValues)?,
                     )
                 }
             }
@@ -182,7 +182,7 @@ where
     }
 
     /// Flushes cache for node, replacing any cached values with a Cid variant
-    pub(super) fn flush<DB: Blockstore>(&mut self, bs: &DB) -> Result<(), Error<DB>> {
+    pub(super) fn flush<DB: Blockstore>(&mut self, bs: &DB) -> Result<(), Error<DB::Error>> {
         if let Node::Link { links } = self {
             for link in links.iter_mut().flatten() {
                 // links should only be flushed if the bitmap is set.
@@ -237,7 +237,7 @@ where
         height: u32,
         bit_width: u32,
         i: u64,
-    ) -> Result<Option<&V>, Error<DB>> {
+    ) -> Result<Option<&V>, Error<DB::Error>> {
         match self {
             Node::Leaf { vals, .. } => Ok(vals.get(i as usize).and_then(|v| v.as_ref())),
             Node::Link { links, .. } => {
@@ -247,13 +247,14 @@ where
 
                 match links.get(sub_i) {
                     Some(Some(Link::Cid { cid, cache })) => {
-                        let cached_node = cache.get_or_try_init(|| -> Result<_, Error<DB>> {
-                            let node = bs
-                                .get_cbor::<CollapsedNode<V>>(cid)?
-                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                .expand(bit_width)?;
-                            Ok(Box::new(node))
-                        })?;
+                        let cached_node =
+                            cache.get_or_try_init(|| -> Result<_, Error<DB::Error>> {
+                                let node = bs
+                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                    .expand(bit_width)?;
+                                Ok(Box::new(node))
+                            })?;
 
                         cached_node.get(
                             bs,
@@ -282,7 +283,7 @@ where
         bit_width: u32,
         i: u64,
         val: V,
-    ) -> Result<Option<V>, Error<DB>> {
+    ) -> Result<Option<V>, Error<DB::Error>> {
         if height == 0 {
             return Ok(self.set_leaf(i, val));
         }
@@ -354,7 +355,7 @@ where
         height: u32,
         bit_width: u32,
         i: u64,
-    ) -> Result<Option<V>, Error<DB>> {
+    ) -> Result<Option<V>, Error<DB::Error>> {
         match self {
             Self::Leaf { vals } => Ok(vals
                 .get_mut(usize::try_from(i).unwrap())
@@ -385,7 +386,7 @@ where
                     }
                     Some(Link::Cid { cid, cache }) => {
                         // Take cache, will be replaced if no nodes deleted
-                        cache.get_or_try_init(|| -> Result<_, Error<DB>> {
+                        cache.get_or_try_init(|| -> Result<_, Error<DB::Error>> {
                             let node = bs
                                 .get_cbor::<CollapsedNode<V>>(cid)?
                                 .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
@@ -432,7 +433,7 @@ where
         bit_width: u32,
         offset: u64,
         f: &mut F,
-    ) -> Result<bool, EitherError<U, S>>
+    ) -> Result<bool, EitherError<U, S::Error>>
     where
         F: FnMut(u64, &V) -> Result<bool, U>,
         S: Blockstore,
@@ -459,7 +460,7 @@ where
                             }
                             Link::Cid { cid, cache } => {
                                 let cached_node =
-                                    cache.get_or_try_init(|| -> Result<_, Error<S>> {
+                                    cache.get_or_try_init(|| -> Result<_, Error<S::Error>> {
                                         let node = bs
                                             .get_cbor::<CollapsedNode<V>>(cid)?
                                             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
@@ -493,7 +494,7 @@ where
         bit_width: u32,
         offset: u64,
         f: &mut F,
-    ) -> Result<(bool, bool), EitherError<U, S>>
+    ) -> Result<(bool, bool), EitherError<U, S::Error>>
     where
         F: FnMut(u64, &mut ValueMut<'_, V>) -> Result<bool, U>,
         S: Blockstore,
@@ -525,7 +526,7 @@ where
                                 sub.for_each_while_mut(bs, height - 1, bit_width, offs, f)?
                             }
                             Link::Cid { cid, cache } => {
-                                cache.get_or_try_init(|| -> Result<_, Error<S>> {
+                                cache.get_or_try_init(|| -> Result<_, Error<S::Error>> {
                                     let node = bs
                                         .get_cbor::<CollapsedNode<V>>(cid)?
                                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))?

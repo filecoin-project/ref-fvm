@@ -72,7 +72,7 @@ where
     }
 
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
-    pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error<BS>> {
+    pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error<BS::Error>> {
         // Load root bytes from database
         let root: Root<V> = block_store
             .get_cbor(cid)?
@@ -100,7 +100,7 @@ where
     pub fn new_from_iter(
         block_store: BS,
         vals: impl IntoIterator<Item = V>,
-    ) -> Result<Cid, Error<BS>> {
+    ) -> Result<Cid, Error<BS::Error>> {
         let mut t = Self::new(block_store);
 
         t.batch_set(vals)?;
@@ -109,7 +109,7 @@ where
     }
 
     /// Get value at index of AMT
-    pub fn get(&self, i: u64) -> Result<Option<&V>, Error<BS>> {
+    pub fn get(&self, i: u64) -> Result<Option<&V>, Error<BS::Error>> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -124,7 +124,7 @@ where
     }
 
     /// Set value at index
-    pub fn set(&mut self, i: u64, val: V) -> Result<(), Error<BS>> {
+    pub fn set(&mut self, i: u64, val: V) -> Result<(), Error<BS::Error>> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -166,7 +166,7 @@ where
 
     /// Batch set (naive for now)
     // TODO Implement more efficient batch set to not have to traverse tree and keep cache for each
-    pub fn batch_set(&mut self, vals: impl IntoIterator<Item = V>) -> Result<(), Error<BS>> {
+    pub fn batch_set(&mut self, vals: impl IntoIterator<Item = V>) -> Result<(), Error<BS::Error>> {
         for (i, val) in (0u64..).zip(vals) {
             self.set(i, val)?;
         }
@@ -175,7 +175,7 @@ where
     }
 
     /// Delete item from AMT at index
-    pub fn delete(&mut self, i: u64) -> Result<Option<V>, Error<BS>> {
+    pub fn delete(&mut self, i: u64) -> Result<Option<V>, Error<BS::Error>> {
         if i > MAX_INDEX {
             return Err(Error::OutOfRange(i));
         }
@@ -246,7 +246,7 @@ where
         &mut self,
         iter: impl IntoIterator<Item = u64>,
         strict: bool,
-    ) -> Result<bool, Error<BS>> {
+    ) -> Result<bool, Error<BS::Error>> {
         // TODO: optimize this
         let mut modified = false;
 
@@ -262,7 +262,7 @@ where
     }
 
     /// flush root and return Cid used as key in block store
-    pub fn flush(&mut self) -> Result<Cid, Error<BS>> {
+    pub fn flush(&mut self) -> Result<Cid, Error<BS::Error>> {
         self.root.node.flush(&self.block_store)?;
         Ok(self.block_store.put_cbor(&self.root, Code::Blake2b256)?)
     }
@@ -291,7 +291,7 @@ where
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
     /// ```
     #[inline]
-    pub fn for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS>>
+    pub fn for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         F: FnMut(u64, &V) -> Result<(), U>,
     {
@@ -303,7 +303,7 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
-    pub fn for_each_while<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS>>
+    pub fn for_each_while<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         F: FnMut(u64, &V) -> Result<bool, U>,
     {
@@ -321,7 +321,7 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value.
-    pub fn for_each_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS>>
+    pub fn for_each_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         V: Clone,
         F: FnMut(u64, &mut ValueMut<'_, V>) -> Result<(), U>,
@@ -334,7 +334,7 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value, for as long as that function keeps returning `true`.
-    pub fn for_each_while_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS>>
+    pub fn for_each_while_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         // TODO remove clone bound when go-interop doesn't require it.
         // (If needed without, this bound can be removed by duplicating function signatures)

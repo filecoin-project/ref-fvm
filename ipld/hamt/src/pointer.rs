@@ -112,7 +112,7 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean<BS: Blockstore>(&mut self) -> Result<(), Error<BS>> {
+    pub(crate) fn clean<BS: Blockstore>(&mut self) -> Result<(), Error<BS::Error>> {
         match self {
             Pointer::Dirty(n) => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),

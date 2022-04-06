@@ -86,7 +86,7 @@ where
         store: &S,
         bit_width: u32,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error<S>>
+    ) -> Result<(Option<V>, bool), Error<S::Error>>
     where
         V: PartialEq,
     {
@@ -108,7 +108,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&V>, Error<S>>
+    ) -> Result<Option<&V>, Error<S::Error>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -122,7 +122,7 @@ where
         k: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<(K, V)>, Error<S>>
+    ) -> Result<Option<(K, V)>, Error<S::Error>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -136,7 +136,11 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn for_each<S, F, U>(&self, store: &S, f: &mut F) -> Result<(), EitherError<U, S>>
+    pub(crate) fn for_each<S, F, U>(
+        &self,
+        store: &S,
+        f: &mut F,
+    ) -> Result<(), EitherError<U, S::Error>>
     where
         F: FnMut(&K, &V) -> Result<(), U>,
         S: Blockstore,
@@ -179,7 +183,7 @@ where
         q: &Q,
         store: &S,
         bit_width: u32,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S>>
+    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S::Error>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -195,7 +199,7 @@ where
         depth: u64,
         key: &Q,
         store: &S,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S>>
+    ) -> Result<Option<&KeyValuePair<K, V>>, Error<S::Error>>
     where
         K: Borrow<Q>,
         Q: Eq + Hash,
@@ -245,7 +249,7 @@ where
         value: V,
         store: &S,
         overwrite: bool,
-    ) -> Result<(Option<V>, bool), Error<S>>
+    ) -> Result<(Option<V>, bool), Error<S::Error>>
     where
         V: PartialEq,
     {
@@ -365,7 +369,7 @@ where
         depth: u64,
         key: &Q,
         store: &S,
-    ) -> Result<Option<(K, V)>, Error<S>>
+    ) -> Result<Option<(K, V)>, Error<S::Error>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -393,7 +397,7 @@ where
                 if deleted.is_some() {
                     *child = Pointer::Dirty(std::mem::take(child_node));
                     // Clean to retrieve canonical form
-                    child.clean()?;
+                    child.clean::<S>()?;
                 }
 
                 Ok(deleted)
@@ -403,7 +407,7 @@ where
                 let deleted = n.rm_value(hashed_key, bit_width, depth + 1, key, store)?;
 
                 // Clean to ensure canonical form
-                child.clean()?;
+                child.clean::<S>()?;
                 Ok(deleted)
             }
             Pointer::Values(vals) => {
@@ -428,7 +432,7 @@ where
         }
     }
 
-    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error<S>> {
+    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error<S::Error>> {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
