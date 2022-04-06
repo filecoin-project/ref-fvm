@@ -1,7 +1,8 @@
+use std::time::{Duration, Instant};
+
 use cid::Cid;
 use fvm_shared::MethodNum;
 use serde::Serialize;
-use std::time::{Duration, Instant};
 
 #[derive(Debug, Serialize)]
 pub struct GasTracer {
@@ -150,9 +151,10 @@ fn test_tracer() {
 }
 
 mod ser {
+    use std::time::Duration;
+
     use cid::Cid;
     use serde::{Serialize, Serializer};
-    use std::time::Duration;
 
     pub fn serialize_cid<S>(c: &Cid, serializer: S) -> Result<S::Ok, S::Error>
     where

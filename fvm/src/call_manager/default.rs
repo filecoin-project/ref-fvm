@@ -1,3 +1,6 @@
+use std::io::Write;
+use std::ops::DerefMut;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::Context as _;
@@ -63,6 +66,13 @@ impl<M> std::ops::DerefMut for DefaultCallManager<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
+}
+
+lazy_static::lazy_static! {
+    static ref TRACE_FILE : Mutex<std::io::BufWriter<std::fs::File>> = {
+        let f = std::fs::File::options().create(true).write(true).append(true).open("fuel_tqrace.json").unwrap();
+        Mutex::new(std::io::BufWriter::new(f))
+    };
 }
 
 impl<M> CallManager for DefaultCallManager<M>
@@ -154,7 +164,9 @@ where
                 );
                 tracer.finish()
             };
-            println!("{}", serde_json::to_string(&traces).unwrap());
+            let mut tf = TRACE_FILE.lock().unwrap();
+            serde_json::to_writer(tf.deref_mut(), &traces).unwrap();
+            tf.flush().unwrap();
         }
 
         let inner = self.0.take().expect("call manager is poisoned");
