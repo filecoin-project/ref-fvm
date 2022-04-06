@@ -1,4 +1,7 @@
-
+#[cfg(feature = "tracing")]
+use std::io::Write;
+#[cfg(feature = "tracing")]
+use std::ops::DerefMut;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -19,11 +22,6 @@ use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::{account_actor, syscall_error};
-
-#[cfg(feature = "tracing")]
-use std::io::Write;
-#[cfg(feature = "tracing")]
-use std::ops::DerefMut;
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
@@ -74,7 +72,7 @@ impl<M> std::ops::DerefMut for DefaultCallManager<M> {
 
 lazy_static::lazy_static! {
     static ref TRACE_FILE : Mutex<std::io::BufWriter<std::fs::File>> = {
-        let f = std::fs::File::options().create(true).write(true).append(true).open("fuel_tqrace.json").unwrap();
+        let f = std::fs::File::options().create(true).write(true).append(true).open("fuel_trace.json").unwrap();
         Mutex::new(std::io::BufWriter::new(f))
     };
 }
