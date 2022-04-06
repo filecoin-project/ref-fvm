@@ -1,5 +1,4 @@
-use std::io::Write;
-use std::ops::DerefMut;
+
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -20,6 +19,11 @@ use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::{account_actor, syscall_error};
+
+#[cfg(feature = "tracing")]
+use std::io::Write;
+#[cfg(feature = "tracing")]
+use std::ops::DerefMut;
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
