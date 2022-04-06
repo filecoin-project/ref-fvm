@@ -4,11 +4,11 @@
 use std::str::FromStr;
 
 use data_encoding::{DecodeError, DecodeKind};
+use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::{
     checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };
-use fvm_shared::encoding::{from_slice, Cbor};
 
 #[test]
 fn bytes() {
@@ -392,11 +392,11 @@ fn invalid_byte_addresses() {
         // BLS Protocol
         StringAddrVec {
             input: bls_l,
-            expected: Error::InvalidBLSLength(49),
+            expected: Error::InvalidPayloadLength(49),
         },
         StringAddrVec {
             input: bls_s,
-            expected: Error::InvalidBLSLength(47),
+            expected: Error::InvalidPayloadLength(47),
         },
     ];
 

@@ -6,10 +6,10 @@ use fvm::machine::Engine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{MessageVector, Variant};
 use fvm_conformance_tests::vm::{TestKernel, TestMachine};
+use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
-use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 
 /// Applies a list of messages to the VM. Panics if one fails, but this is okay because the caller will test with these messages first.

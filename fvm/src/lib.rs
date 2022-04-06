@@ -31,7 +31,7 @@ mod system_actor;
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
-use fvm_shared::encoding::{to_vec, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 
 lazy_static::lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
@@ -45,11 +45,6 @@ lazy_static::lazy_static! {
 pub struct Config {
     /// The maximum call depth.
     pub max_call_depth: u32,
-    /// Initial number of memory pages to allocate for the invocation container.
-    pub initial_pages: usize,
-    /// Maximum number of memory pages an invocation container's memory
-    /// can expand to.
-    pub max_pages: usize,
     /// Whether debug mode is enabled or not.
     pub debug: bool,
 }
@@ -57,8 +52,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            initial_pages: 0,
-            max_pages: 1024,
             max_call_depth: 4096,
             debug: false,
         }
@@ -67,8 +60,9 @@ impl Default for Config {
 
 #[cfg(test)]
 mod test {
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::CborStore;
     use fvm_shared::actor::builtin::Manifest;
-    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;
     use num_traits::Zero;

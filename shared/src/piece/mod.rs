@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-use crate::encoding::Cbor;
+
+use fvm_ipld_encoding::Cbor;
 
 #[cfg(feature = "proofs")]
 pub mod zero;

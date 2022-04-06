@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_shared::blockstore::Blockstore;
+use fvm_ipld_blockstore::Blockstore;
 use wasmtime::{Linker, Module};
 
 use crate::syscalls::{bind_syscalls, InvocationData};

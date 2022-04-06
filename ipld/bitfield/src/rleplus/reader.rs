@@ -9,16 +9,13 @@ const VARINT_MAX_BYTES: usize = 10;
 /// A `BitReader` allows for efficiently reading bits from a byte buffer, up to a byte at a time.
 ///
 /// It works by always storing at least the next 8 bits in `bits`, which lets us conveniently
-/// and efficiently read bits that cross a byte boundary. It's filled with the bits from `next_byte`
-/// after every read operation, which is in turn replaced by the next byte from `bytes` as soon
-/// as the next read might read bits from `next_byte`.
+/// and efficiently read bits that cross a byte boundary.
 pub struct BitReader<'a> {
     /// The bytes that have not been read from yet.
     bytes: &'a [u8],
-    /// The next byte from `bytes` to be added to `bits`.
-    next_byte: u8,
     /// The next bits to be read.
-    bits: u16,
+    bits: u64,
+
     /// The number of bits in `bits` from bytes that came before `next_byte` (at least 8, at most 15).
     num_bits: u32,
 }
@@ -31,17 +28,52 @@ impl<'a> BitReader<'a> {
         if bytes.last() == Some(&0) {
             return Err(Error::NotMinimal);
         }
+        let mut bits = 0u64;
+        for i in 0..2 {
+            let byte = bytes.get(i).unwrap_or(&0);
+            bits |= (*byte as u64) << (8 * i);
+        }
 
-        let &byte1 = bytes.get(0).unwrap_or(&0);
-        let &byte2 = bytes.get(1).unwrap_or(&0);
-        let bytes = if bytes.len() > 2 { &bytes[2..] } else { &[] };
+        let bytes = bytes.get(2..).unwrap_or(&[]);
 
         Ok(Self {
             bytes,
-            bits: byte1 as u16,
-            next_byte: byte2,
-            num_bits: 8,
+            bits,
+            num_bits: 16,
         })
+    }
+
+    /// Peeks a given number of bits from the buffer.Will keep returning 0 once
+    /// the buffer has been exhausted.
+    #[inline(always)]
+    pub fn peek(&self, num_bits: u32) -> u8 {
+        debug_assert!(num_bits <= 8);
+
+        // creates a mask with a `num_bits` number of 1s in order
+        // to get only the bits we need from `self.bits`
+        let mask = (1 << num_bits) - 1;
+        (self.bits & mask) as u8
+    }
+
+    /// Drops a number of bits from the buffer
+    #[inline(always)]
+    pub fn drop(&mut self, num_bits: u32) {
+        debug_assert!(num_bits <= 8);
+
+        // removes the bits
+        self.bits >>= num_bits;
+        self.num_bits -= num_bits;
+
+        // not sure why this being outside of the if improves the performance
+        // bit it does, probably related to keeping caches warm
+        let byte = self.bytes.first().unwrap_or(&0);
+        self.bits |= (*byte as u64) << self.num_bits;
+
+        // if fewer than 8 bits remain, we skip to loading the next byte
+        if self.num_bits < 8 {
+            self.num_bits += 8;
+            self.bytes = self.bytes.get(1..).unwrap_or(&[]);
+        }
     }
 
     /// Reads a given number of bits from the buffer. Will keep returning 0 once
@@ -49,33 +81,8 @@ impl<'a> BitReader<'a> {
     pub fn read(&mut self, num_bits: u32) -> u8 {
         debug_assert!(num_bits <= 8);
 
-        // creates a mask with a `num_bits` number of 1s in order
-        // to get only the bits we need from `self.bits`
-        let mask = (1 << num_bits) - 1;
-        let res = (self.bits & mask) as u8;
-
-        // removes the bits we've just read from local storage
-        // because we don't need them anymore
-        self.bits >>= num_bits;
-        self.num_bits -= num_bits;
-
-        // this unconditionally adds the next byte to `bits`,
-        // regardless of whether there's enough space or not. the
-        // point is to make sure that `bits` always contains
-        // at least the next 8 bits to be read
-        self.bits |= (self.next_byte as u16) << self.num_bits;
-
-        // if fewer than 8 bits remain, we increment `self.num_bits`
-        // to include the bits from `next_byte` (which is already
-        // contained in `bits`) and we update `next_byte` with the
-        // data to be read after that
-        if self.num_bits < 8 {
-            self.num_bits += 8;
-
-            let (&next_byte, bytes) = self.bytes.split_first().unwrap_or((&0, &[]));
-            self.next_byte = next_byte;
-            self.bytes = bytes;
-        }
+        let res = self.peek(num_bits);
+        self.drop(num_bits);
 
         res
     }
@@ -114,28 +121,28 @@ impl<'a> BitReader<'a> {
             return Ok(None);
         }
 
-        let prefix_0 = self.read(1);
-        let len = if prefix_0 == 1 {
-            // Block Single (prefix 1)
-            1
-        } else {
-            let prefix_1 = self.read(1);
+        let peek6 = self.peek(6);
 
-            if prefix_1 == 1 {
-                // Block Short (prefix 01)
-                let val = self.read(4) as u64;
-                if val < 2 {
-                    return Err(Error::NotMinimal);
-                }
-                val
-            } else {
-                // Block Long (prefix 00)
-                let val = self.read_varint()?;
-                if val < 16 {
-                    return Err(Error::NotMinimal);
-                }
-                val
+        let len = if peek6 & 0b01 != 0 {
+            // Block Single (prefix 1)
+            self.drop(1);
+            1
+        } else if peek6 & 0b10 != 0 {
+            // Block Short (prefix 01)
+            let val = ((peek6 >> 2) & 0x0f) as u64;
+            self.drop(6);
+            if val < 2 {
+                return Err(Error::NotMinimal);
             }
+            val
+        } else {
+            // Block Long (prefix 00)
+            self.drop(2);
+            let val = self.read_varint()?;
+            if val < 16 {
+                return Err(Error::NotMinimal);
+            }
+            val
         };
 
         Ok(Some(len))
@@ -143,7 +150,7 @@ impl<'a> BitReader<'a> {
 
     /// Returns true if there are more non-zero bits to be read.
     pub fn has_more(&self) -> bool {
-        self.bits > 0 || self.next_byte > 0 || !self.bytes.is_empty()
+        self.bits != 0 || !self.bytes.is_empty()
     }
 }
 

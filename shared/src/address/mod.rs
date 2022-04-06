@@ -13,13 +13,13 @@ use std::str::FromStr;
 use data_encoding::Encoding;
 #[allow(unused_imports)]
 use data_encoding_macro::{internal_new_encoding, new_encoding};
+use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
 pub use self::network::Network;
-pub use self::payload::{BLSPublicKey, Payload};
+pub use self::payload::Payload;
 pub use self::protocol::Protocol;
-use crate::encoding::{blake2b_variable, serde_bytes, Cbor};
 use crate::ActorID;
 
 /// defines the encoder for base32 encoding with the provided string with no padding
@@ -41,7 +41,7 @@ pub const BLS_PUB_LEN: usize = 48;
 pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
 
 lazy_static::lazy_static! {
-    static ref BLS_ZERO_ADDR_BYTES: BLSPublicKey = {
+    static ref BLS_ZERO_ADDR_BYTES: [u8; BLS_PUB_LEN] = {
         let bz_addr = Address::from_str("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
         if let Ok(Address {payload: Payload::BLS(pubkey), ..}) = bz_addr {
             pubkey
@@ -127,7 +127,7 @@ impl Address {
         key.copy_from_slice(pubkey);
         Ok(Self {
             network: NETWORK_DEFAULT,
-            payload: Payload::BLS(key.into()),
+            payload: Payload::BLS(key),
         })
     }
 
@@ -374,7 +374,13 @@ mod tests {
 
 /// Checksum calculates the 4 byte checksum hash
 pub fn checksum(ingest: &[u8]) -> Vec<u8> {
-    blake2b_variable(ingest, CHECKSUM_HASH_LEN)
+    blake2b_simd::Params::new()
+        .hash_length(CHECKSUM_HASH_LEN)
+        .to_state()
+        .update(ingest)
+        .finalize()
+        .as_bytes()
+        .to_vec()
 }
 
 /// Validates the checksum against the ingest data
@@ -385,8 +391,13 @@ pub fn validate_checksum(ingest: &[u8], expect: Vec<u8>) -> bool {
 
 /// Returns an address hash for given data
 fn address_hash(ingest: &[u8]) -> [u8; 20] {
-    let digest = blake2b_variable(ingest, PAYLOAD_HASH_LEN);
+    let digest = blake2b_simd::Params::new()
+        .hash_length(PAYLOAD_HASH_LEN)
+        .to_state()
+        .update(ingest)
+        .finalize();
+
     let mut hash = [0u8; 20];
-    hash.clone_from_slice(&digest);
+    hash.copy_from_slice(digest.as_bytes());
     hash
 }

@@ -3,13 +3,15 @@
 
 use std::fmt::Display;
 
-use crate::encoding::repr::Serialize_repr;
 use serde::Deserialize;
+
+use crate::encoding::repr::Serialize_repr;
 
 /// Specifies the network version
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd, Serialize_repr, Deserialize)]
 #[repr(u32)]
 #[serde(tag = "version")]
+#[non_exhaustive]
 pub enum NetworkVersion {
     /// genesis (specs-actors v0.9.3)
     V0 = 0,
@@ -43,6 +45,8 @@ pub enum NetworkVersion {
     V14,
     /// actors v7
     V15,
+    /// actors v8
+    V16,
 }
 
 impl Display for NetworkVersion {
@@ -73,6 +77,7 @@ impl TryFrom<u32> for NetworkVersion {
             13 => Ok(V13),
             14 => Ok(V14),
             15 => Ok(V15),
+            16 => Ok(V16),
             _ => Err(value),
         }
     }

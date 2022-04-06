@@ -88,7 +88,7 @@ where
             Ok(InvocationResult::Return(return_data)) => {
                 backtrace.clear();
                 Receipt {
-                    exit_code: ExitCode::Ok,
+                    exit_code: ExitCode::OK,
                     return_data,
                     gas_used,
                 }
@@ -104,23 +104,27 @@ where
                 }
             }
             Err(ExecutionError::OutOfGas) => Receipt {
-                exit_code: ExitCode::SysErrOutOfGas,
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),
                 gas_used,
             },
             Err(ExecutionError::Syscall(err)) => {
+                // Errors indicate the message couldn't be dispatched at all
+                // (as opposed to failing during execution of the receiving actor).
+                // These errors are mapped to exit codes that persist on chain.
                 let exit_code = match err.1 {
-                    ErrorNumber::IllegalOperation => ExitCode::SysErrIllegalActor,
-                    ErrorNumber::AssertionFailed => ExitCode::SysErrIllegalArgument,
-                    ErrorNumber::InsufficientFunds => ExitCode::SysErrInsufficientFunds,
-                    ErrorNumber::NotFound => ExitCode::SysErrInvalidReceiver,
-                    code => {
-                        return Err(anyhow!(
-                            "unexpected syscall error when processing message: {} ({})",
-                            code,
-                            code as u32
-                        ))
-                    }
+                    ErrorNumber::InsufficientFunds => ExitCode::SYS_INSUFFICIENT_FUNDS,
+                    ErrorNumber::NotFound => ExitCode::SYS_INVALID_RECEIVER,
+
+                    ErrorNumber::IllegalArgument => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalOperation => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::LimitExceeded => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::AssertionFailed => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::InvalidHandle => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalCid => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::IllegalCodec => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::Serialization => ExitCode::SYS_ASSERTION_FAILED,
+                    ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
                 backtrace.set_cause(backtrace::Cause::new("send", "send", err));
@@ -207,7 +211,7 @@ where
                 // Verify the cost of the message is not over the message gas limit.
                 if inclusion_total > msg.gas_limit {
                     return Ok(Err(ApplyRet::prevalidation_fail(
-                        ExitCode::SysErrOutOfGas,
+                        ExitCode::SYS_OUT_OF_GAS,
                         format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                         &self.context().base_fee * inclusion_total,
                     )));
@@ -227,7 +231,7 @@ where
             Some(id) => id,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    ExitCode::SYS_SENDER_INVALID,
                     "Sender invalid",
                     miner_penalty_amount,
                 )))
@@ -246,7 +250,7 @@ where
             Some(act) => act,
             None => {
                 return Ok(Err(ApplyRet::prevalidation_fail(
-                    ExitCode::SysErrSenderInvalid,
+                    ExitCode::SYS_SENDER_INVALID,
                     "Sender invalid",
                     miner_penalty_amount,
                 )))
@@ -262,7 +266,7 @@ where
 
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderInvalid,
+                ExitCode::SYS_SENDER_INVALID,
                 "Send not from account actor",
                 miner_penalty_amount,
             )));
@@ -271,7 +275,7 @@ where
         // Check sequence is correct
         if msg.sequence != sender.sequence {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                ExitCode::SYS_SENDER_STATE_INVALID,
                 format!(
                     "Actor sequence invalid: {} != {}",
                     msg.sequence, sender.sequence
@@ -284,7 +288,7 @@ where
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
-                ExitCode::SysErrSenderStateInvalid,
+                ExitCode::SYS_SENDER_STATE_INVALID,
                 format!(
                     "Actor balance less than needed: {} < {}",
                     sender.balance, gas_cost

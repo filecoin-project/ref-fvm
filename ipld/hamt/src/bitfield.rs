@@ -4,9 +4,9 @@
 use std::u64;
 
 use byteorder::{BigEndian, ByteOrder};
-use fvm_shared::encoding::de::{Deserialize, Deserializer};
-use fvm_shared::encoding::ser::{Serialize, Serializer};
-use fvm_shared::encoding::serde_bytes;
+use fvm_ipld_encoding::de::{Deserialize, Deserializer};
+use fvm_ipld_encoding::ser::{Serialize, Serializer};
+use fvm_ipld_encoding::serde_bytes;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);
@@ -142,7 +142,7 @@ impl std::fmt::Binary for Bitfield {
 
 #[cfg(test)]
 mod tests {
-    use fvm_shared::encoding::{from_slice, to_vec};
+    use fvm_ipld_encoding::{from_slice, to_vec};
 
     use super::*;
 

@@ -50,7 +50,7 @@ impl From<Trap> for Abort {
 
         // Actor panic/wasm error.
         if let Some(code) = t.trap_code() {
-            return Abort::Exit(ExitCode::SysErrActorPanic, code.to_string());
+            return Abort::Exit(ExitCode::SYS_ILLEGAL_INSTRUCTION, code.to_string());
         }
 
         // Try to get a smuggled error back.

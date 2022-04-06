@@ -7,8 +7,8 @@ mod util;
 use cid::Cid;
 pub use error::*;
 use futures::{AsyncRead, AsyncWrite, Stream, StreamExt};
-use fvm_shared::blockstore::Blockstore;
-use fvm_shared::encoding::{from_slice, to_vec};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{from_slice, to_vec};
 use serde::{Deserialize, Serialize};
 use util::{ld_read, ld_write, read_node};
 
@@ -129,8 +129,8 @@ mod tests {
     use async_std::sync::RwLock;
     use cid::multihash::Code::Blake2b256;
     use cid::multihash::MultihashDigest;
-    use fvm_shared::blockstore::MemoryBlockstore;
-    use fvm_shared::encoding::DAG_CBOR;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::DAG_CBOR;
 
     use super::*;
 

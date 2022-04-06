@@ -4,11 +4,11 @@
 use std::fmt::Debug;
 
 use fvm_ipld_amt::{Amt, Error, MAX_INDEX};
-use fvm_shared::blockstore::tracking::{BSStats, TrackingBlockstore};
-use fvm_shared::blockstore::Blockstore;
-use fvm_shared::encoding::de::DeserializeOwned;
-use fvm_shared::encoding::ser::Serialize;
-use fvm_shared::encoding::BytesDe;
+use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::ser::Serialize;
+use fvm_ipld_encoding::BytesDe;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where
@@ -20,7 +20,7 @@ where
 
 #[test]
 fn basic_get_set() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -44,7 +44,7 @@ fn basic_get_set() {
 
 #[test]
 fn out_of_range() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -71,7 +71,7 @@ fn out_of_range() {
 
 #[test]
 fn expand() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -104,7 +104,7 @@ fn expand() {
 
 #[test]
 fn bulk_insert() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -139,7 +139,7 @@ fn bulk_insert() {
 
 #[test]
 fn flush_read() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -167,7 +167,7 @@ fn flush_read() {
 
 #[test]
 fn delete() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = fvm_ipld_blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     a.set(0, tbytes(b"cat")).unwrap();
@@ -215,7 +215,7 @@ fn delete() {
 
 #[test]
 fn delete_fail_check() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = fvm_ipld_blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -234,7 +234,7 @@ fn delete_fail_check() {
 
 #[test]
 fn delete_first_entry() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = fvm_ipld_blockstore::MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -264,7 +264,7 @@ fn delete_first_entry() {
 
 #[test]
 fn delete_reduce_height() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -295,7 +295,7 @@ fn delete_reduce_height() {
 
 #[test]
 fn for_each() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -362,7 +362,7 @@ fn for_each() {
 
 #[test]
 fn for_each_mutate() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
 
@@ -400,7 +400,7 @@ fn for_each_mutate() {
 
 #[test]
 fn delete_bug_test() {
-    let mem = fvm_shared::blockstore::MemoryBlockstore::default();
+    let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
     let mut a = Amt::new(&db);
     let empty_cid = a.flush().unwrap();

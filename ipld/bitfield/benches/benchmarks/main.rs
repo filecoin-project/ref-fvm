@@ -3,9 +3,34 @@
 
 mod examples;
 
+use std::fs;
+use std::path::Path;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use examples::{example1, example2};
 use fvm_ipld_bitfield::BitField;
+use gperftools::profiler::PROFILER;
+
+struct Profiler;
+
+impl criterion::profiler::Profiler for Profiler {
+    fn start_profiling(&mut self, benchmark_id: &str, benchmark_dir: &Path) {
+        fs::create_dir_all(benchmark_dir).unwrap();
+        let bench_file = benchmark_id.to_owned() + ".prof";
+        let bench_path = benchmark_dir.join(bench_file);
+        let bench_str = bench_path.to_str().unwrap();
+
+        PROFILER.lock().unwrap().start(bench_str).unwrap();
+    }
+
+    fn stop_profiling(&mut self, _: &str, _: &Path) {
+        PROFILER.lock().unwrap().stop().unwrap();
+    }
+}
+
+fn profiled() -> Criterion {
+    Criterion::default().with_profiler(Profiler {})
+}
 
 fn len(c: &mut Criterion) {
     let bf = example1();
@@ -24,10 +49,12 @@ fn new(c: &mut Criterion) {
 }
 
 fn decode_encode(c: &mut Criterion) {
-    let bf = example1();
     c.bench_function("decode_encode", |b| {
-        b.iter(|| BitField::from_ranges(bf.ranges()))
+        b.iter(|| BitField::from_ranges(example1().ranges()))
     });
+}
+fn decode(c: &mut Criterion) {
+    c.bench_function("decode", |b| b.iter(example1));
 }
 
 fn from_ranges(c: &mut Criterion) {
@@ -95,20 +122,23 @@ fn get(c: &mut Criterion) {
 }
 
 criterion_group!(
-    benches,
-    len,
-    bits,
-    new,
-    decode_encode,
-    from_ranges,
-    is_empty,
-    intersection,
-    union,
-    difference,
-    symmetric_difference,
-    cut,
-    contains_all,
-    contains_any,
-    get,
+    name = benches;
+    config = profiled();
+    targets =
+        len,
+        bits,
+        new,
+        decode,
+        decode_encode,
+        from_ranges,
+        is_empty,
+        intersection,
+        union,
+        difference,
+        symmetric_difference,
+        cut,
+        contains_all,
+        contains_any,
+        get,
 );
 criterion_main!(benches);

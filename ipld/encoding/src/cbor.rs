@@ -8,7 +8,7 @@ use cid::{multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::encoding::{de, from_slice, ser, to_vec, CodecProtocol};
+use crate::{de, from_slice, ser, to_vec, CodecProtocol};
 
 // TODO find something to reference.
 pub const DAG_CBOR: u64 = 0x71;

@@ -105,6 +105,12 @@ impl<'de> Deserialize<'de> for BitField {
         D: Deserializer<'de>,
     {
         let bytes: Cow<'de, [u8]> = serde_bytes::deserialize(deserializer)?;
+        if bytes.len() > MAX_ENCODED_SIZE {
+            return Err(serde::de::Error::custom(format!(
+                "encoded bitfield was too large {}",
+                bytes.len()
+            )));
+        }
         Self::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
 }

@@ -15,11 +15,11 @@
 
 use anyhow::Context;
 use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::{Cbor, CborStore};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
-use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::encoding::Cbor;
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
 use crate::state_tree::{ActorState, StateTree};

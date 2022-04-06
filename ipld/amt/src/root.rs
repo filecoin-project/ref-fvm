@@ -62,7 +62,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use fvm_shared::encoding::{from_slice, to_vec};
+    use fvm_ipld_encoding::{from_slice, to_vec};
 
     use super::*;
 

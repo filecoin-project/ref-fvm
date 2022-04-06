@@ -13,7 +13,7 @@ pub enum Error {
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Cbor encoding error: {0}")]
-    Cbor(#[from] fvm_shared::encoding::Error),
+    Cbor(#[from] fvm_ipld_encoding::Error),
     #[error("CAR error: {0}")]
     Other(String),
 }
