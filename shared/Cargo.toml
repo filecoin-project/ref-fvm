@@ -23,7 +23,6 @@ log = "0.4.8"
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
 multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
 unsigned-varint = "0.7.1"
-anyhow = "1.0.51"
 bimap = { version = "0.6.2", features = ["serde"] }
 fvm_ipld_blockstore = { version = "0.1", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.1", path = "../ipld/encoding" }

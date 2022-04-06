@@ -13,7 +13,7 @@ pub use block::*;
 /// An IPLD blockstore suitable for injection into the FVM.
 ///
 /// The cgo blockstore adapter implements this trait.
-pub trait Blockstore {
+pub trait Blockstore: std::fmt::Debug {
     type Error: std::error::Error + std::fmt::Debug;
 
     /// Gets the block from the blockstore.
