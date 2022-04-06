@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_bigiint_max() {
-        let max_limbs = MAX_BIGINT_SIZE / 4; // u32 -> u8
+        let max_limbs = MAX_BIGINT_SIZE / 4; // 32bit limbs to bytes
         let good = BigInt::new(Sign::Plus, vec![u32::MAX; max_limbs - 1]);
         let good_neg = BigInt::new(Sign::Minus, vec![u32::MAX; max_limbs - 1]);
 
@@ -87,6 +87,7 @@ mod tests {
         let good_neg_back: BigIntDe = from_slice(&good_neg_bytes).unwrap();
         assert_eq!(good_neg_back.0, good_neg);
 
+        // max limbs will fail as the sign is prepended
         let bad1 = BigInt::new(Sign::Plus, vec![u32::MAX; max_limbs]);
         let bad1_neg = BigInt::new(Sign::Minus, vec![u32::MAX; max_limbs]);
         let bad2 = BigInt::new(Sign::Plus, vec![u32::MAX; max_limbs + 1]);

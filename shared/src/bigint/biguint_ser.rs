@@ -69,13 +69,14 @@ mod tests {
 
     #[test]
     fn test_biguint_max() {
-        let max_limbs = MAX_BIGINT_SIZE / 4; // u32 -> u8
+        let max_limbs = MAX_BIGINT_SIZE / 4; // 32bit limbs to bytes
         let good = BigUint::new(vec![u32::MAX; max_limbs - 1]);
 
         let good_bytes = to_vec(&BigUintSer(&good)).expect("should be good");
         let good_back: BigUintDe = from_slice(&good_bytes).unwrap();
         assert_eq!(good_back.0, good);
 
+        // max limbs will fail as the sign is prepended
         let bad1 = BigUint::new(vec![u32::MAX; max_limbs]);
         let bad2 = BigUint::new(vec![u32::MAX; max_limbs + 1]);
 
