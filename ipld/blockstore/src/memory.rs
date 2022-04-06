@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::Infallible;
 
-use anyhow::Result;
 use cid::Cid;
 
 use super::Blockstore;
@@ -18,15 +18,17 @@ impl MemoryBlockstore {
 }
 
 impl Blockstore for MemoryBlockstore {
-    fn has(&self, k: &Cid) -> Result<bool> {
+    type Error = Infallible;
+
+    fn has(&self, k: &Cid) -> Result<bool, Self::Error> {
         Ok(self.blocks.borrow().contains_key(k))
     }
 
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
+    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         Ok(self.blocks.borrow().get(k).cloned())
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
         self.blocks.borrow_mut().insert(*k, block.into());
         Ok(())
     }
