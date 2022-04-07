@@ -48,7 +48,7 @@ walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.1.6", optional = true }
 actors-v6 = { version = "6.1.0", package = "fil_builtin_actors_bundle" }
-actors-v7 = { version = "7.1.0", package = "fil_builtin_actors_bundle" }
+actors-v7 = { git = "https://github.com/filecoin-project/builtin-actors", branch = "v7-update-fvm-deps-20220407", package = "fil_builtin_actors_bundle" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [features]
