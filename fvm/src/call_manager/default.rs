@@ -333,7 +333,6 @@ where
                 // First, charge gas for the "latest" fuel use (all the fuel used since the most recent syscall)
                 let fuel_consumed = store
                     .fuel_consumed()
-                    // TODO: Check whether this ever returns None (eg if 0 fuel has been consumed)
                     .ok_or_else(|| Abort::Fatal(anyhow!("expected to find fuel consumed")))?;
                 store
                     .data_mut()
