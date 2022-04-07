@@ -26,7 +26,7 @@ pub enum Error<E> {
     #[error("{0}")]
     CollapsedNode(#[from] CollapsedNodeError),
     #[error("no such index {0} in Amt for batch delete")]
-    BatchDelteNotFound(u64),
+    BatchDeleteNotFound(u64),
     #[error("blockstore {0}")]
     Blockstore(E),
     #[error("encoding error {0}")]
@@ -42,17 +42,19 @@ impl<E> From<CborStoreError<E>> for Error<E> {
     }
 }
 
+/// This error wraps around around two different errors, either the native `Error` from `amt`, or
+/// a custom user error, returned from executing a user defined function.
 #[derive(Debug, Error)]
 pub enum EitherError<U, E> {
     #[error("user: {0}")]
     User(U),
-    #[error("hamt: {0}")]
-    Hamt(#[from] Error<E>),
+    #[error("amt: {0}")]
+    Amt(#[from] Error<E>),
 }
 
 impl<U, E> From<CborStoreError<E>> for EitherError<U, E> {
     fn from(err: CborStoreError<E>) -> Self {
-        EitherError::Hamt(err.into())
+        EitherError::Amt(err.into())
     }
 }
 

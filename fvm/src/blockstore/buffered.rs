@@ -72,14 +72,8 @@ pub enum FlushError {
     Io(#[from] std::io::Error),
     #[error("cid: {0}")]
     Cid(#[from] cid::Error),
-    #[error("cbor input was not canonical (lval 24 with value < 24)")]
-    HeaderLval24,
-    #[error("cbor input was not canonical (lval 25 with value <= MaxUint8)")]
-    HeaderLval25,
-    #[error("cbor input was not canonical (lval 26 with value <= MaxUint16)")]
-    HeaderLval26,
-    #[error("cbor input was not canonical (lval 27 with value <= MaxUint32)")]
-    HeaderLval27,
+    #[error("cbor input was not canonical (lval {0} with value < {1})")]
+    HeaderNotCanonical(usize, &'static str),
     #[error("invalid header cbor_read_header_buf")]
     HeaderInvalid,
     #[error("expected cbor type byte string in input")]
@@ -112,28 +106,28 @@ fn cbor_read_header_buf<B: Read>(
     } else if low == 24 {
         let val = br.read_u8()?;
         if val < 24 {
-            return Err(FlushError::HeaderLval24);
+            return Err(FlushError::HeaderNotCanonical(24, "24"));
         }
         Ok((maj, val as usize))
     } else if low == 25 {
         br.read_exact(&mut scratch[..2])?;
         let val = BigEndian::read_u16(&scratch[..2]);
         if val <= u8::MAX as u16 {
-            return Err(FlushError::HeaderLval25);
+            return Err(FlushError::HeaderNotCanonical(25, "MaxUint8"));
         }
         Ok((maj, val as usize))
     } else if low == 26 {
         br.read_exact(&mut scratch[..4])?;
         let val = BigEndian::read_u32(&scratch[..4]);
         if val <= u16::MAX as u32 {
-            return Err(FlushError::HeaderLval26);
+            return Err(FlushError::HeaderNotCanonical(26, "MaxUint16"));
         }
         Ok((maj, val as usize))
     } else if low == 27 {
         br.read_exact(&mut scratch[..8])?;
         let val = BigEndian::read_u64(&scratch[..8]);
         if val <= u32::MAX as u64 {
-            return Err(FlushError::HeaderLval27);
+            return Err(FlushError::HeaderNotCanonical(27, "MaxUint32"));
         }
         Ok((maj, val as usize))
     } else {

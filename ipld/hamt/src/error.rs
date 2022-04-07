@@ -30,6 +30,8 @@ impl<E> From<CborStoreError<E>> for Error<E> {
     }
 }
 
+/// This error wraps around around two different errors, either the native `Error` from `hamt`, or
+/// a custom user error, returned from executing a user defined function.
 #[derive(Debug, Error)]
 pub enum EitherError<U, E> {
     #[error("user: {0}")]

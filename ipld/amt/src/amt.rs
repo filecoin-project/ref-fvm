@@ -254,7 +254,7 @@ where
         for i in sorted(iter) {
             let found = self.delete(i)?.is_none();
             if strict && found {
-                return Err(Error::BatchDelteNotFound(i));
+                return Err(Error::BatchDeleteNotFound(i));
             }
             modified |= found;
         }
