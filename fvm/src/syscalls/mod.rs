@@ -42,8 +42,9 @@ pub struct InvocationData<K> {
     pub fuel_consumed_snapshot: u64,
 }
 
-impl<K> InvocationData<K> {
-    pub(crate) fn new(kernel: K, gas_available: i64) -> Self {
+impl<K: Kernel> InvocationData<K> {
+    pub(crate) fn new(kernel: K) -> Self {
+        let gas_available = kernel.gas_available();
         Self {
             kernel,
             last_error: None,
@@ -51,9 +52,7 @@ impl<K> InvocationData<K> {
             fuel_consumed_snapshot: 0,
         }
     }
-}
 
-impl<K: Kernel> InvocationData<K> {
     // This method:
     // 1) calculates the available_gas delta from the previous snapshot,
     // 2) converts this to the corresponding amount of fuel

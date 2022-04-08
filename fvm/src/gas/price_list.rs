@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
+use anyhow::anyhow;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -120,11 +121,15 @@ lazy_static! {
 
         gas_per_fuel: 0,
         extern_traversal_cost: 0,
-        block_open: 114617,
-        block_read: 0,
-        block_create: 0,
+
+        block_memcpy_per_byte_cost: 0,
+        block_io_per_byte_cost: 0,
+        block_link_per_byte_cost: 1,
+
+        block_open_base: 114617,
+        block_read_base: 0,
+        block_create_base: 0,
         block_link_base: 353640,
-        block_link_per_byte: 1,
         block_stat: 0,
     };
 
@@ -229,20 +234,23 @@ lazy_static! {
         .copied()
         .collect(),
 
+        block_memcpy_per_byte_cost: 4,
+        block_io_per_byte_cost: 2,
+        block_link_per_byte_cost: 1,
+        // TODO: PARAM_FINISH
+
         // TODO: PARAM_FINISH
         gas_per_fuel: 2,
         // TODO: PARAM_FINISH
         extern_traversal_cost: 1,
+        // TODO: PARAM_FINIuiSH
+        block_open_base: 1,
         // TODO: PARAM_FINISH
-        block_open: 1,
+        block_read_base: 1,
         // TODO: PARAM_FINISH
-        block_read: 1,
-        // TODO: PARAM_FINISH
-        block_create: 1,
+        block_create_base: 1,
         // TODO: PARAM_FINISH
         block_link_base: 1,
-        // TODO: PARAM_FINISH
-        block_link_per_byte: 1,
         // TODO: PARAM_FINISH
         block_stat: 1,
     };
@@ -358,12 +366,15 @@ pub struct PriceList {
     pub(crate) gas_per_fuel: i64,
 
     pub(crate) extern_traversal_cost: i64,
-    // TODO: Some of these will probably need per-byte multipliers
-    pub(crate) block_open: i64,
-    pub(crate) block_read: i64,
-    pub(crate) block_create: i64,
+
+    pub(crate) block_memcpy_per_byte_cost: i64,
+    pub(crate) block_io_per_byte_cost: i64,
+    pub(crate) block_link_per_byte_cost: i64,
+
+    pub(crate) block_open_base: i64,
+    pub(crate) block_read_base: i64,
+    pub(crate) block_create_base: i64,
     pub(crate) block_link_base: i64,
-    pub(crate) block_link_per_byte: i64,
     pub(crate) block_stat: i64,
 }
 
@@ -523,14 +534,14 @@ impl PriceList {
 
     /// Returns the gas required for the specified amount of fuel.
     #[inline]
-    pub fn on_consume_fuel(&self, fuel: u64) -> GasCharge<'static> {
-        GasCharge::new("OnConsumeFuel", self.gas_per_fuel * fuel as i64, 0)
-    }
-
-    /// Converts the specified fuel into equivalent units of gas
-    #[inline]
-    pub fn fuel_to_gas(&self, fuel: u64) -> i64 {
-        (self.gas_per_fuel * fuel as i64) as i64
+    pub fn on_consume_fuel(&self, fuel: u64) -> Result<GasCharge<'static>, anyhow::Error> {
+        Ok(GasCharge::new(
+            "OnConsumeFuel",
+            self.gas_per_fuel
+                .checked_mul(fuel as i64)
+                .ok_or_else(|| anyhow!("overflow when consuming fuel"))?,
+            0,
+        ))
     }
 
     /// Converts the specified gas into equivalent units of fuel
@@ -550,29 +561,43 @@ impl PriceList {
 
     /// Returns the gas required for loading an object.
     #[inline]
-    pub fn on_block_open(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockOpen", self.block_open, 0)
+    pub fn on_block_open(&self, data_size: usize) -> GasCharge<'static> {
+        // TODO: Should we also throw on a memcpy cost here (see https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#ipld-state-management-fees)
+        GasCharge::new(
+            "OnBlockOpen",
+            self.block_open_base + data_size as i64 * self.block_io_per_byte_cost,
+            0,
+        )
     }
 
     /// Returns the gas required for reading a loaded object.
     #[inline]
-    pub fn on_block_read(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockRead", self.block_read, 0)
+    pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
+        GasCharge::new(
+            "OnBlockRead",
+            self.block_read_base + data_size as i64 * self.block_memcpy_per_byte_cost,
+            0,
+        )
     }
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockCreate", self.block_create, 0)
+    pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
+        GasCharge::new(
+            "OnBlockCreate",
+            self.block_create_base + data_size as i64 * self.block_memcpy_per_byte_cost,
+            0,
+        )
     }
 
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, data_size: usize) -> GasCharge<'static> {
+        // TODO: The FIP makes it sound like this would need 2 memcpys, is that what's desired?
         GasCharge::new(
             "OnBlockLink",
             self.block_link_base,
-            data_size as i64 * self.block_link_per_byte * self.storage_gas_multiplier,
+            data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
         )
     }
 

@@ -11,12 +11,13 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
-
 pub use backtrace::Backtrace;
 
 mod default;
 
 pub use default::DefaultCallManager;
+
+use crate::kernel::ExecutionError::OutOfGas;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -120,7 +121,11 @@ pub trait CallManager: 'static {
 
     /// Charge fuel.
     fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
-        self.charge_gas(self.price_list().on_consume_fuel(fuel))?;
+        self.charge_gas(
+            self.price_list()
+                .on_consume_fuel(fuel)
+                .map_err(|_| OutOfGas)?,
+        )?;
         Ok(())
     }
 }

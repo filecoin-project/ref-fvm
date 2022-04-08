@@ -212,7 +212,6 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        let gas_available = kernel.gas_available();
-        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel, gas_available))
+        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
     }
 }

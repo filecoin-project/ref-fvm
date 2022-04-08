@@ -10,7 +10,7 @@ use filecoin_proofs_api::seal::{
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, to_vec, CborStore, RawBytes};
+use fvm_ipld_encoding::{bytes_32, from_slice, to_vec, RawBytes};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
@@ -130,20 +130,27 @@ where
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
-        if charge_gas {
-            self.call_manager
-                .charge_gas(self.call_manager.price_list().on_block_open())?;
-        }
-
-        let state: crate::account_actor::State = self
+        let state_block = self
             .call_manager
             .state_tree()
             .store()
-            .get_cbor(&act.state)
-            .context("failed to decode actor state as an account")
-            .or_fatal()? // because we've checked and this should be an account.
+            .get(&act.state)
+            .context("failed to look up state")
+            .or_fatal()?
             .context("account actor state not found")
-            .or_fatal()?; // because the state should exist.
+            .or_fatal()?;
+
+        if charge_gas {
+            self.call_manager.charge_gas(
+                self.call_manager
+                    .price_list()
+                    .on_block_open(state_block.len()),
+            )?;
+        }
+
+        let state: crate::account_actor::State = from_slice(&state_block)
+            .context("failed to decode actor state as an account")
+            .or_fatal()?; // because we've checked and this should be an account.
 
         Ok(state.address)
     }
@@ -281,9 +288,6 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_open())?;
-
         let data = self
             .call_manager
             .blockstore()
@@ -295,8 +299,14 @@ where
             // to be in the state-tree.
             .or_fatal()?;
 
-        // We charge on open, not read, to emulate the current gas model.
         let block = Block::new(cid.codec(), data);
+
+        // We charge on open, not read, to emulate the current gas model.
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_block_open(block.size().try_into().or_illegal_argument()?),
+        )?;
         let stat = block.stat();
 
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
@@ -306,7 +316,7 @@ where
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create())?;
+            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
         self.blocks
             .put(Block::new(codec, data))
@@ -346,10 +356,11 @@ where
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read())?;
-
         let data = self.blocks.get(id).or_illegal_argument()?.data();
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_read(data.len()))?;
+
         Ok(if offset as usize >= data.len() {
             0
         } else {
