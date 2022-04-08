@@ -3,6 +3,7 @@ use bimap::BiBTreeMap;
 use cid::Cid;
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::blockstore::{Blockstore, CborStore};
 
@@ -101,6 +102,12 @@ impl From<&Type> for String {
             Type::VerifiedRegistry => "verifiedregistry",
         }
         .to_string()
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
     }
 }
 
