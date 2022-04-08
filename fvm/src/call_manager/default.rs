@@ -296,13 +296,13 @@ where
 
             // Make a store.
             let gas_available = kernel.gas_available();
-            let fuel_to_add = match kernel.network_version() {
+            let exec_units_to_add = match kernel.network_version() {
                 NetworkVersion::V14 | NetworkVersion::V15 => u64::MAX,
-                _ => kernel.price_list().gas_to_fuel(gas_available),
+                _ => kernel.price_list().gas_to_exec_units(gas_available),
             };
 
             let mut store = engine.new_store(kernel);
-            if let Err(err) = store.add_fuel(fuel_to_add) {
+            if let Err(err) = store.add_fuel(exec_units_to_add) {
                 return (
                     Err(ExecutionError::Fatal(err)),
                     store.into_data().kernel.take(),
@@ -330,16 +330,16 @@ where
                 // Invoke it.
                 let res = invoke.call(&mut store, (param_id,));
 
-                // First, charge gas for the "latest" fuel use (all the fuel used since the most recent syscall)
-                let fuel_consumed = store
+                // First, charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
+                let exec_units_consumed = store
                     .fuel_consumed()
                     .ok_or_else(|| Abort::Fatal(anyhow!("expected to find fuel consumed")))?;
                 store
                     .data_mut()
-                    .charge_gas_for_fuel(fuel_consumed)
+                    .charge_gas_for_exec_units(exec_units_consumed)
                     .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
 
-                // If the invocation failed due to running out of fuel, we have already detected it and returned OutOfGas above.
+                // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
                 let return_block_id = res?;
 

@@ -507,8 +507,8 @@ where
         self.0.charge_gas(name, compute)
     }
 
-    fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
-        self.0.charge_fuel(fuel)
+    fn charge_exec_units(&mut self, exec_units: u64) -> Result<()> {
+        self.0.charge_exec_units(exec_units)
     }
 
     fn price_list(&self) -> &PriceList {

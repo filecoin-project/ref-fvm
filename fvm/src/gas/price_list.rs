@@ -119,7 +119,7 @@ lazy_static! {
         .copied()
         .collect(),
 
-        gas_per_fuel: 0,
+        gas_per_exec_unit: 0,
         extern_traversal_cost: 0,
 
         block_memcpy_per_byte_cost: 0,
@@ -240,7 +240,7 @@ lazy_static! {
         // TODO: PARAM_FINISH
 
         // TODO: PARAM_FINISH
-        gas_per_fuel: 2,
+        gas_per_exec_unit: 2,
         // TODO: PARAM_FINISH
         extern_traversal_cost: 1,
         // TODO: PARAM_FINIuiSH
@@ -362,8 +362,8 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
-    // 1 Fuel = gas_per_fuel * 1 Gas
-    pub(crate) gas_per_fuel: i64,
+    // 1 Exec Unit = gas_per_exec_unit * 1 Gas
+    pub(crate) gas_per_exec_unit: i64,
 
     pub(crate) extern_traversal_cost: i64,
 
@@ -532,24 +532,27 @@ impl PriceList {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
     }
 
-    /// Returns the gas required for the specified amount of fuel.
+    /// Returns the gas required for the specified exec_units.
     #[inline]
-    pub fn on_consume_fuel(&self, fuel: u64) -> Result<GasCharge<'static>, anyhow::Error> {
+    pub fn on_consume_exec_units(
+        &self,
+        exec_units: u64,
+    ) -> Result<GasCharge<'static>, anyhow::Error> {
         Ok(GasCharge::new(
-            "OnConsumeFuel",
-            self.gas_per_fuel
-                .checked_mul(fuel as i64)
-                .ok_or_else(|| anyhow!("overflow when consuming fuel"))?,
+            "OnConsumeExecUnits",
+            self.gas_per_exec_unit
+                .checked_mul(exec_units as i64)
+                .ok_or_else(|| anyhow!("overflow when consuming exec_units"))?,
             0,
         ))
     }
 
-    /// Converts the specified gas into equivalent units of fuel
+    /// Converts the specified gas into equivalent exec_units
     #[inline]
-    pub fn gas_to_fuel(&self, gas: i64) -> u64 {
-        match self.gas_per_fuel {
+    pub fn gas_to_exec_units(&self, gas: i64) -> u64 {
+        match self.gas_per_exec_unit {
             0 => 0,
-            _ => (gas / self.gas_per_fuel) as u64,
+            v => (gas / v) as u64,
         }
     }
 

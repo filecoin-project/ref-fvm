@@ -39,7 +39,7 @@ pub struct InvocationData<K> {
     /// This snapshot is used to track changes in fuel_consumed during WASM execution.
     /// The snapshot gets taken when execution enters WASM _after_ consuming fuel for any syscall gas consumption.
     /// When execution exits WASM, we charge gas for the delta between the new fuel_consumed value and the snapshot.
-    pub fuel_consumed_snapshot: u64,
+    pub exec_units_consumed_snapshot: u64,
 }
 
 impl<K: Kernel> InvocationData<K> {
@@ -49,31 +49,31 @@ impl<K: Kernel> InvocationData<K> {
             kernel,
             last_error: None,
             gas_available_snapshot: gas_available,
-            fuel_consumed_snapshot: 0,
+            exec_units_consumed_snapshot: 0,
         }
     }
 
     // This method:
     // 1) calculates the available_gas delta from the previous snapshot,
-    // 2) converts this to the corresponding amount of fuel
-    // 3) updates the available_gas and fuel_consumed snapshots. The fuel_consumed snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
-    // 4) returns the value calculated in 2) for its caller to actually consume that fuel
-    pub(crate) fn calculate_fuel_for_gas(&mut self) -> u64 {
+    // 2) converts this to the corresponding amount of exec_units
+    // 3) updates the available_gas and exec_units_consumed snapshots. The exec_units_consumed_snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
+    // 4) returns the value calculated in 2) for its caller to actually consume that exec_units_consumed
+    pub(crate) fn calculate_exec_units_for_gas(&mut self) -> u64 {
         let gas_available = self.kernel.gas_available();
         let gas_used = self.gas_available_snapshot - gas_available;
-        let fuel_to_consume = self.kernel.price_list().gas_to_fuel(gas_used);
+        let exec_units_to_consume = self.kernel.price_list().gas_to_exec_units(gas_used);
         self.gas_available_snapshot = gas_available;
-        self.fuel_consumed_snapshot = self.fuel_consumed_snapshot + fuel_to_consume;
-        fuel_to_consume
+        self.exec_units_consumed_snapshot += exec_units_to_consume;
+        exec_units_to_consume
     }
 
     // This method:
-    // 1) charges gas corresponding to the fuel_consumed delta based on the previous snapshot
-    // 2) updates the fuel_consumed and gas_available snapshots
-    pub(crate) fn charge_gas_for_fuel(&mut self, fuel_consumed: u64) -> Result<()> {
+    // 1) charges gas corresponding to the exec_units_consumed delta based on the previous snapshot
+    // 2) updates the exec_units_consumed and gas_available snapshots
+    pub(crate) fn charge_gas_for_exec_units(&mut self, exec_units_consumed: u64) -> Result<()> {
         self.kernel
-            .charge_fuel(fuel_consumed - self.fuel_consumed_snapshot)?;
-        self.fuel_consumed_snapshot = fuel_consumed;
+            .charge_exec_units(exec_units_consumed - self.exec_units_consumed_snapshot)?;
+        self.exec_units_consumed_snapshot = exec_units_consumed;
         self.gas_available_snapshot = self.kernel.gas_available();
         Ok(())
     }

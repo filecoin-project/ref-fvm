@@ -119,11 +119,11 @@ pub trait CallManager: 'static {
         Ok(())
     }
 
-    /// Charge fuel.
-    fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
+    /// Charge exec_units.
+    fn charge_exec_units(&mut self, exec_units: u64) -> Result<()> {
         self.charge_gas(
             self.price_list()
-                .on_consume_fuel(fuel)
+                .on_consume_exec_units(exec_units)
                 .map_err(|_| OutOfGas)?,
         )?;
         Ok(())

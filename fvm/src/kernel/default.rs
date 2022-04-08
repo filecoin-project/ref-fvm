@@ -751,8 +751,8 @@ where
         self.call_manager.charge_gas(charge)
     }
 
-    fn charge_fuel(&mut self, fuel: u64) -> Result<()> {
-        self.call_manager.charge_fuel(fuel)
+    fn charge_exec_units(&mut self, exec_units: u64) -> Result<()> {
+        self.call_manager.charge_exec_units(exec_units)
     }
 
     fn price_list(&self) -> &PriceList {
