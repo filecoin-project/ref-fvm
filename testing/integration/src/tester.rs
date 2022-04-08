@@ -29,13 +29,22 @@ use crate::error::Error::{
 const DEFAULT_BASE_FEE: u64 = 100;
 
 pub struct Tester<'a> {
+    // Network version used in the test
     nv: NetworkVersion,
+    // StateTree version used in the test
     stv: StateTreeVersion,
+    // Builtin actors root Cid used in the Machine
     builtin_actors: Cid,
+    // Blockstore used to instantiate the machine before running executions
     pub initial_blockstore: MemoryBlockstore,
+    // Initial state tree cid used to instantiate the machine before running executions
     pub initial_state_root: Cid,
+    // Accounts available to interect with the executor
     pub accounts: Vec<(ActorID, Address)>,
+    // Machine used to instantiate the executor. Initial blockstore and state tree are built by setting
+    // new states and actor
     pub machine: Option<&'a DefaultMachine<MemoryBlockstore, DummyExterns>>,
+    // Executor used to interact with deployed actors.
     pub executor: Option<
         DefaultExecutor<
             DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
@@ -156,7 +165,8 @@ impl<'a> Tester<'a> {
         Ok(())
     }
 
-    /// Instantiate a machine and execute a message, updating the state tree and the blockstore
+    /// Instantiate a machine and execute a message. Once this function is called no new actor or state
+    /// can be added manually in the StateTree or the Blockstore.
     pub fn execute(&mut self, message: Message, message_length: usize) -> Result<ApplyRet> {
         if self.machine.is_none() || self.executor.is_none() {
             self.instantiate_machine()?;
@@ -167,7 +177,7 @@ impl<'a> Tester<'a> {
             .execute_message(message, ApplyKind::Explicit, message_length)
     }
 
-    /// Creates a DefaultMachine and returns it.
+    /// Sets the Machine and the Executor in our Tester structure.
     fn instantiate_machine(&mut self) -> Result<()> {
         let mut wasm_conf = wasmtime::Config::default();
         wasm_conf
