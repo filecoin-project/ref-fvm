@@ -22,12 +22,15 @@ pub mod state_tree;
 
 mod blockstore;
 
+// TODO Public only for integration tests.
+//  Consider exporting only behind a feature
+pub mod init_actor;
+pub mod system_actor;
+
 mod account_actor;
-mod init_actor;
 mod market_actor;
 mod power_actor;
 mod reward_actor;
-mod system_actor;
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
