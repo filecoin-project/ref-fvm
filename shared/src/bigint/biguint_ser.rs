@@ -31,7 +31,7 @@ where
         bz.insert(0, 0);
     }
 
-    if dbg!(bz.len()) > MAX_BIGINT_SIZE {
+    if bz.len() > MAX_BIGINT_SIZE {
         return Err(<S::Error as serde::ser::Error>::custom("BigInt too large"));
     }
 
