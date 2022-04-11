@@ -100,7 +100,8 @@ impl ExitCode {
     pub const USR_UNHANDLED_MESSAGE: ExitCode = ExitCode::new(22);
     /// Indicates the actor failed with an unspecified error.
     pub const USR_UNSPECIFIED: ExitCode = ExitCode::new(23);
-    // pub const RESERVED_24: ExitCode = ExitCode::new(24);
+    /// Indicates the actor failed a user-level assertion
+    pub const USR_ASSERTION_FAILED: ExitCode = ExitCode::new(24);
     // pub const RESERVED_25: ExitCode = ExitCode::new(25);
     // pub const RESERVED_26: ExitCode = ExitCode::new(26);
     // pub const RESERVED_27: ExitCode = ExitCode::new(27);
