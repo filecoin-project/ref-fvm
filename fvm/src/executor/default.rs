@@ -181,7 +181,7 @@ where
 
     /// Consume consumes the executor and returns the Machine. If the Machine had
     /// been poisoned during execution, the Option will be None.
-    pub fn consume(self) -> Option<<K::CallManager as CallManager>::Machine> {
+    pub fn into_machine(self) -> Option<<K::CallManager as CallManager>::Machine> {
         self.0
     }
 

@@ -230,7 +230,7 @@ pub fn run_variant(
         }
     };
 
-    let machine = match exec.consume() {
+    let machine = match exec.into_machine() {
         Some(machine) => machine,
         None => {
             return Ok(VariantResult::Failed {
@@ -240,7 +240,7 @@ pub fn run_variant(
         }
     };
     if check_correctness {
-        let bs = machine.consume().consume();
+        let bs = machine.into_store().into_inner();
 
         if let Err(err) = compare_state_roots(&bs, &final_root, v) {
             return Ok(VariantResult::Failed {

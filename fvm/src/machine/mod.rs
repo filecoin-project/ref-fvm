@@ -85,7 +85,7 @@ pub trait Machine: 'static {
     }
 
     /// Consumes the machine and returns the owned blockstore.
-    fn consume(self) -> Self::Blockstore;
+    fn into_store(self) -> Self::Blockstore;
 }
 
 /// Execution context supplied to the machine.

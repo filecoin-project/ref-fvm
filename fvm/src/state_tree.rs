@@ -496,8 +496,8 @@ where
     }
 
     /// Consumes this StateTree and returns the Blockstore it owns via the HAMT.
-    pub fn consume(self) -> S {
-        self.hamt.consume()
+    pub fn into_store(self) -> S {
+        self.hamt.into_store()
     }
 
     pub fn for_each<F>(&self, mut f: F) -> anyhow::Result<()>

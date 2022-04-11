@@ -315,7 +315,7 @@ where
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.
-    pub fn consume(self) -> BS {
+    pub fn into_store(self) -> BS {
         self.store
     }
 }

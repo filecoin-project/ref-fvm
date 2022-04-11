@@ -287,7 +287,7 @@ where
                 match kernel.block_create(DAG_CBOR, params) {
                     Ok(id) => id,
                     // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), kernel.take()),
+                    Err(err) => return (Err(err), kernel.into_call_manager()),
                 }
             } else {
                 super::NO_DATA_BLOCK_ID
@@ -303,7 +303,7 @@ where
                 .or_fatal()
             {
                 Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.take()),
+                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
             };
 
             // From this point on, there are no more syscall errors, only aborts.
@@ -335,7 +335,7 @@ where
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
-            let mut cm = invocation_data.kernel.take();
+            let mut cm = invocation_data.kernel.into_call_manager();
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
