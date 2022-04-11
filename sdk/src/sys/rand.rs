@@ -1,3 +1,5 @@
+//! Syscalls for getting randomness.
+
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 
 super::fvm_syscalls! {
@@ -7,6 +9,13 @@ super::fvm_syscalls! {
     /// The supplied output buffer must have at least 32 bytes of capacity.
     /// If this syscall succeeds, exactly 32 bytes will be written starting at the
     /// supplied offset.
+    ///
+    /// # Errors
+    ///
+    /// | Error             | Reason                  |
+    /// |-------------------|-------------------------|
+    /// | `LimitExceeded`   | lookback exceeds limit. |
+    /// | `IllegalArgument` | invalid buffer, etc.    |
     pub fn get_chain_randomness(
         dst: i64,
         round: i64,
@@ -18,6 +27,13 @@ super::fvm_syscalls! {
     /// The supplied output buffer must have at least 32 bytes of capacity.
     /// If this syscall succeeds, exactly 32 bytes will be written starting at the
     /// supplied offset.
+    ///
+    /// # Errors
+    ///
+    /// | Error             | Reason                  |
+    /// |-------------------|-------------------------|
+    /// | `LimitExceeded`   | lookback exceeds limit. |
+    /// | `IllegalArgument` | invalid buffer, etc.    |
     pub fn get_beacon_randomness(
         dst: i64,
         round: i64,
