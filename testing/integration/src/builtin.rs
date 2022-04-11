@@ -10,7 +10,6 @@ use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::{load_manifest, Type};
 use fvm_shared::blockstore::{Blockstore, CborStore, MemoryBlockstore};
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
 use multihash::Code;
 use std::collections::BTreeMap;
 

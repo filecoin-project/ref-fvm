@@ -1,12 +1,9 @@
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::version::NetworkVersion;
-use std::fmt::{Display, Formatter};
 
 #[derive(thiserror::Error, Debug)]
 /// Util errors for the intergration test framework.
 pub(crate) enum Error {
-    #[error("could not lookup init actor id")]
-    NoIdInitActor,
     #[error("multiple root cid for network: {0}")]
     MultipleRootCid(NetworkVersion),
     #[error("no root cid for network: {0}")]
@@ -23,6 +20,4 @@ pub(crate) enum Error {
     FailedToLoadCacheConfig,
     #[error("failed to flush tree")]
     FailedToFlushTree,
-    #[error("machine is not instantiated in Tester")]
-    MachineNotInstantiated,
 }

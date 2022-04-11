@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
-use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
-use fvm::machine::{DefaultMachine, Engine, Machine};
+use fvm::executor::DefaultExecutor;
+use fvm::machine::{DefaultMachine, Engine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, Config, DefaultKernel};
 use fvm_ipld_hamt::Hamt;
@@ -10,7 +10,6 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::blockstore::{Block, Blockstore, CborStore, MemoryBlockstore};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
@@ -22,13 +21,11 @@ use crate::builtin::{
 };
 use crate::dummy;
 use crate::dummy::DummyExterns;
-use crate::error::Error::{
-    FailedToFlushTree, FailedToLoadCacheConfig, MachineNotInstantiated, NoRootCid,
-};
+use crate::error::Error::{FailedToFlushTree, FailedToLoadCacheConfig, NoRootCid};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
-pub struct Tester<'a> {
+pub struct Tester {
     // Network version used in the test
     nv: NetworkVersion,
     // StateTree version used in the test
@@ -41,9 +38,6 @@ pub struct Tester<'a> {
     pub initial_state_root: Cid,
     // Accounts available to interect with the executor
     pub accounts: Vec<(ActorID, Address)>,
-    // Machine used to instantiate the executor. Initial blockstore and state tree are built by setting
-    // new states and actor
-    pub machine: Option<&'a DefaultMachine<MemoryBlockstore, DummyExterns>>,
     // Executor used to interact with deployed actors.
     pub executor: Option<
         DefaultExecutor<
@@ -52,7 +46,7 @@ pub struct Tester<'a> {
     >,
 }
 
-impl<'a> Tester<'a> {
+impl Tester {
     pub fn new(nv: NetworkVersion, stv: StateTreeVersion, accounts_count: usize) -> Result<Self> {
         // Initialize blockstore
         let blockstore = MemoryBlockstore::default();
@@ -105,7 +99,6 @@ impl<'a> Tester<'a> {
             accounts,
             initial_blockstore: blockstore,
             initial_state_root: state_root,
-            machine: None,
             executor: None,
         })
     }
@@ -165,20 +158,8 @@ impl<'a> Tester<'a> {
         Ok(())
     }
 
-    /// Instantiate a machine and execute a message. Once this function is called no new actor or state
-    /// can be added manually in the StateTree or the Blockstore.
-    pub fn execute(&mut self, message: Message, message_length: usize) -> Result<ApplyRet> {
-        if self.machine.is_none() || self.executor.is_none() {
-            self.instantiate_machine()?;
-        }
-
-        self.executor
-            .unwrap()
-            .execute_message(message, ApplyKind::Explicit, message_length)
-    }
-
     /// Sets the Machine and the Executor in our Tester structure.
-    fn instantiate_machine(&mut self) -> Result<()> {
+    pub fn instantiate_machine(&mut self) -> Result<()> {
         let mut wasm_conf = wasmtime::Config::default();
         wasm_conf
             .cache_config_load_default()
@@ -195,14 +176,13 @@ impl<'a> Tester<'a> {
             0,
             BigInt::from(DEFAULT_BASE_FEE),
             BigInt::zero(),
-            NetworkVersion::V14,
+            self.nv,
             self.initial_state_root,
             (0, Some(self.builtin_actors)),
             self.initial_blockstore.clone(),
             dummy::DummyExterns,
         )?;
 
-        self.machine = Some(&machine);
         self.executor = Some(DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine));
 
         Ok(())
