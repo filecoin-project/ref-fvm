@@ -226,8 +226,6 @@ pub trait GasOps {
     /// `name` provides information about gas charging point
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
 
-    fn charge_exec_units(&mut self, exec_units: u64) -> Result<()>;
-
     fn price_list(&self) -> &PriceList;
 }
 

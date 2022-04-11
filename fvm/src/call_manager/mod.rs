@@ -17,8 +17,6 @@ mod default;
 
 pub use default::DefaultCallManager;
 
-use crate::kernel::ExecutionError::OutOfGas;
-
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
@@ -116,16 +114,6 @@ pub trait CallManager: 'static {
     /// Charge gas.
     fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
         self.gas_tracker_mut().charge_gas(charge)?;
-        Ok(())
-    }
-
-    /// Charge exec_units.
-    fn charge_exec_units(&mut self, exec_units: u64) -> Result<()> {
-        self.charge_gas(
-            self.price_list()
-                .on_consume_exec_units(exec_units)
-                .map_err(|_| OutOfGas)?,
-        )?;
         Ok(())
     }
 }

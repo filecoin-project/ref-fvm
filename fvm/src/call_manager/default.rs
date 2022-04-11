@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
@@ -333,7 +333,8 @@ where
                 // First, charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
                 let exec_units_consumed = store
                     .fuel_consumed()
-                    .ok_or_else(|| Abort::Fatal(anyhow!("expected to find fuel consumed")))?;
+                    .context("expected to find fuel consumed")
+                    .map_err(Abort::Fatal)?;
                 store
                     .data_mut()
                     .charge_gas_for_exec_units(exec_units_consumed)

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
-use anyhow::anyhow;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -534,17 +533,14 @@ impl PriceList {
 
     /// Returns the gas required for the specified exec_units.
     #[inline]
-    pub fn on_consume_exec_units(
-        &self,
-        exec_units: u64,
-    ) -> Result<GasCharge<'static>, anyhow::Error> {
-        Ok(GasCharge::new(
+    pub fn on_consume_exec_units(&self, exec_units: u64) -> GasCharge<'static> {
+        GasCharge::new(
             "OnConsumeExecUnits",
             self.gas_per_exec_unit
                 .checked_mul(exec_units as i64)
-                .ok_or_else(|| anyhow!("overflow when consuming exec_units"))?,
+                .unwrap_or(i64::MAX),
             0,
-        ))
+        )
     }
 
     /// Converts the specified gas into equivalent exec_units
@@ -554,6 +550,12 @@ impl PriceList {
             0 => 0,
             v => (gas / v) as u64,
         }
+    }
+
+    /// Converts the specified exec_units into equivalent gas
+    #[inline]
+    pub fn exec_units_to_gas(&self, exec_units: u64) -> Option<i64> {
+        self.gas_per_exec_unit.checked_mul(exec_units as i64)
     }
 
     /// Returns the gas required for traversing an extern boundary into the client.
@@ -568,7 +570,13 @@ impl PriceList {
         // TODO: Should we also throw on a memcpy cost here (see https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#ipld-state-management-fees)
         GasCharge::new(
             "OnBlockOpen",
-            self.block_open_base + data_size as i64 * self.block_io_per_byte_cost,
+            self.block_open_base
+                .checked_add(
+                    self.block_io_per_byte_cost
+                        .checked_mul(data_size as i64)
+                        .unwrap_or(i64::MAX),
+                )
+                .unwrap_or(i64::MAX),
             0,
         )
     }
@@ -578,7 +586,13 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + data_size as i64 * self.block_memcpy_per_byte_cost,
+            self.block_read_base
+                .checked_add(
+                    self.block_memcpy_per_byte_cost
+                        .checked_mul(data_size as i64)
+                        .unwrap_or(i64::MAX),
+                )
+                .unwrap_or(i64::MAX),
             0,
         )
     }
@@ -588,7 +602,13 @@ impl PriceList {
     pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base + data_size as i64 * self.block_memcpy_per_byte_cost,
+            self.block_create_base
+                .checked_add(
+                    self.block_memcpy_per_byte_cost
+                        .checked_mul(data_size as i64)
+                        .unwrap_or(i64::MAX),
+                )
+                .unwrap_or(i64::MAX),
             0,
         )
     }
@@ -600,7 +620,12 @@ impl PriceList {
         GasCharge::new(
             "OnBlockLink",
             self.block_link_base,
-            data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
+            // data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
+            self.block_link_per_byte_cost
+                .checked_mul(self.storage_gas_multiplier)
+                .unwrap_or(i64::MAX)
+                .checked_mul(data_size as i64)
+                .unwrap_or(i64::MAX),
         )
     }
 
@@ -612,10 +637,9 @@ impl PriceList {
 }
 
 /// Returns gas price list by NetworkVersion for gas consumption.
-pub fn price_list_by_network_version(network_version: NetworkVersion) -> PriceList {
+pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V14 => OH_SNAP_PRICES.clone(),
-        NetworkVersion::V15 => OH_SNAP_PRICES.clone(),
-        _ => SKYR_PRICES.clone(),
+        NetworkVersion::V14 | NetworkVersion::V15 => &OH_SNAP_PRICES,
+        _ => &SKYR_PRICES,
     }
 }

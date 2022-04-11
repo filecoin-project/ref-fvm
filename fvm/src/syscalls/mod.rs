@@ -2,7 +2,7 @@ use cid::Cid;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
-use crate::kernel::Result;
+use crate::kernel::{ExecutionError, Result, SyscallError};
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -53,26 +53,42 @@ impl<K: Kernel> InvocationData<K> {
         }
     }
 
-    // This method:
-    // 1) calculates the available_gas delta from the previous snapshot,
-    // 2) converts this to the corresponding amount of exec_units
-    // 3) updates the available_gas and exec_units_consumed snapshots. The exec_units_consumed_snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
-    // 4) returns the value calculated in 2) for its caller to actually consume that exec_units_consumed
-    pub(crate) fn calculate_exec_units_for_gas(&mut self) -> u64 {
+    /// This method:
+    /// 1) calculates the available_gas delta from the previous snapshot,
+    /// 2) converts this to the corresponding amount of exec_units
+    /// 3) updates the available_gas and exec_units_consumed snapshots. The exec_units_consumed_snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
+    /// 4) returns the value calculated in 2) for its caller to actually consume that exec_units_consumed
+    pub(crate) fn calculate_exec_units_for_gas(&mut self) -> Result<u64> {
         let gas_available = self.kernel.gas_available();
         let gas_used = self.gas_available_snapshot - gas_available;
+        if gas_used < 0 {
+            return Err(ExecutionError::Syscall(SyscallError(
+                String::from("used more gas than available"),
+                fvm_shared::error::ErrorNumber::IllegalOperation,
+            )));
+        }
         let exec_units_to_consume = self.kernel.price_list().gas_to_exec_units(gas_used);
         self.gas_available_snapshot = gas_available;
         self.exec_units_consumed_snapshot += exec_units_to_consume;
-        exec_units_to_consume
+        Ok(exec_units_to_consume)
     }
 
-    // This method:
-    // 1) charges gas corresponding to the exec_units_consumed delta based on the previous snapshot
-    // 2) updates the exec_units_consumed and gas_available snapshots
+    /// This method:
+    /// 1) charges gas corresponding to the exec_units_consumed delta based on the previous snapshot
+    /// 2) updates the exec_units_consumed and gas_available snapshots
     pub(crate) fn charge_gas_for_exec_units(&mut self, exec_units_consumed: u64) -> Result<()> {
-        self.kernel
-            .charge_exec_units(exec_units_consumed - self.exec_units_consumed_snapshot)?;
+        self.kernel.charge_gas(
+            "exec_units",
+            self.kernel
+                .price_list()
+                .exec_units_to_gas(exec_units_consumed - self.exec_units_consumed_snapshot)
+                .ok_or_else(|| {
+                    ExecutionError::Syscall(SyscallError(
+                        String::from("gas overflow"),
+                        fvm_shared::error::ErrorNumber::IllegalOperation,
+                    ))
+                })?,
+        )?;
         self.exec_units_consumed_snapshot = exec_units_consumed;
         self.gas_available_snapshot = self.kernel.gas_available();
         Ok(())

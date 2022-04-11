@@ -94,17 +94,16 @@ fn memory_and_data<'a, K: Kernel>(
     Ok((Memory::new(mem), data))
 }
 
-fn charge_exec_units_for_gas<K: Kernel>(
-    caller: &mut Caller<InvocationData<K>>,
-) -> Result<(), Trap> {
-    let exec_units = caller.data_mut().calculate_exec_units_for_gas();
+fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
+    let exec_units = caller
+        .data_mut()
+        .calculate_exec_units_for_gas()
+        .map_err(|_| Trap::new("failed to calculate exec_units"))?;
     caller.consume_fuel(exec_units)?;
     Ok(())
 }
 
-fn charge_gas_for_exec_units<K: Kernel>(
-    caller: &mut Caller<InvocationData<K>>,
-) -> Result<(), Trap> {
+fn charge_gas_for_exec_units(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
     let exec_units_consumed = caller
         .fuel_consumed()
         .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
@@ -112,7 +111,7 @@ fn charge_gas_for_exec_units<K: Kernel>(
     caller
         .data_mut()
         .charge_gas_for_exec_units(exec_units_consumed)
-        .map_err(|_| Trap::new("failed to charge exec_units"))
+        .map_err(|_| Trap::new("failed to charge gas for exec_units"))
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
@@ -135,32 +134,31 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        let caller_mut = &mut caller;
-                        charge_gas_for_exec_units(caller_mut)?;
-                        let (mut memory, mut data) = memory_and_data(caller_mut)?;
+                        charge_gas_for_exec_units(&mut caller)?;
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
+                        let result = match syscall(ctx $(, $t)*).into()? {
                             Ok(_) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
-                                charge_exec_units_for_gas(caller_mut)?;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                charge_exec_units_for_gas(caller_mut)?;
                                 code as u32
                             },
-                        })
+                        };
+
+                        charge_exec_units_for_gas(&mut caller)?;
+                        Ok(result)
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        let caller_mut = &mut caller;
-                        charge_gas_for_exec_units(caller_mut)?;
-                        let (mut memory, mut data) = memory_and_data(caller_mut)?;
+                        charge_gas_for_exec_units(&mut caller)?;
+                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
@@ -171,22 +169,25 @@ macro_rules! impl_bind_syscalls {
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        Ok(match syscall(ctx $(, $t)*).into()? {
+                        let result = match syscall(ctx $(, $t)*).into()? {
                             Ok(value) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
-                                charge_exec_units_for_gas(caller_mut)?;
+                                charge_exec_units_for_gas(&mut caller)?;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                charge_exec_units_for_gas(caller_mut)?;
+                                charge_exec_units_for_gas(&mut caller)?;
                                 code as u32
                             },
-                        })
+                        };
+
+                        charge_exec_units_for_gas(&mut caller)?;
+                        Ok(result)
                     })
                 }
             }

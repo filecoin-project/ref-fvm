@@ -102,7 +102,7 @@ pub struct MachineContext {
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,
     /// The price list.
-    pub price_list: PriceList,
+    pub price_list: &'static PriceList,
     /// The network version at epoch
     pub network_version: NetworkVersion,
     /// Whether debug mode is enabled or not.

@@ -5,6 +5,8 @@
 //!
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
+extern crate anyhow;
+
 pub use kernel::default::DefaultKernel;
 pub use kernel::{BlockError, Kernel};
 
