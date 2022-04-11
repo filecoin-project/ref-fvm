@@ -13,17 +13,17 @@ use crate::version::NetworkVersion;
 /// Seal proof type which defines the version and sector size.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum RegisteredSealProof {
-    StackedDRG2KiBV1,
-    StackedDRG512MiBV1,
-    StackedDRG8MiBV1,
-    StackedDRG32GiBV1,
-    StackedDRG64GiBV1,
+    StackedDRG2KiBV1 = 0,
+    StackedDRG8MiBV1 = 1,
+    StackedDRG512MiBV1 = 2,
+    StackedDRG32GiBV1 = 3,
+    StackedDRG64GiBV1 = 4,
 
-    StackedDRG2KiBV1P1,
-    StackedDRG512MiBV1P1,
-    StackedDRG8MiBV1P1,
-    StackedDRG32GiBV1P1,
-    StackedDRG64GiBV1P1,
+    StackedDRG2KiBV1P1 = 5,
+    StackedDRG8MiBV1P1 = 6,
+    StackedDRG512MiBV1P1 = 7,
+    StackedDRG32GiBV1P1 = 8,
+    StackedDRG64GiBV1P1 = 9,
     // TODO: get rid of this option once we no longer need go compat.
     // We use it to ensure that we can deserialize bad values here because go checks this value
     // later.
