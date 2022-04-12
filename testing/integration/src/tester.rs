@@ -5,10 +5,11 @@ use fvm::executor::DefaultExecutor;
 use fvm::machine::{DefaultMachine, Engine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, Config, DefaultKernel};
+use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::{ser, CborStore};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::blockstore::{Block, Blockstore, CborStore, MemoryBlockstore};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -96,7 +97,7 @@ impl Tester {
     }
 
     /// Set a new state in the state tree
-    pub fn set_state<S: fvm_shared::encoding::ser::Serialize>(
+    pub fn set_state<S: ser::Serialize>(
         &mut self,
         state_tree: &mut StateTree<MemoryBlockstore>,
         state: &S,
@@ -156,8 +157,6 @@ impl Tester {
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
-                initial_pages: 0,
-                max_pages: 1024,
                 debug: true, // Enable debug mode by default.
             },
             Engine::default(),
@@ -166,7 +165,7 @@ impl Tester {
             BigInt::zero(),
             self.nv,
             state_root,
-            (0, Some(self.builtin_actors)),
+            Some(self.builtin_actors),
             blockstore,
             dummy::DummyExterns,
         )?;

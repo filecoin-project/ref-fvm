@@ -11,6 +11,9 @@ fvm_shared = { version = "0.5.1", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.4.0", path = "../../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.0", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.4.0", path = "../../ipld/car" }
+fvm_ipld_blockstore = { version = "0.1.0", path = "../../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.1.0", path = "../../ipld/encoding" }
+
 
 actors-v6 = { version = "6.0.5", package = "fil_builtin_actors_bundle" }
 actors-v7 = { version = "7.0.4", package = "fil_builtin_actors_bundle" }
