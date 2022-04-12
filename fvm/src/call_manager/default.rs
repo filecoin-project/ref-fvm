@@ -298,7 +298,7 @@ where
             let gas_available = kernel.gas_available();
             let exec_units_to_add = match kernel.network_version() {
                 NetworkVersion::V14 | NetworkVersion::V15 => u64::MAX,
-                _ => kernel.price_list().gas_to_exec_units(gas_available),
+                _ => kernel.price_list().gas_to_exec_units(gas_available, true),
             };
 
             let mut store = engine.new_store(kernel);

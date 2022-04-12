@@ -67,7 +67,7 @@ impl<K: Kernel> InvocationData<K> {
                 fvm_shared::error::ErrorNumber::IllegalOperation,
             )));
         }
-        let exec_units_to_consume = self.kernel.price_list().gas_to_exec_units(gas_used);
+        let exec_units_to_consume = self.kernel.price_list().gas_to_exec_units(gas_used, false);
         self.gas_available_snapshot = gas_available;
         self.exec_units_consumed_snapshot += exec_units_to_consume;
         Ok(exec_units_to_consume)
@@ -81,13 +81,7 @@ impl<K: Kernel> InvocationData<K> {
             "exec_units",
             self.kernel
                 .price_list()
-                .exec_units_to_gas(exec_units_consumed - self.exec_units_consumed_snapshot)
-                .ok_or_else(|| {
-                    ExecutionError::Syscall(SyscallError(
-                        String::from("gas overflow"),
-                        fvm_shared::error::ErrorNumber::IllegalOperation,
-                    ))
-                })?,
+                .exec_units_to_gas(exec_units_consumed - self.exec_units_consumed_snapshot),
         )?;
         self.exec_units_consumed_snapshot = exec_units_consumed;
         self.gas_available_snapshot = self.kernel.gas_available();

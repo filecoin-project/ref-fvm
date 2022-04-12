@@ -1,3 +1,4 @@
+#![feature(int_roundings)]
 //! (Proper package docs coming shortly; for now this is a holding pen for items
 //! we must mention).
 //!

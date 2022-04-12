@@ -536,26 +536,27 @@ impl PriceList {
     pub fn on_consume_exec_units(&self, exec_units: u64) -> GasCharge<'static> {
         GasCharge::new(
             "OnConsumeExecUnits",
-            self.gas_per_exec_unit
-                .checked_mul(exec_units as i64)
-                .unwrap_or(i64::MAX),
+            self.gas_per_exec_unit.saturating_mul(exec_units as i64),
             0,
         )
     }
 
     /// Converts the specified gas into equivalent exec_units
     #[inline]
-    pub fn gas_to_exec_units(&self, gas: i64) -> u64 {
+    pub fn gas_to_exec_units(&self, gas: i64, round_down: bool) -> u64 {
         match self.gas_per_exec_unit {
             0 => 0,
-            v => (gas / v) as u64,
+            v => match round_down {
+                true => gas.div_floor(v) as u64,
+                false => gas.div_ceil(v) as u64,
+            },
         }
     }
 
     /// Converts the specified exec_units into equivalent gas
     #[inline]
-    pub fn exec_units_to_gas(&self, exec_units: u64) -> Option<i64> {
-        self.gas_per_exec_unit.checked_mul(exec_units as i64)
+    pub fn exec_units_to_gas(&self, exec_units: u64) -> i64 {
+        self.gas_per_exec_unit.saturating_mul(exec_units as i64)
     }
 
     /// Returns the gas required for traversing an extern boundary into the client.
@@ -571,12 +572,7 @@ impl PriceList {
         GasCharge::new(
             "OnBlockOpen",
             self.block_open_base
-                .checked_add(
-                    self.block_io_per_byte_cost
-                        .checked_mul(data_size as i64)
-                        .unwrap_or(i64::MAX),
-                )
-                .unwrap_or(i64::MAX),
+                .saturating_add(self.block_io_per_byte_cost.saturating_mul(data_size as i64)),
             0,
         )
     }
@@ -586,13 +582,10 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base
-                .checked_add(
-                    self.block_memcpy_per_byte_cost
-                        .checked_mul(data_size as i64)
-                        .unwrap_or(i64::MAX),
-                )
-                .unwrap_or(i64::MAX),
+            self.block_read_base.saturating_add(
+                self.block_memcpy_per_byte_cost
+                    .saturating_mul(data_size as i64),
+            ),
             0,
         )
     }
@@ -602,13 +595,10 @@ impl PriceList {
     pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base
-                .checked_add(
-                    self.block_memcpy_per_byte_cost
-                        .checked_mul(data_size as i64)
-                        .unwrap_or(i64::MAX),
-                )
-                .unwrap_or(i64::MAX),
+            self.block_create_base.saturating_add(
+                self.block_memcpy_per_byte_cost
+                    .saturating_mul(data_size as i64),
+            ),
             0,
         )
     }
@@ -622,10 +612,8 @@ impl PriceList {
             self.block_link_base,
             // data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
             self.block_link_per_byte_cost
-                .checked_mul(self.storage_gas_multiplier)
-                .unwrap_or(i64::MAX)
-                .checked_mul(data_size as i64)
-                .unwrap_or(i64::MAX),
+                .saturating_mul(self.storage_gas_multiplier)
+                .saturating_mul(data_size as i64),
         )
     }
 
