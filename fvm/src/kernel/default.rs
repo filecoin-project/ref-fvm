@@ -312,7 +312,7 @@ where
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open_per_byte(block.size().try_into().or_illegal_argument()?),
+                .on_block_open_per_byte(block.size() as usize),
         )?;
 
         let stat = block.stat();
@@ -340,7 +340,6 @@ where
             .or_illegal_argument()
             .context(format_args!("invalid hash code: {}", hash_fun))?;
 
-        // We charge on link, not create, to emulate the current gas model.
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -364,22 +363,22 @@ where
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read_base())?;
-
         let data = self.blocks.get(id).or_illegal_argument()?.data();
 
         let len = if offset as usize >= data.len() {
             0
         } else {
-            let copy_len = buf.len().min(data.len());
-            buf.copy_from_slice(&data[offset as usize..][..copy_len]);
-            copy_len
+            buf.len().min(data.len())
         };
 
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read_per_byte(len))
-            .map(|_| len as u32)
+            .charge_gas(self.call_manager.price_list().on_block_read(len))?;
+
+        if len != 0 {
+            buf.copy_from_slice(&data[offset as usize..][..len]);
+        }
+
+        Ok(len as u32)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {

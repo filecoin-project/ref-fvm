@@ -582,20 +582,15 @@ impl PriceList {
             0,
         )
     }
-
-    /// Returns the base gas required for reading a loaded object, independent of the object's size.
+    /// Returns the gas required for reading a loaded object.
     #[inline]
-    pub fn on_block_read_base(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockReadBase", self.block_read_base, 0)
-    }
-
-    /// Returns the gas required for reading a loaded object based on the size of the object.
-    #[inline]
-    pub fn on_block_read_per_byte(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
-            "OnBlockReadPerByte",
-            self.block_memcpy_per_byte_cost
-                .saturating_mul(data_size as i64),
+            "OnBlockRead",
+            self.block_read_base.saturating_add(
+                self.block_memcpy_per_byte_cost
+                    .saturating_mul(data_size as i64),
+            ),
             0,
         )
     }
