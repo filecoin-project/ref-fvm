@@ -62,6 +62,12 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
 }
 
+/// Instals/Ensures an actor code CID is valid and loaded.
+pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
+    let cid = code_cid.to_bytes();
+    unsafe { sys::actor::install_actor(cid.as_ptr()) }
+}
+
 /// Determines whether the supplied CodeCID belongs to a built-in actor type,
 /// and to which.
 pub fn get_builtin_actor_type(code_cid: &Cid) -> Option<actor::builtin::Type> {
