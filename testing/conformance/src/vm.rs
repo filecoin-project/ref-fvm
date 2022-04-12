@@ -356,6 +356,10 @@ where
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
         self.0.get_code_cid_for_type(typ)
     }
+
+    fn install_actor(&self, code_id: Cid) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl<M, C, K> IpldBlockOps for TestKernel<K>
