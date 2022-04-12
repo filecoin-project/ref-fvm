@@ -14,7 +14,7 @@ pub use block::*;
 ///
 /// The cgo blockstore adapter implements this trait.
 pub trait Blockstore {
-    type Error: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
 
     /// Gets the block from the blockstore.
     fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>, Self::Error>;

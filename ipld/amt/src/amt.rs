@@ -284,26 +284,42 @@ where
     /// map.set(4, "Four".to_owned()).unwrap();
     ///
     /// let mut values: Vec<(u64, String)> = Vec::new();
-    /// map.for_each(|i, v| {
+    /// map.try_for_each(|i, v| {
     ///    values.push((i, v.clone()));
     ///    Ok::<_, ()>(())
     /// }).unwrap();
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
     /// ```
     #[inline]
-    pub fn for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
+    pub fn try_for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         F: FnMut(u64, &V) -> Result<(), U>,
     {
-        self.for_each_while(|i, x| {
+        self.try_for_each_while(|i, x| {
             f(i, x)?;
             Ok(true)
         })
     }
 
+    #[inline]
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error<BS::Error>>
+    where
+        V: DeserializeOwned,
+        F: FnMut(u64, &V),
+    {
+        self.try_for_each(|k, v| {
+            f(k, v);
+            Ok(())
+        })
+        .map_err(|err| match err {
+            EitherError::User(()) => unreachable!(),
+            EitherError::Amt(e) => e,
+        })
+    }
+
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
-    pub fn for_each_while<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
+    pub fn try_for_each_while<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         F: FnMut(u64, &V) -> Result<bool, U>,
     {
@@ -319,22 +335,51 @@ where
             .map(|_| ())
     }
 
+    /// Iterates over each value in the Amt and runs a function on the values, for as long as that
+    /// function keeps returning `true`.
+    pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error<BS::Error>>
+    where
+        F: FnMut(u64, &V) -> bool,
+    {
+        self.try_for_each_while::<_, ()>(|key, value| Ok(f(key, value)))
+            .map_err(|err| match err {
+                EitherError::User(()) => unreachable!(),
+                EitherError::Amt(e) => e,
+            })
+    }
+
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value.
-    pub fn for_each_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
+    pub fn try_for_each_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         V: Clone,
         F: FnMut(u64, &mut ValueMut<'_, V>) -> Result<(), U>,
     {
-        self.for_each_while_mut(|i, x| {
+        self.try_for_each_while_mut(|i, x| {
             f(i, x)?;
             Ok(true)
         })
     }
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
+    /// each value.
+    pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Error<BS::Error>>
+    where
+        V: Clone,
+        F: FnMut(u64, &mut ValueMut<'_, V>),
+    {
+        self.for_each_while_mut(|i, x| {
+            f(i, x);
+            true
+        })
+    }
+
+    /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value, for as long as that function keeps returning `true`.
-    pub fn for_each_while_mut<F, U>(&mut self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
+    pub fn try_for_each_while_mut<F, U>(
+        &mut self,
+        mut f: F,
+    ) -> Result<(), EitherError<U, BS::Error>>
     where
         // TODO remove clone bound when go-interop doesn't require it.
         // (If needed without, this bound can be removed by duplicating function signatures)
@@ -391,5 +436,21 @@ where
 
             Ok(())
         }
+    }
+
+    /// Iterates over each value in the Amt and runs a function on the values that allows modifying
+    /// each value, for as long as that function keeps returning `true`.
+    pub fn for_each_while_mut<F>(&mut self, mut f: F) -> Result<(), Error<BS::Error>>
+    where
+        // TODO remove clone bound when go-interop doesn't require it.
+        // (If needed without, this bound can be removed by duplicating function signatures)
+        V: Clone,
+        F: FnMut(u64, &mut ValueMut<'_, V>) -> bool,
+    {
+        self.try_for_each_while_mut::<_, ()>(|key, value| Ok(f(key, value)))
+            .map_err(|err| match err {
+                EitherError::User(()) => unreachable!(),
+                EitherError::Amt(e) => e,
+            })
     }
 }

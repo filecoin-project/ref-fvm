@@ -304,19 +304,35 @@ where
     /// map.set(4, 2).unwrap();
     ///
     /// let mut total = 0;
-    /// map.for_each(|_, v: &u64| {
+    /// map.try_for_each(|_, v: &u64| {
     ///    total += v;
     ///    Ok::<(), ()>(())
     /// }).unwrap();
     /// assert_eq!(total, 3);
     /// ```
     #[inline]
-    pub fn for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
+    pub fn try_for_each<F, U>(&self, mut f: F) -> Result<(), EitherError<U, BS::Error>>
     where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> Result<(), U>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
+    }
+
+    #[inline]
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error<BS::Error>>
+    where
+        V: DeserializeOwned,
+        F: FnMut(&K, &V),
+    {
+        self.try_for_each(|k, v| {
+            f(k, v);
+            Ok(())
+        })
+        .map_err(|err| match err {
+            EitherError::User(()) => unreachable!(),
+            EitherError::Hamt(e) => e,
+        })
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.

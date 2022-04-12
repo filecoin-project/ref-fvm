@@ -118,7 +118,7 @@ fn for_each(c: &mut Criterion) {
         b.iter(|| {
             let a = Amt::load(&cid, &db).unwrap();
             black_box(a)
-                .for_each(|_, _v: &u64| Ok::<_, ()>(()))
+                .try_for_each(|_, _v: &u64| Ok::<_, ()>(()))
                 .unwrap();
         })
     });

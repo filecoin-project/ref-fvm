@@ -95,7 +95,7 @@ fn for_each(c: &mut Criterion) {
         b.iter(|| {
             let a = Hamt::<_, _>::load(&cid, &db).unwrap();
             black_box(a)
-                .for_each(|_k, _v: &BenchData| Ok::<_, ()>(()))
+                .try_for_each(|_k, _v: &BenchData| Ok::<_, ()>(()))
                 .unwrap();
         })
     });
