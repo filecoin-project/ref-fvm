@@ -10,6 +10,7 @@ pub mod rand;
 pub mod send;
 pub mod sself;
 pub mod sys;
+pub mod testing;
 pub mod vm;
 
 /// The maximum supported CID size. (SPEC_AUDIT)

@@ -73,6 +73,9 @@ pub enum ExitCode {
     ErrIllegalState = 20,
     /// Indicates de/serialization failure within actor code.
     ErrSerialization = 21,
+    // Assertion Error
+    ErrAssertionFailed = 22,
+
     /// Power actor specific exit code.
     // * remove this and support custom codes if there is overlap on actor specific codes in future
     ErrTooManyProveCommits = 32,

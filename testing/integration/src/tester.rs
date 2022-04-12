@@ -28,8 +28,6 @@ const DEFAULT_BASE_FEE: u64 = 100;
 pub struct Tester {
     // Network version used in the test
     nv: NetworkVersion,
-    // StateTree version used in the test
-    stv: StateTreeVersion,
     // Builtin actors root Cid used in the Machine
     builtin_actors: Cid,
     // Blockstore used to instantiate the machine before running executions
@@ -64,8 +62,7 @@ impl Tester {
             fetch_builtin_code_cid(&blockstore, &builtin_actors, 0)?;
 
         // Initialize state tree
-        let mut state_tree =
-            StateTree::new(blockstore, stv.clone()).map_err(anyhow::Error::from)?;
+        let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
         // Insert an empty HAMT.
         let empty_cid = Hamt::<_, String>::new_with_bit_width(state_tree.store(), 5)
@@ -89,7 +86,6 @@ impl Tester {
         Ok((
             Tester {
                 nv,
-                stv,
                 builtin_actors,
                 accounts,
                 blockstore: None,

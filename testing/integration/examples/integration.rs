@@ -1,5 +1,4 @@
 use fvm::executor::{ApplyKind, Executor};
-use fvm::state_tree::{ActorState, StateTree};
 use fvm_integration_tests::tester::Tester;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -8,7 +7,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-use std::str::FromStr;
 use wabt::wat2wasm;
 
 const WAST: &str = r#"
