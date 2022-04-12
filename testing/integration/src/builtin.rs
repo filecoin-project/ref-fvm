@@ -34,12 +34,12 @@ pub fn import_builtin_actors(
         .collect()
 }
 
-// Retrieve system and init actors code CID
-pub fn fetch_sys_init_code_cid(
+// Retrieve system, init and accounts actors code CID
+pub fn fetch_builtin_code_cid(
     blockstore: &MemoryBlockstore,
     builtin_actors: &Cid,
     ver: u32,
-) -> Result<(Cid, Cid)> {
+) -> Result<(Cid, Cid, Cid)> {
     let manifest = load_manifest(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
 
     Ok((
@@ -48,6 +48,9 @@ pub fn fetch_sys_init_code_cid(
             .ok_or(NoCidInManifest(Type::System))?,
         *manifest
             .get_by_right(&Type::Init)
+            .ok_or(NoCidInManifest(Type::Init))?,
+        *manifest
+            .get_by_right(&Type::Account)
             .ok_or(NoCidInManifest(Type::Init))?,
     ))
 }

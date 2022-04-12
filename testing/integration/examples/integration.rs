@@ -1,5 +1,5 @@
 use fvm::executor::{ApplyKind, Executor};
-use fvm::state_tree::ActorState;
+use fvm::state_tree::{ActorState, StateTree};
 use fvm_integration_tests::tester::Tester;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -30,24 +30,31 @@ struct State {
 
 pub fn main() {
     // Instantiate tester
-    let mut tester = Tester::new(NetworkVersion::V14, StateTreeVersion::V4, 10).unwrap();
+    let (mut tester, mut state_tree) =
+        Tester::new(NetworkVersion::V14, StateTreeVersion::V4, 10).unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAST).unwrap();
 
     // Set actor state
     let actor_state = State { empty: true };
-    let state_cid = tester.set_state(&actor_state).unwrap();
+    let state_cid = tester.set_state(&mut state_tree, &actor_state).unwrap();
 
     // Set actor
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address.clone(), BigInt::zero())
+        .set_actor_from_bin(
+            &mut state_tree,
+            &wasm_bin,
+            state_cid,
+            actor_address,
+            BigInt::zero(),
+        )
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(state_tree).unwrap();
 
     // Send message
     let message = Message {
@@ -63,11 +70,9 @@ pub fn main() {
         gas_premium: Default::default(),
     };
 
-    let res = tester
+    tester
         .executor
         .unwrap()
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
-    dbg!(res);
-    assert!(false);
 }
