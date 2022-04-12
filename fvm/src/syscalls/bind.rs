@@ -99,7 +99,19 @@ fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -
         .data_mut()
         .calculate_exec_units_for_gas()
         .map_err(|_| Trap::new("failed to calculate exec_units"))?;
-    caller.consume_fuel(exec_units)?;
+    if exec_units.is_negative() {
+        caller.add_fuel(u64::try_from(exec_units.saturating_neg()).unwrap_or(0))?;
+    } else {
+        caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
+    }
+
+    let gas_available = caller.data().kernel.gas_available();
+    let fuel_consumed = caller
+        .fuel_consumed()
+        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
+    caller
+        .data_mut()
+        .set_snapshots(gas_available, fuel_consumed);
     Ok(())
 }
 
@@ -174,14 +186,12 @@ macro_rules! impl_bind_syscalls {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
-                                charge_exec_units_for_gas(&mut caller)?;
                                 0
                             },
                             Err(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                charge_exec_units_for_gas(&mut caller)?;
                                 code as u32
                             },
                         };

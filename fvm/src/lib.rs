@@ -1,4 +1,3 @@
-#![feature(int_roundings)]
 //! (Proper package docs coming shortly; for now this is a holding pen for items
 //! we must mention).
 //!
@@ -6,7 +5,6 @@
 //!
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
-extern crate anyhow;
 
 pub use kernel::default::DefaultKernel;
 pub use kernel::{BlockError, Kernel};

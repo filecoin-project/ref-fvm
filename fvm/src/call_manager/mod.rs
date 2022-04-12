@@ -83,7 +83,7 @@ pub trait CallManager: 'static {
 
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {
-        &self.machine().context().price_list
+        self.machine().context().price_list
     }
 
     /// Returns the machine context.

@@ -2,7 +2,7 @@ use cid::Cid;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
-use crate::kernel::{ExecutionError, Result, SyscallError};
+use crate::kernel::Result;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -58,19 +58,18 @@ impl<K: Kernel> InvocationData<K> {
     /// 2) converts this to the corresponding amount of exec_units
     /// 3) updates the available_gas and exec_units_consumed snapshots. The exec_units_consumed_snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
     /// 4) returns the value calculated in 2) for its caller to actually consume that exec_units_consumed
-    pub(crate) fn calculate_exec_units_for_gas(&mut self) -> Result<u64> {
+    pub(crate) fn calculate_exec_units_for_gas(&self) -> Result<i64> {
         let gas_available = self.kernel.gas_available();
-        let gas_used = self.gas_available_snapshot - gas_available;
-        if gas_used < 0 {
-            return Err(ExecutionError::Syscall(SyscallError(
-                String::from("used more gas than available"),
-                fvm_shared::error::ErrorNumber::IllegalOperation,
-            )));
-        }
-        let exec_units_to_consume = self.kernel.price_list().gas_to_exec_units(gas_used, false);
-        self.gas_available_snapshot = gas_available;
-        self.exec_units_consumed_snapshot += exec_units_to_consume;
+        let exec_units_to_consume = self
+            .kernel
+            .price_list()
+            .gas_to_exec_units(self.gas_available_snapshot - gas_available, true);
         Ok(exec_units_to_consume)
+    }
+
+    pub(crate) fn set_snapshots(&mut self, gas_available: i64, exec_units_consumed: u64) {
+        self.gas_available_snapshot = gas_available;
+        self.exec_units_consumed_snapshot = exec_units_consumed;
     }
 
     /// This method:
@@ -81,10 +80,10 @@ impl<K: Kernel> InvocationData<K> {
             "exec_units",
             self.kernel
                 .price_list()
-                .exec_units_to_gas(exec_units_consumed - self.exec_units_consumed_snapshot),
+                .on_consume_exec_units(exec_units_consumed)
+                .total(),
         )?;
-        self.exec_units_consumed_snapshot = exec_units_consumed;
-        self.gas_available_snapshot = self.kernel.gas_available();
+        self.set_snapshots(self.kernel.gas_available(), exec_units_consumed);
         Ok(())
     }
 }

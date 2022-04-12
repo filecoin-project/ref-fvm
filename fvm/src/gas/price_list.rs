@@ -364,6 +364,8 @@ pub struct PriceList {
     // 1 Exec Unit = gas_per_exec_unit * 1 Gas
     pub(crate) gas_per_exec_unit: i64,
 
+    // A special cost for traversing the boundary between the FVM and the client node
+    // See https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#extern-traversing-syscall-fee-revision for more
     pub(crate) extern_traversal_cost: i64,
 
     pub(crate) block_memcpy_per_byte_cost: i64,
@@ -536,27 +538,26 @@ impl PriceList {
     pub fn on_consume_exec_units(&self, exec_units: u64) -> GasCharge<'static> {
         GasCharge::new(
             "OnConsumeExecUnits",
-            self.gas_per_exec_unit.saturating_mul(exec_units as i64),
+            self.gas_per_exec_unit
+                .saturating_mul(i64::try_from(exec_units).unwrap_or(i64::MAX)),
             0,
         )
     }
 
     /// Converts the specified gas into equivalent exec_units
+    /// Note: In rare cases the provided `gas` may be negative
     #[inline]
-    pub fn gas_to_exec_units(&self, gas: i64, round_down: bool) -> u64 {
+    pub fn gas_to_exec_units(&self, gas: i64, round_up: bool) -> i64 {
         match self.gas_per_exec_unit {
             0 => 0,
-            v => match round_down {
-                true => gas.div_floor(v) as u64,
-                false => gas.div_ceil(v) as u64,
-            },
+            v => {
+                let mut div_result = gas / v;
+                if round_up && gas % v != 0 {
+                    div_result = div_result.saturating_add(1);
+                }
+                div_result
+            }
         }
-    }
-
-    /// Converts the specified exec_units into equivalent gas
-    #[inline]
-    pub fn exec_units_to_gas(&self, exec_units: u64) -> i64 {
-        self.gas_per_exec_unit.saturating_mul(exec_units as i64)
     }
 
     /// Returns the gas required for traversing an extern boundary into the client.
@@ -565,27 +566,36 @@ impl PriceList {
         GasCharge::new("OnExternTraversal", self.extern_traversal_cost, 0)
     }
 
-    /// Returns the gas required for loading an object.
+    /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
-    pub fn on_block_open(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_open_base(&self) -> GasCharge<'static> {
+        GasCharge::new("OnBlockOpenBase", self.block_open_base, 0)
+    }
+
+    /// Returns the gas required for loading an object based on the size of the object.
+    #[inline]
+    pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge<'static> {
         // TODO: Should we also throw on a memcpy cost here (see https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#ipld-state-management-fees)
         GasCharge::new(
-            "OnBlockOpen",
-            self.block_open_base
-                .saturating_add(self.block_io_per_byte_cost.saturating_mul(data_size as i64)),
+            "OnBlockOpenPerByte",
+            self.block_io_per_byte_cost.saturating_mul(data_size as i64),
             0,
         )
     }
 
-    /// Returns the gas required for reading a loaded object.
+    /// Returns the base gas required for reading a loaded object, independent of the object's size.
     #[inline]
-    pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_read_base(&self) -> GasCharge<'static> {
+        GasCharge::new("OnBlockReadBase", self.block_read_base, 0)
+    }
+
+    /// Returns the gas required for reading a loaded object based on the size of the object.
+    #[inline]
+    pub fn on_block_read_per_byte(&self, data_size: usize) -> GasCharge<'static> {
         GasCharge::new(
-            "OnBlockRead",
-            self.block_read_base.saturating_add(
-                self.block_memcpy_per_byte_cost
-                    .saturating_mul(data_size as i64),
-            ),
+            "OnBlockReadPerByte",
+            self.block_memcpy_per_byte_cost
+                .saturating_mul(data_size as i64),
             0,
         )
     }

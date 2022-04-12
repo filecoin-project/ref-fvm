@@ -130,6 +130,11 @@ where
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
+        if charge_gas {
+            self.call_manager
+                .charge_gas(self.call_manager.price_list().on_block_open_base())?;
+        }
+
         let state_block = self
             .call_manager
             .state_tree()
@@ -144,7 +149,7 @@ where
             self.call_manager.charge_gas(
                 self.call_manager
                     .price_list()
-                    .on_block_open(state_block.len()),
+                    .on_block_open_per_byte(state_block.len()),
             )?;
         }
 
@@ -288,6 +293,9 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_open_base())?;
+
         let data = self
             .call_manager
             .blockstore()
@@ -301,12 +309,12 @@ where
 
         let block = Block::new(cid.codec(), data);
 
-        // We charge on open, not read, to emulate the current gas model.
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open(block.size().try_into().or_illegal_argument()?),
+                .on_block_open_per_byte(block.size().try_into().or_illegal_argument()?),
         )?;
+
         let stat = block.stat();
 
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
@@ -356,18 +364,22 @@ where
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_read_base())?;
+
         let data = self.blocks.get(id).or_illegal_argument()?.data();
 
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read(data.len()))?;
-
-        Ok(if offset as usize >= data.len() {
+        let len = if offset as usize >= data.len() {
             0
         } else {
-            let len = buf.len().min(data.len());
-            buf.copy_from_slice(&data[offset as usize..][..len]);
-            len as u32
-        })
+            let copy_len = buf.len().min(data.len());
+            buf.copy_from_slice(&data[offset as usize..][..copy_len]);
+            copy_len
+        };
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_read_per_byte(len))
+            .map(|_| len as u32)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
