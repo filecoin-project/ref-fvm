@@ -1,3 +1,7 @@
+//! This module defines the low-level syscall FFI "shims".
+#[doc(inline)]
+pub use fvm_shared::sys::TokenAmount;
+
 pub mod actor;
 pub mod crypto;
 //#[cfg(feature = "debug")]

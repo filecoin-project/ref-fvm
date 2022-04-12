@@ -6,6 +6,11 @@ pub mod out;
 pub type BlockId = u32;
 pub type Codec = u64;
 
+/// The token amount type used in syscalls. It can represent any token amount (in atto-FIL) from 0
+/// to `2^128-1` attoFIL. Or 0 to about 340 exaFIL.
+///
+/// Internally, this type is a tuple of `u64`s storing the "low" and "high" bits of a little-endian
+/// u128.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct TokenAmount {
