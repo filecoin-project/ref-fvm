@@ -61,16 +61,20 @@
 //! > the same encoding, given the same input.
 //!
 
+mod error;
 mod reader;
 mod writer;
 
 use std::borrow::Cow;
 
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{size_hint, Arbitrary, Unstructured};
+pub use error::Error;
 pub use reader::BitReader;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
-use super::{BitField, Result};
+use super::BitField;
 use crate::RangeSize;
 
 // MaxEncodedSize is the maximum encoded size of a bitfield. When expanded into
@@ -101,35 +105,34 @@ impl<'de> Deserialize<'de> for BitField {
         D: Deserializer<'de>,
     {
         let bytes: Cow<'de, [u8]> = serde_bytes::deserialize(deserializer)?;
+        if bytes.len() > MAX_ENCODED_SIZE {
+            return Err(serde::de::Error::custom(format!(
+                "encoded bitfield was too large {}",
+                bytes.len()
+            )));
+        }
         Self::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
 }
-
-impl BitField {
-    /// Decodes RLE+ encoded bytes into a bit field.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if let Some(value) = bytes.last() {
-            if *value == 0 {
-                return Err("not minimally encoded");
-            }
-        }
-
-        let mut reader = BitReader::new(bytes);
-
-        let version = reader.read(2);
-        if version != 0 {
-            return Err("incorrect version");
-        }
-
-        let mut next_value = reader.read(1) == 1;
+#[cfg(feature = "enable-arbitrary")]
+impl<'a> Arbitrary<'a> for BitField {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let mut next_value: bool = bool::arbitrary(u)?;
         let mut ranges = Vec::new();
         let mut index = 0u64;
         let mut total_len: u64 = 0;
 
-        while let Some(len) = reader.read_len()? {
+        let size = u.arbitrary_len::<(u64, u8)>()?;
+
+        for _ in 0..size {
+            // 3 line crappy "power-law" distribution
+            let len = u64::arbitrary(u)?;
+            let shift = u.int_in_range(0..=63)?;
+            let len = (len & (u64::MAX >> shift)).saturating_add(1);
+
             let (new_total_len, ovf) = total_len.overflowing_add(len);
             if ovf {
-                return Err("RLE+ overflow");
+                break;
             }
             total_len = new_total_len;
             let start = index;
@@ -141,6 +144,55 @@ impl BitField {
             }
 
             next_value = !next_value;
+        }
+
+        Ok(Self {
+            ranges,
+            ..Default::default()
+        })
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        size_hint::and(<usize as Arbitrary>::size_hint(depth), (0, None))
+    }
+}
+
+impl BitField {
+    /// Decodes RLE+ encoded bytes into a bit field.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let mut reader = BitReader::new(bytes)?;
+
+        let version = reader.read(2);
+        if version != 0 {
+            return Err(Error::UnsupportedVersion);
+        }
+
+        let mut next_value = reader.read(1) == 1;
+        let mut ranges = Vec::new();
+        let mut index = 0u64;
+        let mut total_len: u64 = 0;
+
+        while let Some(len) = reader.read_len()? {
+            let (new_total_len, ovf) = total_len.overflowing_add(len);
+            if ovf {
+                return Err(Error::RLEOverflow);
+            }
+            total_len = new_total_len;
+            let start = index;
+            index += len;
+            let end = index;
+
+            if next_value {
+                ranges.push(start..end);
+            }
+
+            next_value = !next_value;
+        }
+
+        // next_value equal true means we just read a run of zeros
+        // which means that there is a trailing run of zeros
+        if next_value {
+            return Err(Error::NotMinimal);
         }
 
         Ok(Self {
@@ -189,11 +241,12 @@ mod tests {
     use rand_xorshift::XorShiftRng;
 
     use super::super::{bitfield, ranges_from_bits};
-    use super::{BitField, BitWriter};
+    use super::{BitField, BitWriter, Error};
+    use crate::iter::Ranges;
 
     #[test]
     fn test() {
-        for (bits, expected) in vec![
+        for (i, (bits, expected)) in [
             (vec![], Ok(bitfield![])),
             (
                 vec![
@@ -202,7 +255,7 @@ mod tests {
                     0, 1, // fits into 4 bits
                     0, 0, 0, 1, // 8 - 1
                 ],
-                Err("incorrect version"),
+                Err(Error::UnsupportedVersion),
             ),
             (
                 vec![
@@ -236,7 +289,7 @@ mod tests {
                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
                 ]),
             ),
-            // when a length of 0 is encountered, the rest of the encoded bits should be ignored
+            // Trailing garbage.
             (
                 vec![
                     0, 0, // version
@@ -246,9 +299,9 @@ mod tests {
                     0, 0, 0, 0, // 0 - 0
                     1, // 1 - 1
                 ],
-                Ok(bitfield![1]),
+                Err(Error::NotMinimal),
             ),
-            // when a length of 0 is encountered, the rest of the encoded bits should be ignored
+            // Trailing garbage.
             (
                 vec![
                     0, 0, // version
@@ -258,7 +311,7 @@ mod tests {
                     0, 0, 0, 0, 0, 0, 0, 0, // 0 - 0
                     1, // 1 - 1
                 ],
-                Ok(bitfield![1]),
+                Err(Error::NotMinimal),
             ),
             // when the last byte is zero, this should fail
             (
@@ -269,7 +322,7 @@ mod tests {
                     1, 0, 1, // 5 - 1
                     0, 0, 0, 0, 0, 0, 0, 0,
                 ],
-                Err("not minimally encoded"),
+                Err(Error::NotMinimal),
             ),
             // a valid varint
             (
@@ -291,20 +344,35 @@ mod tests {
                     1, 1, 0, 0, 0, 0, 0, 1, // 3 - 1
                     0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
                 ],
-                Err("Invalid varint"),
+                Err(Error::InvalidVarint),
             ),
-            // a varint must not take more than 9 bytes
+            // a varint must allow 9 bytes plus 1 bit, or 0..u64::MAX
             (
                 vec![
                     0, 0, // version
                     1, // starts with 1
                     0, 0, // fits into a varint
-                    1, 0, 0, 0, 0, 0, 0, 1, // 1 - 1
+                    1, 1, 1, 1, 1, 1, 1, 1, // 1 - 1
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+                ],
+                Ok(BitField::from_ranges(Ranges::new(std::iter::once(
+                    0..u64::MAX,
+                )))),
+            ),
+            // Now overflow by 1.
+            (
+                vec![
+                    0, 0, // version
+                    1, // starts with 1
+                    0, 0, // fits into a varint
+                    0, 0, 0, 0, 0, 0, 0, 1, // 1 - 1
                     0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
                     0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                    0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                    0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
                 ],
-                Err("Invalid varint"),
+                Err(Error::InvalidVarint),
             ),
             // total running length should not overflow
             (
@@ -322,9 +390,9 @@ mod tests {
                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, // fits into 4 bits
                     0, 1, 0, 0, // 2 - 1
                 ],
-                Err("RLE+ overflow"),
+                Err(Error::RLEOverflow),
             ),
-            // block_long that could have fit on block_short. TODO: is this legit?
+            // block_long that could have fit on block_short.
             (
                 vec![
                     0, 0, // version
@@ -333,9 +401,9 @@ mod tests {
                     1, 1, 0, 0, 0, 0, 0, 0, // 3 - 1
                     1, 1, 1,
                 ],
-                Ok(bitfield![1, 1, 1, 0, 1, 0]),
+                Err(Error::NotMinimal),
             ),
-            // block_long that could have fit on block_single. TODO: is this legit?
+            // block_long that could have fit on block_single.
             (
                 vec![
                     0, 0, // version
@@ -344,9 +412,9 @@ mod tests {
                     1, 0, 0, 0, 0, 0, 0, 0, // 1 - 1
                     1, 1, 1,
                 ],
-                Ok(bitfield![1, 0, 1, 0]),
+                Err(Error::NotMinimal),
             ),
-            // block_short that could have fit on block_single. TODO: is this legit?
+            // block_short that could have fit on block_single.
             (
                 vec![
                     0, 0, // version
@@ -355,15 +423,57 @@ mod tests {
                     1, 0, 0, 0, // 1 - 1
                     1, 1, 1, 1, 1, 1, 1,
                 ],
-                Ok(bitfield![1, 0, 1, 0, 1, 0, 1, 0]),
+                Err(Error::NotMinimal),
             ),
-        ] {
+            // tailing runs of zeros
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    1, // run of one
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 0
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0,
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    1, // starts with 1
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    1, // trailing run of zeros
+                ],
+                Err(Error::NotMinimal),
+            ),
+            (
+                vec![
+                    0, 0, // version
+                    0, // starts with 1
+                    1, //run of one
+                    0, 1, // fits into 4 bits
+                    0, 0, 1, 0, // 2
+                    0, 1, 0, 0, 1, 0, // 2 trailing zeros
+                ],
+                Err(Error::NotMinimal),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let mut writer = BitWriter::new();
             for bit in bits {
                 writer.write(bit, 1);
             }
             let res = BitField::from_bytes(&writer.finish_test());
-            assert_eq!(res, expected);
+            assert_eq!(res, expected, "test {} failed", i);
         }
     }
 
@@ -403,6 +513,20 @@ mod tests {
 
         let last = bf.last().unwrap();
         assert_eq!(2, last);
+    }
+
+    #[test]
+    fn test_unset_max() {
+        // Create any bitfield
+        let ranges: Vec<u64> = vec![0, 1, 2, 3];
+        let iter = ranges_from_bits(ranges);
+        let mut bf = BitField::from_ranges(iter);
+
+        // Unset u64::MAX
+        bf.unset(u64::MAX);
+
+        let last = bf.ranges().last().unwrap();
+        assert_eq!(0..4, last);
     }
 
     #[test]

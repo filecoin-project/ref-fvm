@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-use crate::encoding::Cbor;
+
+use fvm_ipld_encoding::Cbor;
 
 #[cfg(feature = "proofs")]
 pub mod zero;
@@ -62,7 +63,7 @@ impl PaddedPieceSize {
 }
 
 /// Piece information for part or a whole file.
-#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Clone)]
+#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Clone, Debug)]
 pub struct PieceInfo {
     /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
     pub size: PaddedPieceSize,

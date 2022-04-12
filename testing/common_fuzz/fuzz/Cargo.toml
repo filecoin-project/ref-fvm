@@ -1,0 +1,43 @@
+[package]
+name = "common_fuzz"
+version = "0.0.0"
+authors = [ "Protocol Labs", "Filecoin Core Devs"]
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.1", features = ["derive"] }
+ahash = "0.7.6"
+itertools = "0.10.3"
+
+cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
+
+fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbitrary"] }
+#fvm_shared = { path = "../../../shared" }
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+
+[[bin]]
+name = "rle_ops"
+path = "fuzz_targets/rle_ops.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rle_decode"
+path = "fuzz_targets/rle_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rle_encode"
+path = "fuzz_targets/rle_encode.rs"
+test = false
+doc = false

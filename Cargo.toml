@@ -3,7 +3,8 @@ members = [
     "fvm",
     "sdk",
     "shared",
-    "testing/*",
+    "testing/conformance",
+    "testing/integration",
     "ipld/*",
 ]
 

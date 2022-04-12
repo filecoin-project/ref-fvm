@@ -2,49 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::convert::TryInto;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::{fmt, u64};
+use std::hash::Hash;
+use std::u64;
 
 use super::{from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
-
-/// Public key struct used as BLS Address data.
-/// This type is only needed to be able to implement traits on it due to limitations on
-/// arrays within Rust that are greater than 32 length. Can be dereferenced into `[u8; 48]`.
-#[derive(Copy, Clone)]
-pub struct BLSPublicKey(pub [u8; BLS_PUB_LEN]);
-
-impl Hash for BLSPublicKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(&self.0);
-    }
-}
-
-impl Eq for BLSPublicKey {}
-impl PartialEq for BLSPublicKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0[..].eq(&other.0[..])
-    }
-}
-
-impl fmt::Debug for BLSPublicKey {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        self.0[..].fmt(formatter)
-    }
-}
-
-impl From<[u8; BLS_PUB_LEN]> for BLSPublicKey {
-    fn from(pk: [u8; BLS_PUB_LEN]) -> Self {
-        BLSPublicKey(pk)
-    }
-}
-
-impl Deref for BLSPublicKey {
-    type Target = [u8; BLS_PUB_LEN];
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 /// Payload is the data of the Address. Variants are the supported Address protocols.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -56,7 +17,7 @@ pub enum Payload {
     /// Actor protocol address, 20 byte hash of actor data
     Actor([u8; PAYLOAD_HASH_LEN]),
     /// BLS key address, full 48 byte public key
-    BLS(BLSPublicKey),
+    BLS([u8; BLS_PUB_LEN]),
 }
 
 impl Payload {
@@ -99,14 +60,11 @@ impl Payload {
                     .try_into()
                     .map_err(|_| Error::InvalidPayloadLength(payload.len()))?,
             ),
-            Protocol::BLS => {
-                if payload.len() != BLS_PUB_LEN {
-                    return Err(Error::InvalidBLSLength(payload.len()));
-                }
-                let mut pk = [0u8; BLS_PUB_LEN];
-                pk.copy_from_slice(payload);
-                Self::BLS(pk.into())
-            }
+            Protocol::BLS => Self::BLS(
+                payload
+                    .try_into()
+                    .map_err(|_| Error::InvalidPayloadLength(payload.len()))?,
+            ),
         };
         Ok(payload)
     }

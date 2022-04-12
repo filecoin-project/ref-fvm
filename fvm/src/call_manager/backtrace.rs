@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
-use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::{ActorID, MethodNum};
 
@@ -10,7 +10,7 @@ use crate::kernel::SyscallError;
 /// A call backtrace records _why_ an actor exited with a specific error code.
 #[derive(Debug, Default, Clone)]
 pub struct Backtrace {
-    /// The actors through which this error was propegated from bottom (source) to top.
+    /// The actors through which this error was propagated from bottom (source) to top.
     pub frames: Vec<Frame>,
     /// The last syscall error before the first actor in `frames` aborted.
     pub cause: Option<Cause>,

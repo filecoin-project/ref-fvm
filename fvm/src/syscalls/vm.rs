@@ -1,5 +1,5 @@
 use fvm_shared::error::ExitCode;
-use num_traits::FromPrimitive;
+use fvm_shared::version::NetworkVersion;
 
 use super::error::Abort;
 use super::Context;
@@ -18,11 +18,13 @@ pub fn abort(
     message_off: u32,
     message_len: u32,
 ) -> Result<Never, Abort> {
-    // Get the error and convert it into a "system illegal argument error" if it's invalid.
-    // BUG: https://github.com/filecoin-project/fvm/issues/253
-    let code = ExitCode::from_u32(code)
-        //.filter(|c| !c.is_system_error())
-        .unwrap_or(ExitCode::SysErrIllegalActor); // TODO: will become "illegal exit"
+    let code = ExitCode::new(code);
+    if context.kernel.network_version() >= NetworkVersion::V16 && code.is_system_error() {
+        return Err(Abort::Exit(
+            ExitCode::SYS_ILLEGAL_EXIT_CODE,
+            format!("actor aborted with code {}", code),
+        ));
+    }
 
     let message = if message_len == 0 {
         "actor aborted".to_owned()

@@ -43,7 +43,7 @@ struct CidMap {
 }
 
 pub mod vec {
-    use fvm_shared::encoding::GoVecVisitor;
+    use fvm_ipld_encoding::GoVecVisitor;
     use serde::ser::SerializeSeq;
 
     use super::*;

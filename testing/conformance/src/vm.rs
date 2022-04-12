@@ -9,11 +9,11 @@ use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{Config, DefaultKernel};
+use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
@@ -75,8 +75,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let machine = DefaultMachine::new(
             Config {
                 max_call_depth: 4096,
-                initial_pages: 0,
-                max_pages: 1024,
                 debug: true, // Enable debug mode by default.
             },
             engine,
@@ -85,7 +83,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             BigInt::zero(),
             network_version,
             state_root,
-            (0, Some(builtin_actors)),
+            Some(builtin_actors),
             blockstore,
             externs,
         )
@@ -199,7 +197,7 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &fvm_shared::encoding::RawBytes,
+        params: &fvm_ipld_encoding::RawBytes,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
@@ -608,7 +606,7 @@ where
         &mut self,
         recipient: &Address,
         method: u64,
-        params: &fvm_shared::encoding::RawBytes,
+        params: &fvm_ipld_encoding::RawBytes,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
         self.0.send(recipient, method, params, value)

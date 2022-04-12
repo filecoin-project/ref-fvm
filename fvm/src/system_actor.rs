@@ -1,10 +1,9 @@
 use anyhow::Context;
 use cid::Cid;
-use serde::{Deserialize, Serialize};
-
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{Cbor, CborStore};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, CborStore};
-use fvm_shared::encoding::Cbor;
+use serde::{Deserialize, Serialize};
 
 use crate::kernel::{ClassifyResult, Result};
 use crate::state_tree::{ActorState, StateTree};

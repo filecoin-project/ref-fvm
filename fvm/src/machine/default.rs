@@ -2,9 +2,10 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
+use fvm_ipld_blockstore::{Blockstore, Buffered};
+use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
-use fvm_shared::blockstore::{Blockstore, Buffered};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -57,12 +58,12 @@ where
         circ_supply: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
-        builtin_actors: (u32, Option<Cid>),
+        builtin_actors: Option<Cid>,
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
-            NetworkVersion::V14..=NetworkVersion::V15;
+            NetworkVersion::V14..=NetworkVersion::V16;
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
@@ -102,15 +103,21 @@ where
 
         // Load the built-in actors manifest.
         // TODO: Check that the actor bundle is sane for the network version.
-        let builtin_actors_cid = match builtin_actors.1 {
-            Some(cid) => cid,
+        let (builtin_actors_cid, manifest_version) = match builtin_actors {
+            Some(manifest_cid) => {
+                let (version, cid): (u32, Cid) = state_tree
+                    .store()
+                    .get_cbor(&manifest_cid)?
+                    .context("failed to load actor manifest")?;
+                (cid, version)
+            }
             None => {
                 let (state, _) = SystemActorState::load(&state_tree)?;
-                state.builtin_actors
+                (state.builtin_actors, 1)
             }
         };
         let builtin_actors =
-            load_manifest(state_tree.store(), &builtin_actors_cid, builtin_actors.0)?;
+            load_manifest(state_tree.store(), &builtin_actors_cid, manifest_version)?;
 
         // Preload any uncached modules.
         // This interface works for now because we know all actor CIDs

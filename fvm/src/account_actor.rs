@@ -8,11 +8,11 @@
 //! details.
 
 use cid::Cid;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
-use fvm_shared::encoding::Cbor;
 
 use crate::state_tree::ActorState;
 use crate::EMPTY_ARR_CID;

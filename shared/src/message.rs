@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
+use fvm_ipld_encoding::de::{Deserialize, Deserializer};
+use fvm_ipld_encoding::ser::{Serialize, Serializer};
+use fvm_ipld_encoding::{Cbor, RawBytes};
 
 use crate::address::Address;
 use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use crate::econ::TokenAmount;
-use crate::encoding::de::{Deserialize, Deserializer};
-use crate::encoding::ser::{Serialize, Serializer};
-use crate::encoding::{Cbor, RawBytes};
 use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition

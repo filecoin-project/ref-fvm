@@ -1,5 +1,5 @@
 [package]
-name = "ipld_amt-fuzz"
+name = "ipld_amt_fuzz"
 version = "0.0.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
@@ -9,22 +9,24 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
-arbitrary = { version = "0.4", features = ["derive"] }
-ahash = "0.6"
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.1", features = ["derive"] }
+ahash = "0.7.6"
+itertools = "0.10.3"
 
-[dependencies.fvm_ipld_amt]
-path = ".."
+cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
 
-[dependencies.fvm_shared]
-path = "../../../shared"
+fvm_ipld_amt = { path = ".."}
+fvm_shared = { path = "../../../shared" }
+fvm_ipld_blockstore = { path = "../../blockstore" }
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
+
 [[bin]]
-name = "amt_fuzz"
-path = "fuzz_targets/amt_fuzz.rs"
+name = "equivalence"
+path = "fuzz_targets/equivalence.rs"
 test = false
 doc = false

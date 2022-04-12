@@ -1,6 +1,6 @@
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
@@ -135,7 +135,7 @@ impl InvocationResult {
     /// from the [`Failure`](InvocationResult::Failure) variant otherwise.
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::Return(_) => ExitCode::Ok,
+            Self::Return(_) => ExitCode::OK,
             Self::Failure(e) => *e,
         }
     }

@@ -1,10 +1,9 @@
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{Cbor, DAG_CBOR};
-use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::{sys, vm, SyscallResult};
+use crate::{sys, SyscallResult};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -61,25 +60,5 @@ pub fn value_received() -> TokenAmount {
         sys::message::value_received()
             .expect("failed to lookup received value")
             .into()
-    }
-}
-
-/// Fetches the input parameters as raw bytes, and decodes them locally
-/// into type T using cbor serde. Failing to decode will abort execution.
-///
-/// This function errors with ErrIllegalArgument when no parameters have been
-/// provided.
-pub fn params_cbor<T: Cbor>(id: BlockId) -> SyscallResult<T> {
-    if id == NO_DATA_BLOCK_ID {
-        return Err(ErrorNumber::IllegalArgument);
-    }
-    let (codec, raw) = params_raw(id)?;
-    debug_assert!(codec == DAG_CBOR, "parameters codec was not cbor");
-    match fvm_shared::encoding::from_slice(raw.as_slice()) {
-        Ok(v) => Ok(v),
-        Err(e) => vm::abort(
-            ExitCode::ErrSerialization as u32,
-            Some(format!("could not deserialize parameters as cbor: {:?}", e).as_str()),
-        ),
     }
 }

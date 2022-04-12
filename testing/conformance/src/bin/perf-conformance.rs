@@ -9,10 +9,10 @@ use conformance_tests::vector::{MessageVector, Selector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm::machine::Engine;
+use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
-use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use ittapi_rs::*;
 

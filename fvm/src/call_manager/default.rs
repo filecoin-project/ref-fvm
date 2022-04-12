@@ -1,9 +1,9 @@
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
@@ -86,6 +86,19 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
+        // We check _then_ set because we don't count the top call. This effectivly allows a
+        // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
+        // likely a bug, this is how NV15 behaves so we mimic that behavior here.
+        //
+        // By example:
+        //
+        // 1. If the max depth is 0, call_stack_depth will be 1 and the top-level message won't be
+        //    able to make sub-calls (1 > 0).
+        // 2. If the max depth is 1, the call_stack_depth will be 1 in the top-level message, 2 in
+        //    sub-calls, and said sub-calls will not be able to make further subcalls (2 > 1).
+        //
+        // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
+        // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
         if self.call_stack_depth > self.machine.config().max_call_depth {
             return Err(
                 syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
@@ -310,7 +323,7 @@ where
                         .data()
                         .kernel
                         .block_get(return_block_id)
-                        .map_err(|e| Abort::from_error(ExitCode::SysErrIllegalActor, e))?;
+                        .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
                     debug_assert_eq!(code, DAG_CBOR);
                     RawBytes::new(ret)
                 } else {
@@ -337,14 +350,12 @@ where
                             (code, message, Ok(InvocationResult::Failure(code)))
                         }
                         Abort::OutOfGas => (
-                            ExitCode::SysErrOutOfGas,
+                            ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
                             Err(ExecutionError::OutOfGas),
                         ),
                         Abort::Fatal(err) => (
-                            // TODO: will be changed to a SysErrAssertionFailed when we
-                            // introduce the new exit codes.
-                            ExitCode::SysErrIllegalArgument,
+                            ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
                         ),

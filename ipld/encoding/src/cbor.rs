@@ -8,7 +8,7 @@ use cid::{multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::encoding::{de, from_slice, ser, to_vec, CodecProtocol};
+use crate::{de, from_slice, ser, to_vec, CodecProtocol};
 
 // TODO find something to reference.
 pub const DAG_CBOR: u64 = 0x71;
@@ -17,12 +17,12 @@ pub const DAG_CBOR: u64 = 0x71;
 pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes
     fn marshal_cbor(&self) -> Result<Vec<u8>, Error> {
-        Ok(to_vec(&self)?)
+        to_vec(&self)
     }
 
     /// Unmarshals cbor encoded bytes to object
     fn unmarshal_cbor(bz: &[u8]) -> Result<Self, Error> {
-        Ok(from_slice(bz)?)
+        from_slice(bz)
     }
 
     /// Returns the content identifier of the raw block of data
@@ -101,6 +101,6 @@ impl RawBytes {
 
     /// Deserializes the serialized bytes into a defined type.
     pub fn deserialize<O: de::DeserializeOwned>(&self) -> Result<O, Error> {
-        Ok(from_slice(&self.bytes)?)
+        from_slice(&self.bytes)
     }
 }

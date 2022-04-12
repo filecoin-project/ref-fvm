@@ -6,12 +6,13 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
-use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::tuple::*;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
@@ -635,11 +636,11 @@ mod tests {
     use cid::multihash::Code::Blake2b256;
     use cid::multihash::Multihash;
     use cid::Cid;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_ipld_hamt::Hamt;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
     use fvm_shared::bigint::BigInt;
-    use fvm_shared::blockstore::{CborStore, MemoryBlockstore};
-    use fvm_shared::encoding::DAG_CBOR;
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::{IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;

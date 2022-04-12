@@ -1,12 +1,11 @@
 use std::convert::TryInto;
 
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
-use num_traits::FromPrimitive;
 
 use crate::message::NO_DATA_BLOCK_ID;
 use crate::{sys, SyscallResult};
@@ -47,9 +46,9 @@ pub fn send(
         )?;
 
         // Process the result.
-        let exit_code = ExitCode::from_u32(exit_code).unwrap_or(ExitCode::SysErrIllegalActor);
+        let exit_code = ExitCode::new(exit_code);
         let return_data = match exit_code {
-            ExitCode::Ok if return_id != NO_DATA_BLOCK_ID => {
+            ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.
                 let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
                 let mut bytes = vec![0; size as usize];

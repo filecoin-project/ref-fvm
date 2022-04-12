@@ -3,9 +3,9 @@
 
 use cid::Cid;
 use clock::ChainEpoch;
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::{serde_bytes, Cbor};
 
-use crate::encoding::tuple::*;
-use crate::encoding::{serde_bytes, Cbor};
 use crate::randomness::Randomness;
 use crate::sector::{
     RegisteredAggregateProof, RegisteredSealProof, RegisteredUpdateProof, SectorID, SectorNumber,

@@ -1,6 +1,8 @@
-use crate::vm;
-use fvm_shared::error::ExitCode;
 use std::panic;
+
+use fvm_shared::error::ExitCode;
+
+use crate::vm;
 
 // Wrapper around the assert macro to have a hand on which exit code we want to give to our failed
 // assertion
@@ -11,7 +13,7 @@ macro_rules! assert {
             core::assert!($cond);
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, None);
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($cond:expr, $($arg:tt)+) => ({
@@ -19,7 +21,7 @@ macro_rules! assert {
             core::assert!($cond, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, Some(format!("{}", format_args!($($arg)+))));
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
@@ -33,7 +35,7 @@ macro_rules! assert_eq {
             core::assert_eq!($left, $right);
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, None);
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($left:expr, $right:expr, $($arg:tt)+) => ({
@@ -41,7 +43,7 @@ macro_rules! assert_eq {
             core::assert_eq!($left, $right, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, Some(format!("{}", format_args!($($arg)+))));
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
@@ -55,7 +57,7 @@ macro_rules! assert_eq {
             core::assert_ne!($left, $right);
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, None);
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($left:expr, $right:expr, $($arg:tt)+) => ({
@@ -63,7 +65,7 @@ macro_rules! assert_eq {
             core::assert_ne!($left, $right, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            vm::abort(ExitCode::ErrAssertionFailed as u32, Some(format!("{}", format_args!($($arg)+))));
+            vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
