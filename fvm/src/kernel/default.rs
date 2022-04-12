@@ -765,6 +765,17 @@ where
             .context("tried to resolve CID of unrecognized actor type")
             .or_illegal_argument()
     }
+
+    fn install_actor(&mut self, code_id: Cid) -> Result<()> {
+        // TODO figure out gas
+        self.call_manager
+            .machine()
+            .engine()
+            .preload(self.call_manager.blockstore(), &[code_id])
+            .map_err(|_| {
+                syscall_error!(IllegalArgument; "failed to load actor code").into()
+            })
+    }
 }
 
 impl<C> DebugOps for DefaultKernel<C>

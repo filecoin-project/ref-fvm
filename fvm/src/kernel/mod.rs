@@ -173,6 +173,9 @@ pub trait ActorOps {
     /// May only be called by Init actor.
     fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
 
+    /// Installs actor code pointed by cid
+    fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
+
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
 
