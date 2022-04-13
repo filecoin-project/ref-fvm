@@ -305,7 +305,7 @@ where
             if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
                 return (
                     Err(ExecutionError::Fatal(err)),
-                    store.into_data().kernel.take(),
+                    store.into_data().kernel.into_call_manager(),
                 );
             }
 
