@@ -15,7 +15,11 @@ cid = { version = "0.8.2", default-features = false }
 fvm_shared = { version = "0.5.1", path = "../shared" }
 ## num-traits; disabling default features makes it play nice with no_std.
 num-traits = { version = "0.2.14", default-features = false }
-lazy_static = "1.4.0"
+lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.14"
 thiserror = "1.0.30"
 fvm_ipld_encoding = { version = "0.1", path = "../ipld/encoding" }
+
+[features]
+default = ["debug"]
+debug = ["lazy_static"]
