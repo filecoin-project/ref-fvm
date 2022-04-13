@@ -1,47 +1,64 @@
-use lazy_static::lazy_static;
+pub use inner::*;
 
-use crate::sys;
+#[cfg(not(feature = "debug"))]
+mod inner {
+    #[inline(always)]
+    pub fn init_logging() {}
 
-lazy_static! {
-    /// Lazily memoizes if debug mode is enabled.
-    static ref DEBUG_ENABLED: bool = unsafe { sys::debug::enabled().unwrap() >= 0 };
-}
-
-/// Logs a message on the node.
-#[inline]
-pub fn log(msg: String) {
-    unsafe {
-        sys::debug::log(msg.as_ptr(), msg.len() as u32).unwrap();
+    #[inline(always)]
+    pub fn enabled() {
+        false
     }
+    #[inline(always)]
+    pub fn log(_: String) {}
 }
 
-/// Returns whether debug mode is enabled.
-#[inline(always)]
-fn enabled() -> bool {
-    *DEBUG_ENABLED
-}
+#[cfg(feature = "debug")]
+mod inner {
+    use lazy_static::lazy_static;
 
-/// Logger is a debug-only logger that uses the FVM syscalls.
-pub struct Logger;
+    use crate::sys;
 
-impl log::Log for Logger {
-    fn enabled(&self, _: &log::Metadata) -> bool {
-        // TODO: per-level?
-        enabled()
+    lazy_static! {
+        /// Lazily memoizes if debug mode is enabled.
+        static ref DEBUG_ENABLED: bool = unsafe { sys::debug::enabled().unwrap() >= 0 };
     }
 
-    fn log(&self, record: &log::Record) {
+    /// Logs a message on the node.
+    #[inline]
+    pub fn log(msg: String) {
+        unsafe {
+            sys::debug::log(msg.as_ptr(), msg.len() as u32).unwrap();
+        }
+    }
+    /// Initialize logging if debuggig is enabled.
+    pub fn init_logging() {
         if enabled() {
-            log(format!("[{}] {}", record.level(), record.args()));
+            log::set_logger(&Logger).expect("failed to enable logging");
         }
     }
 
-    fn flush(&self) {}
-}
+    /// Returns whether debug mode is enabled.
+    #[inline(always)]
+    pub fn enabled() -> bool {
+        *DEBUG_ENABLED
+    }
 
-/// Initialize logging if debuggig is enabled.
-pub fn init_logging() {
-    if enabled() {
-        log::set_logger(&Logger).expect("failed to enable logging");
+    /// Logger is a debug-only logger that uses the FVM syscalls.
+    struct Logger;
+
+    impl log::Log for Logger {
+        fn enabled(&self, _: &log::Metadata) -> bool {
+            // TODO: per-level?
+            enabled()
+        }
+
+        fn log(&self, record: &log::Record) {
+            if enabled() {
+                log(format!("[{}] {}", record.level(), record.args()));
+            }
+        }
+
+        fn flush(&self) {}
     }
 }
