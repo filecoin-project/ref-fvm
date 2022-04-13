@@ -6,7 +6,6 @@ use fvm_ipld_blockstore::{Blockstore, Buffered};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
@@ -17,16 +16,13 @@ use num_traits::{Signed, Zero};
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
-use crate::gas::price_list_by_network_version;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
+use crate::syscall_error;
 use crate::system_actor::State as SystemActorState;
-use crate::{syscall_error, Config};
 
 pub struct DefaultMachine<B, E> {
-    /// The machine's configuration for this instantiation.
-    config: Config,
-    /// The context for the execution.
+    /// The initial execution context for this epoch.
     context: MachineContext,
     /// The WASM engine is created on construction of the DefaultMachine, and
     /// is dropped when the DefaultMachine is dropped.
@@ -48,17 +44,18 @@ where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
-    // ISSUE: #249
-    #[allow(clippy::too_many_arguments)]
+    /// Create a new [`DefaultMachine`].
+    ///
+    /// # Arguments
+    ///
+    /// * `engine`: The global wasm [`Engine`] (engine, pooled resources, caches).
+    /// * `context`: Machine execution [context][`MachineContext`] (system params, epoch, network
+    ///    version, etc.).
+    /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
+    /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(
-        config: Config,
-        engine: Engine,
-        epoch: ChainEpoch,
-        base_fee: TokenAmount,
-        circ_supply: TokenAmount,
-        network_version: NetworkVersion,
-        state_root: Cid,
-        builtin_actors: Option<Cid>,
+        engine: &Engine,
+        context: &MachineContext,
         blockstore: B,
         externs: E,
     ) -> anyhow::Result<Self> {
@@ -67,22 +64,15 @@ where
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
-            epoch, &base_fee, network_version, state_root
+            context.epoch, &context.base_fee, context.network_version, context.initial_state_root
         );
 
-        if !SUPPORTED_VERSIONS.contains(&network_version) {
-            return Err(anyhow!("unsupported network version: {}", network_version));
+        if !SUPPORTED_VERSIONS.contains(&context.network_version) {
+            return Err(anyhow!(
+                "unsupported network version: {}",
+                context.network_version
+            ));
         }
-
-        let context = MachineContext {
-            epoch,
-            base_fee,
-            circ_supply,
-            network_version,
-            initial_state_root: state_root,
-            price_list: price_list_by_network_version(network_version),
-            debug: config.debug,
-        };
 
         // Sanity check that the blockstore contains the supplied state root.
         if !blockstore
@@ -103,7 +93,7 @@ where
 
         // Load the built-in actors manifest.
         // TODO: Check that the actor bundle is sane for the network version.
-        let (builtin_actors_cid, manifest_version) = match builtin_actors {
+        let (builtin_actors_cid, manifest_version) = match context.builtin_actors_override {
             Some(manifest_cid) => {
                 let (version, cid): (u32, Cid) = state_tree
                     .store()
@@ -126,9 +116,8 @@ where
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
         Ok(DefaultMachine {
-            config,
-            context,
-            engine,
+            context: context.clone(),
+            engine: engine.clone(),
             externs,
             state_tree,
             builtin_actors,
@@ -146,10 +135,6 @@ where
 
     fn engine(&self) -> &Engine {
         &self.engine
-    }
-
-    fn config(&self) -> &Config {
-        &self.config
     }
 
     fn blockstore(&self) -> &Self::Blockstore {

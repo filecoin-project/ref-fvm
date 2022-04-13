@@ -915,7 +915,7 @@ where
     }
 
     fn debug_enabled(&self) -> bool {
-        self.call_manager.context().debug
+        self.call_manager.context().actor_debugging
     }
 }
 

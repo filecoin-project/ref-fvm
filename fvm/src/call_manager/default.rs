@@ -100,7 +100,7 @@ where
         //
         // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
         // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.config().max_call_depth {
+        if self.call_stack_depth > self.machine.context().max_call_depth {
             return Err(
                 syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
             );

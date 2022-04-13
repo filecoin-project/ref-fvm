@@ -7,7 +7,8 @@ use fvm_shared::ActorID;
 use super::{Engine, Machine, MachineContext};
 use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
-use crate::Config;
+
+type Type = MachineContext;
 
 impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;
@@ -19,17 +20,12 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn config(&self) -> &Config {
-        (&**self).config()
-    }
-
-    #[inline(always)]
     fn blockstore(&self) -> &Self::Blockstore {
         (&**self).blockstore()
     }
 
     #[inline(always)]
-    fn context(&self) -> &MachineContext {
+    fn context(&self) -> &Type {
         (&**self).context()
     }
 

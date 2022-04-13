@@ -6,9 +6,9 @@ use futures::executor::block_on;
 use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{Config, DefaultKernel};
+use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::Manifest;
@@ -27,7 +27,6 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
-use num_traits::Zero;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -50,7 +49,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engine: Engine,
+        engine: &Engine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -73,17 +72,11 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .expect("no builtin actors index for nv");
 
         let machine = DefaultMachine::new(
-            Config {
-                max_call_depth: 4096,
-                debug: true, // Enable debug mode by default.
-            },
             engine,
-            epoch,
-            base_fee,
-            BigInt::zero(),
-            network_version,
-            state_root,
-            Some(builtin_actors),
+            NetworkConfig::new(network_version)
+                .override_actors(builtin_actors)
+                .for_epoch(epoch, state_root)
+                .set_base_fee(base_fee),
             blockstore,
             externs,
         )
@@ -129,10 +122,6 @@ where
 
     fn engine(&self) -> &Engine {
         self.machine.engine()
-    }
-
-    fn config(&self) -> &Config {
-        self.machine.config()
     }
 
     fn blockstore(&self) -> &Self::Blockstore {
