@@ -1,10 +1,12 @@
 # Changelog
 
-## 0.5.1 - 2022-04-11
+## [Unreleased]
+
+## 0.5.1  [2022-04-11]
 
 Add the `USR_ASSERTION_FAILED` exit code.
 
-## 0.5.0 - 2022-04-11
+## 0.5.0 [2022-04-11]
 
 - Enforce maximum big-int size to match lotus.
 - Make signature properties public.
