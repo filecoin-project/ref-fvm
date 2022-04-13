@@ -121,7 +121,6 @@ lazy_static! {
         .iter()
         .copied()
         .collect(),
-        verify_post_discount: false,
     };
 }
 
@@ -241,7 +240,6 @@ pub struct PriceList {
     pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
 
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
-    pub(crate) verify_post_discount: bool,
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
 }
@@ -404,10 +402,7 @@ impl PriceList {
                 .expect("512MiB lookup must exist in price table")
         });
 
-        let mut gas_used = cost.flat + info.challenged_sectors.len() as i64 * cost.scale;
-        if self.verify_post_discount {
-            gas_used /= 2;
-        }
+        let gas_used = cost.flat + info.challenged_sectors.len() as i64 * cost.scale;
 
         GasCharge::new("OnVerifyPost", gas_used, 0)
     }
