@@ -793,21 +793,16 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_get_randomness_base())?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
         // TODO: Check error code
-        let rand = self
-            .call_manager
+        self.call_manager
             .externs()
             .get_chain_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()?;
-        self.call_manager
-            .charge_gas(
-                self.call_manager
-                    .price_list()
-                    .on_get_randomness_per_byte(rand.len()),
-            )
-            .map(|_| rand)
+            .or_illegal_argument()
     }
 
     #[allow(unused)]
@@ -817,22 +812,16 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_get_randomness_base())?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
         // TODO: Check error code
-        let rand = self
-            .call_manager
+        self.call_manager
             .externs()
             .get_beacon_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()?;
-
-        self.call_manager
-            .charge_gas(
-                self.call_manager
-                    .price_list()
-                    .on_get_randomness_per_byte(rand.len()),
-            )
-            .map(|_| rand)
+            .or_illegal_argument()
     }
 }
 

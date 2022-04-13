@@ -564,19 +564,16 @@ impl PriceList {
         }
     }
 
-    /// Returns the base cost of the gas required for getting randomness from the client.
+    /// Returns the cost of the gas required for getting randomness from the client, based on the
+    /// numebr of bytes of entropy.
     #[inline]
-    pub fn on_get_randomness_base(&self) -> GasCharge<'static> {
-        GasCharge::new("OnGetRandomnessBase", self.get_randomness_base, 0)
-    }
-
-    /// Returns the gas required for getting randomness from the client based on the number of bytes of randomness.
-    #[inline]
-    pub fn on_get_randomness_per_byte(&self, randomness_size: usize) -> GasCharge<'static> {
+    pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge<'static> {
         GasCharge::new(
-            "OnGetRandomnessPerByte",
-            self.get_randomness_per_byte
-                .saturating_mul(randomness_size as i64),
+            "OnGetRandomness",
+            self.get_randomness_base.saturating_add(
+                self.get_randomness_per_byte
+                    .saturating_mul(entropy_size as i64),
+            ),
             0,
         )
     }
