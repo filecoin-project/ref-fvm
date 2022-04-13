@@ -1,10 +1,11 @@
-use anyhow::Context as _;
+use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -294,7 +295,19 @@ where
             };
 
             // Make a store.
+            let gas_available = kernel.gas_available();
+            let exec_units_to_add = match kernel.network_version() {
+                NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
+                _ => kernel.price_list().gas_to_exec_units(gas_available, false),
+            };
+
             let mut store = engine.new_store(kernel);
+            if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
+                return (
+                    Err(ExecutionError::Fatal(err)),
+                    store.into_data().kernel.take(),
+                );
+            }
 
             // Instantiate the module.
             let instance = match engine
@@ -315,12 +328,30 @@ where
                     .map_err(Abort::Fatal)?;
 
                 // Invoke it.
-                let return_block_id = invoke.call(&mut store, (param_id,))?;
+                let res = invoke.call(&mut store, (param_id,));
+
+                // Charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
+                // We do this by first loading the _total_ execution units consumed
+                let exec_units_consumed = store
+                    .fuel_consumed()
+                    .context("expected to find fuel consumed")
+                    .map_err(Abort::Fatal)?;
+                // Then, pass the _total_ exec_units_consumed to the InvocationData,
+                // which knows how many execution units had been consumed at the most recent snapshot
+                // It will charge gas for the delta between the total units (the number we provide) and its snapshot
+                store
+                    .data_mut()
+                    .charge_gas_for_exec_units(exec_units_consumed)
+                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
+
+                // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
+                // Any other invocation failure is returned here as an Abort
+                let return_block_id = res?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
                     let (code, ret) = store
-                        .data()
+                        .data_mut()
                         .kernel
                         .block_get(return_block_id)
                         .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;

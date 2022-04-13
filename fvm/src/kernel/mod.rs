@@ -24,6 +24,7 @@ mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 use crate::call_manager::{CallManager, InvocationResult};
+use crate::gas::PriceList;
 use crate::machine::Machine;
 
 /// The "kernel" implements
@@ -117,17 +118,17 @@ pub trait BlockOps {
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32>;
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32>;
 
     /// Returns the blocks codec & size.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat>;
+    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat>;
 
     /// Returns a codec and a block as an owned buffer, given an ID.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
         let stat = self.block_stat(id)?;
         let mut ret = vec![0; stat.size as usize];
         // TODO error handling.
@@ -218,9 +219,14 @@ pub trait CircSupplyOps {
 ///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
 ///  at the WASM level.
 pub trait GasOps {
+    /// GasAvailable return the gas available for the transaction.
+    fn gas_available(&self) -> i64;
+
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
+
+    fn price_list(&self) -> &PriceList;
 }
 
 /// Cryptographic primitives provided by the kernel.
@@ -290,7 +296,7 @@ pub trait RandomnessOps {
     /// ticket chain from a given epoch and incorporating requisite entropy.
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -300,7 +306,7 @@ pub trait RandomnessOps {
     /// beacon from a given epoch and incorporating requisite entropy.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
     fn get_randomness_from_beacon(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
