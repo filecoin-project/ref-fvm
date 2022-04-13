@@ -376,15 +376,15 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         self.0.block_read(id, offset, buf)
     }
 
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
     }
 
-    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
         self.0.block_get(id)
     }
 }
@@ -499,8 +499,16 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
+    fn gas_available(&self) -> i64 {
+        self.0.gas_available()
+    }
+
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         self.0.charge_gas(name, compute)
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.0.price_list()
     }
 }
 
@@ -553,7 +561,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     fn get_randomness_from_tickets(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -563,7 +571,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],

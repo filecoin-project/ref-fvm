@@ -12,7 +12,9 @@ use crate::Kernel;
 
 pub mod backtrace;
 pub use backtrace::Backtrace;
+
 mod default;
+
 pub use default::DefaultCallManager;
 
 /// BlockID representing nil parameters or return data.
@@ -81,7 +83,7 @@ pub trait CallManager: 'static {
 
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {
-        &self.machine().context().price_list
+        self.machine().context().price_list
     }
 
     /// Returns the machine context.
@@ -118,9 +120,9 @@ pub trait CallManager: 'static {
 
 /// The result of a method invocation.
 pub enum InvocationResult {
-    /// Indicates that the actor sucessfully returned. The value may be empty.
+    /// Indicates that the actor successfully returned. The value may be empty.
     Return(RawBytes),
-    /// Indicates taht the actor aborted with the given exit code.
+    /// Indicates that the actor aborted with the given exit code.
     Failure(ExitCode),
 }
 

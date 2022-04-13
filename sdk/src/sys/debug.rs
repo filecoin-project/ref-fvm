@@ -1,3 +1,5 @@
+//! Syscalls for debugging.
+
 super::fvm_syscalls! {
     module = "debug";
 

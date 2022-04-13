@@ -2,6 +2,7 @@ use cid::Cid;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
+use crate::kernel::Result;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -29,14 +30,61 @@ pub struct InvocationData<K> {
     /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
     /// after receiving this error without calling any other syscalls.
     pub last_error: Option<backtrace::Cause>,
+
+    /// This snapshot is used to track changes in available_gas during syscall invocations.
+    /// The snapshot gets taken when execution exits WASM _after_ charging gas for any newly incurred fuel costs.
+    /// When execution moves back into WASM, we consume fuel for the delta between the snapshot and the new gas_available value.
+    pub gas_available_snapshot: i64,
+
+    /// This snapshot is used to track changes in fuel_consumed during WASM execution.
+    /// The snapshot gets taken when execution enters WASM _after_ consuming fuel for any syscall gas consumption.
+    /// When execution exits WASM, we charge gas for the delta between the new fuel_consumed value and the snapshot.
+    pub exec_units_consumed_snapshot: u64,
 }
 
-impl<K> InvocationData<K> {
+impl<K: Kernel> InvocationData<K> {
     pub(crate) fn new(kernel: K) -> Self {
+        let gas_available = kernel.gas_available();
         Self {
             kernel,
             last_error: None,
+            gas_available_snapshot: gas_available,
+            exec_units_consumed_snapshot: 0,
         }
+    }
+
+    /// This method:
+    /// 1) calculates the available_gas delta from the previous snapshot,
+    /// 2) converts this to the corresponding amount of exec_units
+    /// 3) updates the available_gas and exec_units_consumed snapshots. The exec_units_consumed_snapshot is optimistically updated, assuming the value calculated in 2 will be consumed
+    /// 4) returns the value calculated in 2) for its caller to actually consume that exec_units_consumed
+    pub(crate) fn calculate_exec_units_for_gas(&self) -> Result<i64> {
+        let gas_available = self.kernel.gas_available();
+        let exec_units_to_consume = self
+            .kernel
+            .price_list()
+            .gas_to_exec_units(self.gas_available_snapshot - gas_available, true);
+        Ok(exec_units_to_consume)
+    }
+
+    pub(crate) fn set_snapshots(&mut self, gas_available: i64, exec_units_consumed: u64) {
+        self.gas_available_snapshot = gas_available;
+        self.exec_units_consumed_snapshot = exec_units_consumed;
+    }
+
+    /// This method:
+    /// 1) charges gas corresponding to the exec_units_consumed delta based on the previous snapshot
+    /// 2) updates the exec_units_consumed and gas_available snapshots
+    pub(crate) fn charge_gas_for_exec_units(&mut self, exec_units_consumed: u64) -> Result<()> {
+        self.kernel.charge_gas(
+            "exec_units",
+            self.kernel
+                .price_list()
+                .on_consume_exec_units(exec_units_consumed)
+                .total(),
+        )?;
+        self.set_snapshots(self.kernel.gas_available(), exec_units_consumed);
+        Ok(())
     }
 }
 

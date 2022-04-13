@@ -15,50 +15,56 @@ use crate::Kernel;
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 
+pub fn default_wasmtime_config() -> wasmtime::Config {
+    let mut c = wasmtime::Config::default();
+
+    // c.max_wasm_stack(); https://github.com/filecoin-project/ref-fvm/issues/424
+
+    // wasmtime default: false
+    c.wasm_threads(false);
+
+    // wasmtime default: true
+    c.wasm_simd(false);
+
+    // wasmtime default: false
+    c.wasm_multi_memory(false);
+
+    // wasmtime default: false
+    c.wasm_memory64(false);
+
+    // wasmtime default: true
+    c.wasm_bulk_memory(true);
+
+    // wasmtime default: false
+    c.wasm_module_linking(false);
+
+    // wasmtime default: true
+    c.wasm_multi_value(false); // ??
+
+    // wasmtime default: depends on the arch
+    // > This is true by default on x86-64, and false by default on other architectures.
+    c.wasm_reference_types(false);
+
+    // wasmtime default: false
+    //
+    // from wasmtime docs:
+    // > When Cranelift is used as a code generation backend this will
+    // > configure it to replace NaNs with a single canonical value. This
+    // > is useful for users requiring entirely deterministic WebAssembly
+    // > computation. This is not required by the WebAssembly spec, so it is
+    // > not enabled by default.
+    c.cranelift_nan_canonicalization(true);
+
+    // c.cranelift_opt_level(Speed); ?
+
+    c.consume_fuel(true);
+
+    c
+}
+
 impl Default for Engine {
     fn default() -> Self {
-        let mut c = wasmtime::Config::default();
-
-        // c.max_wasm_stack(); https://github.com/filecoin-project/ref-fvm/issues/424
-
-        // wasmtime default: false
-        c.wasm_threads(false);
-
-        // wasmtime default: true
-        c.wasm_simd(false);
-
-        // wasmtime default: false
-        c.wasm_multi_memory(false);
-
-        // wasmtime default: false
-        c.wasm_memory64(false);
-
-        // wasmtime default: true
-        c.wasm_bulk_memory(true);
-
-        // wasmtime default: false
-        c.wasm_module_linking(false);
-
-        // wasmtime default: true
-        c.wasm_multi_value(false); // ??
-
-        // wasmtime default: depends on the arch
-        // > This is true by default on x86-64, and false by default on other architectures.
-        c.wasm_reference_types(false);
-
-        // wasmtime default: false
-        //
-        // from wasmtime docs:
-        // > When Cranelift is used as a code generation backend this will
-        // > configure it to replace NaNs with a single canonical value. This
-        // > is useful for users requiring entirely deterministic WebAssembly
-        // > computation. This is not required by the WebAssembly spec, so it is
-        // > not enabled by default.
-        c.cranelift_nan_canonicalization(true);
-
-        // c.cranelift_opt_level(Speed); ?
-
-        Engine::new(&c).unwrap()
+        Engine::new(&default_wasmtime_config()).unwrap()
     }
 }
 
