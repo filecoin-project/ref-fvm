@@ -42,23 +42,6 @@ lazy_static::lazy_static! {
     };
 }
 
-#[derive(Clone)]
-pub struct Config {
-    /// The maximum call depth.
-    pub max_call_depth: u32,
-    /// Whether debug mode is enabled or not.
-    pub debug: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            max_call_depth: 4096,
-            debug: false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use fvm_ipld_blockstore::MemoryBlockstore;
@@ -66,13 +49,12 @@ mod test {
     use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;
-    use num_traits::Zero;
 
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Consensus, Externs, Rand};
-    use crate::machine::{DefaultMachine, Engine};
+    use crate::machine::{DefaultMachine, Engine, NetworkConfig};
     use crate::state_tree::StateTree;
-    use crate::{executor, Config, DefaultKernel};
+    use crate::{executor, DefaultKernel};
 
     struct DummyExterns;
 
@@ -125,14 +107,10 @@ mod test {
         let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
 
         let machine = DefaultMachine::new(
-            Config::default(),
-            Engine::default(),
-            0,
-            Zero::zero(),
-            Zero::zero(),
-            fvm_shared::version::NetworkVersion::V14,
-            root,
-            Some(actors_cid),
+            &Engine::default(),
+            &NetworkConfig::new(fvm_shared::version::NetworkVersion::V14)
+                .override_actors(actors_cid)
+                .for_epoch(0, root),
             bs,
             DummyExterns,
         )
