@@ -60,8 +60,8 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn consume(self) -> Self::Blockstore {
-        (*self).consume()
+    fn into_store(self) -> Self::Blockstore {
+        (*self).into_store()
     }
 
     #[inline(always)]

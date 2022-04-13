@@ -156,8 +156,8 @@ where
         self.machine.transfer(from, to, value)
     }
 
-    fn consume(self) -> Self::Blockstore {
-        self.machine.consume()
+    fn into_store(self) -> Self::Blockstore {
+        self.machine.into_store()
     }
 
     fn flush(&mut self) -> Result<Cid> {
@@ -283,11 +283,11 @@ where
 {
     type CallManager = C;
 
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized,
     {
-        self.0.take().0
+        self.0.into_call_manager().0
     }
 
     fn new(

@@ -96,7 +96,7 @@ mod test {
         let mut bs = MemoryBlockstore::default();
         let mut st = StateTree::new(bs, StateTreeVersion::V4).unwrap();
         let root = st.flush().unwrap();
-        bs = st.consume();
+        bs = st.into_store();
 
         // An empty built-in actors manifest.
         let manifest_cid = {

@@ -272,7 +272,7 @@ where
         Ok(())
     }
 
-    fn consume(self) -> Self::Blockstore {
-        self.state_tree.consume()
+    fn into_store(self) -> Self::Blockstore {
+        self.state_tree.into_store()
     }
 }

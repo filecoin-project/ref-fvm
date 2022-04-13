@@ -46,7 +46,7 @@ pub trait Kernel:
     type CallManager: CallManager;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`].
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized;
 

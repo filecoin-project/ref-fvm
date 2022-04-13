@@ -76,7 +76,7 @@ where
 {
     type CallManager = C;
 
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized,
     {
