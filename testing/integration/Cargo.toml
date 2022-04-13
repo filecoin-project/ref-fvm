@@ -1,6 +1,6 @@
 [package]
 name = "fvm_integration_tests"
-description = "Filecoin Virtual Machine conformance tests"
+description = "Filecoin Virtual Machine integration tests framework"
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -14,9 +14,8 @@ fvm_ipld_car = { version = "0.4.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.0", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.1.0", path = "../../ipld/encoding" }
 
-
-actors-v6 = { version = "6.0.5", package = "fil_builtin_actors_bundle" }
-actors-v7 = { version = "7.0.4", package = "fil_builtin_actors_bundle" }
+actors-v6 = { version = "6.1.1", package = "fil_builtin_actors_bundle" }
+actors-v7 = { version = "7.1.2", package = "fil_builtin_actors_bundle" }
 anyhow = "1.0.47"
 cid = { version = "0.8.2", default-features = false }
 futures = "0.3.19"
@@ -27,7 +26,7 @@ libsecp256k1 = "0.7.0"
 rand = "0.8.5"
 rand_chacha = "0.3"
 thiserror = "1.0.30"
-wasmtime = "0.33.0"
+wasmtime = "0.33.1"
 
 [dev-dependencies]
 wabt = "0.10.0"

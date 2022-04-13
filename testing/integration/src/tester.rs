@@ -57,11 +57,11 @@ impl Tester {
 
         // Get the builtin actors index for the concrete network version.
         let builtin_actors = *nv_actors.get(&nv).ok_or(NoRootCid(nv))?;
-
+        dbg!(&builtin_actors);
         // Get sys and init actors code cid
         let (sys_code_cid, init_code_cid, account_code_cid) =
             fetch_builtin_code_cid(&blockstore, &builtin_actors, 0)?;
-
+        dbg!(sys_code_cid, init_code_cid, account_code_cid);
         // Initialize state tree
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
