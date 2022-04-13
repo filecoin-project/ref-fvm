@@ -590,8 +590,6 @@ where
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
-        self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
@@ -796,12 +794,20 @@ where
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
+            .charge_gas(self.call_manager.price_list().on_get_randomness_base())?;
         // TODO: Check error code
-        self.call_manager
+        let rand = self
+            .call_manager
             .externs()
             .get_chain_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+            .or_illegal_argument()?;
+        self.call_manager
+            .charge_gas(
+                self.call_manager
+                    .price_list()
+                    .on_get_randomness_per_byte(rand.len()),
+            )
+            .map(|_| rand)
     }
 
     #[allow(unused)]
@@ -812,13 +818,21 @@ where
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
+            .charge_gas(self.call_manager.price_list().on_get_randomness_base())?;
         // TODO: Check error code
-        // Hyperdrive and above only.
-        self.call_manager
+        let rand = self
+            .call_manager
             .externs()
             .get_beacon_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+            .or_illegal_argument()?;
+
+        self.call_manager
+            .charge_gas(
+                self.call_manager
+                    .price_list()
+                    .on_get_randomness_per_byte(rand.len()),
+            )
+            .map(|_| rand)
     }
 }
 

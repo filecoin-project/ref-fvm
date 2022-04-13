@@ -119,7 +119,8 @@ lazy_static! {
         .collect(),
 
         gas_per_exec_unit: 0,
-        extern_traversal_cost: 0,
+        get_randomness_base: 0,
+        get_randomness_per_byte: 0,
 
         block_memcpy_per_byte_cost: 0,
         block_io_per_byte_cost: 0,
@@ -204,6 +205,7 @@ lazy_static! {
         .cloned()
         .collect(),
 
+        // TODO: PARAM_FINISH: this may need to be increased to account for the cost of an extern
         verify_consensus_fault: 495422,
         verify_replica_update: 36316136,
         verify_post_lookup: [
@@ -241,7 +243,10 @@ lazy_static! {
         // TODO: PARAM_FINISH
         gas_per_exec_unit: 2,
         // TODO: PARAM_FINISH
-        extern_traversal_cost: 1,
+        get_randomness_base: 1,
+        // TODO: PARAM_FINISH
+        get_randomness_per_byte: 1,
+
         // TODO: PARAM_FINIuiSH
         block_open_base: 1,
         // TODO: PARAM_FINISH
@@ -364,9 +369,8 @@ pub struct PriceList {
     // 1 Exec Unit = gas_per_exec_unit * 1 Gas
     pub(crate) gas_per_exec_unit: i64,
 
-    // A special cost for traversing the boundary between the FVM and the client node
-    // See https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#extern-traversing-syscall-fee-revision for more
-    pub(crate) extern_traversal_cost: i64,
+    pub(crate) get_randomness_base: i64,
+    pub(crate) get_randomness_per_byte: i64,
 
     pub(crate) block_memcpy_per_byte_cost: i64,
     pub(crate) block_io_per_byte_cost: i64,
@@ -560,10 +564,21 @@ impl PriceList {
         }
     }
 
-    /// Returns the gas required for traversing an extern boundary into the client.
+    /// Returns the base cost of the gas required for getting randomness from the client.
     #[inline]
-    pub fn on_extern_traversal(&self) -> GasCharge<'static> {
-        GasCharge::new("OnExternTraversal", self.extern_traversal_cost, 0)
+    pub fn on_get_randomness_base(&self) -> GasCharge<'static> {
+        GasCharge::new("OnGetRandomnessBase", self.get_randomness_base, 0)
+    }
+
+    /// Returns the gas required for getting randomness from the client based on the number of bytes of randomness.
+    #[inline]
+    pub fn on_get_randomness_per_byte(&self, randomness_size: usize) -> GasCharge<'static> {
+        GasCharge::new(
+            "OnGetRandomnessPerByte",
+            self.get_randomness_per_byte
+                .saturating_mul(randomness_size as i64),
+            0,
+        )
     }
 
     /// Returns the base gas required for loading an object, independent of the object's size.
