@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added `Display` trait to `Type` for error printing. 
+
 ## 0.5.1  [2022-04-11]
 
 Add the `USR_ASSERTION_FAILED` exit code.

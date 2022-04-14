@@ -4,4 +4,4 @@
 
 ## 0.5.0 [2022-04-11]
 
-Upgrades the SDK to fvm_shared 0.5.0. This release includes a significant breaking change to exit codes.
+- Added a `testing` module to access `assert_*` macros to be able to do assertions in actors code.

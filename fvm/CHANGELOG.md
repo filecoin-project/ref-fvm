@@ -4,4 +4,5 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- Updates to fvm_shared 0.5.
+- Changed visibility of `account_actor`, `init_actor` and `system_actor` to public to use them in the integration test
+framework.
