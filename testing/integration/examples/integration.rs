@@ -29,7 +29,7 @@ struct State {
 pub fn main() {
     // Instantiate tester
     let (mut tester, mut state_tree) =
-        Tester::new(NetworkVersion::V14, StateTreeVersion::V4, 10).unwrap();
+        Tester::new(NetworkVersion::V15, StateTreeVersion::V4, 10).unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAST).unwrap();

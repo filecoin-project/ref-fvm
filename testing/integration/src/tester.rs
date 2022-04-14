@@ -2,20 +2,18 @@ use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
-use fvm::machine::{DefaultMachine, Engine};
+use fvm::machine::{DefaultMachine, Engine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, system_actor, Config, DefaultKernel};
+use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
 use multihash::Code;
-use num_traits::Zero;
 
 use crate::builtin::{
     fetch_builtin_code_cid, import_builtin_actors, set_init_actor, set_sys_actor,
@@ -57,11 +55,11 @@ impl Tester {
 
         // Get the builtin actors index for the concrete network version.
         let builtin_actors = *nv_actors.get(&nv).ok_or(NoRootCid(nv))?;
-        dbg!(&builtin_actors);
+
         // Get sys and init actors code cid
         let (sys_code_cid, init_code_cid, account_code_cid) =
-            fetch_builtin_code_cid(&blockstore, &builtin_actors, 0)?;
-        dbg!(sys_code_cid, init_code_cid, account_code_cid);
+            fetch_builtin_code_cid(&blockstore, &builtin_actors, 1)?;
+
         // Initialize state tree
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
@@ -145,7 +143,7 @@ impl Tester {
             .map_err(anyhow::Error::from)
             .context(FailedToFlushTree)?;
 
-        let blockstore = state_tree.consume();
+        let blockstore = state_tree.into_store();
 
         self.blockstore = Some(blockstore.clone());
 
@@ -155,17 +153,11 @@ impl Tester {
             .context(FailedToLoadCacheConfig)?;
 
         let machine = DefaultMachine::new(
-            Config {
-                max_call_depth: 4096,
-                debug: true, // Enable debug mode by default.
-            },
-            Engine::default(),
-            0,
-            BigInt::from(DEFAULT_BASE_FEE),
-            BigInt::zero(),
-            self.nv,
-            state_root,
-            Some(self.builtin_actors),
+            &Engine::default(),
+            NetworkConfig::new(self.nv.clone())
+                .override_actors(self.builtin_actors.clone())
+                .for_epoch(0, state_root)
+                .set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE)),
             blockstore,
             dummy::DummyExterns,
         )?;

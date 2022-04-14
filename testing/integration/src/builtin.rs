@@ -43,9 +43,7 @@ pub fn fetch_builtin_code_cid(
     builtin_actors: &Cid,
     ver: u32,
 ) -> Result<(Cid, Cid, Cid)> {
-    dbg!("aaaaaaaaaaa");
     let manifest = load_manifest(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
-    dbg!(&manifest);
     Ok((
         *manifest
             .get_by_right(&Type::System)
