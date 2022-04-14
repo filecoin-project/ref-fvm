@@ -1,4 +1,3 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
@@ -6,7 +5,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use wasmtime::{Linker, Module};
+use fvm_wasm_instrument::gas_metering::{ConstantCostRules, GAS_COUNTER_NAME};
+use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
@@ -101,8 +101,9 @@ impl From<wasmtime::Engine> for Engine {
 
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
-    instances: HashMap<Cid, wasmtime::InstancePre<InvocationData<K>>>,
 }
+
+const DEFAULT_STACK_LIMIT: u32 = 100000; // todo figure out a good number
 
 impl Engine {
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
@@ -125,7 +126,7 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
-            let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+            let module = self.load_raw(wasm.as_slice())?;
             cache.insert(*cid, module);
         }
         Ok(())
@@ -137,11 +138,36 @@ impl Engine {
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = Module::from_binary(&self.0.engine, wasm)?;
+                let module = self.load_raw(wasm)?;
                 cache.insert(*k, module.clone());
                 module
             }
         };
+        Ok(module)
+    }
+
+    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
+        // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
+        // avoid breaking debug info
+
+        use fvm_wasm_instrument::gas_metering::inject;
+        use fvm_wasm_instrument::inject_stack_limiter;
+        use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
+
+        let m = deserialize_buffer(raw_wasm)?;
+
+        // stack limiter adds post/pre-ambles to call instructions; We want to do that
+        // before injecting gas accounting calls to avoid this overhead in every single
+        // block of code.
+        let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
+
+        let m = inject(m, &ConstantCostRules::default(), "gas")
+            .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
+
+        let wasm = m.to_bytes()?;
+
+        let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+
         Ok(module)
     }
 
@@ -178,40 +204,39 @@ impl Engine {
     pub fn get_instance<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
+        gas_global: Global,
         k: &Cid,
     ) -> anyhow::Result<Option<wasmtime::Instance>> {
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
         let cache = match instance_cache.entry() {
-            anymap::Entry::Occupied(e) => e.into_mut(),
+            anymap::Entry::Occupied(e) => e.into_mut(), // todo what about gas here?
             anymap::Entry::Vacant(e) => e.insert({
                 let mut linker = Linker::new(&self.0.engine);
+                linker.allow_shadowing(true);
+
                 bind_syscalls(&mut linker)?;
-                Cache {
-                    linker,
-                    instances: HashMap::new(),
-                }
+                Cache { linker }
             }),
         };
-        let instance_pre = match cache.instances.entry(*k) {
-            Entry::Occupied(e) => e.into_mut(),
-            Entry::Vacant(e) => {
-                let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
-                let module = match module_cache.get(k) {
-                    Some(module) => module,
-                    None => return Ok(None),
-                };
-                // We can cache the "pre instance" because our linker only has host functions.
-                let pre = cache.linker.instantiate_pre(&mut *store, module)?;
-                e.insert(pre)
-            }
+        cache.linker.define("gas", GAS_COUNTER_NAME, gas_global)?;
+
+        let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match module_cache.get(k) {
+            Some(module) => module,
+            None => return Ok(None),
         };
-        let instance = instance_pre.instantiate(&mut *store)?;
+        let instance = cache.linker.instantiate(&mut *store, module)?;
         Ok(Some(instance))
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
+    pub fn new_store<K: Kernel>(&self, kernel: K) -> (wasmtime::Store<InvocationData<K>>, Global) {
+        let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
+
+        let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
+        let gg = Global::new(&mut store, ggtype, Val::I64(200000000000)).unwrap(); // todo no unwrap
+
+        (store, gg)
     }
 }

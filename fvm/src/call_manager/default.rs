@@ -342,7 +342,7 @@ where
                     .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
             };
 
-            let mut store = engine.new_store(kernel);
+            let (mut store, gg) = engine.new_store(kernel);
             if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
                 return (
                     Err(ExecutionError::Fatal(err)),
@@ -352,7 +352,7 @@ where
 
             // Instantiate the module.
             let instance = match engine
-                .get_instance(&mut store, &state.code)
+                .get_instance(&mut store, gg, &state.code)
                 .and_then(|i| i.context("actor code not found"))
                 .or_fatal()
             {
@@ -388,6 +388,13 @@ where
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
                 let return_block_id = res?;
+
+                use wasmtime::Val;
+
+                match gg.get(&mut store) {
+                    Val::I64(v) => println!("GAS REMAIN {}", v),
+                    _ => {}
+                };
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
