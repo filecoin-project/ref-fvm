@@ -19,7 +19,7 @@ use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
-pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
+pub struct DefaultCallManager<M>(Option<Box<InnerDefaultCallManager<M>>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
@@ -65,7 +65,7 @@ where
     type Machine = M;
 
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
-        DefaultCallManager(Some(InnerDefaultCallManager {
+        DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
             origin,
@@ -73,7 +73,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
-        }))
+        })))
     }
 
     fn send<K>(
@@ -100,7 +100,7 @@ where
         //
         // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
         // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.config().max_call_depth {
+        if self.call_stack_depth > self.machine.context().max_call_depth {
             return Err(
                 syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
             );
@@ -288,7 +288,7 @@ where
                 match kernel.block_create(DAG_CBOR, params) {
                     Ok(id) => id,
                     // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), kernel.take()),
+                    Err(err) => return (Err(err), kernel.into_call_manager()),
                 }
             } else {
                 super::NO_DATA_BLOCK_ID
@@ -305,7 +305,7 @@ where
             if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
                 return (
                     Err(ExecutionError::Fatal(err)),
-                    store.into_data().kernel.take(),
+                    store.into_data().kernel.into_call_manager(),
                 );
             }
 
@@ -316,7 +316,7 @@ where
                 .or_fatal()
             {
                 Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.take()),
+                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
             };
 
             // From this point on, there are no more syscall errors, only aborts.
@@ -366,7 +366,7 @@ where
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
-            let mut cm = invocation_data.kernel.take();
+            let mut cm = invocation_data.kernel.into_call_manager();
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {

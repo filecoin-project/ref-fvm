@@ -45,7 +45,7 @@ pub fn bench_vector_variant(
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
                 // TODO next few lines don't impact the benchmarks, but it might make them run waaaay more slowly... ought to make a base copy of the machine and exec and deepcopy them each time.
-                let machine = TestMachine::new_for_vector(vector, variant, bs, engine.clone());
+                let machine = TestMachine::new_for_vector(vector, variant, bs, engine);
                 // can assume this works because it passed a test before this ran
                 let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                 (messages_with_lengths.clone(), exec)

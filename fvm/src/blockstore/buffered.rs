@@ -33,7 +33,7 @@ where
         }
     }
 
-    pub fn consume(self) -> BS {
+    pub fn into_inner(self) -> BS {
         self.base
     }
 }

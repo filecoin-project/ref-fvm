@@ -76,7 +76,7 @@ where
 {
     type CallManager = C;
 
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized,
     {
@@ -590,8 +590,6 @@ where
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
-        self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
@@ -795,8 +793,11 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
         // TODO: Check error code
         self.call_manager
             .externs()
@@ -811,10 +812,12 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern_traversal())?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
         // TODO: Check error code
-        // Hyperdrive and above only.
         self.call_manager
             .externs()
             .get_beacon_randomness(personalization, rand_epoch, entropy)
@@ -915,7 +918,7 @@ where
     }
 
     fn debug_enabled(&self) -> bool {
-        self.call_manager.context().debug
+        self.call_manager.context().actor_debugging
     }
 }
 
