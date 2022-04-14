@@ -4,7 +4,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::call_manager::InvocationResult;
-use crate::kernel::Result;
+use crate::kernel::SyscallError;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
@@ -12,7 +12,7 @@ pub type ExecutionTrace = Vec<ExecutionEvent>;
 #[derive(Clone, Debug)]
 pub enum ExecutionEvent {
     Call(SendParams),
-    Return(Result<InvocationResult>),
+    Return(Result<InvocationResult, SyscallError>),
 }
 
 #[derive(Clone, Debug)]

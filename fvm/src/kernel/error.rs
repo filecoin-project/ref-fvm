@@ -3,8 +3,6 @@ use std::fmt::Display;
 use derive_more::Display;
 use fvm_shared::error::ErrorNumber;
 
-use crate::kernel::ExecutionError::{Fatal, OutOfGas, Syscall};
-
 /// Execution result.
 pub type Result<T> = std::result::Result<T, ExecutionError>;
 
@@ -35,16 +33,6 @@ pub enum ExecutionError {
     OutOfGas,
     Syscall(SyscallError),
     Fatal(anyhow::Error),
-}
-
-impl Clone for ExecutionError {
-    fn clone(&self) -> Self {
-        match self {
-            OutOfGas => OutOfGas,
-            Syscall(v) => Syscall(v.clone()),
-            Fatal(v) => Fatal(anyhow::Error::msg(v.to_string())),
-        }
-    }
 }
 
 impl ExecutionError {

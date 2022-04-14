@@ -4,7 +4,7 @@ use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
@@ -13,7 +13,7 @@ use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
@@ -125,7 +125,16 @@ where
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Return(result.clone()));
+            self.exec_trace.push(ExecutionEvent::Return(match result {
+                Err(ref e) => Err(match e {
+                    ExecutionError::OutOfGas => {
+                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
+                    }
+                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
+                    ExecutionError::Syscall(s) => s.clone(),
+                }),
+                Ok(ref v) => Ok(v.clone()),
+            }));
         }
 
         result

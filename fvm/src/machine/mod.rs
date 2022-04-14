@@ -129,8 +129,8 @@ impl NetworkConfig {
 
     /// Enable actor debugging. This is a consensus-critical option (affects gas usage) so it should
     /// only be enabled for local testing or as a network-wide parameter.
-    pub fn enable_actor_debugging(&mut self, enabled: bool) -> &mut Self {
-        self.actor_debugging = enabled;
+    pub fn enable_actor_debugging(&mut self) -> &mut Self {
+        self.actor_debugging = true;
         self
     }
 
@@ -180,6 +180,8 @@ pub struct MachineContext {
     /// DEFAULT: Total FIL supply (likely not what you want).
     pub circ_supply: TokenAmount,
 
+    /// Whether or not to produce execution traces in the returned result.
+    /// Not consensus-critical, but has a performance impact.
     pub tracing: bool,
 }
 
@@ -196,7 +198,7 @@ impl MachineContext {
         self
     }
 
-    /// Set [`MachineContext::tracing`].
+    /// Enable execution traces. [`MachineContext::tracing`].
     pub fn enable_tracing(&mut self) -> &mut Self {
         self.tracing = true;
         self
