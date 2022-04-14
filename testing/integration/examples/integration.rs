@@ -65,7 +65,7 @@ pub fn main() {
         gas_premium: Default::default(),
     };
 
-    let res = tester
+    tester
         .executor
         .unwrap()
         .execute_message(message, ApplyKind::Explicit, 100)
