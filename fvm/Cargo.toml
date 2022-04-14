@@ -1,7 +1,7 @@
 [package]
 name = "fvm"
 description = "Filecoin Virtual Machine reference implementation"
-version = "0.5.1"
+version = "0.6.0"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
@@ -21,7 +21,7 @@ num-derive = "0.3.3"
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
 multihash = { version = "0.16.1", default-features = false }
 fvm_shared = { version = "0.5.1", path = "../shared", features = ["crypto"] }
-fvm_ipld_hamt = { version = "0.4.0", path = "../ipld/hamt"}
+fvm_ipld_hamt = { version = "0.5.0", path = "../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.0", path = "../ipld/amt"}
 fvm_ipld_blockstore = { version = "0.1.0", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.1.0", path = "../ipld/encoding" }
