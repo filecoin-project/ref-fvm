@@ -10,13 +10,10 @@ use num_traits::Zero;
 use wabt::wat2wasm;
 
 const WAST: &str = r#"
-;; Define anonymous module with function export named `sub`.
+;; Mock invoke function
 (module
-  (func (export "sub") (param $x i32) (param $y i32) (result i32)
-    ;; return x - y;
-    (i32.sub
-      (get_local $x) (get_local $y)
-    )
+  (func (export "invoke") (param $x i32) (result i32)
+    (i32.const 1)
   )
 )
 "#;
@@ -68,7 +65,7 @@ pub fn main() {
         gas_premium: Default::default(),
     };
 
-    tester
+    let res = tester
         .executor
         .unwrap()
         .execute_message(message, ApplyKind::Explicit, 100)

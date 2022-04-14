@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
-use fvm::machine::{DefaultMachine, Engine, NetworkConfig};
+use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
@@ -20,7 +20,9 @@ use crate::builtin::{
 };
 use crate::dummy;
 use crate::dummy::DummyExterns;
-use crate::error::Error::{FailedToFlushTree, FailedToLoadCacheConfig, NoRootCid};
+use crate::error::Error::{
+    FailedToFlushTree, FailedToLoadCacheConfig, NoManifestInformation, NoRootCid,
+};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
@@ -39,6 +41,8 @@ pub struct Tester {
             DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
         >,
     >,
+    // Custom code cid deployed by developer
+    code_cids: Vec<Cid>,
 }
 
 impl Tester {
@@ -56,9 +60,15 @@ impl Tester {
         // Get the builtin actors index for the concrete network version.
         let builtin_actors = *nv_actors.get(&nv).ok_or(NoRootCid(nv))?;
 
+        let (manifest_version, manifest_data_cid): (u32, Cid) =
+            match blockstore.get_cbor(&builtin_actors)? {
+                Some((manifest_version, manifest_data)) => (manifest_version, manifest_data),
+                None => return Err(NoManifestInformation(builtin_actors).into()),
+            };
+
         // Get sys and init actors code cid
         let (sys_code_cid, init_code_cid, account_code_cid) =
-            fetch_builtin_code_cid(&blockstore, &builtin_actors, 1)?;
+            fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
@@ -89,6 +99,7 @@ impl Tester {
                 accounts,
                 blockstore: None,
                 executor: None,
+                code_cids: vec![],
             },
             state_tree,
         ))
@@ -120,6 +131,9 @@ impl Tester {
 
         // Put the WASM code into the blockstore.
         let code_cid = put_wasm_code(state_tree.store(), wasm_bin)?;
+
+        // Add code cid to list of deployed contract
+        self.code_cids.push(code_cid.clone());
 
         // Initialize actor state
         let actor_state = ActorState::new(code_cid, state_cid, balance, 1);
@@ -162,7 +176,12 @@ impl Tester {
             dummy::DummyExterns,
         )?;
 
-        self.executor = Some(DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine));
+        let executor = DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine);
+        executor
+            .engine()
+            .preload(executor.blockstore(), &self.code_cids)?;
+
+        self.executor = Some(executor);
 
         Ok(())
     }

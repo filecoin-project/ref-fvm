@@ -1,3 +1,4 @@
+use cid::Cid;
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::version::NetworkVersion;
 
@@ -8,6 +9,8 @@ pub(crate) enum Error {
     MultipleRootCid(NetworkVersion),
     #[error("no root cid for network: {0}")]
     NoRootCid(NetworkVersion),
+    #[error("could not find manifest information for cid: {0}")]
+    NoManifestInformation(Cid),
     #[error("could not load builtin manifest")]
     FailedToLoadManifest,
     #[error("manifest has no cid for builtin actor: {0}")]
