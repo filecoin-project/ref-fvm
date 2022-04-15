@@ -2,7 +2,7 @@
 
 Changes to the reference FVM implementation.
 
-## 0.7.0 [UNRELEASED]
+## 0.7.0 [2022-04-15]
 
 This release contains exactly one (breaking) change.
 
