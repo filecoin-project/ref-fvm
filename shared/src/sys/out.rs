@@ -7,27 +7,33 @@
 //!
 //! Read more at https://github.com/rust-lang/rust/issues/73755.
 
+// NOTE: When possible, pack fields such that loads will be power-of-two aligned. Un-aligned loads
+// _can_ be done (LLVM will generate the appropriate code) but are slower.
+//
+// Read up on https://doc.rust-lang.org/reference/type-layout.html for more information.
+//
+// Also, please also read the docs on super::SyscallSafe before modifying any of these types.
+
 pub mod actor {
-    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
     pub struct ResolveAddress {
-        pub resolved: i32,
         pub value: u64,
+        pub resolved: i32,
     }
 }
 
 pub mod ipld {
-    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
     pub struct IpldOpen {
-        /// TODO could be more efficient to align id, size, codec, depending on padding.
-        pub id: u32,
         pub codec: u64,
+        pub id: u32,
         pub size: u32,
     }
 
-    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
     pub struct IpldStat {
         pub codec: u64,
         pub size: u32,
@@ -37,8 +43,8 @@ pub mod ipld {
 pub mod send {
     use crate::sys::BlockId;
 
-    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
     pub struct Send {
         pub exit_code: u32,
         pub return_id: BlockId,
@@ -48,11 +54,11 @@ pub mod send {
 pub mod crypto {
     use crate::{ActorID, ChainEpoch};
 
-    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
     pub struct VerifyConsensusFault {
-        pub fault: u32,
         pub epoch: ChainEpoch,
         pub target: ActorID,
+        pub fault: u32,
     }
 }

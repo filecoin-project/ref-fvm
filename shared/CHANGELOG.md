@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## 0.6.0 [2022-04-14]
+
+BREAKING: Switch syscall struct alignment: https://github.com/filecoin-project/fvm-specs/issues/63
+
+Actors built against this new version of fvm_shared will be incompatible with prior FVM versions,
+and vice-versa.
 
 ## 0.5.1  [2022-04-11]
 

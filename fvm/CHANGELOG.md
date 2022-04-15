@@ -2,7 +2,12 @@
 
 Changes to the reference FVM implementation.
 
-## [Unreleased]
+## 0.7.0 [UNRELEASED]
+
+This release contains exactly one (breaking) change.
+
+BREAKING: Updates the FVM to the latest syscall struct alignment
+(https://github.com/filecoin-project/fvm-specs/issues/63).
 
 ## 0.6.0 [2022-04-13]
 
