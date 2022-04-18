@@ -4,17 +4,19 @@ use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
+use crate::call_manager::FinishRet;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
+use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
 use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
@@ -40,6 +42,8 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+    /// The current execution trace.
+    exec_trace: ExecutionTrace,
 }
 
 #[doc(hidden)]
@@ -73,6 +77,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
+            exec_trace: vec![],
         })))
     }
 
@@ -87,6 +92,16 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
+        if self.machine.context().tracing {
+            self.exec_trace.push(ExecutionEvent::Call(SendParams {
+                from,
+                to,
+                method,
+                params: params.clone(),
+                value: value.clone(),
+            }));
+        }
+
         // We check _then_ set because we don't count the top call. This effectivly allows a
         // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
         // likely a bug, this is how NV15 behaves so we mimic that behavior here.
@@ -108,6 +123,20 @@ where
         self.call_stack_depth += 1;
         let result = self.send_unchecked::<K>(from, to, method, params, value);
         self.call_stack_depth -= 1;
+
+        if self.machine.context().tracing {
+            self.exec_trace.push(ExecutionEvent::Return(match result {
+                Err(ref e) => Err(match e {
+                    ExecutionError::OutOfGas => {
+                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
+                    }
+                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
+                    ExecutionError::Syscall(s) => s.clone(),
+                }),
+                Ok(ref v) => Ok(v.clone()),
+            }));
+        }
+
         result
     }
 
@@ -124,12 +153,19 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(mut self) -> (FinishRet, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.machine)
+        (
+            FinishRet {
+                gas_used,
+                backtrace: inner.backtrace,
+                exec_trace: inner.exec_trace,
+            },
+            inner.machine,
+        )
     }
 
     // Accessor methods so the trait can implement some common methods by default.
