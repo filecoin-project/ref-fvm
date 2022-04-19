@@ -54,7 +54,7 @@ pub fn main() {
     // Send message
     let message = Message {
         version: 0,
-        from: tester.accounts[0].1.clone(),
+        from: tester.accounts[0].1,
         to: actor_address,
         sequence: 0,
         value: Default::default(),

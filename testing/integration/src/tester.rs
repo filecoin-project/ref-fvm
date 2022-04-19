@@ -26,6 +26,10 @@ use crate::error::Error::{
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
+pub type IntegrationExecutor = DefaultExecutor<
+    DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
+>;
+
 pub struct Tester {
     // Network version used in the test
     nv: NetworkVersion,
@@ -36,11 +40,7 @@ pub struct Tester {
     // Accounts available to interect with the executor
     pub accounts: Vec<(ActorID, Address)>,
     // Executor used to interact with deployed actors.
-    pub executor: Option<
-        DefaultExecutor<
-            DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
-        >,
-    >,
+    pub executor: Option<IntegrationExecutor>,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
 }
@@ -83,7 +83,7 @@ impl Tester {
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
 
         let init_state = init_actor::State {
-            address_map: empty_cid.clone(),
+            address_map: empty_cid,
             next_id: 100,
             network_name: "test".to_owned(),
         };
@@ -133,7 +133,7 @@ impl Tester {
         let code_cid = put_wasm_code(state_tree.store(), wasm_bin)?;
 
         // Add code cid to list of deployed contract
-        self.code_cids.push(code_cid.clone());
+        self.code_cids.push(code_cid);
 
         // Initialize actor state
         let actor_state = ActorState::new(code_cid, state_cid, balance, 1);
@@ -168,8 +168,8 @@ impl Tester {
 
         let machine = DefaultMachine::new(
             &Engine::default(),
-            NetworkConfig::new(self.nv.clone())
-                .override_actors(self.builtin_actors.clone())
+            NetworkConfig::new(self.nv)
+                .override_actors(self.builtin_actors)
                 .for_epoch(0, state_root)
                 .set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE)),
             blockstore,
@@ -205,13 +205,13 @@ fn put_secp256k1_accounts(
         let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
         let assigned_addr = state_tree.register_new_address(&pub_key_addr).unwrap();
         let state = fvm::account_actor::State {
-            address: pub_key_addr.clone(),
+            address: pub_key_addr,
         };
 
         let cid = state_tree.store().put_cbor(&state, Code::Blake2b256)?;
 
         let actor_state = ActorState {
-            code: account_code_cid.clone(),
+            code: account_code_cid,
             state: cid,
             sequence: 0,
             balance: TokenAmount::from(10u8) * TokenAmount::from(1000),
