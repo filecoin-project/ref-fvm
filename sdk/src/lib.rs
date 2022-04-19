@@ -10,8 +10,10 @@ pub mod rand;
 pub mod send;
 pub mod sself;
 pub mod sys;
-pub mod testing;
 pub mod vm;
+
+#[cfg_attr(feature = "testing")]
+pub mod testing;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
 pub const MAX_CID_LEN: usize = 100;

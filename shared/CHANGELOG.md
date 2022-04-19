@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - Added `Display` trait to `Type` for error printing. 
+- Added _cfg = "testing"_ on `Default` trait for `Message` structure.
 
 ## 0.5.1  [2022-04-11]
 
