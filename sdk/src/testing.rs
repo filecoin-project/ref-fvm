@@ -7,7 +7,7 @@ macro_rules! assert {
             core::assert!($cond);
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($cond:expr, $($arg:tt)+) => ({
@@ -15,7 +15,7 @@ macro_rules! assert {
             core::assert!($cond, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
@@ -29,7 +29,7 @@ macro_rules! assert_eq {
             core::assert_eq!($left, $right);
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($left:expr, $right:expr, $($arg:tt)+) => ({
@@ -37,7 +37,7 @@ macro_rules! assert_eq {
             core::assert_eq!($left, $right, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
@@ -51,7 +51,7 @@ macro_rules! assert_ne {
             core::assert_ne!($left, $right);
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), None);
         }
     });
     ($left:expr, $right:expr, $($arg:tt)+) => ({
@@ -59,7 +59,7 @@ macro_rules! assert_ne {
             core::assert_ne!($left, $right, "{}", format_args!($($arg)+));
         });
         if res.is_err() {
-            crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
+            $crate::vm::abort(fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(), Some(format!("{}", format_args!($($arg)+))));
         }
     });
 }
