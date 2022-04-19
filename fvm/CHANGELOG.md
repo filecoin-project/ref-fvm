@@ -2,6 +2,13 @@
 
 Changes to the reference FVM implementation.
 
+## Unreleased
+
+## 0.7.1 [2022-04-18]
+
+This release adds support for execution traces in the FVM which can be enabled using the new `enable_tracing` option in the `MachineContext`.
+The change is backwards compatible.
+
 ## 0.7.0 [2022-04-15]
 
 This release contains exactly one (breaking) change.
