@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## 0.6.0 [2022-04-14]
+
+BREAKING: Switch syscall struct alignment: https://github.com/filecoin-project/fvm-specs/issues/63
+
+Actors built against this new version of fvm_shared will be incompatible with prior FVM versions,
+and vice-versa.
 
 - Added `Display` trait to `Type` for error printing. 
 - Added _cfg = "testing"_ on `Default` trait for `Message` structure.

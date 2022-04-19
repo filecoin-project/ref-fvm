@@ -20,9 +20,7 @@ use crate::builtin::{
 };
 use crate::dummy;
 use crate::dummy::DummyExterns;
-use crate::error::Error::{
-    FailedToFlushTree, FailedToLoadCacheConfig, NoManifestInformation, NoRootCid,
-};
+use crate::error::Error::{FailedToFlushTree, NoManifestInformation, NoRootCid};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
@@ -160,11 +158,6 @@ impl Tester {
         let blockstore = state_tree.into_store();
 
         self.blockstore = Some(blockstore.clone());
-
-        let mut wasm_conf = wasmtime::Config::default();
-        wasm_conf
-            .cache_config_load_default()
-            .context(FailedToLoadCacheConfig)?;
 
         let machine = DefaultMachine::new(
             &Engine::default(),

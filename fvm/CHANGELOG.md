@@ -2,7 +2,19 @@
 
 Changes to the reference FVM implementation.
 
-## [Unreleased]
+## Unreleased
+
+## 0.7.1 [2022-04-18]
+
+This release adds support for execution traces in the FVM which can be enabled using the new `enable_tracing` option in the `MachineContext`.
+The change is backwards compatible.
+
+## 0.7.0 [2022-04-15]
+
+This release contains exactly one (breaking) change.
+
+BREAKING: Updates the FVM to the latest syscall struct alignment
+(https://github.com/filecoin-project/fvm-specs/issues/63).
 
 - Changed visibility of `account_actor`, `init_actor` and `system_actor` to public to use them in the integration test
 framework.
