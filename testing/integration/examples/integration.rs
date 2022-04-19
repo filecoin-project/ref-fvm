@@ -9,7 +9,7 @@ use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 use wabt::wat2wasm;
 
-const WAST: &str = r#"
+const WAT: &str = r#"
 ;; Mock invoke function
 (module
   (func (export "invoke") (param $x i32) (result i32)
