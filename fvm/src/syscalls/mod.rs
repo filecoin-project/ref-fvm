@@ -80,7 +80,9 @@ impl<K: Kernel> InvocationData<K> {
             "exec_units",
             self.kernel
                 .price_list()
-                .on_consume_exec_units(exec_units_consumed)
+                .on_consume_exec_units(
+                    exec_units_consumed.saturating_sub(self.exec_units_consumed_snapshot),
+                )
                 .total(),
         )?;
         self.set_snapshots(self.kernel.gas_available(), exec_units_consumed);
