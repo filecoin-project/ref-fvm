@@ -156,7 +156,12 @@ macro_rules! fvm_syscalls {
             }
 
             syscall($($args),*);
-            panic!(concat!("syscall ", stringify!($name), " should not have returned"))
+
+            // This should be unreachable unless the syscall has a bug. We abort instead of panicing
+            // to help the compiler optimize. It has no way of _proving_ that the syscall doesn't
+            // return, so this gives it a way to prove that even if the syscall does return, this
+            // function won't.
+            std::process::abort()
         }
         $crate::sys::fvm_syscalls! {
             module = $module;
