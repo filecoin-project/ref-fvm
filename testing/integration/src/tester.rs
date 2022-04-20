@@ -33,22 +33,20 @@ pub struct Tester {
     nv: NetworkVersion,
     // Builtin actors root Cid used in the Machine
     builtin_actors: Cid,
+    // Custom code cid deployed by developer
+    code_cids: Vec<Cid>,
     // Blockstore used to instantiate the machine before running executions
     pub blockstore: Option<MemoryBlockstore>,
     // Accounts available to interect with the executor
     pub accounts: Vec<(ActorID, Address)>,
     // Executor used to interact with deployed actors.
     pub executor: Option<IntegrationExecutor>,
-    // Custom code cid deployed by developer
-    code_cids: Vec<Cid>,
+    // State tree constructed before instantiating the Machine
+    pub state_tree: StateTree<MemoryBlockstore>,
 }
 
 impl Tester {
-    pub fn new(
-        nv: NetworkVersion,
-        stv: StateTreeVersion,
-        accounts_count: usize,
-    ) -> Result<(Self, StateTree<MemoryBlockstore>)> {
+    pub fn new(nv: NetworkVersion, stv: StateTreeVersion, accounts_count: usize) -> Result<Self> {
         // Initialize blockstore
         let blockstore = MemoryBlockstore::default();
 
@@ -90,27 +88,21 @@ impl Tester {
         // Create 10 accounts.
         let accounts = put_secp256k1_accounts(&mut state_tree, account_code_cid, accounts_count)?;
 
-        Ok((
-            Tester {
-                nv,
-                builtin_actors,
-                accounts,
-                blockstore: None,
-                executor: None,
-                code_cids: vec![],
-            },
+        Ok(Tester {
+            nv,
+            builtin_actors,
+            accounts,
+            blockstore: None,
+            executor: None,
+            code_cids: vec![],
             state_tree,
-        ))
+        })
     }
 
     /// Set a new state in the state tree
-    pub fn set_state<S: ser::Serialize>(
-        &mut self,
-        state_tree: &mut StateTree<MemoryBlockstore>,
-        state: &S,
-    ) -> Result<Cid> {
+    pub fn set_state<S: ser::Serialize>(&mut self, state: &S) -> Result<Cid> {
         // Put state in tree
-        let state_cid = state_tree.store().put_cbor(state, Code::Blake2b256)?;
+        let state_cid = self.state_tree.store().put_cbor(state, Code::Blake2b256)?;
 
         Ok(state_cid)
     }
@@ -118,17 +110,18 @@ impl Tester {
     /// Set a new at a given address, provided with a given token balance
     pub fn set_actor_from_bin(
         &mut self,
-        state_tree: &mut StateTree<MemoryBlockstore>,
         wasm_bin: &[u8],
         state_cid: Cid,
         actor_address: Address,
         balance: TokenAmount,
     ) -> Result<()> {
         // Register actor address
-        state_tree.register_new_address(&actor_address).unwrap();
+        self.state_tree
+            .register_new_address(&actor_address)
+            .unwrap();
 
         // Put the WASM code into the blockstore.
-        let code_cid = put_wasm_code(state_tree.store(), wasm_bin)?;
+        let code_cid = put_wasm_code(self.state_tree.store(), wasm_bin)?;
 
         // Add code cid to list of deployed contract
         self.code_cids.push(code_cid);
@@ -137,7 +130,7 @@ impl Tester {
         let actor_state = ActorState::new(code_cid, state_cid, balance, 1);
 
         // Create actor
-        state_tree
+        self.state_tree
             .set_actor(&actor_address, actor_state)
             .map_err(anyhow::Error::from)?;
 
@@ -145,17 +138,15 @@ impl Tester {
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
-    pub fn instantiate_machine(
-        &mut self,
-        mut state_tree: StateTree<MemoryBlockstore>,
-    ) -> Result<()> {
+    pub fn instantiate_machine(&mut self) -> Result<()> {
         // First flush tree and consume it
-        let state_root = state_tree
+        let state_root = self
+            .state_tree
             .flush()
             .map_err(anyhow::Error::from)
             .context(FailedToFlushTree)?;
 
-        let blockstore = state_tree.into_store();
+        let blockstore = self.state_tree.store();
 
         self.blockstore = Some(blockstore.clone());
 
@@ -165,7 +156,7 @@ impl Tester {
                 .override_actors(self.builtin_actors)
                 .for_epoch(0, state_root)
                 .set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE)),
-            blockstore,
+            blockstore.clone(),
             dummy::DummyExterns,
         )?;
 

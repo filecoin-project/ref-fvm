@@ -25,44 +25,32 @@ struct State {
 
 pub fn main() {
     // Instantiate tester
-    let (mut tester, mut state_tree) =
-        Tester::new(NetworkVersion::V15, StateTreeVersion::V4, 10).unwrap();
+    let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4, 10).unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAST).unwrap();
 
     // Set actor state
     let actor_state = State { empty: true };
-    let state_cid = tester.set_state(&mut state_tree, &actor_state).unwrap();
+    let state_cid = tester.set_state(&actor_state).unwrap();
 
     // Set actor
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(
-            &mut state_tree,
-            &wasm_bin,
-            state_cid,
-            actor_address,
-            BigInt::zero(),
-        )
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(state_tree).unwrap();
+    tester.instantiate_machine().unwrap();
 
     // Send message
     let message = Message {
-        version: 0,
         from: tester.accounts[0].1,
         to: actor_address,
-        sequence: 0,
-        value: Default::default(),
-        method_num: 1,
-        params: Default::default(),
         gas_limit: 1000000000,
-        gas_fee_cap: Default::default(),
-        gas_premium: Default::default(),
+        method_num: 1,
+        ..Message::default()
     };
 
     tester
