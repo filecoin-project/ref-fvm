@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added `testing` feature to have `Default` derive on `Message`
+- Added `testing` feature to have `Default` derive on `Message`. Extended this feature to `Address` and `Payload`. 
 
 ## 0.6.0 [2022-04-14]
 
