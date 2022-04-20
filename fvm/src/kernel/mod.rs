@@ -219,8 +219,8 @@ pub trait CircSupplyOps {
 ///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
 ///  at the WASM level.
 pub trait GasOps {
-    /// GasAvailable return the gas available for the transaction.
-    fn gas_available(&self) -> i64;
+    /// GasUsed return the gas used by the transaction so far.
+    fn gas_used(&self) -> i64;
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point

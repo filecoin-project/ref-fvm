@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -314,6 +316,7 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
+        let gas_available = self.gas_tracker.gas_available();
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
@@ -331,10 +334,12 @@ where
             };
 
             // Make a store.
-            let gas_available = kernel.gas_available();
+            let gas_used = kernel.gas_used();
             let exec_units_to_add = match kernel.network_version() {
                 NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
-                _ => kernel.price_list().gas_to_exec_units(gas_available, false),
+                _ => kernel
+                    .price_list()
+                    .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
             };
 
             let mut store = engine.new_store(kernel);
