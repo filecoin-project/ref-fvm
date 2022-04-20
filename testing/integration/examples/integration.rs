@@ -1,5 +1,5 @@
 use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::tester::Tester;
+use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -25,7 +25,9 @@ struct State {
 
 pub fn main() {
     // Instantiate tester
-    let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4, 10).unwrap();
+    let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4).unwrap();
+
+    let sender: [Account; 1] = tester.create_account().unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAST).unwrap();
@@ -46,7 +48,7 @@ pub fn main() {
 
     // Send message
     let message = Message {
-        from: tester.accounts[0].1,
+        from: sender[0].1,
         to: actor_address,
         gas_limit: 1000000000,
         method_num: 1,

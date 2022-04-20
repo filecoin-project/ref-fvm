@@ -28,17 +28,19 @@ pub type IntegrationExecutor = DefaultExecutor<
     DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
 >;
 
+pub type Account = (ActorID, Address);
+
 pub struct Tester {
     // Network version used in the test
     nv: NetworkVersion,
     // Builtin actors root Cid used in the Machine
     builtin_actors: Cid,
+    // Accounts actor cid
+    accounts_code_cid: Cid,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Blockstore used to instantiate the machine before running executions
     pub blockstore: Option<MemoryBlockstore>,
-    // Accounts available to interect with the executor
-    pub accounts: Vec<(ActorID, Address)>,
     // Executor used to interact with deployed actors.
     pub executor: Option<IntegrationExecutor>,
     // State tree constructed before instantiating the Machine
@@ -46,7 +48,7 @@ pub struct Tester {
 }
 
 impl Tester {
-    pub fn new(nv: NetworkVersion, stv: StateTreeVersion, accounts_count: usize) -> Result<Self> {
+    pub fn new(nv: NetworkVersion, stv: StateTreeVersion) -> Result<Self> {
         // Initialize blockstore
         let blockstore = MemoryBlockstore::default();
 
@@ -63,7 +65,7 @@ impl Tester {
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, account_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
@@ -85,18 +87,21 @@ impl Tester {
         };
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
-        // Create 10 accounts.
-        let accounts = put_secp256k1_accounts(&mut state_tree, account_code_cid, accounts_count)?;
-
         Ok(Tester {
             nv,
             builtin_actors,
-            accounts,
             blockstore: None,
             executor: None,
             code_cids: vec![],
             state_tree,
+            accounts_code_cid,
         })
+    }
+
+    /// Creates new accounts in the testing context
+    pub fn create_account<const N: usize>(&mut self) -> Result<[Account; N]> {
+        // Create accounts.
+        put_secp256k1_accounts(&mut self.state_tree, self.accounts_code_cid)
     }
 
     /// Set a new state in the state tree
@@ -172,18 +177,17 @@ impl Tester {
 }
 /// Inserts the specified number of accounts in the state tree, all with 1000 FIL,
 /// returning their IDs and Addresses.
-fn put_secp256k1_accounts(
+fn put_secp256k1_accounts<const N: usize>(
     state_tree: &mut StateTree<impl Blockstore>,
     account_code_cid: Cid,
-    count: usize,
-) -> Result<Vec<(ActorID, Address)>> {
+) -> Result<[Account; N]> {
     use libsecp256k1::{PublicKey, SecretKey};
     use rand::SeedableRng;
 
     let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
 
-    let mut ret = Vec::with_capacity(count);
-    for _ in 0..count {
+    let mut ret: [Account; N] = [(0, Address::default()); N];
+    for i in 0..N {
         let priv_key = SecretKey::random(rng);
         let pub_key = PublicKey::from_secret_key(&priv_key);
         let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
@@ -205,7 +209,8 @@ fn put_secp256k1_accounts(
             .set_actor(&Address::new_id(assigned_addr), actor_state)
             .map_err(anyhow::Error::from)?;
 
-        ret.push((assigned_addr, pub_key_addr));
+        let account: Account = (assigned_addr, pub_key_addr);
+        ret[i] = account;
     }
     Ok(ret)
 }
