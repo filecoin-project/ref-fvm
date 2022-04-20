@@ -3,6 +3,8 @@
 Changes to the reference FVM implementation.
 
 ## Unreleased
+ 
+- Added `testing` feature to change module visibility 
 
 ## 0.7.1 [2022-04-18]
 

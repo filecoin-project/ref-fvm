@@ -39,6 +39,7 @@ log = "0.4.14"
 byteorder = "1.4.3"
 anymap = "0.12.1"
 blake2b_simd = "1.0.0"
+cfg-if = "1.0.0"
 
 [dependencies.wasmtime]
 version = "0.35.2"
@@ -49,3 +50,5 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+testing = []
+

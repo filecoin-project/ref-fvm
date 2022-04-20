@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `testing` feature to have `Default` derive on `Message`
+
 ## 0.6.0 [2022-04-14]
 
 BREAKING: Switch syscall struct alignment: https://github.com/filecoin-project/fvm-specs/issues/63
