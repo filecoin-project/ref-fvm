@@ -12,7 +12,7 @@ pub mod sself;
 pub mod sys;
 pub mod vm;
 
-#[cfg_attr(feature = "testing")]
+#[cfg(feature = "testing")]
 pub mod testing;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
