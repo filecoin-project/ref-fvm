@@ -20,7 +20,7 @@ pub use default::DefaultMachine;
 
 mod engine;
 
-pub use engine::Engine;
+pub use engine::{default_wasmtime_config, Engine};
 
 mod boxed;
 

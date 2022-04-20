@@ -5,6 +5,7 @@ members = [
     "shared",
     "testing/conformance",
     "ipld/*",
+    "tools/*",
 ]
 
 [profile.actor]
