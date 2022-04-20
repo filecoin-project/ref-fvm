@@ -47,7 +47,7 @@ fn main1() -> Result<()> {
         let fuel_consumed = store.fuel_consumed().expect("fuel is enabled");
         match fuel_consumed.cmp(&INIT_FUEL) {
             Ordering::Greater => {store.add_fuel(fuel_consumed - INIT_FUEL)?;}
-            Ordering::Less => {store.consume_fuel(INIT_FUEL - fuel_consumed)?;}
+            Ordering::Less => {store.consume_fuel(INIT_FUEL - fuel_consumed - 1)?;}
             _ => { }
         };
 
