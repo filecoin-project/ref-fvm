@@ -187,7 +187,7 @@ fn put_secp256k1_accounts<const N: usize>(
     let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
 
     let mut ret: [Account; N] = [(0, Address::default()); N];
-    for i in 0..N {
+    for account in ret.iter_mut().take(N) {
         let priv_key = SecretKey::random(rng);
         let pub_key = PublicKey::from_secret_key(&priv_key);
         let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
@@ -209,8 +209,7 @@ fn put_secp256k1_accounts<const N: usize>(
             .set_actor(&Address::new_id(assigned_addr), actor_state)
             .map_err(anyhow::Error::from)?;
 
-        let account: Account = (assigned_addr, pub_key_addr);
-        ret[i] = account;
+        *account = (assigned_addr, pub_key_addr);
     }
     Ok(ret)
 }

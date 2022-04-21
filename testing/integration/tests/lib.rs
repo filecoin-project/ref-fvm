@@ -1,5 +1,4 @@
 use std::env;
-use std::path::PathBuf;
 
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::tester::{Account, Tester};
@@ -25,7 +24,8 @@ fn hello_world() {
     let sender: [Account; 1] = tester.create_account().unwrap();
 
     // Get wasm bin
-    let wasm_path = PathBuf::from(env::current_dir().unwrap().to_owned())
+    let wasm_path = env::current_dir()
+        .unwrap()
         .join("tests/assets/fil_hello_world_actor.compact.wasm")
         .canonicalize()
         .unwrap();

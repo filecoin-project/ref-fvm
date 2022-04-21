@@ -30,7 +30,7 @@ pub fn main() {
     let sender: [Account; 1] = tester.create_account().unwrap();
 
     // Get wasm bin
-    let wasm_bin = wat2wasm(WAST).unwrap();
+    let wasm_bin = wat2wasm(WAT).unwrap();
 
     // Set actor state
     let actor_state = State { empty: true };
