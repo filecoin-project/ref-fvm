@@ -316,7 +316,6 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        let gas_available = self.gas_tracker.gas_available();
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
@@ -333,26 +332,17 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            // Make a store.
-            let gas_used = kernel.gas_used();
-            let exec_units_to_add = match kernel.network_version() {
+            let initial_frgas = match kernel.network_version() {
                 NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
-                _ => kernel
-                    .price_list()
-                    .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
+                _ => kernel.price_list().gas_to_frgas(max(kernel.get_gas(), 0)),
             };
 
-            let (mut store, gg) = engine.new_store(kernel);
-            if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
-                return (
-                    Err(ExecutionError::Fatal(err)),
-                    store.into_data().kernel.into_call_manager(),
-                );
-            }
+            // Make a store and add some gas
+            let mut store = engine.new_store(kernel, initial_frgas);
 
             // Instantiate the module.
             let instance = match engine
-                .get_instance(&mut store, gg, &state.code)
+                .get_instance(&mut store, &state.code)
                 .and_then(|i| i.context("actor code not found"))
                 .or_fatal()
             {
@@ -371,30 +361,25 @@ where
                 // Invoke it.
                 let res = invoke.call(&mut store, (param_id,));
 
-                // Charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
-                // We do this by first loading the _total_ execution units consumed
-                let exec_units_consumed = store
-                    .fuel_consumed()
-                    .context("expected to find fuel consumed")
-                    .map_err(Abort::Fatal)?;
-                // Then, pass the _total_ exec_units_consumed to the InvocationData,
-                // which knows how many execution units had been consumed at the most recent snapshot
-                // It will charge gas for the delta between the total units (the number we provide) and its snapshot
+                // Update GasTracker gas
+                use wasmtime::Val;
+                let frgas = match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
+                    Val::I64(g) => Ok(g),
+                    _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
+                }?;
+                let available_gas = store
+                    .data_mut()
+                    .kernel
+                    .price_list()
+                    .frgas_to_gas(frgas, true);
+
                 store
                     .data_mut()
-                    .charge_gas_for_exec_units(exec_units_consumed)
-                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
-
+                    .kernel
+                    .set_available_gas("wasm_exec", available_gas).map_err(|_|Abort::Fatal(anyhow::Error::msg("setting avaialable gas")))?;
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
                 let return_block_id = res?;
-
-                use wasmtime::Val;
-
-                match gg.get(&mut store) {
-                    Val::I64(v) => println!("GAS REMAIN {}", v),
-                    _ => {}
-                };
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {

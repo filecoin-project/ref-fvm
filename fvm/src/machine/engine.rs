@@ -204,7 +204,6 @@ impl Engine {
     pub fn get_instance<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
-        gas_global: Global,
         k: &Cid,
     ) -> anyhow::Result<Option<wasmtime::Instance>> {
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
@@ -219,7 +218,11 @@ impl Engine {
                 Cache { linker }
             }),
         };
-        cache.linker.define("gas", GAS_COUNTER_NAME, gas_global)?;
+        cache.linker.define(
+            "gas",
+            GAS_COUNTER_NAME,
+            store.data_mut().avail_gas_global.unwrap(),
+        )?;
 
         let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match module_cache.get(k) {
@@ -231,12 +234,18 @@ impl Engine {
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(&self, kernel: K) -> (wasmtime::Store<InvocationData<K>>, Global) {
+    pub fn new_store<K: Kernel>(
+        &self,
+        kernel: K,
+        frgas: i64,
+    ) -> wasmtime::Store<InvocationData<K>> {
         let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
 
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
-        let gg = Global::new(&mut store, ggtype, Val::I64(200000000000)).unwrap(); // todo no unwrap
+        let gg = Global::new(&mut store, ggtype, Val::I64(frgas))
+            .expect("failed to create available_gas global");
+        store.data_mut().avail_gas_global = Some(gg);
 
-        (store, gg)
+        store
     }
 }
