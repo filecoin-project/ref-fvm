@@ -760,6 +760,16 @@ where
         self.call_manager.charge_gas(charge)
     }
 
+    fn set_available_gas(&mut self, name: &str, new_gas: i64) -> Result<()> {
+        self.call_manager
+            .gas_tracker_mut()
+            .set_available_gas(name, new_gas)
+    }
+
+    fn get_gas(&self) -> i64 {
+        self.call_manager.gas_tracker().get_gas()
+    }
+
     fn price_list(&self) -> &PriceList {
         self.call_manager.price_list()
     }

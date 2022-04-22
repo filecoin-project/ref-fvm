@@ -2,7 +2,7 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, Trap, WasmTy};
+use wasmtime::{Caller, Linker, Trap, Val, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
@@ -98,34 +98,39 @@ fn memory_and_data<'a, K: Kernel>(
     Ok((Memory::new(mem), data))
 }
 
-fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units = caller
-        .data_mut()
-        .calculate_exec_units_for_gas()
-        .map_err(|_| Trap::new("failed to calculate exec_units"))?;
-    if exec_units.is_negative() {
-        caller.add_fuel(u64::try_from(exec_units.saturating_neg()).unwrap_or(0))?;
-    } else {
-        caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
-    }
+fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
+    let avail_gas = caller.data_mut().kernel.get_gas();
 
-    let gas_used = caller.data().kernel.gas_used();
-    let fuel_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-    caller.data_mut().set_snapshots(gas_used, fuel_consumed);
-    Ok(())
+    let frgas = caller
+        .data()
+        .kernel
+        .price_list()
+        .gas_to_frgas(avail_gas);
+
+    let gas_global = caller
+        .data_mut()
+        .avail_gas_global
+        .unwrap();
+
+    gas_global.set(caller, Val::I64(frgas))
+        .map_err(|_| Trap::new("failed to set available gas"))
 }
 
-fn charge_gas_for_exec_units(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
+fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
+    let global = caller.data_mut().avail_gas_global;
 
-    caller
-        .data_mut()
-        .charge_gas_for_exec_units(exec_units_consumed)
-        .map_err(|_| Trap::new("failed to charge gas for exec_units"))
+    let frgas = match global.unwrap().get(&mut *caller) {
+        Val::I64(g) => Ok(g),
+        _ => Err(Trap::new("failed to get wasm gas")),
+    }?;
+
+    let id = caller.data_mut();
+
+    let available_gas = id.kernel.price_list().frgas_to_gas(frgas, true);
+
+    // todo do we have consts for charge names anywhere?
+    id.kernel.set_available_gas("wasm_exec", available_gas).map_err(|_|Trap::new("setting available gas"))?;
+    Ok(())
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
@@ -148,7 +153,8 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
+                        wasmgas_to_gastracker(&mut caller)?;
+
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         let result = match syscall(ctx $(, $t)*).into()? {
@@ -165,13 +171,13 @@ macro_rules! impl_bind_syscalls {
                             },
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
+                        gastracker_to_wasmgas(&mut caller)?;
                         Ok(result)
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
+                        wasmgas_to_gastracker(&mut caller)?;
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
@@ -198,7 +204,7 @@ macro_rules! impl_bind_syscalls {
                             },
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
+                        gastracker_to_wasmgas(&mut caller)?;
                         Ok(result)
                     })
                 }

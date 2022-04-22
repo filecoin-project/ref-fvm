@@ -11,14 +11,14 @@ mod outputs;
 mod price_list;
 
 pub struct GasTracker {
-    gas_available: i64,
+    gas_limit: i64,
     gas_used: i64,
 }
 
 impl GasTracker {
-    pub fn new(gas_available: i64, gas_used: i64) -> Self {
+    pub fn new(gas_limit: i64, gas_used: i64) -> Self {
         Self {
-            gas_available,
+            gas_limit,
             gas_used,
         }
     }
@@ -30,14 +30,14 @@ impl GasTracker {
         match self.gas_used.checked_add(to_use) {
             None => {
                 log::trace!("gas overflow: {}", charge.name);
-                self.gas_used = self.gas_available;
+                self.gas_used = self.gas_limit;
                 Err(ExecutionError::OutOfGas)
             }
             Some(used) => {
                 log::trace!("charged {} gas: {}", to_use, charge.name);
-                if used > self.gas_available {
+                if used > self.gas_limit {
                     log::trace!("out of gas: {}", charge.name);
-                    self.gas_used = self.gas_available;
+                    self.gas_used = self.gas_limit;
                     Err(ExecutionError::OutOfGas)
                 } else {
                     self.gas_used = used;
@@ -47,9 +47,23 @@ impl GasTracker {
         }
     }
 
+    /// returns unused gas
+    pub fn get_gas(&self) -> i64 {
+        // todo block charges to make sure we account properly (maybe debug mode only)
+
+        self.gas_limit - self.gas_used
+    }
+
+    /// sets new unused gas, creating a new gas charge if needed
+    pub fn set_available_gas(&mut self, _name: &str, new_avail_gas: i64) -> Result<()> {
+        self.gas_used = self.gas_limit - new_avail_gas;
+        // todo use charge_gas
+        Ok(())
+    }
+
     /// Getter for gas available.
-    pub fn gas_available(&self) -> i64 {
-        self.gas_available
+    pub fn gas_limit(&self) -> i64 {
+        self.gas_limit
     }
 
     /// Getter for gas used.

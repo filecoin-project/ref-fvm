@@ -118,7 +118,6 @@ lazy_static! {
         .copied()
         .collect(),
 
-        gas_per_exec_unit: 0,
         get_randomness_base: 0,
         get_randomness_per_byte: 0,
 
@@ -241,8 +240,6 @@ lazy_static! {
         // TODO: PARAM_FINISH
 
         // TODO: PARAM_FINISH
-        gas_per_exec_unit: 2,
-        // TODO: PARAM_FINISH
         get_randomness_base: 1,
         // TODO: PARAM_FINISH
         get_randomness_per_byte: 1,
@@ -259,6 +256,10 @@ lazy_static! {
         block_stat: 1,
     };
 }
+
+/// bits of precision for fractional gas
+/// 20 bits means 1_048_576 fractional gas per unit of gas
+const FRGAS_PRECISION: i64 = 20;
 
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct ScalingCost {
@@ -366,8 +367,6 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
-    // 1 Exec Unit = gas_per_exec_unit * 1 Gas
-    pub(crate) gas_per_exec_unit: i64,
 
     pub(crate) get_randomness_base: i64,
     pub(crate) get_randomness_per_byte: i64,
@@ -537,31 +536,21 @@ impl PriceList {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
     }
 
-    /// Returns the gas required for the specified exec_units.
+    /// Converts the specified gas into equivalent fractional gas units
     #[inline]
-    pub fn on_consume_exec_units(&self, exec_units: u64) -> GasCharge<'static> {
-        GasCharge::new(
-            "OnConsumeExecUnits",
-            self.gas_per_exec_unit
-                .saturating_mul(i64::try_from(exec_units).unwrap_or(i64::MAX)),
-            0,
-        )
+    pub fn gas_to_frgas(&self, gas: i64) -> i64 {
+        gas * (1 << FRGAS_PRECISION)
     }
 
-    /// Converts the specified gas into equivalent exec_units
-    /// Note: In rare cases the provided `gas` may be negative
-    #[inline]
-    pub fn gas_to_exec_units(&self, gas: i64, round_up: bool) -> i64 {
-        match self.gas_per_exec_unit {
-            0 => 0,
-            v => {
-                let mut div_result = gas / v;
-                if round_up && gas % v != 0 {
-                    div_result = div_result.saturating_add(1);
-                }
-                div_result
-            }
+    /// Converts the specified fractional gas units into gas units
+    pub fn frgas_to_gas(&self, frgas: i64, round_up: bool) -> i64 {
+        let p = 1 << FRGAS_PRECISION;
+
+        let mut div_result = frgas / p;
+        if round_up && frgas % p != 0 {
+            div_result = div_result.saturating_add(1);
         }
+        div_result
     }
 
     /// Returns the cost of the gas required for getting randomness from the client, based on the
