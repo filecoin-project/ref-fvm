@@ -106,13 +106,11 @@ fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -
         caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
     }
 
-    let gas_available = caller.data().kernel.gas_available();
+    let gas_used = caller.data().kernel.gas_used();
     let fuel_consumed = caller
         .fuel_consumed()
         .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-    caller
-        .data_mut()
-        .set_snapshots(gas_available, fuel_consumed);
+    caller.data_mut().set_snapshots(gas_used, fuel_consumed);
     Ok(())
 }
 
