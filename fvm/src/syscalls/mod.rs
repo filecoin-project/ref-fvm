@@ -15,7 +15,6 @@ mod debug;
 mod gas;
 mod ipld;
 mod message;
-mod network;
 mod rand;
 mod send;
 mod sself;
@@ -116,19 +115,7 @@ pub fn bind_syscalls(
     linker.bind("self", "current_balance", sself::current_balance)?;
     linker.bind("self", "self_destruct", sself::self_destruct)?;
 
-    linker.bind("message", "caller", message::caller)?;
-    linker.bind("message", "receiver", message::receiver)?;
-    linker.bind("message", "method_number", message::method_number)?;
-    linker.bind("message", "value_received", message::value_received)?;
-
-    linker.bind("network", "base_fee", network::base_fee)?;
-    linker.bind(
-        "network",
-        "total_fil_circ_supply",
-        network::total_fil_circ_supply,
-    )?;
-    linker.bind("network", "version", network::version)?;
-    linker.bind("network", "curr_epoch", network::curr_epoch)?;
+    linker.bind("message", "details", message::details)?;
 
     linker.bind("actor", "resolve_address", actor::resolve_address)?;
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;

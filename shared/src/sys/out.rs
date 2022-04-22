@@ -62,3 +62,22 @@ pub mod crypto {
         pub fault: u32,
     }
 }
+
+pub mod message {
+    use crate::clock::ChainEpoch;
+    use crate::sys::TokenAmount;
+    use crate::{ActorID, MethodNum};
+
+    #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
+    pub struct MessageDetails {
+        pub caller: ActorID,
+        pub receiver: ActorID,
+        pub method_number: MethodNum,
+        pub value_received: TokenAmount,
+        pub curr_epoch: ChainEpoch,
+        pub version: u32,
+        pub base_fee: TokenAmount,
+        pub circulating_supply: TokenAmount,
+    }
+}

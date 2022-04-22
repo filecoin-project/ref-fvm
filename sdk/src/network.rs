@@ -4,37 +4,26 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 
-use crate::sys;
+use crate::message::MESSAGE_DETAILS;
 
 pub fn curr_epoch() -> ChainEpoch {
-    unsafe {
-        sys::network::curr_epoch()
-            // infallible
-            .expect("failed to get current epoch")
-    }
+    MESSAGE_DETAILS.curr_epoch
 }
 
 pub fn version() -> NetworkVersion {
-    unsafe {
-        sys::network::version()
-            .expect("failed to get network version")
-            .try_into()
-            .expect("invalid version")
-    }
+    MESSAGE_DETAILS
+        .version
+        .try_into()
+        .expect("invalid network version")
 }
 
 pub fn base_fee() -> TokenAmount {
-    unsafe {
-        sys::network::base_fee()
-            .expect("failed to get base fee")
-            .into()
-    }
+    MESSAGE_DETAILS.base_fee.try_into().expect("invalid bigint")
 }
 
 pub fn total_fil_circ_supply() -> TokenAmount {
-    unsafe {
-        sys::network::total_fil_circ_supply()
-            .expect("failed to get circulating supply")
-            .into()
-    }
+    MESSAGE_DETAILS
+        .circulating_supply
+        .try_into()
+        .expect("invalid bigint")
 }

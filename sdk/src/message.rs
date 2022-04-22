@@ -1,5 +1,8 @@
+use std::convert::TryInto;
+
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::sys::out::message::MessageDetails;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
@@ -8,22 +11,30 @@ use crate::{sys, SyscallResult};
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
+lazy_static::lazy_static! {
+    pub(crate) static ref MESSAGE_DETAILS: MessageDetails = {
+        unsafe {
+            sys::message::details().expect("failed to lookup message details")
+        }
+    };
+}
+
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> ActorID {
-    unsafe { sys::message::caller().expect("failed to lookup caller ID") }
+    MESSAGE_DETAILS.caller
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> ActorID {
-    unsafe { sys::message::receiver().expect("failed to lookup actor ID") }
+    MESSAGE_DETAILS.receiver
 }
 
 /// Returns the message's method number.
 #[inline(always)]
 pub fn method_number() -> MethodNum {
-    unsafe { sys::message::method_number().expect("failed to lookup method number") }
+    MESSAGE_DETAILS.method_number
 }
 
 /// Returns the message codec and parameters.
@@ -56,9 +67,8 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    unsafe {
-        sys::message::value_received()
-            .expect("failed to lookup received value")
-            .into()
-    }
+    MESSAGE_DETAILS
+        .value_received
+        .try_into()
+        .expect("invalid bigint")
 }

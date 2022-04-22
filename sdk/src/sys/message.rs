@@ -1,33 +1,23 @@
 //! Syscalls for reading message metadata.
 
+use fvm_shared::sys::out::message::MessageDetails;
+
 super::fvm_syscalls! {
     module = "message";
 
-    /// Returns the caller's actor ID.
+    /// Returns the details about this invocation.
+    ///
+    /// - The caller's actor ID.
+    /// - The receiver's actor ID (i.e. ourselves).
+    /// - The method number from the message.
+    /// - The value that was received.
+    /// - The current epoch.
+    /// - The network version.
+    /// - The base fee for the current epoch.
+    /// - The circulating supply.
     ///
     /// # Errors
     ///
     /// None
-    pub fn caller() -> Result<u64>;
-
-    /// Returns the receiver's actor ID (i.e. ourselves).
-    ///
-    /// # Errors
-    ///
-    /// None
-    pub fn receiver() -> Result<u64>;
-
-    /// Returns the method number from the message.
-    ///
-    /// # Errors
-    ///
-    /// None
-    pub fn method_number() -> Result<u64>;
-
-    /// Returns the value that was received.
-    ///
-    /// # Errors
-    ///
-    /// None
-    pub fn value_received() -> Result<super::TokenAmount>;
+    pub fn details() -> Result<MessageDetails>;
 }
