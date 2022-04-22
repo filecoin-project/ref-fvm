@@ -1,18 +1,35 @@
 #![allow(dead_code)]
 
 
-use std::ops::Deref;
+use num::integer::Integer;
 
 use lazy_static::lazy_static;
 use primes::PrimeSet;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
-const MODULES: [(&str, fn()); 4] = [
+
+macro_rules! repeat4 {
+    ($e:expr) => { {$e; $e; $e; $e;} }
+}
+
+macro_rules! repeat16 {
+    ($e:expr) => { {$e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e; $e;} }
+}
+
+const MODULES: [(&str, fn()); 12] = [
+    ("cmp5", cmp::<512>),
+    ("cmp10", cmp::<1024>),
+    ("cmp16", cmp::<65536>),
+    ("cmp20", cmp::<1048576>),
     ("simple_add", simple_add),
     ("sieve", sieve),
+    ("div_rem", div_rem),
     ("syscall", syscall),
-    ("pointer_chase", pointer_chase),
+    ("stack_alloc", stack_alloc),
+    ("heap_alloc", heap_alloc),
+    ("small_pointer_chase", small_pointer_chase),
+    ("large_pointer_chase", large_pointer_chase)
 ];
 
 extern "C" {
@@ -48,11 +65,19 @@ lazy_static! {
         wll.as_mut_slice().shuffle(&mut rng);
         wll
     };
+    static ref LESS_WORST_LINKED_LIST: Vec<u64> = {
+        let mut wll : Vec<u64> = (0..(1<<10)).collect();
+
+        let mut rng = rand_xorshift::XorShiftRng::from_seed([42u8; 16]);
+        wll.as_mut_slice().shuffle(&mut rng);
+        wll
+    };
 }
 
 #[no_mangle]
 pub extern "C" fn init() {
     black_box(WORST_LINKED_LIST[1]);
+    black_box(LESS_WORST_LINKED_LIST[1]);
 }
 
 #[no_mangle]
@@ -74,8 +99,8 @@ fn simple_add() {
     loop {
         let last = i;
 
-        for _ in 0..16 {
-            i += k1;
+        repeat16!{
+            i += k1
         }
 
         if i ^ last == k1 {
@@ -99,57 +124,77 @@ fn sieve() {
 
 fn syscall() {
     loop {
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
-        black_box(1);
+        repeat16!{black_box(1)};
     }
 }
 
-// stack allocs
+fn stack_alloc() {
+    loop {
+        let x = [1; 1<<16];
+        black_box(&x);
+    }
+}
 
-// heap allocs
+fn heap_alloc() {
+    loop {
+        let x = vec![1; 1<<20];
+        black_box(x.as_slice());
+    }
+}
 
-// div
 
-// binary cmp
+fn div_rem() {
+    let mut i = black_box(1u64<<63-1);
+    let mut rem = 0u64;
+    let k = black_box(7u64);
+    loop {
+        repeat4!({repeat16!({
+            let (i2, rem2) = i.div_rem(&k);
+            i = i2;
+            rem += rem2;
+        })});
 
-fn small_pointr_chase() {}
+        black_box(i);
+        black_box(rem);
+        i = black_box(1u64<<63-1);
+    }
 
-fn pointer_chase() {
+}
+
+fn cmp<const N: usize>() {
+    let mut rng = rand_xorshift::XorShiftRng::from_seed([42u8; 16]);
+    let mut v1 = vec![0u8; N];
+    rng.fill_bytes(&mut v1);
+
+    let mut v2 = vec![0u8; N];
+    rng.fill_bytes(&mut v2);
+
+    loop {
+        let eq = v1 == v2;
+        if eq {
+            black_box_mut(&mut v1);
+        } else {
+            black_box_mut(&mut v2);
+        }
+    }
+
+}
+
+fn small_pointer_chase() {
+    pointer_chase(&LESS_WORST_LINKED_LIST);
+}
+
+fn large_pointer_chase() {
+    pointer_chase(&WORST_LINKED_LIST);
+}
+
+fn pointer_chase(wll: &Vec<u64>) {
     let mut i = black_box(0_usize);
-    let wll = WORST_LINKED_LIST.deref();
     loop {
         let last = i;
-
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
-        i = wll[i] as usize;
+        repeat16!{
+            repeat4!{i = wll[i] as usize}
+        };
         if last == i {
             break;
         }

@@ -11,6 +11,7 @@ rand_xorshift = "0.3.0"
 rand = "0.8.5"
 lazy_static = "1.4.0"
 getrandom = { version = "0.2.6", features = ["custom"] }
+num = "0.4"
 
 [lib]
 crate-type = ['cdylib']

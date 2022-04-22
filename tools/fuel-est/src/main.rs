@@ -11,6 +11,7 @@ fn main() {
 
 fn main1() -> Result<()> {
     let cfg = default_wasmtime_config();
+
     let engine = Engine::new(&cfg)?;
     let module = Module::from_file(&engine, "samples.wasm")?;
 
@@ -40,7 +41,7 @@ fn main1() -> Result<()> {
 
     for (i, m) in modules.iter().enumerate() {
         let (init, invoke, mut store) = get_invoke(&engine, &module)?;
-        const INIT_FUEL: u64 = 1_000_000_000;
+        const INIT_FUEL: u64 = 2_000_000_000;
 
         store.add_fuel(INIT_FUEL)?;
         init.call(&mut store, ())?;
