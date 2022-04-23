@@ -113,7 +113,7 @@ where
         // This interface works for now because we know all actor CIDs
         // ahead of time, but with user-supplied code, we won't have that
         // guarantee.
-        engine.preload(state_tree.store(), builtin_actors.left_values())?;
+        engine.preload(state_tree.store(), builtin_actors.left_values(), context)?;
 
         Ok(DefaultMachine {
             context: context.clone(),

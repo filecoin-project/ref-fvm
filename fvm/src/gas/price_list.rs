@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
+use fvm_wasm_instrument::gas_metering::{Rules, MemoryGrowCost};
+use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -130,6 +132,8 @@ lazy_static! {
         block_create_base: 0,
         block_link_base: 353640,
         block_stat: 0,
+
+        exec_instruction_cost: 0,
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -254,6 +258,9 @@ lazy_static! {
         block_link_base: 1,
         // TODO: PARAM_FINISH
         block_stat: 1,
+
+        exec_instruction_cost: 1,
+        // TODO: PARAM_FINISH
     };
 }
 
@@ -380,6 +387,8 @@ pub struct PriceList {
     pub(crate) block_create_base: i64,
     pub(crate) block_link_base: i64,
     pub(crate) block_stat: i64,
+
+    pub(crate) exec_instruction_cost: u64,
 }
 
 impl PriceList {
@@ -635,5 +644,16 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
     match network_version {
         NetworkVersion::V14 | NetworkVersion::V15 => &OH_SNAP_PRICES,
         _ => &SKYR_PRICES,
+    }
+}
+
+impl Rules for PriceList {
+    fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
+        Some(self.exec_instruction_cost)
+    }
+
+    fn memory_grow_cost(&self) -> MemoryGrowCost {
+        // todo use pricelist
+        MemoryGrowCost::Free
     }
 }

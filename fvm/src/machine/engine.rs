@@ -5,11 +5,12 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_wasm_instrument::gas_metering::{ConstantCostRules, GAS_COUNTER_NAME};
+use fvm_wasm_instrument::gas_metering::{GAS_COUNTER_NAME};
 use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
+use crate::machine::MachineContext;
 
 /// A caching wasmtime engine.
 #[derive(Clone)]
@@ -110,7 +111,7 @@ impl Engine {
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
     /// make this method return an Err immediately.
-    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
+    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I, mctx: &MachineContext) -> anyhow::Result<()>
     where
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
@@ -126,19 +127,19 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
-            let module = self.load_raw(wasm.as_slice())?;
+            let module = self.load_raw(wasm.as_slice(), mctx)?;
             cache.insert(*cid, module);
         }
         Ok(())
     }
 
     /// Load some wasm code into the engine.
-    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
+    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = self.load_raw(wasm)?;
+                let module = self.load_raw(wasm, mctx)?;
                 cache.insert(*k, module.clone());
                 module
             }
@@ -146,7 +147,7 @@ impl Engine {
         Ok(module)
     }
 
-    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
+    fn load_raw(&self, raw_wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info
 
@@ -161,7 +162,7 @@ impl Engine {
         // block of code.
         let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
 
-        let m = inject(m, &ConstantCostRules::default(), "gas")
+        let m = inject(m, mctx.network.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;
