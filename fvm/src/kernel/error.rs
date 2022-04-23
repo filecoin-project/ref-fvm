@@ -26,7 +26,7 @@ macro_rules! syscall_error {
     };
 }
 
-// NOTE: this intentionally does not implemnent error so we can make the context impl work out
+// NOTE: this intentionally does not implement error so we can make the context impl work out
 // below.
 #[derive(Display, Debug)]
 pub enum ExecutionError {

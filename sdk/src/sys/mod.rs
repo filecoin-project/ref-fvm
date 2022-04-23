@@ -1,6 +1,62 @@
+//! This module defines the low-level syscall API.
+//!
+//! # Wasm Syscall ABI
+//!
+//! Here we specify how the syscalls specified in this module map to Wasm. For more information on
+//! the FVM syscall ABI, read the [syscall ABI spec][abi].
+//!
+//! By return type, there are three "kinds" of syscalls:
+//!
+//! 1. Syscalls that do not return (return `!`).
+//! 2. Syscalls that do not return a value (return `Result<()>`).
+//! 3. Syscalls that return a value (return `Result<T>`).
+//!
+//! Syscalls may also "return" values by writing them to out-pointers passed into the syscall by the
+//! caller, but this is documented on a syscall-by-syscall basis.
+//!
+//! [abi]: https://github.com/filecoin-project/fvm-specs/blob/main/08-syscalls.md
+//!
+//! ## Kind 1: Divergent
+//!
+//! Syscalls that return `!` (e.g. [`vm::abort`]) have the signature:
+//!
+//! ```wat
+//! (func $name (param ...) ... (result i32))
+//! ```
+//!
+//! `result` is unused because the syscall never returns.
+//!
+//! ## Kind 2: Empty Return
+//!
+//! Syscalls that return `Result<()>` (nothing) have the signature:
+//!
+//! ```wat
+//! (func $name (param ...) ... (result i32))
+//! ```
+//!
+//! Here, `result` is an [`ErrorNumber`] or `0` on success.
+//!
+//! ## Kind 3: Non-Empty Return
+//!
+//! Syscalls that return `Result<T>` where `T` is a non-empty sized value have the signature:
+//!
+//! ```wat
+//! (func $name (param $ret_ptr) (param ...) ... (result i32))
+//! ```
+//!
+//! Here:
+//!
+//! - `result` is an [`ErrorNumber`] or `0` on success.
+//! - `ret_ptr` is the offset (specified by the _caller_) where the FVM will write the return value
+//!   if, and only if the result is `0` (success).
+#[doc(inline)]
+pub use fvm_shared::error::ErrorNumber;
+#[doc(inline)]
+pub use fvm_shared::sys::TokenAmount;
+
 pub mod actor;
 pub mod crypto;
-//#[cfg(feature = "debug")]
+#[cfg(feature = "debug")]
 pub mod debug;
 pub mod gas;
 pub mod ipld;
@@ -44,7 +100,7 @@ macro_rules! fvm_syscalls {
     // Returns no values.
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<()>; $($rest:tt)*) => {
         $(#[$attrs])*
-        $v unsafe fn $name($($args:$args_ty),*) -> Result<(), fvm_shared::error::ErrorNumber> {
+        $v unsafe fn $name($($args:$args_ty),*) -> Result<(), $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
                 #[link_name = stringify!($name)]
@@ -67,7 +123,7 @@ macro_rules! fvm_syscalls {
     // Returns a value.
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<$ret:ty>; $($rest:tt)*) => {
         $(#[$attrs])*
-        $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, fvm_shared::error::ErrorNumber> {
+        $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
                 #[link_name = stringify!($name)]
@@ -100,7 +156,12 @@ macro_rules! fvm_syscalls {
             }
 
             syscall($($args),*);
-            panic!(concat!("syscall ", stringify!($name), " should not have returned"))
+
+            // This should be unreachable unless the syscall has a bug. We abort instead of panicing
+            // to help the compiler optimize. It has no way of _proving_ that the syscall doesn't
+            // return, so this gives it a way to prove that even if the syscall does return, this
+            // function won't.
+            std::process::abort()
         }
         $crate::sys::fvm_syscalls! {
             module = $module;

@@ -10,7 +10,7 @@ use filecoin_proofs_api::seal::{
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, to_vec, CborStore, RawBytes};
+use fvm_ipld_encoding::{bytes_32, from_slice, to_vec, RawBytes};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
@@ -107,7 +107,7 @@ where
 {
     type CallManager = C;
 
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized,
     {
@@ -200,18 +200,30 @@ where
 
         if charge_gas {
             self.call_manager
-                .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+                .charge_gas(self.call_manager.price_list().on_block_open_base())?;
         }
 
-        let state: crate::account_actor::State = self
+        let state_block = self
             .call_manager
             .state_tree()
             .store()
-            .get_cbor(&act.state)
-            .context("failed to decode actor state as an account")
-            .or_fatal()? // because we've checked and this should be an account.
+            .get(&act.state)
+            .context("failed to look up state")
+            .or_fatal()?
             .context("account actor state not found")
-            .or_fatal()?; // because the state should exist.
+            .or_fatal()?;
+
+        if charge_gas {
+            self.call_manager.charge_gas(
+                self.call_manager
+                    .price_list()
+                    .on_block_open_per_byte(state_block.len()),
+            )?;
+        }
+
+        let state: crate::account_actor::State = from_slice(&state_block)
+            .context("failed to decode actor state as an account")
+            .or_fatal()?; // because we've checked and this should be an account.
 
         Ok(state.address)
     }
@@ -350,7 +362,7 @@ where
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+            .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
         let data = self
             .call_manager
@@ -363,8 +375,14 @@ where
             // to be in the state-tree.
             .or_fatal()?;
 
-        // We charge on open, not read, to emulate the current gas model.
         let block = Block::new(cid.codec(), data);
+
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_block_open_per_byte(block.size() as usize),
+        )?;
+
         let stat = block.stat();
 
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
@@ -373,6 +391,9 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+
         self.blocks
             .put(Block::new(codec, data))
             .or_illegal_argument()
@@ -387,11 +408,10 @@ where
             .or_illegal_argument()
             .context(format_args!("invalid hash code: {}", hash_fun))?;
 
-        // We charge on link, not create, to emulate the current gas model.
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_ipld_put(block.size().try_into().or_illegal_argument()?),
+                .on_block_link(block.size().try_into().or_illegal_argument()?),
         )?;
 
         let hash = code.digest(block.data());
@@ -410,18 +430,29 @@ where
         Ok(k)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         let data = self.blocks.get(id).or_illegal_argument()?.data();
-        Ok(if offset as usize >= data.len() {
+
+        let len = if offset as usize >= data.len() {
             0
         } else {
-            let len = buf.len().min(data.len());
+            buf.len().min(data.len())
+        };
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_read(len))?;
+
+        if len != 0 {
             buf.copy_from_slice(&data[offset as usize..][..len]);
-            len as u32
-        })
+        }
+
+        Ok(len as u32)
     }
 
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_stat())?;
+
         self.blocks.stat(id).or_illegal_argument()
     }
 }
@@ -641,8 +672,14 @@ where
 
         record_trace!(self, PostExtern, "verify_consensus_fault");
 
-        self.call_manager
-            .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
+        if self.network_version() <= NetworkVersion::V15 {
+            self.call_manager.charge_gas(GasCharge::new(
+                "verify_consensus_fault_accesses",
+                gas,
+                0,
+            ))?;
+        }
+
         Ok(fault)
     }
 
@@ -787,9 +824,17 @@ impl<C> GasOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    fn gas_used(&self) -> i64 {
+        self.call_manager.gas_tracker().gas_used()
+    }
+
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
         self.call_manager.charge_gas(charge)
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.call_manager.price_list()
     }
 }
 
@@ -816,11 +861,17 @@ where
 {
     #[allow(unused)]
     fn get_randomness_from_tickets(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
+
         record_trace!(self, PreExtern, "get_chain_randomness");
 
         // TODO: Check error code
@@ -837,15 +888,20 @@ where
 
     #[allow(unused)]
     fn get_randomness_from_beacon(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_get_randomness(entropy.len()),
+        )?;
+
         record_trace!(self, PreExtern, "get_beacon_randomness");
 
         // TODO: Check error code
-        // Hyperdrive and above only.
         let ret = self
             .call_manager
             .externs()
@@ -951,7 +1007,7 @@ where
     }
 
     fn debug_enabled(&self) -> bool {
-        self.call_manager.context().debug
+        self.call_manager.context().actor_debugging
     }
 }
 

@@ -3,12 +3,14 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{Backtrace, CallManager, CallStats, DefaultCallManager, InvocationResult};
+use fvm::call_manager::{
+    Backtrace, CallManager, DefaultCallManager, ExecutionStats, FinishRet, InvocationResult,
+};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{Config, DefaultKernel};
+use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::Manifest;
@@ -27,7 +29,6 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
-use num_traits::Zero;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -50,7 +51,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engine: Engine,
+        engine: &Engine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -73,17 +74,11 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .expect("no builtin actors index for nv");
 
         let machine = DefaultMachine::new(
-            Config {
-                max_call_depth: 4096,
-                debug: true, // Enable debug mode by default.
-            },
             engine,
-            epoch,
-            base_fee,
-            BigInt::zero(),
-            network_version,
-            state_root,
-            Some(builtin_actors),
+            NetworkConfig::new(network_version)
+                .override_actors(builtin_actors)
+                .for_epoch(epoch, state_root)
+                .set_base_fee(base_fee),
             blockstore,
             externs,
         )
@@ -131,10 +126,6 @@ where
         self.machine.engine()
     }
 
-    fn config(&self) -> &Config {
-        self.machine.config()
-    }
-
     fn blockstore(&self) -> &Self::Blockstore {
         self.machine.blockstore()
     }
@@ -167,8 +158,8 @@ where
         self.machine.transfer(from, to, value)
     }
 
-    fn consume(self) -> Self::Blockstore {
-        self.machine.consume()
+    fn into_store(self) -> Self::Blockstore {
+        self.machine.into_store()
     }
 
     fn flush(&mut self) -> Result<Cid> {
@@ -222,7 +213,7 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Backtrace, CallStats, Self::Machine) {
+    fn finish(self) -> (FinishRet, ExecutionStats, Self::Machine) {
         self.0.finish()
     }
 
@@ -304,11 +295,11 @@ where
 {
     type CallManager = C;
 
-    fn take(self) -> Self::CallManager
+    fn into_call_manager(self) -> Self::CallManager
     where
         Self: Sized,
     {
-        self.0.take().0
+        self.0.into_call_manager().0
     }
 
     fn new(
@@ -395,15 +386,15 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         self.0.block_read(id, offset, buf)
     }
 
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
     }
 
-    fn block_get(&self, id: BlockId) -> Result<(u64, Vec<u8>)> {
+    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
         self.0.block_get(id)
     }
 }
@@ -518,8 +509,16 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
+    fn gas_used(&self) -> i64 {
+        self.0.gas_used()
+    }
+
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         self.0.charge_gas(name, compute)
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.0.price_list()
     }
 }
 
@@ -572,7 +571,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     fn get_randomness_from_tickets(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -582,7 +581,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &self,
+        &mut self,
         personalization: DomainSeparationTag,
         rand_epoch: ChainEpoch,
         entropy: &[u8],

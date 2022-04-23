@@ -11,7 +11,8 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::{Backtrace, CallManager, CallStats};
+use crate::call_manager::{Backtrace, CallManager, ExecutionStats};
+use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
@@ -75,20 +76,10 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
+    /// Execution trace information, for debugging.
+    pub exec_trace: ExecutionTrace,
     /// Wasm execution stats.
-    pub wasm_stats: Option<CallStats>,
-}
-
-impl From<Receipt> for ApplyRet {
-    fn from(receipt: Receipt) -> Self {
-        ApplyRet {
-            msg_receipt: receipt,
-            penalty: BigInt::zero(),
-            miner_tip: BigInt::zero(),
-            failure_info: None,
-            wasm_stats: None,
-        }
-    }
+    pub exec_stats: Option<ExecutionStats>,
 }
 
 impl ApplyRet {
@@ -98,14 +89,18 @@ impl ApplyRet {
         message: impl Into<String>,
         miner_penalty: BigInt,
     ) -> ApplyRet {
-        let mut ret = ApplyRet::from(Receipt {
-            exit_code: code,
-            return_data: RawBytes::default(),
-            gas_used: 0,
-        });
-        ret.penalty = miner_penalty;
-        ret.failure_info = Some(ApplyFailure::PreValidation(message.into()));
-        ret
+        ApplyRet {
+            msg_receipt: Receipt {
+                exit_code: code,
+                return_data: RawBytes::default(),
+                gas_used: 0,
+            },
+            penalty: miner_penalty,
+            failure_info: Some(ApplyFailure::PreValidation(message.into())),
+            miner_tip: BigInt::zero(),
+            exec_trace: vec![],
+            exec_stats: None,
+        }
     }
 
     pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {

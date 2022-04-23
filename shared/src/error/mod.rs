@@ -100,7 +100,8 @@ impl ExitCode {
     pub const USR_UNHANDLED_MESSAGE: ExitCode = ExitCode::new(22);
     /// Indicates the actor failed with an unspecified error.
     pub const USR_UNSPECIFIED: ExitCode = ExitCode::new(23);
-    // pub const RESERVED_24: ExitCode = ExitCode::new(24);
+    /// Indicates the actor failed a user-level assertion
+    pub const USR_ASSERTION_FAILED: ExitCode = ExitCode::new(24);
     // pub const RESERVED_25: ExitCode = ExitCode::new(25);
     // pub const RESERVED_26: ExitCode = ExitCode::new(26);
     // pub const RESERVED_27: ExitCode = ExitCode::new(27);
@@ -110,19 +111,38 @@ impl ExitCode {
     // pub const RESERVED_31: ExitCode = ExitCode::new(31);
 }
 
+/// When a syscall fails, it returns an `ErrorNumber` to indicate why. The syscalls themselves
+/// include documentation on _which_ syscall errors they can be expected to return, and what they
+/// mean in the context of the syscall.
 #[repr(u32)]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Error, FromPrimitive)]
 pub enum ErrorNumber {
+    /// A syscall parameters was invalid.
     IllegalArgument = 1,
+    /// The actor is not in the correct state to perform the requested operation.
     IllegalOperation = 2,
+    /// This syscall would exceed some system limit (memory, lookback, call depth, etc.).
     LimitExceeded = 3,
+    /// A system-level assertion has failed.
+    ///
+    /// # Note
+    ///
+    /// Non-system actors should never receive this error number. A system-level assertion will
+    /// cause the entire message to fail.
     AssertionFailed = 4,
+    /// There were insufficient funds to complete the requested operation.
     InsufficientFunds = 5,
+    /// A resource was not found.
     NotFound = 6,
+    /// The specified IPLD block handle was invalid.
     InvalidHandle = 7,
+    /// The requested CID shape (multihash codec, multihash length) isn't supported.
     IllegalCid = 8,
+    /// The requested IPLD codec isn't supported.
     IllegalCodec = 9,
+    /// The IPLD block did not match the specified IPLD codec.
     Serialization = 10,
+    /// The operation is forbidden.
     Forbidden = 11,
 }
 

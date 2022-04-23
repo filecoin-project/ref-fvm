@@ -10,7 +10,7 @@ use crate::kernel::ExecutionError;
 /// Represents an actor "abort".
 #[derive(Debug)]
 pub enum Abort {
-    /// The actor explicitly aborted with the given exit code (or paniced).
+    /// The actor explicitly aborted with the given exit code (or panicked).
     Exit(ExitCode, String),
     /// The actor ran out of gas.
     OutOfGas,

@@ -13,9 +13,14 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
+
 pub use backtrace::Backtrace;
+
 mod default;
+
 pub use default::DefaultCallManager;
+
+use crate::trace::ExecutionTrace;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -59,8 +64,8 @@ pub trait CallManager: 'static {
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
-    /// Finishes execution, returning the gas used and the machine.
-    fn finish(self) -> (i64, backtrace::Backtrace, CallStats, Self::Machine);
+    /// Finishes execution, returning the gas used, machine, and exec trace if requested.
+    fn finish(self) -> (FinishRet, Self::Machine);
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
@@ -83,7 +88,7 @@ pub trait CallManager: 'static {
 
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {
-        &self.machine().context().price_list
+        self.machine().context().price_list
     }
 
     /// Returns the machine context.
@@ -128,10 +133,11 @@ pub trait CallManager: 'static {
 }
 
 /// The result of a method invocation.
+#[derive(Clone, Debug)]
 pub enum InvocationResult {
-    /// Indicates that the actor sucessfully returned. The value may be empty.
+    /// Indicates that the actor successfully returned. The value may be empty.
     Return(RawBytes),
-    /// Indicates taht the actor aborted with the given exit code.
+    /// Indicates that the actor aborted with the given exit code.
     Failure(ExitCode),
 }
 
@@ -153,7 +159,7 @@ impl InvocationResult {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct CallStats {
+pub struct ExecutionStats {
     /// Wasm fuel used over the course of the message execution.
     pub fuel_used: u64,
     /// Time spent inside wasm code.
@@ -164,4 +170,12 @@ pub struct CallStats {
     pub call_count: u64,
     /// Compute gas actually used.
     pub compute_gas: u64,
+}
+
+/// The returned values upon finishing a call manager.
+pub struct FinishRet {
+    pub gas_used: i64,
+    pub backtrace: Backtrace,
+    pub exec_trace: ExecutionTrace,
+    pub exec_stats: ExecutionStats,
 }

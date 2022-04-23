@@ -1,3 +1,4 @@
+use std::cmp::max;
 #[cfg(feature = "tracing")]
 use std::io::Write;
 #[cfg(feature = "tracing")]
@@ -11,21 +12,24 @@ use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, CallStats, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, ExecutionStats, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
+use crate::call_manager::FinishRet;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
+use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
 use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
-pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
+pub struct DefaultCallManager<M>(Option<Box<InnerDefaultCallManager<M>>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
@@ -46,9 +50,11 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+    /// The current execution trace.
+    exec_trace: ExecutionTrace,
 
     /// Stats related to the message execution.
-    call_stats: CallStats,
+    call_stats: ExecutionStats,
 
     #[cfg(feature = "tracing")]
     gas_tracer: Option<std::cell::RefCell<crate::gas::tracer::GasTracer>>,
@@ -84,7 +90,7 @@ where
     type Machine = M;
 
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
-        DefaultCallManager(Some(InnerDefaultCallManager {
+        DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker: GasTracker::new(gas_limit, 0),
             origin,
@@ -92,7 +98,8 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
-            call_stats: CallStats::default(),
+            call_stats: ExecutionStats::default(),
+            exec_trace: vec![],
 
             #[cfg(feature = "tracing")]
             gas_tracer: {
@@ -108,7 +115,7 @@ where
                 );
                 Some(std::cell::RefCell::new(tracer))
             },
-        }))
+        })))
     }
 
     fn send<K>(
@@ -122,6 +129,16 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
+        if self.machine.context().tracing {
+            self.exec_trace.push(ExecutionEvent::Call(SendParams {
+                from,
+                to,
+                method,
+                params: params.clone(),
+                value: value.clone(),
+            }));
+        }
+
         // We check _then_ set because we don't count the top call. This effectivly allows a
         // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
         // likely a bug, this is how NV15 behaves so we mimic that behavior here.
@@ -135,7 +152,7 @@ where
         //
         // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
         // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.config().max_call_depth {
+        if self.call_stack_depth > self.machine.context().max_call_depth {
             return Err(
                 syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
             );
@@ -143,6 +160,20 @@ where
         self.call_stack_depth += 1;
         let result = self.send_unchecked::<K>(from, to, method, params, value);
         self.call_stack_depth -= 1;
+
+        if self.machine.context().tracing {
+            self.exec_trace.push(ExecutionEvent::Return(match result {
+                Err(ref e) => Err(match e {
+                    ExecutionError::OutOfGas => {
+                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
+                    }
+                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
+                    ExecutionError::Syscall(s) => s.clone(),
+                }),
+                Ok(ref v) => Ok(v.clone()),
+            }));
+        }
+
         result
     }
 
@@ -159,7 +190,7 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, CallStats, Self::Machine) {
+    fn finish(mut self) -> (FinishRet, Self::Machine) {
         #[cfg(feature = "tracing")]
         {
             use crate::gas::tracer::{Consumption, Point};
@@ -190,7 +221,15 @@ where
         stats.compute_gas = inner.gas_tracker.compute_gas_real().max(0) as u64;
 
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, stats, inner.machine)
+        (
+            FinishRet {
+                gas_used,
+                backtrace: inner.backtrace,
+                exec_stats: stats,
+                exec_trace: inner.exec_trace,
+            },
+            inner.machine,
+        )
     }
 
     #[cfg(feature = "tracing")]
@@ -374,6 +413,7 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
+        let gas_available = self.gas_tracker.gas_available();
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
@@ -384,15 +424,28 @@ where
                 match kernel.block_create(DAG_CBOR, params) {
                     Ok(id) => id,
                     // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), kernel.take()),
+                    Err(err) => return (Err(err), kernel.into_call_manager()),
                 }
             } else {
                 super::NO_DATA_BLOCK_ID
             };
 
             // Make a store.
+            let gas_used = kernel.gas_used();
+            let exec_units_to_add = match kernel.network_version() {
+                NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
+                _ => kernel
+                    .price_list()
+                    .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
+            };
+
             let mut store = engine.new_store(kernel);
-            store.add_fuel(u64::MAX).expect("failed to add fuel");
+            if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
+                return (
+                    Err(ExecutionError::Fatal(err)),
+                    store.into_data().kernel.into_call_manager(),
+                );
+            }
 
             // Instantiate the module.
             let instance = match engine
@@ -401,7 +454,7 @@ where
                 .or_fatal()
             {
                 Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.take()),
+                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
             };
 
             // From this point on, there are no more syscall errors, only aborts.
@@ -413,12 +466,30 @@ where
                     .map_err(Abort::Fatal)?;
 
                 // Invoke (and time) it.
-                let return_block_id = invoke.call(&mut store, (param_id,))?;
+                let res = invoke.call(&mut store, (param_id,));
+
+                // Charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
+                // We do this by first loading the _total_ execution units consumed
+                let exec_units_consumed = store
+                    .fuel_consumed()
+                    .context("expected to find fuel consumed")
+                    .map_err(Abort::Fatal)?;
+                // Then, pass the _total_ exec_units_consumed to the InvocationData,
+                // which knows how many execution units had been consumed at the most recent snapshot
+                // It will charge gas for the delta between the total units (the number we provide) and its snapshot
+                store
+                    .data_mut()
+                    .charge_gas_for_exec_units(exec_units_consumed)
+                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
+
+                // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
+                // Any other invocation failure is returned here as an Abort
+                let return_block_id = res?;
 
                 // Extract the return value, if there is one.
                 let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
                     let (code, ret) = store
-                        .data()
+                        .data_mut()
                         .kernel
                         .block_get(return_block_id)
                         .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
@@ -434,7 +505,7 @@ where
             let fuel_used = store.fuel_consumed().expect("fuel not enabled?");
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
-            let mut cm = invocation_data.kernel.take();
+            let mut cm = invocation_data.kernel.into_call_manager();
 
             #[cfg(feature = "tracing")]
             {
