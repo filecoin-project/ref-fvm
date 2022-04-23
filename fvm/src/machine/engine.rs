@@ -58,8 +58,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     // c.cranelift_opt_level(Speed); ?
 
-    c.consume_fuel(true);
-
     c
 }
 
