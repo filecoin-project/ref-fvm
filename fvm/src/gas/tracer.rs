@@ -1,7 +1,8 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use cid::Cid;
 use fvm_shared::MethodNum;
+use minstant::Instant;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
