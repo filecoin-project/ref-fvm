@@ -38,3 +38,6 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 [dev-dependencies]
 wabt = "0.10.0"
 serde = { version = "1.0", features = ["derive"] }
+
+[features]
+default = ["fvm/testing", "fvm_shared/testing"]

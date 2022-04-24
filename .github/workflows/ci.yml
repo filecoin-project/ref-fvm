@@ -33,7 +33,7 @@ jobs:
         include:
           - name: check-clippy
             command: clippy
-            args: --all --all-targets --features testing
+            args: --all --all-targets
             components: clippy
           - name: test-fvm
             command: test
@@ -45,9 +45,6 @@ jobs:
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          - name: integration
-            command: test
-            args: --package fvm_integration_tests --features fvm/testing,fvm_shared/testing
           - name: build
             command: build
             push: true
