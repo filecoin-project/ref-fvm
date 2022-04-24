@@ -7,7 +7,6 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -332,12 +331,10 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            let initial_frgas = match kernel.network_version() {
-                NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
-                _ => kernel.price_list().gas_to_frgas(max(kernel.get_gas(), 0)),
-            };
+            let avail_gas = kernel.get_gas();
+            let initial_frgas = kernel.price_list().gas_to_frgas(max(avail_gas, 0));
 
-            // Make a store and add some gas
+            // Make a store and available gas
             let mut store = engine.new_store(kernel, initial_frgas);
 
             // Instantiate the module.
@@ -347,7 +344,14 @@ where
                 .or_fatal()
             {
                 Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
+                Err(err) => {
+                    store
+                        .data_mut()
+                        .kernel
+                        .set_available_gas("getinstance_fail", avail_gas)
+                        .unwrap();
+                    return (Err(err), store.into_data().kernel.into_call_manager());
+                }
             };
 
             // From this point on, there are no more syscall errors, only aborts.
@@ -363,20 +367,22 @@ where
 
                 // Update GasTracker gas
                 use wasmtime::Val;
-                let frgas = match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
-                    Val::I64(g) => Ok(g),
-                    _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
-                }?;
+                let available_frgas =
+                    match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
+                        Val::I64(g) => Ok(g),
+                        _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
+                    }?;
                 let available_gas = store
                     .data_mut()
                     .kernel
                     .price_list()
-                    .frgas_to_gas(frgas, true);
+                    .frgas_to_gas(available_frgas, true);
 
                 store
                     .data_mut()
                     .kernel
-                    .set_available_gas("wasm_exec", available_gas).map_err(|_|Abort::Fatal(anyhow::Error::msg("setting avaialable gas")))?;
+                    .set_available_gas(&*format!("wasm_exec_last({:?})", res), available_gas)
+                    .map_err(|_| Abort::Fatal(anyhow::Error::msg("setting avaialable gas")))?;
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
                 let return_block_id = res?;
@@ -408,6 +414,8 @@ where
                     if let Some(err) = last_error {
                         cm.backtrace.set_cause(err);
                     }
+
+                    // todo out of gas hereish
 
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message) => {

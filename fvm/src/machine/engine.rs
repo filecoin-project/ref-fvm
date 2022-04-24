@@ -5,12 +5,12 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_wasm_instrument::gas_metering::{GAS_COUNTER_NAME};
+use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
 
+use crate::machine::MachineContext;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
-use crate::machine::MachineContext;
 
 /// A caching wasmtime engine.
 #[derive(Clone)]
@@ -109,7 +109,12 @@ impl Engine {
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
     /// make this method return an Err immediately.
-    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I, mctx: &MachineContext) -> anyhow::Result<()>
+    pub fn preload<'a, BS, I>(
+        &self,
+        blockstore: BS,
+        cids: I,
+        mctx: &MachineContext,
+    ) -> anyhow::Result<()>
     where
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
@@ -132,7 +137,12 @@ impl Engine {
     }
 
     /// Load some wasm code into the engine.
-    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
+    pub fn load_bytecode(
+        &self,
+        k: &Cid,
+        wasm: &[u8],
+        mctx: &MachineContext,
+    ) -> anyhow::Result<Module> {
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),

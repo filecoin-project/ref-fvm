@@ -101,18 +101,12 @@ fn memory_and_data<'a, K: Kernel>(
 fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
     let avail_gas = caller.data_mut().kernel.get_gas();
 
-    let frgas = caller
-        .data()
-        .kernel
-        .price_list()
-        .gas_to_frgas(avail_gas);
+    let frgas = caller.data().kernel.price_list().gas_to_frgas(avail_gas);
 
-    let gas_global = caller
-        .data_mut()
-        .avail_gas_global
-        .unwrap();
+    let gas_global = caller.data_mut().avail_gas_global.unwrap();
 
-    gas_global.set(caller, Val::I64(frgas))
+    gas_global
+        .set(caller, Val::I64(frgas))
         .map_err(|_| Trap::new("failed to set available gas"))
 }
 
@@ -129,7 +123,9 @@ fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Re
     let available_gas = id.kernel.price_list().frgas_to_gas(frgas, true);
 
     // todo do we have consts for charge names anywhere?
-    id.kernel.set_available_gas("wasm_exec", available_gas).map_err(|_|Trap::new("setting available gas"))?;
+    id.kernel
+        .set_available_gas("wasm_exec", available_gas)
+        .map_err(|_| Trap::new("setting available gas"))?;
     Ok(())
 }
 
@@ -157,22 +153,26 @@ macro_rules! impl_bind_syscalls {
 
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(_) => {
+                        let out = syscall(ctx $(, $t)*).into();
+
+                        let result = match out {
+                            Ok(Ok(_)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
                         gastracker_to_wasmgas(&mut caller)?;
-                        Ok(result)
+
+                        result
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
@@ -189,23 +189,25 @@ macro_rules! impl_bind_syscalls {
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(value) => {
+                        let result = match syscall(ctx $(, $t)*).into() {
+                            Ok(Ok(value)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
                         gastracker_to_wasmgas(&mut caller)?;
-                        Ok(result)
+
+                        result
                     })
                 }
             }
