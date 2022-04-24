@@ -496,7 +496,7 @@ where
         self.0.charge_gas(name, compute)
     }
 
-    fn get_gas(&self) -> i64 {
+    fn get_gas(&mut self) -> i64 {
         self.0.get_gas()
     }
 

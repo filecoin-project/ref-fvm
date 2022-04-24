@@ -766,8 +766,8 @@ where
             .set_available_gas(name, new_gas)
     }
 
-    fn get_gas(&self) -> i64 {
-        self.call_manager.gas_tracker().get_gas()
+    fn get_gas(&mut self) -> i64 {
+        self.call_manager.gas_tracker_mut().get_gas()
     }
 
     fn price_list(&self) -> &PriceList {

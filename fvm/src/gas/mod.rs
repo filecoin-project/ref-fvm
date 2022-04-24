@@ -13,6 +13,8 @@ mod price_list;
 pub struct GasTracker {
     gas_limit: i64,
     gas_used: i64,
+
+    own_limit: bool,
 }
 
 impl GasTracker {
@@ -20,12 +22,17 @@ impl GasTracker {
         Self {
             gas_limit,
             gas_used,
+            own_limit: true,
         }
     }
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
+        if !self.own_limit {
+            panic!("charge_gas called when gas_limit owned by execution")
+        }
+
         let to_use = charge.total();
         match self.gas_used.checked_add(to_use) {
             None => {
@@ -48,14 +55,22 @@ impl GasTracker {
     }
 
     /// returns unused gas
-    pub fn get_gas(&self) -> i64 {
-        // todo block charges to make sure we account properly (maybe debug mode only)
+    pub fn get_gas(&mut self) -> i64 {
+        if !self.own_limit {
+            panic!("get_gas called when gas_limit owned by execution")
+        }
+        self.own_limit = false;
 
         self.gas_limit - self.gas_used
     }
 
     /// sets new unused gas, creating a new gas charge if needed
-    pub fn set_available_gas(&mut self, _name: &str, new_avail_gas: i64) -> Result<()> {
+    pub fn set_available_gas(&mut self, name: &str, new_avail_gas: i64) -> Result<()> {
+        if self.own_limit {
+            panic!("gastracker already owns gas_limit, charge: {}", name)
+        }
+        self.own_limit = true;
+
         self.gas_used = self.gas_limit - new_avail_gas;
         // todo use charge_gas
         Ok(())

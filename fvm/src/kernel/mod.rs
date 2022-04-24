@@ -228,7 +228,7 @@ pub trait GasOps {
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
 
     /// Returns available gas.
-    fn get_gas(&self) -> i64;
+    fn get_gas(&mut self) -> i64;
 
     /// Sets available gas to a new value, creating a gas charge if needed
     fn set_available_gas(&mut self, name: &str, newgas: i64) -> Result<()>;

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use ahash::AHashMap;
-use fvm_wasm_instrument::gas_metering::{Rules, MemoryGrowCost};
-use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -13,6 +11,8 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
+use fvm_wasm_instrument::gas_metering::{MemoryGrowCost, Rules};
+use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 
@@ -265,8 +265,8 @@ lazy_static! {
 }
 
 /// bits of precision for fractional gas
-/// 20 bits means 1_048_576 fractional gas per unit of gas
-const FRGAS_PRECISION: i64 = 20;
+/// 16 bits means 65_536 fractional gas per unit of gas
+const FRGAS_PRECISION: i64 = 16;
 
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct ScalingCost {
