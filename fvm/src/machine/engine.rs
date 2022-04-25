@@ -255,12 +255,12 @@ impl Engine {
     pub fn new_store<K: Kernel>(
         &self,
         kernel: K,
-        frgas: i64,
+        miligas: i64,
     ) -> wasmtime::Store<InvocationData<K>> {
         let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
 
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
-        let gg = Global::new(&mut store, ggtype, Val::I64(frgas))
+        let gg = Global::new(&mut store, ggtype, Val::I64(miligas))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = Some(gg);
 
