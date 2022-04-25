@@ -16,9 +16,10 @@ use crate::error::Error::{
     FailedToLoadManifest, FailedToSetActor, FailedToSetState, MultipleRootCid, NoCidInManifest,
 };
 
-const BUNDLES: [(NetworkVersion, &[u8]); 2] = [
+const BUNDLES: [(NetworkVersion, &[u8]); 3] = [
     (NetworkVersion::V14, actors_v6::BUNDLE_CAR),
     (NetworkVersion::V15, actors_v7::BUNDLE_CAR),
+    (NetworkVersion::V16, actors_v7::BUNDLE_CAR), // todo bad hack
 ];
 
 // Import built-in actors
