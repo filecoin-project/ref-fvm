@@ -8,7 +8,6 @@ use super::context::Memory;
 use super::error::Abort;
 use super::{Context, InvocationData};
 use crate::call_manager::backtrace;
-use crate::gas;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 // TODO: we should consider implementing a proc macro attribute for syscall functions instead of
@@ -100,13 +99,11 @@ fn memory_and_data<'a, K: Kernel>(
 }
 
 fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let avail_gas = caller.data_mut().kernel.get_gas();
-    let miligas = gas::gas_to_miligas(avail_gas);
-
+    let avail_miligas = caller.data_mut().kernel.get_miligas();
     let gas_global = caller.data_mut().avail_gas_global.unwrap();
 
     gas_global
-        .set(caller, Val::I64(miligas))
+        .set(caller, Val::I64(avail_miligas))
         .map_err(|_| Trap::new("failed to set available gas"))
 }
 
@@ -118,14 +115,12 @@ fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Re
         _ => Err(Trap::new("failed to get wasm gas")),
     }?;
 
-    let available_gas = gas::miligas_to_gas(miligas, false);
-
     // todo do we have consts for charge names anywhere?
     // todo make sure that we handle traps/out-of-gas here correctly
     caller
         .data_mut()
         .kernel
-        .set_available_gas("wasm_exec", available_gas)
+        .set_available_miligas("wasm_exec", miligas)
         .map_err(|_| Trap::new("setting available gas"))?;
     Ok(())
 }

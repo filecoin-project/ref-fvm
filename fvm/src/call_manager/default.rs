@@ -18,7 +18,7 @@ use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
-use crate::{account_actor, gas, syscall_error};
+use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
@@ -331,8 +331,7 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            let avail_gas = kernel.get_gas();
-            let initial_miligas = gas::gas_to_miligas(max(avail_gas, 0));
+            let initial_miligas = max(kernel.get_miligas(), 0);
 
             // Make a store and available gas
             let mut store = engine.new_store(kernel, initial_miligas);
@@ -348,7 +347,7 @@ where
                     store
                         .data_mut()
                         .kernel
-                        .set_available_gas("getinstance_fail", avail_gas)
+                        .set_available_miligas("getinstance_fail", initial_miligas)
                         .unwrap();
                     return (Err(err), store.into_data().kernel.into_call_manager());
                 }
@@ -373,12 +372,10 @@ where
                         _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
                     }?;
 
-                let available_gas = gas::miligas_to_gas(available_miligas, false); // available gas, so round down
-
                 store
                     .data_mut()
                     .kernel
-                    .set_available_gas("wasm_exec_last", available_gas)
+                    .set_available_miligas("wasm_exec_last", available_miligas)
                     .map_err(|e| match e {
                         ExecutionError::OutOfGas => Abort::OutOfGas,
                         ExecutionError::Fatal(m) => Abort::Fatal(m),

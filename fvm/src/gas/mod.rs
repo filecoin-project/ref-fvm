@@ -14,8 +14,8 @@ pub const MILIGAS_PRECISION: i64 = 16;
 
 pub struct GasTracker {
     // TODO: convert to miligas
-    gas_limit: i64,
-    gas_used: i64,
+    miligas_limit: i64,
+    miligas_used: i64,
 
     own_limit: bool,
 }
@@ -23,60 +23,63 @@ pub struct GasTracker {
 impl GasTracker {
     pub fn new(gas_limit: i64, gas_used: i64) -> Self {
         Self {
-            gas_limit,
-            gas_used,
+            miligas_limit: gas_to_miligas(gas_limit),
+            miligas_used: gas_to_miligas(gas_used),
             own_limit: true,
         }
     }
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
+    fn charge_miligas(&mut self, name: &str, to_use: i64) -> Result<()> {
         if !self.own_limit {
             panic!("charge_gas called when gas_limit owned by execution")
         }
 
-        let to_use = charge.total();
-        match self.gas_used.checked_add(to_use) {
+        match self.miligas_used.checked_add(to_use) {
             None => {
-                log::trace!("gas overflow: {}", charge.name);
-                self.gas_used = self.gas_limit;
+                log::trace!("gas overflow: {}", name);
+                self.miligas_used = self.miligas_limit;
                 Err(ExecutionError::OutOfGas)
             }
             Some(used) => {
-                log::trace!("charged {} gas: {}", to_use, charge.name);
-                if used > self.gas_limit {
-                    log::trace!("out of gas: {}", charge.name);
-                    self.gas_used = self.gas_limit;
+                log::trace!("charged {} gas: {}", to_use, name);
+                if used > self.miligas_limit {
+                    log::trace!("out of gas: {}", name);
+                    self.miligas_used = self.miligas_limit;
                     Err(ExecutionError::OutOfGas)
                 } else {
-                    self.gas_used = used;
+                    self.miligas_used = used;
                     Ok(())
                 }
             }
         }
     }
 
-    /// returns available gas; makes the gas tracker block gas charges until
+    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
+        self.charge_miligas(charge.name, charge.total() * MILIGAS_PRECISION)
+    }
+
+    /// returns available miligas; makes the gas tracker block gas charges until
     /// set_available_gas is called
-    pub fn get_gas(&mut self) -> i64 {
+    pub fn get_miligas(&mut self) -> i64 {
         if !self.own_limit {
             panic!("get_gas called when gas_limit owned by execution")
         }
         self.own_limit = false;
 
-        self.gas_limit - self.gas_used
+        self.miligas_limit - self.miligas_used
     }
 
     /// sets new available gas, creating a new gas charge if needed
-    pub fn set_available_gas(&mut self, name: &str, new_avail_gas: i64) -> Result<()> {
+    pub fn set_available_miligas(&mut self, name: &str, new_avail_mgas: i64) -> Result<()> {
         if self.own_limit {
             panic!("gastracker already owns gas_limit, charge: {}", name)
         }
         self.own_limit = true;
 
-        let old_avail_gas = self.gas_limit - self.gas_used;
-        let used = old_avail_gas - new_avail_gas;
+        let old_avail_miligas = self.miligas_limit - self.miligas_used;
+        let used = old_avail_miligas - new_avail_mgas;
 
         if used < 0 {
             return Err(ExecutionError::Fatal(anyhow::Error::msg(
@@ -84,33 +87,29 @@ impl GasTracker {
             )));
         }
 
-        self.charge_gas(GasCharge {
-            name,
-            compute_gas: used,
-            storage_gas: 0,
-        })
+        self.charge_miligas(name, used)
     }
 
     /// Getter for gas available.
     pub fn gas_limit(&self) -> i64 {
-        self.gas_limit
+        miligas_to_gas(self.miligas_limit, false)
     }
 
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
-        self.gas_used
+        miligas_to_gas(self.miligas_used, true)
     }
 }
 
 /// Converts the specified gas into equivalent fractional gas units
 #[inline]
-pub fn gas_to_miligas(gas: i64) -> i64 {
+fn gas_to_miligas(gas: i64) -> i64 {
     gas * MILIGAS_PRECISION
 }
 
 /// Converts the specified fractional gas units into gas units
 #[inline]
-pub fn miligas_to_gas(miligas: i64, round_up: bool) -> i64 {
+fn miligas_to_gas(miligas: i64, round_up: bool) -> i64 {
     let mut div_result = miligas / MILIGAS_PRECISION;
     if miligas > 0 && round_up && miligas % MILIGAS_PRECISION != 0 {
         div_result = div_result.saturating_add(1);
