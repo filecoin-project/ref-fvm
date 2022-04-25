@@ -6,25 +6,27 @@ use fvm_shared::MethodNum;
 use minstant::Instant;
 use serde::Serialize;
 
-#[derive(Debug)]
-pub struct GasTracer {
+#[derive(Debug, Serialize)]
+pub struct GasTrace {
+    #[serde(skip)]
     started: Instant,
+    #[serde(skip)]
     previous: Instant,
-    traces: LinkedList<GasTrace>,
+    spans: LinkedList<GasSpan>,
 }
 
-impl GasTracer {
-    pub fn new() -> GasTracer {
+impl GasTrace {
+    pub fn start() -> GasTrace {
         let now = Instant::now();
-        GasTracer {
+        GasTrace {
             started: now,
             previous: now,
-            traces: Default::default(),
+            spans: Default::default(),
         }
     }
 
     pub fn record(&mut self, context: Context, point: Point, consumption: Consumption) {
-        let trace = GasTrace {
+        let trace = GasSpan {
             context,
             point,
             consumption,
@@ -38,16 +40,12 @@ impl GasTracer {
                 }
             },
         };
-        self.traces.push_back(trace)
-    }
-
-    pub fn finish(self) -> LinkedList<GasTrace> {
-        self.traces
+        self.spans.push_back(trace)
     }
 }
 
 #[derive(Debug, Serialize)]
-pub struct GasTrace {
+pub struct GasSpan {
     /// Context annotates the trace with the source context.
     #[serde(flatten)]
     pub context: Context,
@@ -115,8 +113,8 @@ pub enum Event {
 
 #[test]
 fn test_tracer() {
-    let mut tracer = GasTracer::new();
-    tracer.record(
+    let mut trace = GasTrace::start();
+    trace.record(
         Context {
             code_cid: Default::default(),
             method_num: 0,
@@ -132,7 +130,7 @@ fn test_tracer() {
     );
 
     std::thread::sleep(Duration::from_millis(1000));
-    tracer.record(
+    trace.record(
         Context {
             code_cid: Default::default(),
             method_num: 0,
@@ -146,10 +144,9 @@ fn test_tracer() {
             gas_consumed: None,
         },
     );
-    let traces = tracer.finish();
-    println!("{:?}", traces);
+    println!("{:?}", trace);
 
-    let str = serde_json::to_string(&traces).unwrap();
+    let str = serde_json::to_string(&trace).unwrap();
     println!("{}", str);
 }
 

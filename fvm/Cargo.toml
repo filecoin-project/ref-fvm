@@ -42,6 +42,14 @@ blake2b_simd = "1.0.0"
 minstant = { version = "0.1.1" }
 serde_json = { version = "1.0.79", optional = true }
 
+[dev-dependencies]
+criterion = "0.3.5"
+
+[[bench]]
+name = "gas_tracing"
+harness = false
+required-features = ["tracing"]
+
 [dependencies.wasmtime]
 version = "0.35.2"
 default-features = false

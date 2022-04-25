@@ -68,7 +68,7 @@ pub trait Kernel:
 
     #[cfg(feature = "tracing")]
     fn record_trace(
-        &self,
+        &mut self,
         point: crate::gas::tracer::Point,
         consumption: crate::gas::tracer::Consumption,
     );

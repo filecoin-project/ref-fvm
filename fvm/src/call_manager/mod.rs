@@ -125,7 +125,7 @@ pub trait CallManager: 'static {
     /// Record a gas trace.
     #[cfg(feature = "tracing")]
     fn record_trace(
-        &self,
+        &mut self,
         context: crate::gas::tracer::Context,
         point: crate::gas::tracer::Point,
         consumption: crate::gas::tracer::Consumption,

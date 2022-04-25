@@ -56,7 +56,7 @@ pub struct InnerDefaultCallManager<M> {
     /// Stats related to the message execution.
     exec_stats: ExecutionStats,
     #[cfg(feature = "tracing")]
-    gas_tracer: Option<std::cell::RefCell<crate::gas::tracer::GasTracer>>,
+    gas_trace: crate::gas::tracer::GasTrace,
 }
 
 #[doc(hidden)]
@@ -101,18 +101,17 @@ where
             exec_trace: vec![],
 
             #[cfg(feature = "tracing")]
-            gas_tracer: {
-                use crate::gas::tracer::Point;
-                let mut tracer = crate::gas::tracer::GasTracer::new();
+            gas_trace: {
+                let mut tracer = crate::gas::tracer::GasTrace::start();
                 tracer.record(
                     Default::default(),
-                    Point {
+                    crate::gas::tracer::Point {
                         event: crate::gas::tracer::Event::Started,
                         label: Default::default(),
                     },
                     Default::default(),
                 );
-                Some(std::cell::RefCell::new(tracer))
+                tracer
             },
         })))
     }
@@ -193,24 +192,20 @@ where
         #[cfg(feature = "tracing")]
         {
             use crate::gas::tracer::{Consumption, Point};
-            let tracer = self.gas_tracer.take().unwrap();
-            let traces = {
-                let mut tracer = tracer.into_inner();
-                tracer.record(
-                    Default::default(),
-                    Point {
-                        event: crate::gas::tracer::Event::Finished,
-                        label: Default::default(),
-                    },
-                    Consumption {
-                        fuel_consumed: None,
-                        gas_consumed: Some(self.gas_tracker.gas_used()),
-                    },
-                );
-                tracer.finish()
-            };
+            let gas_used = self.gas_tracker.gas_used();
+            self.gas_trace.record(
+                Default::default(),
+                Point {
+                    event: crate::gas::tracer::Event::Finished,
+                    label: Default::default(),
+                },
+                Consumption {
+                    fuel_consumed: None,
+                    gas_consumed: Some(gas_used),
+                },
+            );
             let mut tf = TRACE_FILE.lock().unwrap();
-            serde_json::to_writer(tf.deref_mut(), &traces).unwrap();
+            serde_json::to_writer(tf.deref_mut(), &self.gas_trace).unwrap();
             tf.flush().unwrap();
         }
 
@@ -233,16 +228,12 @@ where
 
     #[cfg(feature = "tracing")]
     fn record_trace(
-        &self,
+        &mut self,
         context: crate::gas::tracer::Context,
         point: crate::gas::tracer::Point,
         consumption: crate::gas::tracer::Consumption,
     ) {
-        self.gas_tracer
-            .as_ref()
-            .unwrap()
-            .borrow_mut()
-            .record(context, point, consumption)
+        self.gas_trace.record(context, point, consumption)
     }
 
     // Accessor methods so the trait can implement some common methods by default.
@@ -392,7 +383,7 @@ where
         {
             use crate::gas::tracer::{Consumption, Context, Point};
             let gas_used = self.gas_tracker.gas_used();
-            self.gas_tracer.as_mut().unwrap().get_mut().record(
+            self.gas_trace.record(
                 Context {
                     code_cid: state.code.clone(),
                     method_num: method,
@@ -510,7 +501,7 @@ where
             {
                 use crate::gas::tracer::{Consumption, Context, Point};
                 let gas_used = cm.gas_tracker.gas_used();
-                cm.gas_tracer.as_mut().unwrap().get_mut().record(
+                cm.gas_trace.record(
                     Context {
                         code_cid: state.code.clone(),
                         method_num: method,

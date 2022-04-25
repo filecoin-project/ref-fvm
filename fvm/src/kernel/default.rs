@@ -142,7 +142,7 @@ where
 
     #[cfg(feature = "tracing")]
     fn record_trace(
-        &self,
+        &mut self,
         point: crate::gas::tracer::Point,
         mut consumption: crate::gas::tracer::Consumption,
     ) {
