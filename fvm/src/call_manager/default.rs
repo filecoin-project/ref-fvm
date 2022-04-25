@@ -372,17 +372,20 @@ where
                         Val::I64(g) => Ok(g),
                         _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
                     }?;
-                let available_gas = store
-                    .data_mut()
-                    .kernel
-                    .price_list()
-                    .frgas_to_gas(available_frgas, true);
+
+                let pl = store.data_mut().kernel.price_list();
+                let available_gas = pl.frgas_to_gas(available_frgas, false); // available gas, so round down
 
                 store
                     .data_mut()
                     .kernel
-                    .set_available_gas(&*format!("wasm_exec_last({:?})", res), available_gas)
-                    .map_err(|_| Abort::Fatal(anyhow::Error::msg("setting avaialable gas")))?;
+                    .set_available_gas("wasm_exec_last", available_gas)
+                    .map_err(|e| match e {
+                        ExecutionError::OutOfGas => Abort::OutOfGas,
+                        ExecutionError::Fatal(m) => Abort::Fatal(m),
+                        _ => Abort::Fatal(anyhow::Error::msg("setting avaialable gas")),
+                    })?;
+
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
                 let return_block_id = res?;
@@ -414,8 +417,6 @@ where
                     if let Some(err) = last_error {
                         cm.backtrace.set_cause(err);
                     }
-
-                    // todo out of gas hereish
 
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message) => {
