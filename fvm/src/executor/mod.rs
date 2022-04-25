@@ -11,6 +11,7 @@ use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
 use crate::call_manager::Backtrace;
+use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
@@ -71,6 +72,8 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
+    /// Execution trace information, for debugging.
+    pub exec_trace: ExecutionTrace,
 }
 
 impl ApplyRet {
@@ -89,6 +92,7 @@ impl ApplyRet {
             penalty: miner_penalty,
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
+            exec_trace: vec![],
         }
     }
 

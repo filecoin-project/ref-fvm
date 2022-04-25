@@ -91,3 +91,10 @@ impl From<&Payload> for Protocol {
         }
     }
 }
+
+#[cfg(feature = "testing")]
+impl Default for Payload {
+    fn default() -> Self {
+        Payload::ID(0)
+    }
+}

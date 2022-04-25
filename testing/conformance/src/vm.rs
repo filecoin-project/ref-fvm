@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{Backtrace, CallManager, DefaultCallManager, InvocationResult};
+use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
@@ -211,7 +211,7 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(self) -> (FinishRet, Self::Machine) {
         self.0.finish()
     }
 
@@ -488,8 +488,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn gas_available(&self) -> i64 {
-        self.0.gas_available()
+    fn gas_used(&self) -> i64 {
+        self.0.gas_used()
     }
 
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {

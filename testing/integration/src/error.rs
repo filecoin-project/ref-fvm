@@ -19,8 +19,6 @@ pub(crate) enum Error {
     FailedToSetState(String),
     #[error("could not set actor: {0}")]
     FailedToSetActor(String),
-    #[error("failed to load cache config")]
-    FailedToLoadCacheConfig,
     #[error("failed to flush tree")]
     FailedToFlushTree,
 }

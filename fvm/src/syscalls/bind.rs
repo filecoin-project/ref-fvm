@@ -1,6 +1,7 @@
 use std::mem;
 
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::sys::SyscallSafe;
 use wasmtime::{Caller, Linker, Trap, WasmTy};
 
 use super::context::Memory;
@@ -50,14 +51,14 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
 /// results that can be handled by wasmtime. See the documentation on `BindSyscall` for details.
 #[doc(hidden)]
 pub trait IntoSyscallResult: Sized {
-    type Value: Copy + Sized + 'static;
+    type Value: SyscallSafe;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort>;
 }
 
 // Implementations for syscalls that abort on error.
 impl<T> IntoSyscallResult for Result<T, Abort>
 where
-    T: Copy + Sized + 'static,
+    T: SyscallSafe,
 {
     type Value = T;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
@@ -68,7 +69,7 @@ where
 // Implementations for normal syscalls.
 impl<T> IntoSyscallResult for kernel::Result<T>
 where
-    T: Copy + Sized + 'static,
+    T: SyscallSafe,
 {
     type Value = T;
     fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
@@ -105,13 +106,11 @@ fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -
         caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
     }
 
-    let gas_available = caller.data().kernel.gas_available();
+    let gas_used = caller.data().kernel.gas_used();
     let fuel_consumed = caller
         .fuel_consumed()
         .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-    caller
-        .data_mut()
-        .set_snapshots(gas_available, fuel_consumed);
+    caller.data_mut().set_snapshots(gas_used, fuel_consumed);
     Ok(())
 }
 
@@ -135,7 +134,7 @@ macro_rules! impl_bind_syscalls {
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoSyscallResult,
-           $($t: WasmTy,)*
+           $($t: WasmTy+SyscallSafe,)*
         {
             fn bind(
                 &mut self,
