@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
@@ -154,6 +155,8 @@ impl Engine {
     }
 
     fn load_raw(&self, raw_wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
+        println!("val");
+
         // First make sure that non-instrumented wasm is valid
         Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg)?;
 
@@ -164,12 +167,18 @@ impl Engine {
         use fvm_wasm_instrument::inject_stack_limiter;
         use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
 
+        println!("des");
+
         let m = deserialize_buffer(raw_wasm)?;
+
+        println!("sl");
 
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
         let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
+
+        println!("gl");
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -182,9 +191,17 @@ impl Engine {
         let m = inject(m, mctx.network.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
+        println!("bt");
+
         let wasm = m.to_bytes()?;
 
+        fs::write("/tmp/a.wasm", wasm.as_slice())?;
+
+        println!("ld");
+
         let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+
+        println!("don");
 
         Ok(module)
     }

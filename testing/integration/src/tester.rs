@@ -162,10 +162,12 @@ impl Tester {
             dummy::DummyExterns,
         )?;
 
+        let mc = machine.context().clone();
+
         let executor = DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine);
         executor
             .engine()
-            .preload(executor.blockstore(), &self.code_cids)?;
+            .preload(executor.blockstore(), &self.code_cids, &mc)?;
 
         self.executor = Some(executor);
 
