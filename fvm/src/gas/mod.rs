@@ -116,8 +116,11 @@ pub fn frgas_to_gas(frgas: i64, round_up: bool) -> i64 {
     let p = 1 << FRGAS_PRECISION;
 
     let mut div_result = frgas / p;
-    if round_up && frgas % p != 0 {
+    if frgas > 0 && round_up && frgas % p != 0 {
         div_result = div_result.saturating_add(1);
+    }
+    if frgas < 0 && !round_up && frgas % p != 0 {
+        div_result = div_result.saturating_sub(1);
     }
     div_result
 }
@@ -134,5 +137,13 @@ mod tests {
         t.charge_gas(GasCharge::new("", 5, 0)).unwrap();
         assert_eq!(t.gas_used(), 20);
         assert!(t.charge_gas(GasCharge::new("", 1, 0)).is_err())
+    }
+
+    #[test]
+    fn frgas_to_gas_round() {
+        assert_eq!(frgas_to_gas(100, false), 0);
+        assert_eq!(frgas_to_gas(100, true), 1);
+        assert_eq!(frgas_to_gas(-100, false), -1);
+        assert_eq!(frgas_to_gas(-100, true), 0);
     }
 }
