@@ -10,7 +10,12 @@ mod charge;
 mod outputs;
 mod price_list;
 
+/// bits of precision for fractional gas
+/// 16 bits means 65_536 fractional gas per unit of gas
+pub const FRGAS_PRECISION: i64 = 16;
+
 pub struct GasTracker {
+    // TODO: convert to frgas
     gas_limit: i64,
     gas_used: i64,
 
@@ -97,6 +102,24 @@ impl GasTracker {
     pub fn gas_used(&self) -> i64 {
         self.gas_used
     }
+}
+
+/// Converts the specified gas into equivalent fractional gas units
+#[inline]
+pub fn gas_to_frgas(gas: i64) -> i64 {
+    gas * (1 << FRGAS_PRECISION)
+}
+
+/// Converts the specified fractional gas units into gas units
+#[inline]
+pub fn frgas_to_gas(frgas: i64, round_up: bool) -> i64 {
+    let p = 1 << FRGAS_PRECISION;
+
+    let mut div_result = frgas / p;
+    if round_up && frgas % p != 0 {
+        div_result = div_result.saturating_add(1);
+    }
+    div_result
 }
 
 #[cfg(test)]
