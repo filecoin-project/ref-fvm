@@ -39,7 +39,7 @@ log = "0.4.14"
 byteorder = "1.4.3"
 anymap = "0.12.1"
 blake2b_simd = "1.0.0"
-minstant = { version = "0.1.1", optional = true }
+minstant = { version = "0.1.1" }
 serde_json = { version = "1.0.79", optional = true }
 
 [dependencies.wasmtime]
@@ -51,4 +51,4 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
-tracing = ["serde_json", "minstant"]
+tracing = ["serde_json"]

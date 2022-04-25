@@ -1,3 +1,4 @@
+use std::collections::LinkedList;
 use std::time::Duration;
 
 use cid::Cid;
@@ -12,7 +13,7 @@ pub struct GasTracer {
     #[serde(skip_serializing)]
     previous: Instant,
     /// Accumulated traces.
-    traces: Vec<GasTrace>,
+    traces: LinkedList<GasTrace>,
 }
 
 impl GasTracer {
@@ -40,10 +41,10 @@ impl GasTracer {
                 }
             },
         };
-        self.traces.push(trace)
+        self.traces.push_back(trace)
     }
 
-    pub fn finish(self) -> Vec<GasTrace> {
+    pub fn finish(self) -> LinkedList<GasTrace> {
         self.traces
     }
 }

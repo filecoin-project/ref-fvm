@@ -4,7 +4,7 @@ use std::io::Write;
 #[cfg(feature = "tracing")]
 use std::ops::DerefMut;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
@@ -15,6 +15,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
+use minstant::Instant;
 use num_traits::Zero;
 
 use super::{Backtrace, CallManager, ExecutionStats, InvocationResult, NO_DATA_BLOCK_ID};
