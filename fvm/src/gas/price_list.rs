@@ -264,10 +264,6 @@ lazy_static! {
     };
 }
 
-/// bits of precision for fractional gas
-/// 16 bits means 65_536 fractional gas per unit of gas
-const FRGAS_PRECISION: i64 = 16;
-
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct ScalingCost {
     flat: i64,
@@ -543,23 +539,6 @@ impl PriceList {
     #[inline]
     pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
-    }
-
-    /// Converts the specified gas into equivalent fractional gas units
-    #[inline]
-    pub fn gas_to_frgas(&self, gas: i64) -> i64 {
-        gas * (1 << FRGAS_PRECISION)
-    }
-
-    /// Converts the specified fractional gas units into gas units
-    pub fn frgas_to_gas(&self, frgas: i64, round_up: bool) -> i64 {
-        let p = 1 << FRGAS_PRECISION;
-
-        let mut div_result = frgas / p;
-        if round_up && frgas % p != 0 {
-            div_result = div_result.saturating_add(1);
-        }
-        div_result
     }
 
     /// Returns the cost of the gas required for getting randomness from the client, based on the
