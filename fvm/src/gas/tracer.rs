@@ -6,13 +6,10 @@ use fvm_shared::MethodNum;
 use minstant::Instant;
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct GasTracer {
-    #[serde(skip_serializing)]
     started: Instant,
-    #[serde(skip_serializing)]
     previous: Instant,
-    /// Accumulated traces.
     traces: LinkedList<GasTrace>,
 }
 
@@ -51,13 +48,17 @@ impl GasTracer {
 
 #[derive(Debug, Serialize)]
 pub struct GasTrace {
-    /// Context annotates the trace with the source context.   
+    /// Context annotates the trace with the source context.
+    #[serde(flatten)]
     pub context: Context,
     /// Point represents the location from where the trace was emitted.
+    #[serde(flatten)]
     pub point: Point,
     /// The consumption at the moment of trace.
+    #[serde(flatten)]
     pub consumption: Consumption,
     /// Timing information.
+    #[serde(flatten)]
     pub timing: Timing,
 }
 
