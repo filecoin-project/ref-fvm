@@ -19,8 +19,6 @@ pub struct Engine(Arc<EngineInner>);
 pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
 
-    // c.max_wasm_stack(); https://github.com/filecoin-project/ref-fvm/issues/424
-
     // wasmtime default: false
     c.wasm_threads(false);
 

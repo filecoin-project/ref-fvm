@@ -54,7 +54,8 @@ impl GasTracker {
         }
     }
 
-    /// returns unused gas
+    /// returns available gas; makes the gas tracker block gas charges until
+    /// set_available_gas is called
     pub fn get_gas(&mut self) -> i64 {
         if !self.own_limit {
             panic!("get_gas called when gas_limit owned by execution")
@@ -64,16 +65,27 @@ impl GasTracker {
         self.gas_limit - self.gas_used
     }
 
-    /// sets new unused gas, creating a new gas charge if needed
+    /// sets new available gas, creating a new gas charge if needed
     pub fn set_available_gas(&mut self, name: &str, new_avail_gas: i64) -> Result<()> {
         if self.own_limit {
             panic!("gastracker already owns gas_limit, charge: {}", name)
         }
         self.own_limit = true;
 
-        self.gas_used = self.gas_limit - new_avail_gas;
-        // todo use charge_gas
-        Ok(())
+        let old_avail_gas = self.gas_limit - self.gas_used;
+        let used = old_avail_gas - new_avail_gas;
+
+        if used < 0 {
+            return Err(ExecutionError::Fatal(anyhow::Error::msg(
+                "negative gas charge in set_available_gas",
+            )));
+        }
+
+        self.charge_gas(GasCharge {
+            name,
+            compute_gas: used,
+            storage_gas: 0,
+        })
     }
 
     /// Getter for gas available.
