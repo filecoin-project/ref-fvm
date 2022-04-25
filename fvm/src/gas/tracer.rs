@@ -9,18 +9,17 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 pub struct GasTrace {
     #[serde(skip)]
-    started: Instant,
-    #[serde(skip)]
     previous: Instant,
+    #[serde(skip)]
+    cum: Duration,
     spans: LinkedList<GasSpan>,
 }
 
 impl GasTrace {
     pub fn start() -> GasTrace {
-        let now = Instant::now();
         GasTrace {
-            started: now,
-            previous: now,
+            previous: Instant::now(),
+            cum: Default::default(),
             spans: Default::default(),
         }
     }
@@ -32,11 +31,14 @@ impl GasTrace {
             consumption,
             timing: {
                 let now = Instant::now();
-                let prev = self.previous;
+                let elapsed_rel = now - self.previous;
+
+                self.cum += elapsed_rel;
                 self.previous = now;
+
                 Timing {
-                    elapsed_cum: now.duration_since(self.started),
-                    elapsed_rel: now.duration_since(prev),
+                    elapsed_cum: self.cum,
+                    elapsed_rel,
                 }
             },
         };
