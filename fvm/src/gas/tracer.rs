@@ -25,22 +25,21 @@ impl GasTrace {
     }
 
     pub fn record(&mut self, context: Context, point: Point, consumption: Consumption) {
+        let now = Instant::now();
+        let elapsed_rel = now - self.previous;
+
+        self.cum += elapsed_rel;
+        self.previous = now;
+
+        let timing = Timing {
+            elapsed_cum: self.cum,
+            elapsed_rel,
+        };
         let trace = GasSpan {
             context,
             point,
             consumption,
-            timing: {
-                let now = Instant::now();
-                let elapsed_rel = now - self.previous;
-
-                self.cum += elapsed_rel;
-                self.previous = now;
-
-                Timing {
-                    elapsed_cum: self.cum,
-                    elapsed_rel,
-                }
-            },
+            timing,
         };
         self.spans.push_back(trace)
     }

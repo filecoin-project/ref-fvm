@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use criterion::{
     black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
@@ -7,28 +7,30 @@ use fvm::call_manager::ExecutionStats;
 use fvm::gas::tracer::{Consumption, Context, Event, GasTrace, Point};
 use rand::{thread_rng, Rng};
 
-pub fn benchmark_gas_tracing(c: &mut Criterion) {
-    let mut group = c.benchmark_group("gas_tracing");
+pub fn benchmark_tracing(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tracing");
 
-    for size in [16, 32, 64, 128, 256].iter() {
+    for size in [32, 64, 128, 256].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
         let cid = cid::Cid::default();
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
+            // generate a random number to perform math with so that the compiler has no chance to optimize
+            let r: u64 = thread_rng().gen();
             b.iter_batched_ref(
                 || GasTrace::start(),
                 move |gt| {
                     let ctx = Context {
-                        code_cid: cid.clone(),
+                        code_cid: cid, // copy, include the Cid copy cost
                         method_num: size,
                     };
                     let point = Point {
                         event: Event::Started,
-                        label: "foo".to_string(),
+                        label: "foo".to_string(), // include the string allocation cost
                     };
                     let consumption = Consumption {
-                        fuel_consumed: Some(1234 + size),
-                        gas_consumed: Some((1111 + size) as i64),
+                        fuel_consumed: Some(r),
+                        gas_consumed: Some(r as i64),
                     };
                     gt.record(ctx, point, consumption);
                 },
@@ -42,11 +44,12 @@ pub fn benchmark_accumulator(c: &mut Criterion) {
     let mut group = c.benchmark_group("accumulator");
 
     group.bench_function("exec stats accumulator", |b| {
-        // generate a random number to perform math with
+        // generate a random number to perform math with so that the compiler has no chance to optimize
         let r: u64 = thread_rng().gen();
         b.iter_batched_ref(
-            || (ExecutionStats::default(), Instant::now()),
-            move |(exec_stats, now)| {
+            || ExecutionStats::default(),
+            move |exec_stats| {
+                let now = minstant::Instant::now();
                 let call_duration = now.elapsed();
                 exec_stats.fuel_used += r;
                 exec_stats.call_count += 1;
@@ -72,7 +75,7 @@ pub fn benchmark_time(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    benchmark_gas_tracing,
+    benchmark_tracing,
     benchmark_accumulator,
     benchmark_time
 );

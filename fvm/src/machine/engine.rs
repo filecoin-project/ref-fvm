@@ -2,11 +2,11 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
+use minstant::Instant;
 use wasmtime::{Linker, Module, Trap};
 
 use crate::syscalls::{bind_syscalls, InvocationData};

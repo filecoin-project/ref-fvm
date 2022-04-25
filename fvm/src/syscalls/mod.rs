@@ -1,6 +1,7 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use cid::Cid;
+use minstant::Instant;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
