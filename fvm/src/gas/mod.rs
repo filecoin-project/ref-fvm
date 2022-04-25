@@ -10,7 +10,7 @@ mod charge;
 mod outputs;
 mod price_list;
 
-pub const MILIGAS_PRECISION: i64 = 16;
+pub const MILIGAS_PRECISION: i64 = 1000;
 
 pub struct GasTracker {
     // TODO: convert to miligas
