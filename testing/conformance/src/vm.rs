@@ -488,8 +488,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn gas_available(&self) -> i64 {
-        self.0.gas_available()
+    fn gas_used(&self) -> i64 {
+        self.0.gas_used()
     }
 
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {

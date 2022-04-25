@@ -751,8 +751,8 @@ impl<C> GasOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn gas_available(&self) -> i64 {
-        self.call_manager.gas_tracker().gas_available()
+    fn gas_used(&self) -> i64 {
+        self.call_manager.gas_tracker().gas_used()
     }
 
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
