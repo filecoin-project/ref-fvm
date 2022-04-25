@@ -40,7 +40,7 @@ pub struct Tester {
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Blockstore used to instantiate the machine before running executions
-    pub blockstore: Option<MemoryBlockstore>,
+    blockstore: Option<MemoryBlockstore>,
     // Executor used to interact with deployed actors.
     pub executor: Option<IntegrationExecutor>,
     // State tree constructed before instantiating the Machine
@@ -153,8 +153,6 @@ impl Tester {
 
         let blockstore = self.state_tree.store();
 
-        self.blockstore = Some(blockstore.clone());
-
         let machine = DefaultMachine::new(
             &Engine::default(),
             NetworkConfig::new(self.nv)
@@ -173,6 +171,15 @@ impl Tester {
         self.executor = Some(executor);
 
         Ok(())
+    }
+
+    /// Get blockstore
+    pub fn blockstore<B: Blockstore + 'static>(&self) -> B {
+        if Some(&self.executor) {
+            &self.executor.unwrap().blockstore()
+        } else {
+            &self.blockstore
+        }
     }
 }
 /// Inserts the specified number of accounts in the state tree, all with 1000 FIL,
