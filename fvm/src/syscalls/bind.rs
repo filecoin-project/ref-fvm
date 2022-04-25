@@ -101,24 +101,24 @@ fn memory_and_data<'a, K: Kernel>(
 
 fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
     let avail_gas = caller.data_mut().kernel.get_gas();
-    let frgas = gas::gas_to_frgas(avail_gas);
+    let miligas = gas::gas_to_miligas(avail_gas);
 
     let gas_global = caller.data_mut().avail_gas_global.unwrap();
 
     gas_global
-        .set(caller, Val::I64(frgas))
+        .set(caller, Val::I64(miligas))
         .map_err(|_| Trap::new("failed to set available gas"))
 }
 
 fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
     let global = caller.data_mut().avail_gas_global;
 
-    let frgas = match global.unwrap().get(&mut *caller) {
+    let miligas = match global.unwrap().get(&mut *caller) {
         Val::I64(g) => Ok(g),
         _ => Err(Trap::new("failed to get wasm gas")),
     }?;
 
-    let available_gas = gas::frgas_to_gas(frgas, false);
+    let available_gas = gas::miligas_to_gas(miligas, false);
 
     // todo do we have consts for charge names anywhere?
     // todo make sure that we handle traps/out-of-gas here correctly

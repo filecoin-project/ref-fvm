@@ -260,7 +260,7 @@ lazy_static! {
         // TODO: PARAM_FINISH
         block_stat: 1,
 
-        exec_instruction_cost_fr: ((1 << gas::FRGAS_PRECISION) / 2) as u64,
+        exec_instruction_cost_fr: (gas::MILIGAS_PRECISION / 2) as u64,
         // TODO: PARAM_FINISH
     };
 }

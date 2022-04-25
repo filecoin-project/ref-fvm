@@ -332,10 +332,10 @@ where
             };
 
             let avail_gas = kernel.get_gas();
-            let initial_frgas = gas::gas_to_frgas(max(avail_gas, 0));
+            let initial_miligas = gas::gas_to_miligas(max(avail_gas, 0));
 
             // Make a store and available gas
-            let mut store = engine.new_store(kernel, initial_frgas);
+            let mut store = engine.new_store(kernel, initial_miligas);
 
             // Instantiate the module.
             let instance = match engine
@@ -367,13 +367,13 @@ where
 
                 // Update GasTracker gas
                 use wasmtime::Val;
-                let available_frgas =
+                let available_miligas =
                     match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
                         Val::I64(g) => Ok(g),
                         _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
                     }?;
 
-                let available_gas = gas::frgas_to_gas(available_frgas, false); // available gas, so round down
+                let available_gas = gas::miligas_to_gas(available_miligas, false); // available gas, so round down
 
                 store
                     .data_mut()
