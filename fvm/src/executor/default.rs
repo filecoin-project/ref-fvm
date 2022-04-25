@@ -166,6 +166,7 @@ where
                 .finish_message(msg, receipt, failure_info, gas_cost)
                 .map(|mut apply_ret| {
                     apply_ret.exec_trace = exec_trace;
+                    apply_ret.exec_stats = Some(stats);
                     apply_ret
                 }),
             ApplyKind::Implicit => Ok(ApplyRet {

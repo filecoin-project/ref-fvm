@@ -52,10 +52,8 @@ pub struct InnerDefaultCallManager<M> {
     backtrace: Backtrace,
     /// The current execution trace.
     exec_trace: ExecutionTrace,
-
     /// Stats related to the message execution.
-    call_stats: ExecutionStats,
-
+    exec_stats: ExecutionStats,
     #[cfg(feature = "tracing")]
     gas_tracer: Option<std::cell::RefCell<crate::gas::tracer::GasTracer>>,
 }
@@ -98,7 +96,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
-            call_stats: ExecutionStats::default(),
+            exec_stats: ExecutionStats::default(),
             exec_trace: vec![],
 
             #[cfg(feature = "tracing")]
@@ -217,7 +215,7 @@ where
 
         let inner = self.0.take().expect("call manager is poisoned");
         let gas_used = inner.gas_tracker.gas_used().max(0);
-        let mut stats = inner.call_stats;
+        let mut stats = inner.exec_stats;
         stats.compute_gas = inner.gas_tracker.compute_gas_real().max(0) as u64;
 
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
@@ -531,11 +529,11 @@ where
             // mainnet unless explicitly enabled.
             let call_duration = call_start.elapsed();
 
-            cm.call_stats.fuel_used += fuel_used;
-            cm.call_stats.call_count += 1;
-            cm.call_stats.call_overhead +=
+            cm.exec_stats.fuel_used += fuel_used;
+            cm.exec_stats.call_count += 1;
+            cm.exec_stats.call_overhead +=
                 (call_duration - invocation_data.actor_time).max(Default::default());
-            cm.call_stats.wasm_duration += (invocation_data.actor_time
+            cm.exec_stats.wasm_duration += (invocation_data.actor_time
                 - invocation_data.syscall_time)
                 .max(Duration::default());
 
