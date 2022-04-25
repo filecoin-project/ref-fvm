@@ -154,6 +154,9 @@ impl Engine {
     }
 
     fn load_raw(&self, raw_wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
+        // First make sure that non-instrumented wasm is valid
+        Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg)?;
+
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info
 
@@ -168,6 +171,14 @@ impl Engine {
         // block of code.
         let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
 
+        // inject gas metering based on a price list. This function will
+        // * add a new mutable i64 global import, gas.gas_counter
+        // * push a gas counter function which deduces gas from the global, and
+        //   traps when gas.gas_counter is less than zero
+        // * optionally push a function which wraps memory.grow instruction
+        //   making it charge gas based on memory requested
+        // * divide code into metered blocks, and add a call to the gas counter
+        //   function before entering each metered block
         let m = inject(m, mctx.network.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
