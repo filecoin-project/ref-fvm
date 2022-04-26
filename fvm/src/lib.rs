@@ -23,17 +23,19 @@ pub mod state_tree;
 
 mod blockstore;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "testing")] {
-        pub mod account_actor;
-        pub mod init_actor;
-        pub mod system_actor;
-    } else {
-        mod account_actor;
-        mod init_actor;
-        mod system_actor;
-    }
-}
+#[cfg(not(feature = "testing"))]
+mod account_actor;
+#[cfg(not(feature = "testing"))]
+mod init_actor;
+#[cfg(not(feature = "testing"))]
+mod system_actor;
+
+#[cfg(feature = "testing")]
+pub mod account_actor;
+#[cfg(feature = "testing")]
+pub mod init_actor;
+#[cfg(feature = "testing")]
+pub mod system_actor;
 
 mod market_actor;
 mod power_actor;

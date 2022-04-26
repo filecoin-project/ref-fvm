@@ -16,17 +16,20 @@ pub struct State {
     pub count: u64,
 }
 
+const WASM_COMPILED_PATH: &str =
+    "../../target/debug/wbuild/fil_hello_world_actor/fil_hello_world_actor.compact.wasm";
+
 #[test]
 fn hello_world() {
     // Instantiate tester
     let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4).unwrap();
 
-    let sender: [Account; 1] = tester.create_account().unwrap();
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
 
     // Get wasm bin
     let wasm_path = env::current_dir()
         .unwrap()
-        .join("tests/assets/fil_hello_world_actor.compact.wasm")
+        .join(WASM_COMPILED_PATH)
         .canonicalize()
         .unwrap();
     let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
@@ -60,5 +63,5 @@ fn hello_world() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    assert_eq!(res.msg_receipt.exit_code.value(), 18)
+    assert_eq!(res.msg_receipt.exit_code.value(), 16)
 }
