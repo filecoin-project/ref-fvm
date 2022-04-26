@@ -16,7 +16,7 @@ pub struct State {
     pub count: u64,
 }
 
-const WASM_COMPILED_PATH: &'static str =
+const WASM_COMPILED_PATH: &str =
     "../../target/debug/wbuild/fil_hello_world_actor/fil_hello_world_actor.compact.wasm";
 
 #[test]
