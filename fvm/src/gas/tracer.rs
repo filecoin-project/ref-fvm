@@ -12,7 +12,7 @@ pub struct GasTrace {
     previous: Instant,
     #[serde(skip)]
     cum: Duration,
-    spans: LinkedList<GasSpan>,
+    pub spans: LinkedList<GasSpan>,
 }
 
 impl GasTrace {
@@ -22,6 +22,10 @@ impl GasTrace {
             cum: Default::default(),
             spans: Default::default(),
         }
+    }
+
+    pub fn finish(self) -> LinkedList<GasSpan> {
+        self.spans
     }
 
     pub fn record(&mut self, context: Context, point: Point, consumption: Consumption) {

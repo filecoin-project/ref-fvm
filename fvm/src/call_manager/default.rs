@@ -1,7 +1,7 @@
 use std::cmp::max;
+use std::env;
 #[cfg(feature = "tracing")]
 use std::io::Write;
-#[cfg(feature = "tracing")]
 use std::ops::DerefMut;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -76,9 +76,16 @@ impl<M> std::ops::DerefMut for DefaultCallManager<M> {
 }
 
 lazy_static::lazy_static! {
-    static ref TRACE_FILE : Mutex<std::io::BufWriter<std::fs::File>> = {
-        let f = std::fs::File::options().create(true).write(true).append(true).open("fuel_trace.json").unwrap();
-        Mutex::new(std::io::BufWriter::new(f))
+    static ref TRACE_FILE : Mutex<file_rotate::FileRotate<file_rotate::suffix::AppendCount>> = {
+        use file_rotate::{FileRotate, ContentLimit, suffix::AppendCount, compression::Compression};
+        let dir = env::var_os("FVM_GAS_TRACING_LOG").unwrap_or("gas_tracing".into());
+        let ret = FileRotate::new(
+            dir.clone(),
+            AppendCount::new(usize::MAX),
+            ContentLimit::BytesSurpassed(1 << 30),
+            Compression::None
+        );
+        Mutex::new(ret)
     };
 }
 
@@ -205,7 +212,7 @@ where
                 },
             );
             let mut tf = TRACE_FILE.lock().unwrap();
-            serde_json::to_writer(tf.deref_mut(), &self.gas_trace).unwrap();
+            serde_json::to_writer(tf.deref_mut(), &self.gas_trace.spans).unwrap();
             tf.flush().unwrap();
         }
 

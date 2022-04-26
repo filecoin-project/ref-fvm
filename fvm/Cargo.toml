@@ -41,6 +41,7 @@ anymap = "0.12.1"
 blake2b_simd = "1.0.0"
 minstant = { version = "0.1.1" }
 serde_json = { version = "1.0.79", optional = true }
+file-rotate = { version = "0.6.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.5"
@@ -60,4 +61,4 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
-tracing = ["serde_json"]
+tracing = ["serde_json", "file-rotate"]
