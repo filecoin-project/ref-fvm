@@ -16,8 +16,11 @@ pub struct State {
     pub count: u64,
 }
 
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 #[test]
 fn hello_world() {
+    dbg!()
     // Instantiate tester
     let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4).unwrap();
 
