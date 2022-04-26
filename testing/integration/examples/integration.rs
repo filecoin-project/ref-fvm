@@ -27,7 +27,7 @@ pub fn main() {
     // Instantiate tester
     let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4).unwrap();
 
-    let sender: [Account; 1] = tester.create_account().unwrap();
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAT).unwrap();

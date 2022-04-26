@@ -24,6 +24,8 @@ use crate::error::Error::{FailedToFlushTree, NoManifestInformation, NoRootCid};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
+trait Store: Blockstore + Sized {}
+
 pub type IntegrationExecutor = DefaultExecutor<
     DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
 >;
@@ -39,8 +41,6 @@ pub struct Tester {
     accounts_code_cid: Cid,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
-    // Blockstore used to instantiate the machine before running executions
-    blockstore: Option<MemoryBlockstore>,
     // Executor used to interact with deployed actors.
     pub executor: Option<IntegrationExecutor>,
     // State tree constructed before instantiating the Machine
@@ -90,7 +90,6 @@ impl Tester {
         Ok(Tester {
             nv,
             builtin_actors,
-            blockstore: None,
             executor: None,
             code_cids: vec![],
             state_tree,
@@ -174,11 +173,11 @@ impl Tester {
     }
 
     /// Get blockstore
-    pub fn blockstore<B: Blockstore + 'static>(&self) -> B {
-        if Some(&self.executor) {
-            &self.executor.unwrap().blockstore()
+    pub fn blockstore(&'static self) -> Box<dyn Blockstore + 'static> {
+        if self.executor.is_some() {
+            Box::new(self.executor.as_ref().unwrap().blockstore())
         } else {
-            &self.blockstore
+            Box::new(self.state_tree.store())
         }
     }
 }
