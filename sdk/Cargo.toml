@@ -23,3 +23,4 @@ fvm_ipld_encoding = { version = "0.1", path = "../ipld/encoding" }
 [features]
 default = ["debug"]
 debug = ["lazy_static"]
+testing = []

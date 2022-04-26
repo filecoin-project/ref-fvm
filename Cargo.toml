@@ -4,6 +4,7 @@ members = [
     "sdk",
     "shared",
     "testing/conformance",
+    "testing/integration",
     "ipld/*",
 ]
 

@@ -49,3 +49,5 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+testing = []
+

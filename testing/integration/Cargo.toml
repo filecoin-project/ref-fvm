@@ -1,0 +1,44 @@
+[package]
+name = "fvm_integration_tests"
+description = "Filecoin Virtual Machine integration tests framework"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/filecoin-project/ref-fvm"
+
+[dependencies]
+fvm = { version = "0.7.1", path = "../../fvm", default-features = false }
+fvm_shared = { version = "0.6.0", path = "../../shared" }
+fvm_ipld_hamt = { version = "0.5.0", path = "../../ipld/hamt"}
+fvm_ipld_amt = { version = "0.4.0", path = "../../ipld/amt"}
+fvm_ipld_car = { version = "0.4.0", path = "../../ipld/car" }
+fvm_ipld_blockstore = { version = "0.1.0", path = "../../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.1.0", path = "../../ipld/encoding" }
+
+actors-v6 = { version = "6.1.1", package = "fil_builtin_actors_bundle" }
+actors-v7 = { version = "7.1.2", package = "fil_builtin_actors_bundle" }
+anyhow = "1.0.47"
+cid = { version = "0.8.2", default-features = false }
+futures = "0.3.19"
+multihash = { version = "0.16.1", default-features = false }
+num-traits = "0.2"
+lazy_static = "1.4.0"
+libsecp256k1 = "0.7.0"
+rand = "0.8.5"
+rand_chacha = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_tuple = "0.5"
+serde_repr = "0.1"
+thiserror = "1.0.30"
+
+[dependencies.wasmtime]
+version = "0.35.2"
+default-features = false
+features = ["cranelift", "pooling-allocator", "parallel-compilation"]
+
+[dev-dependencies]
+wabt = "0.10.0"
+serde = { version = "1.0", features = ["derive"] }
+fil_hello_world_actor = { path = 'tests/fil-hello-world-actor', version = '0.1' }
+
+[features]
+default = ["fvm/testing", "fvm_shared/testing"]

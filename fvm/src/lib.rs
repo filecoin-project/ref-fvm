@@ -23,12 +23,23 @@ pub mod state_tree;
 
 mod blockstore;
 
+#[cfg(not(feature = "testing"))]
 mod account_actor;
+#[cfg(not(feature = "testing"))]
 mod init_actor;
+#[cfg(not(feature = "testing"))]
+mod system_actor;
+
+#[cfg(feature = "testing")]
+pub mod account_actor;
+#[cfg(feature = "testing")]
+pub mod init_actor;
+#[cfg(feature = "testing")]
+pub mod system_actor;
+
 mod market_actor;
 mod power_actor;
 mod reward_actor;
-mod system_actor;
 
 pub mod trace;
 

@@ -53,4 +53,5 @@ proofs = ["filecoin-proofs-api"]
 secp256k1 = ["libsecp256k1"]
 blst = ["bls-signatures/blst"]
 pairing = ["bls-signatures/pairing"]
+testing = []
 

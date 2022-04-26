@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Added _cfg = "testing"_ on `testing` module.
+- Added a `testing` module to access `assert_*` macros to be able to do assertions in actors code.
+
 ## 0.6.0 [2022-04-14]
 
 BREAKING: Upgrades to fvm_shared 0.6.0, and the new syscall struct alignment.
