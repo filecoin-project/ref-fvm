@@ -212,7 +212,9 @@ where
                 },
             );
             let mut tf = TRACE_FILE.lock().unwrap();
-            serde_json::to_writer(tf.deref_mut(), &self.gas_trace.spans).unwrap();
+            let mut w = tf.deref_mut();
+            serde_json::to_writer(w, &self.gas_trace.spans).unwrap();
+            writeln!(w);
             tf.flush().unwrap();
         }
 
