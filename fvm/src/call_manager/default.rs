@@ -76,17 +76,22 @@ impl<M> std::ops::DerefMut for DefaultCallManager<M> {
 }
 
 lazy_static::lazy_static! {
-    static ref TRACE_FILE : Mutex<file_rotate::FileRotate<file_rotate::suffix::AppendCount>> = {
-        use file_rotate::{FileRotate, ContentLimit, suffix::AppendCount, compression::Compression};
-        let dir = env::var_os("FVM_GAS_TRACING_LOG").unwrap_or("gas_tracing".into());
-        let ret = FileRotate::new(
-            dir.clone(),
-            AppendCount::new(usize::MAX),
-            ContentLimit::BytesSurpassed(1 << 30),
-            Compression::None
-        );
-        Mutex::new(ret)
+    static ref TRACE_FILE : Mutex<std::io::BufWriter<std::fs::File>> = {
+        let file = env::var_os("FVM_GAS_TRACING_LOG").unwrap_or("gas_tracing.ndjson".into());
+        let f = std::fs::File::options().create(true).write(true).append(true).open(file).unwrap();
+        Mutex::new(std::io::BufWriter::new(f))
     };
+    // static ref TRACE_FILE : Mutex<file_rotate::FileRotate<file_rotate::suffix::AppendCount>> = {
+    //     use file_rotate::{FileRotate, ContentLimit, suffix::AppendCount, compression::Compression};
+    //     let dir = env::var_os("FVM_GAS_TRACING_LOG").unwrap_or("gas_tracing".into());
+    //     let ret = FileRotate::new(
+    //         dir.clone(),
+    //         AppendCount::new(usize::MAX),
+    //         ContentLimit::BytesSurpassed(1 << 30),
+    //         Compression::None
+    //     );
+    //     Mutex::new(ret)
+    // };
 }
 
 impl<M> CallManager for DefaultCallManager<M>
