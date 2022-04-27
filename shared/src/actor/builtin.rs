@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use anyhow::anyhow;
 use bimap::BiBTreeMap;
-use cid::Cid;
+use cid::CidGeneric;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use num_derive::FromPrimitive;
@@ -113,9 +113,16 @@ impl Display for Type {
 }
 
 /// A mapping of builtin actor CIDs to their respective types.
-pub type Manifest = BiBTreeMap<Cid, Type>;
+// Currently a default size of `64` is used for the Multihashes to match the size of the default
+// code table of the `multihash` crate. When a custom code table is used, this could be reduced
+// to `32`.
+pub type Manifest<const S: usize = 64> = BiBTreeMap<CidGeneric<S>, Type>;
 
-pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid, ver: u32) -> anyhow::Result<Manifest> {
+pub fn load_manifest<B: Blockstore<S>, const S: usize>(
+    bs: &B,
+    root_cid: &CidGeneric<S>,
+    ver: u32,
+) -> anyhow::Result<Manifest<S>> {
     match ver {
         0 => load_manifest_v0(bs, root_cid),
         1 => load_manifest_v1(bs, root_cid),
@@ -123,15 +130,21 @@ pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid, ver: u32) -> anyhow:
     }
 }
 
-pub fn load_manifest_v0<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
-    match bs.get_cbor::<Manifest>(root_cid)? {
+pub fn load_manifest_v0<B: Blockstore<S>, const S: usize>(
+    bs: &B,
+    root_cid: &CidGeneric<S>,
+) -> anyhow::Result<Manifest<S>> {
+    match bs.get_cbor::<Manifest<S>>(root_cid)? {
         Some(mf) => Ok(mf),
         None => Err(anyhow!("cannot find manifest root cid {}", root_cid)),
     }
 }
 
-pub fn load_manifest_v1<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
-    let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid)? {
+pub fn load_manifest_v1<B: Blockstore<S>, const S: usize>(
+    bs: &B,
+    root_cid: &CidGeneric<S>,
+) -> anyhow::Result<Manifest<S>> {
+    let vec: Vec<(String, CidGeneric<S>)> = match bs.get_cbor(root_cid)? {
         Some(vec) => vec,
         None => {
             return Err(anyhow!("cannot find manifest root cid {}", root_cid));

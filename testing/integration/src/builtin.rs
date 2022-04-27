@@ -58,7 +58,7 @@ pub fn fetch_builtin_code_cid(
 }
 
 pub fn set_sys_actor(
-    state_tree: &mut StateTree<impl Blockstore>,
+    state_tree: &mut StateTree<impl Blockstore<CodeTable = Code>>,
     sys_state: system_actor::State,
     sys_code_cid: Cid,
 ) -> Result<()> {
@@ -80,7 +80,7 @@ pub fn set_sys_actor(
 }
 
 pub fn set_init_actor(
-    state_tree: &mut StateTree<impl Blockstore>,
+    state_tree: &mut StateTree<impl Blockstore<CodeTable = Code>>,
     init_code_cid: Cid,
     init_state: init_actor::State,
 ) -> Result<()> {

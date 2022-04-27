@@ -1,5 +1,5 @@
-use cid::multihash::{self, MultihashDigest};
-use cid::Cid;
+use cid::multihash::MultihashDigest;
+use cid::CidGeneric;
 
 /// Block represents a typed (i.e., with codec) IPLD block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -23,8 +23,11 @@ where
         Self { codec, data }
     }
 
-    pub fn cid(&self, mh_code: multihash::Code) -> Cid {
-        Cid::new_v1(self.codec, mh_code.digest(self.data.as_ref()))
+    pub fn cid<H, const S: usize>(&self, mh_code: H) -> CidGeneric<S>
+    where
+        H: MultihashDigest<S>,
+    {
+        CidGeneric::new_v1(self.codec, mh_code.digest(self.data.as_ref()))
     }
 
     #[allow(clippy::len_without_is_empty)]

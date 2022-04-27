@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
+use anyhow::anyhow;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,7 +16,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{Error, Hash, HashAlgorithm, KeyValuePair, BLAKE2B_256, MAX_ARRAY_WIDTH};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
@@ -433,8 +434,11 @@ where
                 // Flush cached sub node to clear it's cache
                 node.flush(store)?;
 
+                let mh_code = S::CodeTable::try_from(BLAKE2B_256).map_err(|_| {
+                    Error::Dynamic(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256))
+                })?;
                 // Put node in blockstore and retrieve Cid
-                let cid = store.put_cbor(node, Code::Blake2b256)?;
+                let cid = store.put_cbor(node, mh_code)?;
 
                 // Can keep the flushed node in link cache
                 let cache = OnceCell::from(std::mem::take(node));

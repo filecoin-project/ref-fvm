@@ -173,7 +173,7 @@ impl Tester {
     }
 
     /// Get blockstore
-    pub fn blockstore(&self) -> &dyn Blockstore {
+    pub fn blockstore(&self) -> &dyn Blockstore<CodeTable = multihash::Code> {
         if self.executor.is_some() {
             self.executor.as_ref().unwrap().blockstore()
         } else {
@@ -184,7 +184,7 @@ impl Tester {
 /// Inserts the specified number of accounts in the state tree, all with 1000 FIL,
 /// returning their IDs and Addresses.
 fn put_secp256k1_accounts<const N: usize>(
-    state_tree: &mut StateTree<impl Blockstore>,
+    state_tree: &mut StateTree<impl Blockstore<CodeTable = Code>>,
     account_code_cid: Cid,
 ) -> Result<[Account; N]> {
     use libsecp256k1::{PublicKey, SecretKey};

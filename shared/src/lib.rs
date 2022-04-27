@@ -46,6 +46,9 @@ pub const IPLD_RAW: u64 = 0x55;
 /// Multihash code for the identity hash function.
 pub const IDENTITY_HASH: u64 = 0x0;
 
+/// Multihash code for the Blake2b 256-bit hash function.
+pub const BLAKE2B_256: u64 = 0xb220;
+
 /// Identifier for Actors, includes builtin and initialized actors
 pub type ActorID = u64;
 

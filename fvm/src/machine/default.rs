@@ -21,7 +21,9 @@ use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
 use crate::system_actor::State as SystemActorState;
 
-pub struct DefaultMachine<B, E> {
+const DEFAULT_MULTIHASH_ALLOC_SIZE: usize = 64;
+
+pub struct DefaultMachine<B: Blockstore, E> {
     /// The initial execution context for this epoch.
     context: MachineContext,
     /// The WASM engine is created on construction of the DefaultMachine, and
@@ -34,7 +36,7 @@ pub struct DefaultMachine<B, E> {
     /// execution as the call stack for every message concludes.
     ///
     /// Owned.
-    state_tree: StateTree<BufferedBlockstore<B>>,
+    state_tree: StateTree<BufferedBlockstore<B, DEFAULT_MULTIHASH_ALLOC_SIZE>>,
     /// Mapping of CIDs to builtin actor types.
     builtin_actors: Manifest,
 }
@@ -130,7 +132,7 @@ where
     B: Blockstore + 'static,
     E: Externs + 'static,
 {
-    type Blockstore = BufferedBlockstore<B>;
+    type Blockstore = BufferedBlockstore<B, DEFAULT_MULTIHASH_ALLOC_SIZE>;
     type Externs = E;
 
     fn engine(&self) -> &Engine {

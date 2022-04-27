@@ -3,8 +3,7 @@
 use std::cell::RefCell;
 
 use anyhow::Result;
-use cid::multihash::{self, Code};
-use cid::Cid;
+use cid::CidGeneric;
 
 use super::{Block, Blockstore};
 
@@ -25,14 +24,14 @@ pub struct BSStats {
 /// Wrapper around `Blockstore` to tracking reads and writes for verification.
 /// This struct should only be used for testing.
 #[derive(Debug)]
-pub struct TrackingBlockstore<BS> {
+pub struct TrackingBlockstore<BS, const S: usize> {
     base: BS,
     pub stats: RefCell<BSStats>,
 }
 
-impl<BS> TrackingBlockstore<BS>
+impl<BS, const S: usize> TrackingBlockstore<BS, S>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
     pub fn new(base: BS) -> Self {
         Self {
@@ -42,11 +41,13 @@ where
     }
 }
 
-impl<BS> Blockstore for TrackingBlockstore<BS>
+impl<BS, const S: usize> Blockstore<S> for TrackingBlockstore<BS, S>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+    type CodeTable = BS::CodeTable;
+
+    fn get(&self, cid: &CidGeneric<S>) -> Result<Option<Vec<u8>>> {
         let mut stats = self.stats.borrow_mut();
         stats.r += 1;
         let bytes = self.base.get(cid)?;
@@ -55,12 +56,12 @@ where
         }
         Ok(bytes)
     }
-    fn has(&self, cid: &Cid) -> Result<bool> {
+    fn has(&self, cid: &CidGeneric<S>) -> Result<bool> {
         self.stats.borrow_mut().r += 1;
         self.base.has(cid)
     }
 
-    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, code: Self::CodeTable, block: &Block<D>) -> Result<CidGeneric<S>>
     where
         D: AsRef<[u8]>,
     {
@@ -70,7 +71,7 @@ where
         self.base.put(code, block)
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+    fn put_keyed(&self, k: &CidGeneric<S>, block: &[u8]) -> Result<()> {
         let mut stats = self.stats.borrow_mut();
         stats.w += 1;
         stats.bw += block.len();
@@ -81,7 +82,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (Self::CodeTable, Block<D>)>,
     {
         let mut stats = self.stats.borrow_mut();
         self.base.put_many(blocks.into_iter().inspect(|(_, b)| {
@@ -95,7 +96,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
+        I: IntoIterator<Item = (CidGeneric<S>, D)>,
     {
         let mut stats = self.stats.borrow_mut();
         self.base

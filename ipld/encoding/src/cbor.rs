@@ -4,7 +4,7 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
-use cid::{multihash, Cid};
+use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;

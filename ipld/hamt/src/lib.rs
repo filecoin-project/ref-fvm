@@ -31,6 +31,8 @@ const MAX_ARRAY_WIDTH: usize = 3;
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
 
+const BLAKE2B_256: u64 = 0xb220;
+
 type HashedKey = [u8; 32];
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
