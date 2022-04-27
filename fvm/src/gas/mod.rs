@@ -13,7 +13,6 @@ mod price_list;
 pub const MILLIGAS_PRECISION: i64 = 1000;
 
 pub struct GasTracker {
-    // TODO: convert to milligas
     milligas_limit: i64,
     milligas_used: i64,
 
@@ -57,22 +56,27 @@ impl GasTracker {
     }
 
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.charge_milligas(charge.name, charge.total() * MILLIGAS_PRECISION)
+        self.charge_milligas(
+            charge.name,
+            charge.total().saturating_mul(MILLIGAS_PRECISION),
+        )
     }
 
     /// returns available milligas; makes the gas tracker block gas charges until
     /// set_available_gas is called
-    pub fn get_milligas(&mut self) -> i64 {
+    pub fn borrow_milligas(&mut self) -> Result<i64> {
         if !self.own_limit {
-            panic!("get_gas called when gas_limit owned by execution")
+            return Err(ExecutionError::Fatal(anyhow::Error::msg(
+                "get_gas called when gas_limit owned by execution",
+            )));
         }
         self.own_limit = false;
 
-        self.milligas_limit - self.milligas_used
+        Ok(self.milligas_limit - self.milligas_used)
     }
 
     /// sets new available gas, creating a new gas charge if needed
-    pub fn set_available_milligas(&mut self, name: &str, new_avail_mgas: i64) -> Result<()> {
+    pub fn return_milligas(&mut self, name: &str, new_avail_mgas: i64) -> Result<()> {
         if self.own_limit {
             panic!("gastracker already owns gas_limit, charge: {}", name)
         }
@@ -104,7 +108,7 @@ impl GasTracker {
 /// Converts the specified gas into equivalent fractional gas units
 #[inline]
 fn gas_to_milligas(gas: i64) -> i64 {
-    gas * MILLIGAS_PRECISION
+    gas.saturating_mul(MILLIGAS_PRECISION)
 }
 
 /// Converts the specified fractional gas units into gas units

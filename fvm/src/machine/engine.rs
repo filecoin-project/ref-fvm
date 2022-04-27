@@ -171,7 +171,6 @@ impl Engine {
         // block of code.
         let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
 
-
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
         // * push a gas counter function which deduces gas from the global, and
@@ -183,10 +182,8 @@ impl Engine {
         let m = inject(m, mctx.network.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
-
         let wasm = m.to_bytes()?;
         let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
-
 
         Ok(module)
     }
