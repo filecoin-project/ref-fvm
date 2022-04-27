@@ -348,17 +348,14 @@ where
                 Ok(ret) => ret,
                 Err(err) => {
                     // return gas before returning the error
-                    match store
+                    if let Err(e) = store
                         .data_mut()
                         .kernel
                         .return_milligas("getinstance_fail", initial_milligas)
                     {
                         // this shouldn't ever fail as we didn't charge any gas since borrowing above
                         // but just in case, log the error
-                        Err(e) => {
-                            log::error!("failed to return gas after failed get_instance: {}", e)
-                        }
-                        _ => {}
+                        log::error!("failed to return gas after failed get_instance: {}", e)
                     };
 
                     return (Err(err), store.into_data().kernel.into_call_manager());
