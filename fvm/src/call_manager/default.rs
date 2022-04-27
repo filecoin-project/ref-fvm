@@ -331,7 +331,10 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            let initial_milligas = max(kernel.get_milligas(), 0);
+            let initial_milligas = match kernel.borrow_milligas() {
+                Ok(mg) => max(mg, 0),
+                Err(err) => return (Err(err), kernel.into_call_manager()),
+            };
 
             // Make a store and available gas
             let mut store = engine.new_store(kernel, initial_milligas);
@@ -344,11 +347,20 @@ where
             {
                 Ok(ret) => ret,
                 Err(err) => {
-                    store
+                    // return gas before returning the error
+                    match store
                         .data_mut()
                         .kernel
-                        .set_available_milligas("getinstance_fail", initial_milligas)
-                        .unwrap();
+                        .return_milligas("getinstance_fail", initial_milligas)
+                    {
+                        // this shouldn't ever fail as we didn't charge any gas since borrowing above
+                        // but just in case, log the error
+                        Err(e) => {
+                            log::error!("failed to return gas after failed get_instance: {}", e)
+                        }
+                        _ => {}
+                    };
+
                     return (Err(err), store.into_data().kernel.into_call_manager());
                 }
             };
@@ -375,7 +387,7 @@ where
                 store
                     .data_mut()
                     .kernel
-                    .set_available_milligas("wasm_exec_last", available_milligas)
+                    .return_milligas("wasm_exec_last", available_milligas)
                     .map_err(|e| match e {
                         ExecutionError::OutOfGas => Abort::OutOfGas,
                         ExecutionError::Fatal(m) => Abort::Fatal(m),

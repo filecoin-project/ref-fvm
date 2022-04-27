@@ -99,7 +99,11 @@ fn memory_and_data<'a, K: Kernel>(
 }
 
 fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let avail_milligas = caller.data_mut().kernel.get_milligas();
+    let avail_milligas = caller
+        .data_mut()
+        .kernel
+        .borrow_milligas()
+        .map_err(|_| Trap::new("borrowing available gas"))?;
     let gas_global = caller.data_mut().avail_gas_global.unwrap();
 
     gas_global
@@ -115,13 +119,17 @@ fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Re
         _ => Err(Trap::new("failed to get wasm gas")),
     }?;
 
-    // todo do we have consts for charge names anywhere?
-    // todo make sure that we handle traps/out-of-gas here correctly
+    // note: this should never error:
+    // * It can't return out-of-gas, because that would mean that we got
+    //   negative available milligas returned from wasm - and wasm
+    //   instrumentation will trap when it sees available gas go below zero
+    // * If it errors because gastracker thinks it already owns gas, something
+    //   is really wrong
     caller
         .data_mut()
         .kernel
-        .set_available_milligas("wasm_exec", milligas)
-        .map_err(|_| Trap::new("setting available gas"))?;
+        .return_milligas("wasm_exec", milligas)
+        .map_err(|e| Trap::new(format!("returning available gas: {}", e)))?;
     Ok(())
 }
 

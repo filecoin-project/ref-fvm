@@ -134,7 +134,7 @@ lazy_static! {
         block_link_base: 353640,
         block_stat: 0,
 
-        exec_instruction_cost_fr: 0,
+        exec_instruction_cost_milli: 0,
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -260,7 +260,7 @@ lazy_static! {
         // TODO: PARAM_FINISH
         block_stat: 1,
 
-        exec_instruction_cost_fr: (gas::MILLIGAS_PRECISION / 2) as u64,
+        exec_instruction_cost_milli: (gas::MILLIGAS_PRECISION / 2) as u64,
         // TODO: PARAM_FINISH
     };
 }
@@ -385,7 +385,7 @@ pub struct PriceList {
     pub(crate) block_link_base: i64,
     pub(crate) block_stat: i64,
 
-    pub(crate) exec_instruction_cost_fr: u64,
+    pub(crate) exec_instruction_cost_milli: u64,
 }
 
 impl PriceList {
@@ -629,7 +629,7 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 
 impl Rules for PriceList {
     fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
-        Some(self.exec_instruction_cost_fr)
+        Some(self.exec_instruction_cost_milli)
     }
 
     fn memory_grow_cost(&self) -> MemoryGrowCost {
