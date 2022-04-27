@@ -31,17 +31,7 @@ pub struct InvocationData<K> {
     pub last_error: Option<backtrace::Cause>,
 
     /// The global containing remaining available gas
-    pub avail_gas_global: Option<Global>,
-}
-
-impl<K: Kernel> InvocationData<K> {
-    pub(crate) fn new(kernel: K) -> Self {
-        Self {
-            kernel,
-            last_error: None,
-            avail_gas_global: None,
-        }
-    }
+    pub avail_gas_global: Global,
 }
 
 use self::bind::BindSyscall;

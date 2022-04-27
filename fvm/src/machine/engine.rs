@@ -67,6 +67,7 @@ impl Default for Engine {
 
 struct EngineInner {
     engine: wasmtime::Engine,
+    dummy_gas_global: Global,
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
 }
@@ -88,8 +89,14 @@ impl Engine {
 
 impl From<wasmtime::Engine> for Engine {
     fn from(engine: wasmtime::Engine) -> Self {
+        let mut dummy_store = wasmtime::Store::new(&engine, ());
+        let gg_type = GlobalType::new(ValType::I64, Mutability::Var);
+        let dummy_gg = Global::new(&mut dummy_store, gg_type, Val::I64(0))
+            .expect("failed to create dummy gas global");
+
         Engine(Arc::new(EngineInner {
             engine,
+            dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
         }))
@@ -233,11 +240,9 @@ impl Engine {
                 Cache { linker }
             }),
         };
-        cache.linker.define(
-            "gas",
-            GAS_COUNTER_NAME,
-            store.data_mut().avail_gas_global.unwrap(),
-        )?;
+        cache
+            .linker
+            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
         let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match module_cache.get(k) {
@@ -254,12 +259,17 @@ impl Engine {
         kernel: K,
         milligas: i64,
     ) -> wasmtime::Store<InvocationData<K>> {
-        let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
+        let id = InvocationData {
+            kernel,
+            last_error: None,
+            avail_gas_global: self.0.dummy_gas_global,
+        };
 
+        let mut store = wasmtime::Store::new(&self.0.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
         let gg = Global::new(&mut store, ggtype, Val::I64(milligas))
             .expect("failed to create available_gas global");
-        store.data_mut().avail_gas_global = Some(gg);
+        store.data_mut().avail_gas_global = gg;
 
         store
     }

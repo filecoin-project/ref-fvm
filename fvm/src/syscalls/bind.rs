@@ -104,8 +104,8 @@ fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Re
         .kernel
         .borrow_milligas()
         .map_err(|_| Trap::new("borrowing available gas"))?;
-    let gas_global = caller.data_mut().avail_gas_global.unwrap();
 
+    let gas_global = caller.data_mut().avail_gas_global;
     gas_global
         .set(caller, Val::I64(avail_milligas))
         .map_err(|_| Trap::new("failed to set available gas"))
@@ -114,7 +114,7 @@ fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Re
 fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
     let global = caller.data_mut().avail_gas_global;
 
-    let milligas = match global.unwrap().get(&mut *caller) {
+    let milligas = match global.get(&mut *caller) {
         Val::I64(g) => Ok(g),
         _ => Err(Trap::new("failed to get wasm gas")),
     }?;
