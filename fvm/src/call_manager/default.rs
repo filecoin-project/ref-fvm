@@ -331,10 +331,10 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            let initial_miligas = max(kernel.get_miligas(), 0);
+            let initial_milligas = max(kernel.get_milligas(), 0);
 
             // Make a store and available gas
-            let mut store = engine.new_store(kernel, initial_miligas);
+            let mut store = engine.new_store(kernel, initial_milligas);
 
             // Instantiate the module.
             let instance = match engine
@@ -347,7 +347,7 @@ where
                     store
                         .data_mut()
                         .kernel
-                        .set_available_miligas("getinstance_fail", initial_miligas)
+                        .set_available_milligas("getinstance_fail", initial_milligas)
                         .unwrap();
                     return (Err(err), store.into_data().kernel.into_call_manager());
                 }
@@ -366,7 +366,7 @@ where
 
                 // Update GasTracker gas
                 use wasmtime::Val;
-                let available_miligas =
+                let available_milligas =
                     match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
                         Val::I64(g) => Ok(g),
                         _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
@@ -375,7 +375,7 @@ where
                 store
                     .data_mut()
                     .kernel
-                    .set_available_miligas("wasm_exec_last", available_miligas)
+                    .set_available_milligas("wasm_exec_last", available_milligas)
                     .map_err(|e| match e {
                         ExecutionError::OutOfGas => Abort::OutOfGas,
                         ExecutionError::Fatal(m) => Abort::Fatal(m),
