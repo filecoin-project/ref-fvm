@@ -6,6 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::syscall_error;
 
 pub struct Context<'a, K> {
     pub kernel: &'a mut K,
@@ -35,6 +36,17 @@ impl Memory {
         // We explicitly specify the lifetimes here to ensure that the cast doesn't inadvertently
         // change them.
         unsafe { &mut *(m as *mut [u8] as *mut Memory) }
+    }
+
+    pub fn check_bounds(&self, offset: u32, len: u32) -> Result<()> {
+        if (offset as u64) + (len as u64) <= (self.0.len() as u64) {
+            Ok(())
+        } else {
+            Err(
+                syscall_error!(IllegalArgument; "buffer {} (length {}) out of bounds", offset, len)
+                    .into(),
+            )
+        }
     }
 
     pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8]> {

@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use std::collections::HashMap;
-use std::iter;
+use std::{cmp, iter};
 
 use anyhow::Context as _;
 use cid::Cid;
@@ -47,16 +47,30 @@ pub fn verify_signature(
         .map(|v| if v { 0 } else { -1 })
 }
 
-/// Hashes input data using blake2b with 256 bit output.
-///
-/// The output buffer must be sized to 32 bytes.
-pub fn hash_blake2b(
+/// Hashes input data using the specified hash function, writing the digest into the provided
+/// buffer.
+pub fn hash(
     mut context: Context<'_, impl Kernel>,
-    data_off: u32,
+    hash_code: u64,
+    data_off: u32, // input
     data_len: u32,
-) -> Result<[u8; 32]> {
-    let data = context.memory.try_slice(data_off, data_len)?;
-    context.kernel.hash_blake2b(data)
+    digest_off: u32, // output
+    digest_len: u32,
+) -> Result<u32> {
+    // Check the digest bounds first so we don't do any work if they're incorrect.
+    context.memory.check_bounds(digest_off, digest_len)?;
+
+    // Then hash.
+    let digest = {
+        let data = context.memory.try_slice(data_off, data_len)?;
+        context.kernel.hash(hash_code, data)?
+    };
+
+    // Then copy the result.
+    let digest_out = context.memory.try_slice_mut(digest_off, digest_len)?;
+    let length = cmp::min(digest_out.len(), digest.len());
+    digest_out[..length].copy_from_slice(&digest[..length]);
+    Ok(length as u32)
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
