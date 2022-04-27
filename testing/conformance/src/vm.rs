@@ -496,12 +496,12 @@ where
         self.0.charge_gas(name, compute)
     }
 
-    fn get_miligas(&mut self) -> i64 {
-        self.0.get_miligas()
+    fn get_milligas(&mut self) -> i64 {
+        self.0.get_milligas()
     }
 
-    fn set_available_miligas(&mut self, name: &str, newgas: i64) -> Result<()> {
-        self.0.set_available_miligas(name, newgas)
+    fn set_available_milligas(&mut self, name: &str, newgas: i64) -> Result<()> {
+        self.0.set_available_milligas(name, newgas)
     }
 
     fn price_list(&self) -> &PriceList {
