@@ -27,12 +27,10 @@ struct State {
 }
 
 pub fn main() {
-    println!("start");
-
     // Instantiate tester
     let mut tester = Tester::new(NetworkVersion::V16, StateTreeVersion::V4).unwrap();
 
-    let sender: [Account; 1] = tester.create_account().unwrap();
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
 
     // Get wasm bin
     let wasm_bin = wat2wasm(WAT).unwrap();
@@ -68,5 +66,5 @@ pub fn main() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    println!("r: {:?}", res);
+    // todo asserts
 }
