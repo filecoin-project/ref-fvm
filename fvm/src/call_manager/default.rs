@@ -376,7 +376,7 @@ where
                 // Update GasTracker gas
                 use wasmtime::Val;
                 let available_milligas =
-                    match store.data_mut().avail_gas_global.unwrap().get(&mut store) {
+                    match store.data_mut().avail_gas_global.clone().get(&mut store) {
                         Val::I64(g) => Ok(g),
                         _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get wasm gas"))),
                     }?;
