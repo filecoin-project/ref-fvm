@@ -8,7 +8,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
 
-use crate::machine::MachineContext;
+use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
 
@@ -100,8 +100,6 @@ struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
 }
 
-const DEFAULT_STACK_LIMIT: u32 = 100000; // todo figure out a good number
-
 impl Engine {
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
     /// the supplied CIDs. Only uncached entries are actually fetched and
@@ -111,7 +109,7 @@ impl Engine {
         &self,
         blockstore: BS,
         cids: I,
-        mctx: &MachineContext,
+        nc: &NetworkConfig,
     ) -> anyhow::Result<()>
     where
         BS: Blockstore,
@@ -128,7 +126,7 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
-            let module = self.load_raw(wasm.as_slice(), mctx)?;
+            let module = self.load_raw(wasm.as_slice(), nc)?;
             cache.insert(*cid, module);
         }
         Ok(())
@@ -139,13 +137,13 @@ impl Engine {
         &self,
         k: &Cid,
         wasm: &[u8],
-        mctx: &MachineContext,
+        nc: &NetworkConfig,
     ) -> anyhow::Result<Module> {
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = self.load_raw(wasm, mctx)?;
+                let module = self.load_raw(wasm, nc)?;
                 cache.insert(*k, module.clone());
                 module
             }
@@ -153,7 +151,7 @@ impl Engine {
         Ok(module)
     }
 
-    fn load_raw(&self, raw_wasm: &[u8], mctx: &MachineContext) -> anyhow::Result<Module> {
+    fn load_raw(&self, raw_wasm: &[u8], nc: &NetworkConfig) -> anyhow::Result<Module> {
         // First make sure that non-instrumented wasm is valid
         Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg)?;
 
@@ -169,7 +167,7 @@ impl Engine {
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let m = inject_stack_limiter(m, DEFAULT_STACK_LIMIT).map_err(anyhow::Error::msg)?;
+        let m = inject_stack_limiter(m, nc.max_wasm_stack).map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -179,7 +177,7 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        let m = inject(m, mctx.network.price_list, "gas")
+        let m = inject(m, nc.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;

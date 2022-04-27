@@ -98,6 +98,10 @@ pub struct NetworkConfig {
     /// DEFAULT: 4096
     pub max_call_depth: u32,
 
+    /// The maximum nubmber of elements on wasm stack
+    /// DEFAULT: 256Ki (2MiB of u64 elements)
+    pub max_wasm_stack: u32,
+
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
     /// "manifest".
     ///
@@ -121,6 +125,7 @@ impl NetworkConfig {
         NetworkConfig {
             network_version,
             max_call_depth: 4096,
+            max_wasm_stack: 256*1024,
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),
