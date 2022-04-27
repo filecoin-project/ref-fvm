@@ -217,9 +217,9 @@ where
                 },
             );
             let mut tf = TRACE_FILE.lock().unwrap();
-            let mut w = tf.deref_mut();
-            serde_json::to_writer(w, &self.gas_trace.spans).unwrap();
-            writeln!(w);
+            let w = tf.deref_mut();
+            serde_json::to_writer(&mut *w, &self.gas_trace.spans).unwrap();
+            writeln!(w).unwrap();
             tf.flush().unwrap();
         }
 
