@@ -213,12 +213,6 @@ pub trait CircSupplyOps {
 }
 
 /// Operations for explicit gas charging.
-///
-/// TODO this is unsafe; most gas charges should occur as part of syscalls, but
-///  some built-in actors currently charge gas explicitly for concrete actions.
-///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
-///  at the WASM level.
-/// TODO remove the todo above
 pub trait GasOps {
     /// GasUsed return the gas used by the transaction so far.
     fn gas_used(&self) -> i64;

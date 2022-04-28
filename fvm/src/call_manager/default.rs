@@ -345,17 +345,23 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
-                let initial_milligas = store.data_mut().kernel.borrow_milligas().map_err(|e| match e {
-                    ExecutionError::OutOfGas => Abort::OutOfGas,
-                    ExecutionError::Fatal(m) => Abort::Fatal(m),
-                    _ => Abort::Fatal(anyhow::Error::msg("setting avaialable gas")),
-                })?;
+                let initial_milligas =
+                    store
+                        .data_mut()
+                        .kernel
+                        .borrow_milligas()
+                        .map_err(|e| match e {
+                            ExecutionError::OutOfGas => Abort::OutOfGas,
+                            ExecutionError::Fatal(m) => Abort::Fatal(m),
+                            _ => Abort::Fatal(anyhow::Error::msg("setting avaialable gas")),
+                        })?;
 
                 store
                     .data()
                     .avail_gas_global
                     .clone()
-                    .set(&mut store, Val::I64(initial_milligas)).map_err(Abort::Fatal)?;
+                    .set(&mut store, Val::I64(initial_milligas))
+                    .map_err(Abort::Fatal)?;
 
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance

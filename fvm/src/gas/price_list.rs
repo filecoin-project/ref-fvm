@@ -17,7 +17,6 @@ use lazy_static::lazy_static;
 use num_traits::Zero;
 
 use super::GasCharge;
-use crate::gas;
 
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
@@ -260,7 +259,7 @@ lazy_static! {
         // TODO: PARAM_FINISH
         block_stat: 1,
 
-        exec_instruction_cost_milli: (gas::MILLIGAS_PRECISION / 2) as u64,
+        exec_instruction_cost_milli: 5000,
         // TODO: PARAM_FINISH
     };
 }

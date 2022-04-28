@@ -32,7 +32,9 @@ impl GasTracker {
     /// enough gas remaining for charge.
     fn charge_milligas(&mut self, name: &str, to_use: i64) -> Result<()> {
         if !self.own_limit {
-            panic!("charge_gas called when gas_limit owned by execution")
+            return Err(ExecutionError::Fatal(anyhow::Error::msg(
+                "charge_gas called when gas_limit owned by execution",
+            )));
         }
 
         match self.milligas_used.checked_add(to_use) {
@@ -78,7 +80,10 @@ impl GasTracker {
     /// sets new available gas, creating a new gas charge if needed
     pub fn return_milligas(&mut self, name: &str, new_avail_mgas: i64) -> Result<()> {
         if self.own_limit {
-            panic!("gastracker already owns gas_limit, charge: {}", name)
+            return Err(ExecutionError::Fatal(anyhow::Error::msg(format!(
+                "gastracker already owns gas_limit, charge: {}",
+                name
+            ))));
         }
         self.own_limit = true;
 
