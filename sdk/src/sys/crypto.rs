@@ -34,23 +34,30 @@ super::fvm_syscalls! {
         plaintext_len: u32,
     ) -> Result<i32>;
 
-    /// Hashes input data using blake2b with 256 bit output.
+    /// Hashes input data using the specified hash function. The digest is written to the passed
+    /// digest buffer and truncated to `digest_len`.
     ///
-    /// Returns a 32-byte hash digest.
+    /// Returns the length of the digest written to the digest buffer.
     ///
     /// # Arguments
     ///
     /// - `data_off` and `data_len` specify location and length of the data to be hashed.
+    /// - `digest_off` and `digest_len` specify the location and length of the output digest buffer.
+    ///
+    /// **NOTE:** The digest and input buffers _may_ overlap.
     ///
     /// # Errors
     ///
     /// | Error               | Reason                                          |
     /// |---------------------|-------------------------------------------------|
     /// | [`IllegalArgument`] | the input buffer does not point to valid memory |
-    pub fn hash_blake2b(
+    pub fn hash(
+        hash_code: u64,
         data_off: *const u8,
         data_len: u32,
-    ) -> Result<[u8; 32]>;
+        digest_off: *mut u8,
+        digest_len: u32,
+    ) -> Result<u32>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
     /// (CommPs) and sizes.

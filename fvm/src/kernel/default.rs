@@ -415,9 +415,17 @@ where
         Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
-    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
+        const BLAKE2B_256: u64 = 0xb220;
+
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
+
+        // We only support blake2b for now, but want to support others in the future.
+        if code != BLAKE2B_256 {
+            return Err(syscall_error!(IllegalArgument; "unsupported hash code {}", code).into());
+        }
+
         let digest = blake2b_simd::Params::new()
             .hash_length(32)
             .to_state()
