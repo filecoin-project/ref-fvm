@@ -504,7 +504,7 @@ where
     where
         F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
     {
-        self.hamt.for_each(|k, v| {
+        self.hamt.try_for_each(|k, v| {
             let addr = Address::from_bytes(&k.0)?;
             f(addr, v)
         })?;

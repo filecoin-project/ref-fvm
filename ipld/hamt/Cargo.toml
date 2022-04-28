@@ -17,7 +17,6 @@ thiserror = "1.0"
 sha2 = "0.10"
 once_cell = "1.5"
 forest_hash_utils = "0.1"
-anyhow = "1.0.51"
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 fvm_ipld_encoding = { version = "0.1", path = "../encoding" }
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }

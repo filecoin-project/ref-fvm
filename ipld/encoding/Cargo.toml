@@ -15,8 +15,7 @@ serde_ipld_dagcbor = "0.1.2"
 serde_tuple = "0.5"
 serde_repr = "0.1"
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
-thiserror = "1.0"
-anyhow = "1.0.56"
+thiserror = "1.0.30"
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
 
 [features]

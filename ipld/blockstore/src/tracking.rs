@@ -2,7 +2,6 @@
 
 use std::cell::RefCell;
 
-use anyhow::Result;
 use cid::multihash::{self, Code};
 use cid::Cid;
 
@@ -46,7 +45,9 @@ impl<BS> Blockstore for TrackingBlockstore<BS>
 where
     BS: Blockstore,
 {
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+    type Error = BS::Error;
+
+    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut stats = self.stats.borrow_mut();
         stats.r += 1;
         let bytes = self.base.get(cid)?;
@@ -55,12 +56,13 @@ where
         }
         Ok(bytes)
     }
-    fn has(&self, cid: &Cid) -> Result<bool> {
+
+    fn has(&self, cid: &Cid) -> Result<bool, Self::Error> {
         self.stats.borrow_mut().r += 1;
         self.base.has(cid)
     }
 
-    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid, Self::Error>
     where
         D: AsRef<[u8]>,
     {
@@ -70,14 +72,14 @@ where
         self.base.put(code, block)
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<(), Self::Error> {
         let mut stats = self.stats.borrow_mut();
         stats.w += 1;
         stats.bw += block.len();
         self.base.put_keyed(k, block)
     }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many<D, I>(&self, blocks: I) -> Result<(), Self::Error>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -91,7 +93,7 @@ where
         Ok(())
     }
 
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<(), Self::Error>
     where
         Self: Sized,
         D: AsRef<[u8]>,

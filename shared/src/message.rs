@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
 use fvm_ipld_encoding::{Cbor, RawBytes};
@@ -38,15 +37,23 @@ impl Message {
     }
 
     /// Does some basic checks on the Message to see if the fields are valid.
-    pub fn check(self: &Message) -> anyhow::Result<()> {
+    pub fn check(self: &Message) -> Result<(), MessageError> {
         if self.gas_limit == 0 {
-            return Err(anyhow!("Message has no gas limit set"));
+            return Err(MessageError::MissingGasLimit);
         }
         if self.gas_limit < 0 {
-            return Err(anyhow!("Message has negative gas limit"));
+            return Err(MessageError::NegativeGasLimit);
         }
         Ok(())
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum MessageError {
+    #[error("Message has no gas limit set")]
+    MissingGasLimit,
+    #[error("Message has negative gas limit")]
+    NegativeGasLimit,
 }
 
 impl Serialize for Message {

@@ -1,10 +1,9 @@
 use std::fmt::{Debug, Display, Formatter};
 
-use anyhow::anyhow;
 use bimap::BiBTreeMap;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::{CborStore, CborStoreError};
 use num_derive::FromPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -115,26 +114,36 @@ impl Display for Type {
 /// A mapping of builtin actor CIDs to their respective types.
 pub type Manifest = BiBTreeMap<Cid, Type>;
 
-pub fn load_manifest<B: Blockstore>(bs: &B, root_cid: &Cid, ver: u32) -> anyhow::Result<Manifest> {
+pub fn load_manifest<B: Blockstore>(
+    bs: &B,
+    root_cid: &Cid,
+    ver: u32,
+) -> Result<Manifest, ManifestError<B::Error>> {
     match ver {
         0 => load_manifest_v0(bs, root_cid),
         1 => load_manifest_v1(bs, root_cid),
-        _ => Err(anyhow!("unknown manifest version {}", ver)),
+        _ => Err(ManifestError::UnknownVersion(ver)),
     }
 }
 
-pub fn load_manifest_v0<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
+pub fn load_manifest_v0<B: Blockstore>(
+    bs: &B,
+    root_cid: &Cid,
+) -> Result<Manifest, ManifestError<B::Error>> {
     match bs.get_cbor::<Manifest>(root_cid)? {
         Some(mf) => Ok(mf),
-        None => Err(anyhow!("cannot find manifest root cid {}", root_cid)),
+        None => Err(ManifestError::MissingRootCid(*root_cid)),
     }
 }
 
-pub fn load_manifest_v1<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result<Manifest> {
+pub fn load_manifest_v1<B: Blockstore>(
+    bs: &B,
+    root_cid: &Cid,
+) -> Result<Manifest, ManifestError<B::Error>> {
     let vec: Vec<(String, Cid)> = match bs.get_cbor(root_cid)? {
         Some(vec) => vec,
         None => {
-            return Err(anyhow!("cannot find manifest root cid {}", root_cid));
+            return Err(ManifestError::MissingRootCid(*root_cid));
         }
     };
     let mut manifest = Manifest::new();
@@ -145,9 +154,21 @@ pub fn load_manifest_v1<B: Blockstore>(bs: &B, root_cid: &Cid) -> anyhow::Result
                 manifest.insert(code_cid, t);
             }
             Err(what) => {
-                return Err(anyhow!("bad builtin actor name: {}: {} ", name, what));
+                return Err(ManifestError::BadBuiltinActor(name, what));
             }
         }
     }
     Ok(manifest)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ManifestError<E> {
+    #[error("unknown manifest version {0}")]
+    UnknownVersion(u32),
+    #[error("cannot find manifest root cid {0}")]
+    MissingRootCid(Cid),
+    #[error("bad builtin actor name: {0}: {1}")]
+    BadBuiltinActor(String, String),
+    #[error("encoding {0}")]
+    Encoding(#[from] CborStoreError<E>),
 }

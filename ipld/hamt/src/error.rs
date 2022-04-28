@@ -1,59 +1,57 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
-use fvm_ipld_encoding::Error as EncodingError;
+use fvm_ipld_encoding::{CborStoreError, Error as EncodingError};
 use thiserror::Error;
 
 /// HAMT Error
 #[derive(Debug, Error)]
-pub enum Error {
-    /// Maximum depth error
-    #[error("Maximum depth reached")]
-    MaxDepth,
-    /// Hash bits does not support greater than 8 bit width
-    #[error("HashBits does not support retrieving more than 8 bits")]
-    InvalidHashBitLen,
+pub enum Error<E> {
+    #[error("hashbits: {0}")]
+    HashBits(#[from] HashBitsError),
     /// This should be treated as a fatal error, must have at least one pointer in node
     #[error("Invalid HAMT format, node cannot have 0 pointers")]
     ZeroPointers,
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
     CidNotFound(String),
-    // TODO: This should be something like "internal" or "io". And we shouldn't have both this and
-    // "other"; they serve the same purpose.
-    /// Dynamic error for when the error needs to be forwarded as is.
-    #[error("{0}")]
-    Dynamic(anyhow::Error),
+    #[error("blockstore {0}")]
+    Blockstore(E),
+    #[error("encoding error {0}")]
+    Encoding(#[from] EncodingError),
 }
 
-impl From<String> for Error {
-    fn from(e: String) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
+impl<E> From<CborStoreError<E>> for Error<E> {
+    fn from(err: CborStoreError<E>) -> Self {
+        match err {
+            CborStoreError::Blockstore(err) => Error::Blockstore(err),
+            CborStoreError::Encoding(err) => Error::Encoding(err),
+        }
     }
 }
 
-impl From<&'static str> for Error {
-    fn from(e: &'static str) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
+/// This error wraps around around two different errors, either the native `Error` from `hamt`, or
+/// a custom user error, returned from executing a user defined function.
+#[derive(Debug, Error)]
+pub enum EitherError<U, E> {
+    #[error("user: {0}")]
+    User(U),
+    #[error("hamt: {0}")]
+    Hamt(#[from] Error<E>),
+}
+
+impl<U, E> From<CborStoreError<E>> for EitherError<U, E> {
+    fn from(err: CborStoreError<E>) -> Self {
+        EitherError::Hamt(err.into())
     }
 }
 
-impl From<anyhow::Error> for Error {
-    fn from(e: anyhow::Error) -> Self {
-        e.downcast::<Error>().unwrap_or_else(Self::Dynamic)
-    }
-}
-
-impl From<EncodingError> for Error {
-    fn from(e: EncodingError) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
-    }
-}
-
-impl From<Box<dyn StdError + Send + Sync>> for Error {
-    fn from(e: Box<dyn StdError + Send + Sync>) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
-    }
+#[derive(Error, Debug)]
+pub enum HashBitsError {
+    /// Maximum depth error
+    #[error("Maximum depth reached")]
+    MaxDepth,
+    /// Hash bits does not support greater than 8 bit width
+    #[error("HashBits does not support retrieving more than 8 bits")]
+    InvalidLen,
 }

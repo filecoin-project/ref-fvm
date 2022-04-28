@@ -1,16 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::error::Error as StdError;
-
-use anyhow::anyhow;
 use cid::Error as CidError;
-use fvm_ipld_encoding::Error as EncodingError;
+use fvm_ipld_encoding::{CborStoreError, Error as EncodingError};
 use thiserror::Error;
 
 /// AMT Error
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum Error<E> {
     /// Index referenced it above arbitrary max set
     #[error("index {0} out of range for the amt")]
     OutOfRange(u64),
@@ -20,49 +17,67 @@ pub enum Error {
     /// Error generating a Cid for data
     #[error(transparent)]
     Cid(#[from] CidError),
-    /// Error when trying to serialize an AMT without a flushed cache
-    #[error("Tried to serialize without saving cache, run flush() on Amt before serializing")]
-    Cached,
     /// Serialized vector less than number of bits set
     #[error("Vector length does not match bitmap")]
     InvalidVecLength,
-    /// Invalid formatted serialized node.
-    #[error("Serialized node cannot contain both links and values")]
-    LinksAndValues,
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
     CidNotFound(String),
-    /// Dynamic error for when the error needs to be forwarded as is.
     #[error("{0}")]
-    Dynamic(anyhow::Error),
+    CollapsedNode(#[from] CollapsedNodeError),
+    #[error("no such index {0} in Amt for batch delete")]
+    BatchDeleteNotFound(u64),
+    #[error("blockstore {0}")]
+    Blockstore(E),
+    #[error("encoding error {0}")]
+    Encoding(#[from] EncodingError),
 }
 
-impl From<String> for Error {
-    fn from(e: String) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
+impl<E> From<CborStoreError<E>> for Error<E> {
+    fn from(err: CborStoreError<E>) -> Self {
+        match err {
+            CborStoreError::Blockstore(err) => Error::Blockstore(err),
+            CborStoreError::Encoding(err) => Error::Encoding(err),
+        }
     }
 }
 
-impl From<&'static str> for Error {
-    fn from(e: &'static str) -> Self {
-        Self::Dynamic(anyhow::anyhow!(e))
+/// This error wraps around around two different errors, either the native `Error` from `amt`, or
+/// a custom user error, returned from executing a user defined function.
+#[derive(Debug, Error)]
+pub enum EitherError<U, E> {
+    #[error("user: {0}")]
+    User(U),
+    #[error("amt: {0}")]
+    Amt(#[from] Error<E>),
+}
+
+impl<U, E> From<CborStoreError<E>> for EitherError<U, E> {
+    fn from(err: CborStoreError<E>) -> Self {
+        EitherError::Amt(err.into())
     }
 }
 
-impl From<anyhow::Error> for Error {
-    fn from(e: anyhow::Error) -> Self {
-        e.downcast::<Error>().unwrap_or_else(Self::Dynamic)
-    }
+#[derive(Debug, Error)]
+pub enum CollapsedNodeError {
+    #[error("expected bitfield of length {0}, found bitfield with length {1}")]
+    LengthMissmatch(usize, usize),
+    #[error("Bitmap contained more set bits than links provided")]
+    MoreBitsThanLinks,
+    #[error("Bitmap contained less set bits than links provided")]
+    LessBitsThanLinks,
+    #[error("Bitmap contained more set bits than values provided")]
+    MoreBitsThanValues,
+    #[error("Bitmap contained less set bits than values provided")]
+    LessBitsThanValues,
+    /// Invalid formatted serialized node.
+    #[error("Serialized node cannot contain both links and values")]
+    LinksAndValues,
 }
 
-impl From<EncodingError> for Error {
-    fn from(e: EncodingError) -> Self {
-        Self::Dynamic(anyhow!(e))
-    }
-}
-
-impl From<Box<dyn StdError + Send + Sync>> for Error {
-    fn from(e: Box<dyn StdError + Send + Sync>) -> Self {
-        Self::Dynamic(anyhow!(e))
-    }
+#[derive(Debug, Error)]
+pub enum SerdeError {
+    /// Error when trying to serialize an AMT without a flushed cache
+    #[error("Tried to serialize without saving cache, run flush() on Amt before serializing")]
+    Cached,
 }
