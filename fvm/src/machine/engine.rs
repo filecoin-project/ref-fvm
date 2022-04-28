@@ -254,11 +254,7 @@ impl Engine {
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(
-        &self,
-        kernel: K,
-        milligas: i64,
-    ) -> wasmtime::Store<InvocationData<K>> {
+    pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
         let id = InvocationData {
             kernel,
             last_error: None,
@@ -267,7 +263,7 @@ impl Engine {
 
         let mut store = wasmtime::Store::new(&self.0.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
-        let gg = Global::new(&mut store, ggtype, Val::I64(milligas))
+        let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
 

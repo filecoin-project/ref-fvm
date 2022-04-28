@@ -67,7 +67,7 @@ impl GasTracker {
     pub fn borrow_milligas(&mut self) -> Result<i64> {
         if !self.own_limit {
             return Err(ExecutionError::Fatal(anyhow::Error::msg(
-                "get_gas called when gas_limit owned by execution",
+                "borrow_milligas called on GasTracker which doesn't own gas limit",
             )));
         }
         self.own_limit = false;

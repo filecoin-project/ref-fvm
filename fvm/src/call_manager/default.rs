@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -9,6 +7,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
+use wasmtime::Val;
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
@@ -331,13 +330,8 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            let initial_milligas = match kernel.borrow_milligas() {
-                Ok(mg) => max(mg, 0),
-                Err(err) => return (Err(err), kernel.into_call_manager()),
-            };
-
             // Make a store and available gas
-            let mut store = engine.new_store(kernel, initial_milligas);
+            let mut store = engine.new_store(kernel);
 
             // Instantiate the module.
             let instance = match engine
@@ -346,24 +340,23 @@ where
                 .or_fatal()
             {
                 Ok(ret) => ret,
-                Err(err) => {
-                    // return gas before returning the error
-                    if let Err(e) = store
-                        .data_mut()
-                        .kernel
-                        .return_milligas("getinstance_fail", initial_milligas)
-                    {
-                        // this shouldn't ever fail as we didn't charge any gas since borrowing above
-                        // but just in case, log the error
-                        log::error!("failed to return gas after failed get_instance: {}", e)
-                    };
-
-                    return (Err(err), store.into_data().kernel.into_call_manager());
-                }
+                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
             };
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
+                let initial_milligas = store.data_mut().kernel.borrow_milligas().map_err(|e| match e {
+                    ExecutionError::OutOfGas => Abort::OutOfGas,
+                    ExecutionError::Fatal(m) => Abort::Fatal(m),
+                    _ => Abort::Fatal(anyhow::Error::msg("setting avaialable gas")),
+                })?;
+
+                store
+                    .data()
+                    .avail_gas_global
+                    .clone()
+                    .set(&mut store, Val::I64(initial_milligas)).map_err(Abort::Fatal)?;
+
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
@@ -373,8 +366,7 @@ where
                 // Invoke it.
                 let res = invoke.call(&mut store, (param_id,));
 
-                // Update GasTracker gas
-                use wasmtime::Val;
+                // Return gas tracking to GasTracker
                 let available_milligas =
                     match store.data_mut().avail_gas_global.clone().get(&mut store) {
                         Val::I64(g) => Ok(g),
