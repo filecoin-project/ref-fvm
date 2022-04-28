@@ -239,7 +239,10 @@ impl Engine {
             use wasmtime::CallHook::*;
             match h {
                 CallingWasm => data.last_actor_call = Some(Instant::now()),
-                CallingHost => data.last_syscall_call = Some(Instant::now()),
+                CallingHost => {
+                    data.last_syscall_call = Some(Instant::now());
+                    data.num_syscalls += 1;
+                }
                 ReturningFromWasm => {
                     data.actor_time += data
                         .last_actor_call

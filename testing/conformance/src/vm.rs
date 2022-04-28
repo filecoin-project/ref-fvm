@@ -3,7 +3,9 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
+use fvm::call_manager::{
+    CallManager, DefaultCallManager, ExecutionStats, FinishRet, InvocationResult,
+};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
@@ -279,6 +281,10 @@ where
 
     fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
+    }
+
+    fn exec_stats_mut(&mut self) -> &mut ExecutionStats {
+        self.0.exec_stats_mut()
     }
 }
 

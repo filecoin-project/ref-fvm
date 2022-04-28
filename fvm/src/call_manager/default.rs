@@ -2,7 +2,6 @@ use std::cmp::max;
 use std::env;
 #[cfg(feature = "tracing")]
 use std::io::Write;
-use std::ops::DerefMut;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -255,6 +254,10 @@ where
 
     fn gas_tracker_mut(&mut self) -> &mut GasTracker {
         &mut self.gas_tracker
+    }
+
+    fn exec_stats_mut(&mut self) -> &mut ExecutionStats {
+        &mut self.exec_stats
     }
 
     // Other accessor methods
@@ -531,6 +534,7 @@ where
             cm.exec_stats.wasm_duration += (invocation_data.actor_time
                 - invocation_data.syscall_time)
                 .max(Duration::default());
+            cm.exec_stats.num_syscalls += invocation_data.num_syscalls;
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {

@@ -364,6 +364,8 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
+        self.call_manager.exec_stats_mut().num_externs += 1;
+
         let data = self
             .call_manager
             .blockstore()
@@ -662,6 +664,8 @@ where
 
         record_trace!(self, PreExtern, "verify_consensus_fault");
 
+        self.call_manager.exec_stats_mut().num_externs += 1;
+
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
         let (fault, gas) = self
@@ -874,6 +878,8 @@ where
 
         record_trace!(self, PreExtern, "get_chain_randomness");
 
+        self.call_manager.exec_stats_mut().num_externs += 1;
+
         // TODO: Check error code
         let ret = self
             .call_manager
@@ -900,6 +906,8 @@ where
         )?;
 
         record_trace!(self, PreExtern, "get_beacon_randomness");
+
+        self.call_manager.exec_stats_mut().num_externs += 1;
 
         // TODO: Check error code
         let ret = self

@@ -50,6 +50,7 @@ pub struct InvocationData<K> {
     pub actor_time: Duration,
     pub last_syscall_call: Option<Instant>,
     pub last_actor_call: Option<Instant>,
+    pub num_syscalls: u64,
 }
 
 impl<K: Kernel> InvocationData<K> {
@@ -64,6 +65,7 @@ impl<K: Kernel> InvocationData<K> {
             actor_time: Duration::default(),
             last_syscall_call: None,
             last_actor_call: None,
+            num_syscalls: 0,
         }
     }
 

@@ -122,6 +122,10 @@ pub trait CallManager: 'static {
         Ok(())
     }
 
+    /// Returns a mutable reference to the execution stats to allow other
+    /// components to update them.
+    fn exec_stats_mut(&mut self) -> &mut ExecutionStats;
+
     /// Record a gas trace.
     #[cfg(feature = "tracing")]
     fn record_trace(
@@ -170,6 +174,10 @@ pub struct ExecutionStats {
     pub call_count: u64,
     /// Compute gas actually used.
     pub compute_gas: u64,
+    /// Number of syscalls invoked.
+    pub num_syscalls: u64,
+    /// Number of externs invoked.
+    pub num_externs: u64,
 }
 
 /// The returned values upon finishing a call manager.
