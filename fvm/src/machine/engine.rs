@@ -59,17 +59,12 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c
 }
 
-impl Default for Engine {
-    fn default() -> Self {
-        Engine::new(&default_wasmtime_config()).unwrap()
-    }
-}
-
 struct EngineInner {
     engine: wasmtime::Engine,
     dummy_gas_global: Global,
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
+    network: NetworkConfig,
 }
 
 impl Deref for Engine {
@@ -81,28 +76,28 @@ impl Deref for Engine {
 }
 
 impl Engine {
-    /// Create a new Engine from a wasmtime config.
-    pub fn new(c: &wasmtime::Config) -> anyhow::Result<Self> {
-        Ok(wasmtime::Engine::new(c)?.into())
+    pub fn new_default(nc: NetworkConfig) -> anyhow::Result<Self> {
+        Engine::new(&default_wasmtime_config(), nc)
     }
-}
 
-impl From<wasmtime::Engine> for Engine {
-    fn from(engine: wasmtime::Engine) -> Self {
+    /// Create a new Engine from a wasmtime config.
+    pub fn new(c: &wasmtime::Config, nc: NetworkConfig) -> anyhow::Result<Self> {
+        let engine = wasmtime::Engine::new(c)?;
+
         let mut dummy_store = wasmtime::Store::new(&engine, ());
         let gg_type = GlobalType::new(ValType::I64, Mutability::Var);
         let dummy_gg = Global::new(&mut dummy_store, gg_type, Val::I64(0))
             .expect("failed to create dummy gas global");
 
-        Engine(Arc::new(EngineInner {
+        Ok(Engine(Arc::new(EngineInner {
             engine,
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
-        }))
+            network: nc,
+        })))
     }
 }
-
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
 }
@@ -112,12 +107,7 @@ impl Engine {
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
     /// make this method return an Err immediately.
-    pub fn preload<'a, BS, I>(
-        &self,
-        blockstore: BS,
-        cids: I,
-        nc: &NetworkConfig,
-    ) -> anyhow::Result<()>
+    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
     where
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
@@ -133,24 +123,19 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
-            let module = self.load_raw(wasm.as_slice(), nc)?;
+            let module = self.load_raw(wasm.as_slice())?;
             cache.insert(*cid, module);
         }
         Ok(())
     }
 
     /// Load some wasm code into the engine.
-    pub fn load_bytecode(
-        &self,
-        k: &Cid,
-        wasm: &[u8],
-        nc: &NetworkConfig,
-    ) -> anyhow::Result<Module> {
+    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = self.load_raw(wasm, nc)?;
+                let module = self.load_raw(wasm)?;
                 cache.insert(*k, module.clone());
                 module
             }
@@ -158,7 +143,7 @@ impl Engine {
         Ok(module)
     }
 
-    fn load_raw(&self, raw_wasm: &[u8], nc: &NetworkConfig) -> anyhow::Result<Module> {
+    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
         // First make sure that non-instrumented wasm is valid
         Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg)?;
 
@@ -174,7 +159,8 @@ impl Engine {
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let m = inject_stack_limiter(m, nc.max_wasm_stack).map_err(anyhow::Error::msg)?;
+        let m =
+            inject_stack_limiter(m, self.0.network.max_wasm_stack).map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -184,7 +170,7 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        let m = inject(m, nc.price_list, "gas")
+        let m = inject(m, self.0.network.price_list, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;

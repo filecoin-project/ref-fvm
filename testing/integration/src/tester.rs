@@ -152,22 +152,23 @@ impl Tester {
 
         let blockstore = self.state_tree.store();
 
+        let mut nc = NetworkConfig::new(self.nv);
+        nc.override_actors(self.builtin_actors);
+
+        let mut mc = nc.for_epoch(0, state_root);
+        mc.set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE));
+
         let machine = DefaultMachine::new(
-            &Engine::default(),
-            NetworkConfig::new(self.nv)
-                .override_actors(self.builtin_actors)
-                .for_epoch(0, state_root)
-                .set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE)),
+            &Engine::new_default(mc.network.clone())?,
+            &mc,
             blockstore.clone(),
             dummy::DummyExterns,
         )?;
 
-        let mc = machine.context().clone();
-
         let executor = DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine);
         executor
             .engine()
-            .preload(executor.blockstore(), &self.code_cids, &mc)?;
+            .preload(executor.blockstore(), &self.code_cids)?;
 
         self.executor = Some(executor);
 
