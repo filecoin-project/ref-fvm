@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
@@ -8,6 +9,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
 
+use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
@@ -15,6 +17,45 @@ use crate::Kernel;
 /// A caching wasmtime engine.
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
+
+pub struct MultiEngine(Mutex<HashMap<EngineConfig, Engine>>);
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct EngineConfig {
+    pub max_wasm_stack: u32,
+    pub wasm_prices: &'static WasmGasPrices,
+}
+
+impl From<&NetworkConfig> for EngineConfig {
+    fn from(nc: &NetworkConfig) -> Self {
+        EngineConfig {
+            max_wasm_stack: nc.max_wasm_stack,
+            wasm_prices: &nc.price_list.wasm_rules,
+        }
+    }
+}
+
+impl MultiEngine {
+    pub fn new() -> MultiEngine {
+        MultiEngine(Mutex::new(HashMap::new()))
+    }
+
+    pub fn get(&self, nc: &NetworkConfig) -> anyhow::Result<Engine> {
+        let mut engines = self
+            .0
+            .lock()
+            .map_err(|_| anyhow::Error::msg("multiengine lock is poisoned"))?;
+
+        let ec: EngineConfig = nc.into();
+
+        let engine = match engines.entry(ec.clone()) {
+            Occupied(entry) => entry.into_mut(),
+            Vacant(entry) => entry.insert(Engine::new_default(ec)?),
+        };
+
+        Ok(engine.clone())
+    }
+}
 
 pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
@@ -64,7 +105,7 @@ struct EngineInner {
     dummy_gas_global: Global,
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
-    network: NetworkConfig,
+    config: EngineConfig,
 }
 
 impl Deref for Engine {
@@ -76,12 +117,12 @@ impl Deref for Engine {
 }
 
 impl Engine {
-    pub fn new_default(nc: NetworkConfig) -> anyhow::Result<Self> {
-        Engine::new(&default_wasmtime_config(), nc)
+    pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
+        Engine::new(&default_wasmtime_config(), ec)
     }
 
     /// Create a new Engine from a wasmtime config.
-    pub fn new(c: &wasmtime::Config, nc: NetworkConfig) -> anyhow::Result<Self> {
+    pub fn new(c: &wasmtime::Config, ec: EngineConfig) -> anyhow::Result<Self> {
         let engine = wasmtime::Engine::new(c)?;
 
         let mut dummy_store = wasmtime::Store::new(&engine, ());
@@ -94,7 +135,7 @@ impl Engine {
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
-            network: nc,
+            config: ec,
         })))
     }
 }
@@ -160,7 +201,7 @@ impl Engine {
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
         let m =
-            inject_stack_limiter(m, self.0.network.max_wasm_stack).map_err(anyhow::Error::msg)?;
+            inject_stack_limiter(m, self.0.config.max_wasm_stack).map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -170,7 +211,7 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        let m = inject(m, self.0.network.price_list, "gas")
+        let m = inject(m, &self.0.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;

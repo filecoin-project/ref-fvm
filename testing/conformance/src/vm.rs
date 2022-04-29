@@ -6,7 +6,7 @@ use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, MultiEngine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -49,7 +49,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engine: &Engine,
+        engines: &MultiEngine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -71,16 +71,14 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .get(&network_version)
             .expect("no builtin actors index for nv");
 
-        let machine = DefaultMachine::new(
-            engine,
-            NetworkConfig::new(network_version)
-                .override_actors(builtin_actors)
-                .for_epoch(epoch, state_root)
-                .set_base_fee(base_fee),
-            blockstore,
-            externs,
-        )
-        .unwrap();
+        let mut nc = NetworkConfig::new(network_version);
+        nc.override_actors(builtin_actors);
+        let mut mc = nc.for_epoch(epoch, state_root);
+        mc.set_base_fee(base_fee);
+
+        let engine = engines.get(&mc.network).expect("getting engine");
+
+        let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
 
         let price_list = machine.context().price_list.clone();
 

@@ -159,7 +159,7 @@ impl Tester {
         mc.set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE));
 
         let machine = DefaultMachine::new(
-            &Engine::new_default(mc.network.clone())?,
+            &Engine::new_default((&mc.network.clone()).into())?,
             &mc,
             blockstore.clone(),
             dummy::DummyExterns,

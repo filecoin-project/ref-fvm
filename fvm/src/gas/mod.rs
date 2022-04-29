@@ -3,7 +3,7 @@
 
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
-pub use self::price_list::{price_list_by_network_version, PriceList};
+pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
 use crate::kernel::{ExecutionError, Result};
 
 mod charge;

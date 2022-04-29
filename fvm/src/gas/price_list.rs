@@ -133,7 +133,9 @@ lazy_static! {
         block_link_base: 353640,
         block_stat: 0,
 
-        exec_instruction_cost_milli: 0,
+        wasm_rules: WasmGasPrices{
+            exec_instruction_cost_milli: 0,
+        },
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -259,7 +261,9 @@ lazy_static! {
         // TODO: PARAM_FINISH
         block_stat: 1,
 
-        exec_instruction_cost_milli: 5000,
+        wasm_rules: WasmGasPrices{
+            exec_instruction_cost_milli: 5000,
+        },
         // TODO: PARAM_FINISH
     };
 }
@@ -384,6 +388,11 @@ pub struct PriceList {
     pub(crate) block_link_base: i64,
     pub(crate) block_stat: i64,
 
+    pub(crate) wasm_rules: WasmGasPrices,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct WasmGasPrices {
     pub(crate) exec_instruction_cost_milli: u64,
 }
 
@@ -626,7 +635,7 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
     }
 }
 
-impl Rules for PriceList {
+impl Rules for &WasmGasPrices {
     fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
         Some(self.exec_instruction_cost_milli)
     }
