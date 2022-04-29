@@ -58,6 +58,12 @@ impl MultiEngine {
     }
 }
 
+impl Default for MultiEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
 

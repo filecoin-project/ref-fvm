@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use criterion::*;
-use fvm::machine::{Engine, BURNT_FUNDS_ACTOR_ADDR};
+use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ADDR};
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
 use fvm_ipld_encoding::{Cbor, RawBytes};
@@ -19,7 +19,7 @@ use crate::bench_drivers::{bench_vector_file, CheckStrength};
 fn bench_init_only(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: &Path,
-    engine: &Engine,
+    engines: &MultiEngine,
 ) -> anyhow::Result<()> {
     // compute measurement overhead by benching running a single empty vector of zero messages
     let mut message_vector = MessageVector::from_file(path_to_setup)?;
@@ -35,7 +35,7 @@ fn bench_init_only(
         &message_vector,
         CheckStrength::OnlyCheckSuccess,
         "bench_init_only",
-        engine,
+        engines,
     )
 }
 
@@ -43,7 +43,7 @@ fn bench_init_only(
 fn bench_500_simple_state_access(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: &Path,
-    engine: &Engine,
+    engines: &MultiEngine,
 ) -> anyhow::Result<()> {
     let five_hundred_state_accesses = (0..500)
         .map(|i| ApplyMessage {
@@ -78,7 +78,7 @@ fn bench_500_simple_state_access(
         &message_vector,
         CheckStrength::OnlyCheckSuccess,
         "bench_500_simple_state_access",
-        engine,
+        engines,
     )
 }
 /// runs overhead benchmarks, using the contents of the environment variable VECTOR as the starting FVM state
@@ -101,9 +101,9 @@ fn bench_conformance_overhead(c: &mut Criterion) {
     group.measurement_time(Duration::new(30, 0));
     // start by getting some baselines!
 
-    let engine = Engine::default();
-    bench_init_only(&mut group, &path_to_setup, &engine).unwrap();
-    bench_500_simple_state_access(&mut group, &path_to_setup, &engine).unwrap();
+    let engines = MultiEngine::default();
+    bench_init_only(&mut group, &path_to_setup, &engines).unwrap();
+    bench_500_simple_state_access(&mut group, &path_to_setup, &engines).unwrap();
     group.finish();
 }
 
