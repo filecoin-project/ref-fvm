@@ -18,7 +18,8 @@ use crate::Kernel;
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 
-pub struct MultiEngine(Mutex<HashMap<EngineConfig, Engine>>);
+#[derive(Clone)]
+pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct EngineConfig {
@@ -37,7 +38,7 @@ impl From<&NetworkConfig> for EngineConfig {
 
 impl MultiEngine {
     pub fn new() -> MultiEngine {
-        MultiEngine(Mutex::new(HashMap::new()))
+        MultiEngine(Arc::new(Mutex::new(HashMap::new())))
     }
 
     pub fn get(&self, nc: &NetworkConfig) -> anyhow::Result<Engine> {

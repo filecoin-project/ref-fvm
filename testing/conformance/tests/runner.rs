@@ -12,7 +12,7 @@ use anyhow::{anyhow, Context as _};
 use async_std::{stream, sync, task};
 use colored::*;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
-use fvm::machine::{Engine, MultiEngine};
+use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::{MessageVector, Selector};
@@ -39,7 +39,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         Ok(v) => either::Either::Left(
             iter::once(async move {
                 let path = Path::new(v.as_str()).to_path_buf();
-                let res = run_vector(path.clone(), engine)
+                let res = run_vector(path.clone(), engines)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -51,10 +51,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .into_iter()
                 .filter_ok(is_runnable)
                 .map(|e| {
-                    let engine = engine.clone();
+                    let engines = engines.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engine)
+                        let res = run_vector(path.clone(), engines)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -199,6 +199,7 @@ async fn run_vector(
                     (0..v.preconditions.variants.len()).map(move |i| {
                         let v = v.clone();
                         let bs = bs.clone();
+                        let engines = engines.clone();
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         futures::future::Either::Right(
