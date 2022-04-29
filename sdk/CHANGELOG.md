@@ -6,7 +6,7 @@
 
 - Added _cfg = "testing"_ on `testing` module.
 - Added a `testing` module to access `assert_*` macros to be able to do assertions in actors code.
-- Update `fvm_ipld_encoding` for CBOR library switch.
+- Update `fvm_ipld_encoding` to 0.2.0 for CBOR library switch.
 
 ## 0.6.0 [2022-04-14]
 
