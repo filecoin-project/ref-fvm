@@ -1,7 +1,7 @@
 [package]
 name = "fvm_shared"
 description = "Filecoin Virtual Machine shared types and functions"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
@@ -26,7 +26,7 @@ unsigned-varint = "0.7.1"
 anyhow = "1.0.51"
 bimap = { version = "0.6.2", features = ["serde"] }
 fvm_ipld_blockstore = { version = "0.1", path = "../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.1", path = "../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.2", path = "../ipld/encoding" }
 serde = { version = "1", default-features = false }
 serde_tuple = "0.5"
 serde_repr = "0.1"
