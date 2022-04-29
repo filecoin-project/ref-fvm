@@ -51,7 +51,6 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CARGO_INCREMENTAL: 0
       CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
     name: ${{ matrix.name }}
@@ -74,6 +73,8 @@ jobs:
         command: generate-lockfile
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         version: v0.2.15
         # change this to invalidate sccache for this job
