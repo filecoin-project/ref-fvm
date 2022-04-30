@@ -1,4 +1,4 @@
-use fvm_sdk as sdk;
+/*use fvm_sdk as sdk;
 
 pub unsafe fn do_not_exist(code: u32, message: *const u8, message_len: u32) -> ! {
     extern "C" {
@@ -9,3 +9,4 @@ pub unsafe fn do_not_exist(code: u32, message: *const u8, message_len: u32) -> !
         std::rt::begin_panic("syscall abort should not have returned")
     }
 }
+*/
