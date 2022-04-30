@@ -1,7 +1,7 @@
 [package]
 name = "fvm_ipld_amt"
 description = "Sharded IPLD Array implementation."
-version = "0.4.0"
+version = "0.4.1"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2018"
@@ -16,7 +16,7 @@ ahash = { version = "0.7", optional = true }
 itertools = "0.10"
 anyhow = "1.0.51"
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
-fvm_ipld_encoding = { version = "0.1", path = "../encoding" }
+fvm_ipld_encoding = { version = "0.2", path = "../encoding" }
 
 [features]
 go-interop = ["ahash"]

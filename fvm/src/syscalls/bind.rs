@@ -20,18 +20,21 @@ use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 pub(super) trait BindSyscall<Args, Ret, Func> {
     /// Bind a syscall to the linker.
     ///
-    /// The return type will be automatically adjusted to return `Result<(u32, ...), Trap>` where
-    /// `u32` is the error code and `...` is the previous return type. For example:
+    /// 1. The return type will be automatically adjusted to return `Result<u32, Trap>` where
+    /// `u32` is the error code.
+    /// 2. If the return type is non-empty (i.e., not `()`), an out-pointer will be prepended to the
+    /// arguments for the return-value.
     ///
-    /// - `kernel::Result<()>` will become `kernel::Result<u32>`.
-    /// - `kernel::Result<i64>` will become `Result<(u32, i64), Trap>`.
-    /// - `kernel::Result<(i32, i32)>` will become `Result<(u32, i32, i32), Trap>`.
+    /// By example:
+    ///
+    /// - `fn(u32) -> kernel::Result<()>` will become `fn(u32) -> Result<u32, Trap>`.
+    /// - `fn(u32) -> kernel::Result<i64>` will become `fn(u32, u32) -> Result<u32, Trap>`.
     ///
     /// # Example
     ///
     /// ```ignore
     /// mod my_module {
-    ///     pub fn zero(kernel: &mut impl Kernel, memory: &mut [u8], arg: i32) -> crate::fvm::kernel::Result<i32> {
+    ///     pub fn zero(mut context: Context<'_, impl Kernel>, arg: i32) -> crate::fvm::kernel::Result<i32> {
     ///         Ok(0)
     ///     }
     /// }

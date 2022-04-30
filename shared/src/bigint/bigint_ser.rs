@@ -109,9 +109,6 @@ mod tests {
 
         let res: Result<BigIntDe, _> = from_slice(&bad_bytes);
         assert!(res.is_err());
-        assert_eq!(
-            res.unwrap_err().to_string(),
-            "Serialization error for Cbor protocol: BigInt too large"
-        );
+        assert!(res.unwrap_err().to_string().contains("BigInt too large"));
     }
 }

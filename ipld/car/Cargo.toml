@@ -1,7 +1,7 @@
 [package]
 name = "fvm_ipld_car"
 description = "IPLD CAR handling library"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -14,7 +14,7 @@ thiserror = "1.0"
 futures = "0.3.5"
 integer-encoding = { version = "3.0", features = ["futures_async"] }
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
-fvm_ipld_encoding = { version = "0.1", path = "../encoding" }
+fvm_ipld_encoding = { version = "0.2", path = "../encoding" }
 
 [dev-dependencies]
 async-std = { version = "1.9", features = ["attributes"] }

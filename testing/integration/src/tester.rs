@@ -173,11 +173,11 @@ impl Tester {
     }
 
     /// Get blockstore
-    pub fn blockstore(&'static self) -> Box<dyn Blockstore + 'static> {
+    pub fn blockstore(&self) -> &dyn Blockstore {
         if self.executor.is_some() {
-            Box::new(self.executor.as_ref().unwrap().blockstore())
+            self.executor.as_ref().unwrap().blockstore()
         } else {
-            Box::new(self.state_tree.store())
+            self.state_tree.store()
         }
     }
 }
