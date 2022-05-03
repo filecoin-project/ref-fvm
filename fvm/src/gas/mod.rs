@@ -10,9 +10,13 @@ mod charge;
 mod outputs;
 mod price_list;
 
+#[cfg(feature = "tracing")]
+pub mod tracer;
+
 pub struct GasTracker {
     gas_available: i64,
     gas_used: i64,
+    compute_gas_real: i64,
 }
 
 impl GasTracker {
@@ -20,6 +24,7 @@ impl GasTracker {
         Self {
             gas_available,
             gas_used,
+            compute_gas_real: 0,
         }
     }
 
@@ -41,6 +46,8 @@ impl GasTracker {
                     Err(ExecutionError::OutOfGas)
                 } else {
                     self.gas_used = used;
+                    // can't overflow if the sum doesn't overflow.
+                    self.compute_gas_real += charge.compute_gas;
                     Ok(())
                 }
             }
@@ -55,6 +62,12 @@ impl GasTracker {
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
         self.gas_used
+    }
+
+    /// Getter for the "real" compute gas. That is, the compute gas that was actually _used_, not
+    /// including the storage gas and gas charged when we run out of gas.
+    pub fn compute_gas_real(&self) -> i64 {
+        self.compute_gas_real
     }
 }
 

@@ -39,6 +39,17 @@ log = "0.4.14"
 byteorder = "1.4.3"
 anymap = "0.12.1"
 blake2b_simd = "1.0.0"
+minstant = { version = "0.1.1" }
+serde_json = { version = "1.0.79", optional = true }
+
+[dev-dependencies]
+criterion = "0.3.5"
+rand = "0.8.5"
+
+[[bench]]
+name = "gas_tracing"
+harness = false
+required-features = ["tracing"]
 
 [dependencies.wasmtime]
 version = "0.35.2"
@@ -49,5 +60,5 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+tracing = ["serde_json"]
 testing = []
-

@@ -40,6 +40,7 @@ fn main() {
     }
     let engine = Engine::new(
         wasmtime::Config::default()
+            .consume_fuel(true)
             .profiler(wasmtime::ProfilingStrategy::VTune)
             .expect("failed to configure profiler"),
     )

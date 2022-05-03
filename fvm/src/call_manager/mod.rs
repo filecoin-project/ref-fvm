@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -119,6 +121,19 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().charge_gas(charge)?;
         Ok(())
     }
+
+    /// Returns a mutable reference to the execution stats to allow other
+    /// components to update them.
+    fn exec_stats_mut(&mut self) -> &mut ExecutionStats;
+
+    /// Record a gas trace.
+    #[cfg(feature = "tracing")]
+    fn record_trace(
+        &mut self,
+        context: crate::gas::tracer::Context,
+        point: crate::gas::tracer::Point,
+        consumption: crate::gas::tracer::Consumption,
+    );
 }
 
 /// The result of a method invocation.
@@ -147,9 +162,32 @@ impl InvocationResult {
     }
 }
 
+#[derive(Default, Clone, Debug)]
+pub struct ExecutionStats {
+    /// Wasm fuel used over the course of the message execution.
+    pub fuel_used: u64,
+    /// Time spent inside wasm code.
+    pub wasm_duration: Duration,
+    /// Time spent setting up and tearing down wasm calls.
+    pub call_overhead: Duration,
+    /// Total number of actor calls (that invoke wasm).
+    pub call_count: u64,
+    /// Compute gas actually used.
+    pub compute_gas: u64,
+    /// Number of syscalls invoked.
+    pub num_syscalls: u64,
+    /// Number of externs invoked.
+    pub num_externs: u64,
+    /// Number of bytes read from state via ipld::block_open.
+    pub block_bytes_read: u64,
+    /// Number of bytes staged/written via ipld::block_write.
+    pub block_bytes_written: u64,
+}
+
 /// The returned values upon finishing a call manager.
 pub struct FinishRet {
     pub gas_used: i64,
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
+    pub exec_stats: ExecutionStats,
 }

@@ -59,7 +59,7 @@ where
             };
 
         // Apply the message.
-        let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
+        let (res, gas_used, stats, mut backtrace, exec_trace) = self.map_machine(|machine| {
             let mut cm = K::CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
@@ -81,7 +81,13 @@ where
             });
             let (res, machine) = cm.finish();
             (
-                Ok((result, res.gas_used, res.backtrace, res.exec_trace)),
+                Ok((
+                    result,
+                    res.gas_used,
+                    res.exec_stats,
+                    res.backtrace,
+                    res.exec_trace,
+                )),
                 machine,
             )
         })?;
@@ -160,6 +166,7 @@ where
                 .finish_message(msg, receipt, failure_info, gas_cost)
                 .map(|mut apply_ret| {
                     apply_ret.exec_trace = exec_trace;
+                    apply_ret.exec_stats = Some(stats);
                     apply_ret
                 }),
             ApplyKind::Implicit => Ok(ApplyRet {
@@ -168,6 +175,7 @@ where
                 penalty: TokenAmount::zero(),
                 miner_tip: TokenAmount::zero(),
                 exec_trace,
+                exec_stats: Some(stats),
             }),
         }
     }
@@ -371,10 +379,11 @@ where
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            failure_info,
             penalty: miner_penalty,
             miner_tip,
+            failure_info,
             exec_trace: vec![],
+            exec_stats: None,
         })
     }
 

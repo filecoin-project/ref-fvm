@@ -1,4 +1,7 @@
+use std::time::Duration;
+
 use cid::Cid;
+use minstant::Instant;
 use wasmtime::Linker;
 
 use crate::call_manager::backtrace;
@@ -40,6 +43,14 @@ pub struct InvocationData<K> {
     /// The snapshot gets taken when execution enters WASM _after_ consuming fuel for any syscall gas consumption.
     /// When execution exits WASM, we charge gas for the delta between the new fuel_consumed value and the snapshot.
     pub exec_units_consumed_snapshot: u64,
+
+    /// The time spent processing syscalls, including sends to other actors.
+    /// TODO: make this optional.
+    pub syscall_time: Duration,
+    pub actor_time: Duration,
+    pub last_syscall_call: Option<Instant>,
+    pub last_actor_call: Option<Instant>,
+    pub num_syscalls: u64,
 }
 
 impl<K: Kernel> InvocationData<K> {
@@ -50,6 +61,11 @@ impl<K: Kernel> InvocationData<K> {
             last_error: None,
             gas_used_snapshot: gas_used,
             exec_units_consumed_snapshot: 0,
+            syscall_time: Duration::default(),
+            actor_time: Duration::default(),
+            last_syscall_call: None,
+            last_actor_call: None,
+            num_syscalls: 0,
         }
     }
 

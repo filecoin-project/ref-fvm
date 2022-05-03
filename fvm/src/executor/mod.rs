@@ -1,6 +1,7 @@
 mod default;
 
 use std::fmt::Display;
+use std::ops::{Deref, DerefMut};
 
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
@@ -10,7 +11,7 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
-use crate::call_manager::Backtrace;
+use crate::call_manager::{Backtrace, CallManager, ExecutionStats};
 use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
@@ -19,7 +20,10 @@ use crate::Kernel;
 /// 1. Validating messages (nonce, sender, etc).
 /// 2. Creating message receipts.
 /// 3. Charging message inclusion gas, overestimation gas, miner tip, etc.
-pub trait Executor {
+pub trait Executor: DerefMut
+where
+    Self: Deref<Target = <<Self::Kernel as Kernel>::CallManager as CallManager>::Machine>,
+{
     /// The [`Kernel`] on which messages will be applied. We specify a [`Kernel`] here, not a
     /// [`Machine`](crate::machine::Machine), because the [`Kernel`] implies the
     /// [`Machine`](crate::machine::Machine).
@@ -74,6 +78,8 @@ pub struct ApplyRet {
     pub failure_info: Option<ApplyFailure>,
     /// Execution trace information, for debugging.
     pub exec_trace: ExecutionTrace,
+    /// Wasm execution stats.
+    pub exec_stats: Option<ExecutionStats>,
 }
 
 impl ApplyRet {
@@ -93,6 +99,7 @@ impl ApplyRet {
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
             exec_trace: vec![],
+            exec_stats: None,
         }
     }
 

@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use wasmtime::{Linker, Module};
+use minstant::Instant;
+use wasmtime::{Linker, Module, Trap};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
@@ -85,7 +86,7 @@ impl Deref for Engine {
 impl Engine {
     /// Create a new Engine from a wasmtime config.
     pub fn new(c: &wasmtime::Config) -> anyhow::Result<Self> {
-        Ok(wasmtime::Engine::new(c)?.into())
+        Ok(wasmtime::Engine::new(c.clone().consume_fuel(true))?.into())
     }
 }
 
@@ -125,7 +126,12 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
+            let start = Instant::now();
             let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+            log::info!(
+                "compiled {cid} in {}",
+                duration = start.elapsed().as_nanos()
+            );
             cache.insert(*cid, module);
         }
         Ok(())
@@ -137,7 +143,9 @@ impl Engine {
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
+                let start = Instant::now();
                 let module = Module::from_binary(&self.0.engine, wasm)?;
+                log::info!("compiled {k} in {}", duration = start.elapsed().as_nanos());
                 cache.insert(*k, module.clone());
                 module
             }
@@ -185,8 +193,14 @@ impl Engine {
         let cache = match instance_cache.entry() {
             anymap::Entry::Occupied(e) => e.into_mut(),
             anymap::Entry::Vacant(e) => e.insert({
+                let start = Instant::now();
                 let mut linker = Linker::new(&self.0.engine);
                 bind_syscalls(&mut linker)?;
+                log::info!(
+                    "created linker for {kernel} in {duration}",
+                    kernel = std::any::type_name::<K>(),
+                    duration = start.elapsed().as_nanos(),
+                );
                 Cache {
                     linker,
                     instances: HashMap::new(),
@@ -201,8 +215,14 @@ impl Engine {
                     Some(module) => module,
                     None => return Ok(None),
                 };
+                let start = Instant::now();
                 // We can cache the "pre instance" because our linker only has host functions.
                 let pre = cache.linker.instantiate_pre(&mut *store, module)?;
+                log::info!(
+                    "instantiated {k} for {kernel} in {duration}",
+                    kernel = std::any::type_name::<K>(),
+                    duration = start.elapsed().as_nanos(),
+                );
                 e.insert(pre)
             }
         };
@@ -212,6 +232,37 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
+        fn call_hook(
+            data: &mut InvocationData<impl Kernel>,
+            h: wasmtime::CallHook,
+        ) -> Result<(), Trap> {
+            use wasmtime::CallHook::*;
+            match h {
+                CallingWasm => data.last_actor_call = Some(Instant::now()),
+                CallingHost => {
+                    data.last_syscall_call = Some(Instant::now());
+                    data.num_syscalls += 1;
+                }
+                ReturningFromWasm => {
+                    data.actor_time += data
+                        .last_actor_call
+                        .take()
+                        .expect("wasm return with no matching call")
+                        .elapsed();
+                }
+
+                ReturningFromHost => {
+                    data.syscall_time += data
+                        .last_syscall_call
+                        .take()
+                        .expect("syscall return with no matching call")
+                        .elapsed();
+                }
+            }
+            Ok(())
+        }
+        let mut store = wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel));
+        store.call_hook(call_hook);
+        store
     }
 }
