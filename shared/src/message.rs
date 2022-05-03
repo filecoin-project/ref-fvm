@@ -12,6 +12,7 @@ use crate::econ::TokenAmount;
 use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
+#[cfg_attr(feature = "testing", derive(Default))]
 #[derive(PartialEq, Clone, Debug, Hash, Eq)]
 pub struct Message {
     pub version: i64,
