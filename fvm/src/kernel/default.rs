@@ -378,12 +378,12 @@ where
             .or_fatal()?;
 
         let block = Block::new(cid.codec(), data);
+        let size = block.size() as usize;
 
-        self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_block_open_per_byte(block.size() as usize),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_block_open_per_byte(size))?;
+
+        self.call_manager.exec_stats_mut().block_bytes_read += size as u64;
 
         let stat = block.stat();
 
@@ -393,8 +393,11 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        let size = data.len();
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+            .charge_gas(self.call_manager.price_list().on_block_create(size))?;
+
+        self.call_manager.exec_stats_mut().block_bytes_written += size as u64;
 
         self.blocks
             .put(Block::new(codec, data))

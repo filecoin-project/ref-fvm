@@ -178,6 +178,10 @@ pub struct ExecutionStats {
     pub num_syscalls: u64,
     /// Number of externs invoked.
     pub num_externs: u64,
+    /// Number of bytes read from state via ipld::block_open.
+    pub block_bytes_read: u64,
+    /// Number of bytes staged/written via ipld::block_write.
+    pub block_bytes_written: u64,
 }
 
 /// The returned values upon finishing a call manager.
