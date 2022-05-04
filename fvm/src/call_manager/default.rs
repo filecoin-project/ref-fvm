@@ -351,15 +351,10 @@ where
                     // All actors will have an invoke method.
                     .map_err(Abort::Fatal)?;
 
-                // Set the available gas.
-                update_gas_available(&mut store)?;
-
                 // Invoke it.
+                sync_gas(&mut store)?;
                 let res = invoke.call(&mut store, (param_id,));
-
-                // Charge for any remaining uncharged execution gas, returning an error if we run
-                // out.
-                charge_for_exec(&mut store)?;
+                sync_gas(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort

@@ -42,50 +42,55 @@ pub struct InvocationData<K> {
     pub last_milligas_available: i64,
 }
 
-pub fn update_gas_available(
+/// Synchronize gas between the wasm module and the gas tracker. This:
+///
+/// 1. Charges for any WASM gas used since the last charge.
+/// 2. Updates the available WASM gas to the current available gas according to the gas tracker.
+pub fn sync_gas(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
-    let avail_milligas = ctx.data_mut().kernel.milligas_available();
-
     let gas_global = ctx.data_mut().avail_gas_global;
+
+    // Determine how much gas was used since we last synced.
+    let milligas_used = {
+        let milligas_available_wasm = gas_global
+            .get(&mut ctx)
+            .i64()
+            .context("failed to get wasm gas")
+            .map_err(Abort::Fatal)?;
+
+        let last_milligas_available = ctx.data().last_milligas_available;
+
+        // This should never be negative, but we might as well check.
+        last_milligas_available.saturating_sub(milligas_available_wasm)
+    };
+
+    // Charge for it, but _don't_ handle any out of gas errors yet.
+    let charge_result = if milligas_used > 0 {
+        ctx.data_mut()
+            .kernel
+            .charge_milligas("wasm_exec", milligas_used)
+            .map_err(|e| match e {
+                ExecutionError::OutOfGas => Abort::OutOfGas,
+                ExecutionError::Fatal(e) => Abort::Fatal(e),
+                ExecutionError::Syscall(e) => {
+                    Abort::Fatal(anyhow!("unexpected syscall error: {}", e))
+                }
+            })
+    } else {
+        Ok(())
+    };
+
+    // Record how much gas is available.
+    let avail_milligas = ctx.data().kernel.milligas_available();
     gas_global
         .set(&mut ctx, Val::I64(avail_milligas))
         .map_err(|e| Abort::Fatal(anyhow!("failed to set available gas global: {}", e)))?;
-
     ctx.data_mut().last_milligas_available = avail_milligas;
-    Ok(())
-}
 
-pub fn charge_for_exec(
-    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
-) -> Result<(), Abort> {
-    let mut ctx = ctx.as_context_mut();
-    let global = ctx.data_mut().avail_gas_global;
-
-    let milligas_available = global
-        .get(&mut ctx)
-        .i64()
-        .context("failed to get wasm gas")
-        .map_err(Abort::Fatal)?;
-
-    // Determine milligas used, and update the "o
-    let milligas_used = {
-        let data = ctx.data_mut();
-        let last_milligas = mem::replace(&mut data.last_milligas_available, milligas_available);
-        // This should never be negative, but we might as well check.
-        last_milligas.saturating_sub(milligas_available)
-    };
-
-    ctx.data_mut()
-        .kernel
-        .charge_milligas("wasm_exec", milligas_used)
-        .map_err(|e| match e {
-            ExecutionError::OutOfGas => Abort::OutOfGas,
-            ExecutionError::Fatal(e) => Abort::Fatal(e),
-            ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
-        })?;
-    Ok(())
+    // And then return the result (which might be an "out of gas" error).
+    charge_result
 }
 
 use self::bind::BindSyscall;
