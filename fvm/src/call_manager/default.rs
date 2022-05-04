@@ -330,7 +330,7 @@ where
                 super::NO_DATA_BLOCK_ID
             };
 
-            // Make a store and available gas
+            // Make a store.
             let mut store = engine.new_store(kernel);
 
             // Instantiate the module.
@@ -353,7 +353,9 @@ where
                         .map_err(|e| match e {
                             ExecutionError::OutOfGas => Abort::OutOfGas,
                             ExecutionError::Fatal(m) => Abort::Fatal(m),
-                            _ => Abort::Fatal(anyhow::Error::msg("setting available gas on entering wasm")),
+                            _ => Abort::Fatal(anyhow::Error::msg(
+                                "setting available gas on entering wasm",
+                            )),
                         })?;
 
                 store
@@ -376,7 +378,9 @@ where
                 let available_milligas =
                     match store.data_mut().avail_gas_global.clone().get(&mut store) {
                         Val::I64(g) => Ok(g),
-                        _ => Err(Abort::Fatal(anyhow::Error::msg("failed to get available gas from wasm after returning"))),
+                        _ => Err(Abort::Fatal(anyhow::Error::msg(
+                            "failed to get available gas from wasm after returning",
+                        ))),
                     }?;
 
                 store
@@ -386,7 +390,9 @@ where
                     .map_err(|e| match e {
                         ExecutionError::OutOfGas => Abort::OutOfGas,
                         ExecutionError::Fatal(m) => Abort::Fatal(m),
-                        _ => Abort::Fatal(anyhow::Error::msg("setting available gas on existing wasm")),
+                        _ => Abort::Fatal(anyhow::Error::msg(
+                            "setting available gas on existing wasm",
+                        )),
                     })?;
 
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
@@ -18,6 +18,7 @@ use crate::Kernel;
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 
+/// Container managing engines with different consensus-affecting configurations.
 #[derive(Clone)]
 pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 
@@ -107,6 +108,9 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // Set to something much higher than the instrumented limiter.
     c.max_wasm_stack(64 << 20).unwrap();
 
+    // Execution cost accouting is done through wasm instrumentation,
+    c.consume_fuel(false);
+
     // c.cranelift_opt_level(Speed); ?
 
     c
@@ -114,7 +118,11 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
 struct EngineInner {
     engine: wasmtime::Engine,
+
+    /// dummy gas global used in store costructor to avoid making
+    /// InvocationData.avail_gas_global an Option
     dummy_gas_global: Global,
+
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
     config: EngineConfig,
@@ -198,7 +206,9 @@ impl Engine {
 
     fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
         // First make sure that non-instrumented wasm is valid
-        Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg).context("failed to validate actor wasm")?;
+        Module::validate(&self.0.engine, raw_wasm)
+            .map_err(anyhow::Error::msg)
+            .with_context(|| "failed to validate actor wasm")?;
 
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info
@@ -223,7 +233,7 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        let m = inject(m, &self.0.config.wasm_prices, "gas")
+        let m = inject(m, self.0.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;
@@ -270,7 +280,7 @@ impl Engine {
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
         let cache = match instance_cache.entry() {
-            anymap::Entry::Occupied(e) => e.into_mut(), // todo what about gas here?
+            anymap::Entry::Occupied(e) => e.into_mut(),
             anymap::Entry::Vacant(e) => e.insert({
                 let mut linker = Linker::new(&self.0.engine);
                 linker.allow_shadowing(true);

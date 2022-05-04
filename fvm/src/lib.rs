@@ -125,7 +125,7 @@ mod test {
 
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network).into()).unwrap(),
-            mc,
+            &mc,
             bs,
             DummyExterns,
         )

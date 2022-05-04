@@ -16,6 +16,11 @@ pub struct GasTracker {
     milligas_limit: i64,
     milligas_used: i64,
 
+    /// A flag indicating whether this GasTracker is currently responsible for
+    /// gas accounting. A 'false' value indicates that gas accounting is
+    /// handled somewhere else (eg. in wasm execution).
+    ///
+    /// Creating gas charges is only allowed when own_limit is true.
     own_limit: bool,
 }
 
@@ -64,8 +69,8 @@ impl GasTracker {
         )
     }
 
-    /// returns available milligas; makes the gas tracker block gas charges until
-    /// set_available_gas is called
+    /// returns available milligas; makes the gas tracker reject gas charges with
+    /// a fatal error until return_milligas is called.
     pub fn borrow_milligas(&mut self) -> Result<i64> {
         if !self.own_limit {
             return Err(ExecutionError::Fatal(anyhow::Error::msg(
@@ -122,8 +127,7 @@ fn milligas_to_gas(milligas: i64, round_up: bool) -> i64 {
     let mut div_result = milligas / MILLIGAS_PRECISION;
     if milligas > 0 && round_up && milligas % MILLIGAS_PRECISION != 0 {
         div_result = div_result.saturating_add(1);
-    }
-    if milligas < 0 && !round_up && milligas % MILLIGAS_PRECISION != 0 {
+    } else if milligas < 0 && !round_up && milligas % MILLIGAS_PRECISION != 0 {
         div_result = div_result.saturating_sub(1);
     }
     div_result
