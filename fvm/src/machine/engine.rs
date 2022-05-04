@@ -90,6 +90,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     // wasmtime default: depends on the arch
     // > This is true by default on x86-64, and false by default on other architectures.
+    //
+    // Not supported in wasm-instrument/parity-wasm
     c.wasm_reference_types(false);
 
     // wasmtime default: false
@@ -101,6 +103,9 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // > computation. This is not required by the WebAssembly spec, so it is
     // > not enabled by default.
     c.cranelift_nan_canonicalization(true);
+
+    // Set to something much higher than the instrumented limiter.
+    c.max_wasm_stack(64 << 20).unwrap();
 
     // c.cranelift_opt_level(Speed); ?
 
