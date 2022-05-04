@@ -2,7 +2,7 @@ use std::mem;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use wasmtime::{AsContextMut, Global, Linker, Val};
+use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
 use crate::kernel::ExecutionError;
@@ -30,16 +30,21 @@ pub(self) use context::Context;
 pub struct InvocationData<K> {
     /// The kernel on which this actor is being executed.
     pub kernel: K,
+
     /// The last-seen syscall error. This error is considered the abort "cause" if an actor aborts
     /// after receiving this error without calling any other syscalls.
     pub last_error: Option<backtrace::Cause>,
 
     /// The global containing remaining available gas.
     pub avail_gas_global: Global,
+
     /// The last-set milligas limit. When `charge_for_exec` is called, we charge for the
     /// _difference_ between the current gas available (the wasm global) and the
     /// `last_milligas_available`.
     pub last_milligas_available: i64,
+
+    /// The invocation's imported "memory".
+    pub memory: Memory,
 }
 
 pub fn update_gas_available(

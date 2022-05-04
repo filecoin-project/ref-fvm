@@ -12,7 +12,7 @@ use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError};
+use crate::kernel::{ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
@@ -333,18 +333,21 @@ where
             // Make a store.
             let mut store = engine.new_store(kernel);
 
-            // Instantiate the module.
-            let instance = match engine
-                .get_instance(&mut store, &state.code)
-                .and_then(|i| i.context("actor code not found"))
-                .or_fatal()
-            {
-                Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
-            };
-
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, &state.code)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
