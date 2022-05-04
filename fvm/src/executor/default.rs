@@ -164,9 +164,14 @@ where
                 }),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
-                failure_info,
                 penalty: TokenAmount::zero(),
                 miner_tip: TokenAmount::zero(),
+                base_fee_burn: TokenAmount::from(0),
+                over_estimation_burn: TokenAmount::from(0),
+                refund: TokenAmount::from(0),
+                gas_refund: 0,
+                gas_burned: 0,
+                failure_info,
                 exec_trace,
             }),
         }
@@ -326,11 +331,12 @@ where
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
             base_fee_burn,
-            miner_tip,
             over_estimation_burn,
-            refund,
             miner_penalty,
-            ..
+            miner_tip,
+            refund,
+            gas_refund,
+            gas_burned,
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
@@ -365,15 +371,20 @@ where
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;
 
-        if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
+        if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             return Err(anyhow!("Gas handling math is wrong"));
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            failure_info,
             penalty: miner_penalty,
             miner_tip,
+            base_fee_burn,
+            over_estimation_burn,
+            refund,
+            gas_refund,
+            gas_burned,
+            failure_info,
             exec_trace: vec![],
         })
     }
