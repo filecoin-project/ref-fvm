@@ -9,7 +9,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{Cbor, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::{Signature, SignatureType};
 use fvm_shared::error::ErrorNumber::IllegalArgument;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -17,6 +17,7 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::{sys, ActorID};
+use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result, SyscallError};
@@ -27,23 +28,27 @@ use crate::{syscall_error, Kernel};
 /// The return i32 indicates the status code of the verification:
 ///  - 0: verification ok.
 ///  - -1: verification failed.
+#[allow(clippy::too_many_arguments)]
 pub fn verify_signature(
     mut context: Context<'_, impl Kernel>,
-    sig_off: u32, // Signature
+    sig_type: u32,
+    sig_off: u32,
     sig_len: u32,
-    addr_off: u32, // Address
+    addr_off: u32,
     addr_len: u32,
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
-    let sig: Signature = context.memory.read_cbor(sig_off, sig_len)?;
-    let addr: Address = context.memory.read_address(addr_off, addr_len)?;
-    // plaintext doesn't need to be a mutable borrow, but otherwise we would be
-    // borrowing the ctx both immutably and mutably.
+    let sig_type = SignatureType::from_u32(sig_type)
+        .with_context(|| format!("unknown signature type {}", sig_type))
+        .or_illegal_argument()?;
+    let sig_bytes = context.memory.try_slice(sig_off, sig_len)?;
+    let addr = context.memory.read_address(addr_off, addr_len)?;
     let plaintext = context.memory.try_slice(plaintext_off, plaintext_len)?;
+
     context
         .kernel
-        .verify_signature(&sig, &addr, plaintext)
+        .verify_signature(sig_type, sig_bytes, &addr, plaintext)
         .map(|v| if v { 0 } else { -1 })
 }
 

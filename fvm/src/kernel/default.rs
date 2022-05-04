@@ -18,6 +18,7 @@ use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
@@ -459,19 +460,17 @@ where
 {
     fn verify_signature(
         &mut self,
-        signature: &Signature,
+        sig_type: SignatureType,
+        signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_verify_signature(signature.signature_type()),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer, true)?;
-        Ok(signature.verify(plaintext, &signing_addr).is_ok())
+        Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
     }
 
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
