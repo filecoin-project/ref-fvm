@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use colored::Colorize;
 use criterion::*;
-use fvm::machine::Engine;
+use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::MessageVector;
@@ -39,7 +39,7 @@ fn bench_conformance(c: &mut Criterion) {
         ),
     };
 
-    let engine = Engine::default();
+    let engines = MultiEngine::default();
 
     // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently), we can probably bring this down.
     let mut group = c.benchmark_group("conformance-tests");
@@ -74,7 +74,7 @@ fn bench_conformance(c: &mut Criterion) {
             &message_vector,
             CheckStrength::FullTest,
             &vector_path.display().to_string(),
-            &engine,
+            &engines,
         ) {
             Ok(()) => report!(
                 "SUCCESSFULLY BENCHED TEST FILE".on_green(),

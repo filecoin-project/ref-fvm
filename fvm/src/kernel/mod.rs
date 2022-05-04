@@ -213,11 +213,6 @@ pub trait CircSupplyOps {
 }
 
 /// Operations for explicit gas charging.
-///
-/// TODO this is unsafe; most gas charges should occur as part of syscalls, but
-///  some built-in actors currently charge gas explicitly for concrete actions.
-///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
-///  at the WASM level.
 pub trait GasOps {
     /// GasUsed return the gas used by the transaction so far.
     fn gas_used(&self) -> i64;
@@ -225,6 +220,12 @@ pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
+
+    /// Returns available gas.
+    fn borrow_milligas(&mut self) -> Result<i64>;
+
+    /// Sets available gas to a new value, creating a gas charge if needed
+    fn return_milligas(&mut self, name: &str, newgas: i64) -> Result<()>;
 
     fn price_list(&self) -> &PriceList;
 }

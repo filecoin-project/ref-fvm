@@ -11,6 +11,8 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
+use fvm_wasm_instrument::gas_metering::{MemoryGrowCost, Rules};
+use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 
@@ -118,7 +120,6 @@ lazy_static! {
         .copied()
         .collect(),
 
-        gas_per_exec_unit: 0,
         get_randomness_base: 0,
         get_randomness_per_byte: 0,
 
@@ -131,6 +132,10 @@ lazy_static! {
         block_create_base: 0,
         block_link_base: 353640,
         block_stat: 0,
+
+        wasm_rules: WasmGasPrices{
+            exec_instruction_cost_milli: 0,
+        },
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -241,8 +246,6 @@ lazy_static! {
         // TODO: PARAM_FINISH
 
         // TODO: PARAM_FINISH
-        gas_per_exec_unit: 2,
-        // TODO: PARAM_FINISH
         get_randomness_base: 1,
         // TODO: PARAM_FINISH
         get_randomness_per_byte: 1,
@@ -257,6 +260,11 @@ lazy_static! {
         block_link_base: 1,
         // TODO: PARAM_FINISH
         block_stat: 1,
+
+        wasm_rules: WasmGasPrices{
+            exec_instruction_cost_milli: 5000,
+        },
+        // TODO: PARAM_FINISH
     };
 }
 
@@ -366,8 +374,6 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
-    // 1 Exec Unit = gas_per_exec_unit * 1 Gas
-    pub(crate) gas_per_exec_unit: i64,
 
     pub(crate) get_randomness_base: i64,
     pub(crate) get_randomness_per_byte: i64,
@@ -381,6 +387,13 @@ pub struct PriceList {
     pub(crate) block_create_base: i64,
     pub(crate) block_link_base: i64,
     pub(crate) block_stat: i64,
+
+    pub(crate) wasm_rules: WasmGasPrices,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct WasmGasPrices {
+    pub(crate) exec_instruction_cost_milli: u64,
 }
 
 impl PriceList {
@@ -537,33 +550,6 @@ impl PriceList {
         GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
     }
 
-    /// Returns the gas required for the specified exec_units.
-    #[inline]
-    pub fn on_consume_exec_units(&self, exec_units: u64) -> GasCharge<'static> {
-        GasCharge::new(
-            "OnConsumeExecUnits",
-            self.gas_per_exec_unit
-                .saturating_mul(i64::try_from(exec_units).unwrap_or(i64::MAX)),
-            0,
-        )
-    }
-
-    /// Converts the specified gas into equivalent exec_units
-    /// Note: In rare cases the provided `gas` may be negative
-    #[inline]
-    pub fn gas_to_exec_units(&self, gas: i64, round_up: bool) -> i64 {
-        match self.gas_per_exec_unit {
-            0 => 0,
-            v => {
-                let mut div_result = gas / v;
-                if round_up && gas % v != 0 {
-                    div_result = div_result.saturating_add(1);
-                }
-                div_result
-            }
-        }
-    }
-
     /// Returns the cost of the gas required for getting randomness from the client, based on the
     /// numebr of bytes of entropy.
     #[inline]
@@ -646,5 +632,16 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
     match network_version {
         NetworkVersion::V14 | NetworkVersion::V15 => &OH_SNAP_PRICES,
         _ => &SKYR_PRICES,
+    }
+}
+
+impl Rules for WasmGasPrices {
+    fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
+        Some(self.exec_instruction_cost_milli)
+    }
+
+    fn memory_grow_cost(&self) -> MemoryGrowCost {
+        // todo use pricelist
+        MemoryGrowCost::Free
     }
 }

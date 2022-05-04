@@ -2,7 +2,7 @@ extern crate criterion;
 
 use criterion::*;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
-use fvm::machine::Engine;
+use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{MessageVector, Variant};
 use fvm_conformance_tests::vm::{TestKernel, TestMachine};
@@ -37,7 +37,7 @@ pub fn bench_vector_variant(
     vector: &MessageVector,
     messages_with_lengths: Vec<(Message, usize)>,
     bs: &MemoryBlockstore,
-    engine: &Engine,
+    engines: &MultiEngine,
 ) {
     group.bench_function(name, move |b| {
         b.iter_batched(
@@ -45,7 +45,7 @@ pub fn bench_vector_variant(
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
                 // TODO next few lines don't impact the benchmarks, but it might make them run waaaay more slowly... ought to make a base copy of the machine and exec and deepcopy them each time.
-                let machine = TestMachine::new_for_vector(vector, variant, bs, engine);
+                let machine = TestMachine::new_for_vector(vector, variant, bs, engines);
                 // can assume this works because it passed a test before this ran
                 let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                 (messages_with_lengths.clone(), exec)
@@ -80,7 +80,7 @@ pub fn bench_vector_file(
     vector: &MessageVector,
     check_strength: CheckStrength,
     name: &str,
-    engine: &Engine,
+    engines: &MultiEngine,
 ) -> anyhow::Result<()> {
     let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
 
@@ -89,12 +89,12 @@ pub fn bench_vector_file(
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
         let testresult = match check_strength {
-            CheckStrength::FullTest => run_variant(bs.clone(), vector, variant, engine, true)
+            CheckStrength::FullTest => run_variant(bs.clone(), vector, variant, engines, true)
                 .map_err(|e| {
                     anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
                 })?,
             CheckStrength::OnlyCheckSuccess => {
-                run_variant(bs.clone(), vector, variant, engine, false).map_err(|e| {
+                run_variant(bs.clone(), vector, variant, engines, false).map_err(|e| {
                     anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
                 })?
             }
@@ -124,7 +124,7 @@ pub fn bench_vector_file(
                 vector,
                 messages_with_lengths,
                 &bs,
-                engine,
+                engines,
             );
         } else {
             return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", check_strength, name));

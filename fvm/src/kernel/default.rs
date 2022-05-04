@@ -760,6 +760,16 @@ where
         self.call_manager.charge_gas(charge)
     }
 
+    fn return_milligas(&mut self, name: &str, new_gas: i64) -> Result<()> {
+        self.call_manager
+            .gas_tracker_mut()
+            .return_milligas(name, new_gas)
+    }
+
+    fn borrow_milligas(&mut self) -> Result<i64> {
+        self.call_manager.gas_tracker_mut().borrow_milligas()
+    }
+
     fn price_list(&self) -> &PriceList {
         self.call_manager.price_list()
     }

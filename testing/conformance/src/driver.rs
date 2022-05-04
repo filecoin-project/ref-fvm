@@ -5,7 +5,7 @@ use cid::Cid;
 use fmt::Display;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
-use fvm::machine::{Engine, Machine};
+use fvm::machine::{Machine, MultiEngine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::{Cbor, CborStore};
@@ -184,13 +184,13 @@ pub fn run_variant(
     bs: MemoryBlockstore,
     v: &MessageVector,
     variant: &Variant,
-    engine: &Engine,
+    engines: &MultiEngine,
     check_correctness: bool,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, engine);
+    let machine = TestMachine::new_for_vector(v, variant, bs, engines);
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.

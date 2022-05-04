@@ -2,7 +2,7 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, Trap, WasmTy};
+use wasmtime::{Caller, Linker, Trap, Val, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
@@ -98,34 +98,39 @@ fn memory_and_data<'a, K: Kernel>(
     Ok((Memory::new(mem), data))
 }
 
-fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units = caller
+fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
+    let avail_milligas = caller
         .data_mut()
-        .calculate_exec_units_for_gas()
-        .map_err(|_| Trap::new("failed to calculate exec_units"))?;
-    if exec_units.is_negative() {
-        caller.add_fuel(u64::try_from(exec_units.saturating_neg()).unwrap_or(0))?;
-    } else {
-        caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
-    }
+        .kernel
+        .borrow_milligas()
+        .map_err(|_| Trap::new("borrowing available gas"))?;
 
-    let gas_used = caller.data().kernel.gas_used();
-    let fuel_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-    caller.data_mut().set_snapshots(gas_used, fuel_consumed);
-    Ok(())
+    let gas_global = caller.data_mut().avail_gas_global;
+    gas_global
+        .set(caller, Val::I64(avail_milligas))
+        .map_err(|_| Trap::new("failed to set available gas"))
 }
 
-fn charge_gas_for_exec_units(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
+fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
+    let global = caller.data_mut().avail_gas_global;
 
+    let milligas = match global.get(&mut *caller) {
+        Val::I64(g) => Ok(g),
+        _ => Err(Trap::new("failed to get wasm gas")),
+    }?;
+
+    // note: this should never error:
+    // * It can't return out-of-gas, because that would mean that we got
+    //   negative available milligas returned from wasm - and wasm
+    //   instrumentation will trap when it sees available gas go below zero
+    // * If it errors because gastracker thinks it already owns gas, something
+    //   is really wrong
     caller
         .data_mut()
-        .charge_gas_for_exec_units(exec_units_consumed)
-        .map_err(|_| Trap::new("failed to charge gas for exec_units"))
+        .kernel
+        .return_milligas("wasm_exec", milligas)
+        .map_err(|e| Trap::new(format!("returning available gas: {}", e)))?;
+    Ok(())
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
@@ -148,30 +153,35 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
+                        wasmgas_to_gastracker(&mut caller)?;
+
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(_) => {
+                        let out = syscall(ctx $(, $t)*).into();
+
+                        let result = match out {
+                            Ok(Ok(_)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
-                        Ok(result)
+                        gastracker_to_wasmgas(&mut caller)?;
+
+                        result
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
+                        wasmgas_to_gastracker(&mut caller)?;
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
@@ -183,23 +193,25 @@ macro_rules! impl_bind_syscalls {
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(value) => {
+                        let result = match syscall(ctx $(, $t)*).into() {
+                            Ok(Ok(value)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
-                        Ok(result)
+                        gastracker_to_wasmgas(&mut caller)?;
+
+                        result
                     })
                 }
             }

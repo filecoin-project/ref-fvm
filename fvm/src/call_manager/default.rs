@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -7,9 +5,9 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
+use wasmtime::Val;
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
@@ -316,7 +314,6 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        let gas_available = self.gas_tracker.gas_available();
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
@@ -334,21 +331,7 @@ where
             };
 
             // Make a store.
-            let gas_used = kernel.gas_used();
-            let exec_units_to_add = match kernel.network_version() {
-                NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
-                _ => kernel
-                    .price_list()
-                    .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
-            };
-
             let mut store = engine.new_store(kernel);
-            if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
-                return (
-                    Err(ExecutionError::Fatal(err)),
-                    store.into_data().kernel.into_call_manager(),
-                );
-            }
 
             // Instantiate the module.
             let instance = match engine
@@ -362,6 +345,26 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<RawBytes, Abort> = (|| {
+                let initial_milligas =
+                    store
+                        .data_mut()
+                        .kernel
+                        .borrow_milligas()
+                        .map_err(|e| match e {
+                            ExecutionError::OutOfGas => Abort::OutOfGas,
+                            ExecutionError::Fatal(m) => Abort::Fatal(m),
+                            _ => Abort::Fatal(anyhow::Error::msg(
+                                "setting available gas on entering wasm",
+                            )),
+                        })?;
+
+                store
+                    .data()
+                    .avail_gas_global
+                    .clone()
+                    .set(&mut store, Val::I64(initial_milligas))
+                    .map_err(Abort::Fatal)?;
+
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
@@ -371,19 +374,26 @@ where
                 // Invoke it.
                 let res = invoke.call(&mut store, (param_id,));
 
-                // Charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
-                // We do this by first loading the _total_ execution units consumed
-                let exec_units_consumed = store
-                    .fuel_consumed()
-                    .context("expected to find fuel consumed")
-                    .map_err(Abort::Fatal)?;
-                // Then, pass the _total_ exec_units_consumed to the InvocationData,
-                // which knows how many execution units had been consumed at the most recent snapshot
-                // It will charge gas for the delta between the total units (the number we provide) and its snapshot
+                // Return gas tracking to GasTracker
+                let available_milligas =
+                    match store.data_mut().avail_gas_global.clone().get(&mut store) {
+                        Val::I64(g) => Ok(g),
+                        _ => Err(Abort::Fatal(anyhow::Error::msg(
+                            "failed to get available gas from wasm after returning",
+                        ))),
+                    }?;
+
                 store
                     .data_mut()
-                    .charge_gas_for_exec_units(exec_units_consumed)
-                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
+                    .kernel
+                    .return_milligas("wasm_exec_last", available_milligas)
+                    .map_err(|e| match e {
+                        ExecutionError::OutOfGas => Abort::OutOfGas,
+                        ExecutionError::Fatal(m) => Abort::Fatal(m),
+                        _ => Abort::Fatal(anyhow::Error::msg(
+                            "setting available gas on existing wasm",
+                        )),
+                    })?;
 
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort
