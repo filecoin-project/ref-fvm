@@ -5,7 +5,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
@@ -232,7 +232,8 @@ pub trait CryptoOps {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
         &mut self,
-        signature: &Signature,
+        sig_type: SignatureType,
+        signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool>;

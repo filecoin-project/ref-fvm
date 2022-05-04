@@ -108,13 +108,20 @@ impl Signature {
 impl Signature {
     /// Checks if a signature is valid given data and address.
     pub fn verify(&self, data: &[u8], addr: &crate::address::Address) -> Result<(), String> {
-        use crate::address::Protocol;
+        verify(self.sig_type, &self.bytes, data, addr)
+    }
+}
 
-        match addr.protocol() {
-            Protocol::BLS => self::ops::verify_bls_sig(self.bytes(), data, addr),
-            Protocol::Secp256k1 => self::ops::verify_secp256k1_sig(self.bytes(), data, addr),
-            _ => Err("Address must be resolved to verify a signature".to_owned()),
-        }
+#[cfg(feature = "crypto")]
+pub fn verify(
+    sig_type: SignatureType,
+    sig_data: &[u8],
+    data: &[u8],
+    addr: &crate::address::Address,
+) -> Result<(), String> {
+    match sig_type {
+        SignatureType::BLS => self::ops::verify_bls_sig(sig_data, data, addr),
+        SignatureType::Secp256k1 => self::ops::verify_secp256k1_sig(sig_data, data, addr),
     }
 }
 
@@ -128,11 +135,18 @@ pub mod ops {
     };
 
     use super::{Error, SECP_SIG_LEN};
-    use crate::address::Address;
+    use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
 
     /// Returns `String` error if a bls signature is invalid.
     pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
+        if addr.protocol() != Protocol::BLS {
+            return Err(format!(
+                "cannot validate a BLS signature against a {} address",
+                addr.protocol()
+            ));
+        }
+
         let pub_k = addr.payload_bytes();
 
         // generate public key object from bytes
@@ -158,6 +172,13 @@ pub mod ops {
         data: &[u8],
         addr: &Address,
     ) -> Result<(), String> {
+        if addr.protocol() != Protocol::Secp256k1 {
+            return Err(format!(
+                "cannot validate a secp256k1 signature against a {} address",
+                addr.protocol()
+            ));
+        }
+
         if signature.len() != SECP_SIG_LEN {
             return Err(format!(
                 "Invalid Secp256k1 signature length. Was {}, must be 65",
