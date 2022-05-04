@@ -99,7 +99,7 @@ pub struct NetworkConfig {
     pub max_call_depth: u32,
 
     /// The maximum number of elements on wasm stack
-    /// DEFAULT: 256Ki (2MiB of u64 elements)
+    /// DEFAULT: 64Ki (512KiB of u64 elements)
     pub max_wasm_stack: u32,
 
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
