@@ -26,6 +26,7 @@ super::fvm_syscalls! {
     /// |---------------------|------------------------------------------------------|
     /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
     pub fn verify_signature(
+        sig_type: u32,
         sig_off: *const u8,
         sig_len: u32,
         addr_off: *const u8,

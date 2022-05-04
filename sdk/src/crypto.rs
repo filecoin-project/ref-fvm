@@ -19,14 +19,14 @@ pub fn verify_signature(
     signer: &Address,
     plaintext: &[u8],
 ) -> SyscallResult<bool> {
-    let signature = signature
-        .marshal_cbor()
-        .expect("failed to marshal signature");
+    let sig_type = signature.signature_type();
+    let sig_bytes = signature.bytes();
     let signer = signer.to_bytes();
     unsafe {
         sys::crypto::verify_signature(
-            signature.as_ptr(),
-            signature.len() as u32,
+            sig_type as u32,
+            sig_bytes.as_ptr(),
+            sig_bytes.len() as u32,
             signer.as_ptr(),
             signer.len() as u32,
             plaintext.as_ptr(),
