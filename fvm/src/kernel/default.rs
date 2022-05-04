@@ -755,19 +755,27 @@ where
         self.call_manager.gas_tracker().gas_used()
     }
 
+    fn milligas_used(&self) -> i64 {
+        self.call_manager.gas_tracker().milligas_used()
+    }
+
+    fn gas_available(&self) -> i64 {
+        self.call_manager.gas_tracker().gas_available()
+    }
+    fn milligas_available(&self) -> i64 {
+        self.call_manager.gas_tracker().milligas_available()
+    }
+
     fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
-        self.call_manager.charge_gas(charge)
+        self.call_manager.gas_tracker_mut().charge_gas(charge)
     }
 
-    fn return_milligas(&mut self, name: &str, new_gas: i64) -> Result<()> {
+    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
         self.call_manager
             .gas_tracker_mut()
-            .return_milligas(name, new_gas)
-    }
-
-    fn borrow_milligas(&mut self) -> Result<i64> {
-        self.call_manager.gas_tracker_mut().borrow_milligas()
+            .charge_milligas(name, compute)?;
+        Ok(())
     }
 
     fn price_list(&self) -> &PriceList {

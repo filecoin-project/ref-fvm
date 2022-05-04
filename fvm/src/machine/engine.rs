@@ -308,6 +308,7 @@ impl Engine {
             kernel,
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
+            last_milligas_available: 0,
         };
 
         let mut store = wasmtime::Store::new(&self.0.engine, id);

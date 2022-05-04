@@ -2,11 +2,11 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, Trap, Val, WasmTy};
+use wasmtime::{Caller, Linker, Trap, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{Context, InvocationData};
+use super::{charge_for_exec, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
@@ -98,41 +98,6 @@ fn memory_and_data<'a, K: Kernel>(
     Ok((Memory::new(mem), data))
 }
 
-fn gastracker_to_wasmgas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let avail_milligas = caller
-        .data_mut()
-        .kernel
-        .borrow_milligas()
-        .map_err(|_| Trap::new("borrowing available gas"))?;
-
-    let gas_global = caller.data_mut().avail_gas_global;
-    gas_global
-        .set(caller, Val::I64(avail_milligas))
-        .map_err(|_| Trap::new("failed to set available gas"))
-}
-
-fn wasmgas_to_gastracker(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let global = caller.data_mut().avail_gas_global;
-
-    let milligas = match global.get(&mut *caller) {
-        Val::I64(g) => Ok(g),
-        _ => Err(Trap::new("failed to get wasm gas")),
-    }?;
-
-    // note: this should never error:
-    // * It can't return out-of-gas, because that would mean that we got
-    //   negative available milligas returned from wasm - and wasm
-    //   instrumentation will trap when it sees available gas go below zero
-    // * If it errors because gastracker thinks it already owns gas, something
-    //   is really wrong
-    caller
-        .data_mut()
-        .kernel
-        .return_milligas("wasm_exec", milligas)
-        .map_err(|e| Trap::new(format!("returning available gas: {}", e)))?;
-    Ok(())
-}
-
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_bind_syscalls {
     ($($t:ident)*) => {
@@ -153,7 +118,7 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        wasmgas_to_gastracker(&mut caller)?;
+                        charge_for_exec(&mut caller)?;
 
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
@@ -174,14 +139,15 @@ macro_rules! impl_bind_syscalls {
                             Err(e) => Err(e.into()),
                         };
 
-                        gastracker_to_wasmgas(&mut caller)?;
+                        update_gas_available(&mut caller)?;
 
                         result
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        wasmgas_to_gastracker(&mut caller)?;
+                        charge_for_exec(&mut caller)?;
+
                         let (mut memory, mut data) = memory_and_data(&mut caller)?;
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
@@ -209,7 +175,7 @@ macro_rules! impl_bind_syscalls {
                             Err(e) => Err(e.into()),
                         };
 
-                        gastracker_to_wasmgas(&mut caller)?;
+                        update_gas_available(&mut caller)?;
 
                         result
                     })

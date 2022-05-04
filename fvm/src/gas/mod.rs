@@ -15,13 +15,6 @@ pub const MILLIGAS_PRECISION: i64 = 1000;
 pub struct GasTracker {
     milligas_limit: i64,
     milligas_used: i64,
-
-    /// A flag indicating whether this GasTracker is currently responsible for
-    /// gas accounting. A 'false' value indicates that gas accounting is
-    /// handled somewhere else (eg. in wasm execution).
-    ///
-    /// Creating gas charges is only allowed when own_limit is true.
-    own_limit: bool,
 }
 
 impl GasTracker {
@@ -29,19 +22,12 @@ impl GasTracker {
         Self {
             milligas_limit: gas_to_milligas(gas_limit),
             milligas_used: gas_to_milligas(gas_used),
-            own_limit: true,
         }
     }
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    fn charge_milligas(&mut self, name: &str, to_use: i64) -> Result<()> {
-        if !self.own_limit {
-            return Err(ExecutionError::Fatal(anyhow::Error::msg(
-                "charge_gas called when gas_limit owned by execution",
-            )));
-        }
-
+    pub fn charge_milligas(&mut self, name: &str, to_use: i64) -> Result<()> {
         match self.milligas_used.checked_add(to_use) {
             None => {
                 log::trace!("gas overflow: {}", name);
@@ -69,49 +55,32 @@ impl GasTracker {
         )
     }
 
-    /// returns available milligas; makes the gas tracker reject gas charges with
-    /// a fatal error until return_milligas is called.
-    pub fn borrow_milligas(&mut self) -> Result<i64> {
-        if !self.own_limit {
-            return Err(ExecutionError::Fatal(anyhow::Error::msg(
-                "borrow_milligas called on GasTracker which doesn't own gas limit",
-            )));
-        }
-        self.own_limit = false;
-
-        Ok(self.milligas_limit - self.milligas_used)
-    }
-
-    /// sets new available gas, creating a new gas charge if needed
-    pub fn return_milligas(&mut self, name: &str, new_avail_mgas: i64) -> Result<()> {
-        if self.own_limit {
-            return Err(ExecutionError::Fatal(anyhow::Error::msg(format!(
-                "gastracker already owns gas_limit, charge: {}",
-                name
-            ))));
-        }
-        self.own_limit = true;
-
-        let old_avail_milligas = self.milligas_limit - self.milligas_used;
-        let used = old_avail_milligas - new_avail_mgas;
-
-        if used < 0 {
-            return Err(ExecutionError::Fatal(anyhow::Error::msg(
-                "negative gas charge in set_available_gas",
-            )));
-        }
-
-        self.charge_milligas(name, used)
-    }
-
     /// Getter for gas available.
     pub fn gas_limit(&self) -> i64 {
         milligas_to_gas(self.milligas_limit, false)
     }
 
+    /// Getter for milligas available.
+    pub fn milligas_limit(&self) -> i64 {
+        self.milligas_limit
+    }
+
     /// Getter for gas used.
     pub fn gas_used(&self) -> i64 {
         milligas_to_gas(self.milligas_used, true)
+    }
+
+    /// Getter for milligas used.
+    pub fn milligas_used(&self) -> i64 {
+        self.milligas_used
+    }
+
+    pub fn gas_available(&self) -> i64 {
+        milligas_to_gas(self.milligas_available(), false)
+    }
+
+    pub fn milligas_available(&self) -> i64 {
+        self.milligas_limit.saturating_sub(self.milligas_used)
     }
 }
 

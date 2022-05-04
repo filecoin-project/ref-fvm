@@ -494,16 +494,24 @@ where
         self.0.charge_gas(name, compute)
     }
 
-    fn borrow_milligas(&mut self) -> Result<i64> {
-        self.0.borrow_milligas()
-    }
-
-    fn return_milligas(&mut self, name: &str, newgas: i64) -> Result<()> {
-        self.0.return_milligas(name, newgas)
-    }
-
     fn price_list(&self) -> &PriceList {
         self.0.price_list()
+    }
+
+    fn milligas_used(&self) -> i64 {
+        self.0.milligas_used()
+    }
+
+    fn gas_available(&self) -> i64 {
+        self.0.gas_available()
+    }
+
+    fn milligas_available(&self) -> i64 {
+        self.0.milligas_available()
+    }
+
+    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
+        self.0.charge_milligas(name, compute)
     }
 }
 
