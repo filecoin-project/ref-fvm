@@ -635,7 +635,7 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
     }
 }
 
-impl Rules for &WasmGasPrices {
+impl Rules for WasmGasPrices {
     fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
         Some(self.exec_instruction_cost_milli)
     }

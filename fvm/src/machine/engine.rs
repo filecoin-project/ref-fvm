@@ -198,7 +198,7 @@ impl Engine {
 
     fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
         // First make sure that non-instrumented wasm is valid
-        Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg)?;
+        Module::validate(&self.0.engine, raw_wasm).map_err(anyhow::Error::msg).context("failed to validate actor wasm")?;
 
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info

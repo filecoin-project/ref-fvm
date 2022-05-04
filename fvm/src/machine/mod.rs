@@ -98,7 +98,7 @@ pub struct NetworkConfig {
     /// DEFAULT: 4096
     pub max_call_depth: u32,
 
-    /// The maximum nubmber of elements on wasm stack
+    /// The maximum number of elements on wasm stack
     /// DEFAULT: 256Ki (2MiB of u64 elements)
     pub max_wasm_stack: u32,
 
