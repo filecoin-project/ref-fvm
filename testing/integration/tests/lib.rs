@@ -73,6 +73,7 @@ fn out_of_gas() {
     const WAT: &str = r#"
     ;; Mock invoke function
     (module
+      (memory (export "memory") 1)
       (func (export "invoke") (param $x i32) (result i32)
         (loop
             (br 0)
@@ -127,6 +128,7 @@ fn out_of_stack() {
     const WAT: &str = r#"
     ;; Mock invoke function
     (module
+      (memory (export "memory") 1)
       (func (export "invoke") (param $x i32) (result i32)
         (i64.const 123)
         (call 1)
