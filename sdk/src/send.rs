@@ -7,7 +7,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 
-use crate::message::NO_DATA_BLOCK_ID;
+use crate::vm::NO_DATA_BLOCK_ID;
 use crate::{sys, SyscallResult};
 
 /// Sends a message to another actor.
