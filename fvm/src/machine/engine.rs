@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
-use wasmtime::{Global, GlobalType, Linker, Module, Mutability, Val, ValType};
+use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
@@ -119,9 +119,13 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 struct EngineInner {
     engine: wasmtime::Engine,
 
-    /// dummy gas global used in store costructor to avoid making
-    /// InvocationData.avail_gas_global an Option
+    /// These two fields are used used in the store constructor to avoid resolve a chicken & egg
+    /// situation: We need the store before we can get the real values, but we need to create the
+    /// `InvocationData` before we can make the store.
+    ///
+    /// Alternatively, we could use `Option`s. But then we need to unwrap everywhere.
     dummy_gas_global: Global,
+    dummy_memory: Memory,
 
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
@@ -150,8 +154,12 @@ impl Engine {
         let dummy_gg = Global::new(&mut dummy_store, gg_type, Val::I64(0))
             .expect("failed to create dummy gas global");
 
+        let dummy_memory = Memory::new(&mut dummy_store, MemoryType::new(0, Some(0)))
+            .expect("failed to create dummy memory");
+
         Ok(Engine(Arc::new(EngineInner {
             engine,
+            dummy_memory,
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
@@ -299,6 +307,7 @@ impl Engine {
             None => return Ok(None),
         };
         let instance = cache.linker.instantiate(&mut *store, module)?;
+
         Ok(Some(instance))
     }
 
@@ -309,6 +318,7 @@ impl Engine {
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
             last_milligas_available: 0,
+            memory: self.0.dummy_memory,
         };
 
         let mut store = wasmtime::Store::new(&self.0.engine, id);

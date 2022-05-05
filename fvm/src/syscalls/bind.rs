@@ -2,7 +2,7 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, Trap, WasmTy};
+use wasmtime::{Caller, Linker, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
@@ -89,13 +89,10 @@ where
 
 fn memory_and_data<'a, K: Kernel>(
     caller: &'a mut Caller<'_, InvocationData<K>>,
-) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), Trap> {
-    let (mem, data) = caller
-        .get_export("memory")
-        .and_then(|m| m.into_memory())
-        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
-        .data_and_store_mut(caller);
-    Ok((Memory::new(mem), data))
+) -> (&'a mut Memory, &'a mut InvocationData<K>) {
+    let memory_handle = caller.data().memory;
+    let (mem, data) = memory_handle.data_and_store_mut(caller);
+    (Memory::new(mem), data)
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
@@ -120,7 +117,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let (mut memory, mut data) = memory_and_data(&mut caller);
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         let out = syscall(ctx $(, $t)*).into();
 
@@ -148,7 +145,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        let (mut memory, mut data) = memory_and_data(&mut caller);
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
