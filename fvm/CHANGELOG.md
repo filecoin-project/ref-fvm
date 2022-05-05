@@ -4,9 +4,8 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
  
-- Added `testing` feature to change module visibility 
-- Changed visibility of `account_actor`, `init_actor` and `system_actor` to public to use them in the integration test
-framework.
+- Added `testing` feature to change module visibility; concretely changed visibility of `account_actor`, `init_actor` and `system_actor` to public to use them in the integration test framework.
+- Propagate gas outputs in ApplyRet.
 
 ## 0.7.1 [2022-04-18]
 
