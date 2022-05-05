@@ -13,9 +13,9 @@ use crate::{sys, SyscallResult};
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref MESSAGE_DETAILS: InvocationContext = {
+    pub(crate) static ref INVOCATION_CONTEXT: InvocationContext = {
         unsafe {
-            sys::vm::context().expect("failed to lookup message details")
+            sys::vm::context().expect("failed to lookup invocation context")
         }
     };
 }
@@ -23,19 +23,19 @@ lazy_static::lazy_static! {
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> ActorID {
-    MESSAGE_DETAILS.caller
+    INVOCATION_CONTEXT.caller
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> ActorID {
-    MESSAGE_DETAILS.receiver
+    INVOCATION_CONTEXT.receiver
 }
 
 /// Returns the message's method number.
 #[inline(always)]
 pub fn method_number() -> MethodNum {
-    MESSAGE_DETAILS.method_number
+    INVOCATION_CONTEXT.method_number
 }
 
 /// Returns the message codec and parameters.
@@ -68,7 +68,7 @@ pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    MESSAGE_DETAILS
+    INVOCATION_CONTEXT
         .value_received
         .try_into()
         .expect("invalid bigint")

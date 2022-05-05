@@ -5,14 +5,14 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 
 use crate::sys;
-use crate::vm::MESSAGE_DETAILS;
+use crate::vm::INVOCATION_CONTEXT;
 
 pub fn curr_epoch() -> ChainEpoch {
-    MESSAGE_DETAILS.network_curr_epoch
+    INVOCATION_CONTEXT.network_curr_epoch
 }
 
 pub fn version() -> NetworkVersion {
-    MESSAGE_DETAILS
+    INVOCATION_CONTEXT
         .network_version
         .try_into()
         .expect("invalid network version")
