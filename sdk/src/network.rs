@@ -5,22 +5,17 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 
 use crate::sys;
+use crate::vm::INVOCATION_CONTEXT;
 
 pub fn curr_epoch() -> ChainEpoch {
-    unsafe {
-        sys::network::curr_epoch()
-            // infallible
-            .expect("failed to get current epoch")
-    }
+    INVOCATION_CONTEXT.network_curr_epoch
 }
 
 pub fn version() -> NetworkVersion {
-    unsafe {
-        sys::network::version()
-            .expect("failed to get network version")
-            .try_into()
-            .expect("invalid version")
-    }
+    INVOCATION_CONTEXT
+        .network_version
+        .try_into()
+        .expect("invalid network version")
 }
 
 pub fn base_fee() -> TokenAmount {
