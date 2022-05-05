@@ -636,12 +636,22 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 }
 
 impl Rules for WasmGasPrices {
-    fn instruction_cost(&self, _instruction: &Instruction) -> Option<u64> {
-        Some(self.exec_instruction_cost_milli)
+    fn instruction_cost(&self, instruction: &Instruction) -> Option<u64> {
+        match instruction {
+            // FIP-0032: nop, drop, block, loop, unreachable, return, else, end are priced 0.
+            Instruction::Nop
+            | Instruction::Drop
+            | Instruction::Block(_)
+            | Instruction::Loop(_)
+            | Instruction::Unreachable
+            | Instruction::Return
+            | Instruction::Else
+            | Instruction::End => None,
+            _ => Some(self.exec_instruction_cost_milli),
+        }
     }
 
     fn memory_grow_cost(&self) -> MemoryGrowCost {
-        // todo use pricelist
         MemoryGrowCost::Free
     }
 }
