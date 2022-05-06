@@ -5,7 +5,9 @@
 /// as the amount of gas needed for computation and storage respectively.
 pub struct GasCharge<'a> {
     pub name: &'a str,
+    /// Compute costs in milligas.
     pub compute_gas: i64,
+    /// Storage costs in milligas.
     pub storage_gas: i64,
 }
 
@@ -18,7 +20,8 @@ impl<'a> GasCharge<'a> {
         }
     }
 
-    /// Calculates total gas charge based on compute and storage multipliers.
+    /// Calculates total gas charge (in milligas) based on compute and storage
+    /// multipliers.
     pub fn total(&self) -> i64 {
         self.compute_gas + self.storage_gas
     }

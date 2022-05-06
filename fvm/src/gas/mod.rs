@@ -48,11 +48,9 @@ impl GasTracker {
         }
     }
 
+    /// Applies the specified gas charge, where quantities are supplied in milligas.
     pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.charge_milligas(
-            charge.name,
-            charge.total().saturating_mul(MILLIGAS_PRECISION),
-        )
+        self.charge_milligas(charge.name, charge.total())
     }
 
     /// Getter for gas available.

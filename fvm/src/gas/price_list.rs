@@ -18,42 +18,48 @@ use num_traits::Zero;
 
 use super::GasCharge;
 
+macro_rules! to_milligas {
+    ($ex:expr) => {
+        $ex * crate::gas::MILLIGAS_PRECISION
+    };
+}
+
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
-        compute_gas_multiplier: 1,
-        storage_gas_multiplier: 1300,
+        compute_gas_multiplier: to_milligas!(1),
+        storage_gas_multiplier: to_milligas!(1300),
 
-        on_chain_message_compute_base: 38863,
-        on_chain_message_storage_base: 36,
-        on_chain_message_storage_per_byte: 1,
+        on_chain_message_compute_base: to_milligas!(38863),
+        on_chain_message_storage_base: to_milligas!(36),
+        on_chain_message_storage_per_byte: to_milligas!(1),
 
-        on_chain_return_value_per_byte: 1,
+        on_chain_return_value_per_byte: to_milligas!(1),
 
-        send_base: 29233,
-        send_transfer_funds: 27500,
-        send_transfer_only_premium: 159672,
-        send_invoke_method: -5377,
+        send_base: to_milligas!(29233),
+        send_transfer_funds: to_milligas!(27500),
+        send_transfer_only_premium: to_milligas!(159672),
+        send_invoke_method: to_milligas!(-5377),
 
-        create_actor_compute: 1108454,
-        create_actor_storage: 36 + 40,
-        delete_actor: -(36 + 40),
+        create_actor_compute: to_milligas!(1108454),
+        create_actor_storage: to_milligas!(36 + 40),
+        delete_actor: to_milligas!(-(36 + 40)),
 
-        bls_sig_cost: 16598605,
-        secp256k1_sig_cost: 1637292,
+        bls_sig_cost: to_milligas!(16598605),
+        secp256k1_sig_cost: to_milligas!(1637292),
 
-        hashing_base: 31355,
-        compute_unsealed_sector_cid_base: 98647,
-        verify_seal_base: 2000, // TODO revisit potential removal of this
+        hashing_base: to_milligas!(31355),
+        compute_unsealed_sector_cid_base: to_milligas!(98647),
+        verify_seal_base: to_milligas!(2000), // TODO revisit potential removal of this
 
         verify_aggregate_seal_base: 0,
         verify_aggregate_seal_per: [
             (
                 RegisteredSealProof::StackedDRG32GiBV1P1,
-                449900
+                to_milligas!(449900)
             ),
             (
                 RegisteredSealProof::StackedDRG64GiBV1P1,
-                359272
+                to_milligas!(359272)
             )
         ].iter().copied().collect(),
         verify_aggregate_seal_steps: [
@@ -61,14 +67,14 @@ lazy_static! {
                 RegisteredSealProof::StackedDRG32GiBV1P1,
                 StepCost (
                     vec![
-                        Step{start: 4, cost: 103994170},
-                        Step{start: 7, cost: 112356810},
-                        Step{start: 13, cost: 122912610},
-                        Step{start: 26, cost: 137559930},
-                        Step{start: 52, cost: 162039100},
-                        Step{start: 103, cost: 210960780},
-                        Step{start: 205, cost: 318351180},
-                        Step{start: 410, cost: 528274980},
+                        Step{start: 4, cost: to_milligas!(103994170)},
+                        Step{start: 7, cost: to_milligas!(112356810)},
+                        Step{start: 13, cost: to_milligas!(122912610)},
+                        Step{start: 26, cost: to_milligas!(137559930)},
+                        Step{start: 52, cost: to_milligas!(162039100)},
+                        Step{start: 103, cost: to_milligas!(210960780)},
+                        Step{start: 205, cost: to_milligas!(318351180)},
+                        Step{start: 410, cost: to_milligas!(528274980)},
                     ]
                 )
             ),
@@ -76,14 +82,14 @@ lazy_static! {
                 RegisteredSealProof::StackedDRG64GiBV1P1,
                 StepCost (
                     vec![
-                        Step{start: 4, cost: 102581240},
-                        Step{start: 7, cost: 110803030},
-                        Step{start: 13, cost: 120803700},
-                        Step{start: 26, cost: 134642130},
-                        Step{start: 52, cost: 157357890},
-                        Step{start: 103, cost: 203017690},
-                        Step{start: 205, cost: 304253590},
-                        Step{start: 410, cost: 509880640},
+                        Step{start: 4, cost: to_milligas!(102581240)},
+                        Step{start: 7, cost: to_milligas!(110803030)},
+                        Step{start: 13, cost: to_milligas!(120803700)},
+                        Step{start: 26, cost: to_milligas!(134642130)},
+                        Step{start: 52, cost: to_milligas!(157357890)},
+                        Step{start: 103, cost: to_milligas!(203017690)},
+                        Step{start: 205, cost: to_milligas!(304253590)},
+                        Step{start: 410, cost: to_milligas!(509880640)},
                     ]
                 )
             )
@@ -91,27 +97,27 @@ lazy_static! {
         .cloned()
         .collect(),
 
-        verify_consensus_fault: 495422,
-        verify_replica_update: 36316136,
+        verify_consensus_fault: to_milligas!(495422),
+        verify_replica_update: to_milligas!(36316136),
         verify_post_lookup: [
             (
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow32GiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow64GiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
@@ -125,11 +131,11 @@ lazy_static! {
 
         block_memcpy_per_byte_cost: 0,
 
-        block_open_base: 114617,
+        block_open_base: to_milligas!(114617),
         block_open_memret_per_byte_cost: 0,
 
-        block_link_base: 353640,
-        block_link_storage_per_byte_multiplier: 1,
+        block_link_base: to_milligas!(353640),
+        block_link_storage_per_byte_multiplier: to_milligas!(1),
 
         block_create_base: 0,
         block_create_memret_per_byte_cost: 0,
@@ -146,40 +152,40 @@ lazy_static! {
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
-        compute_gas_multiplier: 1,
-        storage_gas_multiplier: 1300,
+        compute_gas_multiplier: to_milligas!(1),
+        storage_gas_multiplier: to_milligas!(1300),
 
-        on_chain_message_compute_base: 38863,
-        on_chain_message_storage_base: 36,
-        on_chain_message_storage_per_byte: 1,
+        on_chain_message_compute_base: to_milligas!(38863),
+        on_chain_message_storage_base: to_milligas!(36),
+        on_chain_message_storage_per_byte: to_milligas!(1),
 
-        on_chain_return_value_per_byte: 1,
+        on_chain_return_value_per_byte: to_milligas!(1),
 
-        send_base: 29233,
-        send_transfer_funds: 27500,
-        send_transfer_only_premium: 159672,
-        send_invoke_method: -5377,
+        send_base: to_milligas!(29233),
+        send_transfer_funds: to_milligas!(27500),
+        send_transfer_only_premium: to_milligas!(159672),
+        send_invoke_method: to_milligas!(-5377),
 
-        create_actor_compute: 1108454,
-        create_actor_storage: 36 + 40,
-        delete_actor: -(36 + 40),
+        create_actor_compute: to_milligas!(1108454),
+        create_actor_storage: to_milligas!(36 + 40),
+        delete_actor: to_milligas!(-(36 + 40)),
 
-        bls_sig_cost: 16598605,
-        secp256k1_sig_cost: 1637292,
+        bls_sig_cost: to_milligas!(16598605),
+        secp256k1_sig_cost: to_milligas!(1637292),
 
-        hashing_base: 31355,
-        compute_unsealed_sector_cid_base: 98647,
-        verify_seal_base: 2000, // TODO revisit potential removal of this
+        hashing_base: to_milligas!(31355),
+        compute_unsealed_sector_cid_base: to_milligas!(98647),
+        verify_seal_base: to_milligas!(2000), // TODO revisit potential removal of this
 
         verify_aggregate_seal_base: 0,
         verify_aggregate_seal_per: [
             (
                 RegisteredSealProof::StackedDRG32GiBV1P1,
-                449900
+                to_milligas!(449900)
             ),
             (
                 RegisteredSealProof::StackedDRG64GiBV1P1,
-                359272
+                to_milligas!(359272)
             )
         ].iter().copied().collect(),
         verify_aggregate_seal_steps: [
@@ -187,14 +193,14 @@ lazy_static! {
                 RegisteredSealProof::StackedDRG32GiBV1P1,
                 StepCost (
                     vec![
-                        Step{start: 4, cost: 103994170},
-                        Step{start: 7, cost: 112356810},
-                        Step{start: 13, cost: 122912610},
-                        Step{start: 26, cost: 137559930},
-                        Step{start: 52, cost: 162039100},
-                        Step{start: 103, cost: 210960780},
-                        Step{start: 205, cost: 318351180},
-                        Step{start: 410, cost: 528274980},
+                        Step{start: 4, cost: to_milligas!(103994170)},
+                        Step{start: 7, cost: to_milligas!(112356810)},
+                        Step{start: 13, cost: to_milligas!(122912610)},
+                        Step{start: 26, cost: to_milligas!(137559930)},
+                        Step{start: 52, cost: to_milligas!(162039100)},
+                        Step{start: 103, cost: to_milligas!(210960780)},
+                        Step{start: 205, cost: to_milligas!(318351180)},
+                        Step{start: 410, cost: to_milligas!(528274980)},
                     ]
                 )
             ),
@@ -202,14 +208,14 @@ lazy_static! {
                 RegisteredSealProof::StackedDRG64GiBV1P1,
                 StepCost (
                     vec![
-                        Step{start: 4, cost: 102581240},
-                        Step{start: 7, cost: 110803030},
-                        Step{start: 13, cost: 120803700},
-                        Step{start: 26, cost: 134642130},
-                        Step{start: 52, cost: 157357890},
-                        Step{start: 103, cost: 203017690},
-                        Step{start: 205, cost: 304253590},
-                        Step{start: 410, cost: 509880640},
+                        Step{start: 4, cost: to_milligas!(102581240)},
+                        Step{start: 7, cost: to_milligas!(110803030)},
+                        Step{start: 13, cost: to_milligas!(120803700)},
+                        Step{start: 26, cost: to_milligas!(134642130)},
+                        Step{start: 52, cost: to_milligas!(157357890)},
+                        Step{start: 103, cost: to_milligas!(203017690)},
+                        Step{start: 205, cost: to_milligas!(304253590)},
+                        Step{start: 410, cost: to_milligas!(509880640)},
                     ]
                 )
             )
@@ -218,27 +224,27 @@ lazy_static! {
         .collect(),
 
         // TODO: PARAM_FINISH: this may need to be increased to account for the cost of an extern
-        verify_consensus_fault: 495422,
-        verify_replica_update: 36316136,
+        verify_consensus_fault: to_milligas!(495422),
+        verify_replica_update: to_milligas!(36316136),
         verify_post_lookup: [
             (
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow32GiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow64GiBV1,
                 ScalingCost {
-                    flat: 117680921,
+                    flat: to_milligas!(117680921),
                     scale: 43780,
                 },
             ),
@@ -250,25 +256,25 @@ lazy_static! {
         get_randomness_base: 0,
         get_randomness_per_byte: 0,
 
-        block_memcpy_per_byte_cost: 0.5,
+        block_memcpy_per_byte_cost: 500,
 
-        block_open_base: 114617,
-        block_open_memret_per_byte_cost: 10,
+        block_open_base: to_milligas!(114617),
+        block_open_memret_per_byte_cost: to_milligas!(10),
 
-        block_link_base: 353640,
-        block_link_storage_per_byte_multiplier: 1,
+        block_link_base: to_milligas!(353640),
+        block_link_storage_per_byte_multiplier: to_milligas!(1),
 
         block_create_base: 0,
-        block_create_memret_per_byte_cost: 10,
+        block_create_memret_per_byte_cost: to_milligas!(10),
 
         block_read_base: 0,
         block_stat_base: 0,
 
-        syscall_cost: 14000,
-        extern_cost: 21000,
+        syscall_cost: to_milligas!(14000),
+        extern_cost: to_milligas!(21000),
 
         wasm_rules: WasmGasPrices{
-            exec_instruction_cost_milli: 5000,
+            exec_instruction_cost_milli: to_milligas!(5) as u64,
         },
     };
 }
@@ -305,7 +311,8 @@ impl StepCost {
     }
 }
 
-/// Provides prices for operations in the VM
+/// Provides prices for operations in the VM.
+/// All costs are in milligas.
 #[derive(Clone, Debug)]
 pub struct PriceList {
     /// Compute gas charge multiplier
