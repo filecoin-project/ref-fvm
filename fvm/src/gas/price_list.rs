@@ -472,6 +472,16 @@ impl PriceList {
         GasCharge::new("OnMethodInvocation", ret, 0)
     }
 
+    /// Returns the gas cost to be applied on a syscall.
+    pub fn on_syscall(&self) -> GasCharge<'static> {
+        GasCharge::new("OnSyscall", self.syscall_cost, 0)
+    }
+
+    /// Returns the gas cost to be applied on an extern call.
+    pub fn on_extern(&self) -> GasCharge<'static> {
+        GasCharge::new("OnExtern", self.extern_cost, 0)
+    }
+
     /// Returns the gas required for creating an actor.
     #[inline]
     pub fn on_create_actor(&self) -> GasCharge<'static> {
