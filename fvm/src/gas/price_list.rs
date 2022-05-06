@@ -124,14 +124,21 @@ lazy_static! {
         get_randomness_per_byte: 0,
 
         block_memcpy_per_byte_cost: 0,
-        block_io_per_byte_cost: 0,
-        block_link_per_byte_cost: 1,
 
         block_open_base: 114617,
-        block_read_base: 0,
-        block_create_base: 0,
+        block_open_memret_per_byte_cost: 0,
+
         block_link_base: 353640,
-        block_stat: 0,
+        block_link_storage_per_byte_multiplier: 1,
+
+        block_create_base: 0,
+        block_create_memret_per_byte_cost: 0,
+
+        block_read_base: 0,
+        block_stat_base: 0,
+
+        syscall_cost: 0,
+        extern_cost: 0,
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost_milli: 0,
@@ -240,31 +247,29 @@ lazy_static! {
         .copied()
         .collect(),
 
-        block_memcpy_per_byte_cost: 4,
-        block_io_per_byte_cost: 2,
-        block_link_per_byte_cost: 1,
-        // TODO: PARAM_FINISH
+        get_randomness_base: 0,
+        get_randomness_per_byte: 0,
 
-        // TODO: PARAM_FINISH
-        get_randomness_base: 1,
-        // TODO: PARAM_FINISH
-        get_randomness_per_byte: 1,
+        block_memcpy_per_byte_cost: 0.5,
 
-        // TODO: PARAM_FINIuiSH
-        block_open_base: 1,
-        // TODO: PARAM_FINISH
-        block_read_base: 1,
-        // TODO: PARAM_FINISH
-        block_create_base: 1,
-        // TODO: PARAM_FINISH
-        block_link_base: 1,
-        // TODO: PARAM_FINISH
-        block_stat: 1,
+        block_open_base: 114617,
+        block_open_memret_per_byte_cost: 10,
+
+        block_link_base: 353640,
+        block_link_storage_per_byte_multiplier: 1,
+
+        block_create_base: 0,
+        block_create_memret_per_byte_cost: 10,
+
+        block_read_base: 0,
+        block_stat_base: 0,
+
+        syscall_cost: 14000,
+        extern_cost: 21000,
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost_milli: 5000,
         },
-        // TODO: PARAM_FINISH
     };
 }
 
@@ -375,19 +380,40 @@ pub struct PriceList {
     pub(crate) verify_consensus_fault: i64,
     pub(crate) verify_replica_update: i64,
 
+    /// Gas cost for fetching randomness.
     pub(crate) get_randomness_base: i64,
+    /// Gas cost per every byte of randomness fetched.
     pub(crate) get_randomness_per_byte: i64,
 
+    /// Gas cost per every block byte memcopied across boundaries.
     pub(crate) block_memcpy_per_byte_cost: i64,
-    pub(crate) block_io_per_byte_cost: i64,
-    pub(crate) block_link_per_byte_cost: i64,
 
+    /// Gas cost for opening a block.
     pub(crate) block_open_base: i64,
-    pub(crate) block_read_base: i64,
-    pub(crate) block_create_base: i64,
-    pub(crate) block_link_base: i64,
-    pub(crate) block_stat: i64,
+    /// Gas cost for every byte retained in FVM space when opening a block.
+    pub(crate) block_open_memret_per_byte_cost: i64,
 
+    /// Gas cost for linking a block.
+    pub(crate) block_link_base: i64,
+    /// Multiplier for storage gas per byte.
+    pub(crate) block_link_storage_per_byte_multiplier: i64,
+
+    /// Gas cost for creating a block.
+    pub(crate) block_create_base: i64,
+    /// Gas cost for every byte retained in FVM space when writing a block.
+    pub(crate) block_create_memret_per_byte_cost: i64,
+
+    /// Gas cost for reading a block into actor space.
+    pub(crate) block_read_base: i64,
+    /// Gas cost for statting a block.
+    pub(crate) block_stat_base: i64,
+
+    /// General gas cost for performing a syscall, accounting for the overhead thereof.
+    pub(crate) syscall_cost: i64,
+    /// General gas cost for calling an extern, accounting for the overhead thereof.
+    pub(crate) extern_cost: i64,
+
+    /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
 }
 
@@ -576,7 +602,8 @@ impl PriceList {
         // TODO: Should we also throw on a memcpy cost here (see https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#ipld-state-management-fees)
         GasCharge::new(
             "OnBlockOpenPerByte",
-            self.block_io_per_byte_cost.saturating_mul(data_size as i64),
+            self.block_open_memret_per_byte_cost
+                .saturating_mul(data_size as i64),
             0,
         )
     }
@@ -614,7 +641,7 @@ impl PriceList {
             "OnBlockLink",
             self.block_link_base,
             // data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
-            self.block_link_per_byte_cost
+            self.block_link_storage_per_byte_multiplier
                 .saturating_mul(self.storage_gas_multiplier)
                 .saturating_mul(data_size as i64),
         )
@@ -623,7 +650,7 @@ impl PriceList {
     /// Returns the gas required for storing an object.
     #[inline]
     pub fn on_block_stat(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockStat", self.block_stat, 0)
+        GasCharge::new("OnBlockStat", self.block_stat_base, 0)
     }
 }
 
@@ -637,6 +664,14 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 
 impl Rules for WasmGasPrices {
     fn instruction_cost(&self, instruction: &Instruction) -> Option<u64> {
+        if self.exec_instruction_cost_milli == 0 {
+            return None;
+        }
+
+        // Rules valid for nv16. We will need to be generic over Rules (massive
+        // generics tax), use &dyn Rules (which breaks other things), or pass
+        // in the network version, or rules version, to vary these prices going
+        // forward.
         match instruction {
             // FIP-0032: nop, drop, block, loop, unreachable, return, else, end are priced 0.
             Instruction::Nop
