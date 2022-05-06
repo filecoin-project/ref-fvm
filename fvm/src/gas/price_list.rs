@@ -441,6 +441,7 @@ impl PriceList {
                 * self.storage_gas_multiplier,
         )
     }
+
     /// Returns the gas required for storing the response of a message in the chain.
     #[inline]
     pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge<'static> {
@@ -450,6 +451,7 @@ impl PriceList {
             data_size as i64 * self.on_chain_return_value_per_byte * self.storage_gas_multiplier,
         )
     }
+
     /// Returns the gas required when invoking a method.
     #[inline]
     pub fn on_method_invocation(
@@ -469,6 +471,7 @@ impl PriceList {
         }
         GasCharge::new("OnMethodInvocation", ret, 0)
     }
+
     /// Returns the gas required for creating an actor.
     #[inline]
     pub fn on_create_actor(&self) -> GasCharge<'static> {
@@ -478,6 +481,7 @@ impl PriceList {
             self.create_actor_storage * self.storage_gas_multiplier,
         )
     }
+
     /// Returns the gas required for deleting an actor.
     #[inline]
     pub fn on_delete_actor(&self) -> GasCharge<'static> {
@@ -487,6 +491,7 @@ impl PriceList {
             self.delete_actor * self.storage_gas_multiplier,
         )
     }
+
     /// Returns gas required for signature verification.
     #[inline]
     pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge<'static> {
@@ -496,11 +501,13 @@ impl PriceList {
         };
         GasCharge::new("OnVerifySignature", val, 0)
     }
+
     /// Returns gas required for hashing data.
     #[inline]
     pub fn on_hashing(&self, _: usize) -> GasCharge<'static> {
         GasCharge::new("OnHashing", self.hashing_base, 0)
     }
+
     /// Returns gas required for computing unsealed sector Cid.
     #[inline]
     pub fn on_compute_unsealed_sector_cid(
@@ -514,6 +521,7 @@ impl PriceList {
             0,
         )
     }
+
     /// Returns gas required for seal verification.
     #[inline]
     pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge<'static> {
@@ -554,11 +562,13 @@ impl PriceList {
             0,
         )
     }
+
     /// Returns gas required for replica verification.
     #[inline]
     pub fn on_verify_replica_update(&self, _replica: &ReplicaUpdateInfo) -> GasCharge<'static> {
         GasCharge::new("OnVerifyReplicaUpdate", self.verify_replica_update, 0)
     }
+
     /// Returns gas required for PoSt verification.
     #[inline]
     pub fn on_verify_post(&self, info: &WindowPoStVerifyInfo) -> GasCharge<'static> {
@@ -577,6 +587,7 @@ impl PriceList {
 
         GasCharge::new("OnVerifyPost", gas_used, 0)
     }
+
     /// Returns gas required for verifying consensus fault.
     #[inline]
     pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
@@ -614,6 +625,7 @@ impl PriceList {
             0,
         )
     }
+
     /// Returns the gas required for reading a loaded object.
     #[inline]
     pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
