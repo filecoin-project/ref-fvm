@@ -606,11 +606,11 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge<'static> {
-        // TODO: Should we also throw on a memcpy cost here (see https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0032.md#ipld-state-management-fees)
+        let size = data_size as i64;
         GasCharge::new(
             "OnBlockOpenPerByte",
-            self.block_open_memret_per_byte_cost
-                .saturating_mul(data_size as i64),
+            self.block_open_memret_per_byte_cost.saturating_mul(size)
+                + self.block_memcpy_per_byte_cost.saturating_mul(size),
             0,
         )
     }
@@ -630,11 +630,12 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
+        let size = data_size as i64;
         GasCharge::new(
             "OnBlockCreate",
             self.block_create_base.saturating_add(
-                self.block_memcpy_per_byte_cost
-                    .saturating_mul(data_size as i64),
+                self.block_create_memret_per_byte_cost.saturating_mul(size)
+                    + self.block_memcpy_per_byte_cost.saturating_mul(size),
             ),
             0,
         )
@@ -643,14 +644,15 @@ impl PriceList {
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, data_size: usize) -> GasCharge<'static> {
-        // TODO: The FIP makes it sound like this would need 2 memcpys, is that what's desired?
+        let size = data_size as i64;
+        let memcpy = self.block_memcpy_per_byte_cost.saturating_mul(size);
         GasCharge::new(
             "OnBlockLink",
-            self.block_link_base,
-            // data_size as i64 * self.block_link_per_byte_cost * self.storage_gas_multiplier,
+            self.block_link_base
+                .saturating_add(2 as i64.saturating_mul(memcpy)),
             self.block_link_storage_per_byte_multiplier
                 .saturating_mul(self.storage_gas_multiplier)
-                .saturating_mul(data_size as i64),
+                .saturating_mul(size),
         )
     }
 
