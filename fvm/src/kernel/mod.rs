@@ -27,7 +27,6 @@ use crate::call_manager::{CallManager, InvocationResult};
 use crate::gas::PriceList;
 use crate::machine::Machine;
 
-/// The "kernel" implements
 pub trait Kernel:
     ActorOps
     + BlockOps

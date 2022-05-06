@@ -671,7 +671,7 @@ impl PriceList {
         GasCharge::new(
             "OnBlockLink",
             self.block_link_base
-                .saturating_add(2 as i64.saturating_mul(memcpy)),
+                .saturating_add((2 as i64).saturating_mul(memcpy)),
             self.block_link_storage_per_byte_multiplier
                 .saturating_mul(self.storage_gas_multiplier)
                 .saturating_mul(size),

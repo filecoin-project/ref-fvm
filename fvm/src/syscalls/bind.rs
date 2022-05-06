@@ -6,7 +6,7 @@ use wasmtime::{Caller, Linker, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{charge_for_exec, update_gas_available, Context, InvocationData};
+use super::{apply_charges_on_syscall, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
@@ -115,7 +115,7 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        charge_for_exec(&mut caller)?;
+                        apply_charges_on_syscall(&mut caller)?;
 
                         let (mut memory, mut data) = memory_and_data(&mut caller);
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
@@ -143,7 +143,7 @@ macro_rules! impl_bind_syscalls {
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        charge_for_exec(&mut caller)?;
+                        apply_charges_on_syscall(&mut caller)?;
 
                         let (mut memory, mut data) = memory_and_data(&mut caller);
 
