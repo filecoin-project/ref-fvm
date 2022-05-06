@@ -86,7 +86,7 @@ pub fn apply_charges_on_syscall(
 
     ctx.data_mut()
         .kernel
-        .charge_milligas("wasm_exec", milligas_used)
+        .charge_gas("wasm_exec", milligas_used)
         .map_err(Abort::from_error_as_fatal)?;
 
     // Now charge the syscall gas.

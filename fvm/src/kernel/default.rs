@@ -778,13 +778,6 @@ where
         self.call_manager.gas_tracker_mut().charge_gas(charge)
     }
 
-    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
-        self.call_manager
-            .gas_tracker_mut()
-            .charge_milligas(name, compute)?;
-        Ok(())
-    }
-
     fn price_list(&self) -> &PriceList {
         self.call_manager.price_list()
     }

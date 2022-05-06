@@ -509,10 +509,6 @@ where
     fn milligas_available(&self) -> i64 {
         self.0.milligas_available()
     }
-
-    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
-        self.0.charge_milligas(name, compute)
-    }
 }
 
 impl<M, C, K> MessageOps for TestKernel<K>
