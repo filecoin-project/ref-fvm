@@ -664,8 +664,12 @@ impl PriceList {
         let memcpy = self.block_memcpy_per_byte_cost.saturating_mul(size);
         GasCharge::new(
             "OnBlockLink",
+            // twice the memcpy cost:
+            // - one from the block registry to the FVM BufferedBlockstore
+            // - one from the FVM BufferedBlockstore to the Node's Blockstore
+            //   when the machine finishes.
             self.block_link_base
-                .saturating_add((2 as i64).saturating_mul(memcpy)),
+                .saturating_add((2_i64).saturating_mul(memcpy)),
             self.block_link_storage_per_byte_multiplier
                 .saturating_mul(self.storage_gas_multiplier)
                 .saturating_mul(size),
