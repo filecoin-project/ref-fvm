@@ -268,7 +268,7 @@ lazy_static! {
         extern_cost: to_milligas!(21000),
 
         wasm_rules: WasmGasPrices{
-            exec_instruction_cost_milli: to_milligas!(5) as u64,
+            exec_instruction_cost_milli: to_milligas!(4) as u64,
         },
     };
 }
