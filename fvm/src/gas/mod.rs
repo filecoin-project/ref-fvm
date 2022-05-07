@@ -12,12 +12,21 @@ mod price_list;
 
 pub const MILLIGAS_PRECISION: i64 = 1000;
 
+macro_rules! to_milligas {
+    ($ex:expr) => {
+        $ex * $crate::gas::MILLIGAS_PRECISION
+    };
+}
+pub(crate) use to_milligas;
+
 pub struct GasTracker {
     milligas_limit: i64,
     milligas_used: i64,
 }
 
 impl GasTracker {
+    /// Gas limit and gas used are provided in protocol units (i.e. full units).
+    /// They are converted to milligas for internal canonical accounting.
     pub fn new(gas_limit: i64, gas_used: i64) -> Self {
         Self {
             milligas_limit: gas_to_milligas(gas_limit),
@@ -105,13 +114,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn basic_gas_tracker() {
+    fn basic_gas_tracker() -> Result<()> {
         let mut t = GasTracker::new(20, 10);
-        t.charge_gas(GasCharge::new("", 5, 0)).unwrap();
+        t.charge_gas(GasCharge::new("", to_milligas!(5), 0))?;
         assert_eq!(t.gas_used(), 15);
-        t.charge_gas(GasCharge::new("", 5, 0)).unwrap();
+        t.charge_gas(GasCharge::new("", to_milligas!(5), 0))?;
         assert_eq!(t.gas_used(), 20);
-        assert!(t.charge_gas(GasCharge::new("", 1, 0)).is_err())
+        assert!(t
+            .charge_gas(GasCharge::new("", to_milligas!(1), 0))
+            .is_err());
+        Ok(())
     }
 
     #[test]

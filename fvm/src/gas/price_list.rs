@@ -16,13 +16,7 @@ use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 
-use super::GasCharge;
-
-macro_rules! to_milligas {
-    ($ex:expr) => {
-        $ex * crate::gas::MILLIGAS_PRECISION
-    };
-}
+use super::{to_milligas, GasCharge};
 
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
