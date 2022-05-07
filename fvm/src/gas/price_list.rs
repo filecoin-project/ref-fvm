@@ -694,7 +694,7 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 impl Rules for WasmGasPrices {
     fn instruction_cost(&self, instruction: &Instruction) -> Option<u64> {
         if self.exec_instruction_cost_milli == 0 {
-            return None;
+            return Some(0);
         }
 
         // Rules valid for nv16. We will need to be generic over Rules (massive
@@ -710,7 +710,7 @@ impl Rules for WasmGasPrices {
             | Instruction::Unreachable
             | Instruction::Return
             | Instruction::Else
-            | Instruction::End => None,
+            | Instruction::End => Some(0),
             _ => Some(self.exec_instruction_cost_milli),
         }
     }
