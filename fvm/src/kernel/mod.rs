@@ -223,10 +223,7 @@ pub trait GasOps {
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point.
-    ///
-    /// All public gas is in full units, and only internal accounting
-    /// happens in milligas. Therefore this method expects full gas units.
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()>;
+    fn charge_gas(&mut self, name: &str, compute: Milligas) -> Result<()>;
 
     /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;

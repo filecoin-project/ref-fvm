@@ -32,7 +32,7 @@ use super::error::Result;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
-use crate::gas::{to_milligas, Gas, GasCharge};
+use crate::gas::GasCharge;
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
 use crate::reward_actor::State as RewardActorState;
@@ -774,8 +774,8 @@ where
         self.call_manager.gas_tracker().milligas_available()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
-        let charge = GasCharge::new(name, to_milligas!(compute), 0);
+    fn charge_gas(&mut self, name: &str, compute: Milligas) -> Result<()> {
+        let charge = GasCharge::new(name, compute, 0);
         self.call_manager.gas_tracker_mut().apply_charge(charge)
     }
 
