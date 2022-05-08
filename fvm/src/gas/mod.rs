@@ -12,6 +12,10 @@ mod price_list;
 
 pub const MILLIGAS_PRECISION: i64 = 1000;
 
+// Type aliases to disambiguate units in interfaces.
+pub type Gas = i64;
+pub type Milligas = i64;
+
 macro_rules! to_milligas {
     ($ex:expr) => {
         $ex * $crate::gas::MILLIGAS_PRECISION
@@ -27,7 +31,7 @@ pub struct GasTracker {
 impl GasTracker {
     /// Gas limit and gas used are provided in protocol units (i.e. full units).
     /// They are converted to milligas for internal canonical accounting.
-    pub fn new(gas_limit: i64, gas_used: i64) -> Self {
+    pub fn new(gas_limit: Gas, gas_used: Gas) -> Self {
         Self {
             milligas_limit: gas_to_milligas(gas_limit),
             milligas_used: gas_to_milligas(gas_used),
@@ -36,7 +40,7 @@ impl GasTracker {
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_milligas(&mut self, name: &str, to_use: i64) -> Result<()> {
+    pub fn charge_milligas(&mut self, name: &str, to_use: Milligas) -> Result<()> {
         match self.milligas_used.checked_add(to_use) {
             None => {
                 log::trace!("gas overflow: {}", name);
@@ -63,30 +67,30 @@ impl GasTracker {
     }
 
     /// Getter for gas available.
-    pub fn gas_limit(&self) -> i64 {
+    pub fn gas_limit(&self) -> Gas {
         milligas_to_gas(self.milligas_limit, false)
     }
 
     /// Getter for milligas available.
-    pub fn milligas_limit(&self) -> i64 {
+    pub fn milligas_limit(&self) -> Milligas {
         self.milligas_limit
     }
 
     /// Getter for gas used.
-    pub fn gas_used(&self) -> i64 {
+    pub fn gas_used(&self) -> Gas {
         milligas_to_gas(self.milligas_used, true)
     }
 
     /// Getter for milligas used.
-    pub fn milligas_used(&self) -> i64 {
+    pub fn milligas_used(&self) -> Milligas {
         self.milligas_used
     }
 
-    pub fn gas_available(&self) -> i64 {
+    pub fn gas_available(&self) -> Gas {
         milligas_to_gas(self.milligas_available(), false)
     }
 
-    pub fn milligas_available(&self) -> i64 {
+    pub fn milligas_available(&self) -> Milligas {
         self.milligas_limit.saturating_sub(self.milligas_used)
     }
 }

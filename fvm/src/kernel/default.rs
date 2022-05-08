@@ -32,7 +32,7 @@ use super::error::Result;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
-use crate::gas::GasCharge;
+use crate::gas::{to_milligas, Gas, GasCharge};
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
 use crate::reward_actor::State as RewardActorState;
