@@ -418,23 +418,16 @@ where
         self.0.verify_signature(signature, signer, plaintext)
     }
 
-    // NOT forwarded
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
-        Ok(vec![true; vis.len()])
+        self.0.batch_verify_seals(vis)
     }
 
-    // NOT forwarded
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
-        Ok(true)
+        self.0.verify_seal(vi)
     }
 
-    // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
-        Ok(true)
+        self.0.verify_post(vi)
     }
 
     // NOT forwarded
@@ -450,18 +443,12 @@ where
         Ok(None)
     }
 
-    // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_gas(charge.name, charge.total())?;
-        Ok(true)
+        self.0.verify_aggregate_seals(agg)
     }
 
-    // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_gas(charge.name, charge.total())?;
-        Ok(true)
+        self.0.verify_replica_update(rep)
     }
 }
 
