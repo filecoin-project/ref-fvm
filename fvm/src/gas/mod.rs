@@ -16,13 +16,6 @@ pub const MILLIGAS_PRECISION: i64 = 1000;
 pub type Gas = i64;
 pub type Milligas = i64;
 
-macro_rules! to_milligas {
-    ($ex:expr) => {
-        $ex * $crate::gas::MILLIGAS_PRECISION
-    };
-}
-pub(crate) use to_milligas;
-
 pub struct GasTracker {
     milligas_limit: i64,
     milligas_used: i64,
@@ -120,12 +113,12 @@ mod tests {
     #[test]
     fn basic_gas_tracker() -> Result<()> {
         let mut t = GasTracker::new(20, 10);
-        t.apply_charge(GasCharge::new("", to_milligas!(5), 0))?;
+        t.apply_charge(GasCharge::new("", 5 * MILLIGAS_PRECISION, 0))?;
         assert_eq!(t.gas_used(), 15);
-        t.apply_charge(GasCharge::new("", to_milligas!(5), 0))?;
+        t.apply_charge(GasCharge::new("", 5 * MILLIGAS_PRECISION, 0))?;
         assert_eq!(t.gas_used(), 20);
         assert!(t
-            .apply_charge(GasCharge::new("", to_milligas!(1), 0))
+            .apply_charge(GasCharge::new("", 1 * MILLIGAS_PRECISION, 0))
             .is_err());
         Ok(())
     }
