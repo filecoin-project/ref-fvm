@@ -97,13 +97,13 @@ impl GasTracker {
 
 /// Converts the specified gas into equivalent fractional gas units
 #[inline]
-fn gas_to_milligas(gas: i64) -> i64 {
+pub(crate) fn gas_to_milligas(gas: i64) -> i64 {
     gas.saturating_mul(MILLIGAS_PRECISION)
 }
 
 /// Converts the specified fractional gas units into gas units
 #[inline]
-fn milligas_to_gas(milligas: i64, round_up: bool) -> i64 {
+pub(crate) fn milligas_to_gas(milligas: i64, round_up: bool) -> i64 {
     let mut div_result = milligas / MILLIGAS_PRECISION;
     if milligas > 0 && round_up && milligas % MILLIGAS_PRECISION != 0 {
         div_result = div_result.saturating_add(1);

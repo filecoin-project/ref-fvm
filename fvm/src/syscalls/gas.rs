@@ -1,6 +1,7 @@
 use std::str;
 
 use super::Context;
+use crate::gas::gas_to_milligas;
 use crate::kernel::{ClassifyResult, Result};
 use crate::Kernel;
 
