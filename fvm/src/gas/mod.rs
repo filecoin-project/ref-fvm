@@ -111,6 +111,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
         let mut t = GasTracker::new(20, 10);
         t.apply_charge(GasCharge::new("", 5 * MILLIGAS_PRECISION, 0))?;
