@@ -116,7 +116,7 @@ pub trait CallManager: 'static {
 
     /// Charge gas.
     fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().charge_gas(charge)?;
+        self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
 }

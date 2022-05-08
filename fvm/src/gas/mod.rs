@@ -58,7 +58,7 @@ impl GasTracker {
     }
 
     /// Applies the specified gas charge, where quantities are supplied in milligas.
-    pub fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
+    pub fn apply_charge(&mut self, charge: GasCharge) -> Result<()> {
         self.charge_milligas(charge.name, charge.total())
     }
 
@@ -116,12 +116,12 @@ mod tests {
     #[test]
     fn basic_gas_tracker() -> Result<()> {
         let mut t = GasTracker::new(20, 10);
-        t.charge_gas(GasCharge::new("", to_milligas!(5), 0))?;
+        t.apply_charge(GasCharge::new("", to_milligas!(5), 0))?;
         assert_eq!(t.gas_used(), 15);
-        t.charge_gas(GasCharge::new("", to_milligas!(5), 0))?;
+        t.apply_charge(GasCharge::new("", to_milligas!(5), 0))?;
         assert_eq!(t.gas_used(), 20);
         assert!(t
-            .charge_gas(GasCharge::new("", to_milligas!(1), 0))
+            .apply_charge(GasCharge::new("", to_milligas!(1), 0))
             .is_err());
         Ok(())
     }
