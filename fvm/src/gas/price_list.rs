@@ -28,7 +28,6 @@ macro_rules! static_milligas {
 
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
-        compute_gas_multiplier: 1,
         storage_gas_multiplier: 1300,
 
         on_chain_message_compute_base: static_milligas!(38863),
@@ -154,7 +153,6 @@ lazy_static! {
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
-        compute_gas_multiplier: 1,
         storage_gas_multiplier: 1300,
 
         on_chain_message_compute_base: static_milligas!(38863),
@@ -317,11 +315,6 @@ impl StepCost {
 /// All costs are in milligas.
 #[derive(Clone, Debug)]
 pub struct PriceList {
-    /// Compute gas charge multiplier
-    // * This multiplier is not currently applied to anything, but is matching lotus.
-    // * If the possible values are non 1 or if Lotus adds, we should change also.
-    #[allow(unused)]
-    pub(crate) compute_gas_multiplier: i64,
     /// Storage gas charge multiplier
     pub(crate) storage_gas_multiplier: i64,
 
