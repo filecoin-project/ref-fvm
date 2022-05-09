@@ -774,7 +774,7 @@ where
         self.call_manager.gas_tracker().milligas_available()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Milligas) -> Result<()> {
+    fn charge_milligas(&mut self, name: &str, compute: Milligas) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
         self.call_manager.gas_tracker_mut().apply_charge(charge)
     }

@@ -426,14 +426,14 @@ where
     // NOT forwarded
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -445,7 +445,7 @@ where
         _extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
@@ -453,14 +453,14 @@ where
     // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 }
@@ -490,8 +490,8 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
-        self.0.charge_gas(name, compute)
+    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
+        self.0.charge_milligas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {

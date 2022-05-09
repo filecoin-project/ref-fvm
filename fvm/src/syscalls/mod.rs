@@ -86,7 +86,7 @@ pub fn apply_charges_on_syscall(
 
     ctx.data_mut()
         .kernel
-        .charge_gas("wasm_exec", milligas_used)
+        .charge_milligas("wasm_exec", milligas_used)
         .map_err(Abort::from_error_as_fatal)?;
 
     // Now charge the syscall gas.
@@ -94,7 +94,7 @@ pub fn apply_charges_on_syscall(
     let charge = ctx.data_mut().kernel.price_list().on_syscall();
     ctx.data_mut()
         .kernel
-        .charge_gas(charge.name, charge.compute_gas)
+        .charge_milligas(charge.name, charge.compute_gas)
         .map_err(Abort::from_error_as_fatal)?;
 
     Ok(())
