@@ -17,6 +17,7 @@ use lazy_static::lazy_static;
 use num_traits::Zero;
 
 use super::GasCharge;
+use crate::gas::Milligas;
 
 /// Converts a static value to milligas. This operation does not saturate,
 /// and should only be used with constant values in pricelists.
@@ -136,7 +137,7 @@ lazy_static! {
         block_open_memret_per_byte_cost: 0,
 
         block_link_base: static_milligas!(353640),
-        block_link_storage_per_byte_multiplier: static_milligas!(1),
+        block_link_storage_per_byte_cost: static_milligas!(1),
 
         block_create_base: 0,
         block_create_memret_per_byte_cost: 0,
@@ -262,7 +263,7 @@ lazy_static! {
         block_open_memret_per_byte_cost: static_milligas!(10),
 
         block_link_base: static_milligas!(353640),
-        block_link_storage_per_byte_multiplier: static_milligas!(1),
+        block_link_storage_per_byte_cost: static_milligas!(1),
 
         block_create_base: 0,
         block_create_memret_per_byte_cost: static_milligas!(10),
@@ -324,96 +325,96 @@ pub struct PriceList {
     /// Together, these account for the cost of message propagation and validation,
     /// up to but excluding any actual processing by the VM.
     /// This is the cost a block producer burns when including an invalid message.
-    pub(crate) on_chain_message_compute_base: i64,
-    pub(crate) on_chain_message_storage_base: i64,
-    pub(crate) on_chain_message_storage_per_byte: i64,
+    pub(crate) on_chain_message_compute_base: Milligas,
+    pub(crate) on_chain_message_storage_base: Milligas,
+    pub(crate) on_chain_message_storage_per_byte: Milligas,
 
     /// Gas cost charged to the originator of a non-nil return value produced
     /// by an on-chain message is given by:
     ///   len(return value)*OnChainReturnValuePerByte
-    pub(crate) on_chain_return_value_per_byte: i64,
+    pub(crate) on_chain_return_value_per_byte: Milligas,
 
     /// Gas cost for any message send execution(including the top-level one
     /// initiated by an on-chain message).
     /// This accounts for the cost of loading sender and receiver actors and
     /// (for top-level messages) incrementing the sender's sequence number.
     /// Load and store of actor sub-state is charged separately.
-    pub(crate) send_base: i64,
+    pub(crate) send_base: Milligas,
 
     /// Gas cost charged, in addition to SendBase, if a message send
     /// is accompanied by any nonzero currency amount.
     /// Accounts for writing receiver's new balance (the sender's state is
     /// already accounted for).
-    pub(crate) send_transfer_funds: i64,
+    pub(crate) send_transfer_funds: Milligas,
 
     /// Gas cost charged, in addition to SendBase, if message only transfers funds.
-    pub(crate) send_transfer_only_premium: i64,
+    pub(crate) send_transfer_only_premium: Milligas,
 
     /// Gas cost charged, in addition to SendBase, if a message invokes
     /// a method on the receiver.
     /// Accounts for the cost of loading receiver code and method dispatch.
-    pub(crate) send_invoke_method: i64,
+    pub(crate) send_invoke_method: Milligas,
 
     /// Gas cost for creating a new actor (via InitActor's Exec method).
     /// Note: this costs assume that the extra will be partially or totally refunded while
     /// the base is covering for the put.
-    pub(crate) create_actor_compute: i64,
-    pub(crate) create_actor_storage: i64,
+    pub(crate) create_actor_compute: Milligas,
+    pub(crate) create_actor_storage: Milligas,
 
     /// Gas cost for deleting an actor.
     /// Note: this partially refunds the create cost to incentivise the deletion of the actors.
-    pub(crate) delete_actor: i64,
+    pub(crate) delete_actor: Milligas,
 
     /// Gas cost for verifying bls signature
-    pub(crate) bls_sig_cost: i64,
+    pub(crate) bls_sig_cost: Milligas,
     /// Gas cost for verifying secp256k1 signature
-    pub(crate) secp256k1_sig_cost: i64,
+    pub(crate) secp256k1_sig_cost: Milligas,
 
-    pub(crate) hashing_base: i64,
+    pub(crate) hashing_base: Milligas,
 
-    pub(crate) compute_unsealed_sector_cid_base: i64,
-    pub(crate) verify_seal_base: i64,
+    pub(crate) compute_unsealed_sector_cid_base: Milligas,
+    pub(crate) verify_seal_base: Milligas,
     #[allow(unused)]
-    pub(crate) verify_aggregate_seal_base: i64,
+    pub(crate) verify_aggregate_seal_base: Milligas,
     pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, i64>,
     pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
 
     pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
-    pub(crate) verify_consensus_fault: i64,
-    pub(crate) verify_replica_update: i64,
+    pub(crate) verify_consensus_fault: Milligas,
+    pub(crate) verify_replica_update: Milligas,
 
     /// Gas cost for fetching randomness.
-    pub(crate) get_randomness_base: i64,
+    pub(crate) get_randomness_base: Milligas,
     /// Gas cost per every byte of randomness fetched.
-    pub(crate) get_randomness_per_byte: i64,
+    pub(crate) get_randomness_per_byte: Milligas,
 
     /// Gas cost per every block byte memcopied across boundaries.
-    pub(crate) block_memcpy_per_byte_cost: i64,
+    pub(crate) block_memcpy_per_byte_cost: Milligas,
 
     /// Gas cost for opening a block.
-    pub(crate) block_open_base: i64,
+    pub(crate) block_open_base: Milligas,
     /// Gas cost for every byte retained in FVM space when opening a block.
-    pub(crate) block_open_memret_per_byte_cost: i64,
+    pub(crate) block_open_memret_per_byte_cost: Milligas,
 
     /// Gas cost for linking a block.
-    pub(crate) block_link_base: i64,
+    pub(crate) block_link_base: Milligas,
     /// Multiplier for storage gas per byte.
-    pub(crate) block_link_storage_per_byte_multiplier: i64,
+    pub(crate) block_link_storage_per_byte_cost: Milligas,
 
     /// Gas cost for creating a block.
-    pub(crate) block_create_base: i64,
+    pub(crate) block_create_base: Milligas,
     /// Gas cost for every byte retained in FVM space when writing a block.
-    pub(crate) block_create_memret_per_byte_cost: i64,
+    pub(crate) block_create_memret_per_byte_cost: Milligas,
 
     /// Gas cost for reading a block into actor space.
-    pub(crate) block_read_base: i64,
+    pub(crate) block_read_base: Milligas,
     /// Gas cost for statting a block.
-    pub(crate) block_stat_base: i64,
+    pub(crate) block_stat_base: Milligas,
 
     /// General gas cost for performing a syscall, accounting for the overhead thereof.
-    pub(crate) syscall_cost: i64,
+    pub(crate) syscall_cost: Milligas,
     /// General gas cost for calling an extern, accounting for the overhead thereof.
-    pub(crate) extern_cost: i64,
+    pub(crate) extern_cost: Milligas,
 
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
@@ -672,7 +673,7 @@ impl PriceList {
             //   when the machine finishes.
             self.block_link_base
                 .saturating_add((2_i64).saturating_mul(memcpy)),
-            self.block_link_storage_per_byte_multiplier
+            self.block_link_storage_per_byte_cost
                 .saturating_mul(self.storage_gas_multiplier)
                 .saturating_mul(size),
         )
