@@ -22,8 +22,8 @@ impl<'a> GasCharge<'a> {
         }
     }
 
-    /// Calculates total gas charge (in milligas) based on compute and storage
-    /// multipliers.
+    /// Calculates total gas charge (in milligas) by summing compute and
+    /// storage gas associated with this charge.
     pub fn total(&self) -> Milligas {
         self.compute_gas + self.storage_gas
     }
