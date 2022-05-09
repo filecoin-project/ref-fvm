@@ -473,11 +473,6 @@ impl PriceList {
         GasCharge::new("OnSyscall", self.syscall_cost, 0)
     }
 
-    /// Returns the gas cost to be applied on an extern call.
-    pub fn on_extern(&self) -> GasCharge<'static> {
-        GasCharge::new("OnExtern", self.extern_cost, 0)
-    }
-
     /// Returns the gas required for creating an actor.
     #[inline]
     pub fn on_create_actor(&self) -> GasCharge<'static> {
@@ -597,7 +592,11 @@ impl PriceList {
     /// Returns gas required for verifying consensus fault.
     #[inline]
     pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
-        GasCharge::new("OnVerifyConsensusFault", self.verify_consensus_fault, 0)
+        GasCharge::new(
+            "OnVerifyConsensusFault",
+            self.extern_cost.saturating_add(self.verify_consensus_fault),
+            0,
+        )
     }
 
     /// Returns the cost of the gas required for getting randomness from the client, based on the
@@ -606,10 +605,12 @@ impl PriceList {
     pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge<'static> {
         GasCharge::new(
             "OnGetRandomness",
-            self.get_randomness_base.saturating_add(
-                self.get_randomness_per_byte
-                    .saturating_mul(entropy_size as i64),
-            ),
+            self.extern_cost
+                .saturating_add(self.get_randomness_base)
+                .saturating_add(
+                    self.get_randomness_per_byte
+                        .saturating_mul(entropy_size as i64),
+                ),
             0,
         )
     }
@@ -617,7 +618,11 @@ impl PriceList {
     /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
     pub fn on_block_open_base(&self) -> GasCharge<'static> {
-        GasCharge::new("OnBlockOpenBase", self.block_open_base, 0)
+        GasCharge::new(
+            "OnBlockOpenBase",
+            self.extern_cost.saturating_add(self.block_open_base),
+            0,
+        )
     }
 
     /// Returns the gas required for loading an object based on the size of the object.

@@ -296,9 +296,6 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern())?;
-
         let data = self
             .call_manager
             .blockstore()
@@ -597,9 +594,6 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern())?;
-
         let (fault, gas) = self
             .call_manager
             .externs()
@@ -818,9 +812,6 @@ where
                 .on_get_randomness(entropy.len()),
         )?;
 
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern())?;
-
         // TODO: Check error code
         self.call_manager
             .externs()
@@ -840,9 +831,6 @@ where
                 .price_list()
                 .on_get_randomness(entropy.len()),
         )?;
-
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_extern())?;
 
         // TODO: Check error code
         self.call_manager
