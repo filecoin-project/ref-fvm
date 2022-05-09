@@ -648,12 +648,13 @@ impl PriceList {
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
         let size = data_size as i64;
+        let mem_costs = self
+            .block_create_memret_per_byte_cost
+            .saturating_mul(size)
+            .saturating_add(self.block_memcpy_per_byte_cost.saturating_mul(size));
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base.saturating_add(
-                self.block_create_memret_per_byte_cost.saturating_mul(size)
-                    + self.block_memcpy_per_byte_cost.saturating_mul(size),
-            ),
+            self.block_create_base.saturating_add(mem_costs),
             0,
         )
     }
