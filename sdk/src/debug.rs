@@ -31,7 +31,7 @@ mod inner {
             sys::debug::log(msg.as_ptr(), msg.len() as u32).unwrap();
         }
     }
-    /// Initialize logging if debuggig is enabled.
+    /// Initialize logging if debugging is enabled.
     pub fn init_logging() {
         if enabled() {
             log::set_logger(&Logger).expect("failed to enable logging");
