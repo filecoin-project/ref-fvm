@@ -15,7 +15,7 @@ use crate::gas::GasTracker;
 use crate::kernel::{ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
-use crate::syscalls::{apply_charges_on_syscall, update_gas_available};
+use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
 use crate::{account_actor, syscall_error};
 
@@ -362,7 +362,7 @@ where
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.
-                apply_charges_on_syscall(&mut store)?;
+                charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
                 // Any other invocation failure is returned here as an Abort

@@ -61,10 +61,8 @@ pub fn update_gas_available(
     Ok(())
 }
 
-/// Applies gas charges upon passing control to the FVM via a syscall.
-/// It first applies accumulated execution gas, and then applies the syscall
-/// charge for the currently active syscall.
-pub fn apply_charges_on_syscall(
+/// Updates the FVM-side gas tracker with newly accrued execution gas charges.
+pub fn charge_for_exec(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
@@ -87,14 +85,6 @@ pub fn apply_charges_on_syscall(
     ctx.data_mut()
         .kernel
         .charge_milligas("wasm_exec", milligas_used)
-        .map_err(Abort::from_error_as_fatal)?;
-
-    // Now charge the syscall gas.
-    // This is a bit of a dance. We need to review these APIs.
-    let charge = ctx.data_mut().kernel.price_list().on_syscall();
-    ctx.data_mut()
-        .kernel
-        .charge_milligas(charge.name, charge.compute_gas)
         .map_err(Abort::from_error_as_fatal)?;
 
     Ok(())
