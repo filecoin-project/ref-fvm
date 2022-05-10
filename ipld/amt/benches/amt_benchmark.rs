@@ -30,13 +30,11 @@ impl Serialize for BenchData {
 }
 
 impl<'de> Deserialize<'de> for BenchData {
-    #[allow(clippy::let_unit_value)]
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
     where
         D: Deserializer<'de>,
     {
-        let _s: () = Deserialize::deserialize(deserializer)?;
-
+        Deserialize::deserialize(deserializer)?;
         Ok(Self::default())
     }
 }
