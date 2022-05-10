@@ -3,6 +3,8 @@ use std::convert::TryFrom;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::econ::TokenAmount;
 
+use crate::gas::Gas;
+
 #[derive(Clone, Default)]
 pub(crate) struct GasOutputs {
     pub base_fee_burn: TokenAmount,
@@ -11,14 +13,14 @@ pub(crate) struct GasOutputs {
     pub miner_tip: TokenAmount,
     pub refund: TokenAmount,
 
-    pub gas_refund: i64,
-    pub gas_burned: i64,
+    pub gas_refund: Gas,
+    pub gas_burned: Gas,
 }
 
 impl GasOutputs {
     pub fn compute(
-        gas_used: i64,
-        gas_limit: i64,
+        gas_used: Gas,
+        gas_limit: Gas,
         base_fee: &TokenAmount,
         fee_cap: &TokenAmount,
         gas_premium: &TokenAmount,
@@ -57,7 +59,7 @@ impl GasOutputs {
     }
 }
 
-fn compute_gas_overestimation_burn(gas_used: i64, gas_limit: i64) -> (i64, i64) {
+fn compute_gas_overestimation_burn(gas_used: Gas, gas_limit: Gas) -> (Gas, Gas) {
     const GAS_OVERUSE_NUM: i64 = 11;
     const GAS_OVERUSE_DENOM: i64 = 10;
 

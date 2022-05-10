@@ -5,7 +5,6 @@ use cid::Cid;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
-use crate::kernel::ExecutionError;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -62,6 +61,7 @@ pub fn update_gas_available(
     Ok(())
 }
 
+/// Updates the FVM-side gas tracker with newly accrued execution gas charges.
 pub fn charge_for_exec(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
@@ -74,7 +74,7 @@ pub fn charge_for_exec(
         .context("failed to get wasm gas")
         .map_err(Abort::Fatal)?;
 
-    // Determine milligas used, and update the "o
+    // Determine milligas used, and update the gas tracker.
     let milligas_used = {
         let data = ctx.data_mut();
         let last_milligas = mem::replace(&mut data.last_milligas_available, milligas_available);
@@ -85,11 +85,8 @@ pub fn charge_for_exec(
     ctx.data_mut()
         .kernel
         .charge_milligas("wasm_exec", milligas_used)
-        .map_err(|e| match e {
-            ExecutionError::OutOfGas => Abort::OutOfGas,
-            ExecutionError::Fatal(e) => Abort::Fatal(e),
-            ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
-        })?;
+        .map_err(Abort::from_error_as_fatal)?;
+
     Ok(())
 }
 
