@@ -112,10 +112,8 @@ pub struct SyscallCause {
 
 #[derive(Clone, Debug)]
 pub struct FatalCause {
-    /// The error message from the error.
+    /// The alternate-formatted message from the anyhow error.
     pub error_msg: String,
-    /// The original cause that initiated the error chain.
-    pub root_cause: String,
     /// The backtrace, captured if the relevant
     /// [environment variables](https://doc.rust-lang.org/std/backtrace/index.html#environment-variables) are enabled.
     pub backtrace: String,
@@ -144,8 +142,7 @@ impl Cause {
     /// Records a fatal error as the cause of a backtrace.
     pub fn from_fatal(err: anyhow::Error) -> Self {
         Self::Fatal(FatalCause {
-            error_msg: err.to_string(),
-            root_cause: err.root_cause().to_string(),
+            error_msg: format!("{:#}", err),
             backtrace: err.backtrace().to_string(),
         })
     }
@@ -164,8 +161,8 @@ impl Display for Cause {
             Cause::Fatal(msg) => {
                 write!(
                     f,
-                    "[FATAL] Root cause: {}, Stacktrace: {}",
-                    msg.root_cause, msg.backtrace
+                    "[FATAL] Error: {}, Backtrace:\n{}",
+                    msg.error_msg, msg.backtrace
                 )
             }
         }
