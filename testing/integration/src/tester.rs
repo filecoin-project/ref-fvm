@@ -99,10 +99,7 @@ where
     /// Creates new accounts in the testing context
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
         // Create accounts.
-        put_secp256k1_accounts(
-            &mut self.state_tree.as_mut().unwrap(),
-            self.accounts_code_cid,
-        )
+        put_secp256k1_accounts(self.state_tree.as_mut().unwrap(), self.accounts_code_cid)
     }
 
     /// Set a new state in the state tree
