@@ -5,7 +5,7 @@ use fvm::executor::DefaultExecutor;
 use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
-use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
+use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
@@ -24,15 +24,14 @@ use crate::error::Error::{FailedToFlushTree, NoManifestInformation, NoRootCid};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
-trait Store: Blockstore + Sized {}
+pub trait Store: Blockstore + Sized + 'static {}
 
-pub type IntegrationExecutor = DefaultExecutor<
-    DefaultKernel<DefaultCallManager<DefaultMachine<MemoryBlockstore, DummyExterns>>>,
->;
+pub type IntegrationExecutor<B> =
+    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, DummyExterns>>>>;
 
 pub type Account = (ActorID, Address);
 
-pub struct Tester {
+pub struct Tester<B: Blockstore + 'static> {
     // Network version used in the test
     nv: NetworkVersion,
     // Builtin actors root Cid used in the Machine
@@ -42,16 +41,16 @@ pub struct Tester {
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
-    pub executor: Option<IntegrationExecutor>,
+    pub executor: Option<IntegrationExecutor<B>>,
     // State tree constructed before instantiating the Machine
-    pub state_tree: StateTree<MemoryBlockstore>,
+    pub state_tree: Option<StateTree<B>>,
 }
 
-impl Tester {
-    pub fn new(nv: NetworkVersion, stv: StateTreeVersion) -> Result<Self> {
-        // Initialize blockstore
-        let blockstore = MemoryBlockstore::default();
-
+impl<B> Tester<B>
+where
+    B: Blockstore,
+{
+    pub fn new(nv: NetworkVersion, stv: StateTreeVersion, blockstore: B) -> Result<Self> {
         // Load the builtin actors bundles into the blockstore.
         let nv_actors = import_builtin_actors(&blockstore)?;
 
@@ -92,7 +91,7 @@ impl Tester {
             builtin_actors,
             executor: None,
             code_cids: vec![],
-            state_tree,
+            state_tree: Some(state_tree),
             accounts_code_cid,
         })
     }
@@ -100,13 +99,21 @@ impl Tester {
     /// Creates new accounts in the testing context
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
         // Create accounts.
-        put_secp256k1_accounts(&mut self.state_tree, self.accounts_code_cid)
+        put_secp256k1_accounts(
+            &mut self.state_tree.as_mut().unwrap(),
+            self.accounts_code_cid,
+        )
     }
 
     /// Set a new state in the state tree
     pub fn set_state<S: ser::Serialize>(&mut self, state: &S) -> Result<Cid> {
         // Put state in tree
-        let state_cid = self.state_tree.store().put_cbor(state, Code::Blake2b256)?;
+        let state_cid = self
+            .state_tree
+            .as_mut()
+            .unwrap()
+            .store()
+            .put_cbor(state, Code::Blake2b256)?;
 
         Ok(state_cid)
     }
@@ -121,11 +128,13 @@ impl Tester {
     ) -> Result<()> {
         // Register actor address
         self.state_tree
+            .as_mut()
+            .unwrap()
             .register_new_address(&actor_address)
             .unwrap();
 
         // Put the WASM code into the blockstore.
-        let code_cid = put_wasm_code(self.state_tree.store(), wasm_bin)?;
+        let code_cid = put_wasm_code(self.state_tree.as_mut().unwrap().store(), wasm_bin)?;
 
         // Add code cid to list of deployed contract
         self.code_cids.push(code_cid);
@@ -135,6 +144,8 @@ impl Tester {
 
         // Create actor
         self.state_tree
+            .as_mut()
+            .unwrap()
             .set_actor(&actor_address, actor_state)
             .map_err(anyhow::Error::from)?;
 
@@ -143,14 +154,17 @@ impl Tester {
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self) -> Result<()> {
-        // First flush tree and consume it
-        let state_root = self
-            .state_tree
+        // Take the state tree and leave None behind.
+        let mut state_tree = self.state_tree.take().unwrap();
+
+        // Calculate the state root.
+        let state_root = state_tree
             .flush()
             .map_err(anyhow::Error::from)
             .context(FailedToFlushTree)?;
 
-        let blockstore = self.state_tree.store();
+        // Consume the state tree and take the blockstore.
+        let blockstore = state_tree.into_store();
 
         let mut nc = NetworkConfig::new(self.nv);
         nc.override_actors(self.builtin_actors);
@@ -161,7 +175,7 @@ impl Tester {
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network.clone()).into())?,
             &mc,
-            blockstore.clone(),
+            blockstore,
             dummy::DummyExterns,
         )?;
 
@@ -180,7 +194,7 @@ impl Tester {
         if self.executor.is_some() {
             self.executor.as_ref().unwrap().blockstore()
         } else {
-            self.state_tree.store()
+            self.state_tree.as_ref().unwrap().store()
         }
     }
 }
@@ -224,7 +238,7 @@ fn put_secp256k1_accounts<const N: usize>(
 }
 
 /// Inserts the WASM code for the actor into the blockstore.
-fn put_wasm_code(blockstore: &MemoryBlockstore, wasm_binary: &[u8]) -> Result<Cid> {
+fn put_wasm_code(blockstore: &impl Blockstore, wasm_binary: &[u8]) -> Result<Cid> {
     let cid = blockstore.put(
         Code::Blake2b256,
         &Block {
