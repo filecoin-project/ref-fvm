@@ -206,6 +206,8 @@ fn out_of_stack() {
 
 #[test]
 fn backtraces() {
+    // Note: this test **does not actually assert anything**, but it's useful to
+    // let us peep into FVM backtrace generation under different scenarios.
     const WAT_ABORT: &str = r#"
     (module
       ;; ipld::open
@@ -300,8 +302,7 @@ fn backtraces() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    println!("abort backtrace:");
-    dbg!(res.failure_info);
+    println!("abort backtrace: {}", res.failure_info.unwrap());
 
     // Send message
     let message = Message {
@@ -320,8 +321,7 @@ fn backtraces() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    println!("fatal backtrace:");
-    dbg!(res.failure_info);
+    println!("fatal backtrace: {}", res.failure_info.unwrap());
 }
 
 #[derive(Default)]

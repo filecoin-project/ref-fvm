@@ -130,24 +130,29 @@ where
                     ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
-                backtrace.set_cause(backtrace::Cause::new("send", "send", err));
+                backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
                 Receipt {
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
                 }
             }
-            Err(ExecutionError::Fatal(e)) => {
-                // Annotate the error with the message context.
-                let _err = e.context(format!(
-                    "[from={}, to={}, seq={}, m={}, h={}] fatal error",
-                    msg.from,
-                    msg.to,
-                    msg.sequence,
-                    msg.method_num,
-                    self.context().epoch
-                ));
-                // TODO backtrace
+            Err(ExecutionError::Fatal(err)) => {
+                // // Annotate the error with the message context.
+                // let err = {
+                //     let backtrace = String::from("foo"); //e.backtrace().to_string();
+                //                                          // e.context(format!(
+                //                                          //     "[from={}, to={}, seq={}, m={}, h={}] fatal error; backtrace: {}",
+                //                                          //     msg.from,
+                //                                          //     msg.to,
+                //                                          //     msg.sequence,
+                //                                          //     msg.method_num,
+                //                                          //     self.context().epoch,
+                //                                          //     backtrace,
+                //                                          // ))
+                // };
+                backtrace.set_cause(backtrace::Cause::from_fatal(err));
+                // Produce a receipt that consumes the full gas amount.
                 Receipt {
                     exit_code: ExitCode::SYS_ASSERTION_FAILED,
                     return_data: Default::default(),

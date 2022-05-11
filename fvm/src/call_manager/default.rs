@@ -393,7 +393,7 @@ where
                 Ok(value) => Ok(InvocationResult::Return(value)),
                 Err(abort) => {
                     if let Some(err) = last_error {
-                        cm.backtrace.set_cause(err);
+                        cm.backtrace.begin(err);
                     }
 
                     let (code, message, res) = match abort {

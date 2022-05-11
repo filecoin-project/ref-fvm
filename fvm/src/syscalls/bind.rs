@@ -141,7 +141,7 @@ macro_rules! impl_bind_syscalls {
                             Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
                                 Ok(code as u32)
                             },
                             Err(e) => Err(e.into()),
@@ -163,7 +163,7 @@ macro_rules! impl_bind_syscalls {
                         if (ret as u64) > (memory.len() as u64)
                             || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
                             let code = ErrorNumber::IllegalArgument;
-                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
+                            data.last_error = Some(backtrace::Cause::from_syscall(module, name, SyscallError(format!("no space for return value"), code)));
                             return Ok(code as u32);
                         }
 
@@ -178,7 +178,7 @@ macro_rules! impl_bind_syscalls {
                             Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
+                                data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
                                 Ok(code as u32)
                             },
                             Err(e) => Err(e.into()),
