@@ -130,22 +130,36 @@ where
                     ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
-                backtrace.set_cause(backtrace::Cause::new("send", "send", err));
+                backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
                 Receipt {
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
                 }
             }
-            Err(ExecutionError::Fatal(e)) => {
-                return Err(e.context(format!(
-                    "[from={}, to={}, seq={}, m={}, h={}] fatal error",
+            Err(ExecutionError::Fatal(err)) => {
+                // We produce a receipt with SYS_ASSERTION_FAILED exit code, and
+                // we consume the full gas amount so that, in case of a network-
+                // wide fatal errors, all nodes behave deterministically.
+                //
+                // We set the backtrace from the fatal error to aid diagnosis.
+                // Note that we use backtrace#set_cause instead of backtrace#begin
+                // because we want to retain the propagation chain that we've
+                // accumulated on the way out.
+                let err = err.context(format!(
+                    "[from={}, to={}, seq={}, m={}, h={}]",
                     msg.from,
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().epoch
-                )));
+                    self.context().epoch,
+                ));
+                backtrace.set_cause(backtrace::Cause::from_fatal(err));
+                Receipt {
+                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                    return_data: Default::default(),
+                    gas_used: msg.gas_limit,
+                }
             }
         };
 

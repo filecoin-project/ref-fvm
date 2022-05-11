@@ -113,6 +113,9 @@ where
         // This interface works for now because we know all actor CIDs
         // ahead of time, but with user-supplied code, we won't have that
         // guarantee.
+        // Skip preloading all builtin actors when testing. This results in JIT
+        // bytecode to machine code compilation, and leads to faster tests.
+        #[cfg(not(feature = "testing"))]
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
         Ok(DefaultMachine {
