@@ -138,14 +138,21 @@ where
                 }
             }
             Err(ExecutionError::Fatal(e)) => {
-                return Err(e.context(format!(
+                // Annotate the error with the message context.
+                let _err = e.context(format!(
                     "[from={}, to={}, seq={}, m={}, h={}] fatal error",
                     msg.from,
                     msg.to,
                     msg.sequence,
                     msg.method_num,
                     self.context().epoch
-                )));
+                ));
+                // TODO backtrace
+                Receipt {
+                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                    return_data: Default::default(),
+                    gas_used: msg.gas_limit,
+                }
             }
         };
 
