@@ -98,72 +98,70 @@ impl Display for Frame {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct SyscallCause {
-    /// The syscall "module".
-    pub module: &'static str,
-    /// The syscall function name.
-    pub function: &'static str,
-    /// The exact syscall error.
-    pub error: ErrorNumber,
-    /// The informational syscall message.
-    pub message: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct FatalCause {
-    /// The alternate-formatted message from the anyhow error.
-    pub error_msg: String,
-    /// The backtrace, captured if the relevant
-    /// [environment variables](https://doc.rust-lang.org/std/backtrace/index.html#environment-variables) are enabled.
-    pub backtrace: String,
-}
-
 /// The ultimate "cause" of a failed message.
 #[derive(Clone, Debug)]
 pub enum Cause {
     /// The original cause was a syscall error.
-    Syscall(SyscallCause),
+    Syscall {
+        /// The syscall "module".
+        module: &'static str,
+        /// The syscall function name.
+        function: &'static str,
+        /// The exact syscall error.
+        error: ErrorNumber,
+        /// The informational syscall message.
+        message: String,
+    },
     /// The original cause was a fatal error.
-    Fatal(FatalCause),
+    Fatal {
+        /// The alternate-formatted message from the anyhow error.
+        error_msg: String,
+        /// The backtrace, captured if the relevant
+        /// [environment variables](https://doc.rust-lang.org/std/backtrace/index.html#environment-variables) are enabled.
+        backtrace: String,
+    },
 }
 
 impl Cause {
     /// Records a failing syscall as the cause of a backtrace.
     pub fn from_syscall(module: &'static str, function: &'static str, err: SyscallError) -> Self {
-        Self::Syscall(SyscallCause {
+        Self::Syscall {
             module,
             function,
             error: err.1,
             message: err.0,
-        })
+        }
     }
 
     /// Records a fatal error as the cause of a backtrace.
     pub fn from_fatal(err: anyhow::Error) -> Self {
-        Self::Fatal(FatalCause {
+        Self::Fatal {
             error_msg: format!("{:#}", err),
             backtrace: err.backtrace().to_string(),
-        })
+        }
     }
 }
 
 impl Display for Cause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Cause::Syscall(cause) => {
+            Cause::Syscall {
+                module,
+                function,
+                error,
+                message,
+            } => {
                 write!(
                     f,
                     "{}::{} -- {} ({}: {})",
-                    cause.module, cause.function, &cause.message, cause.error as u32, cause.error,
+                    module, function, &message, *error as u32, error,
                 )
             }
-            Cause::Fatal(msg) => {
-                write!(
-                    f,
-                    "[FATAL] Error: {}, Backtrace:\n{}",
-                    msg.error_msg, msg.backtrace
-                )
+            Cause::Fatal {
+                error_msg,
+                backtrace,
+            } => {
+                write!(f, "[FATAL] Error: {}, Backtrace:\n{}", error_msg, backtrace)
             }
         }
     }
