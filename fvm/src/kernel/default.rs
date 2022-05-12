@@ -365,17 +365,19 @@ where
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
         let data = self.blocks.get(id).or_illegal_argument()?.data();
 
-        let len = if offset as usize >= data.len() {
-            0
-        } else {
-            buf.len().min(data.len())
-        };
+        // Calculate the number of bytes we are effectively copying.
+        // If the offset is beyond or equal to the length of data, we copy no bytes.
+        // Else, we copy as many bytes as the supplied buffer will allow.
+        let copyable_len = data.len() - offset as usize;
+        let len = (copyable_len <= 0)
+            .then_some(0)
+            .unwrap_or_else(|| buf.len().min(copyable_len));
 
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_read(len))?;
 
         if len != 0 {
-            buf.copy_from_slice(&data[offset as usize..][..len]);
+            buf[..len].copy_from_slice(&data[offset as usize..][..len]);
         }
 
         Ok(len as u32)
