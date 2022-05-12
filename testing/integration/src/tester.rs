@@ -98,6 +98,7 @@ where
     }
 
     /// Creates new accounts in the testing context
+    /// Inserts the specified number of accounts in the state tree, all with 1000 FIL，returning their IDs and Addresses.
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
         use rand::SeedableRng;
 
@@ -207,8 +208,7 @@ where
         }
     }
 
-    /// Inserts the specified number of accounts in the state tree, all with 1000 FIL,
-    /// returning their IDs and Addresses.
+    /// Put account with specified private key and balance
     pub fn put_secp256k1_accounts(
         &mut self,
         priv_key: SecretKey,
