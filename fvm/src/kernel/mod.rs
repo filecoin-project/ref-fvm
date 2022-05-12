@@ -24,10 +24,9 @@ mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 use crate::call_manager::{CallManager, InvocationResult};
-use crate::gas::PriceList;
+use crate::gas::{Gas, Milligas, PriceList};
 use crate::machine::Machine;
 
-/// The "kernel" implements
 pub trait Kernel:
     ActorOps
     + BlockOps
@@ -213,19 +212,20 @@ pub trait CircSupplyOps {
 }
 
 /// Operations for explicit gas charging.
-///
-/// TODO this is unsafe; most gas charges should occur as part of syscalls, but
-///  some built-in actors currently charge gas explicitly for concrete actions.
-///  In the future (Phase 1), this should disappear and be replaced by gas instrumentation
-///  at the WASM level.
 pub trait GasOps {
-    /// GasUsed return the gas used by the transaction so far.
-    fn gas_used(&self) -> i64;
+    /// Returns the gas used by the transaction so far.
+    fn gas_used(&self) -> Gas;
+    fn milligas_used(&self) -> Milligas;
+
+    /// Returns the remaining gas for the transaction.
+    fn gas_available(&self) -> Gas;
+    fn milligas_available(&self) -> Milligas;
 
     /// ChargeGas charges specified amount of `gas` for execution.
-    /// `name` provides information about gas charging point
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()>;
+    /// `name` provides information about gas charging point.
+    fn charge_milligas(&mut self, name: &str, compute: Milligas) -> Result<()>;
 
+    /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;
 }
 

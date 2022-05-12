@@ -28,13 +28,13 @@ impl Serialize for BenchData {
         ().serialize(serializer)
     }
 }
+
 impl<'de> Deserialize<'de> for BenchData {
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
     where
         D: Deserializer<'de>,
     {
-        let _s: () = Deserialize::deserialize(deserializer)?;
-
+        Deserialize::deserialize(deserializer)?;
         Ok(Self::default())
     }
 }

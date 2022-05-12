@@ -6,7 +6,7 @@ use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, MultiEngine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -49,7 +49,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engine: &Engine,
+        engines: &MultiEngine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -71,16 +71,14 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .get(&network_version)
             .expect("no builtin actors index for nv");
 
-        let machine = DefaultMachine::new(
-            engine,
-            NetworkConfig::new(network_version)
-                .override_actors(builtin_actors)
-                .for_epoch(epoch, state_root)
-                .set_base_fee(base_fee),
-            blockstore,
-            externs,
-        )
-        .unwrap();
+        let mut nc = NetworkConfig::new(network_version);
+        nc.override_actors(builtin_actors);
+        let mut mc = nc.for_epoch(epoch, state_root);
+        mc.set_base_fee(base_fee);
+
+        let engine = engines.get(&mc.network).expect("getting engine");
+
+        let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
 
         let price_list = machine.context().price_list.clone();
 
@@ -430,14 +428,14 @@ where
     // NOT forwarded
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -449,7 +447,7 @@ where
         _extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
@@ -457,14 +455,14 @@ where
     // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_milligas(charge.name, charge.total())?;
         Ok(true)
     }
 }
@@ -494,12 +492,24 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
-        self.0.charge_gas(name, compute)
+    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
+        self.0.charge_milligas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {
         self.0.price_list()
+    }
+
+    fn milligas_used(&self) -> i64 {
+        self.0.milligas_used()
+    }
+
+    fn gas_available(&self) -> i64 {
+        self.0.gas_available()
+    }
+
+    fn milligas_available(&self) -> i64 {
+        self.0.milligas_available()
     }
 }
 

@@ -606,6 +606,7 @@ where
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
+
         if self.network_version() <= NetworkVersion::V15 {
             self.call_manager.charge_gas(GasCharge::new(
                 "verify_consensus_fault_accesses",
@@ -762,9 +763,21 @@ where
         self.call_manager.gas_tracker().gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
+    fn milligas_used(&self) -> i64 {
+        self.call_manager.gas_tracker().milligas_used()
+    }
+
+    fn gas_available(&self) -> i64 {
+        self.call_manager.gas_tracker().gas_available()
+    }
+
+    fn milligas_available(&self) -> i64 {
+        self.call_manager.gas_tracker().milligas_available()
+    }
+
+    fn charge_milligas(&mut self, name: &str, compute: Milligas) -> Result<()> {
         let charge = GasCharge::new(name, compute, 0);
-        self.call_manager.charge_gas(charge)
+        self.call_manager.gas_tracker_mut().apply_charge(charge)
     }
 
     fn price_list(&self) -> &PriceList {
@@ -805,6 +818,7 @@ where
                 .price_list()
                 .on_get_randomness(entropy.len()),
         )?;
+
         // TODO: Check error code
         self.call_manager
             .externs()
@@ -824,6 +838,7 @@ where
                 .price_list()
                 .on_get_randomness(entropy.len()),
         )?;
+
         // TODO: Check error code
         self.call_manager
             .externs()

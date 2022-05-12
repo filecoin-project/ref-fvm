@@ -1,13 +1,16 @@
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use wasmtime::{Linker, Module};
+use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
+use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
+use crate::gas::WasmGasPrices;
+use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
 
@@ -15,10 +18,55 @@ use crate::Kernel;
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 
+/// Container managing engines with different consensus-affecting configurations.
+#[derive(Clone)]
+pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct EngineConfig {
+    pub max_wasm_stack: u32,
+    pub wasm_prices: &'static WasmGasPrices,
+}
+
+impl From<&NetworkConfig> for EngineConfig {
+    fn from(nc: &NetworkConfig) -> Self {
+        EngineConfig {
+            max_wasm_stack: nc.max_wasm_stack,
+            wasm_prices: &nc.price_list.wasm_rules,
+        }
+    }
+}
+
+impl MultiEngine {
+    pub fn new() -> MultiEngine {
+        MultiEngine(Arc::new(Mutex::new(HashMap::new())))
+    }
+
+    pub fn get(&self, nc: &NetworkConfig) -> anyhow::Result<Engine> {
+        let mut engines = self
+            .0
+            .lock()
+            .map_err(|_| anyhow::Error::msg("multiengine lock is poisoned"))?;
+
+        let ec: EngineConfig = nc.into();
+
+        let engine = match engines.entry(ec.clone()) {
+            Occupied(entry) => entry.into_mut(),
+            Vacant(entry) => entry.insert(Engine::new_default(ec)?),
+        };
+
+        Ok(engine.clone())
+    }
+}
+
+impl Default for MultiEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
-
-    // c.max_wasm_stack(); https://github.com/filecoin-project/ref-fvm/issues/424
 
     // wasmtime default: false
     c.wasm_threads(false);
@@ -43,6 +91,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     // wasmtime default: depends on the arch
     // > This is true by default on x86-64, and false by default on other architectures.
+    //
+    // Not supported in wasm-instrument/parity-wasm
     c.wasm_reference_types(false);
 
     // wasmtime default: false
@@ -55,23 +105,31 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // > not enabled by default.
     c.cranelift_nan_canonicalization(true);
 
-    // c.cranelift_opt_level(Speed); ?
+    // Set to something much higher than the instrumented limiter.
+    c.max_wasm_stack(64 << 20).unwrap();
 
-    c.consume_fuel(true);
+    // Execution cost accouting is done through wasm instrumentation,
+    c.consume_fuel(false);
+
+    // c.cranelift_opt_level(Speed); ?
 
     c
 }
 
-impl Default for Engine {
-    fn default() -> Self {
-        Engine::new(&default_wasmtime_config()).unwrap()
-    }
-}
-
 struct EngineInner {
     engine: wasmtime::Engine,
+
+    /// These two fields are used used in the store constructor to avoid resolve a chicken & egg
+    /// situation: We need the store before we can get the real values, but we need to create the
+    /// `InvocationData` before we can make the store.
+    ///
+    /// Alternatively, we could use `Option`s. But then we need to unwrap everywhere.
+    dummy_gas_global: Global,
+    dummy_memory: Memory,
+
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
+    config: EngineConfig,
 }
 
 impl Deref for Engine {
@@ -83,25 +141,34 @@ impl Deref for Engine {
 }
 
 impl Engine {
-    /// Create a new Engine from a wasmtime config.
-    pub fn new(c: &wasmtime::Config) -> anyhow::Result<Self> {
-        Ok(wasmtime::Engine::new(c)?.into())
+    pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
+        Engine::new(&default_wasmtime_config(), ec)
     }
-}
 
-impl From<wasmtime::Engine> for Engine {
-    fn from(engine: wasmtime::Engine) -> Self {
-        Engine(Arc::new(EngineInner {
+    /// Create a new Engine from a wasmtime config.
+    pub fn new(c: &wasmtime::Config, ec: EngineConfig) -> anyhow::Result<Self> {
+        let engine = wasmtime::Engine::new(c)?;
+
+        let mut dummy_store = wasmtime::Store::new(&engine, ());
+        let gg_type = GlobalType::new(ValType::I64, Mutability::Var);
+        let dummy_gg = Global::new(&mut dummy_store, gg_type, Val::I64(0))
+            .expect("failed to create dummy gas global");
+
+        let dummy_memory = Memory::new(&mut dummy_store, MemoryType::new(0, Some(0)))
+            .expect("failed to create dummy memory");
+
+        Ok(Engine(Arc::new(EngineInner {
             engine,
+            dummy_memory,
+            dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
-        }))
+            config: ec,
+        })))
     }
 }
-
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
-    instances: HashMap<Cid, wasmtime::InstancePre<InvocationData<K>>>,
 }
 
 impl Engine {
@@ -125,7 +192,7 @@ impl Engine {
                     &cid.to_string()
                 )
             })?;
-            let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+            let module = self.load_raw(wasm.as_slice())?;
             cache.insert(*cid, module);
         }
         Ok(())
@@ -137,11 +204,49 @@ impl Engine {
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = Module::from_binary(&self.0.engine, wasm)?;
+                let module = self.load_raw(wasm)?;
                 cache.insert(*k, module.clone());
                 module
             }
         };
+        Ok(module)
+    }
+
+    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
+        // First make sure that non-instrumented wasm is valid
+        Module::validate(&self.0.engine, raw_wasm)
+            .map_err(anyhow::Error::msg)
+            .with_context(|| "failed to validate actor wasm")?;
+
+        // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
+        // avoid breaking debug info
+
+        use fvm_wasm_instrument::gas_metering::inject;
+        use fvm_wasm_instrument::inject_stack_limiter;
+        use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
+
+        let m = deserialize_buffer(raw_wasm)?;
+
+        // stack limiter adds post/pre-ambles to call instructions; We want to do that
+        // before injecting gas accounting calls to avoid this overhead in every single
+        // block of code.
+        let m =
+            inject_stack_limiter(m, self.0.config.max_wasm_stack).map_err(anyhow::Error::msg)?;
+
+        // inject gas metering based on a price list. This function will
+        // * add a new mutable i64 global import, gas.gas_counter
+        // * push a gas counter function which deduces gas from the global, and
+        //   traps when gas.gas_counter is less than zero
+        // * optionally push a function which wraps memory.grow instruction
+        //   making it charge gas based on memory requested
+        // * divide code into metered blocks, and add a call to the gas counter
+        //   function before entering each metered block
+        let m = inject(m, self.0.config.wasm_prices, "gas")
+            .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
+
+        let wasm = m.to_bytes()?;
+        let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+
         Ok(module)
     }
 
@@ -186,32 +291,42 @@ impl Engine {
             anymap::Entry::Occupied(e) => e.into_mut(),
             anymap::Entry::Vacant(e) => e.insert({
                 let mut linker = Linker::new(&self.0.engine);
+                linker.allow_shadowing(true);
+
                 bind_syscalls(&mut linker)?;
-                Cache {
-                    linker,
-                    instances: HashMap::new(),
-                }
+                Cache { linker }
             }),
         };
-        let instance_pre = match cache.instances.entry(*k) {
-            Entry::Occupied(e) => e.into_mut(),
-            Entry::Vacant(e) => {
-                let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
-                let module = match module_cache.get(k) {
-                    Some(module) => module,
-                    None => return Ok(None),
-                };
-                // We can cache the "pre instance" because our linker only has host functions.
-                let pre = cache.linker.instantiate_pre(&mut *store, module)?;
-                e.insert(pre)
-            }
+        cache
+            .linker
+            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
+
+        let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match module_cache.get(k) {
+            Some(module) => module,
+            None => return Ok(None),
         };
-        let instance = instance_pre.instantiate(&mut *store)?;
+        let instance = cache.linker.instantiate(&mut *store, module)?;
+
         Ok(Some(instance))
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        wasmtime::Store::new(&self.0.engine, InvocationData::new(kernel))
+        let id = InvocationData {
+            kernel,
+            last_error: None,
+            avail_gas_global: self.0.dummy_gas_global,
+            last_milligas_available: 0,
+            memory: self.0.dummy_memory,
+        };
+
+        let mut store = wasmtime::Store::new(&self.0.engine, id);
+        let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
+        let gg = Global::new(&mut store, ggtype, Val::I64(0))
+            .expect("failed to create available_gas global");
+        store.data_mut().avail_gas_global = gg;
+
+        store
     }
 }

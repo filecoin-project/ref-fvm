@@ -23,12 +23,23 @@ pub mod state_tree;
 
 mod blockstore;
 
+#[cfg(not(feature = "testing"))]
 mod account_actor;
+#[cfg(not(feature = "testing"))]
 mod init_actor;
+#[cfg(not(feature = "testing"))]
+mod system_actor;
+
+#[cfg(feature = "testing")]
+pub mod account_actor;
+#[cfg(feature = "testing")]
+pub mod init_actor;
+#[cfg(feature = "testing")]
+pub mod system_actor;
+
 mod market_actor;
 mod power_actor;
 mod reward_actor;
-mod system_actor;
 
 pub mod trace;
 
@@ -108,11 +119,13 @@ mod test {
 
         let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
 
+        let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V14)
+            .override_actors(actors_cid)
+            .for_epoch(0, root);
+
         let machine = DefaultMachine::new(
-            &Engine::default(),
-            &NetworkConfig::new(fvm_shared::version::NetworkVersion::V14)
-                .override_actors(actors_cid)
-                .for_epoch(0, root),
+            &Engine::new_default((&mc.network).into()).unwrap(),
+            &mc,
             bs,
             DummyExterns,
         )

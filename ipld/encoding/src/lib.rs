@@ -34,16 +34,14 @@ pub fn to_vec<T>(value: &T) -> Result<Vec<u8>, Error>
 where
     T: ser::Serialize + ?Sized,
 {
-    let mut vec = Vec::new();
-    value.serialize(&mut serde_ipld_dagcbor::Serializer::new(&mut vec))?;
-    Ok(vec)
+    serde_ipld_dagcbor::to_vec(value).map_err(Into::into)
 }
 
 /// Decode a value from CBOR from the given reader.
 pub fn from_reader<T, R>(reader: R) -> Result<T, Error>
 where
     T: de::DeserializeOwned,
-    R: io::Read,
+    R: io::BufRead,
 {
     serde_ipld_dagcbor::from_reader(reader).map_err(Into::into)
 }
@@ -57,10 +55,10 @@ where
 }
 
 /// Encode a value as CBOR to the given writer.
-pub fn to_writer<W, T>(writer: W, value: &T) -> Result<(), Error>
+pub fn to_writer<W, T>(mut writer: W, value: &T) -> Result<(), Error>
 where
     W: io::Write,
     T: ser::Serialize,
 {
-    serde_ipld_dagcbor::to_writer(writer, value).map_err(Into::into)
+    serde_ipld_dagcbor::to_writer(&mut writer, value).map_err(Into::into)
 }

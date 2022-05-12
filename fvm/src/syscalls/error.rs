@@ -1,6 +1,7 @@
 //! This module contains code used to convert errors to and from wasmtime traps.
 use std::sync::Mutex;
 
+use anyhow::anyhow;
 use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
@@ -32,6 +33,15 @@ impl Abort {
             ),
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(err) => Abort::Fatal(err),
+        }
+    }
+
+    /// Just like from_error, but escalating syscall errors as fatal.
+    pub fn from_error_as_fatal(e: ExecutionError) -> Self {
+        match e {
+            ExecutionError::OutOfGas => Abort::OutOfGas,
+            ExecutionError::Fatal(e) => Abort::Fatal(e),
+            ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
         }
     }
 }

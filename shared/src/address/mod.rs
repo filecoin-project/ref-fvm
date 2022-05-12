@@ -65,6 +65,7 @@ pub const NETWORK_DEFAULT: Network = Network::Mainnet;
 /// Address is the struct that defines the protocol and data payload conversion from either
 /// a public key or value
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Copy)]
+#[cfg_attr(feature = "testing", derive(Default))]
 pub struct Address {
     network: Network,
     payload: Payload,

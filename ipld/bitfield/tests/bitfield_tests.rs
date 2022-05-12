@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use fvm_ipld_bitfield::{bitfield, BitField};
+use fvm_ipld_bitfield::{bitfield, BitField, UnvalidatedBitField};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -231,4 +231,68 @@ fn exceeds_bitfield_range() {
         .expect_err("expected setting u64::MAX to fail");
     BitField::try_from_bits([0, 1, 4, 99, u64::MAX - 1])
         .expect("expected setting u64::MAX-1 to succeed");
+}
+
+#[test]
+fn bitfield_custom() {
+    let mut bf = BitField::new();
+
+    // Set alternating bits for worst-case size performance
+    let mut i = 0;
+    while i < 1_000_000 {
+        bf.set(i);
+        i += 2;
+    }
+    println!("# Set bits: {}", bf.len());
+
+    // Standard serialization catches MAX_ENCODING_SIZE issues
+    println!("Attempting to serialize...");
+    match fvm_ipld_encoding::to_vec(&bf) {
+        Ok(_) => panic!("This should have failed!"),
+        Err(_) => println!("Standard serialization failed, as expected"),
+    }
+
+    // Bypass to_vec enc size check so we can test deserialization
+    println!("Manually serializing...");
+    // CBOR prefix for the bytes
+    let mut cbor = vec![0x5A, 0x00, 0x01, 0xE8, 0x49];
+    cbor.extend_from_slice(&bf.to_bytes());
+    println!("Success!");
+
+    println!("# bytes of cbor: {}", cbor.len());
+    println!("Header: {:#010b}", cbor[0]);
+    println!("-- maj type {}", (cbor[0] & 0xe0) >> 5);
+
+    // Get size of payload size
+    let info = cbor[0] & 0x1f;
+    println!("-- adtl info {}", info);
+
+    // Get payload size
+    let size = match info {
+        0..=23 => info as usize,
+        24 => cbor[1] as usize,
+        25 => u16::from_be_bytes([cbor[1], cbor[2]]) as usize,
+        26 => u32::from_be_bytes([cbor[1], cbor[2], cbor[3], cbor[4]]) as usize,
+        27 => u64::from_be_bytes([
+            cbor[1], cbor[2], cbor[3], cbor[4], cbor[5], cbor[6], cbor[7], cbor[8],
+        ]) as usize,
+        _ => {
+            println!("OUT OF RANGE");
+            0
+        }
+    };
+
+    println!("{} byte payload", size);
+
+    // Deserialize and validate malicious payload
+    println!("Attempting to deserialize and validate...");
+    match fvm_ipld_encoding::from_slice::<UnvalidatedBitField>(&cbor) {
+        Ok(mut bitfield) => {
+            bitfield.validate_mut().unwrap();
+            panic!("Error - deserialized/validated payload over 32768 bytes.");
+        }
+        Err(_) => {
+            println!("Success - payload over 32768 bytes cannot be deserialized");
+        }
+    }
 }
