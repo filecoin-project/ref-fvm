@@ -4,6 +4,7 @@ pub mod debug;
 pub mod error;
 pub mod gas;
 pub mod ipld;
+pub mod message;
 pub mod network;
 pub mod rand;
 pub mod send;
@@ -19,6 +20,9 @@ pub const MAX_CID_LEN: usize = 100;
 
 /// The maximum actor address length (class 2 addresses).
 pub const MAX_ACTOR_ADDR_LEN: usize = 21;
+
+/// BlockID representing nil parameters or return data.
+pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 // TODO: provide a custom panic handler?
 

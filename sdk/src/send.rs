@@ -7,8 +7,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 
-use crate::vm::NO_DATA_BLOCK_ID;
-use crate::{sys, SyscallResult};
+use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Sends a message to another actor.
 // TODO: Drop the use of receipts here as we don't return the gas used. Alternatively, we _could_
