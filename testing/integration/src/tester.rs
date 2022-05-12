@@ -220,7 +220,7 @@ where
         let state_tree = self
             .state_tree
             .as_mut()
-            .ok_or(anyhow!("unable get state tree"))?;
+            .ok_or_else(||anyhow!("unable get state tree"))?;
         let assigned_addr = state_tree.register_new_address(&pub_key_addr).unwrap();
         let state = fvm::account_actor::State {
             address: pub_key_addr,
