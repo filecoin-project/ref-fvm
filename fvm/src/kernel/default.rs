@@ -363,23 +363,23 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        let data = self.blocks.get(id).or_illegal_argument()?.data();
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+        let block = self.blocks.get(id)?;
+        let data = block.data();
 
-        let len = if offset as usize >= data.len() {
-            0
-        } else {
-            buf.len().min(data.len())
-        };
+        let start = offset as usize;
 
+        let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read(len))?;
+            .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
-        if len != 0 {
-            buf.copy_from_slice(&data[offset as usize..][..len]);
+        let end = start + to_read;
+        if to_read != 0 {
+            buf[..to_read].copy_from_slice(&data[start..end]);
         }
 
-        Ok(len as u32)
+        // Returns the difference between the end of the block, and the end of the data we've read.
+        Ok((data.len() as i32) - (end as i32))
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {

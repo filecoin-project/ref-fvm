@@ -32,24 +32,38 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
             .expect("CID encoding should not fail");
         let fvm_shared::sys::out::ipld::IpldOpen { id, size, .. } =
             sys::ipld::open(cid_buf.as_mut_ptr())?;
-        get_block(id, Some(size))
+        let mut block = Vec::with_capacity(size as usize);
+        let remaining = sys::ipld::read(id, 0, block.as_mut_ptr(), size)?;
+        debug_assert_eq!(remaining, 0, "expected to read the block exactly");
+        Ok(block)
     }
 }
 
-/// Gets the data of the block referenced by BlockId. If the caller knows the
-/// size, this function will avoid statting the block.
-pub fn get_block(id: fvm_shared::sys::BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
-    let size = match size {
-        Some(size) => size,
-        None => unsafe { sys::ipld::stat(id).map(|out| out.size)? },
-    };
-    let mut block = Vec::with_capacity(size as usize);
-    unsafe {
-        let bytes_read = sys::ipld::read(id, 0, block.as_mut_ptr(), size)?;
-        debug_assert!(bytes_read == size, "read an unexpected number of bytes");
-        block.set_len(size as usize);
+/// Gets the data of the block referenced by BlockId. If the caller knows the size, this function
+/// will read the block in a single syscall. Otherwise, any block over 1KiB will take two syscalls.
+pub fn get_block(id: fvm_shared::sys::BlockId, size_hint: Option<u32>) -> SyscallResult<Vec<u8>> {
+    // Check for the "empty" block first.
+    if id == UNIT {
+        return Ok(Vec::new());
     }
-    Ok(block)
+
+    let mut buf = Vec::with_capacity(size_hint.unwrap_or(1024) as usize);
+    unsafe {
+        let mut remaining = sys::ipld::read(id, 0, buf.as_mut_ptr(), buf.capacity() as u32)?;
+        if remaining > 0 {
+            buf.set_len(buf.capacity());
+            buf.reserve_exact(remaining as usize);
+            remaining = sys::ipld::read(
+                id,
+                buf.len() as u32,
+                buf.as_mut_ptr_range().end,
+                (buf.capacity() - buf.len()) as u32,
+            )?;
+            debug_assert!(remaining <= 0, "should have read whole block");
+        }
+        buf.set_len(buf.capacity() + (remaining as usize));
+    }
+    Ok(buf)
 }
 
 /// Writes the supplied block and returns the BlockId.
