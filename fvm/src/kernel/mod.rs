@@ -116,7 +116,7 @@ pub trait BlockOps {
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32>;
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32>;
 
     /// Returns the blocks codec & size.
     ///
@@ -130,8 +130,8 @@ pub trait BlockOps {
         let stat = self.block_stat(id)?;
         let mut ret = vec![0; stat.size as usize];
         // TODO error handling.
-        let read = self.block_read(id, 0, &mut ret)?;
-        debug_assert_eq!(stat.size, read, "didn't read expected bytes");
+        let remaining = self.block_read(id, 0, &mut ret)?;
+        debug_assert_eq!(remaining, 0, "didn't read expected bytes");
         Ok((stat.codec, ret))
     }
 

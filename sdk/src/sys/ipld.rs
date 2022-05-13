@@ -54,7 +54,12 @@ super::fvm_syscalls! {
     /// Reads the block identified by `id` into `obuf`, starting at `offset`, reading _at most_
     /// `max_len` bytes.
     ///
-    /// Returns the number of bytes read.
+    /// Returns the difference between the length of the block and `offset + max_len`. This can be
+    /// used to find the end of the block relative to the buffer the block is being read into:
+    ///
+    /// - A zero return value means that the block was read into the output buffer exactly.
+    /// - A positive return value means that that many more bytes need to be read.
+    /// - A negative return value means that the buffer should be truncated by the return value.
     ///
     /// # Arguments
     ///
@@ -64,7 +69,8 @@ super::fvm_syscalls! {
     /// - `max_len` is the maximum amount of block data to read.
     ///
     /// Passing a length/offset that exceed the length of the block will not result in an error, but
-    /// will result in no data being read.
+    /// will result in no data being read and a negative return value indicating where the block
+    /// actually ended (relative to `offset + max_len`).
     ///
     /// # Errors
     ///
@@ -72,7 +78,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------------|
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
-    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<u32>;
+    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<i32>;
 
     /// Returns the codec and size of the specified block.
     ///
