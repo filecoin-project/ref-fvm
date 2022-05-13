@@ -124,16 +124,7 @@ where
                 let exit_code = match err.1 {
                     ErrorNumber::InsufficientFunds => ExitCode::SYS_INSUFFICIENT_FUNDS,
                     ErrorNumber::NotFound => ExitCode::SYS_INVALID_RECEIVER,
-
-                    ErrorNumber::IllegalArgument => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalOperation => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::LimitExceeded => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::AssertionFailed => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::InvalidHandle => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalCid => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalCodec => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::Serialization => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
+                    _ => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
                 backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
