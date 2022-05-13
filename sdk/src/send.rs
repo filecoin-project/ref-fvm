@@ -48,13 +48,8 @@ pub fn send(
         let exit_code = ExitCode::new(exit_code);
         let return_data = match exit_code {
             ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
-                // Allocate a buffer to read the return data.
-                let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
-                let mut bytes = vec![0; size as usize];
-
                 // Now read the return data.
-                let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), size)?;
-                assert_eq!(read, size);
+                let bytes = crate::ipld::get_block(return_id, None)?;
                 RawBytes::from(bytes)
             }
             _ => Default::default(),

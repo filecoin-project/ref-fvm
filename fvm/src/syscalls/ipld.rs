@@ -48,7 +48,7 @@ pub fn read(
     offset: u32,
     obuf_off: u32,
     obuf_len: u32,
-) -> Result<u32> {
+) -> Result<i32> {
     let data = context.memory.try_slice_mut(obuf_off, obuf_len)?;
     context.kernel.block_read(id, offset, data)
 }
