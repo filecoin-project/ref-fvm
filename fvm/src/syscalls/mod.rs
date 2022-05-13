@@ -129,8 +129,8 @@ pub fn bind_syscalls(
     linker.bind("actor", "create_actor", actor::create_actor)?;
     linker.bind(
         "actor",
-        "resolve_builtin_actor_type",
-        actor::resolve_builtin_actor_type,
+        "get_builtin_actor_type",
+        actor::get_builtin_actor_type,
     )?;
     linker.bind(
         "actor",

@@ -86,7 +86,7 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id)
 }
 
-pub fn resolve_builtin_actor_type(
+pub fn get_builtin_actor_type(
     context: Context<'_, impl Kernel>,
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
