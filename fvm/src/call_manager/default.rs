@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
@@ -358,7 +358,10 @@ where
                 update_gas_available(&mut store)?;
 
                 // Invoke it.
-                let res = invoke.call(&mut store, (param_id,));
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    invoke.call(&mut store, (param_id,))
+                }))
+                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.
