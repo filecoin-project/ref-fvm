@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
-use cid::Cid;
+use fvm_ipld_encoding::DAG_CBOR;
 use thiserror::Error;
+
+use super::{ExecutionError, SyscallError};
+use crate::syscall_error;
 
 #[derive(Default)]
 pub(crate) struct BlockRegistry {
@@ -14,6 +17,7 @@ pub(crate) struct BlockRegistry {
 pub type BlockId = u32;
 
 const FIRST_ID: BlockId = 1;
+const MAX_BLOCKS: u32 = i32::MAX as u32; // TODO: Limit
 
 #[derive(Copy, Clone)]
 pub struct BlockStat {
@@ -61,19 +65,42 @@ impl Block {
 }
 
 #[derive(Error, Debug)]
-pub enum BlockError {
-    #[error("block {0} is unreachable")]
-    Unreachable(Box<Cid>),
+pub enum BlockPutError {
     #[error("too many blocks have been written")]
     TooManyBlocks,
-    #[error("block handle {0} does not exist, or is illegal")]
-    InvalidHandle(BlockId),
-    #[error("invalid multihash length or code")]
-    InvalidMultihashSpec { length: u32, code: u64 },
     #[error("invalid or forbidden ipld codec")]
     InvalidCodec(u64),
-    #[error("state {0} is missing from the local datastore")]
-    MissingState(Box<Cid>), // boxed because CIDs are potentially large.
+}
+
+impl From<BlockPutError> for super::SyscallError {
+    fn from(e: BlockPutError) -> Self {
+        match e {
+            BlockPutError::TooManyBlocks => syscall_error!(LimitExceeded; "{}", e),
+            BlockPutError::InvalidCodec(_) => syscall_error!(IllegalCodec; "{}", e),
+        }
+    }
+}
+
+impl From<BlockPutError> for ExecutionError {
+    fn from(e: BlockPutError) -> Self {
+        ExecutionError::Syscall(e.into())
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("block handle {0} does not exist, or is illegal")]
+pub struct InvalidHandleError(BlockId);
+
+impl From<InvalidHandleError> for SyscallError {
+    fn from(e: InvalidHandleError) -> Self {
+        syscall_error!(InvalidHandle; "{}", e)
+    }
+}
+
+impl From<InvalidHandleError> for ExecutionError {
+    fn from(e: InvalidHandleError) -> Self {
+        ExecutionError::Syscall(e.into())
+    }
 }
 
 impl BlockRegistry {
@@ -84,41 +111,46 @@ impl BlockRegistry {
 
 impl BlockRegistry {
     /// Adds a new block to the registry, and returns a handle to refer to it.
-    pub fn put(&mut self, block: Block) -> Result<BlockId, BlockError> {
-        // TODO: limit the code types we allow.
-        let mut id: u32 = self
-            .blocks
-            .len()
-            .try_into()
-            .map_err(|_| BlockError::TooManyBlocks)?;
-        id += FIRST_ID;
+    pub fn put(&mut self, block: Block) -> Result<BlockId, BlockPutError> {
+        if self.is_full() {
+            return Err(BlockPutError::TooManyBlocks);
+        }
+        if block.codec != DAG_CBOR {
+            return Err(BlockPutError::InvalidCodec(block.codec));
+        }
+
+        let id = FIRST_ID + self.blocks.len() as u32;
         self.blocks.push(block);
         Ok(id)
     }
 
     /// Gets the block associated with a block handle.
-    pub fn get(&self, id: BlockId) -> Result<&Block, BlockError> {
+    pub fn get(&self, id: BlockId) -> Result<&Block, InvalidHandleError> {
         if id < FIRST_ID {
-            return Err(BlockError::InvalidHandle(id));
+            return Err(InvalidHandleError(id));
         }
         id.try_into()
             .ok()
             .and_then(|idx: usize| self.blocks.get(idx - FIRST_ID as usize))
-            .ok_or(BlockError::InvalidHandle(id))
+            .ok_or(InvalidHandleError(id))
     }
 
     /// Returns the size & codec of the specified block.
-    pub fn stat(&self, id: BlockId) -> Result<BlockStat, BlockError> {
+    pub fn stat(&self, id: BlockId) -> Result<BlockStat, InvalidHandleError> {
         if id < FIRST_ID {
-            return Err(BlockError::InvalidHandle(id));
+            return Err(InvalidHandleError(id));
         }
         id.try_into()
             .ok()
             .and_then(|idx: usize| self.blocks.get(idx - FIRST_ID as usize))
-            .ok_or(BlockError::InvalidHandle(id))
+            .ok_or(InvalidHandleError(id))
             .map(|b| BlockStat {
                 codec: b.codec(),
                 size: b.size(),
             })
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.blocks.len() as u32 == MAX_BLOCKS
     }
 }

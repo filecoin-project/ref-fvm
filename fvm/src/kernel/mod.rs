@@ -1,4 +1,4 @@
-pub use blocks::{BlockError, BlockId, BlockStat};
+pub use blocks::{BlockId, BlockStat};
 use cid::Cid;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
