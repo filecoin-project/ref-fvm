@@ -35,6 +35,7 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
         let mut block = Vec::with_capacity(size as usize);
         let remaining = sys::ipld::read(id, 0, block.as_mut_ptr(), size)?;
         debug_assert_eq!(remaining, 0, "expected to read the block exactly");
+        block.set_len(size as usize);
         Ok(block)
     }
 }
