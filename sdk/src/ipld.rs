@@ -11,16 +11,9 @@ pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult
     unsafe {
         let id = sys::ipld::create(codec, data.as_ptr(), data.len() as u32)?;
 
-        // I really hate this CID interface. Why can't I just have bytes?
         let mut buf = [0u8; MAX_CID_LEN];
-        let len =
-            sys::ipld::cid(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)? as usize;
-        if len > buf.len() {
-            // TODO: re-try with a larger buffer?
-            panic!("CID too big: {} > {}", len, buf.len())
-        }
-
-        Ok(Cid::read_bytes(&buf[..len]).expect("runtime returned an invalid CID"))
+        let len = sys::ipld::cid(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)?;
+        Ok(Cid::read_bytes(&buf[..len as usize]).expect("runtime returned an invalid CID"))
     }
 }
 

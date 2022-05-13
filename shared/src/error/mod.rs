@@ -145,6 +145,8 @@ pub enum ErrorNumber {
     Serialization = 10,
     /// The operation is forbidden.
     Forbidden = 11,
+    /// The passed buffer is too small.
+    BufferTooSmall = 12,
 }
 
 impl std::fmt::Display for ErrorNumber {
@@ -162,6 +164,7 @@ impl std::fmt::Display for ErrorNumber {
             IllegalCodec => "illegal ipld codec",
             Serialization => "serialization error",
             Forbidden => "operation forbidden",
+            BufferTooSmall => "buffer too small",
         })
     }
 }

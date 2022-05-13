@@ -323,8 +323,8 @@ where
         self.0.resolve_address(address)
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
-        self.0.get_actor_code_cid(addr)
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
+        self.0.get_actor_code_cid(id)
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {
@@ -335,8 +335,8 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
-        self.0.resolve_builtin_actor_type(code_cid)
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+        self.0.get_builtin_actor_type(code_cid)
     }
 
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {

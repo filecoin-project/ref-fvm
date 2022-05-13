@@ -855,11 +855,11 @@ where
         self.call_manager.state_tree().lookup_id(address)
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor(addr)
+            .get_actor_id(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .map(|act| act.code))
@@ -887,7 +887,7 @@ where
     // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         let typ = self
-            .resolve_builtin_actor_type(&code_id)
+            .get_builtin_actor_type(&code_id)
             .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
 
         if typ.is_singleton_actor() {
@@ -912,7 +912,7 @@ where
         )
     }
 
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
         self.call_manager
             .machine()
             .builtin_actors()
