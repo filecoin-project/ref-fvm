@@ -3,7 +3,6 @@
 
 use fvm::externs::Rand;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
 
 use crate::vector::{RandomnessKind, RandomnessMatch, RandomnessRule};
 
@@ -20,21 +19,11 @@ pub struct ReplayingRand {
 pub struct TestFallbackRand;
 
 impl Rand for TestFallbackRand {
-    fn get_chain_randomness(
-        &self,
-        _: DomainSeparationTag,
-        _: ChainEpoch,
-        _: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
+    fn get_chain_randomness(&self, _: i64, _: ChainEpoch, _: &[u8]) -> anyhow::Result<[u8; 32]> {
         Ok(*b"i_am_random_____i_am_random_____")
     }
 
-    fn get_beacon_randomness(
-        &self,
-        _: DomainSeparationTag,
-        _: ChainEpoch,
-        _: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
+    fn get_beacon_randomness(&self, _: i64, _: ChainEpoch, _: &[u8]) -> anyhow::Result<[u8; 32]> {
         Ok(*b"i_am_random_____i_am_random_____")
     }
 }
@@ -62,7 +51,7 @@ impl ReplayingRand {
 impl Rand for ReplayingRand {
     fn get_chain_randomness(
         &self,
-        dst: DomainSeparationTag,
+        dst: i64,
         epoch: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
@@ -80,7 +69,7 @@ impl Rand for ReplayingRand {
     }
     fn get_beacon_randomness(
         &self,
-        dst: DomainSeparationTag,
+        dst: i64,
         epoch: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
