@@ -7,7 +7,7 @@
 //! of your choice during the initialization of the consuming application.
 
 pub use kernel::default::DefaultKernel;
-pub use kernel::{BlockError, Kernel};
+pub use kernel::Kernel;
 
 pub mod call_manager;
 pub mod executor;
