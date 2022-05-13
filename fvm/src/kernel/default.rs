@@ -10,7 +10,7 @@ use filecoin_proofs_api::seal::{
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, from_slice, to_vec, RawBytes};
+use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
@@ -31,7 +31,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
@@ -71,15 +71,16 @@ where
 {
     type CallManager = C;
 
-    fn into_call_manager(self) -> Self::CallManager
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
-        self.call_manager
+        (self.call_manager, self.blocks)
     }
 
     fn new(
         mgr: C,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -87,7 +88,7 @@ where
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
-            blocks: BlockRegistry::new(),
+            blocks,
             caller,
             actor_id,
             method,
@@ -374,12 +375,44 @@ where
         &mut self,
         recipient: &Address,
         method: MethodNum,
-        params: &RawBytes,
+        params_id: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult> {
+    ) -> Result<SendResult> {
         let from = self.actor_id;
-        self.call_manager
-            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        // Send.
+        let result = self
+            .call_manager
+            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))?;
+
+        // Store result and return.
+        Ok(match result {
+            InvocationResult::Return(None) => {
+                SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
+            }
+            InvocationResult::Return(Some(blk)) => {
+                let stat = blk.stat();
+                let ret_id = self
+                    .blocks
+                    .put(blk)
+                    .or_fatal()
+                    .context("failed to store a valid return value")?;
+                SendResult::Return(ret_id, stat)
+            }
+            InvocationResult::Failure(code) => SendResult::Abort(code),
+        })
     }
 }
 

@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use fvm_ipld_encoding::DAG_CBOR;
 use thiserror::Error;
@@ -7,7 +8,7 @@ use super::{ExecutionError, SyscallError};
 use crate::syscall_error;
 
 #[derive(Default)]
-pub(crate) struct BlockRegistry {
+pub struct BlockRegistry {
     blocks: Vec<Block>,
 }
 
@@ -25,18 +26,22 @@ pub struct BlockStat {
     pub size: u32,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Block {
     codec: u64,
-    data: Box<[u8]>,
+    // Unfortunately, we usually start with a vector/boxed buffer. If we used Rc<[u8]>, we'd have to
+    // copy the bytes. So we accept some indirection for reliable performance.
+    #[allow(clippy::redundant_allocation)]
+    data: Rc<Box<[u8]>>,
 }
 
 impl Block {
     pub fn new(codec: u64, data: impl Into<Box<[u8]>>) -> Self {
-        // TODO: check size on the way in?
+        // This requires an extra allocation (ew) but no extra copy on send.
+        // The extra allocation is basically nothing.
         Self {
             codec,
-            data: data.into(),
+            data: Rc::new(data.into()),
         }
     }
 

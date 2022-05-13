@@ -180,7 +180,7 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &fvm_ipld_encoding::RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
@@ -277,15 +277,17 @@ where
 {
     type CallManager = C;
 
-    fn into_call_manager(self) -> Self::CallManager
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
-        self.0.into_call_manager().0
+        let (cm, br) = self.0.into_inner();
+        (cm.0, br)
     }
 
     fn new(
         mgr: Self::CallManager,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -300,6 +302,7 @@ where
         TestKernel(
             K::new(
                 TestCallManager(mgr),
+                blocks,
                 caller,
                 actor_id,
                 method,
@@ -365,10 +368,6 @@ where
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
-    }
-
-    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
-        self.0.block_get(id)
     }
 }
 
@@ -603,9 +602,9 @@ where
         &mut self,
         recipient: &Address,
         method: u64,
-        params: &fvm_ipld_encoding::RawBytes,
+        params: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult> {
+    ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
     }
 }

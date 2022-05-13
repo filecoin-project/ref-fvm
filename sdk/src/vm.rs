@@ -4,6 +4,9 @@ use fvm_shared::sys::out::vm::InvocationContext;
 
 use crate::sys;
 
+/// BlockID representing nil parameters or return data.
+pub const NO_DATA_BLOCK_ID: u32 = 0;
+
 lazy_static::lazy_static! {
     pub(crate) static ref INVOCATION_CONTEXT: InvocationContext = {
         unsafe {

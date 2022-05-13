@@ -3,6 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -16,7 +17,7 @@ use num_traits::Zero;
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
-use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
+use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
 /// The default [`Executor`].
@@ -73,14 +74,21 @@ where
                 return (Err(e), cm.finish().1);
             }
 
+            let params = if msg.params.is_empty() {
+                None
+            } else {
+                Some(Block::new(DAG_CBOR, msg.params.bytes()))
+            };
+
             let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                let ret =
-                    cm.send::<K>(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
+                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
 
                 // Charge for including the result (before we end the transaction).
-                if let InvocationResult::Return(data) = &ret {
-                    cm.charge_gas(cm.context().price_list.on_chain_return_value(data.len()))?;
+                if let InvocationResult::Return(value) = &ret {
+                    cm.charge_gas(cm.context().price_list.on_chain_return_value(
+                        value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
+                    ))?;
                 }
 
                 Ok(ret)
@@ -94,7 +102,13 @@ where
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
-            Ok(InvocationResult::Return(return_data)) => {
+            Ok(InvocationResult::Return(return_value)) => {
+                // Convert back into a top-level return "value". We throw away the codec here,
+                // unfortunately.
+                let return_data = return_value
+                    .map(|blk| RawBytes::from(blk.data().to_vec()))
+                    .unwrap_or_default();
+
                 backtrace.clear();
                 Receipt {
                     exit_code: ExitCode::OK,

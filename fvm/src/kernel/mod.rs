@@ -1,11 +1,11 @@
-pub use blocks::{BlockId, BlockStat};
+pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
 use cid::Cid;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
@@ -22,10 +22,16 @@ mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
 use crate::machine::Machine;
 
+pub enum SendResult {
+    Return(BlockId, BlockStat),
+    Abort(ExitCode),
+}
+
+/// The "kernel" implements
 pub trait Kernel:
     ActorOps
     + BlockOps
@@ -43,8 +49,8 @@ pub trait Kernel:
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
 
-    /// Consume the [`Kernel`] and return the underlying [`CallManager`].
-    fn into_call_manager(self) -> Self::CallManager
+    /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized;
 
@@ -54,8 +60,10 @@ pub trait Kernel:
     /// - `actor_id` is the ID of _this_ actor.
     /// - `method` is the method that has been invoked.
     /// - `value_received` is value received due to the current call.
+    /// - `blocks` is the initial block registry (should already contain the parameters).
     fn new(
         mgr: Self::CallManager,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -122,20 +130,6 @@ pub trait BlockOps {
     ///
     /// This method will fail if the block handle is invalid.
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat>;
-
-    /// Returns a codec and a block as an owned buffer, given an ID.
-    ///
-    /// This method will fail if the block handle is invalid.
-    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
-        let stat = self.block_stat(id)?;
-        let mut ret = vec![0; stat.size as usize];
-        // TODO error handling.
-        let remaining = self.block_read(id, 0, &mut ret)?;
-        debug_assert_eq!(remaining, 0, "didn't read expected bytes");
-        Ok((stat.codec, ret))
-    }
-
-    // TODO: add a way to _flush_ new blocks.
 }
 
 /// Actor state access and manipulation.
@@ -192,9 +186,9 @@ pub trait SendOps {
         &mut self,
         recipient: &Address,
         method: u64,
-        params: &RawBytes,
+        params: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult>;
+    ) -> Result<SendResult>;
 }
 
 /// Operations to query the circulating supply.
