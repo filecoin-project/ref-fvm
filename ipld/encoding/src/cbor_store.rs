@@ -1,13 +1,13 @@
-use cid::{multihash, Cid};
+use cid::CidGeneric;
 use fvm_ipld_blockstore::{Block, Blockstore};
 use serde::{de, ser};
 
 use crate::DAG_CBOR;
 
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
-pub trait CborStore: Blockstore + Sized {
+pub trait CborStore<const S: usize>: Blockstore<S> + Sized {
     /// Get typed object from block store by Cid.
-    fn get_cbor<T>(&self, cid: &Cid) -> anyhow::Result<Option<T>>
+    fn get_cbor<T>(&self, cid: &CidGeneric<S>) -> anyhow::Result<Option<T>>
     where
         T: de::DeserializeOwned,
     {
@@ -21,9 +21,9 @@ pub trait CborStore: Blockstore + Sized {
     }
 
     /// Put an object in the block store and return the Cid identifier.
-    fn put_cbor<S>(&self, obj: &S, code: multihash::Code) -> anyhow::Result<Cid>
+    fn put_cbor<Ser>(&self, obj: &Ser, code: Self::CodeTable) -> anyhow::Result<CidGeneric<S>>
     where
-        S: ser::Serialize,
+        Ser: ser::Serialize,
     {
         let bytes = crate::to_vec(obj)?;
         self.put(
@@ -36,4 +36,4 @@ pub trait CborStore: Blockstore + Sized {
     }
 }
 
-impl<T: Blockstore> CborStore for T {}
+impl<const S: usize, T: Blockstore<S>> CborStore<S> for T {}

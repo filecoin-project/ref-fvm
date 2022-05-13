@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::convert::{TryFrom, TryInto};
+use std::fmt;
 
 use anyhow::anyhow;
-use cid::multihash::Code;
-use cid::Cid;
+use cid::CidGeneric;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{serde_bytes, BytesSer, CborStore};
 use once_cell::unsync::OnceCell;
@@ -13,21 +13,21 @@ use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Serialize};
 
 use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error, BLAKE2B_256};
 
 /// This represents a link to another Node
 #[derive(Debug)]
-pub(super) enum Link<V> {
+pub(super) enum Link<V, const S: usize> {
     /// Unchanged link to data with an atomic cache.
     Cid {
-        cid: Cid,
-        cache: OnceCell<Box<Node<V>>>,
+        cid: CidGeneric<S>,
+        cache: OnceCell<Box<Node<V, S>>>,
     },
     /// Modifications have been made to the link, requires flush to clear
-    Dirty(Box<Node<V>>),
+    Dirty(Box<Node<V, S>>),
 }
 
-impl<'de, V> Deserialize<'de> for Link<V>
+impl<'de, V, const S: usize> Deserialize<'de> for Link<V, S>
 where
     V: Deserialize<'de>,
 {
@@ -35,7 +35,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        let cid: Cid = Deserialize::deserialize(deserializer)?;
+        let cid: CidGeneric<S> = Deserialize::deserialize(deserializer)?;
         Ok(Link::Cid {
             cid,
             cache: Default::default(),
@@ -43,7 +43,7 @@ where
     }
 }
 
-impl<V> PartialEq for Link<V>
+impl<V, const S: usize> PartialEq for Link<V, S>
 where
     V: PartialEq,
 {
@@ -56,10 +56,10 @@ where
     }
 }
 
-impl<V> Eq for Link<V> where V: Eq {}
+impl<V, const S: usize> Eq for Link<V, S> where V: Eq {}
 
-impl<V> From<Cid> for Link<V> {
-    fn from(cid: Cid) -> Link<V> {
+impl<V, const S: usize> From<CidGeneric<S>> for Link<V, S> {
+    fn from(cid: CidGeneric<S>) -> Link<V, S> {
         Link::Cid {
             cid,
             cache: Default::default(),
@@ -70,20 +70,20 @@ impl<V> From<Cid> for Link<V> {
 /// Node represents either a shard of values in the form of bytes or links to other nodes
 #[derive(PartialEq, Eq, Debug)]
 #[allow(clippy::large_enum_variant)]
-pub(super) enum Node<V> {
+pub(super) enum Node<V, const S: usize> {
     /// Node is a link node, contains array of Cid or cached sub nodes.
-    Link { links: Vec<Option<Link<V>>> },
+    Link { links: Vec<Option<Link<V, S>>> },
     /// Leaf node, this array contains only values.
     Leaf { vals: Vec<Option<V>> },
 }
 
-impl<V> Serialize for Node<V>
+impl<V, const S: usize> Serialize for Node<V, S>
 where
     V: Serialize,
 {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    fn serialize<Ser>(&self, s: Ser) -> Result<Ser::Ok, Ser::Error>
     where
-        S: ser::Serializer,
+        Ser: ser::Serializer,
     {
         match &self {
             Node::Leaf { vals } => {
@@ -95,10 +95,10 @@ where
                         bmap[i / 8] |= 1 << (i % 8);
                     }
                 }
-                (BytesSer(&bmap), Vec::<&Cid>::new(), values).serialize(s)
+                (BytesSer(&bmap), Vec::<&CidGeneric<S>>::new(), values).serialize(s)
             }
             Node::Link { links } => {
-                let mut collapsed = Vec::<&Cid>::with_capacity(links.len());
+                let mut collapsed = Vec::<&CidGeneric<S>>::with_capacity(links.len());
                 let mut bmap = vec![0u8; ((links.len().saturating_sub(1)) / 8) + 1];
                 for (i, v) in links.iter().enumerate() {
                     if let Some(val) = v {
@@ -117,10 +117,14 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct CollapsedNode<V>(#[serde(with = "serde_bytes")] Vec<u8>, Vec<Cid>, Vec<V>);
+pub(crate) struct CollapsedNode<V, const S: usize>(
+    #[serde(with = "serde_bytes")] Vec<u8>,
+    Vec<CidGeneric<S>>,
+    Vec<V>,
+);
 
-impl<V> CollapsedNode<V> {
-    pub(crate) fn expand(self, bit_width: u32) -> Result<Node<V>, Error> {
+impl<V, const S: usize> CollapsedNode<V, S> {
+    pub(crate) fn expand(self, bit_width: u32) -> Result<Node<V, S>, Error> {
         let CollapsedNode(bmap, links, values) = self;
         if !links.is_empty() && !values.is_empty() {
             return Err(Error::LinksAndValues);
@@ -137,7 +141,7 @@ impl<V> CollapsedNode<V> {
 
         if !links.is_empty() {
             let mut links_iter = links.into_iter();
-            let mut links = init_sized_vec::<Link<V>>(bit_width);
+            let mut links = init_sized_vec::<Link<V, S>>(bit_width);
             for (i, v) in links.iter_mut().enumerate() {
                 if bmap[i / 8] & (1 << (i % 8)) != 0 {
                     *v = Some(Link::from(links_iter.next().ok_or_else(|| {
@@ -167,7 +171,7 @@ impl<V> CollapsedNode<V> {
     }
 }
 
-impl<V> Node<V>
+impl<V, const S: usize> Node<V, S>
 where
     V: Serialize + DeserializeOwned,
 {
@@ -180,7 +184,10 @@ where
     }
 
     /// Flushes cache for node, replacing any cached values with a Cid variant
-    pub(super) fn flush<DB: Blockstore>(&mut self, bs: &DB) -> Result<(), Error> {
+    pub(super) fn flush<DB: Blockstore<S>>(&mut self, bs: &DB) -> Result<(), Error>
+    where
+        <DB::CodeTable as TryFrom<u64>>::Error: fmt::Debug,
+    {
         if let Node::Link { links } = self {
             for link in links.iter_mut().flatten() {
                 // links should only be flushed if the bitmap is set.
@@ -189,7 +196,10 @@ where
                     n.flush(bs)?;
 
                     // Puts node in blockstore and and retrieves it's CID
-                    let cid = bs.put_cbor(n, Code::Blake2b256)?;
+                    let mh_code = DB::CodeTable::try_from(BLAKE2B_256).map_err(|_| {
+                        Error::Dynamic(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256))
+                    })?;
+                    let cid = bs.put_cbor(n, mh_code)?;
 
                     // Replace the data with some arbitrary node to move without requiring clone
                     let existing = std::mem::replace(n, Box::new(Node::empty()));
@@ -229,7 +239,7 @@ where
     }
 
     /// Gets value at given index of Amt given height
-    pub(super) fn get<DB: Blockstore>(
+    pub(super) fn get<DB: Blockstore<S>>(
         &self,
         bs: &DB,
         height: u32,
@@ -245,7 +255,7 @@ where
                 match links.get(sub_i).and_then(|v| v.as_ref()) {
                     Some(Link::Cid { cid, cache }) => {
                         let cached_node = cache.get_or_try_init(|| {
-                            bs.get_cbor::<CollapsedNode<V>>(cid)?
+                            bs.get_cbor::<CollapsedNode<V, S>>(cid)?
                                 .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                 .expand(bit_width)
                                 .map(Box::new)
@@ -271,7 +281,7 @@ where
     }
 
     /// Set value in node
-    pub(super) fn set<DB: Blockstore>(
+    pub(super) fn set<DB: Blockstore<S>>(
         &mut self,
         bs: &DB,
         height: u32,
@@ -296,7 +306,7 @@ where
                         sn
                     } else {
                         // Only retrieve sub node if not found in cache
-                        bs.get_cbor::<CollapsedNode<V>>(cid)?
+                        bs.get_cbor::<CollapsedNode<V, S>>(cid)?
                             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                             .expand(bit_width)
                             .map(Box::new)?
@@ -344,7 +354,7 @@ where
     }
 
     /// Delete value in Amt by index
-    pub(super) fn delete<DB: Blockstore>(
+    pub(super) fn delete<DB: Blockstore<S>>(
         &mut self,
         bs: &DB,
         height: u32,
@@ -382,7 +392,7 @@ where
                     Some(Link::Cid { cid, cache }) => {
                         // Take cache, will be replaced if no nodes deleted
                         cache.get_or_try_init(|| {
-                            bs.get_cbor::<CollapsedNode<V>>(cid)?
+                            bs.get_cbor::<CollapsedNode<V, S>>(cid)?
                                 .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                 .expand(bit_width)
                                 .map(Box::new)
@@ -419,9 +429,9 @@ where
         }
     }
 
-    pub(super) fn for_each_while<S, F>(
+    pub(super) fn for_each_while<BS, F>(
         &self,
-        bs: &S,
+        bs: &BS,
         height: u32,
         bit_width: u32,
         offset: u64,
@@ -429,7 +439,7 @@ where
     ) -> Result<bool, Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
-        S: Blockstore,
+        BS: Blockstore<S>,
     {
         match self {
             Node::Leaf { vals } => {
@@ -453,7 +463,7 @@ where
                             }
                             Link::Cid { cid, cache } => {
                                 let cached_node = cache.get_or_try_init(|| {
-                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
+                                    bs.get_cbor::<CollapsedNode<V, S>>(cid)?
                                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)
@@ -478,9 +488,9 @@ where
     /// a closure call returned `Ok(false)`, indicating that a `break` has happened.
     /// `did_mutate` will be `true` iff any of the values in the node was actually
     /// mutated inside the closure, requiring the node to be cached.
-    pub(super) fn for_each_while_mut<S, F>(
+    pub(super) fn for_each_while_mut<BS, F>(
         &mut self,
-        bs: &S,
+        bs: &BS,
         height: u32,
         bit_width: u32,
         offset: u64,
@@ -488,7 +498,7 @@ where
     ) -> Result<(bool, bool), Error>
     where
         F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
-        S: Blockstore,
+        BS: Blockstore<S>,
     {
         let mut did_mutate = false;
 
@@ -517,7 +527,7 @@ where
                             }
                             Link::Cid { cid, cache } => {
                                 cache.get_or_try_init(|| {
-                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
+                                    bs.get_cbor::<CollapsedNode<V, S>>(cid)?
                                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                         .expand(bit_width)
                                         .map(Box::new)
@@ -564,7 +574,7 @@ mod tests {
         let node = Node::Leaf { vals: vec![None] };
         let nbz = to_vec(&node).unwrap();
         assert_eq!(
-            from_slice::<CollapsedNode<u8>>(&nbz)
+            from_slice::<CollapsedNode<u8, 64>>(&nbz)
                 .unwrap()
                 .expand(0)
                 .unwrap(),

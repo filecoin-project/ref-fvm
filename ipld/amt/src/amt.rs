@@ -1,9 +1,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::convert::TryFrom;
+use std::fmt;
+
 use anyhow::anyhow;
-use cid::multihash::Code;
-use cid::Cid;
+use cid::CidGeneric;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
@@ -13,7 +15,8 @@ use itertools::sorted;
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    init_sized_vec, nodes_for_height, Error, Node, Root, BLAKE2B_256, DEFAULT_BIT_WIDTH,
+    MAX_HEIGHT, MAX_INDEX,
 };
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
@@ -38,21 +41,21 @@ use crate::{
 /// let cid = amt.flush().unwrap();
 /// ```
 #[derive(Debug)]
-pub struct Amt<V, BS> {
-    root: Root<V>,
+pub struct Amt<V, BS: Blockstore<S>, const S: usize> {
+    root: Root<V, S>,
     block_store: BS,
 }
 
-impl<V: PartialEq, BS: Blockstore> PartialEq for Amt<V, BS> {
+impl<V: PartialEq, BS: Blockstore<S>, const S: usize> PartialEq for Amt<V, BS, S> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<V, BS> Amt<V, BS>
+impl<V, BS, const S: usize> Amt<V, BS, S>
 where
     V: DeserializeOwned + Serialize,
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
     /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
@@ -72,9 +75,12 @@ where
     }
 
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
-    pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
+    pub fn load(cid: &CidGeneric<S>, block_store: BS) -> Result<Self, Error>
+    where
+        <BS::CodeTable as TryFrom<u64>>::Error: fmt::Debug,
+    {
         // Load root bytes from database
-        let root: Root<V> = block_store
+        let root: Root<V, S> = block_store
             .get_cbor(cid)?
             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?;
 
@@ -97,7 +103,13 @@ where
     }
 
     /// Generates an AMT with block store and array of cbor marshallable objects and returns Cid
-    pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
+    pub fn new_from_iter(
+        block_store: BS,
+        vals: impl IntoIterator<Item = V>,
+    ) -> Result<CidGeneric<S>, Error>
+    where
+        <BS::CodeTable as TryFrom<u64>>::Error: fmt::Debug,
+    {
         let mut t = Self::new(block_store);
 
         t.batch_set(vals)?;
@@ -130,7 +142,7 @@ where
             // node at index exists
             if !self.root.node.is_empty() {
                 // Parent node for expansion
-                let mut new_links: Vec<Option<Link<V>>> = init_sized_vec(self.root.bit_width);
+                let mut new_links: Vec<Option<Link<V, S>>> = init_sized_vec(self.root.bit_width);
 
                 // Take root node to be moved down
                 let node = std::mem::replace(&mut self.root.node, Node::empty());
@@ -204,7 +216,7 @@ where
             // Handle collapsing node when the root is a link node with only one link,
             // sub node can be moved up into the root.
             while self.root.node.can_collapse() && self.height() > 0 {
-                let sub_node: Node<V> = match &mut self.root.node {
+                let sub_node: Node<V, S> = match &mut self.root.node {
                     Node::Link { links, .. } => match &mut links[0] {
                         Some(Link::Dirty(node)) => {
                             *std::mem::replace(node, Box::new(Node::empty()))
@@ -216,7 +228,7 @@ where
                             } else {
                                 // Only retrieve sub node if not found in cache
                                 self.block_store
-                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .get_cbor::<CollapsedNode<V, S>>(cid)?
                                     .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
                                     .expand(self.root.bit_width)?
                             }
@@ -259,9 +271,14 @@ where
     }
 
     /// flush root and return Cid used as key in block store
-    pub fn flush(&mut self) -> Result<Cid, Error> {
+    pub fn flush(&mut self) -> Result<CidGeneric<S>, Error>
+    where
+        <BS::CodeTable as TryFrom<u64>>::Error: fmt::Debug,
+    {
         self.root.node.flush(&self.block_store)?;
-        Ok(self.block_store.put_cbor(&self.root, Code::Blake2b256)?)
+        let mh_code = BS::CodeTable::try_from(BLAKE2B_256)
+            .map_err(|_| Error::Dynamic(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256)))?;
+        Ok(self.block_store.put_cbor(&self.root, mh_code)?)
     }
 
     /// Iterates over each value in the Amt and runs a function on the values.

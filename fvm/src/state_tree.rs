@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
-use cid::{multihash, Cid};
+use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
@@ -14,7 +14,7 @@ use fvm_shared::address::{Address, Payload};
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
-use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
+use fvm_shared::{ActorID, BLAKE2B_256, HAMT_BIT_WIDTH};
 
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
@@ -208,8 +208,11 @@ where
                 )))
             }
             StateTreeVersion::V3 | StateTreeVersion::V4 => {
+                let mh_code = S::CodeTable::try_from(BLAKE2B_256).map_err(|_| {
+                    ExecutionError::Fatal(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256))
+                })?;
                 let cid = store
-                    .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
+                    .put_cbor(&StateInfo0::default(), mh_code)
                     .context("failed to put state info")
                     .or_fatal()?;
                 Some(cid)
@@ -425,11 +428,10 @@ where
 
         let new_addr = state.map_address_to_new_id(self.store(), addr)?;
 
+        let mh_code = S::CodeTable::try_from(BLAKE2B_256)
+            .map_err(|_| ExecutionError::Fatal(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256)))?;
         // Set state for init actor in store and update root Cid
-        actor.state = self
-            .store()
-            .put_cbor(&state, multihash::Code::Blake2b256)
-            .or_fatal()?;
+        actor.state = self.store().put_cbor(&state, mh_code).or_fatal()?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
 
@@ -486,10 +488,10 @@ where
                     actors: root,
                     info: cid,
                 };
-                let root = self
-                    .store()
-                    .put_cbor(obj, multihash::Code::Blake2b256)
-                    .or_fatal()?;
+                let mh_code = S::CodeTable::try_from(BLAKE2B_256).map_err(|_| {
+                    ExecutionError::Fatal(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256))
+                })?;
+                let root = self.store().put_cbor(obj, mh_code).or_fatal()?;
                 Ok(root)
             }
         }

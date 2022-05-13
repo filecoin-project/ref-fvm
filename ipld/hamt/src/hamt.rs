@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use std::marker::PhantomData;
 
+use anyhow::anyhow;
 use cid::Cid;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
 use crate::node::Node;
-use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
+use crate::{Error, Hash, HashAlgorithm, Sha256, BLAKE2B_256, DEFAULT_BIT_WIDTH};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -275,7 +276,9 @@ where
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
         self.root.flush(self.store.borrow())?;
-        Ok(self.store.put_cbor(&self.root, Code::Blake2b256)?)
+        let mh_code = BS::CodeTable::try_from(BLAKE2B_256)
+            .map_err(|_| Error::Dynamic(anyhow!("Unsupported hasher: {:?}", BLAKE2B_256)))?;
+        Ok(self.store.put_cbor(&self.root, mh_code)?)
     }
 
     /// Returns true if the HAMT has no entries

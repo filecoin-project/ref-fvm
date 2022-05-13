@@ -9,14 +9,14 @@ use crate::{init_sized_vec, Node};
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
 #[derive(PartialEq, Debug)]
-pub(super) struct Root<V> {
+pub(super) struct Root<V, const S: usize> {
     pub bit_width: u32,
     pub height: u32,
     pub count: u64,
-    pub node: Node<V>,
+    pub node: Node<V, S>,
 }
 
-impl<V> Root<V> {
+impl<V, const S: usize> Root<V, S> {
     pub(super) fn new(bit_width: u32) -> Self {
         Self {
             bit_width,
@@ -29,19 +29,19 @@ impl<V> Root<V> {
     }
 }
 
-impl<V> Serialize for Root<V>
+impl<V, const S: usize> Serialize for Root<V, S>
 where
     V: Serialize,
 {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    fn serialize<Ser>(&self, s: Ser) -> Result<Ser::Ok, Ser::Error>
     where
-        S: ser::Serializer,
+        Ser: ser::Serializer,
     {
         (&self.bit_width, &self.height, &self.count, &self.node).serialize(s)
     }
 }
 
-impl<'de, V> Deserialize<'de> for Root<V>
+impl<'de, V, const S: usize> Deserialize<'de> for Root<V, S>
 where
     V: Deserialize<'de>,
 {
@@ -49,7 +49,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
+        let (bit_width, height, count, node): (_, _, _, CollapsedNode<V, S>) =
             Deserialize::deserialize(deserializer)?;
         Ok(Self {
             bit_width,

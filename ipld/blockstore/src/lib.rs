@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
 use anyhow::Result;
-use cid::{multihash, Cid};
+use cid::multihash::MultihashDigest;
+use cid::CidGeneric;
 
 pub mod tracking;
 
@@ -9,14 +10,22 @@ mod memory;
 pub use memory::MemoryBlockstore;
 
 mod block;
-pub use block::*;
+pub use block::Block;
+
+/// The default size for multihashes is currently set to `64` as it's the value the `multihash` is
+/// using is its default code table. Once a custom code table is used, it could be reduced to `32`.
+const DEFAULT_MULTIHASH_ALLOC_SIZE: usize = 64;
 
 /// An IPLD blockstore suitable for injection into the FVM.
 ///
 /// The cgo blockstore adapter implements this trait.
-pub trait Blockstore {
+///
+pub trait Blockstore<const S: usize = DEFAULT_MULTIHASH_ALLOC_SIZE> {
+    /// The Multihash code table to use.
+    type CodeTable: MultihashDigest<S>;
+
     /// Gets the block from the blockstore.
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>>;
+    fn get(&self, k: &CidGeneric<S>) -> Result<Option<Vec<u8>>>;
 
     /// Put a block with a pre-computed cid.
     ///
@@ -24,17 +33,17 @@ pub trait Blockstore {
     /// even if you provide it.
     ///
     /// If you _do_ already know the CID, use this method as some blockstores _won't_ recompute it.
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()>;
+    fn put_keyed(&self, k: &CidGeneric<S>, block: &[u8]) -> Result<()>;
 
     /// Checks if the blockstore has the specified block.
-    fn has(&self, k: &Cid) -> Result<bool> {
+    fn has(&self, k: &CidGeneric<S>) -> Result<bool> {
         Ok(self.get(k)?.is_some())
     }
 
     /// Puts the block into the blockstore, computing the hash with the specified multicodec.
     ///
     /// By default, this defers to put.
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, mh_code: Self::CodeTable, block: &Block<D>) -> Result<CidGeneric<S>>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -59,7 +68,7 @@ pub trait Blockstore {
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (Self::CodeTable, Block<D>)>,
     {
         self.put_many_keyed(blocks.into_iter().map(|(mc, b)| (b.cid(mc), b)))?;
         Ok(())
@@ -72,7 +81,7 @@ pub trait Blockstore {
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
+        I: IntoIterator<Item = (CidGeneric<S>, D)>,
     {
         for (c, b) in blocks {
             self.put_keyed(&c, b.as_ref())?
@@ -81,27 +90,29 @@ pub trait Blockstore {
     }
 }
 
-pub trait Buffered: Blockstore {
-    fn flush(&self, root: &Cid) -> Result<()>;
+pub trait Buffered<const S: usize>: Blockstore<S> {
+    fn flush(&self, root: &CidGeneric<S>) -> Result<()>;
 }
 
-impl<BS> Blockstore for &BS
+impl<BS, const S: usize> Blockstore<S> for &BS
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
+    type CodeTable = BS::CodeTable;
+
+    fn get(&self, k: &CidGeneric<S>) -> Result<Option<Vec<u8>>> {
         (*self).get(k)
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+    fn put_keyed(&self, k: &CidGeneric<S>, block: &[u8]) -> Result<()> {
         (*self).put_keyed(k, block)
     }
 
-    fn has(&self, k: &Cid) -> Result<bool> {
+    fn has(&self, k: &CidGeneric<S>) -> Result<bool> {
         (*self).has(k)
     }
 
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, mh_code: Self::CodeTable, block: &Block<D>) -> Result<CidGeneric<S>>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -113,7 +124,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (Self::CodeTable, Block<D>)>,
     {
         (*self).put_many(blocks)
     }
@@ -122,29 +133,31 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
+        I: IntoIterator<Item = (CidGeneric<S>, D)>,
     {
         (*self).put_many_keyed(blocks)
     }
 }
 
-impl<BS> Blockstore for Rc<BS>
+impl<BS, const S: usize> Blockstore<S> for Rc<BS>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
+    type CodeTable = BS::CodeTable;
+
+    fn get(&self, k: &CidGeneric<S>) -> Result<Option<Vec<u8>>> {
         (**self).get(k)
     }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+    fn put_keyed(&self, k: &CidGeneric<S>, block: &[u8]) -> Result<()> {
         (**self).put_keyed(k, block)
     }
 
-    fn has(&self, k: &Cid) -> Result<bool> {
+    fn has(&self, k: &CidGeneric<S>) -> Result<bool> {
         (**self).has(k)
     }
 
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, mh_code: Self::CodeTable, block: &Block<D>) -> Result<CidGeneric<S>>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -156,7 +169,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (Self::CodeTable, Block<D>)>,
     {
         (**self).put_many(blocks)
     }
@@ -165,7 +178,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
+        I: IntoIterator<Item = (CidGeneric<S>, D)>,
     {
         (**self).put_many_keyed(blocks)
     }

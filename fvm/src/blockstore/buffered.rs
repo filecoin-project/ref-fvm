@@ -3,7 +3,7 @@
 
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use cid::Cid;
+use cid::CidGeneric;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
 
 // TODO: figure out where to put this.
@@ -17,14 +17,14 @@ use std::io::{Cursor, Read, Seek};
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
 #[derive(Debug)]
-pub struct BufferedBlockstore<BS> {
+pub struct BufferedBlockstore<BS: Blockstore<S>, const S: usize> {
     base: BS,
-    write: RefCell<HashMap<Cid, Vec<u8>>>,
+    write: RefCell<HashMap<CidGeneric<S>, Vec<u8>>>,
 }
 
-impl<BS> BufferedBlockstore<BS>
+impl<BS, const S: usize> BufferedBlockstore<BS, S>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
     pub fn new(base: BS) -> Self {
         Self {
@@ -38,14 +38,14 @@ where
     }
 }
 
-impl<BS> Buffered for BufferedBlockstore<BS>
+impl<BS, const S: usize> Buffered<S> for BufferedBlockstore<BS, S>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
     /// root Cid.
-    fn flush(&self, root: &Cid) -> Result<()> {
+    fn flush(&self, root: &CidGeneric<S>) -> Result<()> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
         copy_rec(&s, *root, &mut buffer)?;
@@ -114,9 +114,9 @@ fn cbor_read_header_buf<B: Read>(br: &mut B, scratch: &mut [u8]) -> anyhow::Resu
 /// Given a CBOR serialized IPLD buffer, read through all of it and return all the Links.
 /// This function is useful because it is quite a bit more fast than doing this recursively on a
 /// deserialized IPLD object.
-fn scan_for_links<B: Read + Seek, F>(buf: &mut B, mut callback: F) -> Result<()>
+fn scan_for_links<B: Read + Seek, F, const S: usize>(buf: &mut B, mut callback: F) -> Result<()>
 where
-    F: FnMut(Cid) -> anyhow::Result<()>,
+    F: FnMut(CidGeneric<S>) -> anyhow::Result<()>,
 {
     let mut scratch: [u8; 100] = [0; 100];
     let mut remaining = 1;
@@ -142,7 +142,7 @@ where
                         return Err(anyhow!("string in cbor input too long"));
                     }
                     buf.read_exact(&mut scratch[..extra])?;
-                    let c = Cid::try_from(&scratch[1..extra])?;
+                    let c = CidGeneric::try_from(&scratch[1..extra])?;
                     callback(c)?;
                 } else {
                     remaining += 1;
@@ -166,10 +166,10 @@ where
 }
 
 /// Copies the IPLD DAG under `root` from the cache to the base store.
-fn copy_rec<'a>(
-    cache: &'a HashMap<Cid, Vec<u8>>,
-    root: Cid,
-    buffer: &mut Vec<(Cid, &'a [u8])>,
+fn copy_rec<'a, const S: usize>(
+    cache: &'a HashMap<CidGeneric<S>, Vec<u8>>,
+    root: CidGeneric<S>,
+    buffer: &mut Vec<(CidGeneric<S>, &'a [u8])>,
 ) -> Result<()> {
     // TODO: Make this non-recursive.
     // Skip identity and Filecoin commitment Cids
@@ -201,11 +201,13 @@ fn copy_rec<'a>(
     Ok(())
 }
 
-impl<BS> Blockstore for BufferedBlockstore<BS>
+impl<BS, const S: usize> Blockstore<S> for BufferedBlockstore<BS, S>
 where
-    BS: Blockstore,
+    BS: Blockstore<S>,
 {
-    fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+    type CodeTable = BS::CodeTable;
+
+    fn get(&self, cid: &CidGeneric<S>) -> Result<Option<Vec<u8>>> {
         Ok(if let Some(data) = self.write.borrow().get(cid) {
             Some(data.clone())
         } else {
@@ -213,12 +215,12 @@ where
         })
     }
 
-    fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {
+    fn put_keyed(&self, cid: &CidGeneric<S>, buf: &[u8]) -> Result<()> {
         self.write.borrow_mut().insert(*cid, Vec::from(buf));
         Ok(())
     }
 
-    fn has(&self, k: &Cid) -> Result<bool> {
+    fn has(&self, k: &CidGeneric<S>) -> Result<bool> {
         if self.write.borrow().contains_key(k) {
             Ok(true)
         } else {
@@ -230,7 +232,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
+        I: IntoIterator<Item = (CidGeneric<S>, D)>,
     {
         self.write
             .borrow_mut()
@@ -242,6 +244,7 @@ where
 #[cfg(test)]
 mod tests {
     use cid::multihash::{Code, Multihash};
+    use cid::Cid;
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
     use fvm_shared::{commcid, IDENTITY_HASH};
