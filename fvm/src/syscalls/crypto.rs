@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::{cmp, iter};
 
-use anyhow::Context as _;
+use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, DAG_CBOR};
 use fvm_shared::address::Address;
@@ -90,25 +90,21 @@ pub fn compute_unsealed_sector_cid(
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32> {
+    // Check/read all arguments.
+    let typ = RegisteredSealProof::from(proof_type);
+    if let RegisteredSealProof::Invalid(invalid) = typ {
+        return Err(syscall_error!(IllegalArgument; "invalid proof type {}", invalid).into());
+    }
     let pieces: Vec<PieceInfo> = context.memory.read_cbor(pieces_off, pieces_len)?;
-    let typ = RegisteredSealProof::from(proof_type); // TODO handle Invalid?
+    context.memory.check_bounds(cid_off, cid_len)?;
+
+    // Compute
     let cid = context
         .kernel
         .compute_unsealed_sector_cid(typ, pieces.as_slice())?;
-    let mut out = context.memory.try_slice_mut(cid_off, cid_len)?;
 
-    // The CID lib should really return the number of bytes written...
-    // cid.write_bytes(&mut out).or_fatal()
-    let bytes = cid.to_bytes();
-    let len = bytes.len();
-    if len > out.len() {
-        return Err(syscall_error!(
-            IllegalArgument;
-            "output buffer too small; CID length: {}, buffer length: {}", len, out.len())
-        .into());
-    }
-    out[..bytes.len()].copy_from_slice(bytes.as_slice());
-    Ok(bytes.len() as u32)
+    // REturn
+    context.memory.write_cid(&cid, cid_off, cid_len)
 }
 
 /// Verifies a sector seal proof.
@@ -238,14 +234,28 @@ pub fn batch_verify_seals(
     batch_len: u32,
     result_off: u32,
 ) -> Result<()> {
+    // Check and decode params.
     let batch = context
         .memory
         .read_cbor::<Vec<SealVerifyInfo>>(batch_off, batch_len)?;
-
-    let mut result = context.kernel.batch_verify_seals(&batch)?;
     let output = context
         .memory
-        .try_slice_mut(result_off, result.len() as u32)?;
+        .try_slice_mut(result_off, batch.len() as u32)?;
+
+    // Execute.
+    let mut result = context.kernel.batch_verify_seals(&batch)?;
+
+    // Sanity check that we got the correct number of results.
+    if result.len() != batch.len() {
+        return Err(anyhow!(
+            "expected one result per input: {} != {}",
+            batch.len(),
+            result.len()
+        ))
+        .or_fatal();
+    }
+
+    // Return.
     unsafe {
         output.copy_from_slice(&*(&*result as *const [bool] as *const [u8]));
     }

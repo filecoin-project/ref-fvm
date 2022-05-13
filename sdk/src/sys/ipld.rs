@@ -85,10 +85,7 @@ super::fvm_syscalls! {
 
     // TODO: CID versions?
 
-    /// Computes the given block's CID, writing the resulting CID into `cid`, returning the actual
-    /// size of the CID.
-    ///
-    /// If the CID is longer than `cid_max_len`, no data is written and the actual size is returned.
+    /// Computes the given block's CID, writing the resulting CID into `cid`.
     ///
     /// The returned CID is added to the reachable set.
     ///
@@ -99,6 +96,10 @@ super::fvm_syscalls! {
     /// - `hash_len` is the desired length of the hash digest.
     /// - `cid` is the output buffer (in wasm memory) where the FVM will write the resulting cid.
     /// - `cid_max_length` is the length of the output CID buffer.
+    ///
+    /// # Returns
+    ///
+    /// The length of the CID.
     ///
     /// # Errors
     ///

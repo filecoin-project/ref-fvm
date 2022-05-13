@@ -1,8 +1,7 @@
-use anyhow::Context as _;
 use fvm_shared::sys;
 
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::Result;
 use crate::Kernel;
 
 pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
@@ -33,19 +32,14 @@ pub fn cid(
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32> {
+    // Check arguments first.
+    context.memory.check_bounds(cid_off, cid_len)?;
+
+    // Link
     let cid = context.kernel.block_link(id, hash_fun, hash_len)?;
 
-    let size = super::encoded_cid_size(&cid);
-    if size > cid_len {
-        return Ok(size);
-    }
-
-    let mut out_slice = context.memory.try_slice_mut(cid_off, cid_len)?;
-
-    cid.write_bytes(&mut out_slice)
-        .context("failed to encode cid")
-        .or_fatal()?;
-    Ok(size)
+    // Return
+    context.memory.write_cid(&cid, cid_off, cid_len)
 }
 
 pub fn read(

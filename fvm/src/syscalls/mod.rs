@@ -1,7 +1,6 @@
 use std::mem;
 
 use anyhow::{anyhow, Context as _};
-use cid::Cid;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
@@ -177,22 +176,4 @@ pub fn bind_syscalls(
     linker.bind("debug", "enabled", debug::enabled)?;
 
     Ok(())
-}
-
-// Computes the encoded size of a varint.
-// TODO: move this to the varint crate.
-pub(self) fn uvarint_size(num: u64) -> u32 {
-    let bits = u64::BITS - num.leading_zeros();
-    ((bits / 7) + (bits % 7 > 0) as u32).max(1) as u32
-}
-
-/// Returns the size cid would be, once encoded.
-// TODO: move this to the cid/multihash crates.
-pub(self) fn encoded_cid_size(k: &Cid) -> u32 {
-    let mh = k.hash();
-    let mh_size = uvarint_size(mh.code()) + uvarint_size(mh.size() as u64) + mh.size() as u32;
-    match k.version() {
-        cid::Version::V0 => mh_size,
-        cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
-    }
 }

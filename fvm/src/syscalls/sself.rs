@@ -10,19 +10,11 @@ use crate::kernel::{ClassifyResult, Kernel, Result};
 /// buffer is smaller, no value will have been written. The caller must retry
 /// with a larger buffer.
 pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> Result<u32> {
+    context.memory.check_bounds(obuf_off, obuf_len)?;
+
     let root = context.kernel.root()?;
-    let size = super::encoded_cid_size(&root);
 
-    if size <= obuf_len {
-        // Only write the CID if there's sufficient capacity.
-        let mut obuf = context.memory.try_slice_mut(obuf_off, size)?;
-
-        root.write_bytes(&mut obuf)
-            .context("failed to write cid root")
-            .or_fatal()?;
-    }
-
-    Ok(size)
+    context.memory.write_cid(&root, obuf_off, obuf_len)
 }
 
 pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {

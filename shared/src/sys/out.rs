@@ -14,15 +14,6 @@
 //
 // Also, please also read the docs on super::SyscallSafe before modifying any of these types.
 
-pub mod actor {
-    #[derive(Debug, Copy, Clone)]
-    #[repr(packed, C)]
-    pub struct ResolveAddress {
-        pub value: u64,
-        pub resolved: i32,
-    }
-}
-
 pub mod ipld {
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
