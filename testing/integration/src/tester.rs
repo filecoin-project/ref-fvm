@@ -107,7 +107,7 @@ where
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
             let priv_key = SecretKey::random(rng);
-            *account = self.put_secp256k1_accounts(
+            *account = self.make_secp256k1_account(
                 priv_key,
                 TokenAmount::from(10u8) * TokenAmount::from(1000),
             )?;
@@ -209,7 +209,7 @@ where
     }
 
     /// Put account with specified private key and balance
-    pub fn put_secp256k1_accounts(
+    pub fn make_secp256k1_account(
         &mut self,
         priv_key: SecretKey,
         init_balance: TokenAmount,
