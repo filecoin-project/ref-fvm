@@ -416,7 +416,6 @@ where
                         source: to,
                         method,
                         message,
-                        params: params.clone(),
                         code,
                     });
 
