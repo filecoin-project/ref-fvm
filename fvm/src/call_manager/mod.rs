@@ -1,11 +1,10 @@
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
-use crate::kernel::Result;
+use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
 use crate::Kernel;
@@ -52,7 +51,7 @@ pub trait CallManager: 'static {
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<kernel::Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
 
@@ -125,7 +124,7 @@ pub trait CallManager: 'static {
 #[derive(Clone, Debug)]
 pub enum InvocationResult {
     /// Indicates that the actor successfully returned. The value may be empty.
-    Return(RawBytes),
+    Return(Option<kernel::Block>),
     /// Indicates that the actor aborted with the given exit code.
     Failure(ExitCode),
 }

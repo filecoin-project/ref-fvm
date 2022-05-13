@@ -35,6 +35,8 @@ pub fn send(
         let fvm_shared::sys::out::send::Send {
             exit_code,
             return_id,
+            return_codec: _, // assume cbor for now.
+            return_size,
         } = sys::send::send(
             recipient.as_ptr(),
             recipient.len() as u32,
@@ -48,8 +50,12 @@ pub fn send(
         let exit_code = ExitCode::new(exit_code);
         let return_data = match exit_code {
             ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
+                // Allocate a buffer to read the return data.
+                let mut bytes = vec![0; return_size as usize];
+
                 // Now read the return data.
-                let bytes = crate::ipld::get_block(return_id, None)?;
+                let unread = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+                assert_eq!(0, unread);
                 RawBytes::from(bytes)
             }
             _ => Default::default(),

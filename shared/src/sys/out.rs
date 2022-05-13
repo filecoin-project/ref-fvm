@@ -39,6 +39,8 @@ pub mod send {
     pub struct Send {
         pub exit_code: u32,
         pub return_id: BlockId,
+        pub return_codec: u64,
+        pub return_size: u32,
     }
 }
 
