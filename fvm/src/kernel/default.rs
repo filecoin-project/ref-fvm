@@ -33,14 +33,8 @@ use super::*;
 use crate::call_manager::{CallManager, InvocationResult};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
-use crate::market_actor::State as MarketActorState;
-use crate::power_actor::State as PowerActorState;
-use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
 use crate::{syscall_error, EMPTY_ARR_CID};
-
-pub const BURN_ACTOR_ID: ActorID = 99;
-pub const RESERVE_ACTOR_ID: ActorID = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -158,45 +152,6 @@ where
             .or_fatal()?; // because we've checked and this should be an account.
 
         Ok(state.address)
-    }
-
-    fn get_burnt_funds(&self) -> Result<TokenAmount> {
-        Ok(self
-            .call_manager
-            .state_tree()
-            .get_actor_id(BURN_ACTOR_ID)?
-            .context("burn actor state couldn't be loaded")
-            .or_fatal()?
-            .balance)
-    }
-
-    fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let reserve_balance = self
-            .call_manager
-            .state_tree()
-            .get_actor_id(RESERVE_ACTOR_ID)?
-            .context("failed to load reserve actor when determining reserve disbursed")
-            .or_fatal()?
-            .balance;
-        Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
-    }
-
-    fn get_fil_mined(&self) -> Result<TokenAmount> {
-        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())
-            .context("failed to load reward actor state when getting FIL mined")?;
-        Ok(reward_state.total_storage_power_reward())
-    }
-
-    fn power_locked(&self) -> Result<TokenAmount> {
-        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())
-            .context("failed to load power actor state when determining locked FIL")?;
-        Ok(power_state.total_locked())
-    }
-
-    fn market_locked(&self) -> Result<TokenAmount> {
-        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())
-            .context("failed to load market actor state when determining locked FIL")?;
-        Ok(market_state.total_locked())
     }
 
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
@@ -432,24 +387,10 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        let circ_supply = if self.network_version() <= NetworkVersion::V14 {
-            // Pre-v15 the circ supply was dynamically calculated on the Filecoin mainnet,
-            // meaning it fluctuated within an epoch (as messages were executed). This forced the FVM
-            // to do much of the calculation in order to support v14.
-            (&self.call_manager.context().circ_supply
-                + &self.get_fil_mined()?
-                + &self.get_reserve_disbursed()?
-                - &self.get_burnt_funds()?
-                - &self.power_locked()?
-                - &self.market_locked()?)
-                .max(Zero::zero())
-        } else {
-            // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
-            // The value reported to the FVM from clients is now the static value,
-            // the FVM simply reports that value to actors.
-            self.call_manager.context().circ_supply.clone()
-        };
-        Ok(circ_supply)
+        // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
+        // The value reported to the FVM from clients is now the static value,
+        // the FVM simply reports that value to actors.
+        Ok(self.call_manager.context().circ_supply.clone())
     }
 }
 

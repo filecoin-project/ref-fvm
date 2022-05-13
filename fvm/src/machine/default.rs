@@ -60,7 +60,7 @@ where
         externs: E,
     ) -> anyhow::Result<Self> {
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
-            NetworkVersion::V14..=NetworkVersion::V16;
+            NetworkVersion::V15..=NetworkVersion::V16;
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
