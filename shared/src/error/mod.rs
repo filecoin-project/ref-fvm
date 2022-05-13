@@ -114,6 +114,7 @@ impl ExitCode {
 /// When a syscall fails, it returns an `ErrorNumber` to indicate why. The syscalls themselves
 /// include documentation on _which_ syscall errors they can be expected to return, and what they
 /// mean in the context of the syscall.
+#[non_exhaustive]
 #[repr(u32)]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Error, FromPrimitive)]
 pub enum ErrorNumber {
