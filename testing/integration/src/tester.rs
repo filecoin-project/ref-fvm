@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
@@ -13,6 +13,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
+use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
 use crate::builtin::{
@@ -97,9 +98,21 @@ where
     }
 
     /// Creates new accounts in the testing context
+    /// Inserts the specified number of accounts in the state tree, all with 1000 FIL，returning their IDs and Addresses.
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
-        // Create accounts.
-        put_secp256k1_accounts(self.state_tree.as_mut().unwrap(), self.accounts_code_cid)
+        use rand::SeedableRng;
+
+        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
+
+        let mut ret: [Account; N] = [(0, Address::default()); N];
+        for account in ret.iter_mut().take(N) {
+            let priv_key = SecretKey::random(rng);
+            *account = self.make_secp256k1_account(
+                priv_key,
+                TokenAmount::from(10u8) * TokenAmount::from(1000),
+            )?;
+        }
+        Ok(ret)
     }
 
     /// Set a new state in the state tree
@@ -194,23 +207,20 @@ where
             self.state_tree.as_ref().unwrap().store()
         }
     }
-}
-/// Inserts the specified number of accounts in the state tree, all with 1000 FIL,
-/// returning their IDs and Addresses.
-fn put_secp256k1_accounts<const N: usize>(
-    state_tree: &mut StateTree<impl Blockstore>,
-    account_code_cid: Cid,
-) -> Result<[Account; N]> {
-    use libsecp256k1::{PublicKey, SecretKey};
-    use rand::SeedableRng;
 
-    let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
-
-    let mut ret: [Account; N] = [(0, Address::default()); N];
-    for account in ret.iter_mut().take(N) {
-        let priv_key = SecretKey::random(rng);
+    /// Put account with specified private key and balance
+    pub fn make_secp256k1_account(
+        &mut self,
+        priv_key: SecretKey,
+        init_balance: TokenAmount,
+    ) -> Result<Account> {
         let pub_key = PublicKey::from_secret_key(&priv_key);
         let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
+
+        let state_tree = self
+            .state_tree
+            .as_mut()
+            .ok_or_else(|| anyhow!("unable get state tree"))?;
         let assigned_addr = state_tree.register_new_address(&pub_key_addr).unwrap();
         let state = fvm::account_actor::State {
             address: pub_key_addr,
@@ -219,21 +229,18 @@ fn put_secp256k1_accounts<const N: usize>(
         let cid = state_tree.store().put_cbor(&state, Code::Blake2b256)?;
 
         let actor_state = ActorState {
-            code: account_code_cid,
+            code: self.accounts_code_cid,
             state: cid,
             sequence: 0,
-            balance: TokenAmount::from(10u8) * TokenAmount::from(1000),
+            balance: init_balance,
         };
 
         state_tree
             .set_actor(&Address::new_id(assigned_addr), actor_state)
             .map_err(anyhow::Error::from)?;
-
-        *account = (assigned_addr, pub_key_addr);
+        Ok((assigned_addr, pub_key_addr))
     }
-    Ok(ret)
 }
-
 /// Inserts the WASM code for the actor into the blockstore.
 fn put_wasm_code(blockstore: &impl Blockstore, wasm_binary: &[u8]) -> Result<Cid> {
     let cid = blockstore.put(
