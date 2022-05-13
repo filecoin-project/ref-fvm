@@ -16,7 +16,6 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::receipt::Receipt;
 use serde::{Deserialize, Deserializer};
 
@@ -113,7 +112,7 @@ pub enum RandomnessKind {
 #[derive(Debug, Deserialize_tuple, PartialEq, Clone)]
 pub struct RandomnessRule {
     pub kind: RandomnessKind,
-    pub dst: DomainSeparationTag,
+    pub dst: i64,
     pub epoch: ChainEpoch,
     #[serde(with = "base64_bytes")]
     pub entropy: Vec<u8>,

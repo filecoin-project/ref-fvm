@@ -4,7 +4,6 @@ use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -301,7 +300,7 @@ pub trait RandomnessOps {
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
@@ -311,7 +310,7 @@ pub trait RandomnessOps {
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
     fn get_randomness_from_beacon(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
