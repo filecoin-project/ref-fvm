@@ -9,18 +9,12 @@ use crate::{sys, MAX_CID_LEN};
 /// Get the IPLD root CID. Fails if the actor doesn't have state (before the first call to
 /// `set_root` and after actor deletion).
 pub fn root() -> Result<Cid, NoStateError> {
-    // I really hate this CID interface. Why can't I just have bytes?
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
         let len = sys::sself::root(buf.as_mut_ptr(), buf.len() as u32).map_err(|e| match e {
             ErrorNumber::IllegalOperation => NoStateError,
             e => panic!("unexpected error from `self::root` syscall: {}", e),
         })? as usize;
-
-        if len > buf.len() {
-            // TODO: re-try with a larger buffer?
-            panic!("CID too big: {} > {}", len, buf.len())
-        }
 
         Ok(Cid::read_bytes(&buf[..len]).expect("runtime returned an invalid CID"))
     }

@@ -70,7 +70,6 @@ assert_syscall_safe! {
     i8, i16, i32, i64,
 
     TokenAmount,
-    out::actor::ResolveAddress,
     out::ipld::IpldOpen,
     out::ipld::IpldStat,
     out::send::Send,

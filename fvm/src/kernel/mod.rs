@@ -166,8 +166,8 @@ pub trait ActorOps {
     /// If the argument is an ID address it is returned directly.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
 
-    /// Look up the code ID at an actor address.
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>>;
+    /// Look up the code CID of an actor.
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
@@ -180,7 +180,7 @@ pub trait ActorOps {
     fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
 
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid>;

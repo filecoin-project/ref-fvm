@@ -76,9 +76,10 @@ super::fvm_syscalls! {
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                   |
-    /// |---------------------|--------------------------|
-    /// | [`IllegalArgument`] | an argument is malformed |
+    /// | Error               | Reason                                                 |
+    /// |---------------------|--------------------------------------------------------|
+    /// | [`IllegalArgument`] | an argument is malformed                               |
+    /// | [`BufferTooSmall`]  | if the output buffer isn't large enough to fit the CID |
     pub fn compute_unsealed_sector_cid(
         proof_type: i64,
         pieces_off: *const u8,
