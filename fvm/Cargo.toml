@@ -39,7 +39,7 @@ log = "0.4.14"
 byteorder = "1.4.3"
 anymap = "0.12.1"
 blake2b_simd = "1.0.0"
-fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
+fvm-wasm-instrument = { path = "../../wasm-instrument", features = ["bulk"] }
 
 [dependencies.wasmtime]
 version = "0.35.2"
