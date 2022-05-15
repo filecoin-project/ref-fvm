@@ -87,12 +87,7 @@ fn hello_world() {
 #[test]
 fn native_stack_overflow() {
     // Instantiate tester
-    let mut tester = Tester::new(
-        NetworkVersion::V15,
-        StateTreeVersion::V4,
-        MemoryBlockstore::default(),
-    )
-        .unwrap();
+    let mut tester = Tester::new(NetworkVersion::V16, StateTreeVersion::V4).unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 

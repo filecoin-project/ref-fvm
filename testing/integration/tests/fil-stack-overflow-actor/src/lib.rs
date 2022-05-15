@@ -9,7 +9,7 @@ pub fn invoke(_: u32) -> u32  {
         return 0
     }
 
-    recurse(m, 13000 as u64)
+    recurse(m, 50 as u64)
 }
 
 // we need two recurse functions; just one gets optimized into wasm loop
