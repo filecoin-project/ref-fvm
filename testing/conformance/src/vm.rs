@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
-use fvm::gas::{GasTracker, PriceList};
+use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, MultiEngine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
@@ -423,14 +423,14 @@ where
     // NOT forwarded
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_milligas(charge.name, charge.total())?;
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_milligas(charge.name, charge.total())?;
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -442,7 +442,7 @@ where
         _extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
-        self.0.charge_milligas(charge.name, charge.total())?;
+        self.0.charge_gas(charge.name, charge.total())?;
         // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
@@ -450,14 +450,14 @@ where
     // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_milligas(charge.name, charge.total())?;
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_milligas(charge.name, charge.total())?;
+        self.0.charge_gas(charge.name, charge.total())?;
         Ok(true)
     }
 }
@@ -483,28 +483,20 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn gas_used(&self) -> i64 {
+    fn gas_used(&self) -> Gas {
         self.0.gas_used()
     }
 
-    fn charge_milligas(&mut self, name: &str, compute: i64) -> Result<()> {
-        self.0.charge_milligas(name, compute)
+    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+        self.0.charge_gas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {
         self.0.price_list()
     }
 
-    fn milligas_used(&self) -> i64 {
-        self.0.milligas_used()
-    }
-
-    fn gas_available(&self) -> i64 {
+    fn gas_available(&self) -> Gas {
         self.0.gas_available()
-    }
-
-    fn milligas_available(&self) -> i64 {
-        self.0.milligas_available()
     }
 }
 

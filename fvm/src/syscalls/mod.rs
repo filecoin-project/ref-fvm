@@ -5,6 +5,7 @@ use cid::Cid;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
+use crate::gas::Gas;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -50,7 +51,7 @@ pub fn update_gas_available(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
-    let avail_milligas = ctx.data_mut().kernel.milligas_available();
+    let avail_milligas = ctx.data_mut().kernel.gas_available().as_milligas();
 
     let gas_global = ctx.data_mut().avail_gas_global;
     gas_global
@@ -84,7 +85,7 @@ pub fn charge_for_exec(
 
     ctx.data_mut()
         .kernel
-        .charge_milligas("wasm_exec", milligas_used)
+        .charge_gas("wasm_exec", Gas::from_milligas(milligas_used))
         .map_err(Abort::from_error_as_fatal)?;
 
     Ok(())
