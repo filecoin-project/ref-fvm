@@ -5,13 +5,13 @@ use std::env;
 use cid::multihash::Multihash;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::tester::{Account, Tester};
+use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -27,6 +27,9 @@ pub struct State {
 
 const WASM_COMPILED_PATH: &str =
     "../../target/debug/wbuild/fil_hello_world_actor/fil_hello_world_actor.compact.wasm";
+
+const WASM_COMPILED_PATH_OVERFLOW: &str =
+    "../../target/debug/wbuild/fil_stack_overflow_actor/fil_stack_overflow_actor.compact.wasm";
 
 #[test]
 fn hello_world() {
@@ -78,6 +81,76 @@ fn hello_world() {
         .unwrap();
 
     assert_eq!(res.msg_receipt.exit_code.value(), 16)
+}
+
+#[test]
+fn native_stack_overflow() {
+    // Instantiate tester
+    let mut tester = Tester::new(
+        NetworkVersion::V16,
+        StateTreeVersion::V4,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    // Get wasm bin
+    let wasm_path = env::current_dir()
+        .unwrap()
+        .join(WASM_COMPILED_PATH_OVERFLOW)
+        .canonicalize()
+        .unwrap();
+    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine().unwrap();
+
+    let exec_test = |exec: &mut IntegrationExecutor<MemoryBlockstore>, method| {
+        // Send message
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 10_000_000_000,
+            method_num: method,
+            sequence: method - 1,
+            ..Message::default()
+        };
+
+        let res = exec
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        res.msg_receipt.exit_code.value()
+    };
+
+    let mut executor = tester.executor.unwrap();
+
+    // on method 0 the test actor should run out of stack
+    assert_eq!(
+        exec_test(&mut executor, 1),
+        ExitCode::SYS_ILLEGAL_INSTRUCTION.value()
+    );
+
+    // on method 1 the test actor should run out of recursive call limit
+    assert_eq!(
+        exec_test(&mut executor, 2),
+        0xc0000000 + (ErrorNumber::LimitExceeded as u32)
+    );
+
+    // on method 2 the test actor should finish successfully
+    assert_eq!(exec_test(&mut executor, 3), 0x80000042);
 }
 
 #[test]

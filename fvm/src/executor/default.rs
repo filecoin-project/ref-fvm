@@ -11,6 +11,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
+use lazy_static::lazy_static;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
@@ -38,14 +39,49 @@ impl<K: Kernel> DerefMut for DefaultExecutor<K> {
     }
 }
 
+lazy_static! {
+    static ref EXEC_POOL: yastl::Pool = yastl::Pool::with_config(
+        8,
+        yastl::ThreadConfig::new()
+            .prefix("fvm-executor")
+            // fvm needs more than the deafault available stack (2MiB):
+            // - Max 2048 wasm stack elements, which is 16KiB of 64bit entries
+            // - Roughly 20KiB overhead per actor call
+            // - max 1024 nested calls, which means that in the worst case we need ~36MiB of stack
+            // We also want some more space just to be conservative, so 64MiB seems like a reasonable choice
+            .stack_size(64 << 20),
+    );
+}
+
 impl<K> Executor for DefaultExecutor<K>
 where
     K: Kernel,
+    <K::CallManager as CallManager>::Machine: Send,
 {
     type Kernel = K;
 
     /// This is the entrypoint to execute a message.
     fn execute_message(
+        &mut self,
+        msg: Message,
+        apply_kind: ApplyKind,
+        raw_length: usize,
+    ) -> anyhow::Result<ApplyRet> {
+        let mut ret = Err(anyhow!("failed to execute"));
+
+        EXEC_POOL.scoped(|scope| {
+            scope.execute(|| ret = self.execute_message_inner(msg, apply_kind, raw_length));
+        });
+
+        ret
+    }
+}
+
+impl<K> DefaultExecutor<K>
+where
+    K: Kernel,
+{
+    fn execute_message_inner(
         &mut self,
         msg: Message,
         apply_kind: ApplyKind,
@@ -190,12 +226,7 @@ where
             }),
         }
     }
-}
 
-impl<K> DefaultExecutor<K>
-where
-    K: Kernel,
-{
     /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
     pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
         Self(Some(m))
