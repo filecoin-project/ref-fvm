@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
+use wasmtime::OptLevel::Speed;
 use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
 use crate::gas::WasmGasPrices;
@@ -69,9 +70,12 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
 
     // wasmtime default: false
+    // We don't want threads, there is no way to ensure determisism
     c.wasm_threads(false);
 
     // wasmtime default: true
+    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable this.
+    // Note: stack limits may need adjusting after this is enabled
     c.wasm_simd(false);
 
     // wasmtime default: false
@@ -81,18 +85,23 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.wasm_memory64(false);
 
     // wasmtime default: true
+    // Note: wasm-instrument only supports this at a basic level, for M2 we will
+    // need to add more advanced support
     c.wasm_bulk_memory(true);
 
     // wasmtime default: false
     c.wasm_module_linking(false);
 
     // wasmtime default: true
-    c.wasm_multi_value(false); // ??
+    // we should be able to enable this for M2, just need to make sure that it's
+    // handled correctly in wasm-instrument
+    c.wasm_multi_value(false);
 
     // wasmtime default: depends on the arch
     // > This is true by default on x86-64, and false by default on other architectures.
     //
-    // Not supported in wasm-instrument/parity-wasm
+    // Not supported in wasm-instrument/parity-wasm; adding support will be complicated.
+    // Note: stack limits may need adjusting after this is enabled
     c.wasm_reference_types(false);
 
     // wasmtime default: false
@@ -105,13 +114,29 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // > not enabled by default.
     c.cranelift_nan_canonicalization(true);
 
+    // wasmtime default: 512KiB
     // Set to something much higher than the instrumented limiter.
-    c.max_wasm_stack(64 << 20).unwrap();
+    // Note: This is in bytes, while the instrumented limit is in stack elements
+    c.max_wasm_stack(4 << 20).unwrap();
 
     // Execution cost accouting is done through wasm instrumentation,
     c.consume_fuel(false);
+    c.epoch_interruption(false);
 
-    // c.cranelift_opt_level(Speed); ?
+    // Disable debug-related things, wasm-instrument doesn't fix debug info
+    // yet, so those aren't useful, just add overhead
+    c.debug_info(false);
+    c.generate_address_map(false);
+    c.cranelift_debug_verifier(false);
+
+    // Reiterate some defaults
+    c.guard_before_linear_memory(true);
+    c.interruptable(false);
+    c.parallel_compilation(true);
+
+    // Doesn't seem to have significant impact on the time it takes to load code
+    // todo(M2): make sure this is guaranteed to run in linear time.
+    c.cranelift_opt_level(Speed);
 
     c
 }
