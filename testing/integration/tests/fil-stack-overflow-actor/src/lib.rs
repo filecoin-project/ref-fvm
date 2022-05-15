@@ -1,18 +1,26 @@
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
+use fvm_shared::error::ExitCode;
 
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
     let m = sdk::message::method_number();
-    if m > 1024 {
-        return 0;
+    // If we start with method 1, we'll be over recursive send limit, starting
+    // with method 2 should be fine
+    if m > 1026 {
+        sdk::vm::abort(0x42, None);
     }
 
-    // 5 stack elems per level (wasm-instrument charges for highest use in the
-    // function) + some overhead mean that with the 2048 element wasm limit we
-    // can do 396 recursive calls while still being able do do a send at that
-    // depth
-    recurse(m, 396)
+    if m == 1 {
+        // if method 0, we want to run out of stack
+        recurse(m, 1000)
+    } else {
+        // 5 stack elems per level (wasm-instrument charges for highest use in the
+        // function) + some overhead mean that with the 2048 element wasm limit we
+        // can do 396 recursive calls while still being able do do a send at that
+        // depth
+        recurse(m, 396)
+    }
 }
 
 // we need two recurse functions; just one gets optimized into wasm loop
@@ -45,11 +53,12 @@ pub fn call_extern() {
 
 #[inline(never)]
 pub fn do_send(m: u64) -> u32 {
-    let r = sdk::send::send(
-        &Address::new_id(10000),
-        m + 1,
-        Vec::new().into(),
-        0.into(),
-    );
-    r.unwrap().exit_code.value()
+    let r = sdk::send::send(&Address::new_id(10000), m + 1, Vec::new().into(), 0.into());
+    match r {
+        Ok(rec) => match rec.exit_code {
+            ExitCode::OK => 0,
+            e => sdk::vm::abort(e.value() | 0x80000000, None),
+        },
+        Err(e) => sdk::vm::abort((e as u32) | 0xc0000000, None),
+    }
 }

@@ -5,13 +5,13 @@ use std::env;
 use cid::multihash::Multihash;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::tester::{Account, Tester};
+use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
-use fvm_shared::error::ExitCode;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -86,7 +86,12 @@ fn hello_world() {
 #[test]
 fn native_stack_overflow() {
     // Instantiate tester
-    let mut tester = Tester::new(NetworkVersion::V16, StateTreeVersion::V4).unwrap();
+    let mut tester = Tester::new(
+        NetworkVersion::V16,
+        StateTreeVersion::V4,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
@@ -112,22 +117,40 @@ fn native_stack_overflow() {
     // Instantiate machine
     tester.instantiate_machine().unwrap();
 
-    // Send message
-    let message = Message {
-        from: sender[0].1,
-        to: actor_address,
-        gas_limit: 1000000000,
-        method_num: 1,
-        ..Message::default()
+    let exec_test = |exec: &mut IntegrationExecutor<MemoryBlockstore>, method| {
+        // Send message
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 10_000_000_000,
+            method_num: method,
+            sequence: method - 1,
+            ..Message::default()
+        };
+
+        let res = exec
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        res.msg_receipt.exit_code.value()
     };
 
-    let res = tester
-        .executor
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+    let mut executor = tester.executor.unwrap();
 
-    assert_eq!(res.msg_receipt.exit_code.value(), 0)
+    // on method 0 the test actor should run out of stack
+    assert_eq!(
+        exec_test(&mut executor, 1),
+        ExitCode::SYS_ILLEGAL_INSTRUCTION.value()
+    );
+
+    // on method 1 the test actor should run out of recursive call limit
+    assert_eq!(
+        exec_test(&mut executor, 2),
+        0xc0000000 + (ErrorNumber::LimitExceeded as u32)
+    );
+
+    // on method 2 the test actor should finish successfully
+    assert_eq!(exec_test(&mut executor, 3), 0x80000042);
 }
 
 #[test]
