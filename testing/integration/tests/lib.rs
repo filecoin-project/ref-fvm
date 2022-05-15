@@ -31,7 +31,6 @@ const WASM_COMPILED_PATH: &str =
 const WASM_COMPILED_PATH_OVERFLOW: &str =
     "../../target/debug/wbuild/fil_stack_overflow_actor/fil_stack_overflow_actor.compact.wasm";
 
-
 #[test]
 fn hello_world() {
     // Instantiate tester

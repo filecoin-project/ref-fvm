@@ -40,6 +40,7 @@ byteorder = "1.4.3"
 anymap = "0.12.1"
 blake2b_simd = "1.0.0"
 fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
+yastl = "0.1.2"
 
 [dependencies.wasmtime]
 version = "0.35.2"

@@ -314,7 +314,7 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        println!("calling {} -> {}::{}", from, to, method);
+        log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
             let mut kernel = K::new(cm, from, to, method, value.clone());
