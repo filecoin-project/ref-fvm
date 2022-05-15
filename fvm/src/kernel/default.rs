@@ -544,8 +544,8 @@ where
         if self.network_version() <= NetworkVersion::V15 {
             self.call_manager.charge_gas(GasCharge::new(
                 "verify_consensus_fault_accesses",
-                gas,
-                0,
+                Gas::new(gas),
+                Gas::zero(),
             ))?;
         }
 
@@ -693,25 +693,18 @@ impl<C> GasOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn gas_used(&self) -> i64 {
+    fn gas_used(&self) -> Gas {
         self.call_manager.gas_tracker().gas_used()
     }
 
-    fn milligas_used(&self) -> i64 {
-        self.call_manager.gas_tracker().milligas_used()
-    }
-
-    fn gas_available(&self) -> i64 {
+    fn gas_available(&self) -> Gas {
         self.call_manager.gas_tracker().gas_available()
     }
 
-    fn milligas_available(&self) -> i64 {
-        self.call_manager.gas_tracker().milligas_available()
-    }
-
-    fn charge_milligas(&mut self, name: &str, compute: Milligas) -> Result<()> {
-        let charge = GasCharge::new(name, compute, 0);
-        self.call_manager.gas_tracker_mut().apply_charge(charge)
+    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+        self.call_manager
+            .gas_tracker_mut()
+            .charge_gas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {

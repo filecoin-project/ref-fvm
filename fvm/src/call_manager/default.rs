@@ -11,7 +11,7 @@ use num_traits::Zero;
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
-use crate::gas::GasTracker;
+use crate::gas::{Gas, GasTracker};
 use crate::kernel::{ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
@@ -71,7 +71,7 @@ where
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
-            gas_tracker: GasTracker::new(gas_limit, 0),
+            gas_tracker: GasTracker::new(Gas::new(gas_limit), Gas::zero()),
             origin,
             nonce,
             num_actors_created: 0,
@@ -154,7 +154,7 @@ where
     }
 
     fn finish(mut self) -> (FinishRet, Self::Machine) {
-        let gas_used = self.gas_tracker.gas_used().max(0);
+        let gas_used = self.gas_tracker.gas_used().max(Gas::zero()).round_up();
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.

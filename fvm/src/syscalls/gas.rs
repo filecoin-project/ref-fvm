@@ -1,7 +1,7 @@
 use std::str;
 
 use super::Context;
-use crate::gas::gas_to_milligas;
+use crate::gas::Gas;
 use crate::kernel::{ClassifyResult, Result};
 use crate::Kernel;
 
@@ -14,7 +14,5 @@ pub fn charge_gas(
     let name =
         str::from_utf8(context.memory.try_slice(name_off, name_len)?).or_illegal_argument()?;
     // Gas charges from actors are always in full gas units. We use milligas internally, so convert here.
-    context
-        .kernel
-        .charge_milligas(name, gas_to_milligas(compute))
+    context.kernel.charge_gas(name, Gas::new(compute))
 }

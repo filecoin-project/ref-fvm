@@ -24,7 +24,7 @@ mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
 use crate::call_manager::{CallManager, InvocationResult};
-use crate::gas::{Gas, Milligas, PriceList};
+use crate::gas::{Gas, PriceList};
 use crate::machine::Machine;
 
 pub trait Kernel:
@@ -215,15 +215,13 @@ pub trait CircSupplyOps {
 pub trait GasOps {
     /// Returns the gas used by the transaction so far.
     fn gas_used(&self) -> Gas;
-    fn milligas_used(&self) -> Milligas;
 
     /// Returns the remaining gas for the transaction.
     fn gas_available(&self) -> Gas;
-    fn milligas_available(&self) -> Milligas;
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point.
-    fn charge_milligas(&mut self, name: &str, compute: Milligas) -> Result<()>;
+    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()>;
 
     /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;
