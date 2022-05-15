@@ -38,6 +38,9 @@ pub struct InvocationData<K> {
     /// The global containing remaining available gas.
     pub avail_gas_global: Global,
 
+    /// The global containing max used stack
+    pub max_stack_global: Global,
+
     /// The last-set milligas limit. When `charge_for_exec` is called, we charge for the
     /// _difference_ between the current gas available (the wasm global) and the
     /// `last_milligas_available`.

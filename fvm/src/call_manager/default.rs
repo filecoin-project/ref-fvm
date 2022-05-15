@@ -314,7 +314,7 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        println!("calling {} -> {}::{}", from, to, method);
+        log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
             let mut kernel = K::new(cm, from, to, method, value.clone());
@@ -359,6 +359,16 @@ where
 
                 // Invoke it.
                 let res = invoke.call(&mut store, (param_id,));
+
+                let ms = store.data_mut().max_stack_global;
+
+                let max_stack = ms
+                    .get(&mut store)
+                    .i32()
+                    .context("failed to get wasm stax")
+                    .map_err(Abort::Fatal)?;
+
+                println!("max stack: {:?} call {} -> {}::{}", max_stack, from, to, method);
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.

@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::fs;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
@@ -245,6 +246,10 @@ impl Engine {
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
         let wasm = m.to_bytes()?;
+
+        fs::write("/tmp/a.wasm", wasm.as_slice())?;
+
+
         let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
 
         Ok(module)
@@ -301,6 +306,10 @@ impl Engine {
             .linker
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
+        cache
+            .linker
+            .define("stack", "max", store.data_mut().max_stack_global)?;
+
         let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match module_cache.get(k) {
             Some(module) => module,
@@ -317,6 +326,7 @@ impl Engine {
             kernel,
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
+            max_stack_global: self.0.dummy_gas_global,
             last_milligas_available: 0,
             memory: self.0.dummy_memory,
         };
@@ -326,6 +336,11 @@ impl Engine {
         let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
+
+        let mstype = GlobalType::new(ValType::I32, Mutability::Var);
+        let ms = Global::new(&mut store, mstype, Val::I32(0))
+            .expect("failed to create max_stack global");
+        store.data_mut().max_stack_global = ms;
 
         store
     }
