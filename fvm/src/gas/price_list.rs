@@ -106,21 +106,21 @@ lazy_static! {
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow32GiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow64GiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
         ]
@@ -232,21 +232,21 @@ lazy_static! {
                 RegisteredPoStProof::StackedDRGWindow512MiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow32GiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
             (
                 RegisteredPoStProof::StackedDRGWindow64GiBV1,
                 ScalingCost {
                     flat: static_milligas!(117680921),
-                    scale: 43780,
+                    scale: static_milligas!(43780),
                 },
             ),
         ]
