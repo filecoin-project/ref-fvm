@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
@@ -17,7 +17,7 @@ use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, Syscal
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
-use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
+use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
@@ -94,7 +94,7 @@ where
         K: Kernel<CallManager = Self>,
     {
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Call(SendParams {
+            self.exec_trace.push(ExecutionEvent::Call {
                 from,
                 to,
                 method,
@@ -103,7 +103,7 @@ where
                     .map(|blk| blk.data().to_owned().into())
                     .unwrap_or_default(),
                 value: value.clone(),
-            }));
+            });
         }
 
         // We check _then_ set because we don't count the top call. This effectivly allows a
@@ -129,16 +129,23 @@ where
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Return(match result {
-                Err(ref e) => Err(match e {
-                    ExecutionError::OutOfGas => {
-                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
-                    }
-                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
-                    ExecutionError::Syscall(s) => s.clone(),
-                }),
-                Ok(ref v) => Ok(v.clone()),
-            }));
+            self.exec_trace.push(match &result {
+                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
+                    v.as_ref()
+                        .map(|blk| RawBytes::from(blk.data().to_vec()))
+                        .unwrap_or_default(),
+                ),
+                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
+
+                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
+                    ErrorNumber::Forbidden,
+                    "out of gas",
+                )),
+                Err(ExecutionError::Fatal(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
+                }
+                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+            });
         }
 
         result
