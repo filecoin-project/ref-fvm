@@ -42,6 +42,8 @@ lazy_static! {
     static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
 
+const BLAKE2B_256: u64 = 0xb220;
+
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
@@ -275,7 +277,7 @@ where
         let stat = block.stat();
 
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
-        let id = self.blocks.put(block).or_illegal_argument()?;
+        let id = self.blocks.put(block)?;
         Ok((id, stat))
     }
 
@@ -283,31 +285,28 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
-        self.blocks
-            .put(Block::new(codec, data))
-            .or_illegal_argument()
+        Ok(self.blocks.put(Block::new(codec, data))?)
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
-        // TODO: check hash function & length against allow list.
+        if hash_fun != BLAKE2B_256 || hash_len != 32 {
+            return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
+        }
 
         use multihash::MultihashDigest;
-        let block = self.blocks.get(id).or_illegal_argument()?;
+        let block = self.blocks.get(id)?;
         let code = multihash::Code::try_from(hash_fun)
-            .or_illegal_argument()
-            .context(format_args!("invalid hash code: {}", hash_fun))?;
+            .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
 
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_link(block.size().try_into().or_illegal_argument()?),
+                .on_block_link(block.size() as usize),
         )?;
 
         let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
-            return Err(
-                syscall_error!(IllegalArgument; "invalid hash length: {}", hash_len).into(),
-            );
+            return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
@@ -342,7 +341,7 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
-        self.blocks.stat(id).or_illegal_argument()
+        Ok(self.blocks.stat(id)?)
     }
 }
 
@@ -448,8 +447,6 @@ where
     }
 
     fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
-        const BLAKE2B_256: u64 = 0xb220;
-
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
