@@ -400,7 +400,7 @@ fn backtraces() {
         let message = Message {
             to: fatal_address,
             sequence: 2,
-            ..message.clone()
+            ..message
         };
         executor
             .execute_message(message, ApplyKind::Explicit, 100)
