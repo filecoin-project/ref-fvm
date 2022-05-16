@@ -29,6 +29,7 @@ jobs:
   cargo:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: check-clippy
@@ -79,7 +80,7 @@ jobs:
         version: v0.2.15
         # change this to invalidate sccache for this job
         shared-key: v1
-    - name: Runing ${{ matrix.command }}
+    - name: Running ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: ${{ matrix.command }}
