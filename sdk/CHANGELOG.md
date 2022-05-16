@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+## 0.7.0 [2022-05-16]
+
+This release contains a large syscall refactor.
+
+High-level SDK changes:
+
+- Changed randomness methods to take a raw i64 as domain separation tags, instead of the
+  `DomainSeparationTag` type.
+- Renamed `actor::resolve_builtin_actor_type` to `actor::get_builtin_actor_type`.
+
+Low-level "sys" changes:
+
+- Fetches static information through a single `vm::context` syscall. The high-level calls haven't
+  changed and simply call this method on-demand, caching the result. This replaces:
+  - `network`: `version`, `curr_epoch`.
+  - `message`: `caller`, `receiver`, `method_number`, `value_received`.
+- Methods that "return" CIDs now do so consistently:
+ - They always return the CID's length.
+ - If they can't fit the entire CID into the output buffer, they fail with `ErrorNumber::BufferTooSmall`.
+ - Previously:
+   - `ipld::root` and `ipld::cid` would return the CID's length even if the output buffer wasn't large enough.
+- Renamed IPLD methods:
+  - Prefixed with `block_` to make it clear that they operate on IPLD blocks.
+  - Renamed `ipld::cid` to `ipld::block_link`.
+- Changed the behavior of `ipld::block_read`.
+  - Previously, it would return the number of bytes read.
+  - Now it returns the difference between the passed `offset + max_len` (end of the "buffer") and
+    the end of the block.
+- Replaced `crypto::hash_blake2b` with a generic `crypto::hash` syscall that takes a multicodec.
+  This syscall will:
+    - Hash the input data with the specified hash function (if supported).
+    - Write the hash digest into the provided output buffer, truncating if the output buffer is too short.
+    - Return the number of bytes written.
+- Refactored `crypto::verify_signature` to take a signature type and a raw signature, instead of a
+  cbor-encoded signature.
+- Changed `actor::get_code_cid_for_type` to return an _error_ if the code CID lookup fails, instead of `-1`.
+- Renamed `actor::resolve_builtin_actor_type` to `get_builtin_actor_type`.
+- Changed `actor::get_actor_code_cid` to take a pre-resolved `actor_id`. The higher-level helper
+  function hasn't changed, and will resolve the actor's address internally, if necessary.
+- Changed `actor::resolve_address` to:
+  - Fail with a `NotFound` error if the target actor isn't found.
+  - Return the target actor's ID instead of a struct containing the ID and a status.
+- Changed `send::send`'s return type to include the returned block's size and codec. This let's us
+  avoid a call to `ipld::block_stat`.`
+
 ## 0.6.1 [2022-04-29]
 
 - Added _cfg = "testing"_ on `testing` module.

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 0.7.0 [2022-05-16]
+
+- Updates the blockstore.
+- Removes unnecessary chrono dep.
+- Removes the `DomainSeparationTag` type. This is moving into the actors themselves as the FVM
+  doesn't care about it.
+      - Downstream crates should just replicate this type internally, if necessary.
+- Adds a new `crypto::signature::verify` function to allow verifying signatures without creating a
+  new `Signature` object. This allows verifying _borrowed_ signatures without allocating.
+- Updates for the syscall refactor (see `fvm_sdk` v0.7.0):
+    - Adds a `BufferTooSmall` `ErrorNumber`.
+    - Marks `ErrorNumber` as non-exhaustive for future extension.
+    - Changes the syscall "out" types for the syscall refactor.
+
 ## 0.6.1 [2022-04-29]
 
 - Added `testing` feature to have `Default` derive on `Message`. Extended this feature to `Address` and `Payload`.
