@@ -1,21 +1,20 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::env;
+use std::rc::Rc;
 
-use cid::multihash::Multihash;
+use anyhow::anyhow;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::IDENTITY_HASH;
 use num_traits::Zero;
 use wabt::wat2wasm;
 
@@ -301,7 +300,7 @@ fn backtraces() {
     )
     "#;
 
-    const WAT_FATAL: &str = r#"
+    const WAT_FAIL: &str = r#"
     (module
       ;; ipld::open
       (type (;0;) (func (param i32 i32) (result i32)))
@@ -329,15 +328,17 @@ fn backtraces() {
     )
     "#;
 
-    let blockstore = FailingBlockstore::default();
-    let identity_cid = Cid::new_v1(DAG_CBOR, Multihash::wrap(IDENTITY_HASH, &[0]).unwrap());
-    blockstore.add_fail(identity_cid);
+    let blockstore = {
+        let b = FailingBlockstore::default();
+        b.add_fail(Cid::try_from("baeaikaia").unwrap());
+        Rc::new(b)
+    };
 
     // Instantiate tester
     let mut tester = Tester::new(
         NetworkVersion::V16,
         StateTreeVersion::V4,
-        MemoryBlockstore::default(),
+        blockstore.clone(),
     )
     .unwrap();
 
@@ -346,7 +347,7 @@ fn backtraces() {
     let state_cid = tester.set_state(&State { count: 0 }).unwrap();
 
     // Set an actor that aborts.
-    let (wasm_abort, wasm_fatal) = (wat2wasm(WAT_ABORT).unwrap(), wat2wasm(WAT_FATAL).unwrap());
+    let (wasm_abort, wasm_fatal) = (wat2wasm(WAT_ABORT).unwrap(), wat2wasm(WAT_FAIL).unwrap());
     let (abort_address, fatal_address) = (Address::new_id(10000), Address::new_id(10001));
     tester
         .set_actor_from_bin(&wasm_abort, state_cid, abort_address, BigInt::zero())
@@ -358,58 +359,82 @@ fn backtraces() {
     // Instantiate machine
     tester.instantiate_machine().unwrap();
 
-    // Send message
+    let executor = tester.executor.as_mut().unwrap();
+
     let message = Message {
         from: sender[0].1,
-        to: abort_address,
         gas_limit: 10_000_000,
         method_num: 1,
         ..Message::default()
     };
 
-    let res = tester
-        .executor
-        .as_mut()
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+    let res = {
+        let message = Message {
+            to: abort_address,
+            ..message.clone()
+        };
+        executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap()
+    };
 
     println!("abort backtrace: {}", res.failure_info.unwrap());
 
-    // Send message
-    let message = Message {
-        from: sender[0].1,
-        to: fatal_address,
-        gas_limit: 10_000_000,
-        method_num: 1,
-        sequence: 1,
-        ..Message::default()
+    let res = {
+        let message = Message {
+            to: fatal_address,
+            sequence: 1,
+            ..message.clone()
+        };
+        executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap()
     };
 
-    let res = tester
-        .executor
-        .as_mut()
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
-
     println!("fatal backtrace: {}", res.failure_info.unwrap());
+
+    // Now make it panic.
+    blockstore.panic(true);
+
+    let res = {
+        let message = Message {
+            to: fatal_address,
+            sequence: 2,
+            ..message
+        };
+        executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap()
+    };
+
+    println!("panic backtrace: {}", res.failure_info.unwrap());
 }
 
 #[derive(Default)]
 pub struct FailingBlockstore {
     fail_for: RefCell<HashSet<Cid>>,
     target: MemoryBlockstore,
+    panic: RefCell<bool>,
 }
 
 impl FailingBlockstore {
     pub fn add_fail(&self, cid: Cid) {
         self.fail_for.borrow_mut().insert(cid);
     }
+
+    pub fn panic(&self, enabled: bool) {
+        *self.panic.borrow_mut() = enabled
+    }
 }
 
 impl Blockstore for FailingBlockstore {
     fn get(&self, k: &Cid) -> anyhow::Result<Option<Vec<u8>>> {
+        if self.fail_for.borrow().contains(k) {
+            if *self.panic.borrow() {
+                panic!("panic triggered")
+            }
+            return Err(anyhow!("an error was triggered"));
+        }
         self.target.get(k)
     }
 
