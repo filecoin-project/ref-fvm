@@ -4,7 +4,7 @@ use std::env;
 
 use cid::multihash::Multihash;
 use cid::Cid;
-use fvm::executor::{ApplyKind, Executor};
+use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
@@ -117,7 +117,7 @@ fn native_stack_overflow() {
     // Instantiate machine
     tester.instantiate_machine().unwrap();
 
-    let exec_test = |exec: &mut IntegrationExecutor<MemoryBlockstore>, method| {
+    let exec_test = |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore>>, method| {
         // Send message
         let message = Message {
             from: sender[0].1,
@@ -135,7 +135,7 @@ fn native_stack_overflow() {
         res.msg_receipt.exit_code.value()
     };
 
-    let mut executor = tester.executor.unwrap();
+    let mut executor = ThreadedExecutor(tester.executor.unwrap());
 
     // on method 0 the test actor should run out of stack
     assert_eq!(
@@ -268,9 +268,8 @@ fn out_of_stack() {
         ..Message::default()
     };
 
-    let res = tester
-        .executor
-        .unwrap()
+    let mut executor = ThreadedExecutor(tester.executor.unwrap());
+    let res = executor
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
