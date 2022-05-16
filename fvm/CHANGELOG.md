@@ -4,7 +4,36 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
 
-- ...
+## 0.8.0 [2022-05-16]
+
+This release includes several major features:
+
+- Final nv16 gas numbers (including charges for memcopies, extern calls, syscalls, etc.).
+- Significantly improved wasm gas accounting, and stack accounting, through wasm instrumentation.
+- A `ThreadedExecutor` for executing messages on a new thread. This is necessary because we need at
+  least 64MiB of stack.
+- Panics are now caught at every sub-call and turned into fatal errors.
+- When a fatal error is encountered, we now allow the network to continue by:
+  - Consuming all message gas.
+  - Failing the entire _message_, but not the block.
+- A large syscall refactor. These syscall interfaces should be the _final_ interfaces for M1.
+
+**Breaking TL;DR:**
+
+- This release DROPS SUPPORT for nv14.
+- This release REQUIRES builtin-actors v7.4.x. v7.3.x _will not work_ due to breaking syscall changes.
+- Users _must_ wrap the `DefaultExecutor` in a `ThreadedExecutor` unless they can otherwise
+  guarantee at least 64MiB of stack.
+- The execution trace format has changed.
+
+Additionally, this release includes:
+
+- Strongly typed a `Gas` type to help statically catch and prevent bugs in gas math.
+- Refactored syscalls as described in the `fvm_sdk` v0.7.0 changelog.
+- An audited and cleaned up wasmtime config.
+- A smaller recursive call limit (now 1024 recursive sub-calls and 2k wasm stack elements).
+- Drops support for NV14.
+- Requires builtin-actors v7.4.x
 
 ## 0.7.2 [2022-05-09]
  
