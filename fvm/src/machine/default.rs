@@ -115,7 +115,7 @@ where
         // guarantee.
         // Skip preloading all builtin actors when testing. This results in JIT
         // bytecode to machine code compilation, and leads to faster tests.
-        #[cfg(not(feature = "testing"))]
+        #[cfg(not(any(test, feature = "testing")))]
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
         Ok(DefaultMachine {
