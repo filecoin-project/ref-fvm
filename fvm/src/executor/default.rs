@@ -15,11 +15,17 @@ use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
-use crate::gas::{milligas_to_gas, GasCharge, GasOutputs};
+use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
 /// The default [`Executor`].
+///
+/// # Warning
+///
+/// Message execution might run out of stack and crash (the entire process) if it doesn't have at
+/// least 64MiB of stacks space. If you can't guarantee 64MiB of stack space, wrap this executor in
+/// a [`ThreadedExecutor`][super::ThreadedExecutor].
 // If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
 pub struct DefaultExecutor<K: Kernel>(Option<<K::CallManager as CallManager>::Machine>);
@@ -231,10 +237,13 @@ where
         let pl = &self.context().price_list;
 
         let (inclusion_cost, miner_penalty_amount) = match apply_kind {
-            ApplyKind::Implicit => (GasCharge::new("none", 0, 0), Default::default()),
+            ApplyKind::Implicit => (
+                GasCharge::new("none", Gas::zero(), Gas::zero()),
+                Default::default(),
+            ),
             ApplyKind::Explicit => {
                 let inclusion_cost = pl.on_chain_message(raw_length);
-                let inclusion_total = milligas_to_gas(inclusion_cost.total(), true);
+                let inclusion_total = inclusion_cost.total().round_up();
 
                 // Verify the cost of the message is not over the message gas limit.
                 if inclusion_total > msg.gas_limit {

@@ -124,8 +124,8 @@ impl NetworkConfig {
     pub fn new(network_version: NetworkVersion) -> Self {
         NetworkConfig {
             network_version,
-            max_call_depth: 4096,
-            max_wasm_stack: 64 * 1024,
+            max_call_depth: 1024,
+            max_wasm_stack: 2048,
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),

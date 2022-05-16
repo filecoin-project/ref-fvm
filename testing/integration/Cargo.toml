@@ -38,6 +38,7 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 wabt = "0.10.0"
 serde = { version = "1.0", features = ["derive"] }
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor', version = '0.1' }
+fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor', version = '0.1' }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]

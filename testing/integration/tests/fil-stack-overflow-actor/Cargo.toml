@@ -1,0 +1,13 @@
+[package]
+name = "fil_stack_overflow_actor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fvm_sdk = { version = "0.6.1", path = "../../../../sdk" }
+fvm_shared = { version = "0.6.1", path = "../../../../shared" }
+
+
+[build-dependencies]
+wasm-builder = "3.0.1"
+wasmtime = "0.33.0"

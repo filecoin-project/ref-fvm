@@ -99,7 +99,7 @@ macro_rules! charge_syscall_gas {
     ($kernel:expr) => {
         let charge = $kernel.price_list().on_syscall();
         $kernel
-            .charge_milligas(charge.name, charge.compute_gas)
+            .charge_gas(charge.name, charge.compute_gas)
             .map_err(Abort::from_error_as_fatal)?;
     };
 }
