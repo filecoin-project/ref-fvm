@@ -114,6 +114,7 @@ impl ExitCode {
 /// When a syscall fails, it returns an `ErrorNumber` to indicate why. The syscalls themselves
 /// include documentation on _which_ syscall errors they can be expected to return, and what they
 /// mean in the context of the syscall.
+#[non_exhaustive]
 #[repr(u32)]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Error, FromPrimitive)]
 pub enum ErrorNumber {
@@ -144,6 +145,8 @@ pub enum ErrorNumber {
     Serialization = 10,
     /// The operation is forbidden.
     Forbidden = 11,
+    /// The passed buffer is too small.
+    BufferTooSmall = 12,
 }
 
 impl std::fmt::Display for ErrorNumber {
@@ -161,6 +164,7 @@ impl std::fmt::Display for ErrorNumber {
             IllegalCodec => "illegal ipld codec",
             Serialization => "serialization error",
             Forbidden => "operation forbidden",
+            BufferTooSmall => "buffer too small",
         })
     }
 }

@@ -1,10 +1,11 @@
 use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -12,11 +13,11 @@ use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
-use crate::kernel::{ExecutionError, Kernel, Result, SyscallError};
+use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
-use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
+use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
@@ -86,20 +87,23 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Call(SendParams {
+            self.exec_trace.push(ExecutionEvent::Call {
                 from,
                 to,
                 method,
-                params: params.clone(),
+                params: params
+                    .as_ref()
+                    .map(|blk| blk.data().to_owned().into())
+                    .unwrap_or_default(),
                 value: value.clone(),
-            }));
+            });
         }
 
         // We check _then_ set because we don't count the top call. This effectivly allows a
@@ -125,16 +129,23 @@ where
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Return(match result {
-                Err(ref e) => Err(match e {
-                    ExecutionError::OutOfGas => {
-                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
-                    }
-                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
-                    ExecutionError::Syscall(s) => s.clone(),
-                }),
-                Ok(ref v) => Ok(v.clone()),
-            }));
+            self.exec_trace.push(match &result {
+                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
+                    v.as_ref()
+                        .map(|blk| RawBytes::from(blk.data().to_vec()))
+                        .unwrap_or_default(),
+                ),
+                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
+
+                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
+                    ErrorNumber::Forbidden,
+                    "out of gas",
+                )),
+                Err(ExecutionError::Fatal(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
+                }
+                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+            });
         }
 
         result
@@ -233,7 +244,7 @@ where
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = RawBytes::serialize(&addr)
+        let params = to_vec(&addr)
             // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
             .map_err(|e| syscall_error!(Serialization; "failed to serialize params: {}", e))?;
 
@@ -241,7 +252,7 @@ where
             account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            &params,
+            Some(Block::new(DAG_CBOR, params)),
             &TokenAmount::from(0u32),
         )?;
 
@@ -254,7 +265,7 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
@@ -284,7 +295,7 @@ where
         from: ActorID,
         to: ActorID,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
@@ -310,6 +321,15 @@ where
             return Ok(InvocationResult::Return(Default::default()));
         }
 
+        // Store the parametrs, and initialize the block registry for the target actor.
+        // TODO: In M2, the block registry may have some form of shared block limit.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = if let Some(blk) = params {
+            block_registry.put(blk)?
+        } else {
+            NO_DATA_BLOCK_ID
+        };
+
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
         let engine = self.engine().clone();
@@ -317,24 +337,13 @@ where
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
-            let mut kernel = K::new(cm, from, to, method, value.clone());
-
-            // Store parameters, if any.
-            let param_id = if params.len() > 0 {
-                match kernel.block_create(DAG_CBOR, params) {
-                    Ok(id) => id,
-                    // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), kernel.into_call_manager()),
-                }
-            } else {
-                super::NO_DATA_BLOCK_ID
-            };
+            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
 
             // Make a store.
             let mut store = engine.new_store(kernel);
 
             // From this point on, there are no more syscall errors, only aborts.
-            let result: std::result::Result<RawBytes, Abort> = (|| {
+            let result: std::result::Result<BlockId, Abort> = (|| {
                 // Instantiate the module.
                 let instance = engine
                     .get_instance(&mut store, &state.code)
@@ -359,7 +368,7 @@ where
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (param_id,))
+                    invoke.call(&mut store, (params_id,))
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
@@ -367,33 +376,34 @@ where
                 // out.
                 charge_for_exec(&mut store)?;
 
-                // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
-                // Any other invocation failure is returned here as an Abort
-                let return_block_id = res?;
-
-                // Extract the return value, if there is one.
-                let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
-                    let (code, ret) = store
-                        .data_mut()
-                        .kernel
-                        .block_get(return_block_id)
-                        .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
-                    debug_assert_eq!(code, DAG_CBOR);
-                    RawBytes::new(ret)
-                } else {
-                    RawBytes::default()
-                };
-
-                Ok(return_value)
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res?)
             })();
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
-            let mut cm = invocation_data.kernel.into_call_manager();
+            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                        )
+                    })?)
+                })
+            });
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
-                Ok(value) => Ok(InvocationResult::Return(value)),
+                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
                 Err(abort) => {
                     if let Some(err) = last_error {
                         cm.backtrace.begin(err);
@@ -419,7 +429,6 @@ where
                         source: to,
                         method,
                         message,
-                        params: params.clone(),
                         code,
                     });
 

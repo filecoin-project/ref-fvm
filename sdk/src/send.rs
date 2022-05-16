@@ -7,8 +7,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::MethodNum;
 
-use crate::message::NO_DATA_BLOCK_ID;
-use crate::{sys, SyscallResult};
+use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Sends a message to another actor.
 // TODO: Drop the use of receipts here as we don't return the gas used. Alternatively, we _could_
@@ -27,7 +26,7 @@ pub fn send(
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
         let params_id = if params.len() > 0 {
-            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
+            sys::ipld::block_create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
         } else {
             NO_DATA_BLOCK_ID
         };
@@ -36,6 +35,8 @@ pub fn send(
         let fvm_shared::sys::out::send::Send {
             exit_code,
             return_id,
+            return_codec: _, // assume cbor for now.
+            return_size,
         } = sys::send::send(
             recipient.as_ptr(),
             recipient.len() as u32,
@@ -50,12 +51,11 @@ pub fn send(
         let return_data = match exit_code {
             ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
                 // Allocate a buffer to read the return data.
-                let fvm_shared::sys::out::ipld::IpldStat { size, .. } = sys::ipld::stat(return_id)?;
-                let mut bytes = vec![0; size as usize];
+                let mut bytes = vec![0; return_size as usize];
 
                 // Now read the return data.
-                let read = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), size)?;
-                assert_eq!(read, size);
+                let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+                assert_eq!(0, unread);
                 RawBytes::from(bytes)
             }
             _ => Default::default(),

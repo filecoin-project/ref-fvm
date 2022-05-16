@@ -3,6 +3,7 @@ use core::option::Option; // no_std
 use cid::Cid;
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Payload};
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::{actor, ActorID};
 use num_traits::FromPrimitive;
 
@@ -18,34 +19,26 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
 
     let bytes = addr.to_bytes();
     unsafe {
-        match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32)
-            // Can only happen due to memory corruption.
-            .expect("error when resolving address")
-        {
-            fvm_shared::sys::out::actor::ResolveAddress { resolved: 0, value } => Some(value),
-            _ => None,
+        match sys::actor::resolve_address(bytes.as_ptr(), bytes.len() as u32) {
+            Ok(value) => Some(value),
+            Err(ErrorNumber::NotFound) => None,
+            Err(other) => panic!("unexpected address resolution failure: {}", other),
         }
     }
 }
 
 /// Look up the code ID at an actor address. Returns `None` if the actor cannot be found.
 pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
-    let bytes = addr.to_bytes();
+    // In most cases, this address will already be resolved (e.g., the caller, receiver, etc.) so
+    // this call should be a no-op. But it's more convenient for users to take addresses.
+    let id = resolve_address(addr)?;
+
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let ok = sys::actor::get_actor_code_cid(
-            bytes.as_ptr(),
-            bytes.len() as u32,
-            buf.as_mut_ptr(),
-            MAX_CID_LEN as u32,
-        )
-        // Can only fail due to memory corruption
-        .expect("failed to lookup actor code cid");
-        if ok == 0 {
-            // Cid::read_bytes won't read until the end, just the bytes it needs.
-            Some(Cid::read_bytes(&buf[..]).expect("invalid cid returned"))
-        } else {
-            None
+        match sys::actor::get_actor_code_cid(id, buf.as_mut_ptr(), MAX_CID_LEN as u32) {
+            Ok(len) => Some(Cid::read_bytes(&buf[..len as usize]).expect("invalid cid returned")),
+            Err(ErrorNumber::NotFound) => None,
+            Err(other) => panic!("unexpected code cid resolution failure: {}", other),
         }
     }
 }
@@ -71,10 +64,10 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
 
 /// Determines whether the supplied CodeCID belongs to a built-in actor type,
 /// and to which.
-pub fn resolve_builtin_actor_type(code_cid: &Cid) -> Option<actor::builtin::Type> {
+pub fn get_builtin_actor_type(code_cid: &Cid) -> Option<actor::builtin::Type> {
     let cid = code_cid.to_bytes();
     unsafe {
-        let res = sys::actor::resolve_builtin_actor_type(cid.as_ptr())
+        let res = sys::actor::get_builtin_actor_type(cid.as_ptr())
             .expect("failed to determine if CID belongs to builtin actor");
         // The zero value represents "unknown" and is not modelled in the enum,
         // so it'll be converted to a None.

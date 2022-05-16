@@ -30,7 +30,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------|
     /// | [`NotFound`]        | the target block isn't in the reachable set |
     /// | [`IllegalArgument`] | there's something wrong with the CID        |
-    pub fn open(cid: *const u8) -> Result<IpldOpen>;
+    pub fn block_open(cid: *const u8) -> Result<IpldOpen>;
 
     /// Creates a new block, returning the block's ID. The block's children must be in the reachable
     /// set. The new block isn't added to the reachable set until the CID is computed.
@@ -49,12 +49,17 @@ super::fvm_syscalls! {
     /// | [`IllegalCodec`]    | the passed codec isn't supported                        |
     /// | [`Serialization`]   | the passed block doesn't match the passed codec         |
     /// | [`IllegalArgument`] | the block isn't in memory, etc.                         |
-    pub fn create(codec: u64, data: *const u8, len: u32) -> Result<u32>;
+    pub fn block_create(codec: u64, data: *const u8, len: u32) -> Result<u32>;
 
     /// Reads the block identified by `id` into `obuf`, starting at `offset`, reading _at most_
     /// `max_len` bytes.
     ///
-    /// Returns the number of bytes read.
+    /// Returns the difference between the length of the block and `offset + max_len`. This can be
+    /// used to find the end of the block relative to the buffer the block is being read into:
+    ///
+    /// - A zero return value means that the block was read into the output buffer exactly.
+    /// - A positive return value means that that many more bytes need to be read.
+    /// - A negative return value means that the buffer should be truncated by the return value.
     ///
     /// # Arguments
     ///
@@ -64,7 +69,8 @@ super::fvm_syscalls! {
     /// - `max_len` is the maximum amount of block data to read.
     ///
     /// Passing a length/offset that exceed the length of the block will not result in an error, but
-    /// will result in no data being read.
+    /// will result in no data being read and a negative return value indicating where the block
+    /// actually ended (relative to `offset + max_len`).
     ///
     /// # Errors
     ///
@@ -72,7 +78,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------------|
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
-    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<u32>;
+    pub fn block_read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<i32>;
 
     /// Returns the codec and size of the specified block.
     ///
@@ -81,24 +87,25 @@ super::fvm_syscalls! {
     /// | Error             | Reason                     |
     /// |-------------------|----------------------------|
     /// | [`InvalidHandle`] | if the handle isn't known. |
-    pub fn stat(id: u32) -> Result<IpldStat>;
+    pub fn block_stat(id: u32) -> Result<IpldStat>;
 
     // TODO: CID versions?
 
-    /// Computes the given block's CID, writing the resulting CID into `cid`, returning the actual
-    /// size of the CID.
-    ///
-    /// If the CID is longer than `cid_max_len`, no data is written and the actual size is returned.
+    /// Computes the given block's CID, writing the resulting CID into `cid`.
     ///
     /// The returned CID is added to the reachable set.
     ///
     /// # Arguments
     ///
-    /// - `id` is ID of the block to linked.
+    /// - `id` is ID of the block to link.
     /// - `hash_fun` is the multicodec of the hash function to use.
     /// - `hash_len` is the desired length of the hash digest.
     /// - `cid` is the output buffer (in wasm memory) where the FVM will write the resulting cid.
     /// - `cid_max_length` is the length of the output CID buffer.
+    ///
+    /// # Returns
+    ///
+    /// The length of the CID.
     ///
     /// # Errors
     ///
@@ -107,7 +114,7 @@ super::fvm_syscalls! {
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalCid`]      | hash code and/or hash length aren't supported.    |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
-    pub fn cid(
+    pub fn block_link(
         id: u32,
         hash_fun: u64,
         hash_len: u32,

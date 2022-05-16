@@ -1,12 +1,11 @@
-pub use blocks::{BlockError, BlockId, BlockStat};
+pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
 use cid::Cid;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
@@ -23,13 +22,19 @@ mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
 use crate::machine::Machine;
 
+pub enum SendResult {
+    Return(BlockId, BlockStat),
+    Abort(ExitCode),
+}
+
+/// The "kernel" implements
 pub trait Kernel:
     ActorOps
-    + BlockOps
+    + IpldBlockOps
     + CircSupplyOps
     + CryptoOps
     + DebugOps
@@ -44,8 +49,8 @@ pub trait Kernel:
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
 
-    /// Consume the [`Kernel`] and return the underlying [`CallManager`].
-    fn into_call_manager(self) -> Self::CallManager
+    /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized;
 
@@ -55,8 +60,10 @@ pub trait Kernel:
     /// - `actor_id` is the ID of _this_ actor.
     /// - `method` is the method that has been invoked.
     /// - `value_received` is value received due to the current call.
+    /// - `blocks` is the initial block registry (should already contain the parameters).
     fn new(
         mgr: Self::CallManager,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -94,7 +101,7 @@ pub trait MessageOps {
 }
 
 /// The IPLD subset of the kernel.
-pub trait BlockOps {
+pub trait IpldBlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
@@ -117,31 +124,17 @@ pub trait BlockOps {
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32>;
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32>;
 
     /// Returns the blocks codec & size.
     ///
     /// This method will fail if the block handle is invalid.
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat>;
-
-    /// Returns a codec and a block as an owned buffer, given an ID.
-    ///
-    /// This method will fail if the block handle is invalid.
-    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
-        let stat = self.block_stat(id)?;
-        let mut ret = vec![0; stat.size as usize];
-        // TODO error handling.
-        let read = self.block_read(id, 0, &mut ret)?;
-        debug_assert_eq!(stat.size, read, "didn't read expected bytes");
-        Ok((stat.codec, ret))
-    }
-
-    // TODO: add a way to _flush_ new blocks.
 }
 
 /// Actor state access and manipulation.
 /// Depends on BlockOps to read and write blocks in the state tree.
-pub trait SelfOps: BlockOps {
+pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
     fn root(&self) -> Result<Cid>;
 
@@ -167,8 +160,8 @@ pub trait ActorOps {
     /// If the argument is an ID address it is returned directly.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
 
-    /// Look up the code ID at an actor address.
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>>;
+    /// Look up the code CID of an actor.
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
@@ -181,7 +174,7 @@ pub trait ActorOps {
     fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
 
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid>;
@@ -193,9 +186,9 @@ pub trait SendOps {
         &mut self,
         recipient: &Address,
         method: u64,
-        params: &RawBytes,
+        params: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult>;
+    ) -> Result<SendResult>;
 }
 
 /// Operations to query the circulating supply.
@@ -232,13 +225,17 @@ pub trait CryptoOps {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
         &mut self,
-        signature: &Signature,
+        sig_type: SignatureType,
+        signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool>;
 
-    /// Hashes input data using blake2b with 256 bit output.
-    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]>;
+    /// Hashes input `data_in` using with the specified hash function, writing the output to
+    /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
+    /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
+    /// will not be overwritten.
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
@@ -295,7 +292,7 @@ pub trait RandomnessOps {
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
@@ -305,7 +302,7 @@ pub trait RandomnessOps {
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
     fn get_randomness_from_beacon(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;

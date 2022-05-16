@@ -3,20 +3,6 @@
 super::fvm_syscalls! {
     module = "network";
 
-    /// Gets the current epoch.
-    ///
-    /// # Errors
-    ///
-    /// None
-    pub fn curr_epoch() -> Result<i64>;
-
-    /// Gets the network version.
-    ///
-    /// # Errors
-    ///
-    /// None
-    pub fn version() -> Result<u32>;
-
     /// Gets the base fee for the current epoch.
     ///
     /// # Errors

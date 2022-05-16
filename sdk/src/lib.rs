@@ -16,10 +16,13 @@ pub mod vm;
 pub mod testing;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
-pub const MAX_CID_LEN: usize = 100;
+pub const MAX_CID_LEN: usize = 256;
 
 /// The maximum actor address length (class 2 addresses).
 pub const MAX_ACTOR_ADDR_LEN: usize = 21;
+
+/// BlockID representing nil parameters or return data.
+pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 // TODO: provide a custom panic handler?
 

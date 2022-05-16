@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::{ActorID, MethodNum};
@@ -77,8 +76,6 @@ pub struct Frame {
     pub source: ActorID,
     /// The method that was invoked.
     pub method: MethodNum,
-    /// The parameters passed to this method.
-    pub params: RawBytes,
     /// The exit code.
     pub code: ExitCode,
     /// The abort message.

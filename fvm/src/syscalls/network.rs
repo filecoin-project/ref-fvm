@@ -4,14 +4,6 @@ use fvm_shared::sys;
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
 
-pub fn curr_epoch(context: Context<'_, impl Kernel>) -> Result<i64> {
-    Ok(context.kernel.network_epoch())
-}
-
-pub fn version(context: Context<'_, impl Kernel>) -> Result<u32> {
-    Ok(context.kernel.network_version() as u32)
-}
-
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     context

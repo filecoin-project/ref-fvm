@@ -9,18 +9,11 @@ pub const UNIT: u32 = sys::ipld::UNIT;
 /// the actor's state-tree before the end of the current invocation.
 pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult<Cid> {
     unsafe {
-        let id = sys::ipld::create(codec, data.as_ptr(), data.len() as u32)?;
+        let id = sys::ipld::block_create(codec, data.as_ptr(), data.len() as u32)?;
 
-        // I really hate this CID interface. Why can't I just have bytes?
         let mut buf = [0u8; MAX_CID_LEN];
-        let len =
-            sys::ipld::cid(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)? as usize;
-        if len > buf.len() {
-            // TODO: re-try with a larger buffer?
-            panic!("CID too big: {} > {}", len, buf.len())
-        }
-
-        Ok(Cid::read_bytes(&buf[..len]).expect("runtime returned an invalid CID"))
+        let len = sys::ipld::block_link(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)?;
+        Ok(Cid::read_bytes(&buf[..len as usize]).expect("runtime returned an invalid CID"))
     }
 }
 
@@ -38,25 +31,40 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
         let fvm_shared::sys::out::ipld::IpldOpen { id, size, .. } =
-            sys::ipld::open(cid_buf.as_mut_ptr())?;
-        get_block(id, Some(size))
+            sys::ipld::block_open(cid_buf.as_mut_ptr())?;
+        let mut block = Vec::with_capacity(size as usize);
+        let remaining = sys::ipld::block_read(id, 0, block.as_mut_ptr(), size)?;
+        debug_assert_eq!(remaining, 0, "expected to read the block exactly");
+        block.set_len(size as usize);
+        Ok(block)
     }
 }
 
-/// Gets the data of the block referenced by BlockId. If the caller knows the
-/// size, this function will avoid statting the block.
-pub fn get_block(id: fvm_shared::sys::BlockId, size: Option<u32>) -> SyscallResult<Vec<u8>> {
-    let size = match size {
-        Some(size) => size,
-        None => unsafe { sys::ipld::stat(id).map(|out| out.size)? },
-    };
-    let mut block = Vec::with_capacity(size as usize);
-    unsafe {
-        let bytes_read = sys::ipld::read(id, 0, block.as_mut_ptr(), size)?;
-        debug_assert!(bytes_read == size, "read an unexpected number of bytes");
-        block.set_len(size as usize);
+/// Gets the data of the block referenced by BlockId. If the caller knows the size, this function
+/// will read the block in a single syscall. Otherwise, any block over 1KiB will take two syscalls.
+pub fn get_block(id: fvm_shared::sys::BlockId, size_hint: Option<u32>) -> SyscallResult<Vec<u8>> {
+    // Check for the "empty" block first.
+    if id == UNIT {
+        return Ok(Vec::new());
     }
-    Ok(block)
+
+    let mut buf = Vec::with_capacity(size_hint.unwrap_or(1024) as usize);
+    unsafe {
+        let mut remaining = sys::ipld::block_read(id, 0, buf.as_mut_ptr(), buf.capacity() as u32)?;
+        if remaining > 0 {
+            buf.set_len(buf.capacity());
+            buf.reserve_exact(remaining as usize);
+            remaining = sys::ipld::block_read(
+                id,
+                buf.len() as u32,
+                buf.as_mut_ptr_range().end,
+                (buf.capacity() - buf.len()) as u32,
+            )?;
+            debug_assert!(remaining <= 0, "should have read whole block");
+        }
+        buf.set_len(buf.capacity() + (remaining as usize));
+    }
+    Ok(buf)
 }
 
 /// Writes the supplied block and returns the BlockId.
@@ -64,5 +72,5 @@ pub fn put_block(
     codec: fvm_shared::sys::Codec,
     data: &[u8],
 ) -> SyscallResult<fvm_shared::sys::BlockId> {
-    unsafe { sys::ipld::create(codec, data.as_ptr(), data.len() as u32) }
+    unsafe { sys::ipld::block_create(codec, data.as_ptr(), data.len() as u32) }
 }

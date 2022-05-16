@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::ops::{Deref, DerefMut};
 
 use cid::Cid;
@@ -5,7 +6,9 @@ use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
 
+use super::MAX_CID_LEN;
 use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::syscall_error;
 
 pub struct Context<'a, K> {
     pub kernel: &'a mut K,
@@ -35,6 +38,17 @@ impl Memory {
         // We explicitly specify the lifetimes here to ensure that the cast doesn't inadvertently
         // change them.
         unsafe { &mut *(m as *mut [u8] as *mut Memory) }
+    }
+
+    pub fn check_bounds(&self, offset: u32, len: u32) -> Result<()> {
+        if (offset as u64) + (len as u64) <= (self.0.len() as u64) {
+            Ok(())
+        } else {
+            Err(
+                syscall_error!(IllegalArgument; "buffer {} (length {}) out of bounds", offset, len)
+                    .into(),
+            )
+        }
     }
 
     pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8]> {
@@ -67,6 +81,21 @@ impl Memory {
         )
         .or_error(ErrorNumber::IllegalArgument)
         .context("failed to parse cid")
+    }
+
+    pub fn write_cid(&mut self, k: &Cid, offset: u32, len: u32) -> Result<u32> {
+        let out = self.try_slice_mut(offset, len)?;
+
+        let mut buf = Cursor::new([0u8; MAX_CID_LEN]);
+        // At the moment, all CIDs are gauranteed to fit in 100 bytes (statically) because the max
+        // digest size is 64, the max varint size is 9, and there are 4 varints plus the digest.
+        k.write_bytes(&mut buf).expect("failed to format a cid");
+        let len = buf.position() as usize;
+        if len > out.len() {
+            return Err(syscall_error!(BufferTooSmall; "cid output buffer is too small").into());
+        }
+        out[..len].copy_from_slice(&buf.get_ref()[..len]);
+        Ok(len as u32)
     }
 
     pub fn read_address(&self, offset: u32, len: u32) -> Result<Address> {

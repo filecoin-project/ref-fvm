@@ -14,15 +14,6 @@
 //
 // Also, please also read the docs on super::SyscallSafe before modifying any of these types.
 
-pub mod actor {
-    #[derive(Debug, Copy, Clone)]
-    #[repr(packed, C)]
-    pub struct ResolveAddress {
-        pub value: u64,
-        pub resolved: i32,
-    }
-}
-
 pub mod ipld {
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
@@ -48,6 +39,8 @@ pub mod send {
     pub struct Send {
         pub exit_code: u32,
         pub return_id: BlockId,
+        pub return_codec: u64,
+        pub return_size: u32,
     }
 }
 
@@ -60,5 +53,28 @@ pub mod crypto {
         pub epoch: ChainEpoch,
         pub target: ActorID,
         pub fault: u32,
+    }
+}
+
+pub mod vm {
+    use crate::clock::ChainEpoch;
+    use crate::sys::TokenAmount;
+    use crate::{ActorID, MethodNum};
+
+    #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
+    pub struct InvocationContext {
+        /// The value that was received.
+        pub value_received: TokenAmount,
+        /// The caller's actor ID.
+        pub caller: ActorID,
+        /// The receiver's actor ID (i.e. ourselves).
+        pub receiver: ActorID,
+        /// The method number from the message.
+        pub method_number: MethodNum,
+        /// The current epoch.
+        pub network_curr_epoch: ChainEpoch,
+        /// The network version.
+        pub network_version: u32,
     }
 }

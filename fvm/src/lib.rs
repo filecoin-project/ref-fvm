@@ -7,7 +7,7 @@
 //! of your choice during the initialization of the consuming application.
 
 pub use kernel::default::DefaultKernel;
-pub use kernel::{BlockError, Kernel};
+pub use kernel::Kernel;
 
 pub mod call_manager;
 pub mod executor;
@@ -72,7 +72,7 @@ mod test {
     impl Rand for DummyExterns {
         fn get_chain_randomness(
             &self,
-            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
             _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {
@@ -81,7 +81,7 @@ mod test {
 
         fn get_beacon_randomness(
             &self,
-            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
             _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {

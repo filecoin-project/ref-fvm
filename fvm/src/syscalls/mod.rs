@@ -1,7 +1,6 @@
 use std::mem;
 
 use anyhow::{anyhow, Context as _};
-use cid::Cid;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
@@ -17,7 +16,6 @@ mod crypto;
 mod debug;
 mod gas;
 mod ipld;
-mod message;
 mod network;
 mod rand;
 mod send;
@@ -95,7 +93,7 @@ use self::bind::BindSyscall;
 use self::error::Abort;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
-pub const MAX_CID_LEN: usize = 100;
+pub const MAX_CID_LEN: usize = 256;
 
 // Binds the syscall handlers so they can handle invocations
 // from the actor code.
@@ -106,22 +104,7 @@ pub fn bind_syscalls(
     linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
 ) -> anyhow::Result<()> {
     linker.bind("vm", "abort", vm::abort)?;
-
-    linker.bind("ipld", "open", ipld::open)?;
-    linker.bind("ipld", "create", ipld::create)?;
-    linker.bind("ipld", "read", ipld::read)?;
-    linker.bind("ipld", "stat", ipld::stat)?;
-    linker.bind("ipld", "cid", ipld::cid)?;
-
-    linker.bind("self", "root", sself::root)?;
-    linker.bind("self", "set_root", sself::set_root)?;
-    linker.bind("self", "current_balance", sself::current_balance)?;
-    linker.bind("self", "self_destruct", sself::self_destruct)?;
-
-    linker.bind("message", "caller", message::caller)?;
-    linker.bind("message", "receiver", message::receiver)?;
-    linker.bind("message", "method_number", message::method_number)?;
-    linker.bind("message", "value_received", message::value_received)?;
+    linker.bind("vm", "context", vm::context)?;
 
     linker.bind("network", "base_fee", network::base_fee)?;
     linker.bind(
@@ -129,8 +112,17 @@ pub fn bind_syscalls(
         "total_fil_circ_supply",
         network::total_fil_circ_supply,
     )?;
-    linker.bind("network", "version", network::version)?;
-    linker.bind("network", "curr_epoch", network::curr_epoch)?;
+
+    linker.bind("ipld", "block_open", ipld::block_open)?;
+    linker.bind("ipld", "block_create", ipld::block_create)?;
+    linker.bind("ipld", "block_read", ipld::block_read)?;
+    linker.bind("ipld", "block_stat", ipld::block_stat)?;
+    linker.bind("ipld", "block_link", ipld::block_link)?;
+
+    linker.bind("self", "root", sself::root)?;
+    linker.bind("self", "set_root", sself::set_root)?;
+    linker.bind("self", "current_balance", sself::current_balance)?;
+    linker.bind("self", "self_destruct", sself::self_destruct)?;
 
     linker.bind("actor", "resolve_address", actor::resolve_address)?;
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
@@ -138,8 +130,8 @@ pub fn bind_syscalls(
     linker.bind("actor", "create_actor", actor::create_actor)?;
     linker.bind(
         "actor",
-        "resolve_builtin_actor_type",
-        actor::resolve_builtin_actor_type,
+        "get_builtin_actor_type",
+        actor::get_builtin_actor_type,
     )?;
     linker.bind(
         "actor",
@@ -148,7 +140,7 @@ pub fn bind_syscalls(
     )?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
-    linker.bind("crypto", "hash_blake2b", crypto::hash_blake2b)?;
+    linker.bind("crypto", "hash", crypto::hash)?;
     linker.bind("crypto", "verify_seal", crypto::verify_seal)?;
     linker.bind("crypto", "verify_post", crypto::verify_post)?;
     linker.bind(
@@ -185,22 +177,4 @@ pub fn bind_syscalls(
     linker.bind("debug", "enabled", debug::enabled)?;
 
     Ok(())
-}
-
-// Computes the encoded size of a varint.
-// TODO: move this to the varint crate.
-pub(self) fn uvarint_size(num: u64) -> u32 {
-    let bits = u64::BITS - num.leading_zeros();
-    ((bits / 7) + (bits % 7 > 0) as u32).max(1) as u32
-}
-
-/// Returns the size cid would be, once encoded.
-// TODO: move this to the cid/multihash crates.
-pub(self) fn encoded_cid_size(k: &Cid) -> u32 {
-    let mh = k.hash();
-    let mh_size = uvarint_size(mh.code()) + uvarint_size(mh.size() as u64) + mh.size() as u32;
-    match k.version() {
-        cid::Version::V0 => mh_size,
-        cid::Version::V1 => mh_size + uvarint_size(k.codec()) + 1,
-    }
 }

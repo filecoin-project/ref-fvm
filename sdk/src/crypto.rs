@@ -19,14 +19,14 @@ pub fn verify_signature(
     signer: &Address,
     plaintext: &[u8],
 ) -> SyscallResult<bool> {
-    let signature = signature
-        .marshal_cbor()
-        .expect("failed to marshal signature");
+    let sig_type = signature.signature_type();
+    let sig_bytes = signature.bytes();
     let signer = signer.to_bytes();
     unsafe {
         sys::crypto::verify_signature(
-            signature.as_ptr(),
-            signature.len() as u32,
+            sig_type as u32,
+            sig_bytes.as_ptr(),
+            sig_bytes.len() as u32,
             signer.as_ptr(),
             signer.len() as u32,
             plaintext.as_ptr(),
@@ -39,9 +39,20 @@ pub fn verify_signature(
 /// Hashes input data using blake2b with 256 bit output.
 #[allow(unused)]
 pub fn hash_blake2b(data: &[u8]) -> [u8; 32] {
+    const BLAKE2B_256: u64 = 0xb220;
     // This can only fail if we manage to pass in corrupted memory.
-    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32) }
-        .expect("failed to compute blake2b hash")
+    let mut ret = [0u8; 32];
+    unsafe {
+        sys::crypto::hash(
+            BLAKE2B_256,
+            data.as_ptr(),
+            data.len() as u32,
+            ret.as_mut_ptr(),
+            32,
+        )
+    }
+    .expect("failed to compute blake2b hash");
+    ret
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.

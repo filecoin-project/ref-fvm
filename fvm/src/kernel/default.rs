@@ -10,7 +10,7 @@ use filecoin_proofs_api::seal::{
 use filecoin_proofs_api::update::verify_empty_sector_update_proof;
 use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, from_slice, to_vec, RawBytes};
+use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
@@ -18,6 +18,7 @@ use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
 use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
@@ -30,7 +31,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
@@ -40,6 +41,8 @@ lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
     static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
+
+const BLAKE2B_256: u64 = 0xb220;
 
 /// Tracks data accessed and modified during the execution of a message.
 ///
@@ -70,15 +73,16 @@ where
 {
     type CallManager = C;
 
-    fn into_call_manager(self) -> Self::CallManager
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
-        self.call_manager
+        (self.call_manager, self.blocks)
     }
 
     fn new(
         mgr: C,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -86,7 +90,7 @@ where
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
-            blocks: BlockRegistry::new(),
+            blocks,
             caller,
             actor_id,
             method,
@@ -243,7 +247,7 @@ where
     }
 }
 
-impl<C> BlockOps for DefaultKernel<C>
+impl<C> IpldBlockOps for DefaultKernel<C>
 where
     C: CallManager,
 {
@@ -273,7 +277,7 @@ where
         let stat = block.stat();
 
         // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
-        let id = self.blocks.put(block).or_illegal_argument()?;
+        let id = self.blocks.put(block)?;
         Ok((id, stat))
     }
 
@@ -281,31 +285,28 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
-        self.blocks
-            .put(Block::new(codec, data))
-            .or_illegal_argument()
+        Ok(self.blocks.put(Block::new(codec, data))?)
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
-        // TODO: check hash function & length against allow list.
+        if hash_fun != BLAKE2B_256 || hash_len != 32 {
+            return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
+        }
 
         use multihash::MultihashDigest;
-        let block = self.blocks.get(id).or_illegal_argument()?;
+        let block = self.blocks.get(id)?;
         let code = multihash::Code::try_from(hash_fun)
-            .or_illegal_argument()
-            .context(format_args!("invalid hash code: {}", hash_fun))?;
+            .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
 
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_link(block.size().try_into().or_illegal_argument()?),
+                .on_block_link(block.size() as usize),
         )?;
 
         let hash = code.digest(block.data());
         if u32::from(hash.size()) < hash_len {
-            return Err(
-                syscall_error!(IllegalArgument; "invalid hash length: {}", hash_len).into(),
-            );
+            return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
@@ -317,30 +318,30 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        let data = self.blocks.get(id).or_illegal_argument()?.data();
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+        let block = self.blocks.get(id)?;
+        let data = block.data();
 
-        let len = if offset as usize >= data.len() {
-            0
-        } else {
-            buf.len().min(data.len())
-        };
+        let start = offset as usize;
 
+        let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_read(len))?;
+            .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
-        if len != 0 {
-            buf.copy_from_slice(&data[offset as usize..][..len]);
+        let end = start + to_read;
+        if to_read != 0 {
+            buf[..to_read].copy_from_slice(&data[start..end]);
         }
 
-        Ok(len as u32)
+        // Returns the difference between the end of the block, and the end of the data we've read.
+        Ok((data.len() as i32) - (end as i32))
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
-        self.blocks.stat(id).or_illegal_argument()
+        Ok(self.blocks.stat(id)?)
     }
 }
 
@@ -373,12 +374,44 @@ where
         &mut self,
         recipient: &Address,
         method: MethodNum,
-        params: &RawBytes,
+        params_id: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult> {
+    ) -> Result<SendResult> {
         let from = self.actor_id;
-        self.call_manager
-            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        // Send.
+        let result = self
+            .call_manager
+            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))?;
+
+        // Store result and return.
+        Ok(match result {
+            InvocationResult::Return(None) => {
+                SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
+            }
+            InvocationResult::Return(Some(blk)) => {
+                let stat = blk.stat();
+                let ret_id = self
+                    .blocks
+                    .put(blk)
+                    .or_fatal()
+                    .context("failed to store a valid return value")?;
+                SendResult::Return(ret_id, stat)
+            }
+            InvocationResult::Failure(code) => SendResult::Abort(code),
+        })
     }
 }
 
@@ -400,24 +433,28 @@ where
 {
     fn verify_signature(
         &mut self,
-        signature: &Signature,
+        sig_type: SignatureType,
+        signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_verify_signature(signature.signature_type()),
-        )?;
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer, true)?;
-        Ok(signature.verify(plaintext, &signing_addr).is_ok())
+        Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
     }
 
-    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
+
+        // We only support blake2b for now, but want to support others in the future.
+        if code != BLAKE2B_256 {
+            return Err(syscall_error!(IllegalArgument; "unsupported hash code {}", code).into());
+        }
+
         let digest = blake2b_simd::Params::new()
             .hash_length(32)
             .to_state()
@@ -736,7 +773,7 @@ where
     #[allow(unused)]
     fn get_randomness_from_tickets(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
@@ -756,7 +793,7 @@ where
     #[allow(unused)]
     fn get_randomness_from_beacon(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
@@ -782,11 +819,11 @@ where
         self.call_manager.state_tree().lookup_id(address)
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor(addr)
+            .get_actor_id(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .map(|act| act.code))
@@ -814,7 +851,7 @@ where
     // TODO merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         let typ = self
-            .resolve_builtin_actor_type(&code_id)
+            .get_builtin_actor_type(&code_id)
             .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
 
         if typ.is_singleton_actor() {
@@ -839,7 +876,7 @@ where
         )
     }
 
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
         self.call_manager
             .machine()
             .builtin_actors()
