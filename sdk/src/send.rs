@@ -26,7 +26,7 @@ pub fn send(
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
         let params_id = if params.len() > 0 {
-            sys::ipld::create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
+            sys::ipld::block_create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
         } else {
             NO_DATA_BLOCK_ID
         };
@@ -54,7 +54,7 @@ pub fn send(
                 let mut bytes = vec![0; return_size as usize];
 
                 // Now read the return data.
-                let unread = sys::ipld::read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+                let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
                 assert_eq!(0, unread);
                 RawBytes::from(bytes)
             }

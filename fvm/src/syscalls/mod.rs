@@ -113,11 +113,11 @@ pub fn bind_syscalls(
         network::total_fil_circ_supply,
     )?;
 
-    linker.bind("ipld", "open", ipld::open)?;
-    linker.bind("ipld", "create", ipld::create)?;
-    linker.bind("ipld", "read", ipld::read)?;
-    linker.bind("ipld", "stat", ipld::stat)?;
-    linker.bind("ipld", "cid", ipld::cid)?;
+    linker.bind("ipld", "block_open", ipld::block_open)?;
+    linker.bind("ipld", "block_create", ipld::block_create)?;
+    linker.bind("ipld", "block_read", ipld::block_read)?;
+    linker.bind("ipld", "block_stat", ipld::block_stat)?;
+    linker.bind("ipld", "block_link", ipld::block_link)?;
 
     linker.bind("self", "root", sself::root)?;
     linker.bind("self", "set_root", sself::set_root)?;

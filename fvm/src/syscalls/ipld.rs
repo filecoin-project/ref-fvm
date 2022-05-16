@@ -4,7 +4,7 @@ use super::Context;
 use crate::kernel::Result;
 use crate::Kernel;
 
-pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
+pub fn block_open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
     let cid = context.memory.read_cid(cid)?;
     let (id, stat) = context.kernel.block_open(&cid)?;
     Ok(sys::out::ipld::IpldOpen {
@@ -14,7 +14,7 @@ pub fn open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipl
     })
 }
 
-pub fn create(
+pub fn block_create(
     context: Context<'_, impl Kernel>,
     codec: u64,
     data_off: u32,
@@ -24,7 +24,7 @@ pub fn create(
     context.kernel.block_create(codec, data)
 }
 
-pub fn cid(
+pub fn block_link(
     context: Context<'_, impl Kernel>,
     id: u32,
     hash_fun: u64,
@@ -42,7 +42,7 @@ pub fn cid(
     context.memory.write_cid(&cid, cid_off, cid_len)
 }
 
-pub fn read(
+pub fn block_read(
     context: Context<'_, impl Kernel>,
     id: u32,
     offset: u32,
@@ -53,7 +53,7 @@ pub fn read(
     context.kernel.block_read(id, offset, data)
 }
 
-pub fn stat(context: Context<'_, impl Kernel>, id: u32) -> Result<sys::out::ipld::IpldStat> {
+pub fn block_stat(context: Context<'_, impl Kernel>, id: u32) -> Result<sys::out::ipld::IpldStat> {
     context
         .kernel
         .block_stat(id)
