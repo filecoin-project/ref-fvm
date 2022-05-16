@@ -34,7 +34,7 @@ pub enum SendResult {
 /// The "kernel" implements
 pub trait Kernel:
     ActorOps
-    + BlockOps
+    + IpldBlockOps
     + CircSupplyOps
     + CryptoOps
     + DebugOps
@@ -101,7 +101,7 @@ pub trait MessageOps {
 }
 
 /// The IPLD subset of the kernel.
-pub trait BlockOps {
+pub trait IpldBlockOps {
     /// Open a block.
     ///
     /// This method will fail if the requested block isn't reachable.
@@ -134,7 +134,7 @@ pub trait BlockOps {
 
 /// Actor state access and manipulation.
 /// Depends on BlockOps to read and write blocks in the state tree.
-pub trait SelfOps: BlockOps {
+pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
     fn root(&self) -> Result<Cid>;
 

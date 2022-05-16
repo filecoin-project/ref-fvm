@@ -344,7 +344,7 @@ where
     }
 }
 
-impl<M, C, K> BlockOps for TestKernel<K>
+impl<M, C, K> IpldBlockOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,

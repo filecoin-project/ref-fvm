@@ -245,7 +245,7 @@ where
     }
 }
 
-impl<C> BlockOps for DefaultKernel<C>
+impl<C> IpldBlockOps for DefaultKernel<C>
 where
     C: CallManager,
 {

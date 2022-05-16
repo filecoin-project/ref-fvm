@@ -30,7 +30,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------|
     /// | [`NotFound`]        | the target block isn't in the reachable set |
     /// | [`IllegalArgument`] | there's something wrong with the CID        |
-    pub fn open(cid: *const u8) -> Result<IpldOpen>;
+    pub fn block_open(cid: *const u8) -> Result<IpldOpen>;
 
     /// Creates a new block, returning the block's ID. The block's children must be in the reachable
     /// set. The new block isn't added to the reachable set until the CID is computed.
@@ -49,7 +49,7 @@ super::fvm_syscalls! {
     /// | [`IllegalCodec`]    | the passed codec isn't supported                        |
     /// | [`Serialization`]   | the passed block doesn't match the passed codec         |
     /// | [`IllegalArgument`] | the block isn't in memory, etc.                         |
-    pub fn create(codec: u64, data: *const u8, len: u32) -> Result<u32>;
+    pub fn block_create(codec: u64, data: *const u8, len: u32) -> Result<u32>;
 
     /// Reads the block identified by `id` into `obuf`, starting at `offset`, reading _at most_
     /// `max_len` bytes.
@@ -78,7 +78,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------------|
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
-    pub fn read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<i32>;
+    pub fn block_read(id: u32, offset: u32, obuf: *mut u8, max_len: u32) -> Result<i32>;
 
     /// Returns the codec and size of the specified block.
     ///
@@ -87,7 +87,7 @@ super::fvm_syscalls! {
     /// | Error             | Reason                     |
     /// |-------------------|----------------------------|
     /// | [`InvalidHandle`] | if the handle isn't known. |
-    pub fn stat(id: u32) -> Result<IpldStat>;
+    pub fn block_stat(id: u32) -> Result<IpldStat>;
 
     // TODO: CID versions?
 
@@ -97,7 +97,7 @@ super::fvm_syscalls! {
     ///
     /// # Arguments
     ///
-    /// - `id` is ID of the block to linked.
+    /// - `id` is ID of the block to link.
     /// - `hash_fun` is the multicodec of the hash function to use.
     /// - `hash_len` is the desired length of the hash digest.
     /// - `cid` is the output buffer (in wasm memory) where the FVM will write the resulting cid.
@@ -114,7 +114,7 @@ super::fvm_syscalls! {
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalCid`]      | hash code and/or hash length aren't supported.    |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
-    pub fn cid(
+    pub fn block_link(
         id: u32,
         hash_fun: u64,
         hash_len: u32,

@@ -9,10 +9,10 @@ pub const UNIT: u32 = sys::ipld::UNIT;
 /// the actor's state-tree before the end of the current invocation.
 pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult<Cid> {
     unsafe {
-        let id = sys::ipld::create(codec, data.as_ptr(), data.len() as u32)?;
+        let id = sys::ipld::block_create(codec, data.as_ptr(), data.len() as u32)?;
 
         let mut buf = [0u8; MAX_CID_LEN];
-        let len = sys::ipld::cid(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)?;
+        let len = sys::ipld::block_link(id, mh_code, mh_size, buf.as_mut_ptr(), buf.len() as u32)?;
         Ok(Cid::read_bytes(&buf[..len as usize]).expect("runtime returned an invalid CID"))
     }
 }
@@ -31,9 +31,9 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
         let fvm_shared::sys::out::ipld::IpldOpen { id, size, .. } =
-            sys::ipld::open(cid_buf.as_mut_ptr())?;
+            sys::ipld::block_open(cid_buf.as_mut_ptr())?;
         let mut block = Vec::with_capacity(size as usize);
-        let remaining = sys::ipld::read(id, 0, block.as_mut_ptr(), size)?;
+        let remaining = sys::ipld::block_read(id, 0, block.as_mut_ptr(), size)?;
         debug_assert_eq!(remaining, 0, "expected to read the block exactly");
         block.set_len(size as usize);
         Ok(block)
@@ -50,11 +50,11 @@ pub fn get_block(id: fvm_shared::sys::BlockId, size_hint: Option<u32>) -> Syscal
 
     let mut buf = Vec::with_capacity(size_hint.unwrap_or(1024) as usize);
     unsafe {
-        let mut remaining = sys::ipld::read(id, 0, buf.as_mut_ptr(), buf.capacity() as u32)?;
+        let mut remaining = sys::ipld::block_read(id, 0, buf.as_mut_ptr(), buf.capacity() as u32)?;
         if remaining > 0 {
             buf.set_len(buf.capacity());
             buf.reserve_exact(remaining as usize);
-            remaining = sys::ipld::read(
+            remaining = sys::ipld::block_read(
                 id,
                 buf.len() as u32,
                 buf.as_mut_ptr_range().end,
@@ -72,5 +72,5 @@ pub fn put_block(
     codec: fvm_shared::sys::Codec,
     data: &[u8],
 ) -> SyscallResult<fvm_shared::sys::BlockId> {
-    unsafe { sys::ipld::create(codec, data.as_ptr(), data.len() as u32) }
+    unsafe { sys::ipld::block_create(codec, data.as_ptr(), data.len() as u32) }
 }
