@@ -89,9 +89,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // need to add more advanced support
     c.wasm_bulk_memory(true);
 
-    // wasmtime default: false
-    c.wasm_module_linking(false);
-
     // wasmtime default: true
     // we should be able to enable this for M2, just need to make sure that it's
     // handled correctly in wasm-instrument
@@ -102,6 +99,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     //
     // Not supported in wasm-instrument/parity-wasm; adding support will be complicated.
     // Note: stack limits may need adjusting after this is enabled
+    // NOTE: only needed when backtraces are enabled.
+    #[cfg(feature = "wasmtime/wasm-backtrace")]
     c.wasm_reference_types(false);
 
     // wasmtime default: false
@@ -131,7 +130,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
-    c.interruptable(false);
     c.parallel_compilation(true);
 
     // Doesn't seem to have significant impact on the time it takes to load code
