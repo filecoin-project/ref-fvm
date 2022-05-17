@@ -16,3 +16,8 @@ overflow-checks = true
 lto = true
 opt-level = "z"
 #strip = true
+
+# When testing, compile dependencies with optimizations enabled. Otherwise, wasmtime is kind of
+# slow.
+[profile.test.package."*"]
+opt-level = 3
