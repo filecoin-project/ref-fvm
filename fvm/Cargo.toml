@@ -15,7 +15,7 @@ crate-type = ["lib"]
 anyhow = "1.0.47"
 thiserror = "1.0.30"
 num-traits = "0.2"
-derive_builder = "0.10"
+derive_builder = "0.11.2"
 ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
@@ -43,7 +43,7 @@ fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
 yastl = "0.1.2"
 
 [dependencies.wasmtime]
-version = "0.35.2"
+version = "0.36.0"
 default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 

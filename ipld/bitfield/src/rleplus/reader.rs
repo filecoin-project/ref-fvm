@@ -208,7 +208,7 @@ mod tests {
         let mut rng = XorShiftRng::seed_from_u64(5);
 
         for _ in 0..100 {
-            let lengths: Vec<u64> = std::iter::repeat_with(|| rng.gen_range(1, 200))
+            let lengths: Vec<u64> = std::iter::repeat_with(|| rng.gen_range(1..200))
                 .take(100)
                 .collect();
 
