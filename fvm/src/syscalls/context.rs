@@ -1,5 +1,6 @@
 use std::io::Cursor;
 use std::ops::{Deref, DerefMut};
+use std::panic;
 
 use cid::Cid;
 use fvm_ipld_encoding::{from_slice, Cbor};
@@ -105,7 +106,14 @@ impl Memory {
 
     pub fn read_cbor<T: Cbor>(&self, offset: u32, len: u32) -> Result<T> {
         let bytes = self.try_slice(offset, len)?;
-        from_slice(bytes).or_error(ErrorNumber::IllegalArgument)
+        // Catch panics when decoding cbor from actors, _just_ in case.
+        match panic::catch_unwind(|| from_slice(bytes).or_error(ErrorNumber::IllegalArgument)) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("panic when decoding cbor from actor: {:?}", e);
+                Err(syscall_error!(IllegalArgument; "panic when decoding cbor from actor").into())
+            }
+        }
     }
 }
 
