@@ -3,6 +3,7 @@ mod threaded;
 
 use std::fmt::Display;
 
+use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -38,6 +39,9 @@ pub trait Executor {
         apply_kind: ApplyKind,
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet>;
+
+    /// Flushes the state-tree, returning the new root CID.
+    fn flush(&mut self) -> anyhow::Result<Cid>;
 }
 
 /// A description of some failure encountered when applying a message.

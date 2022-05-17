@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use cid::Cid;
 use fvm_shared::message::Message;
 use lazy_static::lazy_static;
 
@@ -42,5 +43,9 @@ where
         });
 
         ret
+    }
+
+    fn flush(&mut self) -> anyhow::Result<Cid> {
+        self.0.flush()
     }
 }

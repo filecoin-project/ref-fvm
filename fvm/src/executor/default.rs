@@ -201,6 +201,12 @@ where
             }),
         }
     }
+
+    /// Flush the state-tree to the underlying blockstore.
+    fn flush(&mut self) -> anyhow::Result<Cid> {
+        let k = (&mut **self).flush()?;
+        Ok(k)
+    }
 }
 
 impl<K> DefaultExecutor<K>
@@ -210,12 +216,6 @@ where
     /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
     pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
         Self(Some(m))
-    }
-
-    /// Flush the state-tree to the underlying blockstore.
-    pub fn flush(&mut self) -> anyhow::Result<Cid> {
-        let k = (&mut **self).flush()?;
-        Ok(k)
     }
 
     /// Consume consumes the executor and returns the Machine. If the Machine had
