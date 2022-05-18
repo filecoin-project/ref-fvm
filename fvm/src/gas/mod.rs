@@ -53,37 +53,37 @@ impl Display for Gas {
 impl Gas {
     /// Construct a `Gas` from milligas.
     #[inline]
-    pub fn from_milligas(milligas: i64) -> Gas {
+    pub const fn from_milligas(milligas: i64) -> Gas {
         Gas(milligas)
     }
 
     /// Construct a `Gas` from gas, scaling up. If this exceeds the width of an i64, it saturates at
     /// `i64::MAX` milligas.
     #[inline]
-    pub fn new(gas: i64) -> Gas {
+    pub const fn new(gas: i64) -> Gas {
         Gas(gas.saturating_mul(MILLIGAS_PRECISION))
     }
 
     #[inline]
-    pub fn is_saturated(&self) -> bool {
+    pub const fn is_saturated(&self) -> bool {
         self.0 == i64::MAX
     }
 
     /// Returns the gas value as an integer, rounding the fractional part up.
     #[inline]
-    pub fn round_up(&self) -> i64 {
+    pub const fn round_up(&self) -> i64 {
         milligas_to_gas(self.0, true)
     }
 
     /// Returns the gas value as an integer, truncating the fractional part.
     #[inline]
-    pub fn round_down(&self) -> i64 {
+    pub const fn round_down(&self) -> i64 {
         milligas_to_gas(self.0, false)
     }
 
     /// Returns the gas value as milligas, without loss of precision.
     #[inline]
-    pub fn as_milligas(&self) -> i64 {
+    pub const fn as_milligas(&self) -> i64 {
         self.0
     }
 }
@@ -201,7 +201,7 @@ impl GasTracker {
 
 /// Converts the specified fractional gas units into gas units
 #[inline]
-pub(crate) fn milligas_to_gas(milligas: i64, round_up: bool) -> i64 {
+pub(crate) const fn milligas_to_gas(milligas: i64, round_up: bool) -> i64 {
     let mut div_result = milligas / MILLIGAS_PRECISION;
     if milligas > 0 && round_up && milligas % MILLIGAS_PRECISION != 0 {
         div_result = div_result.saturating_add(1);
