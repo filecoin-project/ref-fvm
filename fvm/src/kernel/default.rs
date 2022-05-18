@@ -1,22 +1,16 @@
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
+use std::panic::{self, UnwindSafe};
 
 use anyhow::{anyhow, Context as _};
 use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
-use filecoin_proofs_api::seal::{
-    compute_comm_d, verify_aggregate_seal_commit_proofs, verify_seal as proofs_verify_seal,
-};
-use filecoin_proofs_api::update::verify_empty_sector_update_proof;
-use filecoin_proofs_api::{self as proofs, post, seal, ProverId, PublicReplicaInfo, SectorId};
+use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
-use fvm_shared::commcid::{
-    cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
-};
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
@@ -24,7 +18,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, FILECOIN_PRECISION};
+use fvm_shared::{commcid, ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
@@ -443,7 +437,12 @@ where
 
         // Resolve to key address before verifying signature.
         let signing_addr = self.resolve_to_key_addr(signer, true)?;
-        Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
+
+        // Verify signature, catching errors. Signature verification can include some complicated
+        // math.
+        catch_and_log_panic("verifying signature", || {
+            Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
+        })
     }
 
     fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
@@ -477,88 +476,27 @@ where
                 .on_compute_unsealed_sector_cid(proof_type, pieces),
         )?;
 
-        let ssize = proof_type.sector_size().or_illegal_argument()? as u64;
-
-        let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
-
-        let pssize = PaddedPieceSize(ssize);
-        if pieces.is_empty() {
-            all_pieces.push(proofs::PieceInfo {
-                size: pssize.unpadded().into(),
-                commitment: zero_piece_commitment(pssize),
-            })
-        } else {
-            // pad remaining space with 0 piece commitments
-            let mut sum = PaddedPieceSize(0);
-            let pad_to = |pads: Vec<PaddedPieceSize>,
-                          all_pieces: &mut Vec<proofs::PieceInfo>,
-                          sum: &mut PaddedPieceSize| {
-                for p in pads {
-                    all_pieces.push(proofs::PieceInfo {
-                        size: p.unpadded().into(),
-                        commitment: zero_piece_commitment(p),
-                    });
-
-                    sum.0 += p.0;
-                }
-            };
-            for p in pieces {
-                let (ps, _) = get_required_padding(sum, p.size);
-                pad_to(ps, &mut all_pieces, &mut sum);
-
-                all_pieces.push(proofs::PieceInfo::try_from(p).or_illegal_argument()?);
-                sum.0 += p.size.0;
-            }
-
-            let (ps, _) = get_required_padding(sum, pssize);
-            pad_to(ps, &mut all_pieces, &mut sum);
-        }
-
-        let comm_d = compute_comm_d(proof_type.try_into().or_illegal_argument()?, &all_pieces)
-            .or_illegal_argument()?;
-
-        data_commitment_v1_to_cid(&comm_d).or_illegal_argument()
+        catch_and_log_panic("computing unsealed sector CID", || {
+            compute_unsealed_sector_cid(proof_type, pieces)
+        })
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
-        verify_seal(vi)
+
+        // It's probably _fine_ to just let these turn into fatal errors, but seal verification is
+        // pretty self contained, so catching panics here probably doesn't hurt.
+        catch_and_log_panic("verifying seal", || verify_seal(vi))
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
-        let WindowPoStVerifyInfo {
-            ref proofs,
-            ref challenged_sectors,
-            prover,
-            ..
-        } = verify_info;
-
-        let Randomness(mut randomness) = verify_info.randomness.clone();
-
-        // Necessary to be valid bls12 381 element.
-        randomness[31] &= 0x3f;
-
-        // Convert sector info into public replica
-        let replicas = to_fil_public_replica_infos(challenged_sectors, ProofType::Window)?;
-
-        // Convert PoSt proofs into proofs-api format
-        let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs
-            .iter()
-            .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
-            .collect::<core::result::Result<_, String>>()
-            .or_illegal_argument()?;
-
-        // Generate prover bytes from ID
-        let prover_id = prover_id_from_u64(*prover);
-
-        // Verify Proof
-        post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
-            .or_illegal_argument()
+        // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
+        catch_and_log_panic("verifying post", || verify_post(verify_info))
     }
 
     fn verify_consensus_fault(
@@ -640,69 +578,9 @@ where
                 .price_list()
                 .on_verify_aggregate_seals(aggregate),
         )?;
-        if aggregate.infos.is_empty() {
-            return Err(syscall_error!(IllegalArgument; "no seal verify infos").into());
-        }
-        let spt: proofs::RegisteredSealProof =
-            aggregate.seal_proof.try_into().or_illegal_argument()?;
-        let prover_id = prover_id_from_u64(aggregate.miner);
-        struct AggregationInputs {
-            // replica
-            commr: [u8; 32],
-            // data
-            commd: [u8; 32],
-            sector_id: SectorId,
-            ticket: [u8; 32],
-            seed: [u8; 32],
-        }
-        let inputs: Vec<AggregationInputs> = aggregate
-            .infos
-            .iter()
-            .map(|info| {
-                let commr = cid_to_replica_commitment_v1(&info.sealed_cid)?;
-                let commd = cid_to_data_commitment_v1(&info.unsealed_cid)?;
-                Ok(AggregationInputs {
-                    commr,
-                    commd,
-                    ticket: bytes_32(&info.randomness.0),
-                    seed: bytes_32(&info.interactive_randomness.0),
-                    sector_id: SectorId::from(info.sector_number),
-                })
-            })
-            .collect::<core::result::Result<Vec<_>, &'static str>>()
-            .or_illegal_argument()?;
-
-        let inp: Vec<Vec<_>> = inputs
-            .par_iter()
-            .map(|input| {
-                seal::get_seal_inputs(
-                    spt,
-                    input.commr,
-                    input.commd,
-                    prover_id,
-                    input.sector_id,
-                    input.ticket,
-                    input.seed,
-                )
-            })
-            .try_reduce(Vec::new, |mut acc, current| {
-                acc.extend(current);
-                Ok(acc)
-            })
-            .or_illegal_argument()?;
-
-        let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
-        let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
-
-        verify_aggregate_seal_commit_proofs(
-            spt,
-            aggregate.aggregate_proof.try_into().or_illegal_argument()?,
-            aggregate.proof.clone(),
-            &commrs,
-            &seeds,
-            inp,
-        )
-        .or_illegal_argument()
+        catch_and_log_panic("verifying aggregate seals", || {
+            verify_aggregate_seals(aggregate)
+        })
     }
 
     fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
@@ -711,18 +589,9 @@ where
                 .price_list()
                 .on_verify_replica_update(replica),
         )?;
-
-        let up: proofs::RegisteredUpdateProof =
-            replica.update_proof_type.try_into().or_illegal_argument()?;
-
-        let commr_old =
-            cid_to_replica_commitment_v1(&replica.old_sealed_cid).or_illegal_argument()?;
-        let commr_new =
-            cid_to_replica_commitment_v1(&replica.new_sealed_cid).or_illegal_argument()?;
-        let commd = cid_to_data_commitment_v1(&replica.new_unsealed_cid).or_illegal_argument()?;
-
-        verify_empty_sector_update_proof(up, &replica.proof, commr_old, commr_new, commd)
-            .or_illegal_argument()
+        catch_and_log_panic("verifying replica update", || {
+            verify_replica_update(replica)
+        })
     }
 }
 
@@ -908,6 +777,16 @@ where
     }
 }
 
+fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
+    match panic::catch_unwind(f) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("caught panic when {}: {:?}", context, e);
+            Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
+        }
+    }
+}
+
 /// PoSt proof variants.
 enum ProofType {
     #[allow(unused)]
@@ -952,7 +831,7 @@ fn to_fil_public_replica_infos(
         .iter()
         .map::<core::result::Result<(SectorId, PublicReplicaInfo), String>, _>(
             |sector_info: &SectorInfo| {
-                let commr = cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
+                let commr = commcid::cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
                 let proof = match typ {
                     ProofType::Winning => sector_info.proof.registered_winning_post_proof()?,
                     ProofType::Window => sector_info.proof.registered_window_post_proof()?,
@@ -967,11 +846,11 @@ fn to_fil_public_replica_infos(
 }
 
 fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
-    let commr = cid_to_replica_commitment_v1(&vi.sealed_cid).or_illegal_argument()?;
-    let commd = cid_to_data_commitment_v1(&vi.unsealed_cid).or_illegal_argument()?;
+    let commr = commcid::cid_to_replica_commitment_v1(&vi.sealed_cid).or_illegal_argument()?;
+    let commd = commcid::cid_to_data_commitment_v1(&vi.unsealed_cid).or_illegal_argument()?;
     let prover_id = prover_id_from_u64(vi.sector_id.miner);
 
-    proofs_verify_seal(
+    proofs::seal::verify_seal(
         vi.registered_proof
             .try_into()
             .or_illegal_argument()
@@ -989,4 +868,169 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
     // sticking with illegal argument for now.
     // Worst case, _some_ node falls out of sync. Better than the network halting.
     .context("failed to verify seal proof")
+}
+
+fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+    let WindowPoStVerifyInfo {
+        ref proofs,
+        ref challenged_sectors,
+        prover,
+        ..
+    } = verify_info;
+
+    let Randomness(mut randomness) = verify_info.randomness.clone();
+
+    // Necessary to be valid bls12 381 element.
+    randomness[31] &= 0x3f;
+
+    // Convert sector info into public replica
+    let replicas = to_fil_public_replica_infos(challenged_sectors, ProofType::Window)?;
+
+    // Convert PoSt proofs into proofs-api format
+    let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs
+        .iter()
+        .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
+        .collect::<core::result::Result<_, String>>()
+        .or_illegal_argument()?;
+
+    // Generate prover bytes from ID
+    let prover_id = prover_id_from_u64(*prover);
+
+    // Verify Proof
+    proofs::post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
+        .or_illegal_argument()
+}
+
+fn verify_aggregate_seals(aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
+    if aggregate.infos.is_empty() {
+        return Err(syscall_error!(IllegalArgument; "no seal verify infos").into());
+    }
+    let spt: proofs::RegisteredSealProof = aggregate.seal_proof.try_into().or_illegal_argument()?;
+    let prover_id = prover_id_from_u64(aggregate.miner);
+    struct AggregationInputs {
+        // replica
+        commr: [u8; 32],
+        // data
+        commd: [u8; 32],
+        sector_id: SectorId,
+        ticket: [u8; 32],
+        seed: [u8; 32],
+    }
+    let inputs: Vec<AggregationInputs> = aggregate
+        .infos
+        .iter()
+        .map(|info| {
+            let commr = commcid::cid_to_replica_commitment_v1(&info.sealed_cid)?;
+            let commd = commcid::cid_to_data_commitment_v1(&info.unsealed_cid)?;
+            Ok(AggregationInputs {
+                commr,
+                commd,
+                ticket: bytes_32(&info.randomness.0),
+                seed: bytes_32(&info.interactive_randomness.0),
+                sector_id: SectorId::from(info.sector_number),
+            })
+        })
+        .collect::<core::result::Result<Vec<_>, &'static str>>()
+        .or_illegal_argument()?;
+
+    let inp: Vec<Vec<_>> = inputs
+        .par_iter()
+        .map(|input| {
+            proofs::seal::get_seal_inputs(
+                spt,
+                input.commr,
+                input.commd,
+                prover_id,
+                input.sector_id,
+                input.ticket,
+                input.seed,
+            )
+        })
+        .try_reduce(Vec::new, |mut acc, current| {
+            acc.extend(current);
+            Ok(acc)
+        })
+        .or_illegal_argument()?;
+
+    let commrs: Vec<[u8; 32]> = inputs.iter().map(|input| input.commr).collect();
+    let seeds: Vec<[u8; 32]> = inputs.iter().map(|input| input.seed).collect();
+
+    proofs::seal::verify_aggregate_seal_commit_proofs(
+        spt,
+        aggregate.aggregate_proof.try_into().or_illegal_argument()?,
+        aggregate.proof.clone(),
+        &commrs,
+        &seeds,
+        inp,
+    )
+    .or_illegal_argument()
+}
+
+fn verify_replica_update(replica: &ReplicaUpdateInfo) -> Result<bool> {
+    let up: proofs::RegisteredUpdateProof =
+        replica.update_proof_type.try_into().or_illegal_argument()?;
+
+    let commr_old =
+        commcid::cid_to_replica_commitment_v1(&replica.old_sealed_cid).or_illegal_argument()?;
+    let commr_new =
+        commcid::cid_to_replica_commitment_v1(&replica.new_sealed_cid).or_illegal_argument()?;
+    let commd =
+        commcid::cid_to_data_commitment_v1(&replica.new_unsealed_cid).or_illegal_argument()?;
+
+    proofs::update::verify_empty_sector_update_proof(
+        up,
+        &replica.proof,
+        commr_old,
+        commr_new,
+        commd,
+    )
+    .or_illegal_argument()
+}
+
+fn compute_unsealed_sector_cid(
+    proof_type: RegisteredSealProof,
+    pieces: &[PieceInfo],
+) -> Result<Cid> {
+    let ssize = proof_type.sector_size().or_illegal_argument()? as u64;
+
+    let mut all_pieces = Vec::<proofs::PieceInfo>::with_capacity(pieces.len());
+
+    let pssize = PaddedPieceSize(ssize);
+    if pieces.is_empty() {
+        all_pieces.push(proofs::PieceInfo {
+            size: pssize.unpadded().into(),
+            commitment: zero_piece_commitment(pssize),
+        })
+    } else {
+        // pad remaining space with 0 piece commitments
+        let mut sum = PaddedPieceSize(0);
+        let pad_to = |pads: Vec<PaddedPieceSize>,
+                      all_pieces: &mut Vec<proofs::PieceInfo>,
+                      sum: &mut PaddedPieceSize| {
+            for p in pads {
+                all_pieces.push(proofs::PieceInfo {
+                    size: p.unpadded().into(),
+                    commitment: zero_piece_commitment(p),
+                });
+
+                sum.0 += p.0;
+            }
+        };
+        for p in pieces {
+            let (ps, _) = get_required_padding(sum, p.size);
+            pad_to(ps, &mut all_pieces, &mut sum);
+
+            all_pieces.push(proofs::PieceInfo::try_from(p).or_illegal_argument()?);
+            sum.0 += p.size.0;
+        }
+
+        let (ps, _) = get_required_padding(sum, pssize);
+        pad_to(ps, &mut all_pieces, &mut sum);
+    }
+
+    let comm_d =
+        proofs::seal::compute_comm_d(proof_type.try_into().or_illegal_argument()?, &all_pieces)
+            .or_illegal_argument()?;
+
+    commcid::data_commitment_v1_to_cid(&comm_d).or_illegal_argument()
 }
