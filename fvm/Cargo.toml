@@ -41,6 +41,7 @@ anymap = "0.12.1"
 blake2b_simd = "1.0.0"
 fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
 yastl = "0.1.2"
+arbitrary = {version = "1.1.0", optional = true, features = ["derive"]}
 
 [dependencies.wasmtime]
 version = "0.36.0"
@@ -52,4 +53,5 @@ default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 testing = []
+arb = ["arbitrary"]
 
