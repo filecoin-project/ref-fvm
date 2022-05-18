@@ -244,9 +244,15 @@ where
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = to_vec(&addr)
-            // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
-            .map_err(|e| syscall_error!(Serialization; "failed to serialize params: {}", e))?;
+        let params = to_vec(&addr).map_err(|e| {
+            // This shouldn't happen, but we treat it as an illegal argument error and move on.
+            // It _likely_ means that the inputs were invalid in some unexpected way.
+            log::error!(
+                "failed to serialize address when creating actor, ignoring: {}",
+                e
+            );
+            syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
+        })?;
 
         self.send_resolved::<K>(
             account_actor::SYSTEM_ACTOR_ID,
@@ -272,7 +278,6 @@ where
         K: Kernel<CallManager = Self>,
     {
         // Get the receiver; this will resolve the address.
-        // TODO: What kind of errors should we be using here?
         let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,
             None => match to.protocol() {
