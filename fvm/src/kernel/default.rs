@@ -315,22 +315,36 @@ where
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+        // First, find the end of the _logical_ buffer (taking the offset into account).
+        // This must fit into an i32.
+
+        // We perform operations as u64, because we know that the buffer length and offset must fit
+        // in a u32.
+        let end = i32::try_from((offset as u64) + (buf.len() as u64))
+            .map_err(|_|syscall_error!(IllegalArgument; "offset plus buffer length did not fit into an i32"))?;
+
+        // Then get the block.
         let block = self.blocks.get(id)?;
         let data = block.data();
 
+        // We start reading at this offset.
         let start = offset as usize;
 
+        // We read (block_length - start) bytes, or until we fill the buffer.
         let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
+
+        // We can now _charge_, because we actually know how many bytes we need to read.
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
-        let end = start + to_read;
+        // Copy into the output buffer, but only if were're reading. If to_read == 0, start may be
+        // past the end of the block.
         if to_read != 0 {
-            buf[..to_read].copy_from_slice(&data[start..end]);
+            buf[..to_read].copy_from_slice(&data[start..(start + to_read)]);
         }
 
-        // Returns the difference between the end of the block, and the end of the data we've read.
-        Ok((data.len() as i32) - (end as i32))
+        // Returns the difference between the end of the block, and offset + buf.len()
+        Ok((data.len() as i32) - end)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {

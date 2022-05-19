@@ -62,7 +62,13 @@ pub fn get_block(id: fvm_shared::sys::BlockId, size_hint: Option<u32>) -> Syscal
             )?;
             debug_assert!(remaining <= 0, "should have read whole block");
         }
-        buf.set_len(buf.capacity() + (remaining as usize));
+        let size = (buf.capacity() as i64) + (remaining as i64);
+        debug_assert!(size >= 0, "size can't be negative");
+        debug_assert!(
+            size <= buf.capacity() as i64,
+            "size shouldn't exceed capacity"
+        );
+        buf.set_len(size as usize);
     }
     Ok(buf)
 }
