@@ -93,7 +93,7 @@ use self::bind::BindSyscall;
 use self::error::Abort;
 
 /// The maximum supported CID size. (SPEC_AUDIT)
-pub const MAX_CID_LEN: usize = 256;
+pub const MAX_CID_LEN: usize = 100;
 
 // Binds the syscall handlers so they can handle invocations
 // from the actor code.
