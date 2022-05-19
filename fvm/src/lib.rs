@@ -51,21 +51,22 @@ lazy_static::lazy_static! {
 
 #[cfg(test)]
 mod test {
+    use std::sync::{Arc, Weak};
+
     use anyhow::{anyhow, Context};
     use cid::Cid;
+    use derive_more::{Deref, DerefMut};
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::actor::builtin::{load_manifest, Manifest};
+    use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::address::Address;
-    use fvm_shared::consensus::ConsensusFault;
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::version::NetworkVersion;
-    use log::debug;
     use multihash::Code;
 
-    use crate::blockstore::BufferedBlockstore;
-    use crate::call_manager::{CallManager, DefaultCallManager, InvocationResult, FinishRet, Backtrace};
-    use crate::executor::DefaultExecutor;
+    use crate::call_manager::{
+        Backtrace, CallManager, DefaultCallManager, FinishRet, InvocationResult,
+    };
     use crate::externs::{Consensus, Externs, Rand};
     use crate::gas::{Gas, GasTracker, WasmGasPrices};
     use crate::kernel::{
@@ -108,7 +109,8 @@ mod test {
             _h2: &[u8],
             _extra: &[u8],
         ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
-            anyhow::Result::Ok((Some(ConsensusFault { target: todo!(), epoch: todo!(), fault_type: todo!() }), 0))
+            // consensus is always valid for tests :)
+            anyhow::Result::Ok((None, 0))
         }
     }
 
@@ -143,6 +145,7 @@ mod test {
         ));
     }
 
+    // TODO remove or refactor, this was my first stab at a test
     #[test]
     fn test_resolve_key() -> anyhow::Result<()> {
         let mut bs = MemoryBlockstore::default();
@@ -169,8 +172,6 @@ mod test {
         Ok(())
     }
 
-    struct DummyEngine;
-
     /// this is essentially identical to DefaultMachine, but has pub fields for reaching inside
     struct DummyMachine {
         pub engine: Engine,
@@ -182,6 +183,7 @@ mod test {
     const DUMMY_PRICES: &'static WasmGasPrices = &WasmGasPrices {
         exec_instruction_cost: Gas::new(0),
     };
+    // hardcoded elsewhere till relavant TODOs are solved
     const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
 
     impl DummyMachine {
@@ -194,14 +196,13 @@ mod test {
         //     let root = state_tree.flush()?;
         //     let bs = state_tree.into_store();
 
-            
         //     // An empty built-in actors manifest.
         //     let manifest = Manifest::new();
         //     let manifest_cid = bs.put_cbor(&manifest, Code::Blake2b256)?;
-            
+
         //     let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
 
-        //     let mut state_tree = StateTree::new_from_root(bs, &root)?; 
+        //     let mut state_tree = StateTree::new_from_root(bs, &root)?;
 
         //     let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V16)
         //         .override_actors(actors_cid)
@@ -215,32 +216,35 @@ mod test {
         //     })
         // }
 
-        /// build self with no context as a stub
+        /// build a dummy machine with no builtin actors, and from empty & new state tree for unit tests
         pub fn new_stub() -> anyhow::Result<Self> {
-            
             let mut bs = MemoryBlockstore::new();
+
             // generate new state root
             let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
             let root = state_tree.flush()?;
             let bs = state_tree.into_store();
 
-            
-            // An empty built-in actors manifest.
+            // Add empty built-in actors manifest to blockstore.
             let manifest = Manifest::new();
             let manifest_cid = bs.put_cbor(&manifest, Code::Blake2b256)?;
 
-            // sanity check 
-            bs
-                .has(&root)
-                .context("failed to load initial state-root")?;
+            // sanity checks
+            bs.has(&root).context("failed to load initial state-root")?;
+            bs.has(&manifest_cid)
+                .context("failed to load builtin actor manifest")?;
 
-                
+            // TODO find and document why this needs to be this
+            // TODO V15 requires this and IDK what V16 expects
+            // TODO why is a tuple of (num_actors, manifest) the expected manifest CID?
             let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
-            
-            // construct state tree from root state
-            let mut state_tree = StateTree::new_from_root(bs, &root)?; 
-            
-            let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V16)
+
+            // construct state tree from empty root state
+            let state_tree = StateTree::new_from_root(bs, &root)?;
+
+            // generate context from the new generated root and override actors with empty list
+            // TODO should this stay as V15?
+            let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V15)
                 .override_actors(actors_cid)
                 .for_epoch(0, root);
 
@@ -253,7 +257,6 @@ mod test {
                 state_tree,
                 builtin_actors: manifest,
             })
-    
         }
     }
 
@@ -312,17 +315,52 @@ mod test {
         }
     }
 
-    struct DummyCallManager {
-        machine: DummyMachine,
-        gas_tracker: GasTracker,
+    #[derive(Deref, DerefMut)]
+    // similar to `DefaultCallManager` but with public variables for modification by unit tests
+    struct InnerDummyCallManager {
+        #[deref]
+        #[deref_mut]
+        pub machine: DummyMachine,
+        pub gas_tracker: GasTracker,
+        pub origin: Address,
+        pub nonce: u64,
     }
+
+    impl InnerDummyCallManager {
+        fn machine(&self) -> &DummyMachine {
+            &self.machine
+        }
+    }
+
+    // a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut() and will panic, so this should be used in single thereaded tests only
+    struct DummyCallManager(Arc<InnerDummyCallManager>);
 
     impl DummyCallManager {
         fn new_stub() -> Self {
-            Self {
+            Self(Arc::new(InnerDummyCallManager {
                 machine: DummyMachine::new_stub().unwrap(),
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
-            }
+                origin: Address::new_actor(&[]),
+                nonce: 0,
+            }))
+        }
+
+        fn borrow(&self) -> &InnerDummyCallManager {
+            self.0.as_ref()
+        }
+
+        // TODO this needs proper safety review
+        /// similar to https://doc.rust-lang.org/src/alloc/sync.rs.html#1587
+        /// SAFETY: Any other Arc or Weak pointers to the same allocation must not be dereferenced for the duration of the returned borrow
+        unsafe fn borrow_mut(&mut self) -> &mut InnerDummyCallManager {
+            &mut *(Arc::as_ptr(&self.0) as *mut InnerDummyCallManager)
+        }
+
+        /// while not unsafe on its own, there are rules for the safe usage of the returned value
+        /// the only truly safe way to use this is to deref the returned struct **after or at the same time of DummyCallManager**
+        /// see `borrow_mut()`
+        unsafe fn weak(&self) -> Weak<InnerDummyCallManager> {
+            Arc::downgrade(&self.0)
         }
     }
 
@@ -330,10 +368,12 @@ mod test {
         type Machine = DummyMachine;
 
         fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self {
-            Self {
-                machine: DummyMachine::new_stub().unwrap(),
+            Self(Arc::new(InnerDummyCallManager {
+                machine,
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
-            }
+                origin,
+                nonce,
+            }))
         }
 
         fn send<K: Kernel<CallManager = Self>>(
@@ -358,35 +398,43 @@ mod test {
             (
                 FinishRet {
                     gas_used: 0,
-                    backtrace: Backtrace { frames: Vec::new(), cause: None },
+                    backtrace: Backtrace {
+                        frames: Vec::new(),
+                        cause: None,
+                    },
                     exec_trace: Vec::new(),
                 },
-                self.machine
+                match Arc::try_unwrap(self.0) {
+                    Ok(x) => x.machine,
+                    _ => panic!(
+                        "all refrences to DummyCallManager must be dropped before calling finish()"
+                    ),
+                },
             )
         }
 
         fn machine(&self) -> &Self::Machine {
-            &self.machine
+            &self.0.as_ref().machine
         }
 
         fn machine_mut(&mut self) -> &mut Self::Machine {
-            &mut self.machine
+            unsafe { &mut self.borrow_mut().machine }
         }
 
         fn gas_tracker(&self) -> &crate::gas::GasTracker {
-            &self.gas_tracker
+            &self.borrow().gas_tracker
         }
 
         fn gas_tracker_mut(&mut self) -> &mut crate::gas::GasTracker {
-            &mut self.gas_tracker
+            unsafe { &mut self.borrow_mut().gas_tracker }
         }
 
         fn origin(&self) -> Address {
-            Address::new_actor(&[])
+            self.0.as_ref().origin
         }
 
         fn nonce(&self) -> u64 {
-            0
+            self.0.as_ref().nonce
         }
 
         fn next_actor_idx(&mut self) -> u64 {
@@ -395,6 +443,9 @@ mod test {
     }
 
     mod default_kernel {
+
+        use fvm_ipld_encoding::DAG_CBOR;
+
         use super::*;
         use crate::kernel::IpldBlockOps;
 
@@ -417,23 +468,20 @@ mod test {
             Ok(())
         }
 
-
         #[test]
         fn ipld_ops() -> anyhow::Result<()> {
-            let mut bs = MemoryBlockstore::default();
+            let call_manager = DummyCallManager::new_stub();
+            // variable for value inspection
+            let refcell = unsafe { call_manager.weak() };
 
-            let cid = bs.put_cbor(&"foo", multihash::Code::Blake2b256)?; // should this be actually hashed beforehand or does this hash automatically?
+            let mut kern =
+                TestingKernel::new(call_manager, BlockRegistry::default(), 0, 0, 0, 0.into());
 
-            let mut kern = TestingKernel::new(
-                DummyCallManager::new_stub(),
-                BlockRegistry::default(),
-                0,
-                0,
-                0,
-                0.into(),
-            );
+            let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
 
-            kern.block_open(&cid)?; // this is incorrect
+            let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
+
+            kern.block_open(&cid)?;
 
             // assert gas charge
 
@@ -443,5 +491,7 @@ mod test {
 
             Ok(())
         }
+
+        // actor ops broken because origin addr is empty for now
     }
 }
