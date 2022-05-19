@@ -1,4 +1,4 @@
-# Reference Filecoin VM implementation (v0; beta)
+# Reference Filecoin VM implementation (v1; RC)
 
 [![Continuous integration](https://github.com/filecoin-project/fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/fvm/actions/workflows/ci.yml)
 
@@ -58,7 +58,7 @@ Here's what you'll find in each directory:
 
 ## Maturity roadmap
 
-### v0: FVM running built-in actors
+### v1: FVM running built-in actors (Milestone 1 of the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4))
 
 - Alpha:
   - Declared when: all test vectors passing, integrated into Lotus via FFI.
@@ -70,9 +70,9 @@ Here's what you'll find in each directory:
   - Declared when: all the above + integrated into a second client (likely Forest), successfully syncing mainnet on all.
   - Focus: pre-mainnet preparations.
 - Final:
-  - Declared when: FVM v0 is securing mainnet, i.e. when Phase 1 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: FVM v1 is securing mainnet, i.e. when Milestone 1 from the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4) is reached.
 
-### v1: Fully-programmable FVM
+### v2: Fully-programmable FVM (Milestone 2 of the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4))
 
 - Alpha:
   - Declared when: all functionality implemented, 70%+ test coverage, integrated into Lotus via FFI.
@@ -84,7 +84,7 @@ Here's what you'll find in each directory:
   - Declared when: code audited; network-upgrade releases ready for all Filecoin clients.
   - Focus: pre-mainnet preparations.
 - Final:
-  - Declared when: FVM v1 is operating mainnet, i.e. when Phase 2 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
+  - Declared when: FVM v2 is operating mainnet, i.e. when Milestone 2 from the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4) is reached.
 
 ## License
 
