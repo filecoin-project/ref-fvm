@@ -4,6 +4,17 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
 
+## 1.0.0-rc.1 [2022-05-19]
+
+This is the first release candidate resulting from the FVM M1 development
+freeze.
+
+Changes introduced:
+- Make `DefaultExecutor#flush` a method on the `Executor` trait.
+- Catch additional inner panics at the kernel layer, lowering them to syscall errors.
+- General refinement of error handling by returning more fitting error numbers.
+- General upstream dependency upgrade, including Wasmtime to 0.36.0.
+
 ## 0.8.0 [2022-05-16]
 
 This release includes several major features:
