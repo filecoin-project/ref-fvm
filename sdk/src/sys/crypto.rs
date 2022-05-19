@@ -24,6 +24,7 @@ super::fvm_syscalls! {
     ///
     /// | Error               | Reason                                               |
     /// |---------------------|------------------------------------------------------|
+    /// | [`NotFound`]        | the signer's address could not be resolved           |
     /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
     pub fn verify_signature(
         sig_type: u32,

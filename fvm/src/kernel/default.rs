@@ -108,7 +108,7 @@ where
             .state_tree()
             .get_actor(addr)?
             .context("state tree doesn't contain actor")
-            .or_illegal_argument()?;
+            .or_error(ErrorNumber::NotFound)?;
 
         let is_account = self
             .call_manager
@@ -119,6 +119,8 @@ where
             .unwrap_or(false);
 
         if !is_account {
+            // TODO: this is wrong. Maybe some InvalidActor type?
+            // The argument is syntactically correct, but semantically wrong.
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
@@ -220,12 +222,10 @@ where
             let beneficiary_id = self
                 .resolve_address(beneficiary)?
                 .context("beneficiary doesn't exist")
-                .or_error(ErrorNumber::IllegalArgument)?;
+                .or_error(ErrorNumber::NotFound)?;
 
             if beneficiary_id == self.actor_id {
-                return Err(
-                    syscall_error!(IllegalArgument, "benefactor cannot be beneficiary").into(),
-                );
+                return Err(syscall_error!(Forbidden, "benefactor cannot be beneficiary").into());
             }
 
             // Transfer the entirety of funds to beneficiary.
@@ -303,11 +303,13 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO: for now, we _put_ the block here. In the future, we should put it into a write
-        // cache, then flush it later.
+        // TODO: in M2, we need to write to a "write set" here, only flushing when updating the
+        // root.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
+            // TODO: This is really "super fatal". It means we failed to store state, and should
+            // probably abort the entire block.
             .or_fatal()?;
         Ok(k)
     }
@@ -653,6 +655,7 @@ where
         )?;
 
         // TODO: Check error code
+        // Specifically, lookback length?
         self.call_manager
             .externs()
             .get_chain_randomness(personalization, rand_epoch, entropy)
@@ -673,6 +676,7 @@ where
         )?;
 
         // TODO: Check error code
+        // Specifically, lookback length?
         self.call_manager
             .externs()
             .get_beacon_randomness(personalization, rand_epoch, entropy)
@@ -721,18 +725,17 @@ where
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         let typ = self
             .get_builtin_actor_type(&code_id)
-            .ok_or_else(|| syscall_error!(IllegalArgument; "can only create built-in actors"))?;
+            .ok_or_else(|| syscall_error!(Forbidden; "can only create built-in actors"))?;
 
         if typ.is_singleton_actor() {
             return Err(
-                syscall_error!(IllegalArgument; "can only have one instance of singleton actors")
-                    .into(),
+                syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
             );
         };
 
         let state_tree = self.call_manager.state_tree();
         if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
-            return Err(syscall_error!(IllegalArgument; "Actor address already exists").into());
+            return Err(syscall_error!(Forbidden; "Actor address already exists").into());
         }
 
         self.call_manager

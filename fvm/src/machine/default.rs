@@ -11,7 +11,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
-use num_traits::{Signed, Zero};
+use num_traits::Signed;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
@@ -193,84 +193,42 @@ where
     }
 
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        if self.context.network_version >= NetworkVersion::V15 {
-            if value.is_negative() {
-                return Err(syscall_error!(IllegalArgument;
+        if value.is_negative() {
+            return Err(syscall_error!(IllegalArgument;
                 "attempted to transfer negative transfer value {}", value)
-                .into());
-            }
-
-            // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
-            // that and the case where the _receiving_ actor doesn't exist.
-            let mut from_actor = self
-                .state_tree
-                .get_actor_id(from)?
-                .context("cannot transfer from non-existent sender")
-                .or_error(ErrorNumber::InsufficientFunds)?;
-
-            if from_actor.balance.lt(value) {
-                return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
-            }
-
-            if from == to {
-                debug!("attempting to self-transfer: noop (from/to: {})", from);
-                return Ok(());
-            }
-
-            let mut to_actor = self
-                .state_tree
-                .get_actor_id(to)?
-                .context("cannot transfer to non-existent receiver")
-                .or_error(ErrorNumber::NotFound)?;
-
-            from_actor.deduct_funds(value).map_err(|e| {
-                syscall_error!(InsufficientFunds;
-                           "transfer failed when deducting funds ({}) from balance ({}): {}",
-                           value, &from_actor.balance, e)
-            })?;
-            to_actor.deposit_funds(value);
-
-            self.state_tree.set_actor_id(from, from_actor)?;
-            self.state_tree.set_actor_id(to, to_actor)?;
-
-            log::trace!("transferred {} from {} to {}", value, from, to);
-        } else {
-            if from == to || value.is_zero() {
-                return Ok(());
-            }
-
-            if value.is_negative() {
-                return Err(syscall_error!(IllegalArgument;
-                "attempted to transfer negative transfer value {}", value)
-                .into());
-            }
-
-            // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
-            // that and the case where the _receiving_ actor doesn't exist.
-            let mut from_actor = self
-                .state_tree
-                .get_actor_id(from)?
-                .context("cannot transfer from non-existent sender")
-                .or_error(ErrorNumber::InsufficientFunds)?;
-
-            let mut to_actor = self
-                .state_tree
-                .get_actor_id(to)?
-                .context("cannot transfer to non-existent receiver")
-                .or_error(ErrorNumber::NotFound)?;
-
-            from_actor.deduct_funds(value).map_err(|e| {
-                syscall_error!(InsufficientFunds;
-                           "transfer failed when deducting funds ({}) from balance ({}): {}",
-                           value, &from_actor.balance, e)
-            })?;
-            to_actor.deposit_funds(value);
-
-            self.state_tree.set_actor_id(from, from_actor)?;
-            self.state_tree.set_actor_id(to, to_actor)?;
-
-            log::trace!("transfered {} from {} to {}", value, from, to);
+            .into());
         }
+
+        // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
+        // that and the case where the _receiving_ actor doesn't exist.
+        let mut from_actor = self
+            .state_tree
+            .get_actor_id(from)?
+            .context("cannot transfer from non-existent sender")
+            .or_error(ErrorNumber::InsufficientFunds)?;
+
+        if &from_actor.balance < value {
+            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
+        }
+
+        if from == to {
+            debug!("attempting to self-transfer: noop (from/to: {})", from);
+            return Ok(());
+        }
+
+        let mut to_actor = self
+            .state_tree
+            .get_actor_id(to)?
+            .context("cannot transfer to non-existent receiver")
+            .or_error(ErrorNumber::NotFound)?;
+
+        from_actor.deduct_funds(value)?;
+        to_actor.deposit_funds(value);
+
+        self.state_tree.set_actor_id(from, from_actor)?;
+        self.state_tree.set_actor_id(to, to_actor)?;
+
+        log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
     }
