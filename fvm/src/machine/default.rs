@@ -11,7 +11,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
-use num_traits::{Signed, Zero};
+use num_traits::Signed;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
@@ -207,7 +207,7 @@ where
             .context("cannot transfer from non-existent sender")
             .or_error(ErrorNumber::InsufficientFunds)?;
 
-        if &from_actor.balance < &value {
+        if &from_actor.balance < value {
             return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
         }
 
