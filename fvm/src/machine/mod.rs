@@ -20,7 +20,7 @@ pub use default::DefaultMachine;
 
 mod engine;
 
-pub use engine::{Engine, MultiEngine};
+pub use engine::{Engine, EngineConfig, MultiEngine};
 
 mod boxed;
 

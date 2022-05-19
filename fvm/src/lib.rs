@@ -51,21 +51,29 @@ lazy_static::lazy_static! {
 
 #[cfg(test)]
 mod test {
+    use anyhow::{anyhow, Context};
     use cid::Cid;
-    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::actor::builtin::Manifest;
+    use fvm_shared::actor::builtin::{load_manifest, Manifest};
     use fvm_shared::address::Address;
+    use fvm_shared::consensus::ConsensusFault;
     use fvm_shared::state::StateTreeVersion;
+    use fvm_shared::version::NetworkVersion;
+    use log::debug;
     use multihash::Code;
 
     use crate::blockstore::BufferedBlockstore;
-    use crate::call_manager::{CallManager, DefaultCallManager};
+    use crate::call_manager::{CallManager, DefaultCallManager, InvocationResult, FinishRet, Backtrace};
     use crate::executor::DefaultExecutor;
     use crate::externs::{Consensus, Externs, Rand};
-    use crate::gas::{GasTracker, Gas};
-    use crate::kernel::{BlockRegistry, SelfOps, MessageOps, IpldBlockOps, GasOps, SendOps, ActorOps};
-    use crate::machine::{DefaultMachine, Engine, Machine, NetworkConfig, MachineContext};
+    use crate::gas::{Gas, GasTracker, WasmGasPrices};
+    use crate::kernel::{
+        ActorOps, BlockRegistry, GasOps, IpldBlockOps, MessageOps, SelfOps, SendOps,
+    };
+    use crate::machine::{
+        DefaultMachine, Engine, EngineConfig, Machine, MachineContext, NetworkConfig,
+    };
     use crate::state_tree::StateTree;
     use crate::{executor, DefaultKernel, Kernel};
 
@@ -100,42 +108,8 @@ mod test {
             _h2: &[u8],
             _extra: &[u8],
         ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
-            todo!()
+            anyhow::Result::Ok((Some(ConsensusFault { target: todo!(), epoch: todo!(), fault_type: todo!() }), 0))
         }
-    }
-
-    type DummyExecutor = DefaultExecutor<
-        DefaultKernel<DefaultCallManager<Box<DefaultMachine<MemoryBlockstore, DummyExterns>>>>,
-    >;
-    type DummyKernel =
-        DefaultKernel<DefaultCallManager<Box<DefaultMachine<MemoryBlockstore, DummyExterns>>>>;
-
-    fn dummy_constructor() -> DummyExecutor {
-        let mut bs = MemoryBlockstore::default();
-        let mut st = StateTree::new(bs, StateTreeVersion::V4).unwrap();
-        let root = st.flush().unwrap();
-        bs = st.into_store();
-
-        // An empty built-in actors manifest.
-        let manifest_cid = {
-            let manifest = Manifest::new();
-            bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
-        };
-
-        let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
-
-        let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V15)
-            .override_actors(actors_cid)
-            .for_epoch(0, root);
-
-        let machine = DefaultMachine::new(
-            &Engine::new_default((&mc.network).into()).unwrap(),
-            &mc,
-            bs,
-            DummyExterns,
-        )
-        .unwrap();
-        DummyExecutor::new(Box::new(machine))
     }
 
     #[test]
@@ -195,19 +169,91 @@ mod test {
         Ok(())
     }
 
-    
+    struct DummyEngine;
+
+    /// this is essentially identical to DefaultMachine, but has pub fields for reaching inside
     struct DummyMachine {
-        state_tree: StateTree<MemoryBlockstore>,
-        ctx: MachineContext,
+        pub engine: Engine,
+        pub state_tree: StateTree<MemoryBlockstore>,
+        pub ctx: MachineContext,
+        pub builtin_actors: Manifest,
     }
 
-    impl Default for DummyMachine {
-        fn default() -> Self {
-            let cid = Cid::default(); // this probably shouldnt work
-            Self {
-                state_tree: StateTree::new(MemoryBlockstore::new(), StateTreeVersion::V4).unwrap(), // is v4 right?
-                ctx: NetworkConfig::new(fvm_shared::version::NetworkVersion::V16).for_epoch(0, cid),
-            }
+    const DUMMY_PRICES: &'static WasmGasPrices = &WasmGasPrices {
+        exec_instruction_cost: Gas::new(0),
+    };
+    const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
+
+    impl DummyMachine {
+        // pub fn new_cfg(
+        //     bs: MemoryBlockstore,
+        //     engine: &Engine,
+        //     manifest_ver: u32,
+        // ) -> anyhow::Result<Self> {
+        //     let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
+        //     let root = state_tree.flush()?;
+        //     let bs = state_tree.into_store();
+
+            
+        //     // An empty built-in actors manifest.
+        //     let manifest = Manifest::new();
+        //     let manifest_cid = bs.put_cbor(&manifest, Code::Blake2b256)?;
+            
+        //     let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
+
+        //     let mut state_tree = StateTree::new_from_root(bs, &root)?; 
+
+        //     let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V16)
+        //         .override_actors(actors_cid)
+        //         .for_epoch(0, root);
+
+        //     Ok(Self {
+        //         ctx,
+        //         engine: engine.clone(),
+        //         state_tree,
+        //         builtin_actors: manifest,
+        //     })
+        // }
+
+        /// build self with no context as a stub
+        pub fn new_stub() -> anyhow::Result<Self> {
+            
+            let mut bs = MemoryBlockstore::new();
+            // generate new state root
+            let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
+            let root = state_tree.flush()?;
+            let bs = state_tree.into_store();
+
+            
+            // An empty built-in actors manifest.
+            let manifest = Manifest::new();
+            let manifest_cid = bs.put_cbor(&manifest, Code::Blake2b256)?;
+
+            // sanity check 
+            bs
+                .has(&root)
+                .context("failed to load initial state-root")?;
+
+                
+            let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
+            
+            // construct state tree from root state
+            let mut state_tree = StateTree::new_from_root(bs, &root)?; 
+            
+            let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V16)
+                .override_actors(actors_cid)
+                .for_epoch(0, root);
+
+            Ok(Self {
+                ctx,
+                engine: Engine::new_default(EngineConfig {
+                    max_wasm_stack: 1024,
+                    wasm_prices: DUMMY_PRICES,
+                })?,
+                state_tree,
+                builtin_actors: manifest,
+            })
+    
         }
     }
 
@@ -217,7 +263,7 @@ mod test {
         type Externs = DummyExterns;
 
         fn engine(&self) -> &Engine {
-            todo!()
+            &self.engine
         }
 
         fn blockstore(&self) -> &Self::Blockstore {
@@ -229,19 +275,19 @@ mod test {
         }
 
         fn externs(&self) -> &Self::Externs {
-            todo!()
+            &DummyExterns
         }
 
         fn builtin_actors(&self) -> &Manifest {
-            todo!()
+            &self.builtin_actors
         }
 
         fn state_tree(&self) -> &StateTree<Self::Blockstore> {
-            todo!()
+            &self.state_tree
         }
 
         fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore> {
-            todo!()
+            &mut self.state_tree
         }
 
         fn create_actor(
@@ -272,10 +318,10 @@ mod test {
     }
 
     impl DummyCallManager {
-        fn ffs() -> Self {
-            Self { 
-                machine: DummyMachine::default(), 
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // this will need to be modified for gas limit testing
+        fn new_stub() -> Self {
+            Self {
+                machine: DummyMachine::new_stub().unwrap(),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
             }
         }
     }
@@ -284,7 +330,10 @@ mod test {
         type Machine = DummyMachine;
 
         fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self {
-            todo!()
+            Self {
+                machine: DummyMachine::new_stub().unwrap(),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+            }
         }
 
         fn send<K: Kernel<CallManager = Self>>(
@@ -295,18 +344,25 @@ mod test {
             params: Option<crate::kernel::Block>,
             value: &fvm_shared::econ::TokenAmount,
         ) -> crate::kernel::Result<crate::call_manager::InvocationResult> {
-            todo!()
+            Ok(InvocationResult::Return(None))
         }
 
         fn with_transaction(
             &mut self,
             f: impl FnOnce(&mut Self) -> crate::kernel::Result<crate::call_manager::InvocationResult>,
         ) -> crate::kernel::Result<crate::call_manager::InvocationResult> {
-            todo!()
+            Ok(InvocationResult::Return(None))
         }
 
         fn finish(self) -> (crate::call_manager::FinishRet, Self::Machine) {
-            todo!()
+            (
+                FinishRet {
+                    gas_used: 0,
+                    backtrace: Backtrace { frames: Vec::new(), cause: None },
+                    exec_trace: Vec::new(),
+                },
+                self.machine
+            )
         }
 
         fn machine(&self) -> &Self::Machine {
@@ -314,7 +370,7 @@ mod test {
         }
 
         fn machine_mut(&mut self) -> &mut Self::Machine {
-            todo!()
+            &mut self.machine
         }
 
         fn gas_tracker(&self) -> &crate::gas::GasTracker {
@@ -326,30 +382,34 @@ mod test {
         }
 
         fn origin(&self) -> Address {
-            todo!()
+            Address::new_actor(&[])
         }
 
         fn nonce(&self) -> u64 {
-            todo!()
+            0
         }
 
         fn next_actor_idx(&mut self) -> u64 {
-            todo!()
+            0
         }
     }
-    
+
     mod default_kernel {
+        use super::*;
         use crate::kernel::IpldBlockOps;
 
-        use super::*;
+        type TestingKernel = DefaultKernel<DummyCallManager>;
 
         #[test]
         fn test_msg() -> anyhow::Result<()> {
-            type TestingKernel = DefaultKernel<DummyCallManager>;
-
-            let mut bs = MemoryBlockstore::default();
-
-            let kern = TestingKernel::new(DummyCallManager::ffs(), BlockRegistry::default(), 0, 0, 0, 0.into());
+            let kern = TestingKernel::new(
+                DummyCallManager::new_stub(),
+                BlockRegistry::default(),
+                0,
+                0,
+                0,
+                0.into(),
+            );
 
             kern.msg_receiver();
             assert_eq!(0, kern.msg_receiver());
@@ -357,19 +417,23 @@ mod test {
             Ok(())
         }
 
-        #[test]
-        fn test_ipld_block_open() -> anyhow::Result<()> {
-            type TestingKernel = DefaultKernel<DummyCallManager>;
 
+        #[test]
+        fn ipld_ops() -> anyhow::Result<()> {
             let mut bs = MemoryBlockstore::default();
 
             let cid = bs.put_cbor(&"foo", multihash::Code::Blake2b256)?; // should this be actually hashed beforehand or does this hash automatically?
 
-            let mut kern = TestingKernel::new(DummyCallManager::ffs(), BlockRegistry::default(), 0, 0, 0, 0.into());
+            let mut kern = TestingKernel::new(
+                DummyCallManager::new_stub(),
+                BlockRegistry::default(),
+                0,
+                0,
+                0,
+                0.into(),
+            );
 
-            kern.charge_gas("foo", Gas::new(1))?;
-
-            kern.gas_available();
+            kern.block_open(&cid)?; // this is incorrect
 
             // assert gas charge
 
@@ -380,5 +444,4 @@ mod test {
             Ok(())
         }
     }
-    
 }
