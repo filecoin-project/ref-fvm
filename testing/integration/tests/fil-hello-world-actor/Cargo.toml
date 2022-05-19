@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fvm_sdk = { version = "0.7.0", path = "../../../../sdk" }
+fvm_sdk = { version = "1.0.0-rc.1", path = "../../../../sdk" }
 fvm_shared = { version = "0.7.0", path = "../../../../shared" }
 
 

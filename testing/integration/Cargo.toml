@@ -6,13 +6,13 @@ edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "0.8.0", path = "../../fvm", default-features = false }
+fvm = { version = "1.0.0-rc.1", path = "../../fvm", default-features = false }
 fvm_shared = { version = "0.7.0", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.1", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.4.1", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2.0", path = "../../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.2.1", path = "../../ipld/encoding" }
 
 actors-v7 = { version = "~7.4", package = "fil_builtin_actors_bundle" }
 anyhow = "1.0.47"
