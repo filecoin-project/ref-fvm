@@ -141,7 +141,6 @@ where
                     }
 
                     // Collect values from child nodes to collapse.
-                    #[allow(unused_mut)]
                     let mut child_vals: Vec<KeyValuePair<K, V>> = n
                         .pointers
                         .iter_mut()

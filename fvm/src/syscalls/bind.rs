@@ -10,9 +10,6 @@ use super::{charge_for_exec, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
-// TODO: we should consider implementing a proc macro attribute for syscall functions instead of
-// this type nonsense. But this was faster and will "work" for now.
-
 /// Binds syscalls to a linker, converting the returned error according to the syscall convention:
 ///
 /// 1. If the error is a syscall error, it's returned as the first return value.

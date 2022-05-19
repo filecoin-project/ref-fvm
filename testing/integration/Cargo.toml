@@ -32,7 +32,7 @@ thiserror = "1.0.30"
 [dependencies.wasmtime]
 version = "0.36.0"
 default-features = false
-features = ["cranelift", "pooling-allocator", "parallel-compilation"]
+features = ["cranelift", "parallel-compilation"]
 
 [dev-dependencies]
 wabt = "0.10.0"

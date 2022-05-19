@@ -79,6 +79,12 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
 
+        // Preload the actors. We don't usually preload actors when testing, so we're going to do
+        // this explicitly.
+        engine
+            .preload(machine.blockstore(), machine.builtin_actors().left_values())
+            .unwrap();
+
         let price_list = machine.context().price_list.clone();
 
         TestMachine::<Box<DefaultMachine<_, _>>> {
@@ -443,7 +449,6 @@ where
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
         self.0.charge_gas(charge.name, charge.total())?;
-        // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
 

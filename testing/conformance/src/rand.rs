@@ -31,7 +31,7 @@ impl Rand for TestFallbackRand {
 impl ReplayingRand {
     pub fn new(recorded: &[RandomnessMatch]) -> Self {
         Self {
-            recorded: Vec::from(recorded), // TODO this copies, maybe optimize
+            recorded: Vec::from(recorded),
             fallback: TestFallbackRand,
         }
     }

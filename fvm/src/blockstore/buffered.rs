@@ -1,19 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::{Cursor, Read, Seek};
+
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED};
-
-// TODO: figure out where to put this.
-const DAG_CBOR: u64 = 0x71;
-
-// TODO: replace HashMap with DashMap like in forest?
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::{Cursor, Read, Seek};
 
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
@@ -183,6 +180,7 @@ fn copy_rec<'a>(
     // 2. We always write-back new blocks, even if lotus already has them. We haven't noticed a perf
     //    impact.
 
+    // TODO(M2): Make this not cbor specific.
     match (root.codec(), root.hash().code(), root.hash().size()) {
         // Allow non-truncated blake2b-256 raw/cbor (code/state)
         (DAG_RAW | DAG_CBOR, BLAKE2B_256, BLAKE2B_LEN) => (),
@@ -218,7 +216,7 @@ fn copy_rec<'a>(
     // At the moment, we only expect dag-cbor and raw.
     // In M2, we'll need to copy explicitly.
     if root.codec() == DAG_CBOR {
-        // TODO: Make this non-recursive.
+        // TODO(M2): Make this non-recursive.
         scan_for_links(&mut Cursor::new(block), |link| {
             copy_rec(cache, link, buffer)
         })?;

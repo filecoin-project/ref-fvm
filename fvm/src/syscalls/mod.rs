@@ -94,9 +94,6 @@ use self::error::Abort;
 
 // Binds the syscall handlers so they can handle invocations
 // from the actor code.
-//
-// TODO try to fix the static lifetime here. I want to tell the compiler that
-//  the Kernel will live as long as the Machine and the Linker.
 pub fn bind_syscalls(
     linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
 ) -> anyhow::Result<()> {
