@@ -51,6 +51,7 @@ lazy_static::lazy_static! {
 
 #[cfg(test)]
 mod test {
+    use std::mem::ManuallyDrop;
     use std::sync::{Arc, Weak};
 
     use anyhow::{anyhow, Context};
@@ -180,42 +181,15 @@ mod test {
         pub builtin_actors: Manifest,
     }
 
-    const DUMMY_PRICES: &'static WasmGasPrices = &WasmGasPrices {
-        exec_instruction_cost: Gas::new(0),
+    /// WASM execution prices is 1 for counting
+    const DUMMY_WASM_PRICES: WasmGasPrices = WasmGasPrices {
+        exec_instruction_cost: Gas::from_milligas(1),
     };
+
     // hardcoded elsewhere till relavant TODOs are solved
     const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
 
     impl DummyMachine {
-        // pub fn new_cfg(
-        //     bs: MemoryBlockstore,
-        //     engine: &Engine,
-        //     manifest_ver: u32,
-        // ) -> anyhow::Result<Self> {
-        //     let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
-        //     let root = state_tree.flush()?;
-        //     let bs = state_tree.into_store();
-
-        //     // An empty built-in actors manifest.
-        //     let manifest = Manifest::new();
-        //     let manifest_cid = bs.put_cbor(&manifest, Code::Blake2b256)?;
-
-        //     let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
-
-        //     let mut state_tree = StateTree::new_from_root(bs, &root)?;
-
-        //     let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V16)
-        //         .override_actors(actors_cid)
-        //         .for_epoch(0, root);
-
-        //     Ok(Self {
-        //         ctx,
-        //         engine: engine.clone(),
-        //         state_tree,
-        //         builtin_actors: manifest,
-        //     })
-        // }
-
         /// build a dummy machine with no builtin actors, and from empty & new state tree for unit tests
         pub fn new_stub() -> anyhow::Result<Self> {
             let mut bs = MemoryBlockstore::new();
@@ -252,7 +226,7 @@ mod test {
                 ctx,
                 engine: Engine::new_default(EngineConfig {
                     max_wasm_stack: 1024,
-                    wasm_prices: DUMMY_PRICES,
+                    wasm_prices: &DUMMY_WASM_PRICES,
                 })?,
                 state_tree,
                 builtin_actors: manifest,
@@ -322,6 +296,7 @@ mod test {
         #[deref_mut]
         pub machine: DummyMachine,
         pub gas_tracker: GasTracker,
+        pub charge_gas_calls: usize,
         pub origin: Address,
         pub nonce: u64,
     }
@@ -332,7 +307,8 @@ mod test {
         }
     }
 
-    // a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut() and will panic, so this should be used in single thereaded tests only
+    /// a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut(), so this should be used in single thereaded tests only
+    /// TODO this introduces some rough edges that might need to be cleaned up 
     struct DummyCallManager(Arc<InnerDummyCallManager>);
 
     impl DummyCallManager {
@@ -341,6 +317,7 @@ mod test {
                 machine: DummyMachine::new_stub().unwrap(),
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
                 origin: Address::new_actor(&[]),
+                charge_gas_calls: 0,
                 nonce: 0,
             }))
         }
@@ -350,17 +327,20 @@ mod test {
         }
 
         // TODO this needs proper safety review
-        /// similar to https://doc.rust-lang.org/src/alloc/sync.rs.html#1587
+        /// similar to https://doc.rust-lang.org/src/alloc/sync.rs.html#1545
+        /// panics if the Arc isn't the only strong pointer that exists.
         /// SAFETY: Any other Arc or Weak pointers to the same allocation must not be dereferenced for the duration of the returned borrow
         unsafe fn borrow_mut(&mut self) -> &mut InnerDummyCallManager {
+            if Arc::strong_count(&self.0) != 1 {
+                panic!("Only one strong pointer is allowed when mutating DummyCallManager")
+            }
             &mut *(Arc::as_ptr(&self.0) as *mut InnerDummyCallManager)
         }
 
-        /// while not unsafe on its own, there are rules for the safe usage of the returned value
-        /// the only truly safe way to use this is to deref the returned struct **after or at the same time of DummyCallManager**
+        /// the only truly safe way to use this is to deref the returned Weak ref **after or at the same time of DummyCallManager**
         /// see `borrow_mut()`
-        unsafe fn weak(&self) -> Weak<InnerDummyCallManager> {
-            Arc::downgrade(&self.0)
+        fn weak(&self) -> ManuallyDrop<Weak<InnerDummyCallManager>> {
+            ManuallyDrop::new(Arc::downgrade(&self.0))
         }
     }
 
@@ -371,6 +351,7 @@ mod test {
             Self(Arc::new(InnerDummyCallManager {
                 machine,
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+                charge_gas_calls: 0,
                 origin,
                 nonce,
             }))
@@ -429,6 +410,14 @@ mod test {
             unsafe { &mut self.borrow_mut().gas_tracker }
         }
 
+        fn charge_gas(&mut self, charge: crate::gas::GasCharge) -> crate::kernel::Result<()> {
+            unsafe {
+                self.borrow_mut().charge_gas_calls += 1;
+            }
+            self.gas_tracker_mut().apply_charge(charge)?;
+            Ok(())
+        }
+
         fn origin(&self) -> Address {
             self.0.as_ref().origin
         }
@@ -450,6 +439,22 @@ mod test {
         use crate::kernel::IpldBlockOps;
 
         type TestingKernel = DefaultKernel<DummyCallManager>;
+        type ExternalCallManager = ManuallyDrop<Weak<InnerDummyCallManager>>;
+
+        // NOTE there seems to be a gas issue
+        // TODO maybe make util functions
+
+        /// function to reduce a bit of boilerplate
+        fn build_inspecting_test() -> anyhow::Result<(TestingKernel, ExternalCallManager)> {
+            // call_manager is not dropped till the end of the function
+            let call_manager = DummyCallManager::new_stub();
+            // variable for value inspection, only upgrade after done mutating to avoid panic
+            let refcell = call_manager.weak();
+
+            let kern =
+                TestingKernel::new(call_manager, BlockRegistry::default(), 0, 0, 0, 0.into());
+            Ok((kern, refcell))
+        }
 
         #[test]
         fn test_msg() -> anyhow::Result<()> {
@@ -469,28 +474,50 @@ mod test {
         }
 
         #[test]
-        fn ipld_ops() -> anyhow::Result<()> {
-            let call_manager = DummyCallManager::new_stub();
-            // variable for value inspection
-            let refcell = unsafe { call_manager.weak() };
+        fn ipld_ops_roundtrip() -> anyhow::Result<()> {
+            let (mut kern, refcell) = build_inspecting_test()?;
 
-            let mut kern =
-                TestingKernel::new(call_manager, BlockRegistry::default(), 0, 0, 0, 0.into());
-
+            // roundtrip
             let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
-
             let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
+            let stat = kern.block_stat(id)?;
+            let (opened_id, opened_stat) = kern.block_open(&cid)?;
 
-            kern.block_open(&cid)?;
+            // prevent new mutations
+            let kern = &kern;
+            // ok to upgrade into strong pointer since kern can't be mutated anymore
+            let arc = &mut refcell.upgrade().unwrap();
+            let external_call_manager = arc.as_ref();
 
-            // assert gas charge
+            // create op should be 1
+            assert_eq!(id, 1);
+            // open op should be 2
+            assert_eq!(opened_id - 1, id);
 
-            // assert block ID
+            // Stat
+            assert_eq!(stat.codec, opened_stat.codec);
+            assert_eq!(stat.codec, DAG_CBOR);
+            assert_eq!(stat.size, opened_stat.size);
+            assert_eq!(stat.size, 3);
 
-            // assert block stat
+            // assert gas charge calls
+            assert_eq!(
+                external_call_manager.charge_gas_calls,
+                // open 2 (load charge and per-byte charge)
+                // link 1
+                // stat 1
+                // create 1
+                5
+            );
 
+            // drop strong ref *before* weak ref
+            drop(kern);
+            // ok to drop weak ref
+            drop(ManuallyDrop::into_inner(refcell));
             Ok(())
         }
+
+        
 
         // actor ops broken because origin addr is empty for now
     }
