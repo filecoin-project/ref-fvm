@@ -120,8 +120,13 @@ impl BlockRegistry {
         if self.is_full() {
             return Err(BlockPutError::TooManyBlocks);
         }
-        if block.codec != DAG_CBOR {
-            return Err(BlockPutError::InvalidCodec(block.codec));
+
+        match block.codec {
+            DAG_CBOR => {}
+            0x55 => {}
+            _ => {
+                return Err(BlockPutError::InvalidCodec(block.codec));
+            }
         }
 
         let id = FIRST_ID + self.blocks.len() as u32;
