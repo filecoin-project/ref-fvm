@@ -18,4 +18,5 @@ type TestingKernel = DefaultKernel<dummy::DummyCallManager>;
 type ExternalCallManager = ManuallyDrop<Weak<dummy::InnerDummyCallManager>>;
 
 // TODO gas functions assert calls are being charged properly
-// TODO maybe make util functions
+// TODO maybe make more util functions
+// TODO unit tests have a lot of boilerplate I would like to reduce

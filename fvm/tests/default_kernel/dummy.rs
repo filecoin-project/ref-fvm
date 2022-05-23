@@ -13,7 +13,7 @@ use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
-use fvm_shared::version::NetworkVersion;
+// use fvm_shared::version::NetworkVersion;
 use multihash::Code;
 
 use super::*;
@@ -28,12 +28,12 @@ pub struct DummyMachine {
 }
 
 // hardcoded elsewhere till relavant TODOs are solved
-const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
+// const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
 
 impl DummyMachine {
     /// build a dummy machine with no builtin actors, and from empty & new state tree for unit tests
     pub fn new_stub() -> anyhow::Result<Self> {
-        let mut bs = MemoryBlockstore::new();
+        let bs = MemoryBlockstore::new();
 
         // generate new state root
         let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
@@ -110,17 +110,17 @@ impl Machine for DummyMachine {
 
     fn create_actor(
         &mut self,
-        addr: &Address,
-        act: ActorState,
+        _addr: &Address,
+        _act: ActorState,
     ) -> kernel::Result<fvm_shared::ActorID> {
         todo!()
     }
 
     fn transfer(
         &mut self,
-        from: fvm_shared::ActorID,
-        to: fvm_shared::ActorID,
-        value: &fvm_shared::econ::TokenAmount,
+        _from: fvm_shared::ActorID,
+        _to: fvm_shared::ActorID,
+        _value: &fvm_shared::econ::TokenAmount,
     ) -> kernel::Result<()> {
         todo!()
     }
@@ -171,7 +171,7 @@ impl DummyCallManager {
         &mut *(Arc::as_ptr(&self.0) as *mut InnerDummyCallManager)
     }
 
-    /// the only truly safe way to use this is to deref the returned Weak ref **after or at the same time of DummyCallManager**
+    /// the only truly safe way to use this is to deref the returned Weak ref **after or at the same time of DummyCallManager** `ManuallyDrop` helps enforce that the returned ref is either never dropped or explicitly dropped at some point (hopefully after )  
     /// see `borrow_mut()`
     pub fn weak(&self) -> ManuallyDrop<Weak<InnerDummyCallManager>> {
         ManuallyDrop::new(Arc::downgrade(&self.0))
@@ -181,7 +181,7 @@ impl DummyCallManager {
 impl CallManager for DummyCallManager {
     type Machine = DummyMachine;
 
-    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self {
+    fn new(machine: Self::Machine, _gas_limit: i64, origin: Address, nonce: u64) -> Self {
         Self(Arc::new(InnerDummyCallManager {
             machine,
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
@@ -193,18 +193,19 @@ impl CallManager for DummyCallManager {
 
     fn send<K: Kernel<CallManager = Self>>(
         &mut self,
-        from: fvm_shared::ActorID,
-        to: Address,
-        method: fvm_shared::MethodNum,
-        params: Option<kernel::Block>,
-        value: &fvm_shared::econ::TokenAmount,
+        _from: fvm_shared::ActorID,
+        _to: Address,
+        _method: fvm_shared::MethodNum,
+        _params: Option<kernel::Block>,
+        _value: &fvm_shared::econ::TokenAmount,
     ) -> kernel::Result<InvocationResult> {
-        Ok(InvocationResult::Return(None))
+        // Ok(InvocationResult::Return(None));
+        todo!()
     }
 
     fn with_transaction(
         &mut self,
-        f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
+        _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         Ok(InvocationResult::Return(None))
     }

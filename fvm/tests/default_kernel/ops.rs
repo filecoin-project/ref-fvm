@@ -58,6 +58,7 @@ mod ipld {
     fn create_ids() -> anyhow::Result<()> {
         let (mut kern, refcell) = build_inspecting_test()?;
 
+        // simpler kernel without external ref
         let mut kern1 = TestingKernel::new(
             DummyCallManager::new_stub(),
             BlockRegistry::default(),
@@ -82,11 +83,10 @@ mod ipld {
         let id = kern1.block_create(DAG_CBOR, "baz".as_bytes())?;
         assert_eq!(id, 2, "second created block id should be 2");
 
-        // prevent new mutations
-        let _ = &kern;
         // ok to upgrade into strong pointer since kern can't be mutated anymore
         let arc = &mut refcell.upgrade().unwrap();
         let external_call_manager = arc.as_ref();
+        drop(kern);
 
         {
             assert_eq!(
@@ -106,6 +106,7 @@ mod ipld {
             );
         }
 
+        drop(ManuallyDrop::into_inner(refcell));
         Ok(())
     }
     #[test]
@@ -132,7 +133,85 @@ mod ipld {
         let arc = &mut refcell.upgrade().unwrap();
         let external_call_manager = arc.as_ref();
         // prevent new mutations
-        let kern1 = kern1;
+        // ok to upgrade into strong pointer since kern can't be mutated anymore
+        let arc1 = &mut refcell1.upgrade().unwrap();
+        let _external_call_manager1 = arc1.as_ref();
+
+        // drop strong ref inside kern *before* weak ref
+        drop(kern);
+        drop(kern1);
+
+        // assert
+
+        assert!(
+            external_call_manager.machine.blockstore().has(&cid)?,
+            "block_link was called but CID was not found in the blockstore"
+        );
+        assert_eq!(cid, cid1, "calling block_link in 2 different kernels of the same data and state should have the same CID");
+        assert_ne!(
+            cid, other_cid,
+            "calling block_link with different data should make different CIDs"
+        );
+        // assert gas
+        {
+            assert_eq!(
+                external_call_manager.charge_gas_calls - 1,
+                1,
+                "charge_gas should only be called exactly once per block_link"
+            );
+
+            let expected_block = Block::new(cid.codec(), block);
+            let expected_create_price = external_call_manager
+                .machine
+                .context()
+                .price_list
+                .on_block_create(block.len() as usize)
+                .total();
+            let expected_link_price = external_call_manager
+                .machine
+                .context()
+                .price_list
+                .on_block_link(expected_block.size() as usize)
+                .total();
+
+            assert_eq!(
+                external_call_manager.gas_tracker.gas_used(),
+                expected_create_price + expected_link_price,
+                "cost of creating & linking does not match price list"
+            )
+        }
+
+        // ok to drop external ref
+        drop(ManuallyDrop::into_inner(refcell));
+        drop(ManuallyDrop::into_inner(refcell1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn read() -> anyhow::Result<()> {
+        let (mut kern, refcell) = build_inspecting_test()?;
+        let (mut kern1, refcell1) = build_inspecting_test()?;
+
+        // setup
+
+        let block = "foo".as_bytes();
+        let other_block = "baz".as_bytes();
+        // link a block
+        let id = kern.block_create(DAG_CBOR, block)?;
+        let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
+
+        // link a block of the same data inside a different kernel
+        let id1 = kern1.block_create(DAG_CBOR, block)?;
+        let cid1 = kern1.block_link(id1, Code::Blake2b256.into(), 32)?;
+
+        let other_id = kern1.block_create(DAG_CBOR, other_block)?;
+        let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
+
+        // ok to upgrade into strong pointer since kern can't be mutated anymore
+        let arc = &mut refcell.upgrade().unwrap();
+        let external_call_manager = arc.as_ref();
+        // prevent new mutations
         // ok to upgrade into strong pointer since kern can't be mutated anymore
         let arc1 = &mut refcell1.upgrade().unwrap();
         let _external_call_manager1 = arc1.as_ref();
