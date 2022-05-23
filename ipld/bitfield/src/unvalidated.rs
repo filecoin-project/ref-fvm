@@ -3,7 +3,6 @@
 
 use std::convert::TryFrom;
 
-use arbitrary::{Arbitrary, Unstructured};
 use fvm_ipld_encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -54,7 +53,10 @@ impl UnvalidatedBitField {
         }
     }
 }
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{Arbitrary, Unstructured};
 
+#[cfg(feature = "enable-arbitrary")]
 impl<'a> Arbitrary<'a> for UnvalidatedBitField {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
         let bf: BitField = u.arbitrary()?;
