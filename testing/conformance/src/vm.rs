@@ -357,7 +357,7 @@ where
         self.0.get_code_cid_for_type(typ)
     }
 
-    fn install_actor(&self, code_id: Cid) -> Result<()> {
+    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
         Ok(())
     }
 }
