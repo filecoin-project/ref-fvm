@@ -354,7 +354,7 @@ where
         self.0.block_open(cid)
     }
 
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+    fn block_create(&mut self, codec: u64, data: impl AsRef<[u8]>) -> Result<BlockId> {
         self.0.block_create(codec, data)
     }
 
@@ -362,7 +362,7 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: impl AsMut<[u8]>) -> Result<i32> {
         self.0.block_read(id, offset, buf)
     }
 

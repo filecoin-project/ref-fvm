@@ -275,11 +275,11 @@ where
         Ok((id, stat))
     }
 
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+    fn block_create(&mut self, codec: u64, data: impl AsRef<[u8]>) -> Result<BlockId> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+            .charge_gas(self.call_manager.price_list().on_block_create( core::mem::size_of_val(data.as_ref())))?;
 
-        Ok(self.blocks.put(Block::new(codec, data))?)
+        Ok(self.blocks.put(Block::new(codec, data.as_ref()))?)
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
@@ -314,19 +314,19 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, mut buf: impl AsMut<[u8]>) -> Result<i32> {
         let block = self.blocks.get(id)?;
         let data = block.data();
 
         let start = offset as usize;
 
-        let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
+        let to_read = std::cmp::min(data.len().saturating_sub(start), core::mem::size_of_val(buf.as_mut()));
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
         let end = start + to_read;
         if to_read != 0 {
-            buf[..to_read].copy_from_slice(&data[start..end]);
+            buf.as_mut()[..to_read].copy_from_slice(&data[start..end]);
         }
 
         // Returns the difference between the end of the block, and the end of the data we've read.
