@@ -25,6 +25,9 @@ fvm_ipld_blockstore = { path = "../../blockstore" }
 [workspace]
 members = ["."]
 
+[patch.crates-io]
+cid = { git = "https://github.com/multiformats/rust-cid", rev = "e756f71" }
+
 
 [[bin]]
 name = "equivalence"
