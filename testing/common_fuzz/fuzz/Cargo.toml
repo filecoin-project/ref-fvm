@@ -15,7 +15,8 @@ ahash = "0.7.6"
 itertools = "0.10.3"
 rand = "0.8.5"
 
-cid = { version = "0.8.4", default-features = false, features = ["serde-codec", "arb"] }
+#cid = { version = "0.8.4", default-features = false, features = ["serde-codec", "arb"] }
+cid = { git = "https://github.com/multiformats/rust-cid", rev = "e756f71", default-features = false, features = ["serde-codec", "arb"] }
 multihash = { version = "0.16.2", features = ["sha2"]}
 
 fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbitrary"] }
