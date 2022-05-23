@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::convert::TryFrom;
-use arbitrary::{Arbitrary, Unstructured};
 
+use arbitrary::{Arbitrary, Unstructured};
 use fvm_ipld_encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -57,7 +57,7 @@ impl UnvalidatedBitField {
 
 impl<'a> Arbitrary<'a> for UnvalidatedBitField {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
-        let bf : BitField = u.arbitrary()?;
+        let bf: BitField = u.arbitrary()?;
         Ok(if *u.choose(&[true, false])? {
             Self::Validated(bf)
         } else {

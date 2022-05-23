@@ -8,10 +8,13 @@ fuzz_target!(|p: Payload| {
     let out = encoding::to_vec(&p).expect("all payloads must be possible to encode");
     if false {
         use std::fs::File;
-        use std::path::Path;
         use std::io::Write;
+        use std::path::Path;
 
-        let mut f = File::create(Path::new("artifacts/cbor_encode/bytes_produced_but_wont_decode.cbor")).unwrap();
+        let mut f = File::create(Path::new(
+            "artifacts/cbor_encode/bytes_produced_but_wont_decode.cbor",
+        ))
+        .unwrap();
         f.write(out.as_slice()).unwrap();
     }
     let p2 = encoding::from_slice::<Payload>(&out).expect("everything that encodes must decode");
