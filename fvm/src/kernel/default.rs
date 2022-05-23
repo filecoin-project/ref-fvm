@@ -771,9 +771,7 @@ where
             .machine()
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
-            .map_err(|_| {
-                syscall_error!(IllegalArgument; "failed to load actor code").into()
-            })
+            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
     }
 }
 

@@ -112,7 +112,7 @@ pub fn get_code_cid_for_type(
 
 pub fn install_actor(
     context: Context<'_, impl Kernel>,
-    typ_off: u32,  // Cid
+    typ_off: u32, // Cid
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
