@@ -23,6 +23,7 @@ pub struct Engine(Arc<EngineInner>);
 #[derive(Clone)]
 pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 
+/// The proper way of getting this struct is to convert from `NetworkConfig`
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct EngineConfig {
     pub max_wasm_stack: u32,
