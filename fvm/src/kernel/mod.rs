@@ -112,7 +112,7 @@ pub trait IpldBlockOps {
     /// This method will fail if the block is too large (SPEC_AUDIT), the codec is not allowed
     /// (SPEC_AUDIT), the block references unreachable blocks, or the block contains too many links
     /// (SPEC_AUDIT).
-    fn block_create(&mut self, codec: u64, data: impl AsRef<[u8]>) -> Result<BlockId>;
+    fn block_create(&mut self, codec: u64, data: &(impl AsRef<[u8]> + ?Sized)) -> Result<BlockId>;
 
     /// Computes a CID for a block.
     ///
@@ -124,7 +124,7 @@ pub trait IpldBlockOps {
     /// Read data from a block.
     ///
     /// This method will fail if the block handle is invalid.
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: impl AsMut<[u8]>) -> Result<i32>;
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut (impl AsMut<[u8]> + ?Sized)) -> Result<i32>;
 
     /// Returns the blocks codec & size.
     ///

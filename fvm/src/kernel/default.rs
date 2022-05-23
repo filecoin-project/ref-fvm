@@ -275,7 +275,7 @@ where
         Ok((id, stat))
     }
 
-    fn block_create(&mut self, codec: u64, data: impl AsRef<[u8]>) -> Result<BlockId> {
+    fn block_create(&mut self, codec: u64, data: &(impl AsRef<[u8]> + ?Sized)) -> Result<BlockId> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_create( core::mem::size_of_val(data.as_ref())))?;
 
@@ -314,7 +314,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, mut buf: impl AsMut<[u8]>) -> Result<i32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut (impl AsMut<[u8]> + ?Sized)) -> Result<i32> {
         let block = self.blocks.get(id)?;
         let data = block.data();
 
