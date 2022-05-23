@@ -15,7 +15,7 @@ ahash = "0.7.6"
 itertools = "0.10.3"
 
 #cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "arb"] }
-cid = { git = "https://github.com/multiformats/rust-cid", rev = "e756f71", default-features = false, features = ["serde-codec", "arb"] }
+cid = { git = "https://github.com/multiformats/rust-cid", rev = "e756f71", default-features = false, features = ["serde-codec", "arb", "std"] }
 
 fvm_ipld_amt = { path = ".."}
 fvm_shared = { path = "../../../shared" }
