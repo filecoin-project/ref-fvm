@@ -1,6 +1,7 @@
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 
-use crate::{sys, SyscallResult, MAX_CID_LEN};
+use crate::{sys, SyscallResult};
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;

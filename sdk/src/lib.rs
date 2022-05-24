@@ -15,9 +15,6 @@ pub mod vm;
 #[cfg(feature = "testing")]
 pub mod testing;
 
-/// The maximum supported CID size. (SPEC_AUDIT)
-pub const MAX_CID_LEN: usize = 100;
-
 /// The maximum actor address length (class 2 addresses).
 pub const MAX_ACTOR_ADDR_LEN: usize = 21;
 

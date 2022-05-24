@@ -46,6 +46,9 @@ pub const IPLD_RAW: u64 = 0x55;
 /// Multihash code for the identity hash function.
 pub const IDENTITY_HASH: u64 = 0x0;
 
+/// The maximum supported CID size.
+pub const MAX_CID_LEN: usize = 100;
+
 /// Identifier for Actors, includes builtin and initialized actors
 pub type ActorID = u64;
 
@@ -94,6 +97,7 @@ pub trait NetworkParams {
 // * This can be removed in the future if the new testnet is configred at build time
 // * but the reason to keep as is, is for an easier transition to runtime configuration.
 pub struct DefaultNetworkParams;
+
 impl NetworkParams for DefaultNetworkParams {
     const TOTAL_FILECOIN: i64 = TOTAL_FILECOIN_BASE;
     const MINING_REWARD_TOTAL: i64 = 1_400_000_000;
