@@ -175,10 +175,10 @@ fn copy_rec<'a>(
     const IDENTITY: u64 = 0x0;
 
     // Differences from lotus (vm.Copy):
-    // 1. We assume that if we don't have a block in our buffer, it must already be in the client.
-    //    don't check. This should only happen if the lotus node is missing state.
-    // 2. We always write-back new blocks, even if lotus already has them. We haven't noticed a perf
-    //    impact.
+    // 1. We assume that if we don't have a block in our buffer, it must already be in the client
+    //    and don't check. This should only happen if the client is missing state.
+    // 2. We always write-back new blocks, even if the client already has them. We haven't noticed a
+    //    perf impact.
 
     // TODO(M2): Make this not cbor specific.
     match (root.codec(), root.hash().code(), root.hash().size()) {
