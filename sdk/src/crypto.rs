@@ -8,9 +8,10 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::MAX_CID_LEN;
 use num_traits::FromPrimitive;
 
-use crate::{status_code_to_bool, sys, SyscallResult, MAX_CID_LEN};
+use crate::{status_code_to_bool, sys, SyscallResult};
 
 /// Verifies that a signature is valid for an address and plaintext.
 #[allow(unused)]

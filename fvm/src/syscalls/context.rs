@@ -6,8 +6,8 @@ use cid::Cid;
 use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::MAX_CID_LEN;
 
-use super::MAX_CID_LEN;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;
 
