@@ -33,7 +33,7 @@ pub enum SendResult {
 
 /// The "kernel" implements the FVM interface as presented to the actors. It:
 ///
-/// - Manage's the Actor's state.
+/// - Manages the Actor's state.
 /// - Tracks and charges for IPLD & syscall-specific gas.
 ///
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
