@@ -66,6 +66,7 @@ pub const NETWORK_DEFAULT: Network = Network::Mainnet;
 /// a public key or value
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Copy)]
 #[cfg_attr(feature = "testing", derive(Default))]
+#[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub struct Address {
     network: Network,
     payload: Payload,

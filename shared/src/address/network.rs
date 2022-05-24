@@ -5,6 +5,7 @@ use super::{MAINNET_PREFIX, TESTNET_PREFIX};
 
 /// Network defines the preconfigured networks to use with address encoding
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum Network {
     Mainnet = 0,
     Testnet = 1,
