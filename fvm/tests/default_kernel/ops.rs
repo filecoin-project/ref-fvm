@@ -197,69 +197,85 @@ mod ipld {
 
         let block = "foo".as_bytes();
         let other_block = "baz".as_bytes();
-        // link a block
+        let long_block = "hello world!".as_bytes();
+
+        // add block
         let id = kern.block_create(DAG_CBOR, block)?;
-        let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
 
-        // link a block of the same data inside a different kernel
+        // add a block of the same data inside a different kernel
         let id1 = kern1.block_create(DAG_CBOR, block)?;
-        let cid1 = kern1.block_link(id1, Code::Blake2b256.into(), 32)?;
 
+        // add a block of different data inside a different kernel
         let other_id = kern1.block_create(DAG_CBOR, other_block)?;
-        let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
+        let long_id = kern1.block_create(DAG_CBOR, long_block)?;
 
-        // ok to upgrade into strong pointer since kern can't be mutated anymore
+
+        let mut block_buf = [0u8; 32];
+        let mut block1_buf = [0u8; 32];
+        let mut other_block_buf = [0u8; 32];
+        let mut long_block_buf = [0u8; 6];
+        
+        let buf_i = kern.block_read(id, 0, &mut block_buf)?;
+        let buf1_i= kern1.block_read(id1, 0, &mut block1_buf)?;
+        let long_buf_i = kern1.block_read(long_id, 0, &mut long_block_buf)? as usize;
+
+        
+        // TODO is bytes-remaining the right wasy of calling this?
+        assert_eq!(buf_i, 0, "input buffer should be large enough to hold read data, but returned non-zero number for bytes remaining"); 
+        assert_eq!(buf_i, buf1_i, "remaining offsets from 2 different kernels of same data are mismatched");
+        assert_eq!(block_buf, block1_buf, "bytes read from 2 different kernels of same data are not equal");
+         
+ 
+        kern1.block_read(other_id, 0, &mut other_block_buf)?;
+
+        assert_eq!(&block_buf[..block.len()], block, "bytes read from block does not match bytes put in");
+        assert_ne!(block_buf, other_block_buf, "bytes read from 2 different kernels of different ids are equal when they shouldn't be");
+        assert_ne!(block1_buf, other_block_buf, "bytes read from the same kernel of different ids are equal when they shouldn't be");
+
+        // remaining
+        assert_eq!(long_buf_i, 6, "6 bytes should be following after reading 10 bytes from long block");
+
+        let mut remaining_buf = [0u8; 6];
+        let remaining_offset = kern1.block_read(long_id, (long_block.len() - long_buf_i) as u32, &mut remaining_buf)?;
+        // TODO better message
+        assert_eq!(&remaining_buf, "world!".as_bytes(), "read offset is incorrect"); 
+        assert_eq!(remaining_offset, 0);
+        
+        {
+            let mut garbage_buf = [0xFFu8; 32];
+            kern1.block_read(long_id, 0, &mut garbage_buf)?;
+            assert_eq!(&garbage_buf[..long_block.len()], long_block, "non-empty input buffer affects bytes read")
+        }
+
+
+
+        // ok to upgrade into strong pointer since kern won't be mutated anymore
         let arc = &mut refcell.upgrade().unwrap();
         let external_call_manager = arc.as_ref();
-        // prevent new mutations
-        // ok to upgrade into strong pointer since kern can't be mutated anymore
         let arc1 = &mut refcell1.upgrade().unwrap();
         let _external_call_manager1 = arc1.as_ref();
+
+
+        // assert gas
+        {
+            let price_list = external_call_manager
+                .machine
+                .context()
+                .price_list;
+            let expected_create_price = price_list
+                .on_block_create(block.len() as usize)
+                .total();
+            let expected_read_price = price_list
+                .on_block_read(block.len() as usize)
+                .total();
+
+            assert_eq!(external_call_manager.charge_gas_calls-1, 1, "charge_gas should be called exactly once in block_read");
+            assert_eq!(external_call_manager.gas_tracker.gas_used(), expected_create_price + expected_read_price, "gas price of creating and reading a block does not match price list")
+        }
 
         // drop strong ref inside kern *before* weak ref
         drop(kern);
         drop(kern1);
-
-        // assert
-
-        assert!(
-            external_call_manager.machine.blockstore().has(&cid)?,
-            "block_link was called but CID was not found in the blockstore"
-        );
-        assert_eq!(cid, cid1, "calling block_link in 2 different kernels of the same data and state should have the same CID");
-        assert_ne!(
-            cid, other_cid,
-            "calling block_link with different data should make different CIDs"
-        );
-        // assert gas
-        {
-            assert_eq!(
-                external_call_manager.charge_gas_calls - 1,
-                1,
-                "charge_gas should only be called exactly once per block_link"
-            );
-
-            let expected_block = Block::new(cid.codec(), block);
-            let expected_create_price = external_call_manager
-                .machine
-                .context()
-                .price_list
-                .on_block_create(block.len() as usize)
-                .total();
-            let expected_link_price = external_call_manager
-                .machine
-                .context()
-                .price_list
-                .on_block_link(expected_block.size() as usize)
-                .total();
-
-            assert_eq!(
-                external_call_manager.gas_tracker.gas_used(),
-                expected_create_price + expected_link_price,
-                "cost of creating & linking does not match price list"
-            )
-        }
-
         // ok to drop weak ref
         drop(ManuallyDrop::into_inner(refcell));
         drop(ManuallyDrop::into_inner(refcell1));
