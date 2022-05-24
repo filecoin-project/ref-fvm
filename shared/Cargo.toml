@@ -19,7 +19,7 @@ data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
 # TODO: remove std dep once we can implement debug without it.
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
+cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
 multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
 unsigned-varint = "0.7.1"
 anyhow = "1.0.51"

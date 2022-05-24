@@ -16,7 +16,7 @@ fvm_ipld_encoding = { version = "0.2.1", path = "../../ipld/encoding" }
 
 actors-v7 = { version = "~7.4", package = "fil_builtin_actors_bundle" }
 anyhow = "1.0.47"
-cid = { version = "0.8.2", default-features = false }
+cid = { version = "0.8.5", default-features = false }
 futures = "0.3.19"
 multihash = { version = "0.16.1", default-features = false }
 num-traits = "0.2"
