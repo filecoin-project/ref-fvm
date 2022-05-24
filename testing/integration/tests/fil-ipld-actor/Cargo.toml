@@ -1,0 +1,13 @@
+[package]
+name = "fil_ipld_actor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fvm_ipld_encoding = { version = "0.2.1", path = "../../../../ipld/encoding" }
+fvm_sdk = { version = "1.0.0-rc.1", path = "../../../../sdk" }
+fvm_shared = { version = "0.7.0", path = "../../../../shared" }
+
+
+[build-dependencies]
+wasm-builder = "3.0.1"
