@@ -178,7 +178,7 @@ fn copy_rec<'a>(
     const IDENTITY: u64 = 0x0;
 
     // Differences from lotus (vm.Copy):
-    // 1. We assume that if we don't have a blcok in our buffer, it must already be in lotus. We
+    // 1. We assume that if we don't have a block in our buffer, it must already be in the client.
     //    don't check. This should only happen if the lotus node is missing state.
     // 2. We always write-back new blocks, even if lotus already has them. We haven't noticed a perf
     //    impact.
