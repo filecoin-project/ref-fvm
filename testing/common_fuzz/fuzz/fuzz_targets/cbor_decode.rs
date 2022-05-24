@@ -10,8 +10,8 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
     let p = p.unwrap();
-    if p.bytes.len() > 128 << 20 {
-        panic!("too large array {}", p.bytes.len())
+    if p.serde_bytes_bytes.len() > 128 << 20 {
+        panic!("too large array {}", p.serde_bytes_bytes.len())
     }
 
     let out = encoding::to_vec(&p).expect("decoded payload must be possible to encode");
