@@ -89,8 +89,6 @@ super::fvm_syscalls! {
     /// | [`InvalidHandle`] | if the handle isn't known. |
     pub fn block_stat(id: u32) -> Result<IpldStat>;
 
-    // TODO: CID versions?
-
     /// Computes the given block's CID, writing the resulting CID into `cid`.
     ///
     /// The returned CID is added to the reachable set.

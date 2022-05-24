@@ -216,7 +216,6 @@ lazy_static! {
         .cloned()
         .collect(),
 
-        // TODO: PARAM_FINISH: this may need to be increased to account for the cost of an extern
         verify_consensus_fault: Gas::new(495422),
         verify_replica_update: Gas::new(36316136),
         verify_post_lookup: [

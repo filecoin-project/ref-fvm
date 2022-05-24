@@ -76,7 +76,6 @@ pub trait ClassifyResult: Sized {
     type Value;
     type Error;
 
-    // TODO: may need a custom trait for conversions because into will be a bit restrictive.
     fn or_fatal(self) -> Result<Self::Value>
     where
         Self::Error: Into<anyhow::Error>;
@@ -160,9 +159,6 @@ impl Context for ExecutionError {
 }
 
 // We only use this when converting to a fatal error, so we throw away the error code.
-//
-// TODO: Ideally we wouldn't implement this conversion as it's a bit dangerous.
-// FIXME: this conversion really shouldn't exist
 impl From<ExecutionError> for anyhow::Error {
     fn from(e: ExecutionError) -> Self {
         use ExecutionError::*;

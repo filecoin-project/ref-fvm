@@ -23,6 +23,7 @@ fn bench_conformance(c: &mut Criterion) {
     pretty_env_logger::init();
 
     // TODO match globs to get whole folders?
+    // https://github.com/filecoin-project/ref-fvm/issues/298
     let (vector_results, _is_many): (Vec<PathBuf>, bool) = match var("VECTOR") {
         Ok(v) => (
             iter::once(Path::new(v.as_str()).to_path_buf()).collect(),
@@ -41,9 +42,8 @@ fn bench_conformance(c: &mut Criterion) {
 
     let engines = MultiEngine::default();
 
-    // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently), we can probably bring this down.
     let mut group = c.benchmark_group("conformance-tests");
-    group.measurement_time(Duration::new(30, 0));
+    group.measurement_time(Duration::new(20, 0));
 
     for vector_path in vector_results.into_iter() {
         let message_vector = match MessageVector::from_file(&vector_path) {

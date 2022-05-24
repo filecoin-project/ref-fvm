@@ -16,8 +16,6 @@ pub mod kernel;
 pub mod machine;
 pub mod syscalls;
 
-// TODO Public only for conformance tests.
-//  Consider exporting only behind a feature.
 pub mod gas;
 pub mod state_tree;
 

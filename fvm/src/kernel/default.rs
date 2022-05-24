@@ -38,9 +38,7 @@ lazy_static! {
 
 const BLAKE2B_256: u64 = 0xb220;
 
-/// Tracks data accessed and modified during the execution of a message.
-///
-/// TODO writes probably ought to be scoped by invocation container.
+/// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
@@ -246,6 +244,8 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
+        // TODO(M2): Check for reachability here.
+
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
@@ -253,6 +253,8 @@ where
             .call_manager
             .blockstore()
             .get(cid)
+            // TODO: This is really "super fatal". It means we failed to store state, and should
+            // probably abort the entire block.
             .or_fatal()?
             .ok_or_else(|| anyhow!("missing state: {}", cid))
             // Missing state is a fatal error because it means we have a bug. Once we do
@@ -269,8 +271,6 @@ where
         )?;
 
         let stat = block.stat();
-
-        // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
         let id = self.blocks.put(block)?;
         Ok((id, stat))
     }
@@ -303,8 +303,7 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO: in M2, we need to write to a "write set" here, only flushing when updating the
-        // root.
+        // TODO(M2): Add the block to the reachable set.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
@@ -655,7 +654,6 @@ impl<C> RandomnessOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    #[allow(unused)]
     fn get_randomness_from_tickets(
         &mut self,
         personalization: i64,
@@ -668,7 +666,7 @@ where
                 .on_get_randomness(entropy.len()),
         )?;
 
-        // TODO: Check error code
+        // TODO(M2): Check error code
         // Specifically, lookback length?
         self.call_manager
             .externs()
@@ -676,7 +674,6 @@ where
             .or_illegal_argument()
     }
 
-    #[allow(unused)]
     fn get_randomness_from_beacon(
         &mut self,
         personalization: i64,
@@ -689,7 +686,7 @@ where
                 .on_get_randomness(entropy.len()),
         )?;
 
-        // TODO: Check error code
+        // TODO(M2): Check error code
         // Specifically, lookback length?
         self.call_manager
             .externs()
@@ -716,6 +713,7 @@ where
             .map(|act| act.code))
     }
 
+    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
         let oa = self
             .resolve_to_key_addr(&self.call_manager.origin(), false)
@@ -735,7 +733,7 @@ where
         Ok(addr)
     }
 
-    // TODO merge new_actor_address and create_actor into a single syscall.
+    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         let typ = self
             .get_builtin_actor_type(&code_id)
@@ -881,8 +879,9 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
         &vi.proof,
     )
     .or_illegal_argument()
-    // TODO: There are probably errors here that should be fatal, but it's hard to tell so I'm
-    // sticking with illegal argument for now.
+    // There are probably errors here that should be fatal, but it's hard to tell so I'm sticking
+    // with illegal argument for now.
+    //
     // Worst case, _some_ node falls out of sync. Better than the network halting.
     .context("failed to verify seal proof")
 }

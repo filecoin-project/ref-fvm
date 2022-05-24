@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 #![no_main]
-#![allow(clippy::eq_op)]
 
 use fvm_ipld_bitfield::BitField;
 use libfuzzer_sys::fuzz_target;

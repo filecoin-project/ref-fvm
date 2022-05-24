@@ -7,9 +7,6 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "gas";
 
-    // TODO: name for debugging & tracing?
-    // We could also _not_ feed that through to the outside?
-
     /// Charge gas.
     ///
     /// # Arguments

@@ -9,7 +9,6 @@ use fvm_ipld_hamt::Hamt;
 
 const ITEM_COUNT: u8 = 40;
 
-#[allow(dead_code)]
 // Struct to simulate a reasonable amount of data per value into the amt
 #[derive(Clone, Serialize_tuple, Deserialize_tuple, PartialEq)]
 struct BenchData {

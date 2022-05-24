@@ -8,9 +8,8 @@ use cid::{multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::{de, from_slice, ser, to_vec, CodecProtocol};
+use crate::{de, from_slice, ser, to_vec};
 
-// TODO find something to reference.
 pub const DAG_CBOR: u64 = 0x71;
 
 /// Cbor utility functions for serializable objects
@@ -32,12 +31,11 @@ pub trait Cbor: ser::Serialize + de::DeserializeOwned {
         const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
         let data = &self.marshal_cbor()?;
         let hash = multihash::Code::Blake2b256.digest(data);
-        if u32::from(hash.size()) != DIGEST_SIZE {
-            return Err(Error {
-                description: "Invalid multihash length".into(),
-                protocol: CodecProtocol::Cbor, // TODO this is not accurate, and not convinced about this Error type.
-            });
-        }
+        debug_assert_eq!(
+            u32::from(hash.size()),
+            DIGEST_SIZE,
+            "expected 32byte digest"
+        );
         Ok(Cid::new_v1(DAG_CBOR, hash))
     }
 }
