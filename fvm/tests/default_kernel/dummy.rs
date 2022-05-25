@@ -1,8 +1,8 @@
-use std::mem::ManuallyDrop;
-use std::sync::{Arc, Weak};
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use anyhow::Context;
-use derive_more::{Deref, DerefMut};
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::kernel;
@@ -126,55 +126,41 @@ impl Machine for DummyMachine {
     }
 
     fn into_store(self) -> Self::Blockstore {
-        todo!()
+        self.state_tree.into_store()
     }
 }
 
-#[derive(Deref, DerefMut)]
-// similar to `DefaultCallManager` but with public variables for modification by unit tests
-pub struct InnerDummyCallManager {
-    #[deref]
-    #[deref_mut]
+/// a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut(), so this should be used in single thereaded tests only
+/// this is **NOT** threadsafe
+/// TODO this introduces some rough edges that might need to be cleaned up
+pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
-    pub charge_gas_calls: usize,
     pub origin: Address,
     pub nonce: u64,
+    pub test_data: Rc<RefCell<TestData>>,
 }
-/// a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut(), so this should be used in single thereaded tests only
-/// TODO this introduces some rough edges that might need to be cleaned up
-pub struct DummyCallManager(Arc<InnerDummyCallManager>);
+
+pub struct TestData {
+    pub charge_gas_calls: usize,
+}
 
 impl DummyCallManager {
-    pub fn new_stub() -> Self {
-        Self(Arc::new(InnerDummyCallManager {
-            machine: DummyMachine::new_stub().unwrap(),
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
-            origin: Address::new_actor(&[]),
+    pub fn new_stub() -> (Self, Rc<RefCell<TestData>>) {
+        let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
-            nonce: 0,
-        }))
-    }
-
-    pub fn borrow(&self) -> &InnerDummyCallManager {
-        self.0.as_ref()
-    }
-
-    // TODO this needs proper safety review
-    /// similar to https://doc.rust-lang.org/src/alloc/sync.rs.html#1545
-    /// panics if the Arc isn't the only strong pointer that exists.
-    /// SAFETY: Any other Arc or Weak pointers to the same allocation must not be dereferenced for the duration of the returned borrow
-    pub unsafe fn borrow_mut(&mut self) -> &mut InnerDummyCallManager {
-        if Arc::strong_count(&self.0) != 1 {
-            panic!("Only one strong pointer is allowed when mutating DummyCallManager")
-        }
-        &mut *(Arc::as_ptr(&self.0) as *mut InnerDummyCallManager)
-    }
-
-    /// the only truly safe way to use this is to deref the returned Weak ref **after or at the same time of DummyCallManager** `ManuallyDrop` helps enforce that the returned ref is either never dropped or explicitly dropped at some point (hopefully after )  
-    /// see `borrow_mut()`
-    pub fn weak(&self) -> ManuallyDrop<Weak<InnerDummyCallManager>> {
-        ManuallyDrop::new(Arc::downgrade(&self.0))
+        }));
+        let cell_ref = rc.clone();
+        (
+            Self {
+                machine: DummyMachine::new_stub().unwrap(),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+                origin: Address::new_actor(&[]),
+                nonce: 0,
+                test_data: rc,
+            },
+            cell_ref,
+        )
     }
 }
 
@@ -182,13 +168,16 @@ impl CallManager for DummyCallManager {
     type Machine = DummyMachine;
 
     fn new(machine: Self::Machine, _gas_limit: i64, origin: Address, nonce: u64) -> Self {
-        Self(Arc::new(InnerDummyCallManager {
+        let rc = Rc::new(RefCell::new(TestData {
+            charge_gas_calls: 0,
+        }));
+        Self {
             machine,
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
-            charge_gas_calls: 0,
             origin,
             nonce,
-        }))
+            test_data: rc,
+        }
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -220,21 +209,16 @@ impl CallManager for DummyCallManager {
                 },
                 exec_trace: Vec::new(),
             },
-            match Arc::try_unwrap(self.0) {
-                Ok(x) => x.machine,
-                _ => panic!(
-                    "all refrences to DummyCallManager must be dropped before calling finish()"
-                ),
-            },
+            self.machine,
         )
     }
 
     fn machine(&self) -> &Self::Machine {
-        &self.0.as_ref().machine
+        &self.borrow().machine
     }
 
     fn machine_mut(&mut self) -> &mut Self::Machine {
-        unsafe { &mut self.borrow_mut().machine }
+        &mut self.machine
     }
 
     fn gas_tracker(&self) -> &GasTracker {
@@ -242,23 +226,22 @@ impl CallManager for DummyCallManager {
     }
 
     fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        unsafe { &mut self.borrow_mut().gas_tracker }
+        &mut self.gas_tracker
     }
 
     fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
-        unsafe {
-            self.borrow_mut().charge_gas_calls += 1;
-        }
+        self.test_data.borrow_mut().charge_gas_calls += 1;
+
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
 
     fn origin(&self) -> Address {
-        self.0.as_ref().origin
+        self.origin
     }
 
     fn nonce(&self) -> u64 {
-        self.0.as_ref().nonce
+        self.nonce
     }
 
     fn next_actor_idx(&mut self) -> u64 {

@@ -2,21 +2,17 @@ mod dummy;
 mod ops;
 mod util;
 
-use std::mem::ManuallyDrop;
-use std::sync::Weak;
+use std::cell::RefCell;
 
 use dummy::*;
 // test target
 use fvm::kernel::default::DefaultKernel;
-use fvm::kernel::{Block, BlockRegistry};
+use fvm::kernel::{Block, Kernel};
 use fvm::machine::Machine;
-use fvm::Kernel;
 use multihash::Code;
 use util::*;
 
 type TestingKernel = DefaultKernel<dummy::DummyCallManager>;
-type ExternalCallManager = ManuallyDrop<Weak<dummy::InnerDummyCallManager>>;
 
 // TODO gas functions assert calls are being charged properly
 // TODO maybe make more util functions
-// TODO unit tests have a lot of boilerplate I would like to reduce

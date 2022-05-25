@@ -100,7 +100,7 @@ mod test {
             _extra: &[u8],
         ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
             // consensus is always valid for tests :)
-            anyhow::Result::Ok((None, 0))
+            Ok((None, 0))
         }
     }
 
