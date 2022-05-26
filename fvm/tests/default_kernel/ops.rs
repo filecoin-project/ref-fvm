@@ -7,6 +7,7 @@ mod ipld {
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
     use fvm_shared::error::ErrorNumber;
+    use multihash::MultihashDigest;
 
     use super::*;
 
@@ -32,9 +33,8 @@ mod ipld {
         assert_eq!(id, 1, "block creation should be ID 1");
 
         // Link
-        use multihash::MultihashDigest;
+
         let expected_cid = cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block).truncate(32));
-        // TODO this should also be done in link specific tests
         assert_eq!(cid, expected_cid, "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec");
 
         // Stat
@@ -165,6 +165,13 @@ mod ipld {
         let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
 
         let (call_manager, _) = kern.into_inner();
+
+        // CIDs match CIDs generated manually from CID crate
+        let expected_cid = cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block).truncate(32));
+        let expected_other_cid =
+            cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block).truncate(32));
+        assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
+        assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
 
         // Internal CIDs
         assert!(
@@ -422,7 +429,11 @@ mod ipld {
         // TODO figure out what the expected behavior should be here
         let _way_over = kern.block_read(_id, 0xFFFF, buf)?;
         // println!("{}{}", way_over + 0xFFFF, block.len() as i32);
-        assert_eq!(buf, &[0, 0 ,0], "offeset went over total length so no data should be read");
+        assert_eq!(
+            buf,
+            &[0, 0, 0],
+            "offeset went over total length so no data should be read"
+        );
         // assert!(way_over + 0xFFFF == block.len() as i32);
         // assert_eq!(
         //     test_data.borrow().charge_gas_calls,
