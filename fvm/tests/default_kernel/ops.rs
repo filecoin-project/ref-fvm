@@ -6,6 +6,8 @@ mod ipld {
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
+    use fvm_shared::error::{ExitCode, ErrorNumber};
+    use multihash::Blake2b256;
 
     use super::*;
 
@@ -64,12 +66,28 @@ mod ipld {
         let id = kern1.block_create(DAG_CBOR, "baz".as_bytes())?;
         assert_eq!(id, 2, "second created block id should be 2");
 
+        
+        // unexpected values
+        {
+            let a = kern1.block_create(0xFF, block).expect_err("Returned Ok though invalid codec (0xFF) was used");
+            match a {
+                fvm::kernel::ExecutionError::Syscall(e) => assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32),
+                _ => panic!("expected a syscall error")
+            }
+
+            // TODO should this be allowed?
+            let _ = kern1.block_create(DAG_CBOR, &[])?;
+            
+        }
+        
         let (call_manager, _) = kern.into_inner();
+        
+        // assert gas
         {
             assert_eq!(
                 call_manager.test_data.borrow().charge_gas_calls,
                 1,
-                "charge_gas should called exactly once per block_create"
+                "charge_gas should be called exactly once per block_create"
             );
 
             let expected_create_price = call_manager
@@ -100,13 +118,12 @@ mod ipld {
         let id1 = kern1.block_create(DAG_CBOR, block)?;
         let cid1 = kern1.block_link(id1, Code::Blake2b256.into(), 32)?;
 
+        // link a block of different data into kern1
         let other_id = kern1.block_create(DAG_CBOR, other_block)?;
         let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
 
         // ok to upgrade into strong pointer since kern can't be mutated anymore
         let (call_manager, _) = kern.into_inner();
-
-        // drop strong ref inside kern *before* weak ref
 
         // assert
 
@@ -147,6 +164,33 @@ mod ipld {
                 "cost of creating & linking does not match price list"
             )
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn unexpected_link() -> anyhow::Result<()> {
+        let (mut kern, test_data) = build_inspecting_test()?;
+        let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
+        test_data.borrow_mut().charge_gas_calls = 0;
+
+
+        kern.block_link(id, Code::Blake2b256.into(), 0).expect_err("blocked linked though hash length was set to 0");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+        kern.block_link(id, Code::Blake2b256.into(), 128).expect_err("blocked linked though hash length was set to 128");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+
+
+        kern.block_link(id, 0xFF, 32).expect_err("blocked linked though hash function was set to an arbitrary function (0xFF)");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+        kern.block_link(id, 0xFF, 0).expect_err("blocked linked though hash function was set to an arbitrary function (0xFF) and length was set to 0");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+
+        kern.block_link( u32::MAX, Code::Blake2b256.into(), 32).expect_err("blocked linked though ID does not exist in blockstore");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+        kern.block_link( 0, Code::Blake2b256.into(), 32).expect_err("blocked linked though ID was 0");
+        assert_eq!(test_data.borrow().charge_gas_calls, 0, "operation failed but charge_gas was called!");
+
 
         Ok(())
     }
@@ -210,7 +254,7 @@ mod ipld {
         // remaining
         assert_eq!(
             long_buf_i, 6,
-            "6 bytes should be following after reading 10 bytes from long block"
+            "6 bytes should be following after reading 6 bytes from a block 12 bytes long"
         );
 
         let mut remaining_buf = [0u8; 6];
