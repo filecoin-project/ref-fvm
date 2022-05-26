@@ -181,8 +181,7 @@ mod ipld {
         let buf1_i = kern1.block_read(id1, 0, &mut block1_buf)?;
         let long_buf_i = kern1.block_read(long_id, 0, &mut long_block_buf)? as usize;
 
-        // TODO is bytes-remaining the right wasy of calling this?
-        assert_eq!(buf_i, 0, "input buffer should be large enough to hold read data, but returned non-zero number for bytes remaining");
+        assert_eq!(buf_i, 3 - block_buf.len() as i32, "input buffer is larger than bytes to be read, expected value here must be exactly block.len()-buf.len()");
         assert_eq!(
             buf_i, buf1_i,
             "remaining offsets from 2 different kernels of same data are mismatched"
@@ -220,13 +219,12 @@ mod ipld {
             (long_block.len() - long_buf_i) as u32,
             &mut remaining_buf,
         )?;
-        // TODO better message
         assert_eq!(
             &remaining_buf,
             "world!".as_bytes(),
-            "read offset is incorrect"
+            "bytes read from block with offset is unexpected"
         );
-        assert_eq!(remaining_offset, 0);
+        assert_eq!(remaining_offset, 0, "number of bytes read here should be exactly the same as the number of bytes in the block");
 
         {
             let mut garbage_buf = [0xFFu8; 32];
