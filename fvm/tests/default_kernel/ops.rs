@@ -10,6 +10,8 @@ mod ipld {
 
     use super::*;
 
+    // TODO tests for block_open
+
     #[test]
     fn roundtrip() -> anyhow::Result<()> {
         let (mut kern, _) = build_inspecting_test()?;
@@ -86,22 +88,6 @@ mod ipld {
         let id = kern1.block_create(DAG_CBOR, "baz".as_bytes())?;
         assert_eq!(id, 2, "second created block id should be 2");
 
-        // unexpected values
-        {
-            let a = kern1
-                .block_create(0xFF, block)
-                .expect_err("Returned Ok though invalid codec (0xFF) was used");
-            match a {
-                fvm::kernel::ExecutionError::Syscall(e) => {
-                    assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32)
-                }
-                _ => panic!("expected a syscall error"),
-            }
-
-            // TODO should this be allowed?
-            let _ = kern1.block_create(DAG_CBOR, &[])?;
-        }
-
         let (call_manager, _) = kern.into_inner();
 
         // assert gas
@@ -125,6 +111,35 @@ mod ipld {
             );
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn create_unexpected() -> anyhow::Result<()> {
+        let (mut kern, test_data) = build_inspecting_test()?;
+        let block = "foo".as_bytes();
+
+        let err = kern
+            .block_create(0xFF, block)
+            .expect_err("Returned Ok though invalid codec (0xFF) was used");
+        // TODO should tests be made for returning correct errors like below?
+        match err {
+            fvm::kernel::ExecutionError::Syscall(e) => {
+                assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32)
+            }
+            _ => panic!("expected a syscall error"),
+        }
+
+        assert_eq!(
+            test_data.borrow().charge_gas_calls,
+            0,
+            "operation failed but charge_gas was called!"
+        );
+
+        // TODO should this be allowed?
+        let _ = kern.block_create(DAG_CBOR, &[])?;
+
+        // TODO test spec audit things?
         Ok(())
     }
 
@@ -384,7 +399,7 @@ mod ipld {
             "operation failed but charge_gas was called!"
         );
 
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let _id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // ID
@@ -404,8 +419,11 @@ mod ipld {
         );
 
         // Offset
-        // !!! TODO !!!
-        // kern.block_read(id, 0xFF, buf).expect_err("block read though offset (0xFF) was longer than the block length");
+        // TODO figure out what the expected behavior should be here
+        let _way_over = kern.block_read(_id, 0xFFFF, buf)?;
+        // println!("{}{}", way_over + 0xFFFF, block.len() as i32);
+        assert_eq!(buf, &[0, 0 ,0], "offeset went over total length so no data should be read");
+        // assert!(way_over + 0xFFFF == block.len() as i32);
         // assert_eq!(
         //     test_data.borrow().charge_gas_calls,
         //     0,
@@ -453,7 +471,6 @@ mod ipld {
     #[ignore = "TODO should gas be charged for failed stat operations?"]
     fn stat_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
-
         let block = "foo".as_bytes();
 
         kern.block_stat(1)
@@ -465,6 +482,8 @@ mod ipld {
         );
 
         kern.block_create(DAG_CBOR, block)?;
+        // reset gas calls
+        test_data.borrow_mut().charge_gas_calls = 0;
 
         kern.block_stat(0)
             .expect_err("stat returned Ok though block ID was given as 0");
