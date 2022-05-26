@@ -6,8 +6,7 @@ mod ipld {
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
-    use fvm_shared::error::{ExitCode, ErrorNumber};
-    use multihash::Blake2b256;
+    use fvm_shared::error::ErrorNumber;
 
     use super::*;
 
