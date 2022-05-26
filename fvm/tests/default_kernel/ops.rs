@@ -25,7 +25,7 @@ mod ipld {
 
         let (call_manager, _) = kern.into_inner();
         let test_data = call_manager.test_data.borrow();
-        
+
         // Create
         assert_eq!(id, 1, "block creation should be ID 1");
 
@@ -37,15 +37,16 @@ mod ipld {
 
         // Stat
         assert_eq!(stat.codec, opened_stat.codec);
-        assert_eq!(stat.codec, DAG_CBOR);
         assert_eq!(stat.size, opened_stat.size);
-        assert_eq!(stat.size, 3);
 
         // Open
         assert_eq!(opened_id, 2, "block open should be ID 2");
 
         // Read
-        assert_eq!(remaining, 0, "logical buffer should've been exactly the same size as the block");
+        assert_eq!(
+            remaining, 0,
+            "logical buffer should've been exactly the same size as the block"
+        );
         assert_eq!(
             &buf, block,
             "data read after roundrip does not match inital data"
@@ -66,7 +67,7 @@ mod ipld {
     }
 
     #[test]
-    fn create_ids() -> anyhow::Result<()> {
+    fn create() -> anyhow::Result<()> {
         let (mut kern, _) = build_inspecting_test()?;
         let (mut kern1, _) = build_inspecting_test()?;
 
@@ -117,11 +118,16 @@ mod ipld {
                 .price_list
                 .on_block_create(block.len() as usize)
                 .total();
-            assert_eq!(call_manager.gas_tracker.gas_used(), expected_create_price);
+            assert_eq!(
+                call_manager.gas_tracker.gas_used(),
+                expected_create_price,
+                "gas use creating a block does not match price list"
+            );
         }
 
         Ok(())
     }
+
     #[test]
     fn link() -> anyhow::Result<()> {
         let (mut kern, _) = build_inspecting_test()?;
@@ -180,7 +186,7 @@ mod ipld {
             assert_eq!(
                 call_manager.gas_tracker.gas_used(),
                 expected_create_price + expected_link_price,
-                "cost of creating & linking does not match price list"
+                "gas use creating and linking a block does not match price list"
             )
         }
 
@@ -188,7 +194,7 @@ mod ipld {
     }
 
     #[test]
-    fn unexpected_link() -> anyhow::Result<()> {
+    fn link_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
         // setup
         let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
@@ -286,7 +292,7 @@ mod ipld {
             "bytes read from 2 different kernels of same data are not equal"
         );
 
-        // read 'other' data 
+        // read 'other' data
         kern1.block_read(other_id, 0, &mut other_block_buf)?;
 
         assert_eq!(
@@ -307,7 +313,10 @@ mod ipld {
         let partial_offset = kern1.block_read(long_id, 0, &mut long_block_buf)?;
 
         // remaining
-        assert!(partial_offset > 0, "offset after partial read should not be negative");
+        assert!(
+            partial_offset > 0,
+            "offset after partial read should not be negative"
+        );
         assert_eq!(
             partial_offset, 6,
             "6 bytes should be following after reading 6 bytes from a block 12 bytes long"
@@ -338,7 +347,7 @@ mod ipld {
         }
 
         let (call_manager, _) = kern.into_inner();
-        
+
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
@@ -353,7 +362,7 @@ mod ipld {
             assert_eq!(
                 call_manager.gas_tracker.gas_used(),
                 expected_create_price + expected_read_price,
-                "gas price of creating and reading a block does not match price list"
+                "gas use of creating and reading a block does not match price list"
             )
         }
 
@@ -402,6 +411,75 @@ mod ipld {
         //     0,
         //     "operation failed but charge_gas was called!"
         // );
+
+        Ok(())
+    }
+
+    #[test]
+    fn stat() -> anyhow::Result<()> {
+        let (mut kern, _) = build_inspecting_test()?;
+
+        let block = "foo".as_bytes();
+        let id = kern.block_create(DAG_CBOR, block)?;
+
+        let stat = kern.block_stat(id)?;
+
+        assert_eq!(stat.codec, DAG_CBOR);
+        assert_eq!(stat.size, 3);
+
+        let (call_manager, _) = kern.into_inner();
+
+        // assert gas
+        {
+            let price_list = call_manager.machine.context().price_list;
+            let expected_create_price = price_list.on_block_create(block.len() as usize).total();
+            let expected_stat_price = price_list.on_block_stat().total();
+
+            assert_eq!(
+                call_manager.test_data.borrow().charge_gas_calls - 1,
+                1,
+                "charge_gas should be called exactly once in block_stat"
+            );
+            assert_eq!(
+                call_manager.gas_tracker.gas_used(),
+                expected_create_price + expected_stat_price,
+                "gas use of creating and 'stat'ing a block does not match price list"
+            )
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "TODO should gas be charged for failed stat operations?"]
+    fn stat_unexpected() -> anyhow::Result<()> {
+        let (mut kern, test_data) = build_inspecting_test()?;
+
+        let block = "foo".as_bytes();
+
+        kern.block_stat(1)
+            .expect_err("stat returned Ok though no blocks have been created");
+        assert_eq!(
+            test_data.borrow().charge_gas_calls,
+            0,
+            "operation failed but charge_gas was called!"
+        );
+
+        kern.block_create(DAG_CBOR, block)?;
+
+        kern.block_stat(0)
+            .expect_err("stat returned Ok though block ID was given as 0");
+        assert_eq!(
+            test_data.borrow().charge_gas_calls,
+            0,
+            "operation failed but charge_gas was called!"
+        );
+        kern.block_stat(0xFF)
+            .expect_err("stat returned Ok though block ID was not in blockstore (0xFF)");
+        assert_eq!(
+            test_data.borrow().charge_gas_calls,
+            0,
+            "operation failed but charge_gas was called!"
+        );
 
         Ok(())
     }
