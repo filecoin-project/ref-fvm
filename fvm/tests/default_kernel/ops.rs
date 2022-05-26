@@ -25,12 +25,15 @@ mod ipld {
 
         let (call_manager, _) = kern.into_inner();
         let test_data = call_manager.test_data.borrow();
-        // create op should be 1
-        assert_eq!(id, 1);
-        // open op should be 2
-        assert_eq!(opened_id - 1, id);
+        
+        // Create
+        assert_eq!(id, 1, "block creation should be ID 1");
 
         // Link
+        use multihash::MultihashDigest;
+        let expected_cid = cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block).truncate(32));
+        // TODO this should also be done in link specific tests
+        assert_eq!(cid, expected_cid, "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec");
 
         // Stat
         assert_eq!(stat.codec, opened_stat.codec);
@@ -38,8 +41,11 @@ mod ipld {
         assert_eq!(stat.size, opened_stat.size);
         assert_eq!(stat.size, 3);
 
+        // Open
+        assert_eq!(opened_id, 2, "block open should be ID 2");
+
         // Read
-        assert_eq!(remaining, 0);
+        assert_eq!(remaining, 0, "logical buffer should've been exactly the same size as the block");
         assert_eq!(
             &buf, block,
             "data read after roundrip does not match inital data"
@@ -53,7 +59,8 @@ mod ipld {
             // stat 1
             // create 1
             // read 1
-            6
+            6,
+            "total number of operations that charge gas should be 6"
         );
         Ok(())
     }
@@ -121,9 +128,9 @@ mod ipld {
         let (mut kern1, _) = build_inspecting_test()?;
 
         // setup
-
         let block = "foo".as_bytes();
         let other_block = "baz".as_bytes();
+
         // link a block
         let id = kern.block_create(DAG_CBOR, block)?;
         let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
@@ -136,11 +143,9 @@ mod ipld {
         let other_id = kern1.block_create(DAG_CBOR, other_block)?;
         let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
 
-        // ok to upgrade into strong pointer since kern can't be mutated anymore
         let (call_manager, _) = kern.into_inner();
 
-        // assert
-
+        // Internal CIDs
         assert!(
             call_manager.machine.blockstore().has(&cid)?,
             "block_link was called but CID was not found in the blockstore"
@@ -185,6 +190,7 @@ mod ipld {
     #[test]
     fn unexpected_link() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
+        // setup
         let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
@@ -245,7 +251,6 @@ mod ipld {
         let (mut kern1, _) = build_inspecting_test()?;
 
         // setup
-
         let block = "foo".as_bytes();
         let other_block = "baz".as_bytes();
         let long_block = "hello world!".as_bytes();
@@ -260,14 +265,16 @@ mod ipld {
         let other_id = kern1.block_create(DAG_CBOR, other_block)?;
         let long_id = kern1.block_create(DAG_CBOR, long_block)?;
 
+        // setup buffers
         let mut block_buf = [0u8; 32];
         let mut block1_buf = [0u8; 32];
         let mut other_block_buf = [0u8; 32];
         let mut long_block_buf = [0u8; 6];
+        let mut remaining_buf = [0u8; 6];
 
+        // first reads
         let buf_i = kern.block_read(id, 0, &mut block_buf)?;
         let buf1_i = kern1.block_read(id1, 0, &mut block1_buf)?;
-        let long_buf_i = kern1.block_read(long_id, 0, &mut long_block_buf)? as usize;
 
         assert_eq!(buf_i, 3 - block_buf.len() as i32, "input buffer is larger than bytes to be read, expected value here must be exactly block.len()-buf.len()");
         assert_eq!(
@@ -279,6 +286,7 @@ mod ipld {
             "bytes read from 2 different kernels of same data are not equal"
         );
 
+        // read 'other' data 
         kern1.block_read(other_id, 0, &mut other_block_buf)?;
 
         assert_eq!(
@@ -295,16 +303,20 @@ mod ipld {
             "bytes read from the same kernel of different ids are equal when they shouldn't be"
         );
 
+        // partial read
+        let partial_offset = kern1.block_read(long_id, 0, &mut long_block_buf)?;
+
         // remaining
+        assert!(partial_offset > 0, "offset after partial read should not be negative");
         assert_eq!(
-            long_buf_i, 6,
+            partial_offset, 6,
             "6 bytes should be following after reading 6 bytes from a block 12 bytes long"
         );
 
-        let mut remaining_buf = [0u8; 6];
+        // read remaining
         let remaining_offset = kern1.block_read(
             long_id,
-            (long_block.len() - long_buf_i) as u32,
+            long_block.len() as u32 - partial_offset as u32,
             &mut remaining_buf,
         )?;
         assert_eq!(
@@ -314,6 +326,7 @@ mod ipld {
         );
         assert_eq!(remaining_offset, 0, "number of bytes read here should be exactly the same as the number of bytes in the block");
 
+        // read with non-empty buffer
         {
             let mut garbage_buf = [0xFFu8; 32];
             kern1.block_read(long_id, 0, &mut garbage_buf)?;
@@ -325,6 +338,7 @@ mod ipld {
         }
 
         let (call_manager, _) = kern.into_inner();
+        
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
@@ -381,7 +395,7 @@ mod ipld {
         );
 
         // Offset
-        // !!! TODO !!! review
+        // !!! TODO !!!
         // kern.block_read(id, 0xFF, buf).expect_err("block read though offset (0xFF) was longer than the block length");
         // assert_eq!(
         //     test_data.borrow().charge_gas_calls,
