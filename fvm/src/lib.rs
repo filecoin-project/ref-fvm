@@ -49,11 +49,6 @@ lazy_static::lazy_static! {
     };
 }
 
-/// For internal testing, ensures WASM gas charges aren't being added on top of unit test operations.
-pub const __TESTING_FREE_WASM_PRICE: &gas::WasmGasPrices = &gas::WasmGasPrices {
-    exec_instruction_cost: gas::Gas::new(0),
-};
-
 #[cfg(test)]
 mod test {
     use fvm_ipld_blockstore::MemoryBlockstore;

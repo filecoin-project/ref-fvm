@@ -6,7 +6,7 @@ use anyhow::Context;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
-use fvm::machine::{Engine, EngineConfig, Machine, MachineContext, NetworkConfig};
+use fvm::machine::{Engine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -89,17 +89,14 @@ impl DummyMachine {
         // construct state tree from empty root state
         let state_tree = StateTree::new_from_root(bs, &root)?;
 
+        let mut config = NetworkConfig::new(STUB_NETWORK_VER);
+
         // generate context from the new generated root and override actors with empty list
-        let ctx = NetworkConfig::new(STUB_NETWORK_VER)
-            .override_actors(actors_cid)
-            .for_epoch(0, root);
+        let ctx = config.override_actors(actors_cid).for_epoch(0, root);
 
         Ok(Self {
             ctx,
-            engine: Engine::new_default(EngineConfig {
-                max_wasm_stack: 1024,
-                wasm_prices: fvm::__TESTING_FREE_WASM_PRICE,
-            })?,
+            engine: Engine::new_default((&config).into())?,
             state_tree,
             builtin_actors: manifest,
         })
