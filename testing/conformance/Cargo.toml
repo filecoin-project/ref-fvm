@@ -9,7 +9,7 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm_shared = { version = "0.7.0", path = "../../shared" }
+fvm_shared = { version = "0.7.1", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.1", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.4.1", path = "../../ipld/car" }
@@ -35,7 +35,7 @@ log = "0.4.14"
 byteorder = "1.4.3"
 futures = "0.3.19"
 async-std = { version = "1.9", features = ["attributes"] }
-wasmtime = { version = "0.36.0", default-features = false }
+wasmtime = { version = "0.37.0", default-features = false }
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
 colored = "2"
@@ -46,11 +46,11 @@ serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.3.0", optional = true }
-actors-v7 = { version = "~7.4", package = "fil_builtin_actors_bundle" }
+actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [dependencies.fvm]
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 path = "../../fvm"
 default-features = false
 features = ["testing"]
