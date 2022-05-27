@@ -12,9 +12,6 @@ mod ipld {
 
     use super::*;
 
-    // TODO tests for block_open
-    // TODO make macro to test for proper errors
-
     #[test]
     fn roundtrip() -> anyhow::Result<()> {
         let (mut kern, _) = build_inspecting_test()?;
@@ -75,9 +72,12 @@ mod ipld {
         let (mut kern1, _) = build_inspecting_test()?;
 
         let block = "foo".as_bytes();
-        // make a block
+        let block_1 = "bar".as_bytes();
+        let block_2 = "baz".as_bytes();
+
+        // create blocks
         let id = kern.block_create(DAG_CBOR, block)?;
-        let id1 = kern1.block_create(DAG_CBOR, "bar".as_bytes())?;
+        let id1 = kern1.block_create(DAG_CBOR, block_1)?;
 
         assert_eq!(id, 1, "first block id should be 1");
         assert_eq!(
@@ -85,7 +85,7 @@ mod ipld {
             "two blocks of the different content but same order should have the same block id"
         );
 
-        let id = kern1.block_create(DAG_CBOR, "baz".as_bytes())?;
+        let id = kern1.block_create(DAG_CBOR, block_2)?;
         assert_eq!(id, 2, "second created block id should be 2");
 
         let (call_manager, _) = kern.into_inner();
@@ -117,6 +117,7 @@ mod ipld {
     #[test]
     fn create_unexpected() -> anyhow::Result<()> {
         let (mut kern, _) = build_inspecting_test()?;
+
         let block = "foo".as_bytes();
 
         let err = kern
@@ -142,7 +143,6 @@ mod ipld {
         let (mut kern, _) = build_inspecting_test()?;
         let (mut kern1, _) = build_inspecting_test()?;
 
-        // setup
         let block = "foo".as_bytes();
         let other_block = "baz".as_bytes();
 
@@ -163,6 +163,7 @@ mod ipld {
         // CIDs match CIDs generated manually from CID crate
         let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
         let expected_other_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
+
         assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
         assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
 
@@ -211,8 +212,10 @@ mod ipld {
     #[test]
     fn link_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
-        // setup
-        let id = kern.block_create(DAG_CBOR, "foo".as_bytes())?;
+
+        let block = "foo".as_bytes();
+
+        let id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // Invalid hash lengths
@@ -241,7 +244,6 @@ mod ipld {
         let (mut kern, _) = build_inspecting_test()?;
         let (mut kern1, _) = build_inspecting_test()?;
 
-        // setup
         let block = "foo".as_bytes();
         let other_block = "baz".as_bytes();
         let long_block = "hello world!".as_bytes();
@@ -263,7 +265,7 @@ mod ipld {
         let mut long_block_buf = [0u8; 6];
         let mut remaining_buf = [0u8; 6];
 
-        // first reads
+        // read data
         let buf_i = kern.block_read(id, 0, &mut block_buf)?;
         let buf1_i = kern1.block_read(id1, 0, &mut block1_buf)?;
 
@@ -298,10 +300,6 @@ mod ipld {
         let partial_offset = kern1.block_read(long_id, 0, &mut long_block_buf)?;
 
         // remaining
-        assert!(
-            partial_offset > 0,
-            "offset after partial read should not be negative"
-        );
         assert_eq!(
             partial_offset, 6,
             "6 bytes should be following after reading 6 bytes from a block 12 bytes long"
@@ -357,13 +355,15 @@ mod ipld {
     #[test]
     fn read_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
-        let buf = &mut [0u8; 3];
+
         let block = "foo".as_bytes();
+        let buf = &mut [0u8; 3];
 
         // read before creation
         kern.block_read(1, 0, buf)
             .expect_err("block read though no block was created");
 
+        // create block
         let id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
@@ -375,11 +375,13 @@ mod ipld {
 
         // Offset
         let buf = &mut [0u8; 258];
-        // `id` points to block: "foo".as_bytes()
-        let diff = kern.block_read(id, 255, &mut buf[255..])?; // offset is larger than total bytes in block
+
+        // offset is larger than total bytes in block
+        let diff = kern.block_read(id, 255, &mut buf[255..])?;
         assert_eq!(diff, -255);
         let end = (buf.len() as i32 + diff) as usize;
         let _ = &buf[..end];
+
         Ok(())
     }
 
@@ -388,6 +390,7 @@ mod ipld {
         let (mut kern, _) = build_inspecting_test()?;
 
         let block = "foo".as_bytes();
+
         let id = kern.block_create(DAG_CBOR, block)?;
 
         let stat = kern.block_stat(id)?;
@@ -420,6 +423,7 @@ mod ipld {
     #[test]
     fn stat_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
+
         let block = "foo".as_bytes();
 
         kern.block_stat(1)
