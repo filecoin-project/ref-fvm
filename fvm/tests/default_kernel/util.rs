@@ -1,7 +1,7 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use fvm::kernel::BlockRegistry;
-use fvm::Kernel;
 
 use super::*;
 

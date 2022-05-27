@@ -425,7 +425,7 @@ mod ipld {
         let diff = kern.block_read(id, 255, &mut buf[255..])?; // offset is larger than total bytes in block
         assert_eq!(diff, -255);
         let end = (buf.len() as i32 + diff) as usize;
-        let a = &buf[..end];
+        let _ = &buf[..end];
         Ok(())
     }
 
