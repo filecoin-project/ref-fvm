@@ -13,13 +13,13 @@ use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
-// use fvm_shared::version::NetworkVersion;
+use fvm_shared::version::NetworkVersion;
 use multihash::Code;
 
 use super::*;
 use crate::DummyExterns;
 
-/// this is essentially identical to DefaultMachine, but has pub fields for reaching inside
+/// Minimal *pseudo-functional* implementation of `Machine` for tests
 pub struct DummyMachine {
     pub engine: Engine,
     pub state_tree: StateTree<MemoryBlockstore>,
@@ -27,8 +27,7 @@ pub struct DummyMachine {
     pub builtin_actors: Manifest,
 }
 
-// hardcoded elsewhere till relavant TODOs are solved
-// const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V16;
+const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
 impl DummyMachine {
     /// build a dummy machine with no builtin actors, and from empty & new state tree for unit tests
@@ -49,17 +48,14 @@ impl DummyMachine {
         bs.has(&manifest_cid)
             .context("failed to load builtin actor manifest")?;
 
-        // TODO find and document why this needs to be this
-        // TODO V15 requires this and IDK what V16 expects
-        // TODO why is a tuple of (num_actors, manifest) the expected manifest CID?
-        let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
+        // add bundle root with version 1 and CID of the empty manifest
+        let actors_cid = bs.put_cbor(&(1, manifest_cid), Code::Blake2b256).unwrap();
 
         // construct state tree from empty root state
         let state_tree = StateTree::new_from_root(bs, &root)?;
 
         // generate context from the new generated root and override actors with empty list
-        // TODO should this stay as V15?
-        let ctx = NetworkConfig::new(fvm_shared::version::NetworkVersion::V15)
+        let ctx = NetworkConfig::new(STUB_NETWORK_VER)
             .override_actors(actors_cid)
             .for_epoch(0, root);
 
@@ -130,9 +126,7 @@ impl Machine for DummyMachine {
     }
 }
 
-/// a wrapper to let us inspect values during testing, all borrows are done with .borrow() or .borrow_mut(), so this should be used in single thereaded tests only
-/// this is **NOT** threadsafe
-/// TODO this introduces some rough edges that might need to be cleaned up
+/// Minimal *pseudo-functional* implementation CallManager
 pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
