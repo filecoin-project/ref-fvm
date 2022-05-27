@@ -8,6 +8,7 @@ mod ipld {
     use fvm_ipld_encoding::DAG_CBOR;
     use fvm_shared::error::ErrorNumber;
     use multihash::MultihashDigest;
+    use cid::Cid;
 
     use super::*;
 
@@ -33,8 +34,7 @@ mod ipld {
         assert_eq!(id, 1, "block creation should be ID 1");
 
         // Link
-
-        let expected_cid = cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block).truncate(32));
+        let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
         assert_eq!(cid, expected_cid, "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec");
 
         // Stat
@@ -116,7 +116,7 @@ mod ipld {
 
     #[test]
     fn create_unexpected() -> anyhow::Result<()> {
-        let (mut kern, test_data) = build_inspecting_test()?;
+        let (mut kern, _) = build_inspecting_test()?;
         let block = "foo".as_bytes();
 
         let err = kern
@@ -161,9 +161,9 @@ mod ipld {
         let (call_manager, _) = kern.into_inner();
 
         // CIDs match CIDs generated manually from CID crate
-        let expected_cid = cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block).truncate(32));
+        let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
         let expected_other_cid =
-            cid::Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block).truncate(32));
+            Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
         assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
         assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
 
