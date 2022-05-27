@@ -2,13 +2,13 @@ use super::*;
 
 mod ipld {
 
+    use cid::Cid;
     use fvm::kernel::IpldBlockOps;
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
     use fvm_shared::error::ErrorNumber;
     use multihash::MultihashDigest;
-    use cid::Cid;
 
     use super::*;
 
@@ -162,8 +162,7 @@ mod ipld {
 
         // CIDs match CIDs generated manually from CID crate
         let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
-        let expected_other_cid =
-            Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
+        let expected_other_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
         assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
         assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
 
@@ -219,50 +218,20 @@ mod ipld {
         // Invalid hash lengths
         kern.block_link(id, Code::Blake2b256.into(), 0)
             .expect_err("blocked linked though hash length was set to 0");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
         kern.block_link(id, Code::Blake2b256.into(), 128)
             .expect_err("blocked linked though hash length was set to 128");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         // Invalid hash function
         kern.block_link(id, 0xFF, 32).expect_err(
             "blocked linked though hash function was set to an arbitrary function (0xFF)",
         );
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
         kern.block_link(id, 0xFF, 0).expect_err("blocked linked though hash function was set to an arbitrary function (0xFF) and length was set to 0");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         // Invalid BlockId
         kern.block_link(u32::MAX, Code::Blake2b256.into(), 32)
             .expect_err("blocked linked though ID does not exist in blockstore");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
         kern.block_link(0, Code::Blake2b256.into(), 32)
             .expect_err("blocked linked though ID was 0");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         Ok(())
     }
@@ -394,11 +363,6 @@ mod ipld {
         // read before creation
         kern.block_read(1, 0, buf)
             .expect_err("block read though no block was created");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         let id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
@@ -406,18 +370,8 @@ mod ipld {
         // ID
         kern.block_read(0, 0, buf)
             .expect_err("block read though ID was invalid (0)");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
         kern.block_read(0xFF, 0, buf)
             .expect_err("block read though ID did not exist (0xFF)");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         // Offset
         let buf = &mut [0u8; 258];
@@ -464,18 +418,12 @@ mod ipld {
     }
 
     #[test]
-    #[ignore = "TODO should gas be charged for failed stat operations?"]
     fn stat_unexpected() -> anyhow::Result<()> {
         let (mut kern, test_data) = build_inspecting_test()?;
         let block = "foo".as_bytes();
 
         kern.block_stat(1)
             .expect_err("stat returned Ok though no blocks have been created");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         kern.block_create(DAG_CBOR, block)?;
         // reset gas calls
@@ -483,18 +431,8 @@ mod ipld {
 
         kern.block_stat(0)
             .expect_err("stat returned Ok though block ID was given as 0");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
         kern.block_stat(0xFF)
             .expect_err("stat returned Ok though block ID was not in blockstore (0xFF)");
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
 
         Ok(())
     }
