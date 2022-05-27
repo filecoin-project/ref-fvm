@@ -30,7 +30,7 @@ pub struct DummyMachine {
 const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
 impl DummyMachine {
-    /// build a dummy machine with no builtin actors, and from empty & new state tree for unit tests
+    /// Build a dummy machine with no builtin actors and an empty state-tree.
     pub fn new_stub() -> anyhow::Result<Self> {
         let bs = MemoryBlockstore::new();
 
@@ -182,7 +182,7 @@ impl CallManager for DummyCallManager {
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
     ) -> kernel::Result<InvocationResult> {
-        // Ok(InvocationResult::Return(None));
+        // Ok(InvocationResult::Return(None))
         todo!()
     }
 
@@ -190,7 +190,8 @@ impl CallManager for DummyCallManager {
         &mut self,
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
-        Ok(InvocationResult::Return(None))
+        // Ok(InvocationResult::Return(None))
+        todo!()
     }
 
     fn finish(self) -> (FinishRet, Self::Machine) {

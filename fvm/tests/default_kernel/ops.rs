@@ -122,7 +122,7 @@ mod ipld {
         let err = kern
             .block_create(0xFF, block)
             .expect_err("Returned Ok though invalid codec (0xFF) was used");
-        // TODO should tests be made for returning correct errors like below?
+        // TODO make macro to test for proper errors
         match err {
             fvm::kernel::ExecutionError::Syscall(e) => {
                 assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32)
@@ -130,16 +130,10 @@ mod ipld {
             _ => panic!("expected a syscall error"),
         }
 
-        assert_eq!(
-            test_data.borrow().charge_gas_calls,
-            0,
-            "operation failed but charge_gas was called!"
-        );
-
-        // TODO should this be allowed?
+        // valid for M1, shouldn't be for M2
         let _ = kern.block_create(DAG_CBOR, &[])?;
 
-        // TODO test spec audit things?
+        // spec audit things arent (yet) tested
         Ok(())
     }
 
@@ -406,7 +400,7 @@ mod ipld {
             "operation failed but charge_gas was called!"
         );
 
-        let _id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // ID
@@ -426,21 +420,12 @@ mod ipld {
         );
 
         // Offset
-        // TODO figure out what the expected behavior should be here
-        let _way_over = kern.block_read(_id, 0xFFFF, buf)?;
-        // println!("{}{}", way_over + 0xFFFF, block.len() as i32);
-        assert_eq!(
-            buf,
-            &[0, 0, 0],
-            "offeset went over total length so no data should be read"
-        );
-        // assert!(way_over + 0xFFFF == block.len() as i32);
-        // assert_eq!(
-        //     test_data.borrow().charge_gas_calls,
-        //     0,
-        //     "operation failed but charge_gas was called!"
-        // );
-
+        let buf = &mut [0u8; 258];
+        // `id` points to block: "foo".as_bytes()
+        let diff = kern.block_read(id, 255, &mut buf[255..])?; // offset is larger than total bytes in block
+        assert_eq!(diff, -255);
+        let end = (buf.len() as i32 + diff) as usize;
+        let a = &buf[..end];
         Ok(())
     }
 
