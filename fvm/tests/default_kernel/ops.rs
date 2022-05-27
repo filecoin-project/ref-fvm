@@ -13,6 +13,7 @@ mod ipld {
     use super::*;
 
     // TODO tests for block_open
+    // TODO make macro to test for proper errors
 
     #[test]
     fn roundtrip() -> anyhow::Result<()> {
@@ -78,7 +79,6 @@ mod ipld {
         let id = kern.block_create(DAG_CBOR, block)?;
         let id1 = kern1.block_create(DAG_CBOR, "bar".as_bytes())?;
 
-        // TODO are these assumption correct? other ID values could be used although it would be weird
         assert_eq!(id, 1, "first block id should be 1");
         assert_eq!(
             id, id1,
@@ -122,7 +122,7 @@ mod ipld {
         let err = kern
             .block_create(0xFF, block)
             .expect_err("Returned Ok though invalid codec (0xFF) was used");
-        // TODO make macro to test for proper errors
+
         match err {
             fvm::kernel::ExecutionError::Syscall(e) => {
                 assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32)
