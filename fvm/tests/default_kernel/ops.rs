@@ -9,9 +9,9 @@ mod ipld {
     use fvm_ipld_encoding::DAG_CBOR;
     use fvm_shared::error::ErrorNumber;
     use multihash::MultihashDigest;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn roundtrip() -> anyhow::Result<()> {
@@ -447,9 +447,9 @@ mod gas {
     use fvm::gas::*;
     use fvm::kernel::GasOps;
     use fvm_shared::version::NetworkVersion;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn used() -> anyhow::Result<()> {
