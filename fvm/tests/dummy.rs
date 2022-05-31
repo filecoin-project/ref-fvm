@@ -189,6 +189,23 @@ impl DummyCallManager {
             cell_ref,
         )
     }
+
+    pub fn new_with_gas(gas_tracker: GasTracker) -> (Self, Rc<RefCell<TestData>>) {
+        let rc = Rc::new(RefCell::new(TestData {
+            charge_gas_calls: 0,
+        }));
+        let cell_ref = rc.clone();
+        (
+            Self {
+                machine: DummyMachine::new_stub().unwrap(),
+                gas_tracker,
+                origin: Address::new_actor(&[]),
+                nonce: 0,
+                test_data: rc,
+            },
+            cell_ref,
+        )
+    }
 }
 
 impl CallManager for DummyCallManager {

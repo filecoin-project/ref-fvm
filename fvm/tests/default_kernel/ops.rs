@@ -441,3 +441,53 @@ mod ipld {
         Ok(())
     }
 }
+
+mod gas {
+    use super::*;
+    use fvm::{gas::*, kernel::GasOps};
+    use fvm_shared::version::NetworkVersion;
+
+    #[test]
+    fn used() -> anyhow::Result<()> {
+        let used = Gas::new(123456);
+        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used);
+
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
+
+        assert_eq!(kern.gas_used(), used);
+
+        Ok(())
+    }
+
+    #[test]
+    fn available() -> anyhow::Result<()> {
+        let avaliable = Gas::new(123456);
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
+
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
+
+        assert_eq!(kern.gas_available(), avaliable);
+
+        Ok(())
+    }
+
+    #[test]
+    fn charge() -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[test]
+    fn price_list() -> anyhow::Result<()> {
+        let (kern, _) = build_inspecting_test()?;
+
+        // compare raw pointers since PriceList is &'static
+
+        let expected_list = price_list_by_network_version(NetworkVersion::V15);
+        assert!(kern.price_list() as *const _ == expected_list as *const _);
+
+        let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
+        assert!(kern.price_list() as *const _ != unexpected_list as *const _);
+
+        Ok(())
+    }
+}
