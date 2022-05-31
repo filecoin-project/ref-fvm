@@ -443,9 +443,11 @@ mod ipld {
 }
 
 mod gas {
-    use super::*;
-    use fvm::{gas::*, kernel::GasOps};
+    use fvm::gas::*;
+    use fvm::kernel::GasOps;
     use fvm_shared::version::NetworkVersion;
+
+    use super::*;
 
     #[test]
     fn used() -> anyhow::Result<()> {
@@ -472,6 +474,7 @@ mod gas {
     }
 
     #[test]
+    #[ignore = "TODO"]
     fn charge() -> anyhow::Result<()> {
         todo!()
     }
@@ -483,10 +486,10 @@ mod gas {
         // compare raw pointers since PriceList is &'static
 
         let expected_list = price_list_by_network_version(NetworkVersion::V15);
-        assert!(kern.price_list() as *const _ == expected_list as *const _);
+        assert!(std::ptr::eq(kern.price_list(), expected_list));
 
         let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
-        assert!(kern.price_list() as *const _ != unexpected_list as *const _);
+        assert!(!std::ptr::eq(kern.price_list(), unexpected_list));
 
         Ok(())
     }

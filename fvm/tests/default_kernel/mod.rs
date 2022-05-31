@@ -13,7 +13,7 @@ use super::*;
 
 type TestingKernel = DefaultKernel<DummyCallManager>;
 
-/// function to reduce a bit of boilerplate
+/// build a kernel for testing
 pub fn build_inspecting_test() -> anyhow::Result<(TestingKernel, Rc<RefCell<TestData>>)> {
     // call_manager is not dropped till the end of the function
     let (call_manager, test_data) = dummy::DummyCallManager::new_stub();
@@ -23,8 +23,10 @@ pub fn build_inspecting_test() -> anyhow::Result<(TestingKernel, Rc<RefCell<Test
     Ok((kern, test_data))
 }
 
-/// function to reduce a bit of boilerplate
-pub fn build_inspecting_gas_test(gas_tracker: fvm::gas::GasTracker) -> anyhow::Result<(TestingKernel, Rc<RefCell<TestData>>)> {
+/// build a kernel with a GasTracker
+pub fn build_inspecting_gas_test(
+    gas_tracker: fvm::gas::GasTracker,
+) -> anyhow::Result<(TestingKernel, Rc<RefCell<TestData>>)> {
     // call_manager is not dropped till the end of the function
     let (call_manager, test_data) = dummy::DummyCallManager::new_with_gas(gas_tracker);
     // variable for value inspection, only upgrade after done mutating to avoid panic
