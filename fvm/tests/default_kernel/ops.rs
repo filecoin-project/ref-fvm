@@ -11,6 +11,7 @@ mod ipld {
     use multihash::MultihashDigest;
 
     use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn roundtrip() -> anyhow::Result<()> {
@@ -448,6 +449,7 @@ mod gas {
     use fvm_shared::version::NetworkVersion;
 
     use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn used() -> anyhow::Result<()> {
@@ -486,10 +488,10 @@ mod gas {
         // compare raw pointers since PriceList is &'static
 
         let expected_list = price_list_by_network_version(NetworkVersion::V15);
-        assert!(std::ptr::eq(kern.price_list(), expected_list));
+        assert_eq!(kern.price_list(), expected_list);
 
         let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
-        assert!(!std::ptr::eq(kern.price_list(), unexpected_list));
+        assert_ne!(kern.price_list(), unexpected_list);
 
         Ok(())
     }
