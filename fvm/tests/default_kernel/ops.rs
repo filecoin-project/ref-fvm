@@ -451,6 +451,8 @@ mod gas {
 
     use super::*;
 
+    use super::*;
+
     #[test]
     fn used() -> anyhow::Result<()> {
         let used = Gas::new(123456);
@@ -484,8 +486,6 @@ mod gas {
     #[test]
     fn price_list() -> anyhow::Result<()> {
         let (kern, _) = build_inspecting_test()?;
-
-        // compare raw pointers since PriceList is &'static
 
         let expected_list = price_list_by_network_version(NetworkVersion::V15);
         assert_eq!(kern.price_list(), expected_list);
