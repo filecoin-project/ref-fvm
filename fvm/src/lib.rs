@@ -94,7 +94,8 @@ mod test {
             _h2: &[u8],
             _extra: &[u8],
         ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
-            todo!()
+            // consensus is always valid for tests :)
+            Ok((None, 0))
         }
     }
 
