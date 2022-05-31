@@ -1,7 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ahash::AHashMap;
+use std::collections::HashMap;
+
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -367,10 +368,10 @@ pub struct PriceList {
     pub(crate) verify_seal_base: Gas,
     #[allow(unused)]
     pub(crate) verify_aggregate_seal_base: Gas,
-    pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, Gas>,
-    pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
+    pub(crate) verify_aggregate_seal_per: HashMap<RegisteredSealProof, Gas>,
+    pub(crate) verify_aggregate_seal_steps: HashMap<RegisteredSealProof, StepCost>,
 
-    pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
+    pub(crate) verify_post_lookup: HashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: Gas,
     pub(crate) verify_replica_update: Gas,
 
