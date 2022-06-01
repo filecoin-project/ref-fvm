@@ -17,7 +17,7 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use multihash::Code;
 
-const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
+pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
 /// Unimplemented and empty `Externs` impl
 pub struct DummyExterns;
@@ -181,7 +181,7 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
@@ -217,7 +217,7 @@ impl CallManager for DummyCallManager {
         }));
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
             origin,
             nonce,
             test_data: rc,

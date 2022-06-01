@@ -451,7 +451,27 @@ mod gas {
 
     use super::*;
 
-    use super::*;
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let avaliable = Gas::new(10);
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
+
+        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+
+        assert_eq!(kern.gas_available(), avaliable);
+        assert_eq!(kern.gas_used(), Gas::new(0));
+
+        kern.charge_gas("charge 6 gas", Gas::new(6))?;
+
+        assert_eq!(kern.gas_available(), Gas::new(4));
+        assert_eq!(kern.gas_used(), Gas::new(6));
+
+        kern.charge_gas("refund 6 gas", Gas::new(-6))?;
+
+        assert_eq!(kern.gas_available(), avaliable);
+        assert_eq!(kern.gas_used(), Gas::new(0));
+        Ok(())
+    }
 
     #[test]
     fn used() -> anyhow::Result<()> {
@@ -480,6 +500,7 @@ mod gas {
     #[test]
     fn charge() -> anyhow::Result<()> {
         let test_gas = Gas::new(123456);
+        let neg_test_gas = Gas::new(-123456);
         let gas_tracker = GasTracker::new(test_gas, Gas::new(0));
 
         let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
@@ -488,13 +509,36 @@ mod gas {
         kern.charge_gas("test test 123", test_gas)?;
         assert_eq!(kern.gas_used(), test_gas);
 
-        // carge more than avaliable
-
-        // over by 1
-        kern.charge_gas("give more!", Gas::new(1))
+        // charge over by 1
+        kern.charge_gas("spend more!", Gas::new(1))
             .expect_err("charging 1 more gas than avaliable should error");
+        assert_eq!(
+            kern.gas_used(),
+            test_gas,
+            "charging gas over what is avaliable and failing should not affect gas used"
+        );
 
-        // TODO how should negative gas charges be tested?
+        // charge negative (refund) gas
+        kern.charge_gas("refund~", neg_test_gas)?;
+        kern.charge_gas("free gas!", neg_test_gas)?;
+
+        assert_eq!(
+            kern.gas_used(),
+            neg_test_gas,
+            "gas avaliable should be negative"
+        );
+        assert_eq!(
+            kern.gas_available() + kern.gas_used(),
+            test_gas,
+            "gas avaliable + gas used should be equal to the gas limit"
+        );
+
+        // kernel with 0 avaliable gas
+        let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0));
+        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        kern.charge_gas("spend more!", test_gas)
+            .expect_err("charging 1 more gas than avaliable (0) should error");
+
         Ok(())
     }
 
@@ -502,11 +546,12 @@ mod gas {
     fn price_list() -> anyhow::Result<()> {
         let (kern, _) = build_inspecting_test()?;
 
-        let expected_list = price_list_by_network_version(NetworkVersion::V15);
+        let expected_list = price_list_by_network_version(STUB_NETWORK_VER);
         assert_eq!(
             kern.price_list(),
             expected_list,
-            "price list should be the same as network version 15"
+            "price list should be the same as the one used in the kernel {}",
+            STUB_NETWORK_VER
         );
 
         let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
