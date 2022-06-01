@@ -17,7 +17,7 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use multihash::Code;
 
-const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
+pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
 /// Unimplemented and empty `Externs` impl
 pub struct DummyExterns;
@@ -181,7 +181,24 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+                origin: Address::new_actor(&[]),
+                nonce: 0,
+                test_data: rc,
+            },
+            cell_ref,
+        )
+    }
+
+    pub fn new_with_gas(gas_tracker: GasTracker) -> (Self, Rc<RefCell<TestData>>) {
+        let rc = Rc::new(RefCell::new(TestData {
+            charge_gas_calls: 0,
+        }));
+        let cell_ref = rc.clone();
+        (
+            Self {
+                machine: DummyMachine::new_stub().unwrap(),
+                gas_tracker,
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
@@ -200,7 +217,7 @@ impl CallManager for DummyCallManager {
         }));
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)), // TODO this will need to be modified for gas limit testing
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
             origin,
             nonce,
             test_data: rc,
@@ -259,9 +276,7 @@ impl CallManager for DummyCallManager {
 
     fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
-
-        self.gas_tracker_mut().apply_charge(charge)?;
-        Ok(())
+        self.gas_tracker_mut().apply_charge(charge)
     }
 
     fn origin(&self) -> Address {

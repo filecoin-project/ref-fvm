@@ -272,16 +272,16 @@ lazy_static! {
     };
 }
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct ScalingCost {
     flat: Gas,
     scale: Gas,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StepCost(Vec<Step>);
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct Step {
     start: i64,
     cost: Gas,
@@ -306,7 +306,7 @@ impl StepCost {
 
 /// Provides prices for operations in the VM.
 /// All costs are in milligas.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PriceList {
     /// Storage gas charge multiplier
     pub(crate) storage_gas_multiplier: i64,
