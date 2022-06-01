@@ -276,9 +276,7 @@ impl CallManager for DummyCallManager {
 
     fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
-
-        self.gas_tracker_mut().apply_charge(charge)?;
-        Ok(())
+        self.gas_tracker_mut().apply_charge(charge)
     }
 
     fn origin(&self) -> Address {

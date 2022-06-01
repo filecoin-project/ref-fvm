@@ -478,9 +478,24 @@ mod gas {
     }
 
     #[test]
-    #[ignore = "TODO"]
     fn charge() -> anyhow::Result<()> {
-        todo!()
+        let test_gas = Gas::new(123456);
+        let gas_tracker = GasTracker::new(test_gas, Gas::new(0));
+
+        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+
+        // charge exactly as much as avaliable
+        kern.charge_gas("test test 123", test_gas)?;
+        assert_eq!(kern.gas_used(), test_gas);
+
+        // carge more than avaliable
+
+        // over by 1
+        kern.charge_gas("give more!", Gas::new(1))
+            .expect_err("charging 1 more gas than avaliable should error");
+
+        // TODO how should negative gas charges be tested?
+        Ok(())
     }
 
     #[test]
@@ -488,7 +503,11 @@ mod gas {
         let (kern, _) = build_inspecting_test()?;
 
         let expected_list = price_list_by_network_version(NetworkVersion::V15);
-        assert_eq!(kern.price_list(), expected_list);
+        assert_eq!(
+            kern.price_list(),
+            expected_list,
+            "price list should be the same as network version 15"
+        );
 
         let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
         assert_ne!(kern.price_list(), unexpected_list);
