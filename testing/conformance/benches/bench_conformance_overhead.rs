@@ -96,9 +96,8 @@ fn bench_conformance_overhead(c: &mut Criterion) {
             .unwrap(),
     };
 
-    // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently/fixing wasm cache), we can probably bring this down.
     let mut group = c.benchmark_group("measurement-overhead-baselines");
-    group.measurement_time(Duration::new(30, 0));
+    group.measurement_time(Duration::new(15, 0));
     // start by getting some baselines!
 
     let engines = MultiEngine::default();

@@ -38,9 +38,7 @@ lazy_static! {
 
 const BLAKE2B_256: u64 = 0xb220;
 
-/// Tracks data accessed and modified during the execution of a message.
-///
-/// TODO writes probably ought to be scoped by invocation container.
+/// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
@@ -246,6 +244,8 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
+        // TODO(M2): Check for reachability here.
+
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
@@ -253,6 +253,8 @@ where
             .call_manager
             .blockstore()
             .get(cid)
+            // TODO: This is really "super fatal". It means we failed to store state, and should
+            // probably abort the entire block.
             .or_fatal()?
             .ok_or_else(|| anyhow!("missing state: {}", cid))
             // Missing state is a fatal error because it means we have a bug. Once we do
@@ -269,8 +271,6 @@ where
         )?;
 
         let stat = block.stat();
-
-        // TODO: I mean, this means you put 4M blocks in a single message. That's not actually possible?
         let id = self.blocks.put(block)?;
         Ok((id, stat))
     }
@@ -303,8 +303,7 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO: in M2, we need to write to a "write set" here, only flushing when updating the
-        // root.
+        // TODO(M2): Add the block to the reachable set.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
@@ -315,22 +314,36 @@ where
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+        // First, find the end of the _logical_ buffer (taking the offset into account).
+        // This must fit into an i32.
+
+        // We perform operations as u64, because we know that the buffer length and offset must fit
+        // in a u32.
+        let end = i32::try_from((offset as u64) + (buf.len() as u64))
+            .map_err(|_|syscall_error!(IllegalArgument; "offset plus buffer length did not fit into an i32"))?;
+
+        // Then get the block.
         let block = self.blocks.get(id)?;
         let data = block.data();
 
+        // We start reading at this offset.
         let start = offset as usize;
 
+        // We read (block_length - start) bytes, or until we fill the buffer.
         let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
+
+        // We can now _charge_, because we actually know how many bytes we need to read.
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
-        let end = start + to_read;
+        // Copy into the output buffer, but only if were're reading. If to_read == 0, start may be
+        // past the end of the block.
         if to_read != 0 {
-            buf[..to_read].copy_from_slice(&data[start..end]);
+            buf[..to_read].copy_from_slice(&data[start..(start + to_read)]);
         }
 
-        // Returns the difference between the end of the block, and the end of the data we've read.
-        Ok((data.len() as i32) - (end as i32))
+        // Returns the difference between the end of the block, and offset + buf.len()
+        Ok((data.len() as i32) - end)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
@@ -641,7 +654,6 @@ impl<C> RandomnessOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    #[allow(unused)]
     fn get_randomness_from_tickets(
         &mut self,
         personalization: i64,
@@ -654,7 +666,7 @@ where
                 .on_get_randomness(entropy.len()),
         )?;
 
-        // TODO: Check error code
+        // TODO(M2): Check error code
         // Specifically, lookback length?
         self.call_manager
             .externs()
@@ -662,7 +674,6 @@ where
             .or_illegal_argument()
     }
 
-    #[allow(unused)]
     fn get_randomness_from_beacon(
         &mut self,
         personalization: i64,
@@ -675,7 +686,7 @@ where
                 .on_get_randomness(entropy.len()),
         )?;
 
-        // TODO: Check error code
+        // TODO(M2): Check error code
         // Specifically, lookback length?
         self.call_manager
             .externs()
@@ -702,6 +713,7 @@ where
             .map(|act| act.code))
     }
 
+    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
         let oa = self
             .resolve_to_key_addr(&self.call_manager.origin(), false)
@@ -721,7 +733,7 @@ where
         Ok(addr)
     }
 
-    // TODO merge new_actor_address and create_actor into a single syscall.
+    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         if let Some(typ) = self.get_builtin_actor_type(&code_id) {
             if typ.is_singleton_actor() {
@@ -875,8 +887,9 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
         &vi.proof,
     )
     .or_illegal_argument()
-    // TODO: There are probably errors here that should be fatal, but it's hard to tell so I'm
-    // sticking with illegal argument for now.
+    // There are probably errors here that should be fatal, but it's hard to tell so I'm sticking
+    // with illegal argument for now.
+    //
     // Worst case, _some_ node falls out of sync. Better than the network halting.
     .context("failed to verify seal proof")
 }

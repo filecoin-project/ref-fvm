@@ -6,6 +6,17 @@ Changes to the reference FVM implementation.
 
 ...
 
+## 1.0.0-rc.2 [2022-05-26]
+
+This is the second release candidate resulting from the FVM M1 development freeze.
+
+- Audit and cleanup TODOs.
+- Remove unused imports, etc.
+- Refactor the blockstore "flush" to behave more like lotus.
+- Upgrade wasmtime to 0.37.
+- Fix the read syscall to correctly compute the returned "offset". Previously, it would never return
+  a negative value, even if the passed-in buffer was over-sized.
+
 ## 1.0.0-rc.1 [2022-05-19]
 
 This is the first release candidate resulting from the FVM M1 development

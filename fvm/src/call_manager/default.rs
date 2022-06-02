@@ -165,10 +165,10 @@ where
     }
 
     fn finish(mut self) -> (FinishRet, Self::Machine) {
+        // TODO: Having to check against zero here is fishy, but this is what lotus does.
         let gas_used = self.gas_tracker.gas_used().max(Gas::zero()).round_up();
 
         let inner = self.0.take().expect("call manager is poisoned");
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
         (
             FinishRet {
                 gas_used,
@@ -327,7 +327,6 @@ where
         }
 
         // Store the parametrs, and initialize the block registry for the target actor.
-        // TODO: In M2, the block registry may have some form of shared block limit.
         let mut block_registry = BlockRegistry::new();
         let params_id = if let Some(blk) = params {
             block_registry.put(blk)?

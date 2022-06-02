@@ -1,7 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use ahash::AHashMap;
+use std::collections::HashMap;
+
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -216,7 +217,6 @@ lazy_static! {
         .cloned()
         .collect(),
 
-        // TODO: PARAM_FINISH: this may need to be increased to account for the cost of an extern
         verify_consensus_fault: Gas::new(495422),
         verify_replica_update: Gas::new(36316136),
         verify_post_lookup: [
@@ -272,16 +272,16 @@ lazy_static! {
     };
 }
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct ScalingCost {
     flat: Gas,
     scale: Gas,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StepCost(Vec<Step>);
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct Step {
     start: i64,
     cost: Gas,
@@ -306,7 +306,7 @@ impl StepCost {
 
 /// Provides prices for operations in the VM.
 /// All costs are in milligas.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PriceList {
     /// Storage gas charge multiplier
     pub(crate) storage_gas_multiplier: i64,
@@ -368,10 +368,10 @@ pub struct PriceList {
     pub(crate) verify_seal_base: Gas,
     #[allow(unused)]
     pub(crate) verify_aggregate_seal_base: Gas,
-    pub(crate) verify_aggregate_seal_per: AHashMap<RegisteredSealProof, Gas>,
-    pub(crate) verify_aggregate_seal_steps: AHashMap<RegisteredSealProof, StepCost>,
+    pub(crate) verify_aggregate_seal_per: HashMap<RegisteredSealProof, Gas>,
+    pub(crate) verify_aggregate_seal_steps: HashMap<RegisteredSealProof, StepCost>,
 
-    pub(crate) verify_post_lookup: AHashMap<RegisteredPoStProof, ScalingCost>,
+    pub(crate) verify_post_lookup: HashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: Gas,
     pub(crate) verify_replica_update: Gas,
 

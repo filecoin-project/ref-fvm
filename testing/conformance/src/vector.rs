@@ -225,22 +225,6 @@ mod base64_bytes {
         let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
         base64::decode(s.as_ref()).map_err(de::Error::custom)
     }
-
-    pub mod vec {
-        use super::*;
-
-        #[allow(dead_code)]
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Vec<u8>>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let v: Vec<Cow<'de, str>> = Deserialize::deserialize(deserializer)?;
-            v.into_iter()
-                .map(|s| base64::decode(s.as_ref()))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(de::Error::custom)
-        }
-    }
 }
 
 mod message_receipt_vec {

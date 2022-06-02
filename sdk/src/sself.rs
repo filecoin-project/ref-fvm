@@ -2,9 +2,10 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::MAX_CID_LEN;
 
 use crate::error::{ActorDeleteError, NoStateError};
-use crate::{sys, MAX_CID_LEN};
+use crate::sys;
 
 /// Get the IPLD root CID. Fails if the actor doesn't have state (before the first call to
 /// `set_root` and after actor deletion).

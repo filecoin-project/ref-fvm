@@ -31,7 +31,6 @@ pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAm
         .or_fatal()
 }
 
-/// TODO it should be possible to consume an address without knowing its length a priori
 pub fn self_destruct(
     context: Context<'_, impl Kernel>,
     addr_off: u32,

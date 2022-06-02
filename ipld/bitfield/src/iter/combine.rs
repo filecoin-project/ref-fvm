@@ -386,8 +386,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         // we repeatedly compute the next range until we find one that is non-empty
-        // TODO: use `!range.is_empty()` once it stabilizes in Rust 1.47
-        iter::from_fn(|| self.next_range()).find(|range| range.start < range.end)
+        iter::from_fn(|| self.next_range()).find(|range| !range.is_empty())
     }
 }
 

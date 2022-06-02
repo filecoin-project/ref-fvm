@@ -11,8 +11,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 
 use data_encoding::Encoding;
-#[allow(unused_imports)]
-use data_encoding_macro::{internal_new_encoding, new_encoding};
+use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -66,6 +65,7 @@ pub const NETWORK_DEFAULT: Network = Network::Mainnet;
 /// a public key or value
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Copy)]
 #[cfg_attr(feature = "testing", derive(Default))]
+#[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub struct Address {
     network: Network,
     payload: Payload,

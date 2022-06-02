@@ -42,7 +42,7 @@ pub fn get_actor_code_cid(
 /// class 2 address (protocol-generated actor address). This will change in the
 /// future when we introduce class 4 addresses to accommodate larger hashes.
 ///
-/// TODO this method will be merged with create_actor in the near future.
+/// TODO(M2): this method will be merged with create_actor.
 pub fn new_actor_address(
     context: Context<'_, impl Kernel>,
     obuf_off: u32, // Address (out)

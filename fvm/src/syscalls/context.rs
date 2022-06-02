@@ -6,8 +6,8 @@ use cid::Cid;
 use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::MAX_CID_LEN;
 
-use super::MAX_CID_LEN;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;
 
@@ -125,7 +125,6 @@ mod test {
     const SHA2_256: u64 = 0x12;
     const HASH: &[u8] = b"\x2C\x26\xB4\x6B\x68\xFF\xC6\x8F\xF9\x9B\x45\x3C\x1D\x30\x41\x34\x13\x42\x2D\x70\x64\x83\xBF\xA0\xF9\x8A\x5E\x88\x62\x66\xE7\xAE";
 
-    // TODO: move this somewhere more useful.
     macro_rules! expect_syscall_err {
         ($code:ident, $res:expr) => {
             match $res.expect_err("expected syscall to fail") {

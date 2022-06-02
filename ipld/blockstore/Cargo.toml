@@ -8,7 +8,7 @@ edition = "2018"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "std"] }
+cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
 anyhow = "1.0.51"
 # multihash is also re-exported by `cid`. Having `multihash` here as a
 # depdendency is needed to enable the features of the re-export.

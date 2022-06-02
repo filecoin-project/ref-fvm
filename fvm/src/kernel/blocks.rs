@@ -18,9 +18,9 @@ pub struct BlockRegistry {
 pub type BlockId = u32;
 
 const FIRST_ID: BlockId = 1;
-const MAX_BLOCKS: u32 = i32::MAX as u32; // TODO: Limit
+const MAX_BLOCKS: u32 = i32::MAX as u32; // TODO(M2): Limit
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct BlockStat {
     pub codec: u64,
     pub size: u32,

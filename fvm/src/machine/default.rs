@@ -93,7 +93,6 @@ where
         };
 
         // Load the built-in actors manifest.
-        // TODO: Check that the actor bundle is sane for the network version.
         let (builtin_actors_cid, manifest_version) = match context.builtin_actors_override {
             Some(manifest_cid) => {
                 let (version, cid): (u32, Cid) = state_tree
@@ -185,7 +184,6 @@ where
     }
 
     /// Creates an uninitialized actor.
-    // TODO: Remove
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         let state_tree = self.state_tree_mut();
 
