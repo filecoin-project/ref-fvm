@@ -95,6 +95,7 @@ impl Default for RegisteredSealProof {
 
 /// Proof of spacetime type, indicating version and sector size of the proof.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum RegisteredPoStProof {
     StackedDRGWinning2KiBV1,
     StackedDRGWinning8MiBV1,

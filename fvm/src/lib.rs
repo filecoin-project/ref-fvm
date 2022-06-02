@@ -7,7 +7,7 @@
 //! of your choice during the initialization of the consuming application.
 
 pub use kernel::default::DefaultKernel;
-pub use kernel::{BlockError, Kernel};
+pub use kernel::Kernel;
 
 pub mod call_manager;
 pub mod executor;
@@ -16,8 +16,6 @@ pub mod kernel;
 pub mod machine;
 pub mod syscalls;
 
-// TODO Public only for conformance tests.
-//  Consider exporting only behind a feature.
 pub mod gas;
 pub mod state_tree;
 
@@ -36,10 +34,6 @@ pub mod account_actor;
 pub mod init_actor;
 #[cfg(feature = "testing")]
 pub mod system_actor;
-
-mod market_actor;
-mod power_actor;
-mod reward_actor;
 
 pub mod trace;
 
@@ -76,7 +70,7 @@ mod test {
     impl Rand for DummyExterns {
         fn get_chain_randomness(
             &self,
-            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
             _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {
@@ -85,7 +79,7 @@ mod test {
 
         fn get_beacon_randomness(
             &self,
-            _pers: fvm_shared::crypto::randomness::DomainSeparationTag,
+            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
             _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {
@@ -100,7 +94,8 @@ mod test {
             _h2: &[u8],
             _extra: &[u8],
         ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
-            todo!()
+            // consensus is always valid for tests :)
+            Ok((None, 0))
         }
     }
 
@@ -119,11 +114,13 @@ mod test {
 
         let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
 
+        let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V15)
+            .override_actors(actors_cid)
+            .for_epoch(0, root);
+
         let machine = DefaultMachine::new(
-            &Engine::default(),
-            &NetworkConfig::new(fvm_shared::version::NetworkVersion::V14)
-                .override_actors(actors_cid)
-                .for_epoch(0, root),
+            &Engine::new_default((&mc.network).into()).unwrap(),
+            &mc,
             bs,
             DummyExterns,
         )

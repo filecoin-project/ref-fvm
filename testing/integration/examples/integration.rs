@@ -1,5 +1,6 @@
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::tester::{Account, Tester};
+use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
@@ -25,7 +26,12 @@ struct State {
 
 pub fn main() {
     // Instantiate tester
-    let mut tester = Tester::new(NetworkVersion::V15, StateTreeVersion::V4).unwrap();
+    let mut tester = Tester::new(
+        NetworkVersion::V15,
+        StateTreeVersion::V4,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 

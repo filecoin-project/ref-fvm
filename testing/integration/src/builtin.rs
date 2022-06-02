@@ -5,7 +5,7 @@ use cid::Cid;
 use futures::executor::block_on;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
-use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::{load_manifest, Type};
@@ -17,13 +17,13 @@ use crate::error::Error::{
 };
 
 const BUNDLES: [(NetworkVersion, &[u8]); 2] = [
-    (NetworkVersion::V14, actors_v6::BUNDLE_CAR),
     (NetworkVersion::V15, actors_v7::BUNDLE_CAR),
+    (NetworkVersion::V16, actors_v7::BUNDLE_CAR), // todo bad hack
 ];
 
 // Import built-in actors
 pub fn import_builtin_actors(
-    blockstore: &MemoryBlockstore,
+    blockstore: &impl Blockstore,
 ) -> Result<BTreeMap<NetworkVersion, Cid>> {
     BUNDLES
         .into_iter()
@@ -39,7 +39,7 @@ pub fn import_builtin_actors(
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
-    blockstore: &MemoryBlockstore,
+    blockstore: &impl Blockstore,
     builtin_actors: &Cid,
     ver: u32,
 ) -> Result<(Cid, Cid, Cid)> {

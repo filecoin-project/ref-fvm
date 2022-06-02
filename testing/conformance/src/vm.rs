@@ -4,9 +4,9 @@ use std::convert::TryFrom;
 use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
-use fvm::gas::{GasTracker, PriceList};
+use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, NetworkConfig};
+use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, MultiEngine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -16,8 +16,7 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
@@ -49,7 +48,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engine: &Engine,
+        engines: &MultiEngine,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -71,16 +70,20 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .get(&network_version)
             .expect("no builtin actors index for nv");
 
-        let machine = DefaultMachine::new(
-            engine,
-            NetworkConfig::new(network_version)
-                .override_actors(builtin_actors)
-                .for_epoch(epoch, state_root)
-                .set_base_fee(base_fee),
-            blockstore,
-            externs,
-        )
-        .unwrap();
+        let mut nc = NetworkConfig::new(network_version);
+        nc.override_actors(builtin_actors);
+        let mut mc = nc.for_epoch(epoch, state_root);
+        mc.set_base_fee(base_fee);
+
+        let engine = engines.get(&mc.network).expect("getting engine");
+
+        let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
+
+        // Preload the actors. We don't usually preload actors when testing, so we're going to do
+        // this explicitly.
+        engine
+            .preload(machine.blockstore(), machine.builtin_actors().left_values())
+            .unwrap();
 
         let price_list = machine.context().price_list.clone();
 
@@ -98,10 +101,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [
-            (NetworkVersion::V14, actors_v6::BUNDLE_CAR),
-            (NetworkVersion::V15, actors_v7::BUNDLE_CAR),
-        ];
+        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
         bundles
             .into_iter()
             .map(|(nv, car)| {
@@ -186,7 +186,7 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &fvm_ipld_encoding::RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
@@ -283,15 +283,17 @@ where
 {
     type CallManager = C;
 
-    fn into_call_manager(self) -> Self::CallManager
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
-        self.0.into_call_manager().0
+        let (cm, br) = self.0.into_inner();
+        (cm.0, br)
     }
 
     fn new(
         mgr: Self::CallManager,
+        blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
         method: MethodNum,
@@ -306,6 +308,7 @@ where
         TestKernel(
             K::new(
                 TestCallManager(mgr),
+                blocks,
                 caller,
                 actor_id,
                 method,
@@ -326,8 +329,8 @@ where
         self.0.resolve_address(address)
     }
 
-    fn get_actor_code_cid(&self, addr: &Address) -> Result<Option<Cid>> {
-        self.0.get_actor_code_cid(addr)
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
+        self.0.get_actor_code_cid(id)
     }
 
     fn new_actor_address(&mut self) -> Result<Address> {
@@ -338,8 +341,8 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn resolve_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
-        self.0.resolve_builtin_actor_type(code_cid)
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+        self.0.get_builtin_actor_type(code_cid)
     }
 
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
@@ -347,7 +350,7 @@ where
     }
 }
 
-impl<M, C, K> BlockOps for TestKernel<K>
+impl<M, C, K> IpldBlockOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
@@ -365,16 +368,12 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
+    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         self.0.block_read(id, offset, buf)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
-    }
-
-    fn block_get(&mut self, id: BlockId) -> Result<(u64, Vec<u8>)> {
-        self.0.block_get(id)
     }
 }
 
@@ -397,8 +396,8 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]> {
-        self.0.hash_blake2b(data)
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
+        self.0.hash(code, data)
     }
 
     // forwarded
@@ -413,11 +412,13 @@ where
     // forwarded
     fn verify_signature(
         &mut self,
-        signature: &Signature,
+        sig_type: SignatureType,
+        signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.0.verify_signature(signature, signer, plaintext)
+        self.0
+            .verify_signature(sig_type, signature, signer, plaintext)
     }
 
     // NOT forwarded
@@ -448,7 +449,6 @@ where
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
         self.0.charge_gas(charge.name, charge.total())?;
-        // TODO this seems wrong, should probably be parameterized.
         Ok(None)
     }
 
@@ -488,16 +488,20 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn gas_used(&self) -> i64 {
+    fn gas_used(&self) -> Gas {
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: i64) -> Result<()> {
+    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
         self.0.charge_gas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {
         self.0.price_list()
+    }
+
+    fn gas_available(&self) -> Gas {
+        self.0.gas_available()
     }
 }
 
@@ -551,7 +555,7 @@ where
 {
     fn get_randomness_from_tickets(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
@@ -561,7 +565,7 @@ where
 
     fn get_randomness_from_beacon(
         &mut self,
-        personalization: DomainSeparationTag,
+        personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
@@ -603,9 +607,9 @@ where
         &mut self,
         recipient: &Address,
         method: u64,
-        params: &fvm_ipld_encoding::RawBytes,
+        params: BlockId,
         value: &TokenAmount,
-    ) -> Result<InvocationResult> {
+    ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
     }
 }

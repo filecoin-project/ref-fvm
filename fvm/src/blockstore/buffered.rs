@@ -1,18 +1,16 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::{Cursor, Read, Seek};
+
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
-
-// TODO: figure out where to put this.
-const DAG_CBOR: u64 = 0x71;
-
-// TODO: replace HashMap with DashMap like in forest?
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::{Cursor, Read, Seek};
+use fvm_ipld_encoding::DAG_CBOR;
+use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED};
 
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
@@ -171,31 +169,60 @@ fn copy_rec<'a>(
     root: Cid,
     buffer: &mut Vec<(Cid, &'a [u8])>,
 ) -> Result<()> {
-    // TODO: Make this non-recursive.
-    // Skip identity and Filecoin commitment Cids
-    if root.codec() != DAG_CBOR {
-        return Ok(());
+    const DAG_RAW: u64 = 0x55;
+    const BLAKE2B_256: u64 = 0xb220;
+    const BLAKE2B_LEN: u8 = 32;
+    const IDENTITY: u64 = 0x0;
+
+    // Differences from lotus (vm.Copy):
+    // 1. We assume that if we don't have a block in our buffer, it must already be in the client
+    //    and don't check. This should only happen if the client is missing state.
+    // 2. We always write-back new blocks, even if the client already has them. We haven't noticed a
+    //    perf impact.
+
+    // TODO(M2): Make this not cbor specific.
+    match (root.codec(), root.hash().code(), root.hash().size()) {
+        // Allow non-truncated blake2b-256 raw/cbor (code/state)
+        (DAG_RAW | DAG_CBOR, BLAKE2B_256, BLAKE2B_LEN) => (),
+        // Ignore raw identity cids (fake code cids)
+        (DAG_RAW, IDENTITY, _) => return Ok(()),
+        // Copy links from cbor identity cids.
+        // We shouldn't be creating these at the moment, but lotus' vm.Copy supports them.
+        (DAG_CBOR, IDENTITY, _) => {
+            return scan_for_links(&mut Cursor::new(root.hash().digest()), |link| {
+                copy_rec(cache, link, buffer)
+            })
+        }
+        // Ignore commitments (not even going to check the hash function.
+        (FIL_COMMITMENT_UNSEALED | FIL_COMMITMENT_SEALED, _, _) => return Ok(()),
+        // Fail on anything else. We usually want to continue on error, but there's really no going
+        // back from here.
+        (codec, hash, length) => {
+            return Err(anyhow!(
+                "cid {root} has unexpected codec ({codec}), hash ({hash}), or length ({length})"
+            ))
+        }
     }
 
-    let block = &*cache
-        .get(&root)
-        .ok_or_else(|| anyhow!("Invalid link ({}) in flushing buffered store", root))?;
+    // If we don't have the block, we assume it's already in the datastore.
+    //
+    // The alternative would be to check if it's in the datastore, but that's likely even more
+    // expensive. And there wouldn't be much we could do at that point but abort the block.
+    let block = match cache.get(&root) {
+        Some(blk) => blk,
+        None => return Ok(()),
+    };
 
-    scan_for_links(&mut Cursor::new(block), |link| {
-        if link.codec() != DAG_CBOR {
-            return Ok(());
-        }
+    // At the moment, we only expect dag-cbor and raw.
+    // In M2, we'll need to copy explicitly.
+    if root.codec() == DAG_CBOR {
+        // TODO(M2): Make this non-recursive.
+        scan_for_links(&mut Cursor::new(block), |link| {
+            copy_rec(cache, link, buffer)
+        })?;
+    }
 
-        // DB reads are expensive. So we check if it exists in the cache.
-        // If it doesnt exist in the DB, which is likely, we proceed with using the cache.
-        if !cache.contains_key(&link) {
-            return Ok(());
-        }
-
-        // Recursively find more links under the links we're iterating over.
-        copy_rec(cache, link, buffer)
-    })?;
-
+    // Finally, push the block. We do this _last_ so that we always include write before parents.
     buffer.push((root, block));
 
     Ok(())

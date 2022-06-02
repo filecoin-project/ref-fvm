@@ -13,11 +13,17 @@ libfuzzer-sys = "0.4"
 arbitrary = { version = "1.1", features = ["derive"] }
 ahash = "0.7.6"
 itertools = "0.10.3"
+rand = "0.8.5"
 
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
+cid = { version = "0.8.4", default-features = false, features = ["serde-codec", "arb", "std"] }
+multihash = { version = "0.16.2", features = ["sha2"]}
 
 fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbitrary"] }
-#fvm_shared = { path = "../../../shared" }
+fvm_ipld_encoding = { path = "../../../ipld/encoding" }
+fvm_shared = { path = "../../../shared", features = ["arb"] }
+serde = { version = "1", features = ["derive"] }
+serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
+hex = "0.4"
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -39,5 +45,17 @@ doc = false
 [[bin]]
 name = "rle_encode"
 path = "fuzz_targets/rle_encode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "cbor_decode"
+path = "fuzz_targets/cbor_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "cbor_encode"
+path = "fuzz_targets/cbor_encode.rs"
 test = false
 doc = false

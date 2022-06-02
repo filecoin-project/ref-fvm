@@ -16,7 +16,6 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
 use fvm_shared::receipt::Receipt;
 use serde::{Deserialize, Deserializer};
 
@@ -113,7 +112,7 @@ pub enum RandomnessKind {
 #[derive(Debug, Deserialize_tuple, PartialEq, Clone)]
 pub struct RandomnessRule {
     pub kind: RandomnessKind,
-    pub dst: DomainSeparationTag,
+    pub dst: i64,
     pub epoch: ChainEpoch,
     #[serde(with = "base64_bytes")]
     pub entropy: Vec<u8>,
@@ -225,22 +224,6 @@ mod base64_bytes {
     {
         let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
         base64::decode(s.as_ref()).map_err(de::Error::custom)
-    }
-
-    pub mod vec {
-        use super::*;
-
-        #[allow(dead_code)]
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Vec<u8>>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let v: Vec<Cow<'de, str>> = Deserialize::deserialize(deserializer)?;
-            v.into_iter()
-                .map(|s| base64::decode(s.as_ref()))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(de::Error::custom)
-        }
     }
 }
 

@@ -75,13 +75,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
 use super::BitField;
-use crate::RangeSize;
-
-// MaxEncodedSize is the maximum encoded size of a bitfield. When expanded into
-// a slice of runs, a bitfield of this size should not exceed 2MiB of memory.
-//
-// This bitfield can fit at least 3072 sparse elements.
-const MAX_ENCODED_SIZE: usize = 32 << 10;
+use crate::{RangeSize, MAX_ENCODED_SIZE};
 
 impl Serialize for BitField {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -482,7 +476,7 @@ mod tests {
         let mut rng = XorShiftRng::seed_from_u64(1);
 
         for _i in 0..1000 {
-            let len: u64 = rng.gen_range(0, 1000);
+            let len: u64 = rng.gen_range(0..1000);
             let bits: Vec<_> = (0..len).filter(|_| rng.gen::<bool>()).collect();
 
             let ranges: Vec<_> = ranges_from_bits(bits.clone()).collect();

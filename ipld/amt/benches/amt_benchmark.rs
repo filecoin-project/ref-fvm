@@ -7,15 +7,20 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 const ITEM_COUNT: usize = 60;
 
-#[allow(dead_code)]
 // Struct to simulate a reasonable amount of data per value into the amt
 #[derive(Clone)]
 struct BenchData {
+    #[allow(dead_code)]
     s: String,
+    #[allow(dead_code)]
     s2: String,
+    #[allow(dead_code)]
     bz: Vec<u8>,
+    #[allow(dead_code)]
     v: u64,
+    #[allow(dead_code)]
     a: [u8; 64],
+    #[allow(dead_code)]
     a2: [u8; 64],
 }
 
@@ -28,13 +33,13 @@ impl Serialize for BenchData {
         ().serialize(serializer)
     }
 }
+
 impl<'de> Deserialize<'de> for BenchData {
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
     where
         D: Deserializer<'de>,
     {
-        let _s: () = Deserialize::deserialize(deserializer)?;
-
+        Deserialize::deserialize(deserializer)?;
         Ok(Self::default())
     }
 }

@@ -8,25 +8,25 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::MAX_CID_LEN;
 use num_traits::FromPrimitive;
 
-use crate::{status_code_to_bool, sys, SyscallResult, MAX_CID_LEN};
+use crate::{status_code_to_bool, sys, SyscallResult};
 
 /// Verifies that a signature is valid for an address and plaintext.
-#[allow(unused)]
 pub fn verify_signature(
     signature: &Signature,
     signer: &Address,
     plaintext: &[u8],
 ) -> SyscallResult<bool> {
-    let signature = signature
-        .marshal_cbor()
-        .expect("failed to marshal signature");
+    let sig_type = signature.signature_type();
+    let sig_bytes = signature.bytes();
     let signer = signer.to_bytes();
     unsafe {
         sys::crypto::verify_signature(
-            signature.as_ptr(),
-            signature.len() as u32,
+            sig_type as u32,
+            sig_bytes.as_ptr(),
+            sig_bytes.len() as u32,
             signer.as_ptr(),
             signer.len() as u32,
             plaintext.as_ptr(),
@@ -37,15 +37,24 @@ pub fn verify_signature(
 }
 
 /// Hashes input data using blake2b with 256 bit output.
-#[allow(unused)]
 pub fn hash_blake2b(data: &[u8]) -> [u8; 32] {
+    const BLAKE2B_256: u64 = 0xb220;
     // This can only fail if we manage to pass in corrupted memory.
-    unsafe { sys::crypto::hash_blake2b(data.as_ptr(), data.len() as u32) }
-        .expect("failed to compute blake2b hash")
+    let mut ret = [0u8; 32];
+    unsafe {
+        sys::crypto::hash(
+            BLAKE2B_256,
+            data.as_ptr(),
+            data.len() as u32,
+            ret.as_mut_ptr(),
+            32,
+        )
+    }
+    .expect("failed to compute blake2b hash");
+    ret
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
-#[allow(unused)]
 pub fn compute_unsealed_sector_cid(
     proof_type: RegisteredSealProof,
     pieces: &[PieceInfo],
@@ -72,7 +81,6 @@ pub fn compute_unsealed_sector_cid(
 }
 
 /// Verifies a sector seal proof.
-#[allow(unused)]
 pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
@@ -81,7 +89,6 @@ pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
 }
 
 /// Verifies a window proof of spacetime.
-#[allow(unused)]
 pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
@@ -99,7 +106,6 @@ pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
 /// Returns None and an error if the headers don't prove a fault.
-#[allow(unused)]
 pub fn verify_consensus_fault(
     h1: &[u8],
     h2: &[u8],
@@ -131,7 +137,6 @@ pub fn verify_consensus_fault(
     }))
 }
 
-#[allow(unused)]
 pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
@@ -142,7 +147,6 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
     }
 }
 
-#[allow(unused)]
 pub fn verify_replica_update(info: &ReplicaUpdateInfo) -> SyscallResult<bool> {
     let info = info
         .marshal_cbor()
@@ -153,7 +157,6 @@ pub fn verify_replica_update(info: &ReplicaUpdateInfo) -> SyscallResult<bool> {
     }
 }
 
-#[allow(unused)]
 pub fn batch_verify_seals(batch: &[SealVerifyInfo]) -> SyscallResult<Vec<bool>> {
     let encoded = to_vec(batch).expect("failed to marshal batch seal verification input");
 

@@ -9,21 +9,20 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "0.7.1", path = "../../fvm", default-features = false }
-fvm_shared = { version = "0.6.1", path = "../../shared" }
+fvm_shared = { version = "0.7.1", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.1", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.4.1", path = "../../ipld/car" }
-fvm_ipld_blockstore = { version = "0.1.0", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2.0", path = "../../ipld/encoding" }
+fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.2.1", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
 thiserror = "1.0.30"
 num-traits = "0.2"
-derive_builder = "0.10"
+derive_builder = "0.11.2"
 ahash = "0.7"
 num-derive = "0.3.3"
-cid = { version = "0.8.2", default-features = false }
+cid = { version = "0.8.5", default-features = false }
 multihash = { version = "0.16.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
@@ -36,7 +35,7 @@ log = "0.4.14"
 byteorder = "1.4.3"
 futures = "0.3.19"
 async-std = { version = "1.9", features = ["attributes"] }
-wasmtime = { version = "0.33.0" }
+wasmtime = { version = "0.37.0", default-features = false }
 base64 = "0.13.0"
 flate2 = { version = "1.0" }
 colored = "2"
@@ -46,10 +45,15 @@ num_cpus = "1.13.1"
 serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.3"
 regex = { version = "1.0" }
-ittapi-rs = { version = "0.1.6", optional = true }
-actors-v6 = { version = "~6.3", package = "fil_builtin_actors_bundle" }
-actors-v7 = { version = "~7.3", package = "fil_builtin_actors_bundle" }
+ittapi-rs = { version = "0.3.0", optional = true }
+actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
+
+[dependencies.fvm]
+version = "1.0.0-rc.2"
+path = "../../fvm"
+default-features = false
+features = ["testing"]
 
 [features]
 vtune = ["wasmtime/vtune", "ittapi-rs"]

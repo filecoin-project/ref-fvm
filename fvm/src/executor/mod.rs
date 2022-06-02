@@ -1,14 +1,18 @@
 mod default;
+mod threaded;
 
 use std::fmt::Display;
 
+use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::bigint::{BigInt, Sign};
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
+pub use threaded::ThreadedExecutor;
 
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
@@ -35,6 +39,9 @@ pub trait Executor {
         apply_kind: ApplyKind,
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet>;
+
+    /// Flushes the state-tree, returning the new root CID.
+    fn flush(&mut self) -> anyhow::Result<Cid>;
 }
 
 /// A description of some failure encountered when applying a message.
@@ -70,6 +77,14 @@ pub struct ApplyRet {
     pub penalty: BigInt,
     /// Tip given to miner from message.
     pub miner_tip: BigInt,
+
+    // Gas stuffs
+    pub base_fee_burn: TokenAmount,
+    pub over_estimation_burn: TokenAmount,
+    pub refund: TokenAmount,
+    pub gas_refund: i64,
+    pub gas_burned: i64,
+
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
     /// Execution trace information, for debugging.
@@ -90,8 +105,13 @@ impl ApplyRet {
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
+            base_fee_burn: TokenAmount::from(0),
+            over_estimation_burn: TokenAmount::from(0),
+            refund: TokenAmount::from(0),
+            gas_refund: 0,
+            gas_burned: 0,
+            failure_info: Some(ApplyFailure::PreValidation(message.into())),
             exec_trace: vec![],
         }
     }

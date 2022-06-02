@@ -10,7 +10,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 byteorder = "1.3.2"
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec"] }
+cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
 multihash = { version = "0.16.1", default-features = false }
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
 thiserror = "1.0"

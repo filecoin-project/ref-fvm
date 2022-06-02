@@ -7,7 +7,7 @@ use fvm_ipld_encoding::serde_bytes;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::BitField;
-use crate::Error;
+use crate::{Error, MAX_ENCODED_SIZE};
 
 /// A trait for types that can produce a `&BitField` (or fail to do so).
 /// Generalizes over `&BitField` and `&mut UnvalidatedBitField`.
@@ -53,6 +53,24 @@ impl UnvalidatedBitField {
         }
     }
 }
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{Arbitrary, Unstructured};
+
+#[cfg(feature = "enable-arbitrary")]
+impl<'a> Arbitrary<'a> for UnvalidatedBitField {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let bf: BitField = u.arbitrary()?;
+        Ok(if *u.choose(&[true, false])? {
+            Self::Validated(bf)
+        } else {
+            Self::Unvalidated(bf.to_bytes())
+        })
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        arbitrary::size_hint::and(BitField::size_hint(depth), (1, Some(1)))
+    }
+}
 
 impl From<BitField> for UnvalidatedBitField {
     fn from(bf: BitField) -> Self {
@@ -77,6 +95,12 @@ impl<'de> Deserialize<'de> for UnvalidatedBitField {
         D: Deserializer<'de>,
     {
         let bytes: Vec<u8> = serde_bytes::deserialize(deserializer)?;
+        if bytes.len() > MAX_ENCODED_SIZE {
+            return Err(serde::de::Error::custom(format!(
+                "encoded bitfield was too large {}",
+                bytes.len()
+            )));
+        }
         Ok(Self::Unvalidated(bytes))
     }
 }

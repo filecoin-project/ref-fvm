@@ -21,6 +21,12 @@ pub use rleplus::Error;
 use thiserror::Error;
 pub use unvalidated::{UnvalidatedBitField, Validate};
 
+/// MaxEncodedSize is the maximum encoded size of a bitfield. When expanded into
+/// a slice of runs, a bitfield of this size should not exceed 2MiB of memory.
+///
+/// This bitfield can fit at least 3072 sparse elements.
+pub(crate) const MAX_ENCODED_SIZE: usize = 32 << 10;
+
 #[derive(Clone, Error, Debug)]
 #[error("bitfields may not include u64::MAX")]
 pub struct OutOfRangeError;

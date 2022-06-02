@@ -1,24 +1,23 @@
-use std::cmp::max;
-
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::version::NetworkVersion;
+use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
-use crate::gas::GasTracker;
-use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result, SyscallError};
+use crate::gas::{Gas, GasTracker};
+use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
-use crate::trace::{ExecutionEvent, ExecutionTrace, SendParams};
+use crate::syscalls::{charge_for_exec, update_gas_available};
+use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
@@ -73,7 +72,7 @@ where
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
-            gas_tracker: GasTracker::new(gas_limit, 0),
+            gas_tracker: GasTracker::new(Gas::new(gas_limit), Gas::zero()),
             origin,
             nonce,
             num_actors_created: 0,
@@ -88,20 +87,23 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Call(SendParams {
+            self.exec_trace.push(ExecutionEvent::Call {
                 from,
                 to,
                 method,
-                params: params.clone(),
+                params: params
+                    .as_ref()
+                    .map(|blk| blk.data().to_owned().into())
+                    .unwrap_or_default(),
                 value: value.clone(),
-            }));
+            });
         }
 
         // We check _then_ set because we don't count the top call. This effectivly allows a
@@ -127,16 +129,23 @@ where
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Return(match result {
-                Err(ref e) => Err(match e {
-                    ExecutionError::OutOfGas => {
-                        SyscallError::new(ErrorNumber::Forbidden, "out of gas")
-                    }
-                    ExecutionError::Fatal(_) => SyscallError::new(ErrorNumber::Forbidden, "fatal"),
-                    ExecutionError::Syscall(s) => s.clone(),
-                }),
-                Ok(ref v) => Ok(v.clone()),
-            }));
+            self.exec_trace.push(match &result {
+                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
+                    v.as_ref()
+                        .map(|blk| RawBytes::from(blk.data().to_vec()))
+                        .unwrap_or_default(),
+                ),
+                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
+
+                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
+                    ErrorNumber::Forbidden,
+                    "out of gas",
+                )),
+                Err(ExecutionError::Fatal(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
+                }
+                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+            });
         }
 
         result
@@ -156,10 +165,10 @@ where
     }
 
     fn finish(mut self) -> (FinishRet, Self::Machine) {
-        let gas_used = self.gas_tracker.gas_used().max(0);
+        // TODO: Having to check against zero here is fishy, but this is what lotus does.
+        let gas_used = self.gas_tracker.gas_used().max(Gas::zero()).round_up();
 
         let inner = self.0.take().expect("call manager is poisoned");
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
         (
             FinishRet {
                 gas_used,
@@ -235,15 +244,21 @@ where
 
         // Now invoke the constructor; first create the parameters, then
         // instantiate a new kernel to invoke the constructor.
-        let params = RawBytes::serialize(&addr)
-            // TODO(#198) this should be a Sys actor error, but we're copying lotus here.
-            .map_err(|e| syscall_error!(Serialization; "failed to serialize params: {}", e))?;
+        let params = to_vec(&addr).map_err(|e| {
+            // This shouldn't happen, but we treat it as an illegal argument error and move on.
+            // It _likely_ means that the inputs were invalid in some unexpected way.
+            log::error!(
+                "failed to serialize address when creating actor, ignoring: {}",
+                e
+            );
+            syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
+        })?;
 
         self.send_resolved::<K>(
             account_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            &params,
+            Some(Block::new(DAG_CBOR, params)),
             &TokenAmount::from(0u32),
         )?;
 
@@ -256,14 +271,13 @@ where
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
         // Get the receiver; this will resolve the address.
-        // TODO: What kind of errors should we be using here?
         let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,
             None => match to.protocol() {
@@ -286,7 +300,7 @@ where
         from: ActorID,
         to: ActorID,
         method: MethodNum,
-        params: &RawBytes,
+        params: Option<Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>
     where
@@ -312,109 +326,91 @@ where
             return Ok(InvocationResult::Return(Default::default()));
         }
 
+        // Store the parametrs, and initialize the block registry for the target actor.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = if let Some(blk) = params {
+            block_registry.put(blk)?
+        } else {
+            NO_DATA_BLOCK_ID
+        };
+
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        let gas_available = self.gas_tracker.gas_available();
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
-            let mut kernel = K::new(cm, from, to, method, value.clone());
-
-            // Store parameters, if any.
-            let param_id = if params.len() > 0 {
-                match kernel.block_create(DAG_CBOR, params) {
-                    Ok(id) => id,
-                    // This could fail if we pass some global memory limit.
-                    Err(err) => return (Err(err), kernel.into_call_manager()),
-                }
-            } else {
-                super::NO_DATA_BLOCK_ID
-            };
+            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
 
             // Make a store.
-            let gas_used = kernel.gas_used();
-            let exec_units_to_add = match kernel.network_version() {
-                NetworkVersion::V14 | NetworkVersion::V15 => i64::MAX,
-                _ => kernel
-                    .price_list()
-                    .gas_to_exec_units(max(gas_available.saturating_sub(gas_used), 0), false),
-            };
-
             let mut store = engine.new_store(kernel);
-            if let Err(err) = store.add_fuel(u64::try_from(exec_units_to_add).unwrap_or(0)) {
-                return (
-                    Err(ExecutionError::Fatal(err)),
-                    store.into_data().kernel.into_call_manager(),
-                );
-            }
-
-            // Instantiate the module.
-            let instance = match engine
-                .get_instance(&mut store, &state.code)
-                .and_then(|i| i.context("actor code not found"))
-                .or_fatal()
-            {
-                Ok(ret) => ret,
-                Err(err) => return (Err(err), store.into_data().kernel.into_call_manager()),
-            };
 
             // From this point on, there are no more syscall errors, only aborts.
-            let result: std::result::Result<RawBytes, Abort> = (|| {
+            let result: std::result::Result<BlockId, Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, &state.code)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
                     // All actors will have an invoke method.
                     .map_err(Abort::Fatal)?;
 
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
                 // Invoke it.
-                let res = invoke.call(&mut store, (param_id,));
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    invoke.call(&mut store, (params_id,))
+                }))
+                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
-                // Charge gas for the "latest" use of execution units (all the exec units used since the most recent syscall)
-                // We do this by first loading the _total_ execution units consumed
-                let exec_units_consumed = store
-                    .fuel_consumed()
-                    .context("expected to find fuel consumed")
-                    .map_err(Abort::Fatal)?;
-                // Then, pass the _total_ exec_units_consumed to the InvocationData,
-                // which knows how many execution units had been consumed at the most recent snapshot
-                // It will charge gas for the delta between the total units (the number we provide) and its snapshot
-                store
-                    .data_mut()
-                    .charge_gas_for_exec_units(exec_units_consumed)
-                    .map_err(|e| Abort::from_error(ExitCode::SYS_ASSERTION_FAILED, e))?;
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                charge_for_exec(&mut store)?;
 
-                // If the invocation failed due to running out of exec_units, we have already detected it and returned OutOfGas above.
-                // Any other invocation failure is returned here as an Abort
-                let return_block_id = res?;
-
-                // Extract the return value, if there is one.
-                let return_value: RawBytes = if return_block_id > NO_DATA_BLOCK_ID {
-                    let (code, ret) = store
-                        .data_mut()
-                        .kernel
-                        .block_get(return_block_id)
-                        .map_err(|e| Abort::from_error(ExitCode::SYS_MISSING_RETURN, e))?;
-                    debug_assert_eq!(code, DAG_CBOR);
-                    RawBytes::new(ret)
-                } else {
-                    RawBytes::default()
-                };
-
-                Ok(return_value)
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res?)
             })();
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
-            let mut cm = invocation_data.kernel.into_call_manager();
+            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                        )
+                    })?)
+                })
+            });
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
-                Ok(value) => Ok(InvocationResult::Return(value)),
+                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
                 Err(abort) => {
                     if let Some(err) = last_error {
-                        cm.backtrace.set_cause(err);
+                        cm.backtrace.begin(err);
                     }
 
                     let (code, message, res) = match abort {
@@ -437,7 +433,6 @@ where
                         source: to,
                         method,
                         message,
-                        params: params.clone(),
                         code,
                     });
 

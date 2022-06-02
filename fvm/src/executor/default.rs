@@ -3,6 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::{BigInt, Sign};
@@ -15,11 +16,17 @@ use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
-use crate::gas::{GasCharge, GasOutputs};
-use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Kernel};
+use crate::gas::{Gas, GasCharge, GasOutputs};
+use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
 
 /// The default [`Executor`].
+///
+/// # Warning
+///
+/// Message execution might run out of stack and crash (the entire process) if it doesn't have at
+/// least 64MiB of stacks space. If you can't guarantee 64MiB of stack space, wrap this executor in
+/// a [`ThreadedExecutor`][super::ThreadedExecutor].
 // If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
 pub struct DefaultExecutor<K: Kernel>(Option<<K::CallManager as CallManager>::Machine>);
@@ -67,14 +74,21 @@ where
                 return (Err(e), cm.finish().1);
             }
 
+            let params = if msg.params.is_empty() {
+                None
+            } else {
+                Some(Block::new(DAG_CBOR, msg.params.bytes()))
+            };
+
             let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                let ret =
-                    cm.send::<K>(sender_id, msg.to, msg.method_num, &msg.params, &msg.value)?;
+                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
 
                 // Charge for including the result (before we end the transaction).
-                if let InvocationResult::Return(data) = &ret {
-                    cm.charge_gas(cm.context().price_list.on_chain_return_value(data.len()))?;
+                if let InvocationResult::Return(value) = &ret {
+                    cm.charge_gas(cm.context().price_list.on_chain_return_value(
+                        value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
+                    ))?;
                 }
 
                 Ok(ret)
@@ -88,7 +102,13 @@ where
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
-            Ok(InvocationResult::Return(return_data)) => {
+            Ok(InvocationResult::Return(return_value)) => {
+                // Convert back into a top-level return "value". We throw away the codec here,
+                // unfortunately.
+                let return_data = return_value
+                    .map(|blk| RawBytes::from(blk.data().to_vec()))
+                    .unwrap_or_default();
+
                 backtrace.clear();
                 Receipt {
                     exit_code: ExitCode::OK,
@@ -118,34 +138,39 @@ where
                 let exit_code = match err.1 {
                     ErrorNumber::InsufficientFunds => ExitCode::SYS_INSUFFICIENT_FUNDS,
                     ErrorNumber::NotFound => ExitCode::SYS_INVALID_RECEIVER,
-
-                    ErrorNumber::IllegalArgument => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalOperation => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::LimitExceeded => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::AssertionFailed => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::InvalidHandle => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalCid => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::IllegalCodec => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::Serialization => ExitCode::SYS_ASSERTION_FAILED,
-                    ErrorNumber::Forbidden => ExitCode::SYS_ASSERTION_FAILED,
+                    _ => ExitCode::SYS_ASSERTION_FAILED,
                 };
 
-                backtrace.set_cause(backtrace::Cause::new("send", "send", err));
+                backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
                 Receipt {
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
                 }
             }
-            Err(ExecutionError::Fatal(e)) => {
-                return Err(e.context(format!(
-                    "[from={}, to={}, seq={}, m={}, h={}] fatal error",
+            Err(ExecutionError::Fatal(err)) => {
+                // We produce a receipt with SYS_ASSERTION_FAILED exit code, and
+                // we consume the full gas amount so that, in case of a network-
+                // wide fatal errors, all nodes behave deterministically.
+                //
+                // We set the backtrace from the fatal error to aid diagnosis.
+                // Note that we use backtrace#set_cause instead of backtrace#begin
+                // because we want to retain the propagation chain that we've
+                // accumulated on the way out.
+                let err = err.context(format!(
+                    "[from={}, to={}, seq={}, m={}, h={}]",
                     msg.from,
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().epoch
-                )));
+                    self.context().epoch,
+                ));
+                backtrace.set_cause(backtrace::Cause::from_fatal(err));
+                Receipt {
+                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                    return_data: Default::default(),
+                    gas_used: msg.gas_limit,
+                }
             }
         };
 
@@ -164,12 +189,23 @@ where
                 }),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
-                failure_info,
                 penalty: TokenAmount::zero(),
                 miner_tip: TokenAmount::zero(),
+                base_fee_burn: TokenAmount::from(0),
+                over_estimation_burn: TokenAmount::from(0),
+                refund: TokenAmount::from(0),
+                gas_refund: 0,
+                gas_burned: 0,
+                failure_info,
                 exec_trace,
             }),
         }
+    }
+
+    /// Flush the state-tree to the underlying blockstore.
+    fn flush(&mut self) -> anyhow::Result<Cid> {
+        let k = (&mut **self).flush()?;
+        Ok(k)
     }
 }
 
@@ -180,12 +216,6 @@ where
     /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
     pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
         Self(Some(m))
-    }
-
-    /// Flush the state-tree to the underlying blockstore.
-    pub fn flush(&mut self) -> anyhow::Result<Cid> {
-        let k = (&mut **self).flush()?;
-        Ok(k)
     }
 
     /// Consume consumes the executor and returns the Machine. If the Machine had
@@ -212,10 +242,13 @@ where
         let pl = &self.context().price_list;
 
         let (inclusion_cost, miner_penalty_amount) = match apply_kind {
-            ApplyKind::Implicit => (GasCharge::new("none", 0, 0), Default::default()),
+            ApplyKind::Implicit => (
+                GasCharge::new("none", Gas::zero(), Gas::zero()),
+                Default::default(),
+            ),
             ApplyKind::Explicit => {
                 let inclusion_cost = pl.on_chain_message(raw_length);
-                let inclusion_total = inclusion_cost.total();
+                let inclusion_total = inclusion_cost.total().round_up();
 
                 // Verify the cost of the message is not over the message gas limit.
                 if inclusion_total > msg.gas_limit {
@@ -326,11 +359,12 @@ where
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
             base_fee_burn,
-            miner_tip,
             over_estimation_burn,
-            refund,
             miner_penalty,
-            ..
+            miner_tip,
+            refund,
+            gas_refund,
+            gas_burned,
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
@@ -365,15 +399,20 @@ where
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;
 
-        if (&base_fee_burn + over_estimation_burn + &refund + &miner_tip) != gas_cost {
+        if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
             return Err(anyhow!("Gas handling math is wrong"));
         }
         Ok(ApplyRet {
             msg_receipt: receipt,
-            failure_info,
             penalty: miner_penalty,
             miner_tip,
+            base_fee_burn,
+            over_estimation_burn,
+            refund,
+            gas_refund,
+            gas_burned,
+            failure_info,
             exec_trace: vec![],
         })
     }

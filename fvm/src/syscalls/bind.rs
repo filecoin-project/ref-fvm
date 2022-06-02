@@ -2,16 +2,13 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, Trap, WasmTy};
+use wasmtime::{Caller, Linker, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{Context, InvocationData};
+use super::{charge_for_exec, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
-
-// TODO: we should consider implementing a proc macro attribute for syscall functions instead of
-// this type nonsense. But this was faster and will "work" for now.
 
 /// Binds syscalls to a linker, converting the returned error according to the syscall convention:
 ///
@@ -89,43 +86,19 @@ where
 
 fn memory_and_data<'a, K: Kernel>(
     caller: &'a mut Caller<'_, InvocationData<K>>,
-) -> Result<(&'a mut Memory, &'a mut InvocationData<K>), Trap> {
-    let (mem, data) = caller
-        .get_export("memory")
-        .and_then(|m| m.into_memory())
-        .ok_or_else(|| Trap::new("failed to lookup actor memory"))?
-        .data_and_store_mut(caller);
-    Ok((Memory::new(mem), data))
+) -> (&'a mut Memory, &'a mut InvocationData<K>) {
+    let memory_handle = caller.data().memory;
+    let (mem, data) = memory_handle.data_and_store_mut(caller);
+    (Memory::new(mem), data)
 }
 
-fn charge_exec_units_for_gas(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units = caller
-        .data_mut()
-        .calculate_exec_units_for_gas()
-        .map_err(|_| Trap::new("failed to calculate exec_units"))?;
-    if exec_units.is_negative() {
-        caller.add_fuel(u64::try_from(exec_units.saturating_neg()).unwrap_or(0))?;
-    } else {
-        caller.consume_fuel(u64::try_from(exec_units).unwrap_or(0))?;
-    }
-
-    let gas_used = caller.data().kernel.gas_used();
-    let fuel_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-    caller.data_mut().set_snapshots(gas_used, fuel_consumed);
-    Ok(())
-}
-
-fn charge_gas_for_exec_units(caller: &mut Caller<InvocationData<impl Kernel>>) -> Result<(), Trap> {
-    let exec_units_consumed = caller
-        .fuel_consumed()
-        .ok_or_else(|| Trap::new("expected to find exec_units consumed"))?;
-
-    caller
-        .data_mut()
-        .charge_gas_for_exec_units(exec_units_consumed)
-        .map_err(|_| Trap::new("failed to charge gas for exec_units"))
+macro_rules! charge_syscall_gas {
+    ($kernel:expr) => {
+        let charge = $kernel.price_list().on_syscall();
+        $kernel
+            .charge_gas(charge.name, charge.compute_gas)
+            .map_err(Abort::from_error_as_fatal)?;
+    };
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
@@ -148,58 +121,69 @@ macro_rules! impl_bind_syscalls {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        charge_for_exec(&mut caller)?;
+
+                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        charge_syscall_gas!(data.kernel);
+
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(_) => {
+                        let out = syscall(ctx $(, $t)*).into();
+
+                        let result = match out {
+                            Ok(Ok(_)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
-                        Ok(result)
+                        update_gas_available(&mut caller)?;
+
+                        result
                     })
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
-                        charge_gas_for_exec_units(&mut caller)?;
-                        let (mut memory, mut data) = memory_and_data(&mut caller)?;
+                        charge_for_exec(&mut caller)?;
+
+                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        charge_syscall_gas!(data.kernel);
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)
                             || memory.len() - (ret as usize) < mem::size_of::<Ret::Value>() {
                             let code = ErrorNumber::IllegalArgument;
-                            data.last_error = Some(backtrace::Cause::new(module, name, SyscallError(format!("no space for return value"), code)));
+                            data.last_error = Some(backtrace::Cause::from_syscall(module, name, SyscallError(format!("no space for return value"), code)));
                             return Ok(code as u32);
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into()? {
-                            Ok(value) => {
+                        let result = match syscall(ctx $(, $t)*).into() {
+                            Ok(Ok(value)) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe { *(memory.as_mut_ptr().offset(ret as isize) as *mut Ret::Value) = value };
                                 data.last_error = None;
-                                0
+                                Ok(0)
                             },
-                            Err(err) => {
+                            Ok(Err(err)) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
-                                data.last_error = Some(backtrace::Cause::new(module, name, err));
-                                code as u32
+                                data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
+                                Ok(code as u32)
                             },
+                            Err(e) => Err(e.into()),
                         };
 
-                        charge_exec_units_for_gas(&mut caller)?;
-                        Ok(result)
+                        update_gas_available(&mut caller)?;
+
+                        result
                     })
                 }
             }
@@ -214,3 +198,4 @@ impl_bind_syscalls!(A B C);
 impl_bind_syscalls!(A B C D);
 impl_bind_syscalls!(A B C D E);
 impl_bind_syscalls!(A B C D E F);
+impl_bind_syscalls!(A B C D E F G);

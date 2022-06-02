@@ -11,12 +11,14 @@ pub(crate) struct GasOutputs {
     pub miner_tip: TokenAmount,
     pub refund: TokenAmount,
 
+    // In whole gas units.
     pub gas_refund: i64,
     pub gas_burned: i64,
 }
 
 impl GasOutputs {
     pub fn compute(
+        // In whole gas units.
         gas_used: i64,
         gas_limit: i64,
         base_fee: &TokenAmount,

@@ -2,8 +2,6 @@
 
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::randomness::DomainSeparationTag;
-
 pub trait Externs: Rand + Consensus {}
 
 /// Consensus related methods.
@@ -23,7 +21,7 @@ pub trait Rand {
     /// ChainEpoch, Entropy from the ticket chain.
     fn get_chain_randomness(
         &self,
-        pers: DomainSeparationTag,
+        pers: i64,
         round: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]>;
@@ -32,7 +30,7 @@ pub trait Rand {
     /// ChainEpoch, Entropy from the latest beacon entry.
     fn get_beacon_randomness(
         &self,
-        pers: DomainSeparationTag,
+        pers: i64,
         round: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]>;

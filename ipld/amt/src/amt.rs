@@ -249,8 +249,8 @@ where
 
         // Iterate sorted indices. Sorted to safely optimize later.
         for i in sorted(iter) {
-            let found = self.delete(i)?.is_none();
-            if strict && found {
+            let found = self.delete(i)?.is_some();
+            if strict && !found {
                 return Err(anyhow!("no such index {} in Amt for batch delete", i).into());
             }
             modified |= found;
