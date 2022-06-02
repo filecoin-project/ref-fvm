@@ -7,7 +7,6 @@ mod ipld {
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
-    use fvm_shared::error::ErrorNumber;
     use multihash::MultihashDigest;
     use pretty_assertions::{assert_eq, assert_ne};
 
@@ -125,12 +124,7 @@ mod ipld {
             .block_create(0xFF, block)
             .expect_err("Returned Ok though invalid codec (0xFF) was used");
 
-        match err {
-            fvm::kernel::ExecutionError::Syscall(e) => {
-                assert!(e.1 as u32 == ErrorNumber::IllegalCodec as u32)
-            }
-            _ => panic!("expected a syscall error"),
-        }
+        expect_syscall_err!(IllegalCodec, kern.block_create(0xFF, block));
 
         // valid for M1, shouldn't be for M2
         let _ = kern.block_create(DAG_CBOR, &[])?;
