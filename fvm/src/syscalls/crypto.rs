@@ -1,26 +1,17 @@
-// TODO: remove this when we hookup these syscalls.
-#![allow(unused)]
-
-use std::collections::HashMap;
-use std::{cmp, iter};
+use std::cmp;
 
 use anyhow::{anyhow, Context as _};
-use cid::Cid;
-use fvm_ipld_encoding::{Cbor, DAG_CBOR};
-use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::crypto::signature::{Signature, SignatureType};
-use fvm_shared::error::ErrorNumber::IllegalArgument;
+use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::{sys, ActorID};
+use fvm_shared::sys;
 use num_traits::FromPrimitive;
 
 use super::Context;
-use crate::kernel::{BlockId, ClassifyResult, ExecutionError, Result, SyscallError};
+use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
 /// Verifies that a signature is valid for an address and plaintext.
@@ -30,7 +21,7 @@ use crate::{syscall_error, Kernel};
 ///  - -1: verification failed.
 #[allow(clippy::too_many_arguments)]
 pub fn verify_signature(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     sig_type: u32,
     sig_off: u32,
     sig_len: u32,
@@ -55,7 +46,7 @@ pub fn verify_signature(
 /// Hashes input data using the specified hash function, writing the digest into the provided
 /// buffer.
 pub fn hash(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     hash_code: u64,
     data_off: u32, // input
     data_len: u32,
@@ -83,7 +74,7 @@ pub fn hash(
 ///
 /// Writes the CID in the provided output buffer.
 pub fn compute_unsealed_sector_cid(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     proof_type: i64, // RegisteredSealProof,
     pieces_off: u32, // [PieceInfo]
     pieces_len: u32,
@@ -113,7 +104,7 @@ pub fn compute_unsealed_sector_cid(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_seal(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<i32> {
@@ -132,7 +123,7 @@ pub fn verify_seal(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_post(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<i32> {
@@ -194,7 +185,7 @@ pub fn verify_consensus_fault(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_aggregate_seals(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
 ) -> Result<i32> {
@@ -211,7 +202,7 @@ pub fn verify_aggregate_seals(
 ///  - 0: verification ok.
 ///  - -1: verification failed.
 pub fn verify_replica_update(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     rep_off: u32, // ReplicaUpdateInfo
     rep_len: u32,
 ) -> Result<i32> {
@@ -229,7 +220,7 @@ pub fn verify_replica_update(
 /// When successful, this method will write a single byte back into the array at `result_off` for
 /// each result: 0 for failed, 1 for success.
 pub fn batch_verify_seals(
-    mut context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>,
     batch_off: u32,
     batch_len: u32,
     result_off: u32,
@@ -243,7 +234,7 @@ pub fn batch_verify_seals(
         .try_slice_mut(result_off, batch.len() as u32)?;
 
     // Execute.
-    let mut result = context.kernel.batch_verify_seals(&batch)?;
+    let result = context.kernel.batch_verify_seals(&batch)?;
 
     // Sanity check that we got the correct number of results.
     if result.len() != batch.len() {

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.1 [2022-05-26]
+
+Add a shared `MAX_CID_LEN` constant.
+
 ## 0.7.0 [2022-05-16]
 
 - Updates the blockstore.

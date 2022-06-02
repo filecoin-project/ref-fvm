@@ -1,6 +1,7 @@
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 
-use crate::{sys, SyscallResult, MAX_CID_LEN};
+use crate::{sys, SyscallResult};
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;
@@ -26,7 +27,6 @@ pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult
 /// ...during the current invocation.
 pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
     unsafe {
-        // TODO: Check length of cid?
         let mut cid_buf = [0u8; MAX_CID_LEN];
         cid.write_bytes(&mut cid_buf[..])
             .expect("CID encoding should not fail");
@@ -34,7 +34,7 @@ pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
             sys::ipld::block_open(cid_buf.as_mut_ptr())?;
         let mut block = Vec::with_capacity(size as usize);
         let remaining = sys::ipld::block_read(id, 0, block.as_mut_ptr(), size)?;
-        debug_assert_eq!(remaining, 0, "expected to read the block exactly");
+        assert_eq!(remaining, 0, "expected to read the block exactly");
         block.set_len(size as usize);
         Ok(block)
     }
@@ -60,9 +60,15 @@ pub fn get_block(id: fvm_shared::sys::BlockId, size_hint: Option<u32>) -> Syscal
                 buf.as_mut_ptr_range().end,
                 (buf.capacity() - buf.len()) as u32,
             )?;
-            debug_assert!(remaining <= 0, "should have read whole block");
+            assert!(remaining <= 0, "should have read whole block");
         }
-        buf.set_len(buf.capacity() + (remaining as usize));
+        let size = (buf.capacity() as i64) + (remaining as i64);
+        assert!(size >= 0, "size can't be negative");
+        assert!(
+            size <= buf.capacity() as i64,
+            "size shouldn't exceed capacity"
+        );
+        buf.set_len(size as usize);
     }
     Ok(buf)
 }

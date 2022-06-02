@@ -4,10 +4,10 @@ use cid::Cid;
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::{actor, ActorID};
+use fvm_shared::{actor, ActorID, MAX_CID_LEN};
 use num_traits::FromPrimitive;
 
-use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN, MAX_CID_LEN};
+use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN};
 
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
@@ -56,7 +56,7 @@ pub fn new_actor_address() -> Address {
 
 /// Creates a new actor of the specified type in the state tree, under
 /// the provided address.
-/// TODO this syscall will change to calculate the address internally.
+/// TODO(M2): this syscall will change to calculate the address internally.
 pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }

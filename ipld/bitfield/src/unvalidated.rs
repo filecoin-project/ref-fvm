@@ -53,6 +53,24 @@ impl UnvalidatedBitField {
         }
     }
 }
+#[cfg(feature = "enable-arbitrary")]
+use arbitrary::{Arbitrary, Unstructured};
+
+#[cfg(feature = "enable-arbitrary")]
+impl<'a> Arbitrary<'a> for UnvalidatedBitField {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let bf: BitField = u.arbitrary()?;
+        Ok(if *u.choose(&[true, false])? {
+            Self::Validated(bf)
+        } else {
+            Self::Unvalidated(bf.to_bytes())
+        })
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        arbitrary::size_hint::and(BitField::size_hint(depth), (1, Some(1)))
+    }
+}
 
 impl From<BitField> for UnvalidatedBitField {
     fn from(bf: BitField) -> Self {

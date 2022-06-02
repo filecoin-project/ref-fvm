@@ -20,7 +20,7 @@ pub use default::DefaultMachine;
 
 mod engine;
 
-pub use engine::{Engine, MultiEngine};
+pub use engine::{Engine, EngineConfig, MultiEngine};
 
 mod boxed;
 
@@ -68,7 +68,6 @@ pub trait Machine: 'static {
     fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore>;
 
     /// Creates an uninitialized actor.
-    // TODO: Remove
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID>;
 
     /// Transfers tokens from one actor to another.

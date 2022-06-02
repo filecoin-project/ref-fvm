@@ -44,7 +44,7 @@ pub fn bench_vector_variant(
             || {
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
-                // TODO next few lines don't impact the benchmarks, but it might make them run waaaay more slowly... ought to make a base copy of the machine and exec and deepcopy them each time.
+                // NOTE next few lines don't impact the benchmarks.
                 let machine = TestMachine::new_for_vector(vector, variant, bs, engines);
                 // can assume this works because it passed a test before this ran
                 let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
@@ -56,14 +56,16 @@ pub fn bench_vector_variant(
     });
 }
 /// This tells `bench_vector_file` how hard to do checks on whether things succeed before running benchmark
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum CheckStrength {
     /// making sure everything conforms before benching, for when you're benching the real vector as it came from specs-actors
+    #[allow(dead_code)]
     FullTest,
     /// use in cases where we're swapping out the messages to apply and just using the setup (overhead tests, for example)
+    #[allow(dead_code)]
     OnlyCheckSuccess,
     /// use if for some reason you want to bench something that errors (or go really fast and dangerous!)
+    #[allow(dead_code)]
     NoChecks,
 }
 
