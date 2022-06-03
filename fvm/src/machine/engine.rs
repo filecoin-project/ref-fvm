@@ -134,6 +134,9 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
 
+    #[cfg(feature = "wasmtime/async")]
+    c.async_support(false);
+
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
     c.cranelift_opt_level(Speed);
