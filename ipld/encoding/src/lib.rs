@@ -4,8 +4,14 @@
 mod bytes;
 mod cbor;
 mod cbor_store;
-mod errors;
 mod vec;
+
+#[cfg(not(feature = "testing"))]
+mod errors;
+
+#[cfg(feature = "testing")]
+pub mod errors;
+
 use std::io;
 
 pub use serde::{de, ser};

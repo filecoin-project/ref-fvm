@@ -4,6 +4,8 @@ Changes to the FVM's shared encoding utilities.
 
 ## [Unreleased]
 
+Changed visibility of `errors` mod based on `testing` feature.
+
 ## 0.2.1 [2022-05-19]
 
 Update `serde_ipld_cbor` to 0.2.2.
