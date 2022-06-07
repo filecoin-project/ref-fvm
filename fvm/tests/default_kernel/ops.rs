@@ -119,11 +119,6 @@ mod ipld {
         let (mut kern, _) = build_inspecting_test()?;
 
         let block = "foo".as_bytes();
-
-        let err = kern
-            .block_create(0xFF, block)
-            .expect_err("Returned Ok though invalid codec (0xFF) was used");
-
         expect_syscall_err!(IllegalCodec, kern.block_create(0xFF, block));
 
         // valid for M1, shouldn't be for M2
@@ -214,22 +209,25 @@ mod ipld {
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // Invalid hash lengths
-        kern.block_link(id, Code::Blake2b256.into(), 0)
-            .expect_err("blocked linked though hash length was set to 0");
-        kern.block_link(id, Code::Blake2b256.into(), 128)
-            .expect_err("blocked linked though hash length was set to 128");
+        expect_syscall_err!(IllegalCid, kern.block_link(id, Code::Blake2b256.into(), 0));
+        expect_syscall_err!(
+            IllegalCid,
+            kern.block_link(id, Code::Blake2b256.into(), 128)
+        );
 
         // Invalid hash function
-        kern.block_link(id, 0xFF, 32).expect_err(
-            "blocked linked though hash function was set to an arbitrary function (0xFF)",
-        );
-        kern.block_link(id, 0xFF, 0).expect_err("blocked linked though hash function was set to an arbitrary function (0xFF) and length was set to 0");
+        expect_syscall_err!(IllegalCid, kern.block_link(id, 0xFF, 32));
+        expect_syscall_err!(IllegalCid, kern.block_link(id, 0xFF, 0));
 
         // Invalid BlockId
-        kern.block_link(u32::MAX, Code::Blake2b256.into(), 32)
-            .expect_err("blocked linked though ID does not exist in blockstore");
-        kern.block_link(0, Code::Blake2b256.into(), 32)
-            .expect_err("blocked linked though ID was 0");
+        expect_syscall_err!(
+            InvalidHandle,
+            kern.block_link(123456, Code::Blake2b256.into(), 32)
+        );
+        expect_syscall_err!(
+            InvalidHandle,
+            kern.block_link(0, Code::Blake2b256.into(), 32)
+        );
 
         Ok(())
     }
@@ -355,18 +353,15 @@ mod ipld {
         let buf = &mut [0u8; 3];
 
         // read before creation
-        kern.block_read(1, 0, buf)
-            .expect_err("block read though no block was created");
+        expect_syscall_err!(InvalidHandle, kern.block_read(1, 0, buf));
 
         // create block
         let id = kern.block_create(DAG_CBOR, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // ID
-        kern.block_read(0, 0, buf)
-            .expect_err("block read though ID was invalid (0)");
-        kern.block_read(0xFF, 0, buf)
-            .expect_err("block read though ID did not exist (0xFF)");
+        expect_syscall_err!(InvalidHandle, kern.block_read(0, 0, buf));
+        expect_syscall_err!(InvalidHandle, kern.block_read(0xFF, 0, buf));
 
         // Offset
         let buf = &mut [0u8; 258];
@@ -421,17 +416,14 @@ mod ipld {
 
         let block = "foo".as_bytes();
 
-        kern.block_stat(1)
-            .expect_err("stat returned Ok though no blocks have been created");
+        expect_syscall_err!(InvalidHandle, kern.block_stat(1));
 
         kern.block_create(DAG_CBOR, block)?;
         // reset gas calls
         test_data.borrow_mut().charge_gas_calls = 0;
 
-        kern.block_stat(0)
-            .expect_err("stat returned Ok though block ID was given as 0");
-        kern.block_stat(0xFF)
-            .expect_err("stat returned Ok though block ID was not in blockstore (0xFF)");
+        expect_syscall_err!(InvalidHandle, kern.block_stat(0));
+        expect_syscall_err!(InvalidHandle, kern.block_stat(0xFF));
 
         Ok(())
     }
@@ -504,8 +496,8 @@ mod gas {
         assert_eq!(kern.gas_used(), test_gas);
 
         // charge over by 1
-        kern.charge_gas("spend more!", Gas::new(1))
-            .expect_err("charging 1 more gas than avaliable should error");
+        expect_out_of_gas!(kern.charge_gas("spend more!", Gas::new(1)));
+
         assert_eq!(
             kern.gas_used(),
             test_gas,
@@ -514,6 +506,7 @@ mod gas {
 
         // charge negative (refund) gas
         kern.charge_gas("refund~", neg_test_gas)?;
+        assert_eq!(kern.gas_used(), Gas::new(0));
         kern.charge_gas("free gas!", neg_test_gas)?;
 
         assert_eq!(
@@ -530,8 +523,7 @@ mod gas {
         // kernel with 0 avaliable gas
         let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0));
         let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
-        kern.charge_gas("spend more!", test_gas)
-            .expect_err("charging 1 more gas than avaliable (0) should error");
+        expect_out_of_gas!(kern.charge_gas("spend more!", test_gas));
 
         Ok(())
     }
