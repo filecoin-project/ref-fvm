@@ -20,7 +20,9 @@ jobs:
       with:
         profile: minimal
         override: true
-        components: rustfmt
+        components: rustfmt, llvm-tools-preview
+    - name: Install cargo-llvm-cov    
+      uses: taiki-e/install-action@cargo-llvm-cov
     - name: Running fmt
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
@@ -36,12 +38,12 @@ jobs:
             command: clippy
             args: --all --all-targets
             components: clippy
-          - name: test-fvm
-            command: test
-            args: --package fvm --no-default-features
+          - name: test-fvm & generate coverage
+            command: llvm-cov
+            args: --package fvm --no-default-features --lcov --output-path lcov.info
           - name: test
             command: test
-            args: --all --exclude fvm --exclude fvm_conformance_tests
+            args: --all --exclude fvm --exclude fvm_conformance_tests 
           - name: conformance
             command: test
             args: --package fvm_conformance_tests
@@ -49,11 +51,17 @@ jobs:
           - name: build
             command: build
             push: true
+          - name: upload coverage to Codecov
+            uses: codecov/codecov-action@v3
+            with:
+              files: lcov.info
+              fail_ci_if_error: true
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CARGO_INCREMENTAL: 0
       CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
     name: ${{ matrix.name }}
     steps:
     - name: Checking out fvm

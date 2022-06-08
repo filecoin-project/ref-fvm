@@ -4,3 +4,4 @@ Cargo.lock
 *.wasm
 !testing/integration/tests/assets/*
 .idea/
+lcov.info
