@@ -75,8 +75,11 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
-    - name: Installing Code Coverage Tool
-      uses: taiki-e/install-action@cargo-llvm-cov
+    - name: Installing Cargo llvm-cov
+      if: ${{ matrix.covname }}
+      uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
+      with:
+        tool: cargo-llvm-cov@2bc632d92771eabecc78c5da0a436b623bc0ac83
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
       env:
