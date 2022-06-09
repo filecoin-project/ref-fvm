@@ -75,9 +75,8 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
-    if: ${{ matrix.covname != null }}
-      - name: Installing Code Coverage Tool
-        uses: taiki-e/install-action@cargo-llvm-cov
+    - name: Installing Code Coverage Tool
+      uses: taiki-e/install-action@cargo-llvm-cov
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
       env:
@@ -91,8 +90,8 @@ jobs:
       with:
         command: ${{ matrix.command }}
         args: ${{ matrix.args }}
-    if: ${{ matrix.covname != null }}
-      - name: Upload coverage to Codecov
+    - name: Upload coverage to Codecov
+      if: ${{ matrix.covname != null }}
         uses: codecov/codecov-action@v3
         with:
           files: ${{ matrix.covname }}
