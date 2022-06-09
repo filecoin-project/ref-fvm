@@ -37,7 +37,6 @@ jobs:
             args: --all --all-targets
             components: clippy
           - name: test-fvm & generate coverage
-            tool: taiki-e/install-action@cargo-llvm-cov
             covname: lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path lcov.info
@@ -76,8 +75,8 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
-    - name: Installing Tools
-      uses: ${{ matrix.tool }}
+    - name: Installing Code Coverage Tool
+      uses: taiki-e/install-action@cargo-llvm-cov
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
       env:
