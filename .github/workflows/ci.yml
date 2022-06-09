@@ -37,13 +37,15 @@ jobs:
             args: --all --all-targets
             components: clippy
           - name: test-fvm & coverage
-            covname: lcov.info
+            covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: test & coverage
+            covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor"
+            components: llvm-tools-preview
           - name: integration
             command: test
             args: --package fvm_integration_tests --package "*actor"
