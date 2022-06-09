@@ -20,9 +20,7 @@ jobs:
       with:
         profile: minimal
         override: true
-        components: rustfmt, llvm-tools-preview
-    - name: Install cargo-llvm-cov    
-      uses: taiki-e/install-action@cargo-llvm-cov
+        components: rustfmt
     - name: Running fmt
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
@@ -39,11 +37,14 @@ jobs:
             args: --all --all-targets
             components: clippy
           - name: test-fvm & generate coverage
+            uses: taiki-e/install-action@cargo-llvm-cov
+            covname: lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path lcov.info
+            components: llvm-tools-preview
           - name: test
             command: test
-            args: --all --exclude fvm --exclude fvm_conformance_tests 
+            args: --all --exclude fvm --exclude fvm_conformance_tests
           - name: conformance
             command: test
             args: --package fvm_conformance_tests
@@ -51,11 +52,6 @@ jobs:
           - name: build
             command: build
             push: true
-          - name: upload coverage to Codecov
-            uses: codecov/codecov-action@v3
-            with:
-              files: lcov.info
-              fail_ci_if_error: true
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -80,6 +76,8 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
+    - name: Installing Tools
+      uses: ${{ matrix.uses }}
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
       env:
@@ -93,3 +91,8 @@ jobs:
       with:
         command: ${{ matrix.command }}
         args: ${{ matrix.args }}
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ${{ matrix.covname }}
+        fail_ci_if_error: true
