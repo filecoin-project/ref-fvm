@@ -91,7 +91,7 @@ jobs:
         command: ${{ matrix.command }}
         args: ${{ matrix.args }}
     - name: Upload coverage to Codecov
-      if: ${{ matrix.covname != null }}
+      if: ${{ matrix.covname }}
         uses: codecov/codecov-action@v3
         with:
           files: ${{ matrix.covname }}
