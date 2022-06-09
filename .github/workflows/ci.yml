@@ -92,7 +92,7 @@ jobs:
         args: ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
-        uses: codecov/codecov-action@v3
-        with:
-          files: ${{ matrix.covname }}
-          fail_ci_if_error: true
+      uses: codecov/codecov-action@v3
+      with:
+        files: ${{ matrix.covname }}
+        fail_ci_if_error: true
