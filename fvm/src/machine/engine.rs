@@ -201,7 +201,7 @@ impl Engine {
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
             config: ec,
-            actor_redirect: actor_redirect,
+            actor_redirect,
         })))
     }
 }
