@@ -37,11 +37,18 @@ jobs:
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            command: test
-            args: --package fvm --no-default-features
+            covname: fvm-lcov.info
+            command: llvm-cov
+            args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
+            components: llvm-tools-preview
           - name: test
+            covname: lcov.info
+            command: llvm-cov
+            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
+            components: llvm-tools-preview
+          - name: integration
             command: test
-            args: --all --exclude fvm --exclude fvm_conformance_tests
+            args: --package fvm_integration_tests --package "*actor"
           - name: conformance
             command: test
             args: --package fvm_conformance_tests
@@ -52,8 +59,9 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CARGO_INCREMENTAL: 0
       CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
     name: ${{ matrix.name }}
     steps:
     - name: Checking out fvm
@@ -72,6 +80,11 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: generate-lockfile
+    - name: Installing Cargo llvm-cov
+      if: ${{ matrix.covname }}
+      uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
+      with:
+        tool: cargo-llvm-cov@0.4.5
     - name: Setting up cache
       uses: ./.github/actions/rust-sccache
       env:
@@ -85,3 +98,9 @@ jobs:
       with:
         command: ${{ matrix.command }}
         args: ${{ matrix.args }}
+    - name: Upload coverage to Codecov
+      if: ${{ matrix.covname }}
+      uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
+      with:
+        files: ${{ matrix.covname }}
+        fail_ci_if_error: true
