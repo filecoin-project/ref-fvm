@@ -7,6 +7,8 @@ edition = "2021"
 fvm_ipld_encoding = { version = "0.2.2", path = "../../../../ipld/encoding" }
 fvm_sdk = { version = "1.0.0-rc.3", path = "../../../../sdk" }
 fvm_shared = { version = "0.8.0", path = "../../../../shared" }
+minicov = "0.2"
+
 
 
 [build-dependencies]

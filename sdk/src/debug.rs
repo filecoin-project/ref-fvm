@@ -38,6 +38,20 @@ mod inner {
         }
     }
 
+    pub fn capture_artifact(name: impl AsRef<str>, data: Vec<u8>) {
+        // this &str or String?
+        let name = name.as_ref();
+        unsafe {
+            sys::debug::capture_artifact(
+                name.as_ptr(),
+                name.len() as u32,
+                data.as_ptr(),
+                data.len() as u32,
+            )
+            .unwrap();
+        }
+    }
+
     /// Returns whether debug mode is enabled.
     #[inline(always)]
     pub fn enabled() -> bool {
