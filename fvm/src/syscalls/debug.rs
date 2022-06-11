@@ -41,13 +41,16 @@ pub fn capture_artifact(
         .canonicalize()
         .or_fatal()?
         .join("artifacts");
-    DirBuilder::new().recursive(true).create(src_dir.clone()).or_fatal()?;
+    DirBuilder::new()
+        .recursive(true)
+        .create(src_dir.clone())
+        .or_fatal()?;
 
     let data = context.memory.try_slice(data_off, data_len)?;
     let name = context.memory.try_slice(name_off, name_len)?;
     let name = String::from_utf8(name.to_owned())
         .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
-        
+
     println!("writing artifact: {} to {:?}", name, src_dir);
     std::fs::write(src_dir.join(name), data).or_fatal()?;
 
