@@ -19,3 +19,5 @@ The following flow has been defined as a default usage:
 1. Wasm bytecode is now expected to be received through a binary type (`&[u8]`). This be upgraded to work Rust module compiled
 at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
+
+TODO: `export SKIP_WASM_BUILD true` when generating coverage, then copy `artifacts/*.profraw` over to build dir, then `cargo llvm-cov --no-run --lcov`

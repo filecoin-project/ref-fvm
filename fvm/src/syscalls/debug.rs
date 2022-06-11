@@ -41,7 +41,7 @@ pub fn capture_artifact(
         .canonicalize()
         .or_fatal()?
         .join("artifacts");
-    DirBuilder::new().create(src_dir.clone()).or_fatal()?;
+    DirBuilder::new().recursive(true).create(src_dir.clone()).or_fatal()?;
 
     let data = context.memory.try_slice(data_off, data_len)?;
     let name = context.memory.try_slice(name_off, name_len)?;
