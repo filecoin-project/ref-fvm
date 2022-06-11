@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 fvm_ipld_encoding = { version = "0.2.1", path = "../../../../ipld/encoding" }
-fvm_sdk = { version = "1.0.0-rc.2", path = "../../../../sdk" }
+fvm_sdk = { version = "1.1.0", path = "../../../../sdk" }
 fvm_shared = { version = "0.7.1", path = "../../../../shared" }
 
 

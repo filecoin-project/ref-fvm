@@ -41,6 +41,7 @@ lazy_static! {
 
         bls_sig_cost: Gas::new(16598605),
         secp256k1_sig_cost: Gas::new(1637292),
+        secp256k1_recover_cost: Gas::new(1637292),
 
         hashing_base: Gas::new(31355),
         compute_unsealed_sector_cid_base: Gas::new(98647),
@@ -166,6 +167,7 @@ lazy_static! {
 
         bls_sig_cost: Gas::new(16598605),
         secp256k1_sig_cost: Gas::new(1637292),
+        secp256k1_recover_cost: Gas::new(1637292),
 
         hashing_base: Gas::new(31355),
         compute_unsealed_sector_cid_base: Gas::new(98647),
@@ -362,6 +364,9 @@ pub struct PriceList {
     /// Gas cost for verifying secp256k1 signature
     pub(crate) secp256k1_sig_cost: Gas,
 
+    /// Gas cost for recovering secp256k1 signer public key
+    pub(crate) secp256k1_recover_cost: Gas,
+
     pub(crate) hashing_base: Gas,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
@@ -493,6 +498,15 @@ impl PriceList {
             SignatureType::Secp256k1 => self.secp256k1_sig_cost,
         };
         GasCharge::new("OnVerifySignature", val, Zero::zero())
+    }
+
+    #[inline]
+    pub fn on_recover_public_key(&self) -> GasCharge<'static> {
+        GasCharge::new(
+            "OnRecoverPublicKey",
+            self.secp256k1_recover_cost,
+            Zero::zero(),
+        )
     }
 
     /// Returns gas required for hashing data.
