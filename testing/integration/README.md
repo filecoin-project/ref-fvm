@@ -20,4 +20,11 @@ The following flow has been defined as a default usage:
 at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
 
-TODO: `export SKIP_WASM_BUILD true` when generating coverage, then copy `artifacts/*.profraw` over to build dir, then `cargo llvm-cov --no-run --lcov`
+TODO: (hack to get coverage reports from actors + integration tests) 
+```shell
+cargo build -p fvm_integration_tests
+export SKIP_WASM_BUILD true
+cargo llvm-cov -p fvm_integration_tests
+cp testing/integration/artifacts/*.profraw target/llvm-cov-target
+cargo llvm-cov --no-run --lcov
+```

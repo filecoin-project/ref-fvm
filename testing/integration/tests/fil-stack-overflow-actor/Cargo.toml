@@ -7,5 +7,6 @@ edition = "2021"
 fvm_sdk = { version = "1.0.0-rc.3", path = "../../../../sdk" }
 fvm_shared = { version = "0.8.0", path = "../../../../shared" }
 
+
 [build-dependencies]
 wasm-builder = "3.0.1"
