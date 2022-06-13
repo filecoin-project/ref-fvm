@@ -265,6 +265,7 @@ impl RegisteredSealProof {
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum RegisteredAggregateProof {
     SnarkPackV1,
+    SnarkPackV2,
     Invalid(i64),
 }
 
@@ -332,6 +333,7 @@ i64_conversion! {
 i64_conversion! {
     RegisteredAggregateProof;
     SnarkPackV1 => 0,
+    SnarkPackV2 => 1,
 }
 
 i64_conversion! {
@@ -349,6 +351,7 @@ impl TryFrom<RegisteredAggregateProof> for filecoin_proofs_api::RegisteredAggreg
         use RegisteredAggregateProof::*;
         match p {
             SnarkPackV1 => Ok(Self::SnarkPackV1),
+            SnarkPackV2 => Ok(Self::SnarkPackV2),
             Invalid(i) => Err(format!("unsupported aggregate proof type: {}", i)),
         }
     }
