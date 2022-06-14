@@ -26,7 +26,7 @@ pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
     })
 }
 
-// TODO: make output path more configurable, maybe add extra gaurds/limitations
+// TODO: scope artifacts into subdirectories
 pub fn store_artifact(
     context: Context<'_, impl Kernel>,
     name_off: u32,

@@ -26,5 +26,4 @@ cargo build -p "*actor"
 export SKIP_WASM_BUILD true
 export FVM_STORE_ARTIFACT_DIR ../../target/llvm-cov-target/
 cargo llvm-cov -p fvm_integration_tests --lcov
-cargo llvm-cov --no-run --lcov
 ```

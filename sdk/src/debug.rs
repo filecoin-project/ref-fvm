@@ -40,7 +40,6 @@ mod inner {
 
     /// Saves an artifact to the host env. New artifacts with the same name will overwrite old ones
     pub fn store_artifact(name: impl AsRef<str>, data: impl AsRef<[u8]>) {
-        // this &str or String?
         let name = name.as_ref();
         let data = data.as_ref();
         unsafe {
