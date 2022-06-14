@@ -25,7 +25,7 @@ pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
 }
 
 // TODO: make output path more configurable, maybe add extra gaurds/limitations
-pub fn capture_artifact(
+pub fn store_artifact(
     context: Context<'_, impl Kernel>,
     name_off: u32,
     name_len: u32,

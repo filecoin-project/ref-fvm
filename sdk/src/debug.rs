@@ -39,11 +39,11 @@ mod inner {
     }
 
     /// Saves an artifact to the host env. New artifacts with the same name will overwrite old ones
-    pub fn capture_artifact(name: impl AsRef<str>, data: Vec<u8>) {
+    pub fn store_artifact(name: impl AsRef<str>, data: Vec<u8>) {
         // this &str or String?
         let name = name.as_ref();
         unsafe {
-            sys::debug::capture_artifact(
+            sys::debug::store_artifact(
                 name.as_ptr(),
                 name.len() as u32,
                 data.as_ptr(),
