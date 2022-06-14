@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 1.0.0-rc3 [2022-05-26]
+## 1.0.0-rc.3 [2022-05-26]
 
 Update to the latest `fvm_shared`, which supports the new proofs types.
 
