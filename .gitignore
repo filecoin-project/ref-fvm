@@ -5,4 +5,3 @@ Cargo.lock
 !testing/integration/tests/assets/*
 .idea/
 lcov.info
-testing/integration/artifacts
