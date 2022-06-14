@@ -1,9 +1,10 @@
-use std::fs::DirBuilder;
-use std::path;
+use std::path::{self, PathBuf};
 
 use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
 use crate::Kernel;
+
+const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 
 pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
     // No-op if disabled.
@@ -63,18 +64,20 @@ pub fn store_artifact(
     }
     .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
-    let src_dir = std::env::current_dir()
-        .or_fatal()?
-        .canonicalize()
-        .or_fatal()?
-        .join("artifacts");
-    DirBuilder::new()
-        .recursive(true)
-        .create(src_dir.clone())
-        .or_fatal()?;
-
-    println!("writing artifact: {} to {:?}", name, src_dir);
-    std::fs::write(src_dir.join(name), data).or_fatal()?;
+    if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
+        let dir = PathBuf::from(dir);
+        if let Err(e) = std::fs::create_dir_all(dir.clone()) {
+            log::error!("failed to make directory to store debug artifacts {}", e);
+        } else if let Err(e) = std::fs::write(dir.join(name), data) {
+            log::error!("failed to store debug artifact {}", e)
+        }
+        log::info!("wrote artifact: {} to {:?}", name, dir);
+    } else {
+        log::error!(
+            "store_artifact was ignored, env var {} was not set",
+            ENV_ARTIFACT_DIR
+        )
+    }
 
     Ok(())
 }

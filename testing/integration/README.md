@@ -22,9 +22,9 @@ at test time.
 
 TODO: (hack to get coverage reports from actors + integration tests) 
 ```shell
-cargo build -p fvm_integration_tests
+cargo build -p "*actor"
 export SKIP_WASM_BUILD true
-cargo llvm-cov -p fvm_integration_tests
-cp testing/integration/artifacts/*.profraw target/llvm-cov-target
+export FVM_STORE_ARTIFACT_DIR ../../target/llvm-cov-target/
+cargo llvm-cov -p fvm_integration_tests --lcov
 cargo llvm-cov --no-run --lcov
 ```
