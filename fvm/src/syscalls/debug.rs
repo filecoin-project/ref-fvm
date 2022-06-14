@@ -1,4 +1,5 @@
 use std::fs::DirBuilder;
+use std::path;
 
 use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
@@ -36,6 +37,32 @@ pub fn store_artifact(
     if !context.kernel.debug_enabled() {
         return Ok(());
     }
+
+    let data = context.memory.try_slice(data_off, data_len)?;
+    let name = context.memory.try_slice(name_off, name_len)?;
+    let name =
+        std::str::from_utf8(name).or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
+
+    // Ensure well formed artifact name
+    {
+        if name.len() > 256 {
+            Err("debug artifact name should not exceed 256 bytes")
+        } else if name.chars().any(path::is_separator) {
+            Err("debug artifact name should not include any path separators")
+        } else if name
+            .chars()
+            .next()
+            .ok_or("debug artifact name should be at least one character")
+            .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?
+            == '.'
+        {
+            Err("debug artifact name should not start with a decimal '.'")
+        } else {
+            Ok(())
+        }
+    }
+    .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
+
     let src_dir = std::env::current_dir()
         .or_fatal()?
         .canonicalize()
@@ -45,11 +72,6 @@ pub fn store_artifact(
         .recursive(true)
         .create(src_dir.clone())
         .or_fatal()?;
-
-    let data = context.memory.try_slice(data_off, data_len)?;
-    let name = context.memory.try_slice(name_off, name_len)?;
-    let name = String::from_utf8(name.to_owned())
-        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
     println!("writing artifact: {} to {:?}", name, src_dir);
     std::fs::write(src_dir.join(name), data).or_fatal()?;
