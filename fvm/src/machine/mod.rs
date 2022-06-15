@@ -85,7 +85,7 @@ pub trait Machine: 'static {
     fn into_store(self) -> Self::Blockstore;
 
     /// Returns a generated ID of a machine
-    /// TODO: do we note Machine ID isnt gaurenteed to be unique? 
+    /// TODO: do we note Machine ID isnt gaurenteed to be unique?
     fn machine_id(&self) -> &MachineId;
 }
 

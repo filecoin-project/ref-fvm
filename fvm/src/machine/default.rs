@@ -125,7 +125,7 @@ where
             context.epoch,
             context.initial_state_root.to_bytes().as_slice(),
         )?;
-        
+
         Ok(DefaultMachine {
             context: context.clone(),
             engine: engine.clone(),

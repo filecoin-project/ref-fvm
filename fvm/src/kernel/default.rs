@@ -793,7 +793,6 @@ where
         self.call_manager.context().actor_debugging
     }
 
-    // TODO: scope artifacts into subdirectories
     fn store_artifact(&self, name: &str, data: &[u8]) {
         if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
             let mut dir = PathBuf::from(dir);

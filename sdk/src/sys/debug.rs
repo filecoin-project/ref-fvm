@@ -10,7 +10,6 @@ super::fvm_syscalls! {
     /// Logs a message on the node.
     pub fn log(message: *const u8, message_len: u32) -> Result<()>;
 
-    /// TODO: this technically lets anyone store whatever data they want on the node's filesystem, this should *not* be enabled on an actual network until proper gaurds are in place
     /// Save data as a debug artifact on the node.
     pub fn store_artifact(name_off: *const u8, name_len: u32, data_off: *const u8, data_len: u32) -> Result<()>;
 }
