@@ -80,7 +80,7 @@ where
             nv,
             builtin_actors,
             executor: None,
-            code_cids: vec![],
+            code_cids: vec![sys_code_cid, init_code_cid, accounts_code_cid],
             state_tree: Some(state_tree),
             accounts_code_cid,
         })
