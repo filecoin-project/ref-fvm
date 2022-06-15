@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
 use byteorder::{BigEndian, WriteBytesExt};
@@ -37,6 +38,7 @@ lazy_static! {
 }
 
 const BLAKE2B_256: u64 = 0xb220;
+const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -789,6 +791,25 @@ where
 
     fn debug_enabled(&self) -> bool {
         self.call_manager.context().actor_debugging
+    }
+
+    // TODO: scope artifacts into subdirectories 
+    fn store_artifact(&self, name: &str, data: &[u8]) {
+
+        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
+            let dir = PathBuf::from(dir);
+            if let Err(e) = std::fs::create_dir_all(dir.clone()) {
+                log::error!("failed to make directory to store debug artifacts {}", e);
+            } else if let Err(e) = std::fs::write(dir.join(name), data) {
+                log::error!("failed to store debug artifact {}", e)
+            }
+            log::info!("wrote artifact: {} to {:?}", name, dir);
+        } else {
+            log::error!(
+                "store_artifact was ignored, env var {} was not set",
+                ENV_ARTIFACT_DIR
+            )
+        }
     }
 }
 

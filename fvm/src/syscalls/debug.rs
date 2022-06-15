@@ -1,10 +1,6 @@
-use std::path::{self, PathBuf};
-
 use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
 use crate::Kernel;
-
-const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 
 pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
     // No-op if disabled.
@@ -26,7 +22,6 @@ pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
     })
 }
 
-// TODO: scope artifacts into subdirectories
 pub fn store_artifact(
     context: Context<'_, impl Kernel>,
     name_off: u32,
@@ -48,7 +43,7 @@ pub fn store_artifact(
     {
         if name.len() > 256 {
             Err("debug artifact name should not exceed 256 bytes")
-        } else if name.chars().any(path::is_separator) {
+        } else if name.chars().any(std::path::is_separator) {
             Err("debug artifact name should not include any path separators")
         } else if name
             .chars()
@@ -64,20 +59,7 @@ pub fn store_artifact(
     }
     .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
-    if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
-        let dir = PathBuf::from(dir);
-        if let Err(e) = std::fs::create_dir_all(dir.clone()) {
-            log::error!("failed to make directory to store debug artifacts {}", e);
-        } else if let Err(e) = std::fs::write(dir.join(name), data) {
-            log::error!("failed to store debug artifact {}", e)
-        }
-        log::info!("wrote artifact: {} to {:?}", name, dir);
-    } else {
-        log::error!(
-            "store_artifact was ignored, env var {} was not set",
-            ENV_ARTIFACT_DIR
-        )
-    }
+    context.kernel.store_artifact(name, data);
 
     Ok(())
 }

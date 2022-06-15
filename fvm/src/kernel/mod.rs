@@ -321,4 +321,7 @@ pub trait DebugOps {
 
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;
+
+    /// Store an artifact
+    fn store_artifact(&self, name: &str, data: &[u8]);
 }
