@@ -6,6 +6,10 @@ Changes to the FVM's shared encoding utilities.
 
 Changed visibility of `errors` mod based on `testing` feature.
 
+## 0.2.2 [2022-06-13]
+
+Change the hash length assert into an actual check, just in case.
+
 ## 0.2.1 [2022-05-19]
 
 Update `serde_ipld_cbor` to 0.2.2.

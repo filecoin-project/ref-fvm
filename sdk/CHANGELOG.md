@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 1.0.0-rc.3 [2022-05-26]
+
+Update to the latest `fvm_shared`, which supports the new proofs types.
+
 ## 1.0.0-rc2 [2022-05-26]
 
 - Fix the ipld get/read method to correctly handle blocks with approximate sizes.

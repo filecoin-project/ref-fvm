@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
+use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
@@ -132,6 +133,9 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
+
+    #[cfg(feature = "wasmtime/async")]
+    c.async_support(false);
 
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
@@ -265,8 +269,11 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        let m = inject(m, self.0.config.wasm_prices, "gas")
+        let mut m = inject(m, self.0.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
+
+        // Work around #602. Remove this once paritytech/parity-wasm#331 is merged and bubbled.
+        fix_wasm_sections(&mut m);
 
         let wasm = m.to_bytes()?;
         let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
@@ -352,5 +359,20 @@ impl Engine {
         store.data_mut().avail_gas_global = gg;
 
         store
+    }
+}
+
+// Workaround for https://github.com/filecoin-project/ref-fvm/issues/602
+//
+// This removes the out-of-order data count section, if it exists, and re-inserts it (with the
+// correct data-count).
+fn fix_wasm_sections(module: &mut elements::Module) {
+    module
+        .sections_mut()
+        .retain(|sec| !matches!(sec, elements::Section::DataCount(_)));
+    if let Some(data_count) = module.data_section().map(|data| data.entries().len()) {
+        module
+            .insert_section(elements::Section::DataCount(data_count as u32))
+            .expect("section wasn't deleted");
     }
 }
