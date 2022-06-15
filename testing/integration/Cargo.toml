@@ -40,6 +40,8 @@ serde = { version = "1.0", features = ["derive"] }
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor', version = '0.1' }
 fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor', version = '0.1' }
 fil_ipld_actor = { path = 'tests/fil-ipld-actor', version = '0.1' }
+fil_malformed_syscall = { path = "tests/fil-malformed-syscall", version="0.1" }
+fil_integer_overflow = { path = "tests/fil-integer-overflow", version="0.1" }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]

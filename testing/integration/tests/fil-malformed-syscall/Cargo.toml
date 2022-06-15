@@ -1,0 +1,12 @@
+[package]
+name = "fil_malformed_syscall"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fvm_sdk = { version = "1.0.0-rc.2", path = "../../../../sdk" }
+fvm_shared = { version = "0.7.1", path = "../../../../shared" }
+
+[build-dependencies]
+wasm-builder = "3.0.1"
+wasmtime = "0.33.0"
