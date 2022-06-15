@@ -793,11 +793,17 @@ where
         self.call_manager.context().actor_debugging
     }
 
-    // TODO: scope artifacts into subdirectories 
+    // TODO: scope artifacts into subdirectories
     fn store_artifact(&self, name: &str, data: &[u8]) {
-
         if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
-            let dir = PathBuf::from(dir);
+            let mut dir = PathBuf::from(dir);
+
+            dir.push(self.call_manager.machine().machine_id().to_string());
+            dir.push(self.call_manager.origin().to_string());
+            dir.push(self.call_manager.nonce().to_string());
+            dir.push(self.actor_id.to_string());
+            dir.push(self.call_manager.invocation_count().to_string());
+
             if let Err(e) = std::fs::create_dir_all(dir.clone()) {
                 log::error!("failed to make directory to store debug artifacts {}", e);
             } else if let Err(e) = std::fs::write(dir.join(name), data) {

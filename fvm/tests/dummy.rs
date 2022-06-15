@@ -156,6 +156,10 @@ impl Machine for DummyMachine {
     fn into_store(self) -> Self::Blockstore {
         self.state_tree.into_store()
     }
+
+    fn machine_id(&self) -> &fvm::machine::MachineId {
+        todo!()
+    }
 }
 
 /// Minimal *pseudo-functional* implementation CallManager
@@ -288,6 +292,10 @@ impl CallManager for DummyCallManager {
     }
 
     fn next_actor_idx(&mut self) -> u64 {
+        todo!()
+    }
+
+    fn invocation_count(&self) -> u64 {
         todo!()
     }
 }

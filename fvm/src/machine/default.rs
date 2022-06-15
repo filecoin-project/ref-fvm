@@ -13,7 +13,7 @@ use fvm_shared::ActorID;
 use log::debug;
 use num_traits::Signed;
 
-use super::{Engine, Machine, MachineContext};
+use super::{Engine, Machine, MachineContext, MachineId};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Context as _, Result};
@@ -37,6 +37,9 @@ pub struct DefaultMachine<B, E> {
     state_tree: StateTree<BufferedBlockstore<B>>,
     /// Mapping of CIDs to builtin actor types.
     builtin_actors: Manifest,
+    /// Somewhat unique ID of the machine consisting of (epoch, randomness)
+    /// randomness is generated with `initial_state_root`
+    id: MachineId,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -117,12 +120,19 @@ where
         #[cfg(not(any(test, feature = "testing")))]
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
+        let randomness = externs.get_chain_randomness(
+            0,
+            context.epoch,
+            context.initial_state_root.to_bytes().as_slice(),
+        )?;
+        
         Ok(DefaultMachine {
             context: context.clone(),
             engine: engine.clone(),
             externs,
             state_tree,
             builtin_actors,
+            id: MachineId::new(context.epoch, randomness),
         })
     }
 }
@@ -233,5 +243,9 @@ where
 
     fn into_store(self) -> Self::Blockstore {
         self.state_tree.into_store()
+    }
+
+    fn machine_id(&self) -> &MachineId {
+        &self.id
     }
 }

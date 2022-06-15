@@ -4,7 +4,7 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
 
-use super::{Engine, Machine, MachineContext};
+use super::{Engine, Machine, MachineContext, MachineId};
 use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 
@@ -67,5 +67,10 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn flush(&mut self) -> Result<Cid> {
         (**self).flush()
+    }
+
+    #[inline(always)]
+    fn machine_id(&self) -> &MachineId {
+        (&**self).machine_id()
     }
 }

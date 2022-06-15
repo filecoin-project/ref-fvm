@@ -45,6 +45,8 @@ pub struct InnerDefaultCallManager<M> {
     backtrace: Backtrace,
     /// The current execution trace.
     exec_trace: ExecutionTrace,
+    /// Current invocation count
+    invocation_count: u64,
 }
 
 #[doc(hidden)]
@@ -79,6 +81,7 @@ where
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
             exec_trace: vec![],
+            invocation_count: 0,
         })))
     }
 
@@ -217,6 +220,10 @@ where
         self.num_actors_created += 1;
         ret
     }
+
+    fn invocation_count(&self) -> u64 {
+        self.invocation_count
+    }
 }
 
 impl<M> DefaultCallManager<M>
@@ -336,6 +343,9 @@ where
         } else {
             NO_DATA_BLOCK_ID
         };
+
+        // Increment invocation count
+        self.invocation_count += 1;
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.

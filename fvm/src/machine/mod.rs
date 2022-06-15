@@ -83,6 +83,10 @@ pub trait Machine: 'static {
 
     /// Consumes the machine and returns the owned blockstore.
     fn into_store(self) -> Self::Blockstore;
+
+    /// Returns a generated ID of a machine
+    /// TODO: do we note Machine ID isnt gaurenteed to be unique? 
+    fn machine_id(&self) -> &MachineId;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a
@@ -216,5 +220,34 @@ impl MachineContext {
     pub fn enable_tracing(&mut self) -> &mut Self {
         self.tracing = true;
         self
+    }
+}
+
+/// Somewhat unique ID for a machine
+#[derive(Debug)]
+pub struct MachineId(ChainEpoch, [u8; 32]);
+
+impl MachineId {
+    pub fn new(epoch: ChainEpoch, randomness: [u8; 32]) -> Self {
+        Self(epoch, randomness)
+    }
+
+    pub fn epoch(&self) -> ChainEpoch {
+        self.0
+    }
+
+    pub fn randomness(&self) -> [u8; 32] {
+        self.1
+    }
+}
+
+impl ToString for MachineId {
+    fn to_string(&self) -> String {
+        format_args!(
+            "{}-{}",
+            self.0,
+            cid::multibase::encode(cid::multibase::Base::Base58Btc, &self.1[..16])
+        )
+        .to_string()
     }
 }
