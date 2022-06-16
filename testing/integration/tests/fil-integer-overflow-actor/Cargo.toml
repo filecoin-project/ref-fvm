@@ -1,5 +1,5 @@
 [package]
-name = "fil_integer_overflow"
+name = "fil_integer_overflow_actor"
 version = "0.1.0"
 edition = "2021"
 

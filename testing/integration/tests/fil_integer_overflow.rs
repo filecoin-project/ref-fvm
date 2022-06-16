@@ -12,7 +12,7 @@ use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 
 const WASM_COMPILED_PATH: &str =
-    "../../target/debug/wbuild/fil_integer_overflow/fil_integer_overflow.compact.wasm";
+    "../../target/debug/wbuild/fil_integer_overflow_actor/fil_integer_overflow_actor.compact.wasm";
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {

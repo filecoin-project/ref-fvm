@@ -1,5 +1,5 @@
 [package]
-name = "fil_malformed_syscall"
+name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 edition = "2021"
 

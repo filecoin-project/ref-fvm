@@ -28,7 +28,7 @@ const WAT_UNKNOWN_SYSCALL: &str = r#"
     "#;
 
 const WASM_COMPILED_PATH: &str =
-    "../../target/debug/wbuild/fil_malformed_syscall/fil_malformed_syscall.compact.wasm";
+    "../../target/debug/wbuild/fil_malformed_syscall_actor/fil_malformed_syscall_actor.compact.wasm";
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -55,7 +55,7 @@ fn instantiate_tester(wasm_bin: &[u8]) -> (Account, Tester<MemoryBlockstore>, Ad
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     (sender[0], tester, actor_address)
