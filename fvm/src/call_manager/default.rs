@@ -120,9 +120,12 @@ where
         // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
         // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
         if self.call_stack_depth > self.machine.context().max_call_depth {
-            return Err(
-                syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
-            );
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.exec_trace
+                    .push(ExecutionEvent::CallError(sys_err.clone()))
+            }
+            return Err(sys_err.into());
         }
         self.call_stack_depth += 1;
         let result = self.send_unchecked::<K>(from, to, method, params, value);
