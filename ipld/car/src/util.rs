@@ -11,6 +11,7 @@ pub(crate) async fn ld_read<R>(mut reader: &mut R) -> Result<Option<Vec<u8>>, Er
 where
     R: AsyncRead + Send + Unpin,
 {
+    const MAX_ALLOC: usize = 1 << 20;
     let l: usize = match VarIntAsyncReader::read_varint_async(&mut reader).await {
         Ok(len) => len,
         Err(e) => {
@@ -20,7 +21,7 @@ where
             return Err(Error::Other(e.to_string()));
         }
     };
-    let mut buf = Vec::with_capacity(l as usize);
+    let mut buf = Vec::with_capacity(std::cmp::min(l as usize, MAX_ALLOC));
     reader
         .take(l as u64)
         .read_to_end(&mut buf)
