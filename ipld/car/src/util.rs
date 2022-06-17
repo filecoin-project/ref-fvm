@@ -22,11 +22,20 @@ where
         }
     };
     let mut buf = Vec::with_capacity(std::cmp::min(l as usize, MAX_ALLOC));
-    reader
+    let bytes_read = reader
         .take(l as u64)
         .read_to_end(&mut buf)
         .await
         .map_err(|e| Error::Other(e.to_string()))?;
+    if bytes_read != l {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            format!(
+                "expected to read at least {} bytes, but read {}",
+                l, bytes_read
+            ),
+        )));
+    }
     Ok(Some(buf))
 }
 
