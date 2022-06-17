@@ -4,7 +4,7 @@ use crate::Kernel;
 
 pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
     // No-op if disabled.
-    if context.kernel.debug_enabled() {
+    if !context.kernel.debug_enabled() {
         return Ok(());
     }
 

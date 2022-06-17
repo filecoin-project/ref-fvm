@@ -9,12 +9,12 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm_shared = { version = "0.7.1", path = "../../shared" }
+fvm_shared = { version = "0.8.0", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
-fvm_ipld_amt = { version = "0.4.1", path = "../../ipld/amt"}
+fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.4.1", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2.1", path = "../../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.2.2", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
 thiserror = "1.0.30"
@@ -50,7 +50,7 @@ actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [dependencies.fvm]
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 path = "../../fvm"
 default-features = false
 features = ["testing"]

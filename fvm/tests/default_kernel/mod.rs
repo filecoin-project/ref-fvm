@@ -34,3 +34,44 @@ pub fn build_inspecting_gas_test(
     let kern = TestingKernel::new(call_manager, BlockRegistry::default(), 0, 0, 0, 0.into());
     Ok((kern, test_data))
 }
+
+#[macro_export]
+macro_rules! expect_syscall_err {
+    ($code:ident, $res:expr) => {
+        match $res.expect_err("expected syscall to fail") {
+            ::fvm::kernel::ExecutionError::Syscall(::fvm::kernel::SyscallError(
+                _,
+                fvm_shared::error::ErrorNumber::$code,
+            )) => {}
+            ::fvm::kernel::ExecutionError::Syscall(::fvm::kernel::SyscallError(msg, code)) => {
+                panic!(
+                    "expected {}, got {}: {}",
+                    fvm_shared::error::ErrorNumber::$code,
+                    code,
+                    msg
+                )
+            }
+            ::fvm::kernel::ExecutionError::Fatal(err) => {
+                panic!("got unexpected fatal error: {}", err)
+            }
+            ::fvm::kernel::ExecutionError::OutOfGas => {
+                panic!("got unexpected out of gas")
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! expect_out_of_gas {
+    ($res:expr) => {
+        match $res.expect_err("expected syscall to fail") {
+            ::fvm::kernel::ExecutionError::OutOfGas => {}
+            ::fvm::kernel::ExecutionError::Syscall(::fvm::kernel::SyscallError(msg, code)) => {
+                panic!("got unexpected syscall error {}: {}", code, msg)
+            }
+            ::fvm::kernel::ExecutionError::Fatal(err) => {
+                panic!("got unexpected fatal error: {}", err)
+            }
+        }
+    };
+}

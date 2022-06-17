@@ -6,6 +6,13 @@ Changes to the reference FVM implementation.
 
 ...
 
+## 1.0.0-rc.3 [2022-06-13]
+
+- Fixup WASM sections after instrumenting for gas and stack accounting. Without this,
+  instrumentation would produce incorrect wasm modules in some cases.
+- Fix exec tracing when stack depth is exceeded.
+- Fix logging syscall to skip logging when debugging is _not_ enabled (the check was flipped).
+
 ## 1.0.0-rc.2 [2022-05-26]
 
 This is the second release candidate resulting from the FVM M1 development freeze.
