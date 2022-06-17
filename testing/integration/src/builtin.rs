@@ -6,7 +6,7 @@ use futures::executor::block_on;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_car::load_car;
+use fvm_ipld_car::load_car_unchecked;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::actor::builtin::{load_manifest, Type};
 use fvm_shared::version::NetworkVersion;
@@ -28,7 +28,7 @@ pub fn import_builtin_actors(
     BUNDLES
         .into_iter()
         .map(|(nv, car)| {
-            let roots = block_on(async { load_car(blockstore, car).await.unwrap() });
+            let roots = block_on(async { load_car_unchecked(blockstore, car).await.unwrap() });
             if roots.len() != 1 {
                 return Err(MultipleRootCid(nv).into());
             }

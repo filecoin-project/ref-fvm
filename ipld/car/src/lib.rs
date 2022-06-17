@@ -4,6 +4,8 @@
 mod error;
 mod util;
 
+use std::convert::TryFrom;
+
 use cid::Cid;
 pub use error::*;
 use futures::{AsyncRead, AsyncWrite, Stream, StreamExt};
@@ -58,13 +60,14 @@ impl From<Vec<Cid>> for CarHeader {
 pub struct CarReader<R> {
     pub reader: R,
     pub header: CarHeader,
+    pub validate: bool,
 }
 
 impl<R> CarReader<R>
 where
     R: AsyncRead + Send + Unpin,
 {
-    /// Creates a new CarReader and parses the CarHeader
+    /// Creates a new CarReader and parses the Car
     pub async fn new(mut reader: R) -> Result<Self, Error> {
         let buf = ld_read(&mut reader)
             .await?
@@ -76,24 +79,59 @@ where
         if header.version != 1 {
             return Err(Error::InvalidFile("CAR file version must be 1".to_owned()));
         }
-        Ok(CarReader { reader, header })
+        Ok(CarReader {
+            reader,
+            header,
+            validate: true,
+        })
+    }
+
+    /// Creates a new CarReader that parses the Car, but doesn't validate the inner CIDs.
+    pub async fn new_unchecked(reader: R) -> Result<Self, Error> {
+        let mut reader = Self::new(reader).await?;
+        reader.validate = false;
+        Ok(reader)
     }
 
     /// Returns the next IPLD Block in the buffer
     pub async fn next_block(&mut self) -> Result<Option<Block>, Error> {
+        use cid::multihash::{self, MultihashDigest};
         // Read node -> cid, bytes
-        let block = read_node(&mut self.reader)
-            .await?
-            .map(|(cid, data)| Block { cid, data });
-        Ok(block)
+        if let Some((cid, data)) = read_node(&mut self.reader).await? {
+            if self.validate {
+                match cid.hash().code() {
+                    0x0 => {
+                        if cid.hash().digest() != data {
+                            return Err(Error::InvalidFile(
+                                "CAR has an identity CID that doesn't match the corresponding data"
+                                    .into(),
+                            ));
+                        }
+                    }
+                    code => {
+                        let code = multihash::Code::try_from(code)?;
+                        let actual = Cid::new_v1(cid.codec(), code.digest(&data));
+                        if actual != cid {
+                            return Err(Error::InvalidFile(format!(
+                                "CAR has an incorrect CID: expected {}, found {}",
+                                cid, actual,
+                            )));
+                        }
+                    }
+                }
+            }
+            Ok(Some(Block { cid, data }))
+        } else {
+            Ok(None)
+        }
     }
 }
 
 /// IPLD Block
 #[derive(Clone, Debug)]
 pub struct Block {
-    cid: Cid,
-    data: Vec<u8>,
+    pub cid: Cid,
+    pub data: Vec<u8>,
 }
 
 /// Loads a CAR buffer into a Blockstore
@@ -102,7 +140,28 @@ where
     B: Blockstore,
     R: AsyncRead + Send + Unpin,
 {
-    let mut car_reader = CarReader::new(reader).await?;
+    load_car_inner(s, reader, true).await
+}
+
+/// Loads a CAR buffer into a Blockstore without checking the CIDs.
+pub async fn load_car_unchecked<R, B>(s: &B, reader: R) -> Result<Vec<Cid>, Error>
+where
+    B: Blockstore,
+    R: AsyncRead + Send + Unpin,
+{
+    load_car_inner(s, reader, false).await
+}
+
+async fn load_car_inner<R, B>(s: &B, reader: R, verify: bool) -> Result<Vec<Cid>, Error>
+where
+    B: Blockstore,
+    R: AsyncRead + Send + Unpin,
+{
+    let mut car_reader = if verify {
+        CarReader::new(reader).await
+    } else {
+        CarReader::new_unchecked(reader).await
+    }?;
 
     // Batch write key value pairs from car file
     // TODO: Stream the data once some of the stream APIs stabilize.
