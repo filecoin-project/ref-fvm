@@ -215,7 +215,7 @@ impl Engine {
         {
             let cache = self.0.module_cache.lock().expect("module_cache poisoned");
             if let Some(cached) = cache.get(code_cid) {
-                return Ok(Some(cached.clone()))
+                return Ok(Some(cached.clone()));
             }
         }
 

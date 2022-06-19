@@ -136,7 +136,7 @@ pub mod ops {
         recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{Error, SIG_MESSAGE_HASH_SIZE, SECP_SIG_LEN};
+    use super::{Error, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE};
     use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
 

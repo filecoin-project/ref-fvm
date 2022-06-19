@@ -16,7 +16,9 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::{SignatureType, SIG_MESSAGE_HASH_SIZE, SECP_PUB_LEN, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;

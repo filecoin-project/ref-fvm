@@ -2,7 +2,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{to_vec, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::{Signature, SIG_MESSAGE_HASH_SIZE, SECP_PUB_LEN, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{Signature, SECP_PUB_LEN, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
