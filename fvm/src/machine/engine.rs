@@ -207,15 +207,17 @@ impl Engine {
     /// given code CID is present, otherwise returns None.
     ///
     /// Implicitly caches instantiated modules.
-    fn load_code_cid<BS: Blockstore>(
+    pub fn load_code_cid<BS: Blockstore>(
         &self,
         code_cid: &Cid,
         blockstore: BS,
     ) -> anyhow::Result<Option<wasmtime::Module>> {
-        let cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        {
+            let cache = self.0.module_cache.lock().expect("module_cache poisoned");
 
-        if cache.contains_key(code_cid) {
-            return Ok(Some(cache.get(code_cid).cloned().unwrap()));
+            if cache.contains_key(code_cid) {
+                return Ok(Some(cache.get(code_cid).cloned().unwrap()));
+            }
         }
 
         if let Some(wasm) = blockstore.get(code_cid)? {
@@ -236,6 +238,7 @@ impl Engine {
         I: IntoIterator<Item = &'a Cid>,
     {
         for cid in cids {
+            log::trace!("preloading code CID {cid}");
             self.load_code_cid(cid, &blockstore)?.ok_or_else(|| {
                 anyhow!(
                     "no wasm bytecode in blockstore for CID {}",
@@ -243,6 +246,7 @@ impl Engine {
                 )
             })?;
         }
+
         Ok(())
     }
 
@@ -331,11 +335,10 @@ impl Engine {
 
     /// Lookup and instantiate a loaded wasmtime module with the given store. This will cache the
     /// linker, syscalls, "pre" isntance, etc.
-    pub fn get_instance<K: Kernel, BS: Blockstore>(
+    pub fn get_instance<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
-        blockstore: BS,
     ) -> anyhow::Result<Option<wasmtime::Instance>> {
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
@@ -353,10 +356,14 @@ impl Engine {
             .linker
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
-        Ok(match self.load_code_cid(k, blockstore)? {
-            Some(module) => Some(cache.linker.instantiate(&mut *store, &module)?),
-            None => None,
-        })
+        let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let module = match module_cache.get(k) {
+            Some(module) => module,
+            None => return Ok(None),
+        };
+        let instance = cache.linker.instantiate(&mut *store, module)?;
+
+        Ok(Some(instance))
     }
 
     /// Construct a new wasmtime "store" from the given kernel.

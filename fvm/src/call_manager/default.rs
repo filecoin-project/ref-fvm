@@ -340,7 +340,14 @@ where
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
         let engine = self.engine().clone();
-        let blockstore = self.blockstore();
+
+        // prepare actor code
+        self.engine()
+            .load_code_cid(&state.code, self.blockstore())
+            .map_err(
+                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
+            )?;
+
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
@@ -353,7 +360,7 @@ where
             let result: std::result::Result<BlockId, Abort> = (|| {
                 // Instantiate the module.
                 let instance = engine
-                    .get_instance(&mut store, &state.code, blockstore)
+                    .get_instance(&mut store, &state.code)
                     .and_then(|i| i.context("actor code not found"))
                     .map_err(Abort::Fatal)?;
 
