@@ -22,7 +22,7 @@ pub const SECP_SIG_LEN: usize = 65;
 /// Secp256k1 Public key length in bytes.
 pub const SECP_PUB_LEN: usize = 65;
 /// Length of the signature input message hash in bytes (32).
-pub const MESSAGE_SIZE: usize = 32;
+pub const SIG_MESSAGE_HASH_SIZE: usize = 32;
 
 /// Signature variants for Filecoin signatures.
 #[derive(
@@ -136,7 +136,7 @@ pub mod ops {
         recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{Error, MESSAGE_SIZE, SECP_SIG_LEN};
+    use super::{Error, SIG_MESSAGE_HASH_SIZE, SECP_SIG_LEN};
     use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
 
@@ -241,7 +241,7 @@ pub mod ops {
 
     /// Return the public key used for signing a message given it's signing bytes hash and signature.
     pub fn recover_public_key(
-        hash: &[u8; MESSAGE_SIZE],
+        hash: &[u8; SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<PublicKey, Error> {
         // generate types to recover key from

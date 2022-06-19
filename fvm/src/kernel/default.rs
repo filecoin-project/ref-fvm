@@ -462,7 +462,7 @@ where
 
     fn recover_public_key(
         &mut self,
-        hash: &[u8; MESSAGE_SIZE],
+        hash: &[u8; SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
         self.call_manager
