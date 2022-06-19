@@ -214,9 +214,8 @@ impl Engine {
     ) -> anyhow::Result<Option<wasmtime::Module>> {
         {
             let cache = self.0.module_cache.lock().expect("module_cache poisoned");
-
-            if cache.contains_key(code_cid) {
-                return Ok(Some(cache.get(code_cid).cloned().unwrap()));
+            if let Some(cached) = cache.get(code_cid) {
+                return Ok(Some(cached.clone()))
             }
         }
 
