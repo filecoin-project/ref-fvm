@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
 
-...
+- Added `recover_public_key` syscall
 
 ## 1.0.0-rc.3 [2022-06-13]
 

@@ -1,7 +1,7 @@
 use std::cmp;
 
 use anyhow::{anyhow, Context as _};
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{SignatureType, SECP_PUB_LEN};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -41,6 +41,28 @@ pub fn verify_signature(
         .kernel
         .verify_signature(sig_type, sig_bytes, &addr, plaintext)
         .map(|v| if v { 0 } else { -1 })
+}
+
+pub fn recover_public_key(
+    context: Context<'_, impl Kernel>,
+    hash_off: u32,
+    hash_len: u32,
+    sig_off: u32,
+    sig_len: u32,
+) -> Result<[u8; SECP_PUB_LEN]> {
+    let hash_bytes = context
+        .memory
+        .try_slice(hash_off, hash_len)?
+        .try_into()
+        .or_illegal_argument()?;
+
+    let sig_bytes = context
+        .memory
+        .try_slice(sig_off, sig_len)?
+        .try_into()
+        .or_illegal_argument()?;
+
+    context.kernel.recover_public_key(&hash_bytes, &sig_bytes)
 }
 
 /// Hashes input data using the specified hash function, writing the digest into the provided

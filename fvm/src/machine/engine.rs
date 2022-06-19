@@ -118,6 +118,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // wasmtime default: 512KiB
     // Set to something much higher than the instrumented limiter.
     // Note: This is in bytes, while the instrumented limit is in stack elements
+    #[cfg(feature = "testing")]
+    c.async_stack_size(4 << 20).unwrap();
     c.max_wasm_stack(4 << 20).unwrap();
 
     // Execution cost accouting is done through wasm instrumentation,
@@ -200,6 +202,30 @@ struct Cache<K> {
 }
 
 impl Engine {
+    /// Attempts to load Actor Code CID from the blockstore and
+    /// instantiate a wasmtime Module from the WASM bytecode if the
+    /// given code CID is present, otherwise returns None.
+    ///
+    /// Implicitly caches instantiated modules.
+    fn load_code_cid<BS: Blockstore>(
+        &self,
+        code_cid: &Cid,
+        blockstore: BS,
+    ) -> anyhow::Result<Option<wasmtime::Module>> {
+        let cache = self.0.module_cache.lock().expect("module_cache poisoned");
+
+        if cache.contains_key(code_cid) {
+            return Ok(Some(cache.get(code_cid).cloned().unwrap()));
+        }
+
+        if let Some(wasm) = blockstore.get(code_cid)? {
+            // cache instantiated WASM module
+            Ok(Some(self.load_bytecode(code_cid, &wasm)?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
@@ -209,19 +235,13 @@ impl Engine {
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
     {
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         for cid in cids {
-            if cache.contains_key(cid) {
-                continue;
-            }
-            let wasm = blockstore.get(cid)?.ok_or_else(|| {
+            self.load_code_cid(cid, &blockstore)?.ok_or_else(|| {
                 anyhow!(
                     "no wasm bytecode in blockstore for CID {}",
                     &cid.to_string()
                 )
             })?;
-            let module = self.load_raw(wasm.as_slice())?;
-            cache.insert(*cid, module);
         }
         Ok(())
     }
@@ -311,10 +331,11 @@ impl Engine {
 
     /// Lookup and instantiate a loaded wasmtime module with the given store. This will cache the
     /// linker, syscalls, "pre" isntance, etc.
-    pub fn get_instance<K: Kernel>(
+    pub fn get_instance<K: Kernel, BS: Blockstore>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
+        blockstore: BS,
     ) -> anyhow::Result<Option<wasmtime::Instance>> {
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
@@ -332,14 +353,10 @@ impl Engine {
             .linker
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
-        let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
-        let module = match module_cache.get(k) {
-            Some(module) => module,
-            None => return Ok(None),
-        };
-        let instance = cache.linker.instantiate(&mut *store, module)?;
-
-        Ok(Some(instance))
+        Ok(match self.load_code_cid(k, blockstore)? {
+            Some(module) => Some(cache.linker.instantiate(&mut *store, &module)?),
+            None => None,
+        })
     }
 
     /// Construct a new wasmtime "store" from the given kernel.

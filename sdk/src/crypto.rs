@@ -2,7 +2,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{to_vec, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::{Signature, MESSAGE_SIZE, SECP_PUB_LEN, SECP_SIG_LEN};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -33,6 +33,21 @@ pub fn verify_signature(
             plaintext.len() as u32,
         )
         .map(status_code_to_bool)
+    }
+}
+
+/// Recovers the signer public key from the message hash and signature.
+pub fn recover_public_key(
+    hash: &[u8; MESSAGE_SIZE],
+    signature: &[u8; SECP_SIG_LEN],
+) -> SyscallResult<[u8; SECP_PUB_LEN]> {
+    unsafe {
+        sys::crypto::recover_public_key(
+            hash.as_ptr(),
+            hash.len() as u32,
+            signature.as_ptr(),
+            signature.len() as u32,
+        )
     }
 }
 

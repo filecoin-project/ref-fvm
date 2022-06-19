@@ -16,7 +16,7 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{SignatureType, MESSAGE_SIZE, SECP_PUB_LEN, SECP_SIG_LEN};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
@@ -423,6 +423,15 @@ where
     ) -> Result<bool> {
         self.0
             .verify_signature(sig_type, signature, signer, plaintext)
+    }
+
+    // forwarded
+    fn recover_public_key(
+        &mut self,
+        hash: &[u8; MESSAGE_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.0.recover_public_key(hash, signature)
     }
 
     // NOT forwarded

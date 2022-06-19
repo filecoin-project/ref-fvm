@@ -135,6 +135,7 @@ pub fn bind_syscalls(
     )?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
+    linker.bind("crypto", "recover_public_key", crypto::recover_public_key)?;
     linker.bind("crypto", "hash", crypto::hash)?;
     linker.bind("crypto", "verify_seal", crypto::verify_seal)?;
     linker.bind("crypto", "verify_post", crypto::verify_post)?;
