@@ -29,7 +29,7 @@ pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 pub struct EngineConfig {
     pub max_wasm_stack: u32,
     pub wasm_prices: &'static WasmGasPrices,
-    pub actor_redirect: Option<Vec<(Cid, Cid)>>,
+    pub actor_redirect: Vec<(Cid, Cid)>,
 }
 
 impl From<&NetworkConfig> for EngineConfig {
@@ -161,7 +161,7 @@ struct EngineInner {
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
     config: EngineConfig,
 
-    actor_redirect: Option<HashMap<Cid, Cid>>,
+    actor_redirect: HashMap<Cid, Cid>,
 }
 
 impl Deref for Engine {
@@ -189,10 +189,7 @@ impl Engine {
         let dummy_memory = Memory::new(&mut dummy_store, MemoryType::new(0, Some(0)))
             .expect("failed to create dummy memory");
 
-        let actor_redirect = ec
-            .actor_redirect
-            .as_ref()
-            .map(|v| v.iter().cloned().collect());
+        let actor_redirect = ec.actor_redirect.iter().cloned().collect();
 
         Ok(Engine(Arc::new(EngineInner {
             engine,
@@ -205,6 +202,7 @@ impl Engine {
         })))
     }
 }
+
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
 }
@@ -238,11 +236,8 @@ impl Engine {
     }
 
     fn with_redirect<'a>(&'a self, k: &'a Cid) -> &'a Cid {
-        match &self.0.actor_redirect {
-            Some(tab) => match tab.get(k) {
-                Some(cid) => cid,
-                None => k,
-            },
+        match &self.0.actor_redirect.get(k) {
+            Some(cid) => cid,
             None => k,
         }
     }
