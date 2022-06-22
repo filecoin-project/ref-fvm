@@ -118,7 +118,7 @@ pub struct NetworkConfig {
     pub price_list: &'static PriceList,
 
     /// Actor redirects for debug execution
-    pub actor_redirect: Option<Vec<(Cid, Cid)>>,
+    pub actor_redirect: Vec<(Cid, Cid)>,
 }
 
 impl NetworkConfig {
@@ -131,7 +131,7 @@ impl NetworkConfig {
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),
-            actor_redirect: None,
+            actor_redirect: vec![],
         }
     }
 
@@ -151,7 +151,7 @@ impl NetworkConfig {
 
     /// Set actor redirects for debug execution
     pub fn redirect_actors(&mut self, actor_redirect: Vec<(Cid, Cid)>) -> &mut Self {
-        self.actor_redirect = Some(actor_redirect);
+        self.actor_redirect = actor_redirect;
         self
     }
 
