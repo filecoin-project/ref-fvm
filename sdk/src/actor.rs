@@ -62,7 +62,7 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
 }
 
-/// Instals/Ensures an actor code CID is valid and loaded.
+/// Installs or ensures an actor code CID is valid and loaded.
 pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::install_actor(cid.as_ptr()) }

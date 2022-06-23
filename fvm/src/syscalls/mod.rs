@@ -122,7 +122,6 @@ pub fn bind_syscalls(
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
     linker.bind("actor", "new_actor_address", actor::new_actor_address)?;
     linker.bind("actor", "create_actor", actor::create_actor)?;
-    linker.bind("actor", "install_actor", actor::install_actor)?;
     linker.bind(
         "actor",
         "get_builtin_actor_type",
@@ -133,6 +132,10 @@ pub fn bind_syscalls(
         "get_code_cid_for_type",
         actor::get_code_cid_for_type,
     )?;
+
+    // Only wire this syscall when M2 native is enabled.
+    #[cfg(feature = "m2-native")]
+    linker.bind("actor", "install_actor", actor::install_actor)?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind("crypto", "hash", crypto::hash)?;

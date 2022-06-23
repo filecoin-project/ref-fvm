@@ -122,6 +122,10 @@ where
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
 
         // preload user actors that have been installed
+        // TODO This must be revisited when implementing the actively managed cache.
+        // Doesn't need the m2-native feature guard because there's no possiblity
+        // for user code to install new actors if that feature is disabled anyway
+        // (so this would be a no-op). We could add the guard as an optimization, though.
         let (init_state, _) = InitActorState::load(&state_tree)?;
         let installed_actors: Vec<Cid> = state_tree
             .store()
