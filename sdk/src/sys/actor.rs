@@ -85,17 +85,17 @@ super::fvm_syscalls! {
     /// Generates a new actor address for an actor deployed
     /// by the calling actor.
     ///
-    /// **Privledged:** May only be called by the init actor.
+    /// **Privileged:** May only be called by the init actor.
     #[doc(hidden)]
     pub fn new_actor_address(obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
 
     /// Creates a new actor of the specified type in the state tree, under
     /// the provided address.
     ///
-    /// **Privledged:** May only be called by the init actor.
+    /// **Privileged:** May only be called by the init actor.
     #[doc(hidden)]
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
 
-    /// Installs/Ensures actor code is valid and loaded.
+    /// Installs and ensures actor code is valid and loaded.
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 }
