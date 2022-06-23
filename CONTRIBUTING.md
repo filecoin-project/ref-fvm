@@ -33,7 +33,7 @@ To prepare a release.
    the crate version, and make all other crates in the workspace depend on the latest version.
 5. Make sure the changelogs are all up-to-date, set the release date & version, and add a new
    "Unreleased" section.
-6. Comment your changes, and make a PR.
+6. Commit your changes, and make a PR.
 
 Once the release is prepared, it'll go through a review:
 
