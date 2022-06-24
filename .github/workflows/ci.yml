@@ -52,7 +52,7 @@ jobs:
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
-            key: v1-covz
+            key: v1-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
