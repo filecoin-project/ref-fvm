@@ -1,6 +1,6 @@
-# Reference Filecoin VM implementation (v1; RC)
+# Reference Filecoin VM implementation (v2; dev)
 
-[![Continuous integration](https://github.com/filecoin-project/fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/fvm/actions/workflows/ci.yml)
+[![Continuous integration](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml)
 
 This repository contains the reference implementation of the Filecoin VM ([specs](https://github.com/filecoin-project/fvm-project)). It is written in Rust, and intended to be integrated via FFI into non-Rust clients (e.g. Lotus, Fuhon), or directly into Rust clients (e.g. Forest). FFI bindings for Go are provided in-repo, and developers are encouraged to contribute bindings for other languages.
 

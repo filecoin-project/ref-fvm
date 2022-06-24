@@ -116,6 +116,9 @@ pub struct NetworkConfig {
     ///
     /// DEFAULT: The price-list for the current network version.
     pub price_list: &'static PriceList,
+
+    /// Actor redirects for debug execution
+    pub actor_redirect: Option<Vec<(Cid, Cid)>>,
 }
 
 impl NetworkConfig {
@@ -128,6 +131,7 @@ impl NetworkConfig {
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),
+            actor_redirect: None,
         }
     }
 
@@ -142,6 +146,12 @@ impl NetworkConfig {
     /// networks prior to NV16 (where the actor's "manifest" isn't specified on-chain).
     pub fn override_actors(&mut self, manifest: Cid) -> &mut Self {
         self.builtin_actors_override = Some(manifest);
+        self
+    }
+
+    /// Set actor redirects for debug execution
+    pub fn redirect_actors(&mut self, actor_redirect: Vec<(Cid, Cid)>) -> &mut Self {
+        self.actor_redirect = Some(actor_redirect);
         self
     }
 
