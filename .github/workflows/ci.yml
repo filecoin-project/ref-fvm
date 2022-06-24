@@ -103,7 +103,7 @@ jobs:
       CACHE_SKIP_SAVE: true
       CARGO_TERM_COLOR: always
       CARGO_INCREMENTAL: 1
-    name: ${{ matrix.name }}
+    name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
       uses: actions/checkout@v2
@@ -132,6 +132,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         version: v0.2.15
+        platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
         shared-key: v1
     - name: Running ${{ matrix.command }}
