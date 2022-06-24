@@ -26,11 +26,52 @@ jobs:
       with:
         command: fmt
         args: -- --check
-  cargo:
-    runs-on: ubuntu-latest
+  # build per-os and push to cache
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+          os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+      # CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      CARGO_TERM_COLOR: always
+    name: build ${{ matrix.os }}
+    steps:
+    - name: Checking out fvm
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Installing Rust
+      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+      with:
+        profile: minimal
+    - name: Generating Cargo.lock
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: generate-lockfile
+    - name: Setting up cache
+      uses: ./.github/actions/rust-sccache
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        version: v0.2.15
+        # change this to invalidate sccache for this job
+        shared-key: v1
+    - name: Running Build
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: build
+
+  cargo:
+    needs: [rustfmt, build]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - name: check-clippy
             command: clippy
@@ -53,15 +94,12 @@ jobs:
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          - name: build
-            command: build
-            push: true
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      CACHE_SKIP_SAVE: true
       CARGO_TERM_COLOR: always
-      CARGO_INCREMENTAL: 0
+      CARGO_INCREMENTAL: 1
     name: ${{ matrix.name }}
     steps:
     - name: Checking out fvm
