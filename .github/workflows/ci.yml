@@ -36,33 +36,33 @@ jobs:
         name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: build
-            key: v1
+            key: v2
             push: true
             command: build
           - name: check-clippy
-            key: v1
+            key: v2
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            key: v1-cov
+            key: v2-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
-            key: v1-cov
+            key: v2-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
-            key: v1
+            key: v2
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
-            key: v1
+            key: v2
             command: test
             args: --package fvm_conformance_tests
             submodules: true
@@ -105,7 +105,7 @@ jobs:
         version: v0.2.15
         platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
-        shared-key: v1
+        shared-key: $${{ matrix.key }}
     - name: Running ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
