@@ -60,7 +60,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         version: v0.2.15
-        arch: ${{ matrix.os }}
+        platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
         shared-key: v1
     - name: Running Build
