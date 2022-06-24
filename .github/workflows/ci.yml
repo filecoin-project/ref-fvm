@@ -75,6 +75,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        name: [check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: check-clippy
             command: clippy
@@ -97,10 +98,13 @@ jobs:
             command: test
             args: --package fvm_conformance_tests
             submodules: true
+        exclude:
+          - os: macos-latest
+            name: check-clippy
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CACHE_SKIP_SAVE: true
+      CACHE_SKIP_SAVE:  ${{ matrix.covname }}
       CARGO_TERM_COLOR: always
       CARGO_INCREMENTAL: 1
     name: ${{matrix.os}} - ${{ matrix.name }}
