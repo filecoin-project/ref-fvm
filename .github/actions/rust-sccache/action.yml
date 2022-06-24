@@ -4,6 +4,9 @@ inputs:
   version:
     description: The version of sccache to use
     required: true
+  arch:
+    description: The arch of sccache to use
+    required: true
   key:
     description: An additional key for the cache
     required: false
@@ -20,6 +23,15 @@ runs:
         echo "::set-output name=release::$(grep -oP 'release: \K.+' <<< "$version")"
         echo "::set-output name=host::$(grep -oP 'host: \K.+' <<< "$version")"
         echo "::set-output name=commit-hash::$(grep -oP 'commit-hash: \K.{0,12}' <<< "$version")"
+      shell: bash
+    - id: arch
+      name: Defining Arch
+      run: |
+        arch='unknown-linux-musl'
+        if [[ ${{ inputs.arch }} == *"macos"* ]]; then
+          arch='apple-darwin'
+        fi
+        echo "::set-output name=arch::$arch"
       shell: bash
     - id: cache
       name: Computing cache key
@@ -40,7 +52,7 @@ runs:
       shell: bash
     - name: Installing sccache
       run: |
-        asset_name='sccache-${{ inputs.version }}-x86_64-unknown-linux-musl'
+        asset_name='sccache-${{ inputs.version }}-x86_64-${{ steps.arch.outputs.arch }}'
         gh release download --repo 'mozilla/sccache' --dir '.' --pattern "$asset_name.tar.gz" '${{ inputs.version }}'
         tar -zxf "$asset_name.tar.gz"
         cp "$asset_name/sccache" '/usr/local/bin/sccache'
