@@ -26,75 +26,43 @@ jobs:
       with:
         command: fmt
         args: -- --check
-  # build per-os and push to cache
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-          os: [ubuntu-latest, macos-latest]
-    env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      # CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
-      CARGO_TERM_COLOR: always
-    name: build ${{ matrix.os }}
-    steps:
-    - name: Checking out fvm
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        profile: minimal
-        target: wasm32-unknown-unknown
-        override: true
-    - name: Generating Cargo.lock
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: generate-lockfile
-    - name: Setting up cache
-      uses: ./.github/actions/rust-sccache
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        version: v0.2.15
-        platform: ${{ matrix.os }}
-        # change this to invalidate sccache for this job
-        shared-key: v1
-    - name: Running Build
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: build
-
   cargo:
-    needs: [rustfmt, build]
+    needs: [rustfmt]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [check-clippy, test-fvm, test, integration, conformance]
+        name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
+          - name: build
+            key: v1
+            push: true
+            command: build
           - name: check-clippy
+            key: v1
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
+            key: v1-cov
+            push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
+            key: v1-covz
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
+            key: v1
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
+            key: v1
             command: test
             args: --package fvm_conformance_tests
             submodules: true
@@ -104,9 +72,8 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CACHE_SKIP_SAVE:  ${{ matrix.covname }}
+      CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
       CARGO_TERM_COLOR: always
-      CARGO_INCREMENTAL: 1
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
