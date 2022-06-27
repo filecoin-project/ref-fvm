@@ -32,42 +32,42 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-12]
         name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: build
-            key: v3
+            key: v4
             push: true
             command: build
           - name: check-clippy
-            key: v3
+            key: v4
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            key: v3-cov
+            key: v4-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
-            key: v3-cov
+            key: v4-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
-            key: v3
+            key: v4
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
-            key: v3
+            key: v4
             command: test
             args: --package fvm_conformance_tests
             submodules: true
         exclude:
-          - os: macos-latest
+          - os: macos-12
             name: check-clippy
     env:
       SCCACHE_CACHE_SIZE: 2G
