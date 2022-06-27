@@ -20,9 +20,9 @@ runs:
       name: Checking Rust version
       run: |
         version="$(rustc -vV)"
-        echo "::set-output name=release::$(grep -oP 'release: \K.+' <<< "$version")"
-        echo "::set-output name=host::$(grep -oP 'host: \K.+' <<< "$version")"
-        echo "::set-output name=commit-hash::$(grep -oP 'commit-hash: \K.{0,12}' <<< "$version")"
+        echo "::set-output name=release::$(sed -En 's/^release: (.+)/\1/p' <<< "$version")"
+        echo "::set-output name=host::$(sed -En 's/^host: (.+)/\1/p' <<< "$version")"
+        echo "::set-output name=commit-hash::$(sed -En 's/^commit-hash: (.{0,12}).*/\1/p' <<< "$version")"
       shell: bash
     - id: platform
       name: Defining Platform to download
