@@ -77,7 +77,6 @@ runs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
         key: ${{ steps.cache.outputs.key }}
         restore-keys: |
           ${{ steps.cache.outputs.restore-key }}
