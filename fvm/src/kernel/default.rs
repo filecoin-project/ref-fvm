@@ -793,15 +793,37 @@ where
         self.call_manager.context().actor_debugging
     }
 
-    fn store_artifact(&self, name: &str, data: &[u8]) {
-        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
-            let mut dir = PathBuf::from(dir);
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>{
+        // Ensure well formed artifact name
+        {
+            if name.len() > 256 {
+                Err("debug artifact name should not exceed 256 bytes")
+            } else if name.chars().any(std::path::is_separator) {
+                Err("debug artifact name should not include any path separators")
+            } else if name
+                .chars()
+                .next()
+                .ok_or("debug artifact name should be at least one character")
+                .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?
+                == '.'
+            {
+                Err("debug artifact name should not start with a decimal '.'")
+            } else {
+                Ok(())
+            }
+        }
+        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
-            dir.push(self.call_manager.machine().machine_id().to_string());
-            dir.push(self.call_manager.origin().to_string());
-            dir.push(self.call_manager.nonce().to_string());
-            dir.push(self.actor_id.to_string());
-            dir.push(self.call_manager.invocation_count().to_string());
+        // Write to disk
+        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
+            let dir: PathBuf = [
+                dir,
+                self.call_manager.machine().machine_id().to_string(),
+                self.call_manager.origin().to_string(),
+                self.call_manager.nonce().to_string(),
+                self.actor_id.to_string(),
+                self.call_manager.invocation_count().to_string(),
+            ].iter().collect();
 
             if let Err(e) = std::fs::create_dir_all(dir.clone()) {
                 log::error!("failed to make directory to store debug artifacts {}", e);
@@ -815,6 +837,7 @@ where
                 ENV_ARTIFACT_DIR
             )
         }
+        Ok(())
     }
 }
 

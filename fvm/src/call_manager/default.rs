@@ -45,7 +45,7 @@ pub struct InnerDefaultCallManager<M> {
     backtrace: Backtrace,
     /// The current execution trace.
     exec_trace: ExecutionTrace,
-    /// Current invocation count
+    /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
 }
 

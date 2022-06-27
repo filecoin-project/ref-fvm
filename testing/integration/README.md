@@ -21,9 +21,9 @@ at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
 
 TODO: (hack to get coverage reports from actors + integration tests) 
-```shell
+```bash
 cargo build -p "*actor"
-export SKIP_WASM_BUILD true
-export FVM_STORE_ARTIFACT_DIR ../../target/llvm-cov-target/
+export SKIP_WASM_BUILD=true
+export FVM_STORE_ARTIFACT_DIR=../../target/llvm-cov-target/
 cargo llvm-cov -p fvm_integration_tests --lcov
 ```

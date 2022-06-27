@@ -322,6 +322,7 @@ pub trait DebugOps {
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;
 
-    /// Store an artifact
-    fn store_artifact(&self, name: &str, data: &[u8]);
+    /// Store an artifact. 
+    /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
 }

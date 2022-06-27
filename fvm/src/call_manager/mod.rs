@@ -83,7 +83,6 @@ pub trait CallManager: 'static {
     /// Gets and increment the call-stack actor creation index.
     fn next_actor_idx(&mut self) -> u64;
 
-    // TODO: should this be ActorID instead?
     /// Gets the total invocations done on this call stack.
     fn invocation_count(&self) -> u64;
 
