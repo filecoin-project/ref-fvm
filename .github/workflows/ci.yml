@@ -36,33 +36,33 @@ jobs:
         name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: build
-            key: v2
+            key: v0
             push: true
             command: build
           - name: check-clippy
-            key: v2
+            key: v0
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            key: v2-cov
+            key: v0-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
-            key: v2-cov
+            key: v0-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
-            key: v2
+            key: v0
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
-            key: v2
+            key: v0
             command: test
             args: --package fvm_conformance_tests
             submodules: true
@@ -70,8 +70,6 @@ jobs:
           - os: macos-latest
             name: check-clippy
     env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
       CARGO_TERM_COLOR: always
     name: ${{matrix.os}} - ${{ matrix.name }}
@@ -98,12 +96,10 @@ jobs:
       with:
         tool: cargo-llvm-cov@0.4.5
     - name: Setting up cache
-      uses: ./.github/actions/rust-sccache
+      uses: ./.github/actions/rust-cache
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        version: v0.2.15
-        platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
         shared-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}

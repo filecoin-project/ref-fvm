@@ -1,12 +1,6 @@
-name: rust sccache
+name: rust cache
 description: Shared Compilation Cache for Rust
 inputs:
-  version:
-    description: The version of sccache to use
-    required: true
-  platform:
-    description: The platform of sccache to use
-    required: true
   key:
     description: An additional key for the cache
     required: false
@@ -24,19 +18,10 @@ runs:
         echo "::set-output name=host::$(sed -En 's/^host: (.+)/\1/p' <<< "$version")"
         echo "::set-output name=commit-hash::$(sed -En 's/^commit-hash: (.{0,12}).*/\1/p' <<< "$version")"
       shell: bash
-    - id: platform
-      name: Defining Platform to download
-      run: |
-        platform='unknown-linux-musl'
-        if [[ ${{ inputs.platform }} == *"macos"* ]]; then
-          platform='apple-darwin'
-        fi
-        echo "::set-output name=platform::$platform"
-      shell: bash
     - id: cache
       name: Computing cache key
       run: |
-        key='v0-sccache'
+        key='v0'
         if [[ ! -z '${{ inputs.shared-key }}' ]]; then
           key="$key-${{ inputs.shared-key }}"
         else
@@ -50,30 +35,10 @@ runs:
         echo "::set-output name=key::$key-${hash:0:20}"
         echo "::set-output name=restore-key::$key-"
       shell: bash
-    - name: Installing sccache
-      run: |
-        asset_name='sccache-${{ inputs.version }}-x86_64-${{ steps.platform.outputs.platform }}'
-        gh release download --repo 'mozilla/sccache' --dir '.' --pattern "$asset_name.tar.gz" '${{ inputs.version }}'
-        tar -zxf "$asset_name.tar.gz"
-        cp "$asset_name/sccache" '/usr/local/bin/sccache'
-        chmod +x '/usr/local/bin/sccache'
-        rm -r "$asset_name"
-        rm "$asset_name.tar.gz"
-      shell: bash
-    - name: Configuring sccache environment
-      run: |
-        if [ -z '${{ env.RUSTC_WRAPPER }}' ]; then
-          echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
-        fi
-        if [ -z '${{ env.SCCACHE_DIR }}' ]; then
-          echo "SCCACHE_DIR=$(realpath ~/.cache/sccache)" >> $GITHUB_ENV
-        fi
-      shell: bash
     - name: Deploying cache
       uses: env0/cache@64daede5552c68991cba51f3bc0ac2bc26945a11 # https://github.com/actions/cache/pull/489
       with:
         path: |
-          ${{ env.SCCACHE_DIR }}
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
