@@ -36,33 +36,33 @@ jobs:
         name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: build
-            key: v2
+            key: v3
             push: true
             command: build
           - name: check-clippy
-            key: v2
+            key: v3
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
-            key: v2-cov
+            key: v3-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
-            key: v2-cov
+            key: v3-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
-            key: v2
+            key: v3
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
-            key: v2
+            key: v3
             command: test
             args: --package fvm_conformance_tests
             submodules: true
