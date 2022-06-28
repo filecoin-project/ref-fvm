@@ -30,7 +30,7 @@ serde_repr = "0.1"
 thiserror = "1.0.30"
 
 [dependencies.wasmtime]
-version = "0.37.0"
+version = "0.38.0"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
