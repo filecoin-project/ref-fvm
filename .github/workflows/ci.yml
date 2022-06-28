@@ -27,42 +27,54 @@ jobs:
         command: fmt
         args: -- --check
   cargo:
-    runs-on: ubuntu-latest
+    needs: [rustfmt]
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
+        name: [build, check-clippy, test-fvm, test, integration, conformance]
         include:
+          - name: build
+            key: v3
+            push: true
+            command: build
           - name: check-clippy
+            key: v3
             command: clippy
             args: --all --all-targets
             components: clippy
           - name: test-fvm
+            key: v3-cov
+            push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
             components: llvm-tools-preview
           - name: test
+            key: v3-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
           - name: integration
+            key: v3
             command: test
             args: --package fvm_integration_tests --package "*actor"
           - name: conformance
+            key: v3
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          - name: build
-            command: build
-            push: true
+        exclude:
+          - os: macos-latest
+            name: check-clippy
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
       CARGO_TERM_COLOR: always
-      CARGO_INCREMENTAL: 0
-    name: ${{ matrix.name }}
+    name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
       uses: actions/checkout@v2
@@ -91,8 +103,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         version: v0.2.15
+        platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
-        shared-key: v1
+        shared-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
