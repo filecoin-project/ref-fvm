@@ -33,6 +33,13 @@ runs:
         fi
         echo "::set-output name=platform::$platform"
       shell: bash
+    - id: tar-patch
+      name: (macos only) Installing GNU tar
+      run: |
+        if [[ ${{ inputs.platform }} == *"macos"* ]]; then
+          brew install gnu-tar
+        fi
+      shell: bash
     - id: cache
       name: Computing cache key
       run: |
