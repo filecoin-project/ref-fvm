@@ -1,0 +1,18 @@
+name: Add to FVM project
+on:
+  issues:
+    types:
+      - opened
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add to project
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/add-to-project@7334092eccc670a2b274d0cafbfa1e4d8208cfab
+      with:
+        project-url: https://github.com/orgs/filecoin-project/projects/54
+        github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
