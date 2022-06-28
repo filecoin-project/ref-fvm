@@ -6,6 +6,10 @@ Changes to the reference FVM implementation.
 
 ...
 
+## 1.1.0 [2022-06-27]
+
+- debug execution: implement actor redirects in engine
+
 ## 1.0.0 [2022-06-23]
 
 - Fixup WASM sections after instrumenting for gas and stack accounting. Without this,

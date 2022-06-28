@@ -50,7 +50,7 @@ actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [dependencies.fvm]
-version = "1.0.0"
+version = "1.1.0"
 path = "../../fvm"
 default-features = false
 features = ["testing"]
