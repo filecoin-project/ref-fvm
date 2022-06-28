@@ -13,7 +13,7 @@ use fvm_shared::ActorID;
 use log::debug;
 use num_traits::Signed;
 
-use super::{Engine, Machine, MachineContext, MachineId};
+use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Context as _, Result};
@@ -39,7 +39,7 @@ pub struct DefaultMachine<B, E> {
     builtin_actors: Manifest,
     /// Somewhat unique ID of the machine consisting of (epoch, randomness)
     /// randomness is generated with `initial_state_root`
-    id: MachineId,
+    id: String,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -132,7 +132,12 @@ where
             externs,
             state_tree,
             builtin_actors,
-            id: MachineId::new(context.epoch, randomness),
+            id: format_args!(
+                "{}-{}",
+                context.epoch,
+                cid::multibase::encode(cid::multibase::Base::Base58Btc, &randomness[..16])
+            )
+            .to_string(),
         })
     }
 }
@@ -245,7 +250,7 @@ where
         self.state_tree.into_store()
     }
 
-    fn machine_id(&self) -> &MachineId {
-        &self.id
+    fn machine_id(&self) -> String {
+        self.id.clone()
     }
 }

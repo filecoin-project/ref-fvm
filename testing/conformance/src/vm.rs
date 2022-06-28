@@ -164,7 +164,7 @@ where
         self.machine.flush()
     }
 
-    fn machine_id(&self) -> &fvm::machine::MachineId {
+    fn machine_id(&self) -> String {
         self.machine.machine_id()
     }
 }
@@ -489,7 +489,7 @@ where
         self.0.debug_enabled()
     }
 
-    fn store_artifact(&self, name: &str, data: &[u8]) {
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
         self.0.store_artifact(name, data)
     }
 }

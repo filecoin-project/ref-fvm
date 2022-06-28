@@ -157,7 +157,7 @@ impl Machine for DummyMachine {
         self.state_tree.into_store()
     }
 
-    fn machine_id(&self) -> &fvm::machine::MachineId {
+    fn machine_id(&self) -> String {
         todo!()
     }
 }
