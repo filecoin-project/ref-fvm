@@ -78,6 +78,9 @@ runs:
           ${{ env.SCCACHE_DIR }}
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
+          ~/.cargo/bin
+          ~/.cargo/.crates.toml
+          ~/.cargo/.crates2.json
           ~/.cargo/git/db/
           target/
         key: ${{ steps.cache.outputs.key }}

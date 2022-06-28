@@ -117,3 +117,27 @@ jobs:
       with:
         files: ${{ matrix.covname }}
         fail_ci_if_error: true
+    - name: Installing Cargo-Cache
+      if: ${{ matrix.push }}
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: install
+        args: cargo-cache
+    - name: Cleaning Cargo Cache
+      if: ${{ matrix.push }}
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: cache
+        args: --autoclean  
+    - name: Getting Cargo Cache Size
+      if: ${{ matrix.push }}
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: cache
+        args: -i
+    - name: Getting sccache size
+      if: ${{ matrix.push }}
+      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+      with:
+        command: cache
+        args: sccache
