@@ -7,9 +7,12 @@ edition = "2021"
 fvm_ipld_encoding = { version = "0.2.2", path = "../../../../ipld/encoding" }
 fvm_sdk = { version = "1.0.0-rc.3", path = "../../../../sdk" }
 fvm_shared = { version = "0.8.0", path = "../../../../shared" }
-minicov = "0.2"
+minicov = {version = "0.2", optional = true}
 
 
 
 [build-dependencies]
 wasm-builder = "3.0.1"
+
+[features]
+coverage = ["minicov"]
