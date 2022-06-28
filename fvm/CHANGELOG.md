@@ -6,31 +6,18 @@ Changes to the reference FVM implementation.
 
 ...
 
-## 1.0.0-rc.3 [2022-06-13]
+## 1.0.0 [2022-06-23]
 
 - Fixup WASM sections after instrumenting for gas and stack accounting. Without this,
   instrumentation would produce incorrect wasm modules in some cases.
 - Fix exec tracing when stack depth is exceeded.
 - Fix logging syscall to skip logging when debugging is _not_ enabled (the check was flipped).
-
-## 1.0.0-rc.2 [2022-05-26]
-
-This is the second release candidate resulting from the FVM M1 development freeze.
-
 - Audit and cleanup TODOs.
 - Remove unused imports, etc.
 - Refactor the blockstore "flush" to behave more like lotus.
 - Upgrade wasmtime to 0.37.
 - Fix the read syscall to correctly compute the returned "offset". Previously, it would never return
   a negative value, even if the passed-in buffer was over-sized.
-
-## 1.0.0-rc.1 [2022-05-19]
-
-This is the first release candidate resulting from the FVM M1 development
-freeze.
-
-Changes introduced:
-
 - Make `DefaultExecutor#flush` a method on the `Executor` trait.
 - Catch additional inner panics at the kernel layer, lowering them to syscall errors.
 - General refinement of error handling by returning more fitting error numbers.
