@@ -70,7 +70,9 @@ runs:
         fi
       shell: bash
     - name: Deploying cache
-      uses: env0/cache@64daede5552c68991cba51f3bc0ac2bc26945a11 # https://github.com/actions/cache/pull/489
+      # https://github.com/actions/cache/pull/489
+      # https://github.com/env0/cache
+      uses: filecoin-project/cache-action@6974ff48851b8d0259af2b7a68fedd3be53ce754 
       with:
         path: |
           ${{ env.SCCACHE_DIR }}
