@@ -76,6 +76,11 @@ where
             .flush()
             .unwrap();
 
+        // insert an empty vector
+        let empty_list_cid = state_tree
+            .store()
+            .put_cbor(&Vec::<Cid>::new(), Code::Blake2b256)?;
+
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
@@ -84,6 +89,7 @@ where
             address_map: empty_cid,
             next_id: 100,
             network_name: "test".to_owned(),
+            installed_actors: empty_list_cid,
         };
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
