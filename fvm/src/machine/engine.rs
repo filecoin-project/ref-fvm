@@ -220,8 +220,8 @@ impl Engine {
         code_cid: &Cid,
         blockstore: BS,
     ) -> anyhow::Result<Option<wasmtime::Module>> {
-      let code_cid = self.with_redirect(code_cid);
-      
+        let code_cid = self.with_redirect(code_cid);
+
         {
             let cache = self.0.module_cache.lock().expect("module_cache poisoned");
             if let Some(cached) = cache.get(code_cid) {
