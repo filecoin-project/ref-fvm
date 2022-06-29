@@ -783,6 +783,7 @@ where
             .or_illegal_argument()
     }
 
+
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
         // TODO figure out gas
@@ -791,6 +792,10 @@ where
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
+    }
+
+    fn become_actor(&self, new_code_cid: Cid) -> Result<!> {
+        self.call_manager.become_actor(self.caller, new_code_cid)
     }
 }
 

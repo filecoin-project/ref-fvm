@@ -188,6 +188,10 @@ pub trait ActorOps {
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid>;
+
+    /// Become changes the code of the running actor using the specified code cid;
+    /// it does not return unless there is an error
+    fn become_actor(&self, code_cid: &Cid) -> Result<!>;
 }
 
 /// Operations to send messages to other actors.

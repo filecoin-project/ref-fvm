@@ -118,3 +118,11 @@ pub fn install_actor(
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
 }
+
+pub fn become_actor(
+    context: Context<'_, impl Kernel>,
+    code_cid_off: u32, // Cid
+) -> Result<!> {
+    let cid = context.memory.read_cid(code_cid_off)?;
+    context.kernel.become_actor(cid)
+}
