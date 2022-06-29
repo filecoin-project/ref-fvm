@@ -154,6 +154,143 @@ where
         result
     }
 
+    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<!>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        // TODO charge gas
+
+        // upgrade_actor
+        let new_state_cid = self.upgrade_actor(who, &new_code_cid)?;
+
+        // update state with new code cid and state
+        let state_tree = self.state_tree_mut();
+        let state = state_tree
+            .get_actor_id(self.caller)
+            .context("failed to lookup actor")
+            .or_fatal()?;
+        state_tree.set_actor(
+            self.caller,
+            ActorState::new(new_code_cid, new_state_cid, state.sequence, state.balance),
+        )?;
+
+        // abortive return with panic
+        // at this point, we are inside an invoke panic handler, from the message where the
+        // syscall originated; so the panic will unwind and land in the send panic handler,
+        // which can cleanly abort.
+        std::panic::panic_any(XXX);
+    }
+
+    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<Cid> {
+        // TODO gas, call stack, tracing(?)
+
+        // Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(who)
+            .and_then(|i| i.context("actor not found"))
+            .map_err(Abort::Fatal)?;
+
+        // TODO charge gas
+        // self.charge_gas(self.price_list().WHAT)?;
+
+        // prepare params as a block; argument is the old code cid in a cbor tuple
+        let cur_code_cid = state.code;
+        let params = XXX;
+
+        // Store the parametrs, and initialize the block registry for the target actor.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = block_registry.put(blk)?;
+
+        // This is a cheap operation as it doesn't actually clone the struct,
+        // it returns a referenced copy.
+        let engine = self.engine().clone();
+
+        log::trace!(
+            "upgrading {} from {} to {}",
+            who,
+            cur_code_cid,
+            new_code_cid
+        );
+        self.map_mut(|cm| {
+            // Make a new kernel; we have to because this is a new execution context and
+            // it needs to have clean separation from the current state.
+            let kernel = K::new(cm, block_registry, who, who, 0, TokenAmount::from(0));
+
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            let result: std::result::Result<BlockId, Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, new_code_cid)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
+                // Lookup the upgrade method.
+                // All actors that support upgrade will have an upgrade method
+                let upgrade: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, "upgrade")
+                    .and_then(|i| i.context("actor does not support upgrade"))
+                    .map_err(Abort::Fatal)?;
+
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
+                // Invoke it.
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    upgrade.call(&mut store, (params_id,))
+                }))
+                .map_err(|panic| {
+                    Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
+                })?;
+
+                // TODO charge gas
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                // charge_for_exec(&mut store)?;
+
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res?)
+            })();
+
+            let invocation_data = store.into_data();
+            let last_error = invocation_data.last_error;
+            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                // the upgrade entry point is expected to return a new state root block
+                // if this is NO_DATA_BLOCK_ID we treat is as a signal to retain the same
+                // state object
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    state.state
+                } else {
+                    block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                        )
+                    })?
+                })
+            });
+
+            // TODO logging
+
+            (result, cm)
+        })
+    }
+
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,

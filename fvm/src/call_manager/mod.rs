@@ -55,6 +55,15 @@ pub trait CallManager: 'static {
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
 
+    /// Upgrade an actor
+    fn upgrade<K: Kernel<CallManager = Self>>(
+        &mut self,
+        who: ActorID,
+        cur_code_cid: &Cid,
+        cur_state_cid: &Cid,
+        new_code_cid: &Cid,
+    ) -> Result<Cid>;
+
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
         &mut self,

@@ -109,3 +109,11 @@ pub fn get_code_cid_for_type(
     let k = context.kernel.get_code_cid_for_type(typ)?;
     context.memory.write_cid(&k, obuf_off, obuf_len)
 }
+
+pub fn become_actor(
+    context: Context<'_, impl Kernel>,
+    code_cid_off: u32, // Cid
+) -> Result<!> {
+    let cid = context.memory.read_cid(code_cid_off)?;
+    context.kernel.become_actor(cid)
+}

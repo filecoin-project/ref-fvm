@@ -777,6 +777,10 @@ where
             .context("tried to resolve CID of unrecognized actor type")
             .or_illegal_argument()
     }
+
+    fn become_actor(&self, new_code_cid: Cid) -> Result<!> {
+        self.call_manager.become_actor(self.caller, new_code_cid)
+    }
 }
 
 impl<C> DebugOps for DefaultKernel<C>
