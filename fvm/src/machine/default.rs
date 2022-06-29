@@ -135,7 +135,7 @@ where
             id: format!(
                 "{}-{}",
                 context.epoch,
-                cid::multibase::encode(cid::multibase::Base::Base58Btc, &randomness[..16])
+                cid::multibase::encode(cid::multibase::Base::Base32Lower, &randomness[..16])
             ),
         })
     }
