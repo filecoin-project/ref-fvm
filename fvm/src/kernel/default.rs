@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
 use byteorder::{BigEndian, WriteBytesExt};
@@ -37,6 +38,8 @@ lazy_static! {
 }
 
 const BLAKE2B_256: u64 = 0xb220;
+const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
+const MAX_ARTIFACT_NAME_LEN: usize = 256;
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -789,6 +792,55 @@ where
 
     fn debug_enabled(&self) -> bool {
         self.call_manager.context().actor_debugging
+    }
+
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
+        // Ensure well formed artifact name
+        {
+            if name.len() > MAX_ARTIFACT_NAME_LEN {
+                Err("debug artifact name should not exceed 256 bytes")
+            } else if name.chars().any(std::path::is_separator) {
+                Err("debug artifact name should not include any path separators")
+            } else if name
+                .chars()
+                .next()
+                .ok_or("debug artifact name should be at least one character")
+                .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?
+                == '.'
+            {
+                Err("debug artifact name should not start with a decimal '.'")
+            } else {
+                Ok(())
+            }
+        }
+        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
+
+        // Write to disk
+        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR).as_deref() {
+            let dir: PathBuf = [
+                dir,
+                self.call_manager.machine().machine_id(),
+                &self.call_manager.origin().to_string(),
+                &self.call_manager.nonce().to_string(),
+                &self.actor_id.to_string(),
+                &self.call_manager.invocation_count().to_string(),
+            ]
+            .iter()
+            .collect();
+
+            if let Err(e) = std::fs::create_dir_all(dir.clone()) {
+                log::error!("failed to make directory to store debug artifacts {}", e);
+            } else if let Err(e) = std::fs::write(dir.join(name), data) {
+                log::error!("failed to store debug artifact {}", e)
+            }
+            log::info!("wrote artifact: {} to {:?}", name, dir);
+        } else {
+            log::error!(
+                "store_artifact was ignored, env var {} was not set",
+                ENV_ARTIFACT_DIR
+            )
+        }
+        Ok(())
     }
 }
 

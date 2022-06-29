@@ -68,4 +68,9 @@ impl<M: Machine> Machine for Box<M> {
     fn flush(&mut self) -> Result<Cid> {
         (**self).flush()
     }
+
+    #[inline(always)]
+    fn machine_id(&self) -> &str {
+        (&**self).machine_id()
+    }
 }

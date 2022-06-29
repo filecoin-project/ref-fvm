@@ -38,6 +38,21 @@ mod inner {
         }
     }
 
+    /// Saves an artifact to the host env. New artifacts with the same name will overwrite old ones
+    pub fn store_artifact(name: impl AsRef<str>, data: impl AsRef<[u8]>) {
+        let name = name.as_ref();
+        let data = data.as_ref();
+        unsafe {
+            sys::debug::store_artifact(
+                name.as_ptr(),
+                name.len() as u32,
+                data.as_ptr(),
+                data.len() as u32,
+            )
+            .unwrap();
+        }
+    }
+
     /// Returns whether debug mode is enabled.
     #[inline(always)]
     pub fn enabled() -> bool {

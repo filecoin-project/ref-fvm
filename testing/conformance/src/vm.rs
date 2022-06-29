@@ -163,6 +163,10 @@ where
     fn flush(&mut self) -> Result<Cid> {
         self.machine.flush()
     }
+
+    fn machine_id(&self) -> &str {
+        self.machine.machine_id()
+    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -269,6 +273,10 @@ where
 
     fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
+    }
+
+    fn invocation_count(&self) -> u64 {
+        self.0.invocation_count()
     }
 }
 
@@ -479,6 +487,10 @@ where
 
     fn debug_enabled(&self) -> bool {
         self.0.debug_enabled()
+    }
+
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
+        self.0.store_artifact(name, data)
     }
 }
 
