@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
@@ -15,6 +16,7 @@ use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
+use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
@@ -157,10 +159,11 @@ where
         result
     }
 
-    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<!>
-    where
-        K: Kernel<CallManager = Self>,
-    {
+    fn become_actor<K: Kernel<CallManager = Self>>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: &Cid,
+    ) -> std::result::Result<(), Abort> {
         // TODO charge gas
 
         // upgrade_actor
@@ -169,13 +172,16 @@ where
         // update state with new code cid and state
         let state_tree = self.state_tree_mut();
         let state = state_tree
-            .get_actor_id(self.caller)
-            .context("failed to lookup actor")
-            .or_fatal()?;
-        state_tree.set_actor(
-            self.caller,
-            ActorState::new(new_code_cid, new_state_cid, state.sequence, state.balance),
-        )?;
+            .get_actor_id(who)
+            .map_err(|e| Abort::from_error_as_fatal(e))?
+            .ok_or(Abort::Fatal(anyhow!("actor not found")))?;
+
+        state_tree
+            .set_actor(
+                &self.origin,
+                ActorState::new(*new_code_cid, new_state_cid, state.balance, state.sequence),
+            )
+            .map_err(|e| Abort::from_error_as_fatal(e))?;
 
         // abortive return with panic
         // at this point, we are inside an invoke panic handler, from the message where the
@@ -184,15 +190,19 @@ where
         std::panic::panic_any(XXX);
     }
 
-    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<Cid> {
+    fn upgrade_actor<K: Kernel<CallManager = Self>>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: &Cid,
+    ) -> std::result::Result<Cid, Abort> {
         // TODO gas, call stack, tracing(?)
 
         // Lookup the actor.
         let state = self
             .state_tree()
             .get_actor_id(who)
-            .and_then(|i| i.context("actor not found"))
-            .map_err(Abort::Fatal)?;
+            .map_err(|e| Abort::from_error_as_fatal(e))?
+            .ok_or(Abort::Fatal(anyhow!("actor not found")))?;
 
         // TODO charge gas
         // self.charge_gas(self.price_list().WHAT)?;
@@ -203,7 +213,9 @@ where
 
         // Store the parametrs, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
-        let params_id = block_registry.put(blk)?;
+        let params_id = block_registry
+            .put(blk)
+            .map_err(|e| Abort::from_error_as_fatal(e))?;
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
@@ -241,8 +253,7 @@ where
                 // All actors that support upgrade will have an upgrade method
                 let upgrade: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "upgrade")
-                    .and_then(|i| i.context("actor does not support upgrade"))
-                    .map_err(Abort::Fatal)?;
+                    .map_err(|e| Abort::Fatal(anyhow!("actor does not support upgrade")))?;
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
@@ -276,16 +287,18 @@ where
                 // the upgrade entry point is expected to return a new state root block
                 // if this is NO_DATA_BLOCK_ID we treat is as a signal to retain the same
                 // state object
-                Ok(if ret_id == NO_DATA_BLOCK_ID {
-                    state.state
+                if ret_id == NO_DATA_BLOCK_ID {
+                    Ok(state.state)
                 } else {
+                    
                     block_registry.get(ret_id).map_err(|_| {
                         Abort::Exit(
                             ExitCode::SYS_MISSING_RETURN,
                             String::from("returned block does not exist"),
                         )
-                    })?
-                })
+                    }).and_then(|b| b)
+                    
+                }
             });
 
             // TODO logging

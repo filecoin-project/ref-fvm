@@ -62,12 +62,23 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
     unsafe { sys::actor::create_actor(actor_id, cid.as_ptr()) }
 }
 
+
 /// Installs or ensures an actor code CID is valid and loaded.
 /// Note: this is a priviledged syscall, restricted to the init actor.
 #[cfg(feature = "m2-native")]
 pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::install_actor(cid.as_ptr()) }
+}
+
+/// Become a different actor
+pub fn become_actor(code_cid: &Cid) -> ! {
+    let cid = code_cid.to_bytes();
+    unsafe {
+        // TODO validate if CID is code
+
+        sys::actor::become_actor(cid.as_ptr())
+    }
 }
 
 /// Determines whether the supplied CodeCID belongs to a built-in actor type,

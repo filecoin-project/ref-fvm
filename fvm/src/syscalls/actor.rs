@@ -1,7 +1,10 @@
 use anyhow::anyhow;
 use fvm_shared::actor::builtin::Type;
+use fvm_shared::error::ExitCode;
 use num_traits::FromPrimitive;
 
+use super::error::Abort;
+use super::vm::Never;
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
@@ -122,7 +125,15 @@ pub fn install_actor(
 pub fn become_actor(
     context: Context<'_, impl Kernel>,
     code_cid_off: u32, // Cid
-) -> Result<!> {
-    let cid = context.memory.read_cid(code_cid_off)?;
-    context.kernel.become_actor(cid)
+) -> std::result::Result<Never, Abort> {
+    // TODO different exit code?
+    let cid = context
+        .memory
+        .read_cid(code_cid_off)
+        .map_err(|e| Abort::from_error(ExitCode::USR_ILLEGAL_ARGUMENT, e))?;
+    context.kernel.become_actor(&cid)?; // ExitCode::SYS_INVALID_RECEIVER
+    Err(Abort::Exit(
+        ExitCode::OK,
+        "became a new actor something something".to_string(),
+    ))
 }
