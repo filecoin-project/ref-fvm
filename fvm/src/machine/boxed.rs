@@ -70,7 +70,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn machine_id(&self) -> String {
+    fn machine_id(&self) -> &str {
         (&**self).machine_id()
     }
 }

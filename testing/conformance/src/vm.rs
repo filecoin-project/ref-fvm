@@ -164,7 +164,7 @@ where
         self.machine.flush()
     }
 
-    fn machine_id(&self) -> String {
+    fn machine_id(&self) -> &str {
         self.machine.machine_id()
     }
 }

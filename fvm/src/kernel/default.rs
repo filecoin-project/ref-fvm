@@ -39,6 +39,7 @@ lazy_static! {
 
 const BLAKE2B_256: u64 = 0xb220;
 const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
+const MAX_ARTIFACT_NAME_LEN: usize = 256;
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -796,7 +797,7 @@ where
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
         // Ensure well formed artifact name
         {
-            if name.len() > 256 {
+            if name.len() > MAX_ARTIFACT_NAME_LEN {
                 Err("debug artifact name should not exceed 256 bytes")
             } else if name.chars().any(std::path::is_separator) {
                 Err("debug artifact name should not include any path separators")
@@ -815,14 +816,14 @@ where
         .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
         // Write to disk
-        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR) {
+        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR).as_deref() {
             let dir: PathBuf = [
                 dir,
                 self.call_manager.machine().machine_id(),
-                self.call_manager.origin().to_string(),
-                self.call_manager.nonce().to_string(),
-                self.actor_id.to_string(),
-                self.call_manager.invocation_count().to_string(),
+                &self.call_manager.origin().to_string(),
+                &self.call_manager.nonce().to_string(),
+                &self.actor_id.to_string(),
+                &self.call_manager.invocation_count().to_string(),
             ]
             .iter()
             .collect();

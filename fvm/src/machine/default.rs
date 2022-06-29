@@ -132,12 +132,11 @@ where
             externs,
             state_tree,
             builtin_actors,
-            id: format_args!(
+            id: format!(
                 "{}-{}",
                 context.epoch,
                 cid::multibase::encode(cid::multibase::Base::Base58Btc, &randomness[..16])
-            )
-            .to_string(),
+            ),
         })
     }
 }
@@ -250,7 +249,7 @@ where
         self.state_tree.into_store()
     }
 
-    fn machine_id(&self) -> String {
-        self.id.clone()
+    fn machine_id(&self) -> &str {
+        &self.id
     }
 }
