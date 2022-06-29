@@ -29,6 +29,7 @@ pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 pub struct EngineConfig {
     pub max_wasm_stack: u32,
     pub wasm_prices: &'static WasmGasPrices,
+    pub actor_redirect: Vec<(Cid, Cid)>,
 }
 
 impl From<&NetworkConfig> for EngineConfig {
@@ -36,6 +37,7 @@ impl From<&NetworkConfig> for EngineConfig {
         EngineConfig {
             max_wasm_stack: nc.max_wasm_stack,
             wasm_prices: &nc.price_list.wasm_rules,
+            actor_redirect: nc.actor_redirect.clone(),
         }
     }
 }
@@ -160,6 +162,8 @@ struct EngineInner {
     module_cache: Mutex<HashMap<Cid, Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
     config: EngineConfig,
+
+    actor_redirect: HashMap<Cid, Cid>,
 }
 
 impl Deref for Engine {
@@ -187,6 +191,8 @@ impl Engine {
         let dummy_memory = Memory::new(&mut dummy_store, MemoryType::new(0, Some(0)))
             .expect("failed to create dummy memory");
 
+        let actor_redirect = ec.actor_redirect.iter().cloned().collect();
+
         Ok(Engine(Arc::new(EngineInner {
             engine,
             dummy_memory,
@@ -194,9 +200,11 @@ impl Engine {
             module_cache: Default::default(),
             instance_cache: Mutex::new(anymap::Map::new()),
             config: ec,
+            actor_redirect,
         })))
     }
 }
+
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
 }
@@ -212,6 +220,8 @@ impl Engine {
         code_cid: &Cid,
         blockstore: BS,
     ) -> anyhow::Result<Option<wasmtime::Module>> {
+      let code_cid = self.with_redirect(code_cid);
+      
         {
             let cache = self.0.module_cache.lock().expect("module_cache poisoned");
             if let Some(cached) = cache.get(code_cid) {
@@ -249,8 +259,16 @@ impl Engine {
         Ok(())
     }
 
+    fn with_redirect<'a>(&'a self, k: &'a Cid) -> &'a Cid {
+        match &self.0.actor_redirect.get(k) {
+            Some(cid) => cid,
+            None => k,
+        }
+    }
+
     /// Load some wasm code into the engine.
     pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
+        let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),
@@ -310,6 +328,7 @@ impl Engine {
     ///
     /// See [`wasmtime::Module::deserialize`] for safety information.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
+        let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(module) => module.clone(),
@@ -324,6 +343,7 @@ impl Engine {
 
     /// Lookup a loaded wasmtime module.
     pub fn get_module(&self, k: &Cid) -> Option<Module> {
+        let k = self.with_redirect(k);
         self.0
             .module_cache
             .lock()
@@ -339,6 +359,7 @@ impl Engine {
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
     ) -> anyhow::Result<Option<wasmtime::Instance>> {
+        let k = self.with_redirect(k);
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
         let cache = match instance_cache.entry() {

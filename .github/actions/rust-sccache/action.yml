@@ -4,6 +4,9 @@ inputs:
   version:
     description: The version of sccache to use
     required: true
+  platform:
+    description: The platform of sccache to use
+    required: true
   key:
     description: An additional key for the cache
     required: false
@@ -17,9 +20,18 @@ runs:
       name: Checking Rust version
       run: |
         version="$(rustc -vV)"
-        echo "::set-output name=release::$(grep -oP 'release: \K.+' <<< "$version")"
-        echo "::set-output name=host::$(grep -oP 'host: \K.+' <<< "$version")"
-        echo "::set-output name=commit-hash::$(grep -oP 'commit-hash: \K.{0,12}' <<< "$version")"
+        echo "::set-output name=release::$(sed -En 's/^release: (.+)/\1/p' <<< "$version")"
+        echo "::set-output name=host::$(sed -En 's/^host: (.+)/\1/p' <<< "$version")"
+        echo "::set-output name=commit-hash::$(sed -En 's/^commit-hash: (.{0,12}).*/\1/p' <<< "$version")"
+      shell: bash
+    - id: platform
+      name: Defining Platform to download
+      run: |
+        platform='unknown-linux-musl'
+        if [[ ${{ inputs.platform }} == *"macos"* ]]; then
+          platform='apple-darwin'
+        fi
+        echo "::set-output name=platform::$platform"
       shell: bash
     - id: cache
       name: Computing cache key
@@ -40,7 +52,7 @@ runs:
       shell: bash
     - name: Installing sccache
       run: |
-        asset_name='sccache-${{ inputs.version }}-x86_64-unknown-linux-musl'
+        asset_name='sccache-${{ inputs.version }}-x86_64-${{ steps.platform.outputs.platform }}'
         gh release download --repo 'mozilla/sccache' --dir '.' --pattern "$asset_name.tar.gz" '${{ inputs.version }}'
         tar -zxf "$asset_name.tar.gz"
         cp "$asset_name/sccache" '/usr/local/bin/sccache'
@@ -58,7 +70,9 @@ runs:
         fi
       shell: bash
     - name: Deploying cache
-      uses: env0/cache@64daede5552c68991cba51f3bc0ac2bc26945a11 # https://github.com/actions/cache/pull/489
+      # https://github.com/actions/cache/pull/489
+      # https://github.com/env0/cache
+      uses: filecoin-project/cache-action@6974ff48851b8d0259af2b7a68fedd3be53ce754 
       with:
         path: |
           ${{ env.SCCACHE_DIR }}
