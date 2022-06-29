@@ -169,6 +169,7 @@ pub fn bind_syscalls(
 
     linker.bind("debug", "log", debug::log)?;
     linker.bind("debug", "enabled", debug::enabled)?;
+    linker.bind("debug", "store_artifact", debug::store_artifact)?;
 
     Ok(())
 }

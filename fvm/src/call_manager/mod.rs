@@ -83,6 +83,9 @@ pub trait CallManager: 'static {
     /// Gets and increment the call-stack actor creation index.
     fn next_actor_idx(&mut self) -> u64;
 
+    /// Gets the total invocations done on this call stack.
+    fn invocation_count(&self) -> u64;
+
     /// Returns the current price list.
     fn price_list(&self) -> &PriceList {
         self.machine().context().price_list

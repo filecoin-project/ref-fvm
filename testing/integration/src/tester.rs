@@ -178,6 +178,7 @@ where
 
         let mut nc = NetworkConfig::new(self.nv);
         nc.override_actors(self.builtin_actors);
+        nc.enable_actor_debugging();
 
         let mut mc = nc.for_epoch(0, state_root);
         mc.set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE));

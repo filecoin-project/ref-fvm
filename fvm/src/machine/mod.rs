@@ -83,6 +83,9 @@ pub trait Machine: 'static {
 
     /// Consumes the machine and returns the owned blockstore.
     fn into_store(self) -> Self::Blockstore;
+
+    /// Returns a generated ID of a machine
+    fn machine_id(&self) -> &str;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

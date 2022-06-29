@@ -11,7 +11,10 @@ impl Rand for DummyExterns {
         _round: fvm_shared::clock::ChainEpoch,
         _entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
-        todo!()
+        let msg = "mel was here".as_bytes();
+        let mut out = [0u8; 32];
+        out[..msg.len()].copy_from_slice(msg);
+        Ok(out)
     }
 
     fn get_beacon_randomness(

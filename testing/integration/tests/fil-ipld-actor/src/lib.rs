@@ -12,6 +12,9 @@ pub fn invoke(_: u32) -> u32 {
     }));
 
     test_read_block();
+
+    #[cfg(coverage)]
+    sdk::debug::store_artifact("ipld_actor.profraw", minicov::capture_coverage());
     0
 }
 
