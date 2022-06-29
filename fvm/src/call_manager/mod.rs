@@ -1,3 +1,4 @@
+use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -7,6 +8,7 @@ use crate::gas::{GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
+use crate::syscalls::error::Abort;
 use crate::Kernel;
 
 pub mod backtrace;
@@ -55,14 +57,22 @@ pub trait CallManager: 'static {
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
 
-    /// Upgrade an actor
-    fn upgrade<K: Kernel<CallManager = Self>>(
+    fn become_actor<K>(
         &mut self,
         who: ActorID,
-        cur_code_cid: &Cid,
-        cur_state_cid: &Cid,
         new_code_cid: &Cid,
-    ) -> Result<Cid>;
+    ) -> std::result::Result<(), Abort>
+    where
+        K: Kernel<CallManager = Self>;
+
+    /// Upgrade an actor
+    fn upgrade_actor<K>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: &Cid,
+    ) -> std::result::Result<Cid, Abort>
+    where  
+        K: Kernel<CallManager = Self>;
 
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(

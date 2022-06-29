@@ -95,4 +95,8 @@ super::fvm_syscalls! {
     /// **Privledged:** May only be called by the init actor.
     #[doc(hidden)]
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
+
+    /// TODO
+    #[doc(hidden)]
+    pub fn become_actor(cid_off: *const u8) -> !;
 }
