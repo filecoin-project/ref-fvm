@@ -52,13 +52,13 @@ pub fn recover_secp_public_key(
 ) -> Result<[u8; SECP_PUB_LEN]> {
     let hash_bytes = context
         .memory
-        .try_slice(hash_off, SECP_SIG_MESSAGE_HASH_SIZE)?
+        .try_slice(hash_off, SECP_SIG_MESSAGE_HASH_SIZE as u32)?
         .try_into()
         .or_illegal_argument()?;
 
     let sig_bytes = context
         .memory
-        .try_slice(sig_off, SECP_SIG_LEN)?
+        .try_slice(sig_off, SECP_SIG_LEN as u32)?
         .try_into()
         .or_illegal_argument()?;
 
