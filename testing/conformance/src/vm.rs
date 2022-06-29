@@ -17,7 +17,7 @@ use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE,
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -428,12 +428,12 @@ where
     }
 
     // forwarded
-    fn recover_public_key(
+    fn recover_secp_public_key(
         &mut self,
-        hash: &[u8; SIG_MESSAGE_HASH_SIZE],
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
-        self.0.recover_public_key(hash, signature)
+        self.0.recover_secp_public_key(hash, signature)
     }
 
     // NOT forwarded

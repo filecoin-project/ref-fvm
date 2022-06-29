@@ -43,19 +43,17 @@ super::fvm_syscalls! {
     ///
     /// # Arguments
     ///
-    /// - `hash_off` and `hash_len` specify location and length of the message hash.
-    /// - `sig_off` and `sig_len` specify location and length of signature.
+    /// - `hash_off` specify location of a 32-byte message hash.
+    /// - `sig_off` specify location of a 65-byte signature.
     ///
     /// # Errors
     ///
     /// | Error               | Reason                                               |
     /// |---------------------|------------------------------------------------------|
     /// | [`IllegalArgument`] | signature or hash buffers are invalid                |
-    pub fn recover_public_key(
+    pub fn recover_secp_public_key(
         hash_off: *const u8,
-        hash_len: u32,
         sig_off: *const u8,
-        sig_len: u32
     ) -> Result<[u8; SECP_PUB_LEN]>;
 
 

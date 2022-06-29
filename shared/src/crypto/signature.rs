@@ -22,7 +22,7 @@ pub const SECP_SIG_LEN: usize = 65;
 /// Secp256k1 Public key length in bytes.
 pub const SECP_PUB_LEN: usize = 65;
 /// Length of the signature input message hash in bytes (32).
-pub const SIG_MESSAGE_HASH_SIZE: usize = 32;
+pub const SECP_SIG_MESSAGE_HASH_SIZE: usize = 32;
 
 /// Signature variants for Filecoin signatures.
 #[derive(
@@ -136,7 +136,7 @@ pub mod ops {
         recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{Error, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE};
+    use super::{Error, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
     use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
 
@@ -240,8 +240,8 @@ pub mod ops {
     }
 
     /// Return the public key used for signing a message given it's signing bytes hash and signature.
-    pub fn recover_public_key(
-        hash: &[u8; SIG_MESSAGE_HASH_SIZE],
+    pub fn recover_secp_public_key(
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<PublicKey, Error> {
         // generate types to recover key from
@@ -260,7 +260,7 @@ pub mod ops {
     /// Return Address for a message given it's signing bytes hash and signature.
     pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
         // recover public key from a message hash and secp signature.
-        let key = recover_public_key(hash, signature)?;
+        let key = recover_secp_public_key(hash, signature)?;
         let ret = key.serialize();
         let addr = Address::new_secp256k1(&ret)?;
         Ok(addr)
@@ -283,7 +283,7 @@ mod tests {
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
 
-    use super::ops::recover_public_key;
+    use super::ops::recover_secp_public_key;
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
     use crate::Address;
@@ -343,7 +343,7 @@ mod tests {
         signature[..64].copy_from_slice(&sig.serialize());
         signature[64] = recovery_id.serialize();
 
-        assert_eq!(pubkey, recover_public_key(&hash, &signature).unwrap());
+        assert_eq!(pubkey, recover_secp_public_key(&hash, &signature).unwrap());
     }
 
     #[test]

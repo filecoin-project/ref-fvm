@@ -4,7 +4,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SIG_MESSAGE_HASH_SIZE,
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -243,9 +243,9 @@ pub trait CryptoOps {
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.
-    fn recover_public_key(
+    fn recover_secp_public_key(
         &mut self,
-        hash: &[u8; SIG_MESSAGE_HASH_SIZE],
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]>;
 
