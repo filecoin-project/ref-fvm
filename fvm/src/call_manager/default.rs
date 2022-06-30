@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
@@ -15,6 +16,7 @@ use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
+use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
@@ -151,10 +153,148 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+                Err(ExecutionError::Abort(Abort::Return)) => {
+                    ExecutionEvent::CallReturn(RawBytes::default())
+                }
+                Err(ExecutionError::Abort(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
+                }
             });
         }
 
-        result
+        match result {
+            Err(ExecutionError::Abort(Abort::Return)) => Ok(InvocationResult::Return(None)),
+            e => e,
+        }
+    }
+
+    fn become_actor<K: Kernel<CallManager = Self>>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: Cid,
+    ) -> Result<()> {
+        // TODO charge gas
+
+        // upgrade_actor
+        self.upgrade_actor::<K>(who, &new_code_cid)?;
+
+        // update state with new code cid and state
+        let origin = self.origin;
+        let state_tree = self.state_tree_mut();
+        let state = state_tree
+            .get_actor_id(who)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", who))?;
+
+        state_tree.set_actor(
+            &origin,
+            ActorState::new(new_code_cid, state.state, state.balance, state.sequence),
+        )?;
+
+        // abortive return
+        // at this point, we are inside an invoke panic handler, from the message where the
+        // syscall originated; so the panic will unwind and land in the send panic handler,
+        // which can cleanly abort.
+        Err(ExecutionError::from(Abort::Return))
+    }
+
+    fn upgrade_actor<K: Kernel<CallManager = Self>>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: &Cid,
+    ) -> Result<()> {
+        // TODO gas, call stack, tracing(?)
+
+        // Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(who)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", who))?;
+
+        // TODO charge gas
+        // self.charge_gas(self.price_list().WHAT)?;
+
+        // prepare params as a block; argument is the old code cid in a cbor tuple
+        let cur_code_cid = state.code;
+        let params = to_vec(&(new_code_cid.clone(),))
+            .map_err(|e| Abort::Fatal(anyhow!("failed to serialize upgrade params: {}", e)))?;
+        let params_blk = Block::new(DAG_CBOR, params);
+
+        // Store the parametrs, and initialize the block registry for the target actor.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = block_registry
+            .put(params_blk)
+            .map_err(|e| Abort::Fatal(anyhow!("failed to put upgrade params: {}", e)))?;
+
+        // This is a cheap operation as it doesn't actually clone the struct,
+        // it returns a referenced copy.
+        let engine = self.engine().clone();
+
+        log::trace!(
+            "upgrading {} from {} to {}",
+            who,
+            cur_code_cid,
+            new_code_cid
+        );
+        self.map_mut(|cm| {
+            // Make a new kernel; we have to because this is a new execution context and
+            // it needs to have clean separation from the current state.
+            let kernel = K::new(cm, block_registry, who, who, 0, TokenAmount::from(0));
+
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            let result: std::result::Result<(), Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, new_code_cid)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
+                // Lookup the upgrade method.
+                // All actors that support upgrade will have an upgrade method
+                let upgrade: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, "upgrade")
+                    .map_err(|e| Abort::Fatal(anyhow!("actor does not support upgrade: {}", e)))?;
+
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
+                // Invoke it.
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    upgrade.call(&mut store, (params_id,))
+                }))
+                .map(|_| {})
+                .map_err(|panic| {
+                    Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
+                })?;
+
+                // TODO charge gas
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                // charge_for_exec(&mut store)?;
+
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(())
+            })();
+
+            let invocation_data = store.into_data();
+            let _last_error = invocation_data.last_error;
+            let (cm, _block_registry) = invocation_data.kernel.into_inner();
+
+            // TODO logging
+
+            (result, cm)
+        })
+        .map_err(ExecutionError::from)
     }
 
     fn with_transaction(
@@ -439,6 +579,13 @@ where
                             ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
+                        ),
+                        // XXX this really is not possible dear compiler, Abort::Return
+                        // is covered above
+                        Abort::Return => (
+                            ExitCode::OK,
+                            String::from("aborted"),
+                            Ok(InvocationResult::Return(None)),
                         ),
                     };
 

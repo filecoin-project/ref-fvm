@@ -1,9 +1,11 @@
 use anyhow::anyhow;
 use fvm_shared::actor::builtin::Type;
+use fvm_shared::error::ExitCode;
 use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
+use crate::syscalls::Abort;
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
@@ -108,4 +110,16 @@ pub fn get_code_cid_for_type(
 
     let k = context.kernel.get_code_cid_for_type(typ)?;
     context.memory.write_cid(&k, obuf_off, obuf_len)
+}
+
+#[allow(dead_code)]
+pub fn become_actor(
+    context: Context<'_, impl Kernel>,
+    code_cid_off: u32, // Cid
+) -> Result<()> {
+    let cid = context
+        .memory
+        .read_cid(code_cid_off)
+        .map_err(|e| Abort::from_error(ExitCode::USR_ILLEGAL_ARGUMENT, e))?;
+    context.kernel.become_actor(cid)
 }

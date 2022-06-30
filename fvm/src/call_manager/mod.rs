@@ -1,3 +1,4 @@
+use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -54,6 +55,15 @@ pub trait CallManager: 'static {
         params: Option<kernel::Block>,
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
+
+    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self>;
+
+    /// Upgrade an actor
+    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self>;
 
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
