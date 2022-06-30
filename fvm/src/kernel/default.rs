@@ -794,8 +794,8 @@ where
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
     }
 
-    fn become_actor(&self, new_code_cid: Cid) -> Result<!> {
-        self.call_manager.become_actor(self.caller, new_code_cid)
+    fn become_actor(&mut self, new_code_cid: Cid) -> Result<()> {
+        self.call_manager.become_actor::<Self>(self.caller, new_code_cid)
     }
 }
 

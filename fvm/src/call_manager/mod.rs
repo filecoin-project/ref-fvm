@@ -8,7 +8,6 @@ use crate::gas::{GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
-use crate::syscalls::error::Abort;
 use crate::Kernel;
 
 pub mod backtrace;
@@ -60,8 +59,8 @@ pub trait CallManager: 'static {
     fn become_actor<K>(
         &mut self,
         who: ActorID,
-        new_code_cid: &Cid,
-    ) -> std::result::Result<(), Abort>
+        new_code_cid: Cid,
+    ) -> Result<()>
     where
         K: Kernel<CallManager = Self>;
 
@@ -70,8 +69,8 @@ pub trait CallManager: 'static {
         &mut self,
         who: ActorID,
         new_code_cid: &Cid,
-    ) -> std::result::Result<Cid, Abort>
-    where  
+    ) -> Result<()>
+    where
         K: Kernel<CallManager = Self>;
 
     /// Execute some operation (usually a send) within a transaction.

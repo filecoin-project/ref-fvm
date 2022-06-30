@@ -17,6 +17,8 @@ pub enum Abort {
     OutOfGas,
     /// The system failed with a fatal error.
     Fatal(anyhow::Error),
+    /// An abortive non-local return
+    Return
 }
 
 impl Abort {
@@ -33,6 +35,7 @@ impl Abort {
             ),
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(err) => Abort::Fatal(err),
+            ExecutionError::Abort(e) => e,
         }
     }
 
@@ -42,6 +45,7 @@ impl Abort {
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(e) => Abort::Fatal(e),
             ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
+            ExecutionError::Abort(e) => e,
         }
     }
 }
@@ -69,6 +73,25 @@ impl From<Trap> for Abort {
             .and_then(|e| e.take())
             // Otherwise, treat this as a fatal error.
             .unwrap_or_else(|| Abort::Fatal(t.into()))
+    }
+}
+
+impl std::fmt::Display for Abort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Abort::Exit(code, what) => {
+                write!(f, "{} ({})", what, code)
+            }
+            Abort::OutOfGas => {
+                write!(f, "out of gas")
+            }
+            Abort::Fatal(e) => {
+                write!(f, "fatal: {}", e)
+            }
+            Abort::Return => {
+                write!(f, "return")
+            }
+        }
     }
 }
 

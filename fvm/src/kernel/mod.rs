@@ -25,7 +25,6 @@ pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
 use crate::machine::Machine;
-use crate::syscalls::error::Abort;
 
 pub enum SendResult {
     Return(BlockId, BlockStat),
@@ -192,7 +191,7 @@ pub trait ActorOps {
 
     /// Become changes the code of the running actor using the specified code cid;
     /// it does not return unless there is an error
-    fn become_actor(&self, code_cid: &Cid) -> std::result::Result<(), Abort>;
+    fn become_actor(&mut self, code_cid: Cid) -> Result<()>;
 }
 
 /// Operations to send messages to other actors.
