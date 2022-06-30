@@ -56,20 +56,12 @@ pub trait CallManager: 'static {
         value: &TokenAmount,
     ) -> Result<InvocationResult>;
 
-    fn become_actor<K>(
-        &mut self,
-        who: ActorID,
-        new_code_cid: Cid,
-    ) -> Result<()>
+    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
     where
         K: Kernel<CallManager = Self>;
 
     /// Upgrade an actor
-    fn upgrade_actor<K>(
-        &mut self,
-        who: ActorID,
-        new_code_cid: &Cid,
-    ) -> Result<()>
+    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
     where
         K: Kernel<CallManager = Self>;
 

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use derive_more::Display;
 use fvm_shared::error::ErrorNumber;
+
 use crate::syscalls::error::Abort;
 
 /// Execution result.
@@ -51,7 +52,7 @@ impl ExecutionError {
         use ExecutionError::*;
         match self {
             Fatal(_) => true,
-            OutOfGas | Syscall(_)  => false,
+            OutOfGas | Syscall(_) => false,
             Abort(crate::syscalls::error::Abort::Return) => false,
             Abort(_) => true,
         }

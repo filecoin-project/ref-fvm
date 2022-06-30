@@ -128,17 +128,13 @@ where
                 }
             }
 
-            Err(ExecutionError::Abort(Abort::Return)) => {
-                Receipt {
-                    exit_code: ExitCode::OK,
-                    return_data: RawBytes::default(),
-                    gas_used,
-                }
+            Err(ExecutionError::Abort(Abort::Return)) => Receipt {
+                exit_code: ExitCode::OK,
+                return_data: RawBytes::default(),
+                gas_used,
             },
 
-            Err(ExecutionError::Abort(e)) => {
-                return Err(anyhow!("actor aborted: {}", e))
-            }
+            Err(ExecutionError::Abort(e)) => return Err(anyhow!("actor aborted: {}", e)),
 
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,

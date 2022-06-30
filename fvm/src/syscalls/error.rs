@@ -18,7 +18,7 @@ pub enum Abort {
     /// The system failed with a fatal error.
     Fatal(anyhow::Error),
     /// An abortive non-local return
-    Return
+    Return,
 }
 
 impl Abort {

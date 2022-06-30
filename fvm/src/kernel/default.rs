@@ -795,7 +795,8 @@ where
     }
 
     fn become_actor(&mut self, new_code_cid: Cid) -> Result<()> {
-        self.call_manager.become_actor::<Self>(self.caller, new_code_cid)
+        self.call_manager
+            .become_actor::<Self>(self.caller, new_code_cid)
     }
 }
 

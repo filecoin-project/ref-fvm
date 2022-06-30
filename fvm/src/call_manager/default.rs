@@ -153,20 +153,18 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
-                Err(ExecutionError::Abort(Abort::Return)) =>
-                    ExecutionEvent::CallReturn(RawBytes::default()),
-                Err(ExecutionError::Abort(_)) => ExecutionEvent::CallError(SyscallError::new(
-                    ErrorNumber::Forbidden,
-                    "aborted",
-                )),
+                Err(ExecutionError::Abort(Abort::Return)) => {
+                    ExecutionEvent::CallReturn(RawBytes::default())
+                }
+                Err(ExecutionError::Abort(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
+                }
             });
         }
 
         match result {
-            Err(ExecutionError::Abort(Abort::Return)) => {
-                Ok(InvocationResult::Return(None))
-            }
-            e => e
+            Err(ExecutionError::Abort(Abort::Return)) => Ok(InvocationResult::Return(None)),
+            e => e,
         }
     }
 
@@ -187,12 +185,10 @@ where
             .get_actor_id(who)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", who))?;
 
-
-        state_tree
-            .set_actor(
-                &origin,
-                ActorState::new(new_code_cid, state.state, state.balance, state.sequence),
-            )?;
+        state_tree.set_actor(
+            &origin,
+            ActorState::new(new_code_cid, state.state, state.balance, state.sequence),
+        )?;
 
         // abortive return
         // at this point, we are inside an invoke panic handler, from the message where the
@@ -219,9 +215,8 @@ where
 
         // prepare params as a block; argument is the old code cid in a cbor tuple
         let cur_code_cid = state.code;
-        let params = to_vec(&(new_code_cid.clone(),)).map_err(|e| {
-            Abort::Fatal(anyhow!("failed to serialize upgrade params: {}", e))
-        })?;
+        let params = to_vec(&(new_code_cid.clone(),))
+            .map_err(|e| Abort::Fatal(anyhow!("failed to serialize upgrade params: {}", e)))?;
         let params_blk = Block::new(DAG_CBOR, params);
 
         // Store the parametrs, and initialize the block registry for the target actor.
@@ -275,10 +270,10 @@ where
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     upgrade.call(&mut store, (params_id,))
                 }))
-                    .map(|_| {})
-                    .map_err(|panic| {
-                        Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
-                    })?;
+                .map(|_| {})
+                .map_err(|panic| {
+                    Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
+                })?;
 
                 // TODO charge gas
                 // Charge for any remaining uncharged execution gas, returning an error if we run
@@ -298,7 +293,8 @@ where
             // TODO logging
 
             (result, cm)
-        }).map_err(ExecutionError::from)
+        })
+        .map_err(ExecutionError::from)
     }
 
     fn with_transaction(
@@ -587,7 +583,9 @@ where
                         // XXX this really is not possible dear compiler, Abort::Return
                         // is covered above
                         Abort::Return => (
-                            ExitCode::OK, String::from("aborted"), Ok(InvocationResult::Return(None))
+                            ExitCode::OK,
+                            String::from("aborted"),
+                            Ok(InvocationResult::Return(None)),
                         ),
                     };
 
