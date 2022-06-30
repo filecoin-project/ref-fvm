@@ -19,6 +19,7 @@ use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
+use crate::syscalls::error::Abort;
 
 /// The default [`Executor`].
 ///
@@ -126,6 +127,19 @@ where
                     gas_used,
                 }
             }
+
+            Err(ExecutionError::Abort(Abort::Return)) => {
+                Receipt {
+                    exit_code: ExitCode::OK,
+                    return_data: RawBytes::default(),
+                    gas_used,
+                }
+            },
+
+            Err(ExecutionError::Abort(e)) => {
+                return Err(anyhow!("actor aborted: {}", e))
+            }
+
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),

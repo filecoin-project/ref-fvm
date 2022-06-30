@@ -778,7 +778,7 @@ where
             .or_illegal_argument()
     }
 
-    fn become_actor(&self, new_code_cid: &Cid) -> std::result::Result<(), Abort> {
+    fn become_actor(&mut self, new_code_cid: Cid) -> Result<()> {
         self.call_manager.become_actor::<Self>(self.caller, new_code_cid)
     }
 }

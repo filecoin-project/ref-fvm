@@ -79,6 +79,7 @@ where
                 ExecutionError::Syscall(err) => Ok(Err(err)),
                 ExecutionError::OutOfGas => Err(Abort::OutOfGas),
                 ExecutionError::Fatal(err) => Err(Abort::Fatal(err)),
+                ExecutionError::Abort(e) => Err(e),
             },
         }
     }
