@@ -1,5 +1,7 @@
 //! Syscalls for creating and resolving actors.
 
+use std::convert::Infallible;
+
 // for documentation links
 #[cfg(doc)]
 use crate::sys::ErrorNumber::*;
@@ -98,5 +100,5 @@ super::fvm_syscalls! {
 
     /// TODO
     #[doc(hidden)]
-    pub fn become_actor(cid_off: *const u8) -> !;
+    pub fn become_actor(cid_off: *const u8) -> Result<Infallible>;
 }

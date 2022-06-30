@@ -1,4 +1,5 @@
-use core::option::Option; // no_std
+use core::option::Option;
+use std::convert::Infallible; // no_std
 
 use cid::Cid;
 use fvm_shared::actor::builtin::Type;
@@ -63,7 +64,7 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
 }
 
 /// Become a different actor
-pub fn become_actor(code_cid: &Cid) -> ! {
+pub fn become_actor(code_cid: &Cid) -> SyscallResult<Infallible> {
     let cid = code_cid.to_bytes();
     unsafe {
         // TODO validate if CID is code
