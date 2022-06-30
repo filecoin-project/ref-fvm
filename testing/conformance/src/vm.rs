@@ -270,6 +270,18 @@ where
     fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
     }
+
+    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self> {
+        self.0.become_actor::<TestKernel<K>>(who, new_code_cid)
+    }
+
+    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self> {
+        self.0.upgrade_actor::<TestKernel<K>>(who, new_code_cid)
+    }
 }
 
 /// A kernel for intercepting syscalls.
@@ -347,6 +359,10 @@ where
 
     fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
         self.0.get_code_cid_for_type(typ)
+    }
+
+    fn become_actor(&mut self, code_cid: Cid) -> Result<()> {
+        self.0.become_actor(code_cid)
     }
 }
 
