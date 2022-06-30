@@ -291,15 +291,25 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn become_actor<K>(&mut self, who: fvm_shared::ActorID, new_code_cid: cid::Cid) -> kernel::Result<()>
+    fn become_actor<K>(
+        &mut self,
+        who: fvm_shared::ActorID,
+        new_code_cid: cid::Cid,
+    ) -> kernel::Result<()>
     where
-        K: Kernel<CallManager = Self> {
+        K: Kernel<CallManager = Self>,
+    {
         todo!()
     }
 
-    fn upgrade_actor<K>(&mut self, who: fvm_shared::ActorID, new_code_cid: &cid::Cid) -> kernel::Result<()>
+    fn upgrade_actor<K>(
+        &mut self,
+        who: fvm_shared::ActorID,
+        new_code_cid: &cid::Cid,
+    ) -> kernel::Result<()>
     where
-        K: Kernel<CallManager = Self> {
+        K: Kernel<CallManager = Self>,
+    {
         todo!()
     }
 }

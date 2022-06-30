@@ -273,13 +273,15 @@ where
 
     fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
     where
-        K: Kernel<CallManager = Self> {
+        K: Kernel<CallManager = Self>,
+    {
         self.0.become_actor::<TestKernel<K>>(who, new_code_cid)
     }
 
     fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
     where
-        K: Kernel<CallManager = Self> {
+        K: Kernel<CallManager = Self>,
+    {
         self.0.upgrade_actor::<TestKernel<K>>(who, new_code_cid)
     }
 }
