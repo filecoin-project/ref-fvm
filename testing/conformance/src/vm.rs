@@ -278,6 +278,18 @@ where
     fn invocation_count(&self) -> u64 {
         self.0.invocation_count()
     }
+
+    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self> {
+        self.0.become_actor::<TestKernel<K>>(who, new_code_cid)
+    }
+
+    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
+    where
+        K: Kernel<CallManager = Self> {
+        self.0.upgrade_actor::<TestKernel<K>>(who, new_code_cid)
+    }
 }
 
 /// A kernel for intercepting syscalls.
@@ -360,6 +372,10 @@ where
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
         Ok(())
+    }
+
+    fn become_actor(&mut self, code_cid: Cid) -> Result<()> {
+        self.0.become_actor(code_cid)
     }
 }
 
