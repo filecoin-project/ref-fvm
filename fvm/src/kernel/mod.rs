@@ -180,6 +180,7 @@ pub trait ActorOps {
     fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
 
     /// Installs actor code pointed by cid
+    #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.

@@ -33,6 +33,7 @@ pub struct State {
     pub address_map: Cid,
     pub next_id: ActorID,
     pub network_name: String,
+    #[cfg(feature = "m2-native")]
     pub installed_actors: Cid,
 }
 

@@ -782,6 +782,7 @@ where
             .or_illegal_argument()
     }
 
+    #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
         // TODO figure out gas
         self.call_manager

@@ -357,6 +357,7 @@ where
         self.0.get_code_cid_for_type(typ)
     }
 
+    #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
         Ok(())
     }

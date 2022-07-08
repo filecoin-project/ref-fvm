@@ -97,5 +97,7 @@ super::fvm_syscalls! {
     pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
 
     /// Installs and ensures actor code is valid and loaded.
+    /// **Privileged:** May only be called by the init actor.
+    #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 }

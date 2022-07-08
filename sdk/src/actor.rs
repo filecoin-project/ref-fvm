@@ -63,6 +63,7 @@ pub fn create_actor(actor_id: ActorID, code_cid: &Cid) -> SyscallResult<()> {
 }
 
 /// Installs or ensures an actor code CID is valid and loaded.
+#[cfg(feature = "m2-native")]
 pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::install_actor(cid.as_ptr()) }

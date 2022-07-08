@@ -709,12 +709,14 @@ mod tests {
             .unwrap();
 
         // Empty list Cid used for testing
+        #[cfg(feature = "m2-native")]
         let el_cid = store.put_cbor(&Vec::<Cid>::new(), Blake2b256).unwrap();
 
         let init_state = init_actor::State {
             address_map: e_cid,
             next_id: 100,
             network_name: "test".to_owned(),
+            #[cfg(feature = "m2-native")]
             installed_actors: el_cid,
         };
 

@@ -77,6 +77,7 @@ where
             .unwrap();
 
         // insert an empty vector
+        #[cfg(feature = "m2-native")]
         let empty_list_cid = state_tree
             .store()
             .put_cbor(&Vec::<Cid>::new(), Code::Blake2b256)?;
@@ -89,6 +90,7 @@ where
             address_map: empty_cid,
             next_id: 100,
             network_name: "test".to_owned(),
+            #[cfg(feature = "m2-native")]
             installed_actors: empty_list_cid,
         };
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
