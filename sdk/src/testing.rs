@@ -1,5 +1,5 @@
 // Utility function to handle call error message formatting and call to abort syscall
-fn handle_assert_err(catch_unwind_res: std::thread::Result<()>) {
+pub fn handle_assert_err(catch_unwind_res: std::thread::Result<()>) -> ! {
     if catch_unwind_res.is_err() {
         match catch_unwind_res.err() {
             Some(err) => match err.downcast::<String>() {
@@ -7,7 +7,7 @@ fn handle_assert_err(catch_unwind_res: std::thread::Result<()>) {
                     fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(),
                     Some(panic_msg_box.as_str()),
                 ),
-                Err(err) => crate::vm::abort(
+                Err(_) => crate::vm::abort(
                     fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(),
                     None,
                 ),
@@ -25,13 +25,13 @@ macro_rules! assert {
         let res = std::panic::catch_unwind(|| {
             core::assert!($cond);
         });
-        handle_assert_err(res);
+        $crate::testing::handle_assert_err(res);
     });
     ($cond:expr, $($arg:tt)+) => {{
         let res = std::panic::catch_unwind(|| {
             core::assert!($cond, "{}", format_args!($($arg)+));
         });
-        handle_assert_err(res);
+        $crate::testing::handle_assert_err(res);
     }};
 }
 
@@ -46,13 +46,13 @@ macro_rules! assert_gen {
                         let res = std::panic::catch_unwind(|| {
                             core::$assert_macro!($d left, $d right);
                         });
-                        handle_assert_err(res);
+                        $d crate::testing::handle_assert_err(res);
                     };
                     ($d left:expr, $d right:expr, $d($d arg:tt)+) => {
                         let res = std::panic::catch_unwind(|| {
                             core::$assert_macro!($d left, $d right, "{}", format_args!($d($d arg)+));
                         });
-                        handle_assert_err(res);
+                        $d crate::testing::handle_assert_err(res);
                     };
                 }
             }
