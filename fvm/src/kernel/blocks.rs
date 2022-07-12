@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use fvm_ipld_encoding::DAG_CBOR;
+use fvm_shared::IPLD_RAW;
 use thiserror::Error;
 
 use super::{ExecutionError, SyscallError};
@@ -19,6 +20,9 @@ pub type BlockId = u32;
 
 const FIRST_ID: BlockId = 1;
 const MAX_BLOCKS: u32 = i32::MAX as u32; // TODO(M2): Limit
+
+/// Codecs allowed by the IPLD subsytem.
+const ALLOWED_CODECS: &[u64; 2] = &[DAG_CBOR, IPLD_RAW];
 
 #[derive(Debug, Copy, Clone)]
 pub struct BlockStat {
@@ -120,7 +124,8 @@ impl BlockRegistry {
         if self.is_full() {
             return Err(BlockPutError::TooManyBlocks);
         }
-        if block.codec != DAG_CBOR {
+
+        if !ALLOWED_CODECS.contains(&block.codec) {
             return Err(BlockPutError::InvalidCodec(block.codec));
         }
 

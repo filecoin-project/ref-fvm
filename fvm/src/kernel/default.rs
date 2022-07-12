@@ -738,15 +738,17 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
-        let typ = self
+        // TODO https://github.com/filecoin-project/builtin-actors/issues/492
+        let singleton = self
             .get_builtin_actor_type(&code_id)
-            .ok_or_else(|| syscall_error!(Forbidden; "can only create built-in actors"))?;
-
-        if typ.is_singleton_actor() {
+            .as_ref()
+            .map(Type::is_singleton_actor)
+            .unwrap_or(false);
+        if singleton {
             return Err(
                 syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
             );
-        };
+        }
 
         let state_tree = self.call_manager.state_tree();
         if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
@@ -779,6 +781,16 @@ where
             .cloned()
             .context("tried to resolve CID of unrecognized actor type")
             .or_illegal_argument()
+    }
+
+    #[cfg(feature = "m2-native")]
+    fn install_actor(&mut self, code_id: Cid) -> Result<()> {
+        // TODO figure out gas
+        self.call_manager
+            .machine()
+            .engine()
+            .preload(self.call_manager.blockstore(), &[code_id])
+            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
     }
 }
 

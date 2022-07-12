@@ -46,3 +46,4 @@ fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor", versio
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
 wasm-coverage = ["fil_ipld_actor/coverage"]
+m2-native = []

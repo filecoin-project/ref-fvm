@@ -639,7 +639,6 @@ mod tests {
     use cid::Cid;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
-    use fvm_ipld_hamt::Hamt;
     use fvm_shared::address::{Address, SECP_PUB_LEN};
     use fvm_shared::bigint::BigInt;
     use fvm_shared::state::StateTreeVersion;
@@ -702,17 +701,7 @@ mod tests {
     fn get_set_non_id() {
         let store = MemoryBlockstore::default();
         let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
-
-        // Empty hamt Cid used for testing
-        let e_cid = Hamt::<_, String>::new_with_bit_width(&store, 5)
-            .flush()
-            .unwrap();
-
-        let init_state = init_actor::State {
-            address_map: e_cid,
-            next_id: 100,
-            network_name: "test".to_owned(),
-        };
+        let init_state = init_actor::State::new_test(&store);
 
         let state_cid = tree
             .store()

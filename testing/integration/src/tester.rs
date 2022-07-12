@@ -7,7 +7,6 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
-use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
@@ -69,22 +68,12 @@ where
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
+        let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
-
-        // Insert an empty HAMT.
-        let empty_cid = Hamt::<_, String>::new_with_bit_width(state_tree.store(), 5)
-            .flush()
-            .unwrap();
 
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
-
-        let init_state = init_actor::State {
-            address_map: empty_cid,
-            next_id: 100,
-            network_name: "test".to_owned(),
-        };
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
         Ok(Tester {
