@@ -68,13 +68,12 @@ where
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
+        let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
-
-        let init_state = init_actor::State::new_test(&blockstore);
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
         Ok(Tester {
