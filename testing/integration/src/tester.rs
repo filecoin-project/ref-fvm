@@ -7,7 +7,6 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
-use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
@@ -75,7 +74,7 @@ where
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
 
-        let init_state = init_actor::State::new_Test(&blockstore);
+        let init_state = init_actor::State::new_test(&blockstore);
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
         Ok(Tester {
