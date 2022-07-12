@@ -71,28 +71,11 @@ where
         // Initialize state tree
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
-        // Insert an empty HAMT.
-        let empty_cid = Hamt::<_, String>::new_with_bit_width(state_tree.store(), 5)
-            .flush()
-            .unwrap();
-
-        // insert an empty vector
-        #[cfg(feature = "m2-native")]
-        let empty_list_cid = state_tree
-            .store()
-            .put_cbor(&Vec::<Cid>::new(), Code::Blake2b256)?;
-
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
 
-        let init_state = init_actor::State {
-            address_map: empty_cid,
-            next_id: 100,
-            network_name: "test".to_owned(),
-            #[cfg(feature = "m2-native")]
-            installed_actors: empty_list_cid,
-        };
+        let init_state = init_actor::State::new_Test(&blockstore);
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
         Ok(Tester {
