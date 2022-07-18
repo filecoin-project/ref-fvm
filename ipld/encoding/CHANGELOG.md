@@ -4,6 +4,8 @@ Changes to the FVM's shared encoding utilities.
 
 ## [Unreleased]
 
+Publicly use `serde` to expose it when developing actors.
+
 ## 0.2.2 [2022-06-13]
 
 Change the hash length assert into an actual check, just in case.
