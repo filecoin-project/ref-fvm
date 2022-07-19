@@ -1,4 +1,5 @@
 use fvm::executor::{ApplyKind, Executor};
+use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -20,7 +21,7 @@ pub struct State {
 }
 
 // Utility function to instantiation integration tester
-fn instantiate_tester() -> (Account, Tester<MemoryBlockstore>, Address) {
+fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
     let mut tester = Tester::new(
         NetworkVersion::V15,
@@ -60,7 +61,7 @@ fn integer_overflow() {
     let (sender, mut tester, actor_address) = instantiate_tester();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Params setup
     let x: i64 = 10000000000;

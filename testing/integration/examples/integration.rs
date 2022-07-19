@@ -1,4 +1,5 @@
 use fvm::executor::{ApplyKind, Executor};
+use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -50,7 +51,7 @@ pub fn main() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Send message
     let message = Message {

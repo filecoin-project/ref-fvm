@@ -9,6 +9,7 @@ use std::rc::Rc;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
+use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
@@ -68,7 +69,7 @@ fn hello_world() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Send message
     let message = Message {
@@ -120,7 +121,7 @@ fn ipld() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Send message
     let message = Message {
@@ -178,25 +179,27 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
-    let exec_test = |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore>>, method| {
-        // Send message
-        let message = Message {
-            from: sender[0].1,
-            to: actor_address,
-            gas_limit: 10_000_000_000,
-            method_num: method,
-            sequence: method - 1,
-            ..Message::default()
+    let exec_test =
+        |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
+         method| {
+            // Send message
+            let message = Message {
+                from: sender[0].1,
+                to: actor_address,
+                gas_limit: 10_000_000_000,
+                method_num: method,
+                sequence: method - 1,
+                ..Message::default()
+            };
+
+            let res = exec
+                .execute_message(message, ApplyKind::Explicit, 100)
+                .unwrap();
+
+            res.msg_receipt.exit_code.value()
         };
-
-        let res = exec
-            .execute_message(message, ApplyKind::Explicit, 100)
-            .unwrap();
-
-        res.msg_receipt.exit_code.value()
-    };
 
     let mut executor = ThreadedExecutor(tester.executor.unwrap());
 
@@ -242,7 +245,7 @@ fn test_exitcode(wat: &str, code: ExitCode) {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Send message
     let message = Message {
@@ -396,7 +399,7 @@ fn backtraces() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     let executor = tester.executor.as_mut().unwrap();
 
