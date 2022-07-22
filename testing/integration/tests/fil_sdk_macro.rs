@@ -1,6 +1,7 @@
 use std::env;
 
 use fvm::executor::{ApplyFailure, ApplyKind, Executor};
+use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -52,7 +53,7 @@ fn sdk_macro() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine().unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     // Send message
     let message = Message {
