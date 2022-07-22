@@ -1,5 +1,6 @@
 use fvm::externs::{Consensus, Externs, Rand};
-
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 pub struct DummyExterns;
 
 impl Externs for DummyExterns {}
@@ -11,10 +12,13 @@ impl Rand for DummyExterns {
         _round: fvm_shared::clock::ChainEpoch,
         _entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
-        let msg = "mel was here".as_bytes();
-        let mut out = [0u8; 32];
-        out[..msg.len()].copy_from_slice(msg);
-        Ok(out)
+        let rng: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
+
+        Ok(<[u8; 32]>::try_from(rng.into_bytes()).unwrap())
     }
 
     fn get_beacon_randomness(
@@ -23,7 +27,13 @@ impl Rand for DummyExterns {
         _round: fvm_shared::clock::ChainEpoch,
         _entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
-        todo!()
+        let rng: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
+
+        Ok(<[u8; 32]>::try_from(rng.into_bytes()).unwrap())
     }
 }
 
@@ -34,6 +44,6 @@ impl Consensus for DummyExterns {
         _h2: &[u8],
         _extra: &[u8],
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
-        todo!()
+        Ok((None, 0))
     }
 }

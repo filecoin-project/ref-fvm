@@ -133,6 +133,10 @@ pub fn bind_syscalls(
         actor::get_code_cid_for_type,
     )?;
 
+    // Only wire this syscall when M2 native is enabled.
+    #[cfg(feature = "m2-native")]
+    linker.bind("actor", "install_actor", actor::install_actor)?;
+
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind("crypto", "hash", crypto::hash)?;
     linker.bind("crypto", "verify_seal", crypto::verify_seal)?;

@@ -109,3 +109,12 @@ pub fn get_code_cid_for_type(
     let k = context.kernel.get_code_cid_for_type(typ)?;
     context.memory.write_cid(&k, obuf_off, obuf_len)
 }
+
+#[cfg(feature = "m2-native")]
+pub fn install_actor(
+    context: Context<'_, impl Kernel>,
+    typ_off: u32, // Cid
+) -> Result<()> {
+    let typ = context.memory.read_cid(typ_off)?;
+    context.kernel.install_actor(typ)
+}

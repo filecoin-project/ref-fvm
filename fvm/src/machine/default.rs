@@ -16,6 +16,8 @@ use num_traits::Signed;
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
+#[cfg(feature = "m2-native")]
+use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
@@ -119,6 +121,21 @@ where
         // bytecode to machine code compilation, and leads to faster tests.
         #[cfg(not(any(test, feature = "testing")))]
         engine.preload(state_tree.store(), builtin_actors.left_values())?;
+
+        #[cfg(feature = "m2-native")]
+        {
+            // preload user actors that have been installed
+            // TODO This must be revisited when implementing the actively managed cache.
+            // Doesn't need the m2-native feature guard because there's no possiblity
+            // for user code to install new actors if that feature is disabled anyway
+            // (so this would be a no-op). We could add the guard as an optimization, though.
+            let (init_state, _) = InitActorState::load(&state_tree)?;
+            let installed_actors: Vec<Cid> = state_tree
+                .store()
+                .get_cbor(&init_state.installed_actors)?
+                .context("failed to load installed actor list")?;
+            engine.preload(state_tree.store(), &installed_actors)?;
+        }
 
         let randomness = externs.get_chain_randomness(
             0,

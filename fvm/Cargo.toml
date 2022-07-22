@@ -56,4 +56,5 @@ opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 testing = []
 arb = ["arbitrary"]
+m2-native = []
 

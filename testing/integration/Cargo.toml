@@ -47,3 +47,4 @@ fil_sdk_macro_actor = { path = "tests/fil-sdk-macro-actor", version="0.1" }
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
 wasm-coverage = ["fil_ipld_actor/coverage"]
+m2-native = []

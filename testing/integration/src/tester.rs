@@ -2,12 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
+use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
-use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
@@ -19,20 +19,18 @@ use multihash::Code;
 use crate::builtin::{
     fetch_builtin_code_cid, import_builtin_actors, set_init_actor, set_sys_actor,
 };
-use crate::dummy;
-use crate::dummy::DummyExterns;
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation, NoRootCid};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
 pub trait Store: Blockstore + Sized + 'static {}
 
-pub type IntegrationExecutor<B> =
-    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, DummyExterns>>>>;
+pub type IntegrationExecutor<B, E> =
+    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
 
 pub type Account = (ActorID, Address);
 
-pub struct Tester<B: Blockstore + 'static> {
+pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     // Network version used in the test
     nv: NetworkVersion,
     // Builtin actors root Cid used in the Machine
@@ -42,14 +40,15 @@ pub struct Tester<B: Blockstore + 'static> {
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
-    pub executor: Option<IntegrationExecutor<B>>,
+    pub executor: Option<IntegrationExecutor<B, E>>,
     // State tree constructed before instantiating the Machine
     pub state_tree: Option<StateTree<B>>,
 }
 
-impl<B> Tester<B>
+impl<B, E> Tester<B, E>
 where
     B: Blockstore,
+    E: Externs,
 {
     pub fn new(nv: NetworkVersion, stv: StateTreeVersion, blockstore: B) -> Result<Self> {
         // Load the builtin actors bundles into the blockstore.
@@ -69,22 +68,12 @@ where
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
+        let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
-
-        // Insert an empty HAMT.
-        let empty_cid = Hamt::<_, String>::new_with_bit_width(state_tree.store(), 5)
-            .flush()
-            .unwrap();
 
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
-
-        let init_state = init_actor::State {
-            address_map: empty_cid,
-            next_id: 100,
-            network_name: "test".to_owned(),
-        };
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
         Ok(Tester {
@@ -163,7 +152,7 @@ where
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
-    pub fn instantiate_machine(&mut self) -> Result<()> {
+    pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
         // Take the state tree and leave None behind.
         let mut state_tree = self.state_tree.take().unwrap();
 
@@ -187,10 +176,13 @@ where
             &Engine::new_default((&mc.network.clone()).into())?,
             &mc,
             blockstore,
-            dummy::DummyExterns,
+            externs,
         )?;
 
-        let executor = DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(machine);
+        let executor =
+            DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>::new(
+                machine,
+            );
         executor
             .engine()
             .preload(executor.blockstore(), &self.code_cids)?;
