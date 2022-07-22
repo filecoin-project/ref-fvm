@@ -10,9 +10,21 @@ pub fn invoke(_: u32) -> u32 {
         // Set initial value
         1 => {
             // Should have no consequence on the test
-            fvm_sdk::assert_test!(true);
+            fvm_sdk::assert!(true);
             // Should exit with an Exit Code 24 and the custom message
-            fvm_sdk::assert_test!(false);
+            fvm_sdk::assert!(false, "hello world");
+        }
+        2 => {
+            // Should have no consequence on the test
+            fvm_sdk::assert_eq!(1, 1);
+            // Should exit with an Exit Code 24 and the custom message
+            fvm_sdk::assert_eq!(0, 1, "throw non equal");
+        }
+        3 => {
+            // Should have no consequence on the test
+            fvm_sdk::assert_ne!(0, 1);
+            // Should exit with an Exit Code 24 and the custom message
+            fvm_sdk::assert_ne!(1, 1, "throw equal");
         }
         _ => abort(
             ExitCode::USR_UNHANDLED_MESSAGE.value(),

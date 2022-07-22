@@ -1,6 +1,6 @@
 use std::env;
 
-use fvm::executor::{ApplyKind, Executor};
+use fvm::executor::{ApplyFailure, ApplyKind, Executor};
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -65,10 +65,68 @@ fn sdk_macro() {
 
     let res = tester
         .executor
+        .as_mut()
         .unwrap()
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    dbg!(res);
-    assert!(false);
+    // Test assert!
+    match res.failure_info.unwrap() {
+        ApplyFailure::MessageBacktrace(backtrace) => {
+            assert_eq!(backtrace.frames[0].code.value(), 24);
+            assert!(backtrace.frames[0].message.contains("hello world"));
+        }
+        _ => panic!("failure should be message backtrace"),
+    }
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 2,
+        sequence: 1,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .as_mut()
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    // Test assert_eq!
+    match res.failure_info.unwrap() {
+        ApplyFailure::MessageBacktrace(backtrace) => {
+            assert_eq!(backtrace.frames[0].code.value(), 24);
+            assert!(backtrace.frames[0].message.contains("throw non equal"));
+        }
+        _ => panic!("failure should be message backtrace"),
+    }
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 3,
+        sequence: 2,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    // Test assert_ne!
+    match res.failure_info.unwrap() {
+        ApplyFailure::MessageBacktrace(backtrace) => {
+            assert_eq!(backtrace.frames[0].code.value(), 24);
+            assert!(backtrace.frames[0].message.contains("throw equal"));
+        }
+        _ => panic!("failure should be message backtrace"),
+    }
 }

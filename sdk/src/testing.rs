@@ -1,37 +1,20 @@
-// Utility function to handle call error message formatting and call to abort syscall
-pub fn handle_assert_err(catch_unwind_res: std::thread::Result<()>) -> ! {
-    if catch_unwind_res.is_err() {
-        match catch_unwind_res.err() {
-            Some(err) => match err.downcast::<String>() {
-                Ok(panic_msg_box) => crate::vm::abort(
-                    fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(),
-                    Some(panic_msg_box.as_str()),
-                ),
-                Err(_) => crate::vm::abort(
-                    fvm_shared::error::ExitCode::USR_ASSERTION_FAILED.value(),
-                    None,
-                ),
-            },
-            None => unreachable!(),
-        };
-    }
-}
-
 // Wrapper around the assert macro to have a hand on which exit code we want to give to our failed
 // assertion
 #[macro_export]
 macro_rules! assert {
     ($cond:expr $(,)?) => ({
-        let res = std::panic::catch_unwind(|| {
-            core::assert!($cond);
-        });
-        $crate::testing::handle_assert_err(res);
+        std::panic::set_hook(Box::new(|info| {
+            $crate::vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(&format!("{}", info)))
+        }));
+
+        core::assert!($cond);
     });
     ($cond:expr, $($arg:tt)+) => {{
-        let res = std::panic::catch_unwind(|| {
-            core::assert!($cond, "{}", format_args!($($arg)+));
-        });
-        $crate::testing::handle_assert_err(res);
+        std::panic::set_hook(Box::new(|info| {
+            $crate::vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(&format!("{}", info)))
+        }));
+
+        core::assert!($cond, "{}", format_args!($($arg)+));
     }};
 }
 
@@ -43,16 +26,18 @@ macro_rules! assert_gen {
                 #[macro_export]
                 macro_rules! $assert_macro {
                     ($d left:expr, $d right:expr $d(,)?) => {
-                        let res = std::panic::catch_unwind(|| {
-                            core::$assert_macro!($d left, $d right);
-                        });
-                        $d crate::testing::handle_assert_err(res);
+                        std::panic::set_hook(Box::new(|info| {
+                            $d crate::vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(&format!("{}", info)))
+                        }));
+
+                        core::$assert_macro!($d left, $d right);
                     };
                     ($d left:expr, $d right:expr, $d($d arg:tt)+) => {
-                        let res = std::panic::catch_unwind(|| {
-                            core::$assert_macro!($d left, $d right, "{}", format_args!($d($d arg)+));
-                        });
-                        $d crate::testing::handle_assert_err(res);
+                        std::panic::set_hook(Box::new(|info| {
+                            $d crate::vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), Some(&format!("{}", info)))
+                        }));
+
+                        core::$assert_macro!($d left, $d right, "{}", format_args!($d($d arg)+));
                     };
                 }
             }
