@@ -279,18 +279,30 @@ where
         self.0.invocation_count()
     }
 
-    fn become_actor<K>(&mut self, who: ActorID, new_code_cid: Cid) -> Result<()>
+    fn become_actor<K>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: Cid,
+        params: Option<Block>,
+    ) -> Result<()>
     where
         K: Kernel<CallManager = Self>,
     {
-        self.0.become_actor::<TestKernel<K>>(who, new_code_cid)
+        self.0
+            .become_actor::<TestKernel<K>>(who, new_code_cid, params)
     }
 
-    fn upgrade_actor<K>(&mut self, who: ActorID, new_code_cid: &Cid) -> Result<()>
+    fn upgrade_actor<K>(
+        &mut self,
+        who: ActorID,
+        new_code_cid: &Cid,
+        params: Option<Block>,
+    ) -> Result<Option<Block>>
     where
         K: Kernel<CallManager = Self>,
     {
-        self.0.upgrade_actor::<TestKernel<K>>(who, new_code_cid)
+        self.0
+            .upgrade_actor::<TestKernel<K>>(who, new_code_cid, params)
     }
 }
 
@@ -376,8 +388,8 @@ where
         Ok(())
     }
 
-    fn become_actor(&mut self, code_cid: Cid) -> Result<()> {
-        self.0.become_actor(code_cid)
+    fn become_actor(&mut self, code_cid: Cid, params_id: BlockId) -> Result<()> {
+        self.0.become_actor(code_cid, params_id)
     }
 }
 
