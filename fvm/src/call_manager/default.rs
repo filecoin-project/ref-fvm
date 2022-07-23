@@ -154,11 +154,10 @@ where
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
                 Err(ExecutionError::Abort(Abort::Return(maybe_block))) => {
-                    ExecutionEvent::CallReturn(
-                        match maybe_block {
-                            Some(block) => RawBytes::new(block.data().to_vec()),
-                            None => RawBytes::default()
-                        })
+                    ExecutionEvent::CallReturn(match maybe_block {
+                        Some(block) => RawBytes::new(block.data().to_vec()),
+                        None => RawBytes::default(),
+                    })
                 }
                 Err(ExecutionError::Abort(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
@@ -280,7 +279,7 @@ where
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    upgrade.call(&mut store, (params_id, upgrade_params_id,))
+                    upgrade.call(&mut store, (params_id, upgrade_params_id))
                 }))
                 .map_err(|panic| {
                     Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
@@ -307,14 +306,17 @@ where
                 Ok(if ret_id == NO_DATA_BLOCK_ID {
                     None
                 } else {
-                    Some(block_registry.get(ret_id)
-                         .map(|blk| blk.clone())
-                         .map_err(|_| {
-                        Abort::Exit(
-                            ExitCode::SYS_MISSING_RETURN,
-                            String::from("returned block does not exist"),
-                        )
-                    })?)
+                    Some(
+                        block_registry
+                            .get(ret_id)
+                            .map(|blk| blk.clone())
+                            .map_err(|_| {
+                                Abort::Exit(
+                                    ExitCode::SYS_MISSING_RETURN,
+                                    String::from("returned block does not exist"),
+                                )
+                            })?,
+                    )
                 })
             });
 
@@ -322,7 +324,7 @@ where
 
             (result, cm)
         })
-            .map_err(ExecutionError::from)
+        .map_err(ExecutionError::from)
     }
 
     fn with_transaction(

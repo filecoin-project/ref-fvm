@@ -6,8 +6,7 @@ use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
-use crate::kernel::ExecutionError;
-use crate::kernel::Block;
+use crate::kernel::{Block, ExecutionError};
 
 /// Represents an actor "abort".
 #[derive(Debug)]

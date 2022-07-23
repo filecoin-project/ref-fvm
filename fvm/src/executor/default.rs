@@ -132,7 +132,7 @@ where
                 exit_code: ExitCode::OK,
                 return_data: match maybe_block {
                     Some(block) => RawBytes::new(block.data().to_vec()),
-                    None => RawBytes::default()
+                    None => RawBytes::default(),
                 },
                 gas_used,
             },
