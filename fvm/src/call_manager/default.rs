@@ -220,7 +220,7 @@ where
 
         // prepare params as a block; argument is the old code cid in a cbor tuple
         let cur_code_cid = state.code;
-        let upgrade_params = to_vec(&(new_code_cid.clone(),))
+        let upgrade_params = to_vec(&(*new_code_cid,))
             .map_err(|e| Abort::Fatal(anyhow!("failed to serialize upgrade params: {}", e)))?;
         let upgrade_params_blk = Block::new(DAG_CBOR, upgrade_params);
 
