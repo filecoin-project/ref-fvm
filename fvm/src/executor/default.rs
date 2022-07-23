@@ -128,9 +128,12 @@ where
                 }
             }
 
-            Err(ExecutionError::Abort(Abort::Return)) => Receipt {
+            Err(ExecutionError::Abort(Abort::Return(maybe_block))) => Receipt {
                 exit_code: ExitCode::OK,
-                return_data: RawBytes::default(),
+                return_data: match maybe_block {
+                    Some(block) => RawBytes::new(block.data().to_vec()),
+                    None => RawBytes::default()
+                },
                 gas_used,
             },
 

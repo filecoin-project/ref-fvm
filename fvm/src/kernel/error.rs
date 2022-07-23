@@ -53,7 +53,7 @@ impl ExecutionError {
         match self {
             Fatal(_) => true,
             OutOfGas | Syscall(_) => false,
-            Abort(crate::syscalls::error::Abort::Return) => false,
+            Abort(crate::syscalls::error::Abort::Return(_)) => false,
             Abort(_) => true,
         }
     }
@@ -63,7 +63,7 @@ impl ExecutionError {
     pub fn is_recoverable(&self) -> bool {
         use ExecutionError::*;
         match self {
-            Syscall(_) | Abort(crate::syscalls::error::Abort::Return) => true,
+            Syscall(_) | Abort(crate::syscalls::error::Abort::Return(_)) => true,
             OutOfGas | Fatal(_) | Abort(_) => false,
         }
     }

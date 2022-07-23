@@ -73,6 +73,8 @@ impl Block {
     }
 }
 
+unsafe impl std::marker::Send for Block {}
+
 #[derive(Error, Debug)]
 pub enum BlockPutError {
     #[error("too many blocks have been written")]

@@ -7,6 +7,7 @@ use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
 use crate::kernel::ExecutionError;
+use crate::kernel::Block;
 
 /// Represents an actor "abort".
 #[derive(Debug)]
@@ -18,7 +19,7 @@ pub enum Abort {
     /// The system failed with a fatal error.
     Fatal(anyhow::Error),
     /// An abortive non-local return
-    Return,
+    Return(Option<Block>),
 }
 
 impl Abort {
@@ -88,7 +89,7 @@ impl std::fmt::Display for Abort {
             Abort::Fatal(e) => {
                 write!(f, "fatal: {}", e)
             }
-            Abort::Return => {
+            Abort::Return(_) => {
                 write!(f, "return")
             }
         }

@@ -191,7 +191,7 @@ pub trait ActorOps {
 
     /// Become changes the code of the running actor using the specified code cid;
     /// it does not return unless there is an error
-    fn become_actor(&mut self, code_cid: Cid) -> Result<()>;
+    fn become_actor(&mut self, code_cid: Cid, params: BlockId) -> Result<()>;
 }
 
 /// Operations to send messages to other actors.

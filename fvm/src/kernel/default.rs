@@ -794,9 +794,16 @@ where
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
     }
 
-    fn become_actor(&mut self, new_code_cid: Cid) -> Result<()> {
+    fn become_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<()> {
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
         self.call_manager
-            .become_actor::<Self>(self.caller, new_code_cid)
+            .become_actor::<Self>(self.caller, new_code_cid, params)
     }
 }
 

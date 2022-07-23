@@ -127,10 +127,11 @@ pub fn install_actor(
 pub fn become_actor(
     context: Context<'_, impl Kernel>,
     code_cid_off: u32, // Cid
+    params_id: u32,
 ) -> Result<()> {
     let cid = context
         .memory
         .read_cid(code_cid_off)
         .map_err(|e| Abort::from_error(ExitCode::USR_ILLEGAL_ARGUMENT, e))?;
-    context.kernel.become_actor(cid)
+    context.kernel.become_actor(cid, params_id)
 }
