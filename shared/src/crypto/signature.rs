@@ -30,6 +30,8 @@ pub const SECP_PUB_LEN: usize = 65;
 pub enum SignatureType {
     Secp256k1 = 1,
     BLS = 2,
+    // TODO, should this be a different number?
+    External = 256,
 }
 
 /// A cryptographic signature, represented in bytes, of any key protocol.

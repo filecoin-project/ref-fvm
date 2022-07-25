@@ -376,6 +376,12 @@ where
     fn msg_value_received(&self) -> TokenAmount {
         self.value_received.clone()
     }
+
+    fn msg_validate(&self, msg: Message, sig: Signature) -> Result<GasSpec> {
+        self.msg_caller();
+
+        todo!()
+    }
 }
 
 impl<C> SendOps for DefaultKernel<C>

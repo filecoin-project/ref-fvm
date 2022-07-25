@@ -3,9 +3,10 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{SignatureType, Signature};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::{GasSpec, Message};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
 use fvm_shared::sector::{
@@ -104,6 +105,8 @@ pub trait MessageOps {
 
     /// The value received from the caller (constant).
     fn msg_value_received(&self) -> TokenAmount;
+
+    fn msg_validate(&self, msg: Message, sig: Signature) -> Result<GasSpec>;
 }
 
 /// The IPLD subset of the kernel.

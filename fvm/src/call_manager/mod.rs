@@ -1,6 +1,8 @@
 use fvm_shared::address::Address;
+use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
@@ -121,6 +123,9 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// TODO
+    fn validate(&mut self, msg: Message, sig: Signature);
 }
 
 /// The result of a method invocation.

@@ -101,3 +101,9 @@ impl<'de> Deserialize<'de> for Message {
         })
     }
 }
+
+pub struct GasSpec {
+    gas_limit: i64,
+	gas_fee_cap: TokenAmount,
+	gas_premium: TokenAmount,
+}

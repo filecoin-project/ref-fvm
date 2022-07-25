@@ -40,3 +40,22 @@ pub fn self_destruct(
     context.kernel.self_destruct(&addr)?;
     Ok(())
 }
+
+pub fn validate(
+    context: Context<'_, impl Kernel>,
+    sig_off: u32,
+    sig_len: u32,
+    addr_off: u32,
+    addr_len: u32,
+    plaintext_off: u32,
+    plaintext_len: u32,
+) -> Result<i32> {
+    let sig_bytes = context.memory.try_slice(sig_off, sig_len)?;
+    let addr = context.memory.read_address(addr_off, addr_len)?;
+    let plaintext = context.memory.try_slice(plaintext_off, plaintext_len)?;
+
+    context
+        .kernel
+        .msg_validate(plaintext, sig_bytes)
+        .map(|v| if v { 0 } else { -1 })
+}

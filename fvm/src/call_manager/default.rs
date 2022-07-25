@@ -3,8 +3,10 @@ use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
+use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::message::Message;
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
@@ -155,6 +157,10 @@ where
         }
 
         result
+    }
+
+    fn validate(&mut self, msg: fvm_shared::message::Message, sig: fvm_shared::crypto::signature::Signature) {
+        
     }
 
     fn with_transaction(
@@ -386,6 +392,153 @@ where
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     invoke.call(&mut store, (params_id,))
+                }))
+                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
+
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                charge_for_exec(&mut store)?;
+
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res?)
+            })();
+
+            let invocation_data = store.into_data();
+            let last_error = invocation_data.last_error;
+            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                        )
+                    })?)
+                })
+            });
+
+            // Process the result, updating the backtrace if necessary.
+            let ret = match result {
+                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
+                Err(abort) => {
+                    if let Some(err) = last_error {
+                        cm.backtrace.begin(err);
+                    }
+
+                    let (code, message, res) = match abort {
+                        Abort::Exit(code, message) => {
+                            (code, message, Ok(InvocationResult::Failure(code)))
+                        }
+                        Abort::OutOfGas => (
+                            ExitCode::SYS_OUT_OF_GAS,
+                            "out of gas".to_owned(),
+                            Err(ExecutionError::OutOfGas),
+                        ),
+                        Abort::Fatal(err) => (
+                            ExitCode::SYS_ASSERTION_FAILED,
+                            "fatal error".to_owned(),
+                            Err(ExecutionError::Fatal(err)),
+                        ),
+                    };
+
+                    cm.backtrace.push_frame(Frame {
+                        source: to,
+                        method,
+                        message,
+                        code,
+                    });
+
+                    res
+                }
+            };
+
+            // Log the results if tracing is enabled.
+            if log::log_enabled!(log::Level::Trace) {
+                match &ret {
+                    Ok(val) => log::trace!(
+                        "returning {}::{} -> {} ({})",
+                        to,
+                        method,
+                        from,
+                        val.exit_code()
+                    ),
+                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+                }
+            }
+
+            (ret, cm)
+        })
+    }
+
+    fn tst_validate(&mut self, msg: Message, sig: Signature) -> Result<()> {
+        // Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(msg.from.id().unwrap())?
+            .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", msg.from))?;
+
+        // Builtin or external?
+        // TODO
+
+        // Charge the method gas.
+        // TODO
+
+        // Store the parametrs, and initialize the block registry for the target actor.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = block_registry.put(params)?;
+
+        // Increment invocation count
+        self.invocation_count += 1;
+
+        // This is a cheap operation as it doesn't actually clone the struct,
+        // it returns a referenced copy.
+        let engine = self.engine().clone();
+
+        log::trace!("validating message {} -> {}::{}", msg.to, msg.from, sig.sig_type);
+        self.map_mut(|cm| {
+            // // Make the kernel.
+            // let kernel = K::new(cm, block_registry, from, to, method, value.clone());
+
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            let from_actor = self.machine().state_tree().get_actor(&msg.from)??;
+
+            // From this point on, there are no more syscall errors, only aborts.
+            let result: std::result::Result<BlockId, Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, &from_actor.code)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // TODO: what memory is being resolved here?
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
+                // Lookup the invoke method.
+                let validate: wasmtime::TypedFunc<(u32, u32, u32, u32), (u32, u32)> = instance
+                    .get_typed_func(&mut store, "validate")
+                    // All actors will have an invoke method.
+                    .map_err(Abort::Fatal)?;
+
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
+                // Invoke it.
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    validate.call(&mut store, (params_id,))
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
