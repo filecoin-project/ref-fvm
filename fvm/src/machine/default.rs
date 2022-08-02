@@ -137,11 +137,8 @@ where
             engine.preload(state_tree.store(), &installed_actors)?;
         }
 
-        let randomness = externs.get_chain_randomness(
-            0,
-            context.epoch,
-            context.initial_state_root.to_bytes().as_slice(),
-        )?;
+        // 16 bytes is random _enough_
+        let randomness: [u8; 16] = rand::random();
 
         Ok(DefaultMachine {
             context: context.clone(),
@@ -152,7 +149,7 @@ where
             id: format!(
                 "{}-{}",
                 context.epoch,
-                cid::multibase::encode(cid::multibase::Base::Base32Lower, &randomness[..16])
+                cid::multibase::encode(cid::multibase::Base::Base32Lower, &randomness)
             ),
         })
     }
