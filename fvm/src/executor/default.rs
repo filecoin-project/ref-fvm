@@ -234,7 +234,7 @@ where
         msg: &Message,
         apply_kind: ApplyKind,
         raw_length: usize,
-    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge<'static>), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
         msg.check().or_fatal()?;
 
         // TODO We don't like having price lists _inside_ the FVM, but passing

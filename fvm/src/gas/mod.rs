@@ -4,6 +4,8 @@
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
+use num_traits::Zero;
+
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
 pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
@@ -151,6 +153,7 @@ impl Mul<i32> for Gas {
 pub struct GasTracker {
     gas_limit: Gas,
     gas_used: Gas,
+    trace: Option<Vec<GasCharge>>,
 }
 
 impl GasTracker {
@@ -160,12 +163,15 @@ impl GasTracker {
         Self {
             gas_limit,
             gas_used,
+            trace: None,
         }
     }
 
-    /// Safely consumes gas and returns an out of gas error if there is not sufficient
-    /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<()> {
+    pub fn enable_tracing(&mut self) {
+        self.trace = Some(vec![]);
+    }
+
+    fn charge_gas_inner(&mut self, name: &str, to_use: Gas) -> Result<()> {
         log::trace!("charging gas: {} {}", name, to_use);
         // The gas type uses saturating math.
         self.gas_used += to_use;
@@ -178,9 +184,23 @@ impl GasTracker {
         }
     }
 
+    /// Safely consumes gas and returns an out of gas error if there is not sufficient
+    /// enough gas remaining for charge.
+    pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<()> {
+        let res = self.charge_gas_inner(name, to_use);
+        if let Some(trace) = &mut self.trace {
+            trace.push(GasCharge::new(name.to_owned(), to_use, Gas::zero()))
+        }
+        res
+    }
+
     /// Applies the specified gas charge, where quantities are supplied in milligas.
     pub fn apply_charge(&mut self, charge: GasCharge) -> Result<()> {
-        self.charge_gas(charge.name, charge.total())
+        let res = self.charge_gas_inner(&charge.name, charge.total());
+        if let Some(trace) = &mut self.trace {
+            trace.push(charge);
+        }
+        res
     }
 
     /// Getter for the maximum gas usable by this message.
@@ -196,6 +216,14 @@ impl GasTracker {
     /// Getter for gas available.
     pub fn gas_available(&self) -> Gas {
         self.gas_limit - self.gas_used
+    }
+
+    pub fn drain_trace(&mut self) -> impl Iterator<Item = GasCharge> + '_ {
+        self.trace
+            .as_mut()
+            .map(|d| d.drain(0..))
+            .into_iter()
+            .flatten()
     }
 }
 
