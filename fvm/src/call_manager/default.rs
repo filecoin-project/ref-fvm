@@ -70,9 +70,13 @@ where
     type Machine = M;
 
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
+        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
+        if machine.context().tracing {
+            gas_tracker.enable_tracing()
+        }
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(gas_limit), Gas::zero()),
+            gas_tracker,
             origin,
             nonce,
             num_actors_created: 0,
@@ -94,7 +98,7 @@ where
         K: Kernel<CallManager = Self>,
     {
         if self.machine.context().tracing {
-            self.exec_trace.push(ExecutionEvent::Call {
+            self.trace(ExecutionEvent::Call {
                 from,
                 to,
                 method,
@@ -122,8 +126,7 @@ where
         if self.call_stack_depth > self.machine.context().max_call_depth {
             let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
             if self.machine.context().tracing {
-                self.exec_trace
-                    .push(ExecutionEvent::CallError(sys_err.clone()))
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
             }
             return Err(sys_err.into());
         }
@@ -132,7 +135,7 @@ where
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
-            self.exec_trace.push(match &result {
+            self.trace(match &result {
                 Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
                     v.as_ref()
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
@@ -168,17 +171,29 @@ where
     }
 
     fn finish(mut self) -> (FinishRet, Self::Machine) {
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        let gas_used = self.gas_tracker.gas_used().max(Gas::zero()).round_up();
+        let InnerDefaultCallManager {
+            machine,
+            backtrace,
+            mut gas_tracker,
+            mut exec_trace,
+            ..
+        } = *self.0.take().expect("call manager is poisoned");
 
-        let inner = self.0.take().expect("call manager is poisoned");
+        // TODO: Having to check against zero here is fishy, but this is what lotus does.
+        let gas_used = gas_tracker.gas_used().max(Gas::zero()).round_up();
+
+        // Finalize any trace events, if we're tracing.
+        if machine.context().tracing {
+            exec_trace.extend(gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
+        }
+
         (
             FinishRet {
                 gas_used,
-                backtrace: inner.backtrace,
-                exec_trace: inner.exec_trace,
+                backtrace,
+                exec_trace,
             },
-            inner.machine,
+            machine,
         )
     }
 
@@ -223,6 +238,17 @@ impl<M> DefaultCallManager<M>
 where
     M: Machine,
 {
+    fn trace(&mut self, trace: ExecutionEvent) {
+        // The price of deref magic is that you sometimes need to tell the compiler: no, this is
+        // fine.
+        let s = &mut **self;
+
+        s.exec_trace
+            .extend(s.gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
+
+        s.exec_trace.push(trace);
+    }
+
     fn create_account_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
