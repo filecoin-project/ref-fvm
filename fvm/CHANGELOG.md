@@ -4,7 +4,12 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
 
-...
+## 1.2.0 [2022-08-08]
+
+Update `filecoin-proofs-api` to version 12, and `blstrs` to 0.5.
+
+BREAKING: This new version will fail to compile alongside any crate that uses a different version
+of `blstrs` due to native library linking.
 
 ## 1.1.0 [2022-06-27]
 
