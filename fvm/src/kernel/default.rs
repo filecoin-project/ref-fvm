@@ -13,6 +13,7 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::hash::FvmHashCode;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -21,6 +22,7 @@ use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{commcid, ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
+use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::blocks::{Block, BlockRegistry};
@@ -467,20 +469,26 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
-        // We only support blake2b for now, but want to support others in the future.
-        if code != BLAKE2B_256 {
-            return Err(syscall_error!(IllegalArgument; "unsupported hash code {}", code).into());
-        }
+        // Supported hash functoins are in shared::FvmHashCode
+        let code = FvmHashCode::try_from(code).map_err(|e| {
+            if let multihash::Error::UnsupportedCode(code) = e {
+                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
+            } else {
+                // will only error unsupported code, since that is all we are checking
+                // https://github.com/multiformats/rust-multihash/blob/f805963970aa509ab4e0175d296eaf5f4d8dde92/derive/src/multihash.rs#L255
+                unreachable!()
+            }
+        })?;
 
-        let digest = blake2b_simd::Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(data)
-            .finalize()
-            .as_bytes()
-            .try_into()
-            .expect("fixed array size");
-        Ok(digest)
+        let mh = code.digest(data);
+        let digest = mh.digest();
+
+        //into_inner would be helpful here
+        let mut arr = [0u8; 32];
+        // no hash functions are over 32 bytes so this shouldnt panic
+        arr[..digest.len()].copy_from_slice(digest);
+
+        Ok(arr)
     }
 
     fn compute_unsealed_sector_cid(
