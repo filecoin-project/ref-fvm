@@ -15,4 +15,4 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_tuple = "0.5"
 
 [build-dependencies]
-wasm-builder = "3.0.1"
+substrate-wasm-builder = "4.0.0"
