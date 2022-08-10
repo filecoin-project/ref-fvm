@@ -8,4 +8,4 @@ fvm_sdk = { version = "2.0.0-alpha.1", path = "../../../../sdk" }
 fvm_shared = { version = "0.9.0", path = "../../../../shared" }
 
 [build-dependencies]
-wasm-builder = "3.0.1"
+substrate-wasm-builder = "4.0.0"
