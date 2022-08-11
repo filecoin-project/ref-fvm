@@ -1,8 +1,8 @@
 use multihash::derive::Multihash;
-use multihash::{Sha2_256, Blake2b256, Keccak256};
+use multihash::{Blake2b256, Keccak256, Sha2_256};
 
 #[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
-#[mh(alloc_size = 64)]
+#[mh(alloc_size = 32)]
 pub enum FvmHashCode {
     #[mh(code = 0x12, hasher = Sha2_256)]
     Sha2_256,

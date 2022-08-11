@@ -292,7 +292,6 @@ where
             return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
         }
 
-        use multihash::MultihashDigest;
         let block = self.blocks.get(id)?;
         let code = multihash::Code::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
@@ -465,11 +464,11 @@ where
         })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<32>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
-        // Supported hash functoins are in shared::FvmHashCode
+        // Supported hash functions are in shared::FvmHashCode
         let code = FvmHashCode::try_from(code).map_err(|e| {
             if let multihash::Error::UnsupportedCode(code) = e {
                 syscall_error!(IllegalArgument; "unsupported hash code {}", code)
@@ -479,16 +478,7 @@ where
                 unreachable!()
             }
         })?;
-
-        let mh = code.digest(data);
-        let digest = mh.digest();
-
-        //into_inner would be helpful here
-        let mut arr = [0u8; 32];
-        // no hash functions are over 32 bytes so this shouldnt panic
-        arr[..digest.len()].copy_from_slice(digest);
-
-        Ok(arr)
+        Ok(code.digest(data))
     }
 
     fn compute_unsealed_sector_cid(
