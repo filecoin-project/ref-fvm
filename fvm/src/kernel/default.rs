@@ -468,7 +468,6 @@ where
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
-        // Supported hash functions are in shared::FvmHashCode
         let hasher = SupportedHashes::try_from(code).map_err(|e| {
             if let multihash::Error::UnsupportedCode(code) = e {
                 syscall_error!(IllegalArgument; "unsupported hash code {}", code)
