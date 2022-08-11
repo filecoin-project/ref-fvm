@@ -410,7 +410,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<32>> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.0.hash(code, data)
     }
 

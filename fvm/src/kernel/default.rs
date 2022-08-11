@@ -13,7 +13,7 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::hash::FvmHashCode;
+use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -464,21 +464,19 @@ where
         })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<32>> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
         // Supported hash functions are in shared::FvmHashCode
-        let code = FvmHashCode::try_from(code).map_err(|e| {
+        let hasher = SupportedHashes::try_from(code).map_err(|e| {
             if let multihash::Error::UnsupportedCode(code) = e {
                 syscall_error!(IllegalArgument; "unsupported hash code {}", code)
             } else {
-                // will only error unsupported code, since that is all we are checking
-                // https://github.com/multiformats/rust-multihash/blob/f805963970aa509ab4e0175d296eaf5f4d8dde92/derive/src/multihash.rs#L255
-                unreachable!()
+                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
             }
         })?;
-        Ok(code.digest(data))
+        Ok(hasher.digest(data))
     }
 
     fn compute_unsealed_sector_cid(
