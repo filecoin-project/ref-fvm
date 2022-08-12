@@ -17,8 +17,8 @@ use crate::error::Error::{
 };
 
 const BUNDLES: [(NetworkVersion, &[u8]); 2] = [
-    (NetworkVersion::V15, actors_v8::BUNDLE_CAR),
-    (NetworkVersion::V16, actors_v8::BUNDLE_CAR), // todo bad hack
+    (NetworkVersion::V15, actors_v10::BUNDLE_CAR),
+    (NetworkVersion::V16, actors_v10::BUNDLE_CAR), // todo bad hack
 ];
 
 // Import built-in actors
