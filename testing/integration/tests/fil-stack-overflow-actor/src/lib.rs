@@ -2,6 +2,8 @@ use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::error::ExitCode;
 
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
     let m = sdk::message::method_number();

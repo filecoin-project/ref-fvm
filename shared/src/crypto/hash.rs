@@ -4,7 +4,7 @@ use multihash::{Blake2b256, Keccak256, Ripemd160, Sha2_256};
 #[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
 #[mh(alloc_size = 64)]
 /// Codes and hashers supported by FVM.
-/// You _can_ use this hash directly inside of your actor, 
+/// You _can_ use this hash directly inside of your actor,
 /// but it will very likely be more performant with the `hash` syscall
 pub enum SupportedHashes {
     #[mh(code = 0x12, hasher = Sha2_256)]

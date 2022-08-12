@@ -68,7 +68,8 @@ pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
             ret.as_mut_ptr(),
             64, // maximum the buffer will hold, but will likely be less
         )
-        .expect(&format!("failed compute hash using {:?}", hasher)) as usize;
+        .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher))
+            as usize;
         assert!(written <= ret.capacity());
         // SAFETY: hash syscall should've written _exactly_ the number of bytes it wrote to the buffer
         ret.set_len(written as usize);
