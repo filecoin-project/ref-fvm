@@ -352,6 +352,8 @@ where
         let engine = self.engine().clone();
 
         // prepare actor code
+        // TODO remove once the EVM smart contract actor is integrated in the builtin-actors bundle
+        //  https://github.com/filecoin-project/ref-fvm/issues/693
         self.engine()
             .load_code_cid(&state.code, self.blockstore())
             .map_err(
