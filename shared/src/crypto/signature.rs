@@ -21,6 +21,8 @@ pub const BLS_PUB_LEN: usize = 48;
 pub const SECP_SIG_LEN: usize = 65;
 /// Secp256k1 Public key length in bytes.
 pub const SECP_PUB_LEN: usize = 65;
+/// Length of the signature input message hash in bytes (32).
+pub const SECP_SIG_MESSAGE_HASH_SIZE: usize = 32;
 
 /// Signature variants for Filecoin signatures.
 #[derive(
@@ -131,10 +133,10 @@ pub mod ops {
         verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
     };
     use libsecp256k1::{
-        recover, Error as SecpError, Message, RecoveryId, Signature as EcsdaSignature,
+        recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{Error, SECP_SIG_LEN};
+    use super::{Error, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
     use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
 
@@ -237,8 +239,11 @@ pub mod ops {
         verify_messages(&sig, data, &pks[..])
     }
 
-    /// Return Address for a message given it's signing bytes hash and signature.
-    pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
+    /// Return the public key used for signing a message given it's signing bytes hash and signature.
+    pub fn recover_secp_public_key(
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<PublicKey, Error> {
         // generate types to recover key from
         let rec_id = RecoveryId::parse(signature[64])?;
         let message = Message::parse(hash);
@@ -246,10 +251,16 @@ pub mod ops {
         // Signature value without recovery byte
         let mut s = [0u8; 64];
         s.clone_from_slice(signature[..64].as_ref());
+
         // generate Signature
         let sig = EcsdaSignature::parse_standard(&s)?;
+        Ok(recover(&message, &sig, &rec_id)?)
+    }
 
-        let key = recover(&message, &sig, &rec_id)?;
+    /// Return Address for a message given it's signing bytes hash and signature.
+    pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
+        // recover public key from a message hash and secp signature.
+        let key = recover_secp_public_key(hash, signature)?;
         let ret = key.serialize();
         let addr = Address::new_secp256k1(&ret)?;
         Ok(addr)
@@ -272,6 +283,7 @@ mod tests {
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
 
+    use super::ops::recover_secp_public_key;
     use super::*;
     use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
     use crate::Address;
@@ -307,6 +319,31 @@ mod tests {
             &public_keys_slice,
             &calculated_bls_agg
         ),);
+    }
+
+    #[test]
+    fn recover_pubkey() {
+        let rng = &mut ChaCha8Rng::seed_from_u64(8);
+
+        let privkey = SecretKey::random(rng);
+        let pubkey = PublicKey::from_secret_key(&privkey);
+
+        let hash: [u8; 32] = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&[42, 43])
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .expect("fixed array size");
+
+        // Generate signature
+        let (sig, recovery_id) = sign(&Message::parse(&hash), &privkey);
+        let mut signature = [0; 65];
+        signature[..64].copy_from_slice(&sig.serialize());
+        signature[64] = recovery_id.serialize();
+
+        assert_eq!(pubkey, recover_secp_public_key(&hash, &signature).unwrap());
     }
 
     #[test]

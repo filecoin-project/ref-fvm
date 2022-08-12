@@ -16,7 +16,9 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
@@ -101,7 +103,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
+        let bundles = [(NetworkVersion::V15, actors_v10::BUNDLE_CAR)];
         bundles
             .into_iter()
             .map(|(nv, car)| {
@@ -432,6 +434,15 @@ where
     ) -> Result<bool> {
         self.0
             .verify_signature(sig_type, signature, signer, plaintext)
+    }
+
+    // forwarded
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.0.recover_secp_public_key(hash, signature)
     }
 
     // NOT forwarded

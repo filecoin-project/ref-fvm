@@ -8,13 +8,14 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 fvm = { version = "2.0.0-alpha.1", path = "../../fvm", default-features = false }
 fvm_shared = { version = "0.9.0", path = "../../shared" }
-fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
-fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt"}
+fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt" }
+fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt" }
 fvm_ipld_car = { version = "0.5.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.2.2", path = "../../ipld/encoding" }
 
-actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
+actors-v8 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "raulk/refresh-experimental-m2" }
+
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
 futures = "0.3.19"
@@ -40,8 +41,8 @@ serde = { version = "1.0", features = ["derive"] }
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor', version = '0.1' }
 fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor', version = '0.1' }
 fil_ipld_actor = { path = 'tests/fil-ipld-actor', version = '0.1' }
-fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor", version="0.1" }
-fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor", version="0.1" }
+fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor", version = "0.1" }
+fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor", version = "0.1" }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]

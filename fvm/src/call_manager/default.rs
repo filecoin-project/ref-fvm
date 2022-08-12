@@ -351,6 +351,13 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
+        // prepare actor code
+        self.engine()
+            .load_code_cid(&state.code, self.blockstore())
+            .map_err(
+                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
+            )?;
+
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
