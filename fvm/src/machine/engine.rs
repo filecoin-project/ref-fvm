@@ -138,8 +138,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     #[cfg(feature = "wasmtime/async")]
     c.async_support(false);
-    #[cfg(feature = "wasmtime/async")]
-    c.async_stack_size(4 << 20).unwrap();
 
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
