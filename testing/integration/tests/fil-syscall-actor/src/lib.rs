@@ -60,8 +60,8 @@ fn test_expected_hash() {
 
 // do funky things with hash syscall directly
 fn test_hash_syscall() {
-    use sdk::sys::crypto;
     use fvm_shared::error::ErrorNumber;
+    use sdk::sys::crypto;
 
     let test_bytes = b"the quick fox jumped over the lazy dog";
     let mut buffer = [0u8; 64];
@@ -77,7 +77,8 @@ fn test_hash_syscall() {
             test_bytes.len() as u32,
             buffer.as_mut_ptr(),
             buffer.len() as u32,
-        ).unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher));
+        )
+        .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher));
         assert_eq!(&buffer[..written as usize], known_digest.as_slice())
     }
     // invalid hash code
@@ -88,7 +89,8 @@ fn test_hash_syscall() {
             test_bytes.len() as u32,
             buffer.as_mut_ptr(),
             buffer.len() as u32,
-        ).expect_err("Expected err from invalid code, got written bytes");
+        )
+        .expect_err("Expected err from invalid code, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)
     }
     // data pointer OOB
@@ -99,7 +101,8 @@ fn test_hash_syscall() {
             test_bytes.len() as u32,
             buffer.as_mut_ptr(),
             buffer.len() as u32,
-        ).expect_err("Expected err, got written bytes");
+        )
+        .expect_err("Expected err, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)
     }
     // data length OOB
@@ -107,13 +110,14 @@ fn test_hash_syscall() {
         let e = crypto::hash(
             hasher,
             test_bytes.as_ptr(),
-            (u32::MAX/2) as u32, // byte length OOB (2GB)
+            (u32::MAX / 2) as u32, // byte length OOB (2GB)
             buffer.as_mut_ptr(),
             buffer.len() as u32,
-        ).expect_err("Expected err, got written bytes");
+        )
+        .expect_err("Expected err, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)
     }
-    // digest buffer pointer OOB 
+    // digest buffer pointer OOB
     unsafe {
         let e = crypto::hash(
             hasher,
@@ -121,7 +125,8 @@ fn test_hash_syscall() {
             test_bytes.len() as u32,
             (u32::MAX) as *mut u8, // pointer OOB
             buffer.len() as u32,
-        ).expect_err("Expected err, got written bytes");
+        )
+        .expect_err("Expected err, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)
     }
     // digest length out of memory
@@ -131,8 +136,9 @@ fn test_hash_syscall() {
             test_bytes.as_ptr(),
             test_bytes.len() as u32,
             buffer.as_mut_ptr(),
-            (u32::MAX/2) as u32, // byte length OOB (2GB)
-        ).expect_err("Expected err, got written bytes");
+            (u32::MAX / 2) as u32, // byte length OOB (2GB)
+        )
+        .expect_err("Expected err, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)
     }
     // write bytes to the same buffer read from. (overlapping buffers is OK)
@@ -150,7 +156,8 @@ fn test_hash_syscall() {
             // and write to the same one
             buffer.as_mut_ptr(),
             buffer.len() as u32,
-        ).expect("Overlapping buffers should be allowed");
+        )
+        .expect("Overlapping buffers should be allowed");
         assert_eq!(&buffer[..written as usize], known_digest.as_slice())
     }
 }
