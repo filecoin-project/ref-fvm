@@ -60,5 +60,97 @@ fn test_expected_hash() {
 
 // do funky things with hash syscall directly
 fn test_hash_syscall() {
-    // TODO
+    use sdk::sys::crypto;
+    use fvm_shared::error::ErrorNumber;
+
+    let test_bytes = b"the quick fox jumped over the lazy dog";
+    let mut buffer = [0u8; 64];
+
+    let hasher: u64 = SupportedHashes::Sha2_256.into();
+    let known_digest = sdk::crypto::hash(SupportedHashes::Sha2_256, test_bytes);
+
+    // normal case
+    unsafe {
+        let written = crypto::hash(
+            hasher,
+            test_bytes.as_ptr(),
+            test_bytes.len() as u32,
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+        ).unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher));
+        assert_eq!(&buffer[..written as usize], known_digest.as_slice())
+    }
+    // invalid hash code
+    unsafe {
+        let e = crypto::hash(
+            0xFF,
+            test_bytes.as_ptr(),
+            test_bytes.len() as u32,
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+        ).expect_err("Expected err from invalid code, got written bytes");
+        assert_eq!(e, ErrorNumber::IllegalArgument)
+    }
+    // data pointer OOB
+    unsafe {
+        let e = crypto::hash(
+            hasher,
+            (u32::MAX) as *const u8, // pointer OOB
+            test_bytes.len() as u32,
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+        ).expect_err("Expected err, got written bytes");
+        assert_eq!(e, ErrorNumber::IllegalArgument)
+    }
+    // data length OOB
+    unsafe {
+        let e = crypto::hash(
+            hasher,
+            test_bytes.as_ptr(),
+            (u32::MAX/2) as u32, // byte length OOB (2GB)
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+        ).expect_err("Expected err, got written bytes");
+        assert_eq!(e, ErrorNumber::IllegalArgument)
+    }
+    // digest buffer pointer OOB 
+    unsafe {
+        let e = crypto::hash(
+            hasher,
+            test_bytes.as_ptr(),
+            test_bytes.len() as u32,
+            (u32::MAX) as *mut u8, // pointer OOB
+            buffer.len() as u32,
+        ).expect_err("Expected err, got written bytes");
+        assert_eq!(e, ErrorNumber::IllegalArgument)
+    }
+    // digest length out of memory
+    unsafe {
+        let e = crypto::hash(
+            hasher,
+            test_bytes.as_ptr(),
+            test_bytes.len() as u32,
+            buffer.as_mut_ptr(),
+            (u32::MAX/2) as u32, // byte length OOB (2GB)
+        ).expect_err("Expected err, got written bytes");
+        assert_eq!(e, ErrorNumber::IllegalArgument)
+    }
+    // write bytes to the same buffer read from. (overlapping buffers is OK)
+    unsafe {
+        let len = test_bytes.len();
+        // fill with "garbage"
+        buffer.fill(0x69);
+        buffer[..len].copy_from_slice(test_bytes);
+
+        let written = crypto::hash(
+            hasher,
+            // read from buffer...
+            buffer.as_ptr(),
+            len as u32,
+            // and write to the same one
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+        ).expect("Overlapping buffers should be allowed");
+        assert_eq!(&buffer[..written as usize], known_digest.as_slice())
+    }
 }
