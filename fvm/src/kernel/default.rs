@@ -463,6 +463,21 @@ where
         })
     }
 
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_recover_secp_public_key())?;
+
+        signature::ops::recover_secp_public_key(hash, signature)
+            .map(|pubkey| pubkey.serialize())
+            .map_err(|e| {
+                syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
+            })
+    }
+
     fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;

@@ -129,13 +129,14 @@ where
     }
 
     /// Set a new at a given address, provided with a given token balance
+    /// and returns the CodeCID of the installed actor
     pub fn set_actor_from_bin(
         &mut self,
         wasm_bin: &[u8],
         state_cid: Cid,
         actor_address: Address,
         balance: TokenAmount,
-    ) -> Result<()> {
+    ) -> Result<Cid> {
         // Register actor address
         self.state_tree
             .as_mut()
@@ -159,7 +160,7 @@ where
             .set_actor(&actor_address, actor_state)
             .map_err(anyhow::Error::from)?;
 
-        Ok(())
+        Ok(code_cid)
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
@@ -177,6 +178,7 @@ where
         let blockstore = state_tree.into_store();
 
         let mut nc = NetworkConfig::new(self.nv);
+        nc.actor_debugging = true;
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 
