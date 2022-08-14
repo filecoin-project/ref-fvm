@@ -351,15 +351,6 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
-        // prepare actor code
-        // TODO remove once the EVM smart contract actor is integrated in the builtin-actors bundle
-        //  https://github.com/filecoin-project/ref-fvm/issues/693
-        self.engine()
-            .load_code_cid(&state.code, self.blockstore())
-            .map_err(
-                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
-            )?;
-
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.

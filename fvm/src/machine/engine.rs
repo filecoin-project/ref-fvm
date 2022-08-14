@@ -208,33 +208,6 @@ struct Cache<K> {
 }
 
 impl Engine {
-    /// Attempts to load Actor Code CID from the blockstore and
-    /// instantiate a wasmtime Module from the WASM bytecode if the
-    /// given code CID is present, otherwise returns None.
-    ///
-    /// Implicitly caches instantiated modules.
-    pub fn load_code_cid<BS: Blockstore>(
-        &self,
-        code_cid: &Cid,
-        blockstore: BS,
-    ) -> anyhow::Result<Option<wasmtime::Module>> {
-        let code_cid = self.with_redirect(code_cid);
-
-        {
-            let cache = self.0.module_cache.lock().expect("module_cache poisoned");
-            if let Some(cached) = cache.get(code_cid) {
-                return Ok(Some(cached.clone()));
-            }
-        }
-
-        if let Some(wasm) = blockstore.get(code_cid)? {
-            // cache instantiated WASM module
-            Ok(Some(self.load_bytecode(code_cid, &wasm)?))
-        } else {
-            Ok(None)
-        }
-    }
-
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
@@ -244,16 +217,21 @@ impl Engine {
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
     {
+        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         for cid in cids {
-            log::trace!("preloading code CID {cid}");
-            self.load_code_cid(cid, &blockstore)?.ok_or_else(|| {
+            let cid = self.with_redirect(cid);
+            if cache.contains_key(cid) {
+                continue;
+            }
+            let wasm = blockstore.get(cid)?.ok_or_else(|| {
                 anyhow!(
                     "no wasm bytecode in blockstore for CID {}",
                     &cid.to_string()
                 )
             })?;
+            let module = self.load_raw(wasm.as_slice())?;
+            cache.insert(*cid, module);
         }
-
         Ok(())
     }
 
