@@ -1,5 +1,6 @@
 //! Syscalls for cryptographic operations.
 
+use fvm_shared::crypto::signature::SECP_PUB_LEN;
 #[doc(inline)]
 pub use fvm_shared::sys::out::crypto::*;
 
@@ -35,6 +36,26 @@ super::fvm_syscalls! {
         plaintext_off: *const u8,
         plaintext_len: u32,
     ) -> Result<i32>;
+
+    /// Recovers the signer public key from a signed message hash and its signature.
+    ///
+    /// Returns the public key in uncompressed 65 bytes form.
+    ///
+    /// # Arguments
+    ///
+    /// - `hash_off` specify location of a 32-byte message hash.
+    /// - `sig_off` specify location of a 65-byte signature.
+    ///
+    /// # Errors
+    ///
+    /// | Error               | Reason                                               |
+    /// |---------------------|------------------------------------------------------|
+    /// | [`IllegalArgument`] | signature or hash buffers are invalid                |
+    pub fn recover_secp_public_key(
+        hash_off: *const u8,
+        sig_off: *const u8,
+    ) -> Result<[u8; SECP_PUB_LEN]>;
+
 
     /// Hashes input data using the specified hash function. The digest is written to the passed
     /// digest buffer and truncated to `digest_len`.
