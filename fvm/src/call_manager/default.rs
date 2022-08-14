@@ -351,6 +351,16 @@ where
         // it returns a referenced copy.
         let engine = self.engine().clone();
 
+        // Ensure that actor's code is loaded and cached in the engine.
+        // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
+        // listed the manifest, and therefore preloaded during system initialization.
+        #[cfg(feature = "m2-native")]
+        self.engine()
+            .prepare_actor_code(&state.code, self.blockstore())
+            .map_err(
+                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
+            )?;
+
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
