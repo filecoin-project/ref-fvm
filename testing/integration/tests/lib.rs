@@ -53,7 +53,7 @@ fn hello_world() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
@@ -99,7 +99,7 @@ fn ipld() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
@@ -151,7 +151,7 @@ fn syscalls() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
@@ -203,7 +203,7 @@ fn native_stack_overflow() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
