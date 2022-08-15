@@ -3,7 +3,9 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -241,6 +243,13 @@ pub trait CryptoOps {
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool>;
+
+    /// Given a message hash and its signature, recovers the public key of the signer.
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]>;
 
     /// Hashes input `data_in` using with the specified hash function, writing the output to
     /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is

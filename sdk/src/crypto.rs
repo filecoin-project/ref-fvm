@@ -3,7 +3,9 @@ use fvm_ipld_encoding::{to_vec, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::Signature;
+use fvm_shared::crypto::signature::{
+    Signature, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -35,6 +37,14 @@ pub fn verify_signature(
         )
         .map(status_code_to_bool)
     }
+}
+
+/// Recovers the signer public key from the message hash and signature.
+pub fn recover_secp_public_key(
+    hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+    signature: &[u8; SECP_SIG_LEN],
+) -> SyscallResult<[u8; SECP_PUB_LEN]> {
+    unsafe { sys::crypto::recover_secp_public_key(hash.as_ptr(), signature.as_ptr()) }
 }
 
 /// Hashes input data using blake2b with 256 bit output.
