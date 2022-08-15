@@ -35,6 +35,7 @@ pub mod init_actor;
 #[cfg(feature = "testing")]
 pub mod system_actor;
 
+pub mod builtins;
 pub mod trace;
 
 use cid::multihash::{Code, MultihashDigest};
@@ -53,10 +54,10 @@ lazy_static::lazy_static! {
 mod test {
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;
 
+    use crate::builtins::Manifest;
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Consensus, Externs, Rand};
     use crate::machine::{DefaultMachine, Engine, NetworkConfig};

@@ -9,7 +9,6 @@ use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::consensus::ConsensusFault;
@@ -26,6 +25,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::*;
+use crate::builtins::Type;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
@@ -780,7 +780,7 @@ where
         )
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<Type> {
         self.call_manager
             .machine()
             .builtin_actors()
@@ -788,7 +788,7 @@ where
             .cloned()
     }
 
-    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+    fn get_code_cid_for_type(&self, typ: Type) -> Result<Cid> {
         self.call_manager
             .machine()
             .builtin_actors()

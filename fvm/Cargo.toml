@@ -12,36 +12,38 @@ keywords = ["filecoin", "web3", "wasm"]
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = "1.0.47"
-thiserror = "1.0.30"
-num-traits = "0.2"
-derive_builder = "0.11.2"
-num-derive = "0.3.3"
-cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
-multihash = { version = "0.16.1", default-features = false }
 fvm_shared = { version = "0.9.0", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.5.1", path = "../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.2", path = "../ipld/amt"}
 fvm_ipld_blockstore = { version = "0.1.1", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.2.2", path = "../ipld/encoding" }
-serde = { version = "1.0", features = ["derive"] }
-serde_tuple = "0.5"
-serde_repr = "0.1"
-lazy_static = "1.4.0"
-derive-getters = "0.2.0"
-derive_more = "0.99.17"
-replace_with = "0.1.7"
-filecoin-proofs-api = { version = "12", default-features = false }
-rayon = "1"
-num_cpus = "1.13.0"
-log = "0.4.14"
-byteorder = "1.4.3"
+
+anyhow = "1.0.47"
 anymap = "0.12.1"
-blake2b_simd = "1.0.0"
-fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
-yastl = "0.1.2"
 arbitrary = {version = "1.1.0", optional = true, features = ["derive"]}
+bimap = { version = "0.6.2", features = ["serde"] }
+blake2b_simd = "1.0.0"
+byteorder = "1.4.3"
+cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
+derive-getters = "0.2.0"
+derive_builder = "0.11.2"
+derive_more = "0.99.17"
+filecoin-proofs-api = { version = "12", default-features = false }
+fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
+lazy_static = "1.4.0"
+log = "0.4.14"
+multihash = { version = "0.16.1", default-features = false }
+num-derive = "0.3.3"
+num-traits = "0.2"
+num_cpus = "1.13.0"
 rand = "0.8.5"
+rayon = "1"
+replace_with = "0.1.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_repr = "0.1"
+serde_tuple = "0.5"
+thiserror = "1.0.30"
+yastl = "0.1.2"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

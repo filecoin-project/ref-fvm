@@ -1,7 +1,6 @@
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -9,6 +8,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use num_traits::Zero;
 
+use crate::builtins::Manifest;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
 use crate::kernel::Result;

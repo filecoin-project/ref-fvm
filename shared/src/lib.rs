@@ -8,7 +8,6 @@ use address::Address;
 use clock::ChainEpoch;
 use num_bigint::BigInt;
 
-pub mod actor;
 pub mod address;
 pub mod bigint;
 pub mod clock;

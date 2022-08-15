@@ -8,28 +8,28 @@ authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin C
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
+fvm_ipld_blockstore = { version = "0.1", path = "../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.2", path = "../ipld/encoding" }
+
+anyhow = "1.0.51"
+arbitrary = { version = "1.1", optional = true, features = ["derive"]}
 blake2b_simd = "1.0.0"
-thiserror = "1.0"
-num-traits = "0.2"
-num-derive = "0.3"
-num-bigint = "0.4"
-num-integer = "0.1"
+cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
 data-encoding = "2.3.2"
 data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
-cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
 multihash = { version = "0.16.1", default-features = false, features = ["blake2b", "multihash-impl"] }
-unsigned-varint = "0.7.1"
-anyhow = "1.0.51"
-bimap = { version = "0.6.2", features = ["serde"] }
-fvm_ipld_blockstore = { version = "0.1", path = "../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2", path = "../ipld/encoding" }
+num-bigint = "0.4"
+num-derive = "0.3"
+num-integer = "0.1"
+num-traits = "0.2"
 serde = { version = "1", default-features = false }
-serde_tuple = "0.5"
-serde_repr = "0.1"
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
-arbitrary = { version = "1.1", optional = true, features = ["derive"]}
+serde_repr = "0.1"
+serde_tuple = "0.5"
+thiserror = "1.0"
+unsigned-varint = "0.7.1"
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but

@@ -1,5 +1,5 @@
 use cid::Cid;
-use fvm_shared::actor::builtin::Type;
+use fvm::builtins::Type;
 use fvm_shared::version::NetworkVersion;
 
 #[derive(thiserror::Error, Debug)]

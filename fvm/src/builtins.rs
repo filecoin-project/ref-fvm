@@ -10,6 +10,8 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Identifies the builtin actor types for usage with the
 /// actor::resolve_builtin_actor_type syscall.
+/// This is a copy of the Type enum in the built-in actors repo, and must be kept
+/// in sync for type-related syscalls to work correctly.
 #[derive(
     PartialEq,
     Eq,
@@ -56,15 +58,7 @@ impl Type {
     pub fn is_account_actor(&self) -> bool {
         self == &Type::Account
     }
-
-    /// Tests whether an actor type represents an actor that can be an external
-    /// principal: i.e. an account or multisig.
-    pub fn is_principal(&self) -> bool {
-        self == &Type::Account || self == &Type::Multisig
-    }
 }
-
-pub const CALLER_TYPES_SIGNABLE: &[Type] = &[Type::Account, Type::Multisig];
 
 impl TryFrom<&str> for Type {
     type Error = String;

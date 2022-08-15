@@ -15,7 +15,7 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{actor, ActorID, MethodNum};
+use fvm_shared::{ActorID, MethodNum};
 
 mod blocks;
 pub mod default;
@@ -186,10 +186,10 @@ pub trait ActorOps {
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns whether the supplied code_cid belongs to a known built-in actor type.
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type>;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<crate::builtins::Type>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
-    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid>;
+    fn get_code_cid_for_type(&self, typ: crate::builtins::Type) -> Result<Cid>;
 }
 
 /// Operations to send messages to other actors.

@@ -4,7 +4,6 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
 use fvm_ipld_encoding::CborStore;
-use fvm_shared::actor::builtin::{load_manifest, Manifest};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -15,6 +14,7 @@ use num_traits::Signed;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
+use crate::builtins::{load_manifest, Manifest};
 use crate::externs::Externs;
 #[cfg(feature = "m2-native")]
 use crate::init_actor::State as InitActorState;

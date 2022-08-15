@@ -1,8 +1,8 @@
 use anyhow::anyhow;
-use fvm_shared::actor::builtin::Type;
 use num_traits::FromPrimitive;
 
 use super::Context;
+use crate::builtins::Type;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
