@@ -497,7 +497,7 @@ impl PriceList {
 
     /// Returns gas required for recovering signer pubkey from signature
     #[inline]
-    pub fn on_recover_secp_public_key(&self) -> GasCharge<'static> {
+    pub fn on_recover_secp_public_key(&self) -> GasCharge {
         GasCharge::new(
             "OnRecoverSecpPublicKey",
             self.secp256k1_recover_cost,
