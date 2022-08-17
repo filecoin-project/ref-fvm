@@ -11,6 +11,8 @@ use fvm_shared::error::ExitCode;
 
 use crate::blockstore::Blockstore;
 
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
     pub value: i64,
