@@ -88,8 +88,8 @@ pub fn hash(
 
     // Then copy the result.
     let digest_out = context.memory.try_slice_mut(digest_off, digest_len)?;
-    let length = cmp::min(digest_out.len(), digest.len());
-    digest_out[..length].copy_from_slice(&digest[..length]);
+    let length = cmp::min(digest_out.len(), digest.digest().len());
+    digest_out[..length].copy_from_slice(&digest.digest()[..length]);
     Ok(length as u32)
 }
 

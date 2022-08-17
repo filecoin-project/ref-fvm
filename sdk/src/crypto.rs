@@ -2,6 +2,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{to_vec, Cbor};
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{
     Signature, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
@@ -61,6 +62,29 @@ pub fn hash_blake2b(data: &[u8]) -> [u8; 32] {
         )
     }
     .expect("failed to compute blake2b hash");
+    ret
+}
+
+/// Hashes input data using one of the supported functions.
+pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
+    // TODO, either this or ([u8; 64], usize)
+    let mut ret = Vec::with_capacity(64);
+
+    unsafe {
+        let written = sys::crypto::hash(
+            hasher.into(),
+            data.as_ptr(),
+            data.len() as u32,
+            ret.as_mut_ptr(),
+            64, // maximum the buffer will hold, but will likely be less
+        )
+        .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher))
+            as usize;
+        assert!(written <= ret.capacity());
+        // SAFETY: hash syscall should've written _exactly_ the number of bytes it wrote to the buffer
+        ret.set_len(written as usize);
+    }
+
     ret
 }
 

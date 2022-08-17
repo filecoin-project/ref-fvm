@@ -2,6 +2,8 @@ use fvm_ipld_encoding::{to_vec, BytesSer, DAG_CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::error::ExitCode;
 
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
     std::panic::set_hook(Box::new(|info| {

@@ -3,11 +3,14 @@ mod fil_syscall;
 
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::env;
 use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
+use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
+use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
+use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
@@ -28,15 +31,6 @@ pub struct State {
     pub count: u64,
 }
 
-const WASM_COMPILED_PATH: &str =
-    "../../target/debug/wbuild/fil_hello_world_actor/fil_hello_world_actor.compact.wasm";
-
-const WASM_COMPILED_PATH_OVERFLOW: &str =
-    "../../target/debug/wbuild/fil_stack_overflow_actor/fil_stack_overflow_actor.compact.wasm";
-
-const WASM_COMPILED_PATH_IPLD: &str =
-    "../../target/debug/wbuild/fil_ipld_actor/fil_ipld_actor.compact.wasm";
-
 #[test]
 fn hello_world() {
     // Instantiate tester
@@ -49,13 +43,7 @@ fn hello_world() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    // Get wasm bin
-    let wasm_path = env::current_dir()
-        .unwrap()
-        .join(WASM_COMPILED_PATH)
-        .canonicalize()
-        .unwrap();
-    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+    let wasm_bin = HELLO_BINARY.unwrap();
 
     // Set actor state
     let actor_state = State::default();
@@ -65,7 +53,7 @@ fn hello_world() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
@@ -101,13 +89,7 @@ fn ipld() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    // Get wasm bin
-    let wasm_path = env::current_dir()
-        .unwrap()
-        .join(WASM_COMPILED_PATH_IPLD)
-        .canonicalize()
-        .unwrap();
-    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+    let wasm_bin = IPLD_BINARY.unwrap();
 
     // Set actor state
     let actor_state = State::default();
@@ -117,7 +99,59 @@ fn ipld() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 1,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    if !res.msg_receipt.exit_code.is_success() {
+        if let Some(info) = res.failure_info {
+            panic!("{}", info)
+        } else {
+            panic!("non-zero exit code {}", res.msg_receipt.exit_code)
+        }
+    }
+}
+
+#[test]
+fn syscalls() {
+    // Instantiate tester
+    let mut tester = Tester::new(
+        NetworkVersion::V16,
+        StateTreeVersion::V4,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = SYSCALL_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine
@@ -159,13 +193,7 @@ fn native_stack_overflow() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    // Get wasm bin
-    let wasm_path = env::current_dir()
-        .unwrap()
-        .join(WASM_COMPILED_PATH_OVERFLOW)
-        .canonicalize()
-        .unwrap();
-    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+    let wasm_bin = OVERFLOW_BINARY.unwrap();
 
     // Set actor state
     let actor_state = State::default();
@@ -175,7 +203,7 @@ fn native_stack_overflow() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
         .unwrap();
 
     // Instantiate machine

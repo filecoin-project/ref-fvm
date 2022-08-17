@@ -23,6 +23,7 @@ pub mod default;
 mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
+use multihash::MultihashGeneric;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
@@ -254,7 +255,7 @@ pub trait CryptoOps {
     /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]>;
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
