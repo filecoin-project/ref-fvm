@@ -13,6 +13,7 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::{BigInt, Zero};
 use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -21,6 +22,7 @@ use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{commcid, ActorID, FILECOIN_PRECISION};
 use lazy_static::lazy_static;
+use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::blocks::{Block, BlockRegistry};
@@ -290,7 +292,6 @@ where
             return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
         }
 
-        use multihash::MultihashDigest;
         let block = self.blocks.get(id)?;
         let code = multihash::Code::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
@@ -463,24 +464,33 @@ where
         })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_recover_secp_public_key())?;
+
+        signature::ops::recover_secp_public_key(hash, signature)
+            .map(|pubkey| pubkey.serialize())
+            .map_err(|e| {
+                syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
+            })
+    }
+
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
-        // We only support blake2b for now, but want to support others in the future.
-        if code != BLAKE2B_256 {
-            return Err(syscall_error!(IllegalArgument; "unsupported hash code {}", code).into());
-        }
-
-        let digest = blake2b_simd::Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(data)
-            .finalize()
-            .as_bytes()
-            .try_into()
-            .expect("fixed array size");
-        Ok(digest)
+        let hasher = SupportedHashes::try_from(code).map_err(|e| {
+            if let multihash::Error::UnsupportedCode(code) = e {
+                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
+            } else {
+                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
+            }
+        })?;
+        Ok(hasher.digest(data))
     }
 
     fn compute_unsealed_sector_cid(

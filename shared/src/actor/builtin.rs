@@ -36,6 +36,7 @@ pub enum Type {
     Multisig = 9,
     Reward = 10,
     VerifiedRegistry = 11,
+    EVM = 12, // TODO revisit name
 }
 
 impl Type {
@@ -81,6 +82,7 @@ impl TryFrom<&str> for Type {
             "multisig" => Type::Multisig,
             "reward" => Type::Reward,
             "verifiedregistry" => Type::VerifiedRegistry,
+            "evm" => Type::EVM, // TODO revisit name
             _ => return Err(String::from("unrecognized actor type")),
         };
         Ok(ret)
@@ -101,6 +103,7 @@ impl From<&Type> for String {
             Type::Multisig => "multisig",
             Type::Reward => "reward",
             Type::VerifiedRegistry => "verifiedregistry",
+            Type::EVM => "evm", // TODO revisit name
         }
         .to_string()
     }

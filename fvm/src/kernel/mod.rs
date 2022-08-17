@@ -3,7 +3,9 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
@@ -21,6 +23,7 @@ pub mod default;
 mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
+use multihash::MultihashGeneric;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
@@ -241,11 +244,18 @@ pub trait CryptoOps {
         plaintext: &[u8],
     ) -> Result<bool>;
 
+    /// Given a message hash and its signature, recovers the public key of the signer.
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]>;
+
     /// Hashes input `data_in` using with the specified hash function, writing the output to
     /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]>;
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
 
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(

@@ -208,6 +208,35 @@ struct Cache<K> {
 }
 
 impl Engine {
+    /// Loads an actor's Wasm code from the blockstore by CID, and prepares
+    /// it for execution by instantiating and caching the Wasm module. This
+    /// method errors if the code CID is not found in the store.
+    pub fn prepare_actor_code<BS: Blockstore>(
+        &self,
+        code_cid: &Cid,
+        blockstore: BS,
+    ) -> anyhow::Result<()> {
+        let code_cid = self.with_redirect(code_cid);
+        if self
+            .0
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned")
+            .contains_key(code_cid)
+        {
+            return Ok(());
+        }
+        let wasm = blockstore.get(code_cid)?.ok_or_else(|| {
+            anyhow!(
+                "no wasm bytecode in blockstore for CID {}",
+                &code_cid.to_string()
+            )
+        })?;
+        // compile and cache instantiated WASM module
+        self.prepare_wasm_bytecode(code_cid, &wasm)?;
+        Ok(())
+    }
+
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
@@ -217,21 +246,13 @@ impl Engine {
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
     {
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         for cid in cids {
-            let cid = self.with_redirect(cid);
-            if cache.contains_key(cid) {
-                continue;
-            }
-            let wasm = blockstore.get(cid)?.ok_or_else(|| {
-                anyhow!(
-                    "no wasm bytecode in blockstore for CID {}",
-                    &cid.to_string()
-                )
+            log::trace!("preloading code CID {cid}");
+            self.prepare_actor_code(cid, &blockstore).with_context(|| {
+                anyhow!("could not prepare actor with code CID {}", &cid.to_string())
             })?;
-            let module = self.load_raw(wasm.as_slice())?;
-            cache.insert(*cid, module);
         }
+
         Ok(())
     }
 
@@ -242,8 +263,8 @@ impl Engine {
         }
     }
 
-    /// Load some wasm code into the engine.
-    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
+    /// Loads some Wasm code into the engine and prepares it for execution.
+    pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
         let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {

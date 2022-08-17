@@ -1,20 +1,24 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::borrow::Cow;
+
 use super::Gas;
 
 /// Single gas charge in the VM. Contains information about what gas was for, as well
 /// as the amount of gas needed for computation and storage respectively.
-pub struct GasCharge<'a> {
-    pub name: &'a str,
+#[derive(Clone, Debug)]
+pub struct GasCharge {
+    pub name: Cow<'static, str>,
     /// Compute costs
     pub compute_gas: Gas,
     /// Storage costs
     pub storage_gas: Gas,
 }
 
-impl<'a> GasCharge<'a> {
-    pub fn new(name: &'a str, compute_gas: Gas, storage_gas: Gas) -> Self {
+impl GasCharge {
+    pub fn new(name: impl Into<Cow<'static, str>>, compute_gas: Gas, storage_gas: Gas) -> Self {
+        let name = name.into();
         Self {
             name,
             compute_gas,

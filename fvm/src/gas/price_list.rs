@@ -41,6 +41,7 @@ lazy_static! {
 
         bls_sig_cost: Gas::new(16598605),
         secp256k1_sig_cost: Gas::new(1637292),
+        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
         hashing_base: Gas::new(31355),
         compute_unsealed_sector_cid_base: Gas::new(98647),
@@ -166,6 +167,7 @@ lazy_static! {
 
         bls_sig_cost: Gas::new(16598605),
         secp256k1_sig_cost: Gas::new(1637292),
+        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
         hashing_base: Gas::new(31355),
         compute_unsealed_sector_cid_base: Gas::new(98647),
@@ -361,6 +363,8 @@ pub struct PriceList {
     pub(crate) bls_sig_cost: Gas,
     /// Gas cost for verifying secp256k1 signature
     pub(crate) secp256k1_sig_cost: Gas,
+    /// Gas cost for recovering secp256k1 signer public key
+    pub(crate) secp256k1_recover_cost: Gas,
 
     pub(crate) hashing_base: Gas,
 
@@ -420,7 +424,7 @@ pub struct WasmGasPrices {
 impl PriceList {
     /// Returns the gas required for storing a message of a given size in the chain.
     #[inline]
-    pub fn on_chain_message(&self, msg_size: usize) -> GasCharge<'static> {
+    pub fn on_chain_message(&self, msg_size: usize) -> GasCharge {
         GasCharge::new(
             "OnChainMessage",
             self.on_chain_message_compute_base,
@@ -432,7 +436,7 @@ impl PriceList {
 
     /// Returns the gas required for storing the response of a message in the chain.
     #[inline]
-    pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnChainReturnValue",
             Zero::zero(),
@@ -442,11 +446,7 @@ impl PriceList {
 
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(
-        &self,
-        value: &TokenAmount,
-        method_num: MethodNum,
-    ) -> GasCharge<'static> {
+    pub fn on_method_invocation(&self, value: &TokenAmount, method_num: MethodNum) -> GasCharge {
         let mut ret = self.send_base;
         if value != &TokenAmount::zero() {
             ret += self.send_transfer_funds;
@@ -461,13 +461,13 @@ impl PriceList {
     }
 
     /// Returns the gas cost to be applied on a syscall.
-    pub fn on_syscall(&self) -> GasCharge<'static> {
+    pub fn on_syscall(&self) -> GasCharge {
         GasCharge::new("OnSyscall", self.syscall_cost, Zero::zero())
     }
 
     /// Returns the gas required for creating an actor.
     #[inline]
-    pub fn on_create_actor(&self) -> GasCharge<'static> {
+    pub fn on_create_actor(&self) -> GasCharge {
         GasCharge::new(
             "OnCreateActor",
             self.create_actor_compute,
@@ -477,7 +477,7 @@ impl PriceList {
 
     /// Returns the gas required for deleting an actor.
     #[inline]
-    pub fn on_delete_actor(&self) -> GasCharge<'static> {
+    pub fn on_delete_actor(&self) -> GasCharge {
         GasCharge::new(
             "OnDeleteActor",
             Zero::zero(),
@@ -487,7 +487,7 @@ impl PriceList {
 
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge<'static> {
+    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge {
         let val = match sig_type {
             SignatureType::BLS => self.bls_sig_cost,
             SignatureType::Secp256k1 => self.secp256k1_sig_cost,
@@ -495,9 +495,19 @@ impl PriceList {
         GasCharge::new("OnVerifySignature", val, Zero::zero())
     }
 
+    /// Returns gas required for recovering signer pubkey from signature
+    #[inline]
+    pub fn on_recover_secp_public_key(&self) -> GasCharge {
+        GasCharge::new(
+            "OnRecoverSecpPublicKey",
+            self.secp256k1_recover_cost,
+            Zero::zero(),
+        )
+    }
+
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _: usize) -> GasCharge<'static> {
+    pub fn on_hashing(&self, _: usize) -> GasCharge {
         GasCharge::new("OnHashing", self.hashing_base, Zero::zero())
     }
 
@@ -507,7 +517,7 @@ impl PriceList {
         &self,
         _proof: RegisteredSealProof,
         _pieces: &[PieceInfo],
-    ) -> GasCharge<'static> {
+    ) -> GasCharge {
         GasCharge::new(
             "OnComputeUnsealedSectorCid",
             self.compute_unsealed_sector_cid_base,
@@ -517,14 +527,14 @@ impl PriceList {
 
     /// Returns gas required for seal verification.
     #[inline]
-    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge<'static> {
+    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge {
         GasCharge::new("OnVerifySeal", self.verify_seal_base, Zero::zero())
     }
     #[inline]
     pub fn on_verify_aggregate_seals(
         &self,
         aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> GasCharge<'static> {
+    ) -> GasCharge {
         let proof_type = aggregate.seal_proof;
         let per_proof = *self
             .verify_aggregate_seal_per
@@ -558,7 +568,7 @@ impl PriceList {
 
     /// Returns gas required for replica verification.
     #[inline]
-    pub fn on_verify_replica_update(&self, _replica: &ReplicaUpdateInfo) -> GasCharge<'static> {
+    pub fn on_verify_replica_update(&self, _replica: &ReplicaUpdateInfo) -> GasCharge {
         GasCharge::new(
             "OnVerifyReplicaUpdate",
             self.verify_replica_update,
@@ -568,7 +578,7 @@ impl PriceList {
 
     /// Returns gas required for PoSt verification.
     #[inline]
-    pub fn on_verify_post(&self, info: &WindowPoStVerifyInfo) -> GasCharge<'static> {
+    pub fn on_verify_post(&self, info: &WindowPoStVerifyInfo) -> GasCharge {
         let p_proof = info
             .proofs
             .first()
@@ -587,7 +597,7 @@ impl PriceList {
 
     /// Returns gas required for verifying consensus fault.
     #[inline]
-    pub fn on_verify_consensus_fault(&self) -> GasCharge<'static> {
+    pub fn on_verify_consensus_fault(&self) -> GasCharge {
         GasCharge::new(
             "OnVerifyConsensusFault",
             self.extern_cost + self.verify_consensus_fault,
@@ -598,7 +608,7 @@ impl PriceList {
     /// Returns the cost of the gas required for getting randomness from the client, based on the
     /// numebr of bytes of entropy.
     #[inline]
-    pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge<'static> {
+    pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge {
         GasCharge::new(
             "OnGetRandomness",
             self.extern_cost
@@ -610,7 +620,7 @@ impl PriceList {
 
     /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
-    pub fn on_block_open_base(&self) -> GasCharge<'static> {
+    pub fn on_block_open_base(&self) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenBase",
             self.extern_cost + self.block_open_base,
@@ -620,7 +630,7 @@ impl PriceList {
 
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
-    pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
         let size = data_size as i64;
         GasCharge::new(
             "OnBlockOpenPerByte",
@@ -632,7 +642,7 @@ impl PriceList {
 
     /// Returns the gas required for reading a loaded object.
     #[inline]
-    pub fn on_block_read(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
             self.block_read_base + (self.block_memcpy_per_byte_cost * data_size as i64),
@@ -642,7 +652,7 @@ impl PriceList {
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_create(&self, data_size: usize) -> GasCharge {
         let size = data_size as i64;
         let mem_costs = (self.block_create_memret_per_byte_cost * size)
             + (self.block_memcpy_per_byte_cost * size);
@@ -655,7 +665,7 @@ impl PriceList {
 
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
-    pub fn on_block_link(&self, data_size: usize) -> GasCharge<'static> {
+    pub fn on_block_link(&self, data_size: usize) -> GasCharge {
         let size = data_size as i64;
         let memcpy = self.block_memcpy_per_byte_cost * size;
         GasCharge::new(
@@ -671,7 +681,7 @@ impl PriceList {
 
     /// Returns the gas required for storing an object.
     #[inline]
-    pub fn on_block_stat(&self) -> GasCharge<'static> {
+    pub fn on_block_stat(&self) -> GasCharge {
         GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
     }
 }

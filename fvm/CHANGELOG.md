@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## Unreleased
 
-...
+- Added `recover_secp_public_key` syscall
 
 ## 1.1.0 [2022-06-27]
 

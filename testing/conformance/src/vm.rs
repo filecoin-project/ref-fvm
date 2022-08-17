@@ -16,7 +16,9 @@ use fvm_shared::address::Address;
 use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::SignatureType;
+use fvm_shared::crypto::signature::{
+    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
@@ -26,6 +28,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
+use multihash::MultihashGeneric;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -409,7 +412,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<[u8; 32]> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.0.hash(code, data)
     }
 
@@ -434,6 +437,15 @@ where
             .verify_signature(sig_type, signature, signer, plaintext)
     }
 
+    // forwarded
+    fn recover_secp_public_key(
+        &mut self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.0.recover_secp_public_key(hash, signature)
+    }
+
     // NOT forwarded
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         Ok(vec![true; vis.len()])
@@ -442,14 +454,14 @@ where
     // NOT forwarded
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -461,21 +473,21 @@ where
         _extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self.1.price_list.on_verify_consensus_fault();
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
 
     // NOT forwarded
     fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_gas(charge.name, charge.total())?;
+        self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 }
