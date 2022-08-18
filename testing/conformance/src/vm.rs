@@ -544,6 +544,10 @@ where
         self.0.msg_caller()
     }
 
+    fn msg_origin(&self) -> Result<Option<ActorID>> {
+        Ok(Some(0))
+    }
+
     fn msg_receiver(&self) -> ActorID {
         self.0.msg_receiver()
     }

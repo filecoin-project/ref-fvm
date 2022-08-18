@@ -366,6 +366,10 @@ where
         self.caller
     }
 
+    fn msg_origin(&self) -> Result<Option<ActorID>> {
+        self.resolve_address(&self.call_manager.origin())
+    }
+
     fn msg_receiver(&self) -> ActorID {
         self.actor_id
     }

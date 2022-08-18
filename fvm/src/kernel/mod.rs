@@ -99,6 +99,9 @@ pub trait MessageOps {
     /// The calling actor (constant).
     fn msg_caller(&self) -> ActorID;
 
+    /// The origin actor
+    fn msg_origin(&self) -> Result<Option<ActorID>>;
+
     /// The receiving actor (this actor) (constant).
     fn msg_receiver(&self) -> ActorID;
 
