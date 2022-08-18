@@ -11,7 +11,6 @@ use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
-use fvm_shared::bigint::bigint_ser;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
@@ -522,7 +521,6 @@ pub struct ActorState {
     /// Sequence of the actor.
     pub sequence: u64,
     /// Tokens available to the actor.
-    #[serde(with = "bigint_ser")]
     pub balance: TokenAmount,
 }
 
@@ -543,13 +541,13 @@ impl ActorState {
                 syscall_error!(InsufficientFunds; "when deducting funds ({}) from balance ({})", amt, self.balance).into(),
             );
         }
-        self.balance -= amt;
+        self.balance = &self.balance - amt;
 
         Ok(())
     }
     /// Deposits funds to an Actor
     pub fn deposit_funds(&mut self, amt: &TokenAmount) {
-        self.balance += amt;
+        self.balance = &self.balance + amt;
     }
 }
 
