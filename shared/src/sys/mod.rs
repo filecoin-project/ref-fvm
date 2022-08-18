@@ -1,7 +1,7 @@
 //! This module contains types exchanged at the syscall layer between actors
 //! (usually through the SDK) and the FVM.
 
-use num_bigint::BigInt;
+use num_bigint::TryFromBigIntError;
 
 pub mod out;
 
@@ -27,9 +27,9 @@ impl From<TokenAmount> for crate::econ::TokenAmount {
 }
 
 impl TryFrom<crate::econ::TokenAmount> for TokenAmount {
-    type Error = <BigInt as TryInto<u128>>::Error;
+    type Error = TryFromBigIntError<()>;
     fn try_from(v: crate::econ::TokenAmount) -> Result<Self, Self::Error> {
-        v.atto().clone().try_into().map(|v: u128| Self {
+        v.atto().try_into().map(|v: u128| Self {
             hi: (v >> u64::BITS) as u64,
             lo: v as u64,
         })
@@ -37,7 +37,7 @@ impl TryFrom<crate::econ::TokenAmount> for TokenAmount {
 }
 
 impl<'a> TryFrom<&'a crate::econ::TokenAmount> for TokenAmount {
-    type Error = <&'a BigInt as TryInto<u128>>::Error;
+    type Error = TryFromBigIntError<()>;
     fn try_from(v: &'a crate::econ::TokenAmount) -> Result<Self, Self::Error> {
         v.atto().try_into().map(|v: u128| Self {
             hi: (v >> u64::BITS) as u64,
