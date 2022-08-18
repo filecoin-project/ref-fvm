@@ -57,8 +57,8 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let base_fee = v
             .preconditions
             .basefee
-            .map(TokenAmount::from_atto_u128)
-            .unwrap_or_else(|| TokenAmount::from_atto_u64(DEFAULT_BASE_FEE));
+            .map(TokenAmount::from_atto)
+            .unwrap_or_else(|| TokenAmount::from_atto(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
         let state_root = v.preconditions.state_tree.root_cid;
 
@@ -95,7 +95,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 circ_supply: v
                     .preconditions
                     .circ_supply
-                    .map(TokenAmount::from_atto_u128)
+                    .map(TokenAmount::from_atto)
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list,
             },

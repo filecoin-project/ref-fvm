@@ -10,6 +10,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use num_traits::Zero;
 pub use threaded::ThreadedExecutor;
 
 use crate::call_manager::Backtrace;

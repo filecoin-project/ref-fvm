@@ -1,5 +1,6 @@
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
+use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 

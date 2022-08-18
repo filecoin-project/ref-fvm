@@ -10,6 +10,7 @@ use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
 use fvm_ipld_encoding::{Cbor, RawBytes};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
+use num_traits::Zero;
 use walkdir::WalkDir;
 
 mod bench_drivers;
@@ -52,12 +53,12 @@ fn bench_500_simple_state_access(
                 from: BURNT_FUNDS_ACTOR_ADDR,
                 to: BURNT_FUNDS_ACTOR_ADDR,
                 sequence: i,
-                value: TokenAmount::from(0u8),
+                value: TokenAmount::zero(),
                 method_num: 2,
                 params: RawBytes::default(),
                 gas_limit: 5000000000,
-                gas_fee_cap: TokenAmount::from(0u8),
-                gas_premium: TokenAmount::from(0u8),
+                gas_fee_cap: TokenAmount::zero(),
+                gas_premium: TokenAmount::zero(),
             }
             .marshal_cbor()
             .unwrap(),

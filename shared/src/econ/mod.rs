@@ -29,35 +29,13 @@ impl TokenAmount {
     pub const PRECISION: u64 = 10u64.pow(Self::DECIMALS as u32);
 
     /// Creates a token amount from a quantity of indivisible units  (10^-18 whole units).
-    pub fn from_atto(atto: BigInt) -> Self {
-        Self { atto }
-    }
-
-    /// Creates a token amount from a quantity of indivisible units (10^-18 whole units).
-    pub fn from_atto_u128(atto: u128) -> Self {
-        Self {
-            atto: BigInt::from(atto),
-        }
-    }
-
-    /// Creates a token amount from a quantity of indivisible units (10^-18 whole units).
-    pub fn from_atto_u64(atto: u64) -> Self {
-        Self {
-            atto: BigInt::from(atto),
-        }
+    pub fn from_atto(atto: impl Into<BigInt>) -> Self {
+        Self { atto: atto.into() }
     }
 
     /// Creates a token amount from a quantity of whole units (10^18 indivisible units).
     pub fn from_whole(tokens: i64) -> Self {
-        Self {
-            atto: BigInt::from(tokens) * Self::PRECISION,
-        }
-    }
-
-    pub fn zero() -> Self {
-        Self {
-            atto: BigInt::zero(),
-        }
+        Self::from_atto((tokens as i128) * (Self::PRECISION as i128))
     }
 
     /// Returns the quantity of indivisible units.
@@ -75,6 +53,20 @@ impl TokenAmount {
 
     pub fn is_negative(&self) -> bool {
         self.atto.is_negative()
+    }
+}
+
+impl Zero for TokenAmount {
+    #[inline]
+    fn zero() -> Self {
+        Self {
+            atto: BigInt::zero(),
+        }
+    }
+
+    #[inline]
+    fn is_zero(&self) -> bool {
+        self.atto.is_zero()
     }
 }
 
@@ -101,7 +93,7 @@ impl Default for TokenAmount {
 
 impl fmt::Debug for TokenAmount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self, f)
+        write!(f, "TokenAmount({})", self)
     }
 }
 
@@ -266,6 +258,8 @@ impl<'de> Deserialize<'de> for TokenAmount {
 
 #[cfg(test)]
 mod test {
+    use num_traits::Zero;
+
     use crate::TokenAmount;
 
     fn basic(expected: &str, t: TokenAmount) {
@@ -275,32 +269,32 @@ mod test {
     #[test]
     fn display_basic() {
         basic("0.0", TokenAmount::zero());
-        basic("0.000000000000000001", TokenAmount::from_atto_u64(1));
-        basic("0.000000000000001", TokenAmount::from_atto_u64(1000));
+        basic("0.000000000000000001", TokenAmount::from_atto(1));
+        basic("0.000000000000001", TokenAmount::from_atto(1000));
         basic(
             "0.1234",
-            TokenAmount::from_atto_u64(123_400_000_000_000_000),
+            TokenAmount::from_atto(123_400_000_000_000_000_u64),
         );
         basic(
             "0.10101",
-            TokenAmount::from_atto_u64(101_010_000_000_000_000),
+            TokenAmount::from_atto(101_010_000_000_000_000_u64),
         );
         basic("1.0", TokenAmount::from_whole(1));
         basic(
             "1.0",
-            TokenAmount::from_atto_u128(1_000_000_000_000_000_000),
+            TokenAmount::from_atto(1_000_000_000_000_000_000_u128),
         );
         basic(
             "1.1",
-            TokenAmount::from_atto_u128(1_100_000_000_000_000_000),
+            TokenAmount::from_atto(1_100_000_000_000_000_000_u128),
         );
         basic(
             "1.000000000000000001",
-            TokenAmount::from_atto_u128(1_000_000_000_000_000_001),
+            TokenAmount::from_atto(1_000_000_000_000_000_001_u128),
         );
         basic(
             "1234.000000000123456789",
-            TokenAmount::from_whole(1234) + TokenAmount::from_atto_u64(123_456_789),
+            TokenAmount::from_whole(1234) + TokenAmount::from_atto(123_456_789_u64),
         );
     }
 
@@ -308,16 +302,16 @@ mod test {
     fn display_precision() {
         assert_eq!("0.0", format!("{:.1}", TokenAmount::zero()));
         assert_eq!("0.000", format!("{:.3}", TokenAmount::zero()));
-        assert_eq!("0.000", format!("{:.3}", TokenAmount::from_atto_u64(1))); // Truncated.
+        assert_eq!("0.000", format!("{:.3}", TokenAmount::from_atto(1))); // Truncated.
         assert_eq!(
             "0.123",
-            format!("{:.3}", TokenAmount::from_atto_u64(123_456_789_000_000_000)) // Truncated.
+            format!("{:.3}", TokenAmount::from_atto(123_456_789_000_000_000_u64)) // Truncated.
         );
         assert_eq!(
             "0.123456789000",
             format!(
                 "{:.12}",
-                TokenAmount::from_atto_u64(123_456_789_000_000_000)
+                TokenAmount::from_atto(123_456_789_000_000_000_u64)
             )
         );
     }
@@ -331,14 +325,14 @@ mod test {
             "0.123",
             format!(
                 "{:01.3}",
-                TokenAmount::from_atto_u64(123_456_789_000_000_000)
+                TokenAmount::from_atto(123_456_789_000_000_000_u64)
             )
         );
         assert_eq!(
             "00.123",
             format!(
                 "{:06.3}",
-                TokenAmount::from_atto_u64(123_456_789_000_000_000)
+                TokenAmount::from_atto(123_456_789_000_000_000_u64)
             )
         );
     }

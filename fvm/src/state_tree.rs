@@ -638,7 +638,7 @@ mod tests {
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_shared::address::{Address, SECP_PUB_LEN};
-    use fvm_shared::bigint::BigInt;
+    use fvm_shared::econ::TokenAmount;
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::{IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;
@@ -753,7 +753,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1,
             ),
         )
@@ -764,7 +764,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1,
             ),
         )
@@ -774,7 +774,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1,
             ),
         )
@@ -787,7 +787,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1
             )
         );
@@ -796,7 +796,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1
             )
         );
@@ -806,7 +806,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1
             )
         );
@@ -826,7 +826,7 @@ mod tests {
             ActorState::new(
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
-                BigInt::from(55),
+                TokenAmount::from_atto(55),
                 1,
             ),
         )
