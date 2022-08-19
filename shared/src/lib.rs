@@ -69,9 +69,6 @@ pub const WINNING_POST_SECTOR_SET_LOOKBACK: ChainEpoch = 10;
 /// The expected number of block producers in each epoch.
 pub const BLOCKS_PER_EPOCH: u64 = 5;
 
-/// Ratio of integer values to token value.
-// pub const FILECOIN_PRECISION: i64 = 1_000_000_000_000_000_000;
-
 /// Allowable clock drift in validations.
 pub const ALLOWABLE_CLOCK_DRIFT: u64 = 1;
 

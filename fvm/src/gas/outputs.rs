@@ -48,7 +48,7 @@ impl GasOutputs {
 
         if out.gas_burned != 0 {
             out.over_estimation_burn = base_fee_to_pay * out.gas_burned;
-            out.miner_penalty = out.miner_penalty + (base_fee - base_fee_to_pay) * out.gas_burned;
+            out.miner_penalty += (base_fee - base_fee_to_pay) * out.gas_burned;
         }
         let required_funds = fee_cap * gas_limit;
         let refund =

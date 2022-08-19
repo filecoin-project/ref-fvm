@@ -541,13 +541,13 @@ impl ActorState {
                 syscall_error!(InsufficientFunds; "when deducting funds ({}) from balance ({})", amt, self.balance).into(),
             );
         }
-        self.balance = &self.balance - amt;
+        self.balance -= amt;
 
         Ok(())
     }
     /// Deposits funds to an Actor
     pub fn deposit_funds(&mut self, amt: &TokenAmount) {
-        self.balance = &self.balance + amt;
+        self.balance += amt;
     }
 }
 

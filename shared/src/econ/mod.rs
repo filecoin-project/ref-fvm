@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use num_bigint::BigInt;
 use num_integer::Integer;
@@ -176,6 +176,20 @@ impl_add! {
     impl<'a, 'b> Add<&'b TokenAmount> for &'a TokenAmount;
 }
 
+impl AddAssign<TokenAmount> for TokenAmount {
+    #[inline]
+    fn add_assign(&mut self, other: TokenAmount) {
+        self.atto += &other.atto;
+    }
+}
+
+impl<'a> AddAssign<&'a TokenAmount> for TokenAmount {
+    #[inline]
+    fn add_assign(&mut self, other: &TokenAmount) {
+        self.atto += &other.atto;
+    }
+}
+
 // Implements Sub for all combinations of value/reference receiver and parameter.
 macro_rules! impl_sub {
     ($(impl<$($a:lifetime),*> Sub<$Other:ty> for $Self:ty;)*) => {$(
@@ -197,6 +211,20 @@ impl_sub! {
     impl<'b> Sub<&'b TokenAmount> for TokenAmount;
     impl<'a> Sub<TokenAmount> for &'a TokenAmount;
     impl<'a, 'b> Sub<&'b TokenAmount> for &'a TokenAmount;
+}
+
+impl SubAssign<TokenAmount> for TokenAmount {
+    #[inline]
+    fn sub_assign(&mut self, other: TokenAmount) {
+        self.atto -= &other.atto;
+    }
+}
+
+impl<'a> SubAssign<&'a TokenAmount> for TokenAmount {
+    #[inline]
+    fn sub_assign(&mut self, other: &TokenAmount) {
+        self.atto -= &other.atto;
+    }
 }
 
 // Implements Mul for all combinations of value/reference receiver and 32/64-bit value.
@@ -226,12 +254,26 @@ impl_mul! {
     impl<'a> Mul<i64> for &'a TokenAmount;
 }
 
+impl MulAssign<TokenAmount> for TokenAmount {
+    #[inline]
+    fn mul_assign(&mut self, other: TokenAmount) {
+        self.atto *= &other.atto;
+    }
+}
+
+impl<'a> MulAssign<&'a TokenAmount> for TokenAmount {
+    #[inline]
+    fn mul_assign(&mut self, other: &TokenAmount) {
+        self.atto *= &other.atto;
+    }
+}
+
 // Only a single div/rem method is implemented, rather than the full Div and Rem traits.
 // Division isn't a common operation with money-like units, and deserves to be treated carefully.
 impl TokenAmount {
     #[inline]
-    pub fn div_rem(&self, other: &TokenAmount) -> (TokenAmount, TokenAmount) {
-        let (q, r) = self.atto.div_rem(&other.atto);
+    pub fn div_rem(&self, other: impl Into<BigInt>) -> (TokenAmount, TokenAmount) {
+        let (q, r) = self.atto.div_rem(&other.into());
         (TokenAmount { atto: q }, TokenAmount { atto: r })
     }
 }
@@ -258,43 +300,37 @@ impl<'de> Deserialize<'de> for TokenAmount {
 
 #[cfg(test)]
 mod test {
+    use num_bigint::BigInt;
     use num_traits::Zero;
 
     use crate::TokenAmount;
 
-    fn basic(expected: &str, t: TokenAmount) {
-        assert_eq!(expected, format!("{}", t));
+    fn whole(x: i64) -> TokenAmount {
+        TokenAmount::from_whole(x)
+    }
+
+    fn atto(x: impl Into<BigInt>) -> TokenAmount {
+        TokenAmount::from_atto(x.into())
     }
 
     #[test]
     fn display_basic() {
+        fn basic(expected: &str, t: TokenAmount) {
+            assert_eq!(expected, format!("{}", t));
+        }
+
         basic("0.0", TokenAmount::zero());
-        basic("0.000000000000000001", TokenAmount::from_atto(1));
-        basic("0.000000000000001", TokenAmount::from_atto(1000));
-        basic(
-            "0.1234",
-            TokenAmount::from_atto(123_400_000_000_000_000_u64),
-        );
-        basic(
-            "0.10101",
-            TokenAmount::from_atto(101_010_000_000_000_000_u64),
-        );
-        basic("1.0", TokenAmount::from_whole(1));
-        basic(
-            "1.0",
-            TokenAmount::from_atto(1_000_000_000_000_000_000_u128),
-        );
-        basic(
-            "1.1",
-            TokenAmount::from_atto(1_100_000_000_000_000_000_u128),
-        );
-        basic(
-            "1.000000000000000001",
-            TokenAmount::from_atto(1_000_000_000_000_000_001_u128),
-        );
+        basic("0.000000000000000001", atto(1));
+        basic("0.000000000000001", atto(1000));
+        basic("0.1234", atto(123_400_000_000_000_000_u64));
+        basic("0.10101", atto(101_010_000_000_000_000_u64));
+        basic("1.0", whole(1));
+        basic("1.0", atto(1_000_000_000_000_000_000_u128));
+        basic("1.1", atto(1_100_000_000_000_000_000_u128));
+        basic("1.000000000000000001", atto(1_000_000_000_000_000_001_u128));
         basic(
             "1234.000000000123456789",
-            TokenAmount::from_whole(1234) + TokenAmount::from_atto(123_456_789_u64),
+            whole(1234) + atto(123_456_789_u64),
         );
     }
 
@@ -302,17 +338,14 @@ mod test {
     fn display_precision() {
         assert_eq!("0.0", format!("{:.1}", TokenAmount::zero()));
         assert_eq!("0.000", format!("{:.3}", TokenAmount::zero()));
-        assert_eq!("0.000", format!("{:.3}", TokenAmount::from_atto(1))); // Truncated.
+        assert_eq!("0.000", format!("{:.3}", atto(1))); // Truncated.
         assert_eq!(
             "0.123",
-            format!("{:.3}", TokenAmount::from_atto(123_456_789_000_000_000_u64)) // Truncated.
+            format!("{:.3}", atto(123_456_789_000_000_000_u64)) // Truncated.
         );
         assert_eq!(
             "0.123456789000",
-            format!(
-                "{:.12}",
-                TokenAmount::from_atto(123_456_789_000_000_000_u64)
-            )
+            format!("{:.12}", atto(123_456_789_000_000_000_u64))
         );
     }
 
@@ -323,17 +356,29 @@ mod test {
         assert_eq!("000.0", format!("{:05}", TokenAmount::zero()));
         assert_eq!(
             "0.123",
-            format!(
-                "{:01.3}",
-                TokenAmount::from_atto(123_456_789_000_000_000_u64)
-            )
+            format!("{:01.3}", atto(123_456_789_000_000_000_u64))
         );
         assert_eq!(
             "00.123",
-            format!(
-                "{:06.3}",
-                TokenAmount::from_atto(123_456_789_000_000_000_u64)
-            )
+            format!("{:06.3}", atto(123_456_789_000_000_000_u64))
         );
+    }
+
+    #[test]
+    fn ops() {
+        // Test the basic operations are wired up correctly.
+        assert_eq!(atto(15), atto(10) + atto(5));
+        assert_eq!(atto(3), atto(10) - atto(7));
+        assert_eq!(atto(12), atto(3) * 4);
+        let (q, r) = atto(14).div_rem(4);
+        assert_eq!((atto(3), atto(2)), (q, r));
+
+        let mut a = atto(1);
+        a += atto(2);
+        assert_eq!(atto(3), a);
+        a *= atto(2);
+        assert_eq!(atto(6), a);
+        a -= atto(2);
+        assert_eq!(atto(3), a);
     }
 }
