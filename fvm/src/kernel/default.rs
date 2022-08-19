@@ -366,7 +366,7 @@ where
         self.caller
     }
 
-    fn msg_origin(&self) -> ActorID {
+    fn msg_origin(&self) -> (ActorID, &Address) {
         self.call_manager.origin()
     }
 
@@ -732,8 +732,9 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
+        let origin_addr = *self.call_manager.origin().1;
         let oa = self
-            .resolve_to_key_addr(&Address::new_id(self.call_manager.origin()), false)
+            .resolve_to_key_addr(&origin_addr, false)
             // This is already an execution error, but we're _making_ it fatal.
             .or_fatal()?;
 
@@ -846,7 +847,7 @@ where
             let dir: PathBuf = [
                 dir,
                 self.call_manager.machine().machine_id(),
-                &self.call_manager.origin().to_string(),
+                &self.call_manager.origin().0.to_string(),
                 &self.call_manager.nonce().to_string(),
                 &self.actor_id.to_string(),
                 &self.call_manager.invocation_count().to_string(),

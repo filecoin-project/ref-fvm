@@ -184,7 +184,7 @@ where
 {
     type Machine = C::Machine;
 
-    fn new(machine: Self::Machine, gas_limit: i64, origin: ActorID, nonce: u64) -> Self {
+    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self {
         TestCallManager(C::new(machine, gas_limit, origin, nonce))
     }
 
@@ -238,7 +238,7 @@ where
         self.0.gas_tracker_mut()
     }
 
-    fn origin(&self) -> ActorID {
+    fn origin(&self) -> (ActorID, &Address) {
         self.0.origin()
     }
 
@@ -544,7 +544,7 @@ where
         self.0.msg_caller()
     }
 
-    fn msg_origin(&self) -> ActorID {
+    fn msg_origin(&self) -> (ActorID, &Address) {
         self.0.msg_origin()
     }
 
