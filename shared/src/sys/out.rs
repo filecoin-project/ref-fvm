@@ -76,5 +76,7 @@ pub mod vm {
         pub network_curr_epoch: ChainEpoch,
         /// The network version.
         pub network_version: u32,
+        /// The current call's origin actor ID.
+        pub origin: ActorID,
     }
 }

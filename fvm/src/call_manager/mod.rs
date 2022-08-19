@@ -42,7 +42,7 @@ pub trait CallManager: 'static {
     type Machine: Machine;
 
     /// Construct a new call manager.
-    fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self;
+    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self;
 
     /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
@@ -75,7 +75,7 @@ pub trait CallManager: 'static {
     fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
     /// Getter for origin actor.
-    fn origin(&self) -> Address;
+    fn origin(&self) -> (ActorID, &Address);
 
     /// Getter for message nonce.
     fn nonce(&self) -> u64;

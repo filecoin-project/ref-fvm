@@ -14,6 +14,12 @@ pub fn caller() -> ActorID {
     INVOCATION_CONTEXT.caller
 }
 
+/// Returns the ID address of the origin
+#[inline(always)]
+pub fn origin() -> ActorID {
+    INVOCATION_CONTEXT.origin
+}
+
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> ActorID {

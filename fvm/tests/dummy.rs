@@ -15,6 +15,7 @@ use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_shared::ActorID;
 use multihash::Code;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
@@ -166,7 +167,7 @@ impl Machine for DummyMachine {
 pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
-    pub origin: Address,
+    pub origin: (ActorID, Address),
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
 }
@@ -186,7 +187,7 @@ impl DummyCallManager {
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
-                origin: Address::new_actor(&[]),
+                origin: (0, Address::new_actor(&[])),
                 nonce: 0,
                 test_data: rc,
             },
@@ -203,7 +204,7 @@ impl DummyCallManager {
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
                 gas_tracker,
-                origin: Address::new_actor(&[]),
+                origin: (0, Address::new_actor(&[])),
                 nonce: 0,
                 test_data: rc,
             },
@@ -215,7 +216,12 @@ impl DummyCallManager {
 impl CallManager for DummyCallManager {
     type Machine = DummyMachine;
 
-    fn new(machine: Self::Machine, _gas_limit: i64, origin: Address, nonce: u64) -> Self {
+    fn new(
+        machine: Self::Machine,
+        _gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+    ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
         }));
@@ -283,8 +289,8 @@ impl CallManager for DummyCallManager {
         self.gas_tracker_mut().apply_charge(charge)
     }
 
-    fn origin(&self) -> Address {
-        self.origin
+    fn origin(&self) -> (ActorID, &Address) {
+        (self.origin.0, &self.origin.1)
     }
 
     fn nonce(&self) -> u64 {
