@@ -53,12 +53,7 @@ pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<Invoc
 
     Ok(InvocationContext {
         caller: context.kernel.msg_caller(),
-        origin: context
-            .kernel
-            .msg_origin()
-            .or_fatal()?
-            .context("unknown origin actor")
-            .or_fatal()?,
+        origin: context.kernel.msg_origin(),
         receiver: context.kernel.msg_receiver(),
         method_number: context.kernel.msg_method_number(),
         value_received: context

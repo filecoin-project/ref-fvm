@@ -34,7 +34,7 @@ pub struct InnerDefaultCallManager<M> {
     /// The gas tracker.
     gas_tracker: GasTracker,
     /// The original sender of the chain message that initiated this call stack.
-    origin: Address,
+    origin: ActorID,
     /// The nonce of the chain message that initiated this call stack.
     nonce: u64,
     /// Number of actors created in this call stack.
@@ -71,7 +71,7 @@ where
 {
     type Machine = M;
 
-    fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
+    fn new(machine: M, gas_limit: i64, origin: ActorID, nonce: u64) -> Self {
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
         if machine.context().tracing {
             gas_tracker.enable_tracing()
@@ -220,7 +220,7 @@ where
 
     // Other accessor methods
 
-    fn origin(&self) -> Address {
+    fn origin(&self) -> ActorID {
         self.origin
     }
 

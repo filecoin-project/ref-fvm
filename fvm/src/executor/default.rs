@@ -67,7 +67,8 @@ where
 
         // Apply the message.
         let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
-            let mut cm = K::CallManager::new(machine, msg.gas_limit, msg.from, msg.sequence);
+            // We're processing a chain message, so the sender is the origin of the call stack.
+            let mut cm = K::CallManager::new(machine, msg.gas_limit, sender_id, msg.sequence);
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
