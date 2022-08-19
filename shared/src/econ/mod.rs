@@ -254,17 +254,13 @@ impl_mul! {
     impl<'a> Mul<i64> for &'a TokenAmount;
 }
 
-impl MulAssign<TokenAmount> for TokenAmount {
+impl<T> MulAssign<T> for TokenAmount
+where
+    BigInt: MulAssign<T>,
+{
     #[inline]
-    fn mul_assign(&mut self, other: TokenAmount) {
-        self.atto *= &other.atto;
-    }
-}
-
-impl<'a> MulAssign<&'a TokenAmount> for TokenAmount {
-    #[inline]
-    fn mul_assign(&mut self, other: &TokenAmount) {
-        self.atto *= &other.atto;
+    fn mul_assign(&mut self, other: T) {
+        self.atto *= other;
     }
 }
 
@@ -376,9 +372,9 @@ mod test {
         let mut a = atto(1);
         a += atto(2);
         assert_eq!(atto(3), a);
-        a *= atto(2);
+        a *= 2;
         assert_eq!(atto(6), a);
         a -= atto(2);
-        assert_eq!(atto(3), a);
+        assert_eq!(atto(4), a);
     }
 }
