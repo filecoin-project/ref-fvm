@@ -68,8 +68,6 @@ pub mod vm {
         pub value_received: TokenAmount,
         /// The caller's actor ID.
         pub caller: ActorID,
-        /// The current call's origin actor ID.
-        pub origin: ActorID,
         /// The receiver's actor ID (i.e. ourselves).
         pub receiver: ActorID,
         /// The method number from the message.
@@ -78,5 +76,7 @@ pub mod vm {
         pub network_curr_epoch: ChainEpoch,
         /// The network version.
         pub network_version: u32,
+        /// The current call's origin actor ID.
+        pub origin: ActorID,
     }
 }
