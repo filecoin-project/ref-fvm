@@ -11,8 +11,8 @@ use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
+use num_traits::Zero;
 
 use crate::state_tree::ActorState;
 use crate::EMPTY_ARR_CID;

@@ -11,7 +11,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
-use fvm_shared::bigint::{BigInt, Zero};
+use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature;
@@ -20,7 +20,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{commcid, ActorID, FILECOIN_PRECISION};
+use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -36,7 +36,7 @@ use crate::{syscall_error, EMPTY_ARR_CID};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
-    static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
+    static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
 }
 
 const BLAKE2B_256: u64 = 0xb220;
@@ -769,7 +769,7 @@ where
         let state_tree = self.call_manager.state_tree_mut();
         state_tree.set_actor_id(
             actor_id,
-            ActorState::new(code_id, *EMPTY_ARR_CID, 0.into(), 0),
+            ActorState::new(code_id, *EMPTY_ARR_CID, TokenAmount::zero(), 0),
         )
     }
 

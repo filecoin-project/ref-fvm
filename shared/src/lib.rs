@@ -6,7 +6,6 @@ extern crate lazy_static;
 
 use address::Address;
 use clock::ChainEpoch;
-use num_bigint::BigInt;
 
 pub mod actor;
 pub mod address;
@@ -30,9 +29,11 @@ pub mod state;
 pub mod sys;
 pub mod version;
 
+use econ::TokenAmount;
+
 lazy_static! {
     /// Total Filecoin available to the network.
-    pub static ref TOTAL_FILECOIN: BigInt = BigInt::from(TOTAL_FILECOIN_BASE) * FILECOIN_PRECISION;
+    pub static ref TOTAL_FILECOIN: TokenAmount = TokenAmount::from_whole(TOTAL_FILECOIN_BASE);
 
     /// Zero address used to avoid allowing it to be used for verification.
     /// This is intentionally disallowed because it is an edge case with Filecoin's BLS
@@ -68,9 +69,6 @@ pub const WINNING_POST_SECTOR_SET_LOOKBACK: ChainEpoch = 10;
 /// The expected number of block producers in each epoch.
 pub const BLOCKS_PER_EPOCH: u64 = 5;
 
-/// Ratio of integer values to token value.
-pub const FILECOIN_PRECISION: i64 = 1_000_000_000_000_000_000;
-
 /// Allowable clock drift in validations.
 pub const ALLOWABLE_CLOCK_DRIFT: u64 = 1;
 
@@ -83,13 +81,8 @@ pub trait NetworkParams {
     const MINING_REWARD_TOTAL: i64;
 
     /// Initial reward actor balance. This function is only called in genesis setting up state.
-    fn initial_reward_balance() -> BigInt {
-        BigInt::from(Self::MINING_REWARD_TOTAL) * Self::TOTAL_FILECOIN
-    }
-
-    /// Convert integer value of tokens into BigInt based on the token precision.
-    fn from_fil(i: i64) -> BigInt {
-        BigInt::from(i) * FILECOIN_PRECISION
+    fn initial_reward_balance() -> TokenAmount {
+        TokenAmount::from_whole(Self::MINING_REWARD_TOTAL)
     }
 }
 

@@ -7,7 +7,6 @@ use fvm_ipld_encoding::ser::{Serialize, Serializer};
 use fvm_ipld_encoding::{Cbor, RawBytes};
 
 use crate::address::Address;
-use crate::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use crate::econ::TokenAmount;
 use crate::MethodNum;
 
@@ -59,10 +58,10 @@ impl Serialize for Message {
             &self.to,
             &self.from,
             &self.sequence,
-            BigIntSer(&self.value),
+            &self.value,
             &self.gas_limit,
-            BigIntSer(&self.gas_fee_cap),
-            BigIntSer(&self.gas_premium),
+            &self.gas_fee_cap,
+            &self.gas_premium,
             &self.method_num,
             &self.params,
         )
@@ -80,10 +79,10 @@ impl<'de> Deserialize<'de> for Message {
             to,
             from,
             sequence,
-            BigIntDe(value),
+            value,
             gas_limit,
-            BigIntDe(gas_fee_cap),
-            BigIntDe(gas_premium),
+            gas_fee_cap,
+            gas_premium,
             method_num,
             params,
         ) = Deserialize::deserialize(deserializer)?;

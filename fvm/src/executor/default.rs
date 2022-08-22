@@ -6,7 +6,6 @@ use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
@@ -191,9 +190,9 @@ where
                 msg_receipt: receipt,
                 penalty: TokenAmount::zero(),
                 miner_tip: TokenAmount::zero(),
-                base_fee_burn: TokenAmount::from(0),
-                over_estimation_burn: TokenAmount::from(0),
-                refund: TokenAmount::from(0),
+                base_fee_burn: TokenAmount::zero(),
+                over_estimation_burn: TokenAmount::zero(),
+                refund: TokenAmount::zero(),
                 gas_refund: 0,
                 gas_burned: 0,
                 failure_info,
@@ -354,7 +353,7 @@ where
         msg: Message,
         receipt: Receipt,
         failure_info: Option<ApplyFailure>,
-        gas_cost: BigInt,
+        gas_cost: TokenAmount,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -374,7 +373,7 @@ where
         );
 
         let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
-            if amt.sign() == Sign::Minus {
+            if amt.is_negative() {
                 return Err(anyhow!("attempted to transfer negative value into actor"));
             }
             if amt.is_zero() {
