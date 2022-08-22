@@ -296,7 +296,7 @@ where
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             Some(Block::new(DAG_CBOR, params)),
-            &TokenAmount::from(0u32),
+            &TokenAmount::zero(),
         )?;
 
         Ok(id)

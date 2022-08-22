@@ -19,7 +19,7 @@ pub fn send(
     value_lo: u64,
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
-    let value = TokenAmount::from((value_hi as u128) << 64 | value_lo as u128);
+    let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
     Ok(

@@ -1,6 +1,8 @@
 //! This module contains types exchanged at the syscall layer between actors
 //! (usually through the SDK) and the FVM.
 
+use num_bigint::TryFromBigIntError;
+
 pub mod out;
 
 pub type BlockId = u32;
@@ -20,14 +22,14 @@ pub struct TokenAmount {
 
 impl From<TokenAmount> for crate::econ::TokenAmount {
     fn from(v: TokenAmount) -> Self {
-        crate::econ::TokenAmount::from(v.hi) << 64 | crate::econ::TokenAmount::from(v.lo)
+        crate::econ::TokenAmount::from_atto((v.hi as u128) << 64 | (v.lo as u128))
     }
 }
 
 impl TryFrom<crate::econ::TokenAmount> for TokenAmount {
-    type Error = <crate::econ::TokenAmount as TryInto<u128>>::Error;
+    type Error = TryFromBigIntError<()>;
     fn try_from(v: crate::econ::TokenAmount) -> Result<Self, Self::Error> {
-        v.try_into().map(|v: u128| Self {
+        v.atto().try_into().map(|v: u128| Self {
             hi: (v >> u64::BITS) as u64,
             lo: v as u64,
         })
@@ -35,9 +37,9 @@ impl TryFrom<crate::econ::TokenAmount> for TokenAmount {
 }
 
 impl<'a> TryFrom<&'a crate::econ::TokenAmount> for TokenAmount {
-    type Error = <&'a crate::econ::TokenAmount as TryInto<u128>>::Error;
+    type Error = TryFromBigIntError<()>;
     fn try_from(v: &'a crate::econ::TokenAmount) -> Result<Self, Self::Error> {
-        v.try_into().map(|v: u128| Self {
+        v.atto().try_into().map(|v: u128| Self {
             hi: (v >> u64::BITS) as u64,
             lo: v as u64,
         })

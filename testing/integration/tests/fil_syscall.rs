@@ -6,7 +6,7 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
@@ -58,7 +58,7 @@ fn instantiate_tester(
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
     (sender[0], tester, actor_address)

@@ -13,7 +13,6 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car_unchecked;
 use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
@@ -58,8 +57,8 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let base_fee = v
             .preconditions
             .basefee
-            .map(|i| i.into())
-            .unwrap_or_else(|| BigInt::from(DEFAULT_BASE_FEE));
+            .map(TokenAmount::from_atto)
+            .unwrap_or_else(|| TokenAmount::from_atto(DEFAULT_BASE_FEE));
         let epoch = variant.epoch;
         let state_root = v.preconditions.state_tree.root_cid;
 
@@ -96,7 +95,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 circ_supply: v
                     .preconditions
                     .circ_supply
-                    .map(|i| i.into())
+                    .map(TokenAmount::from_atto)
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list,
             },
