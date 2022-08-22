@@ -1,5 +1,5 @@
 use multihash::derive::Multihash;
-use multihash::{Blake2b256, Keccak256, Ripemd160, Sha2_256};
+use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
 
 #[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
 #[mh(alloc_size = 64)]
@@ -11,6 +11,8 @@ pub enum SupportedHashes {
     Sha2_256,
     #[mh(code = 0xb220, hasher = Blake2b256)]
     Blake2b256,
+    #[mh(code = 0xb240, hasher = Blake2b512)]
+    Blake2b512,
     #[mh(code = 0x1b, hasher = Keccak256)]
     Keccak256,
     #[mh(code = 0x1053, hasher = Ripemd160)]
