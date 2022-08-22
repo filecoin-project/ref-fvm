@@ -6,7 +6,6 @@ use std::fmt::Display;
 use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
-use fvm_shared::bigint::{BigInt, Sign};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -74,9 +73,9 @@ pub struct ApplyRet {
     /// Message receipt for the transaction. This data is stored on chain.
     pub msg_receipt: Receipt,
     /// Gas penalty from transaction, if any.
-    pub penalty: BigInt,
+    pub penalty: TokenAmount,
     /// Tip given to miner from message.
-    pub miner_tip: BigInt,
+    pub miner_tip: TokenAmount,
 
     // Gas stuffs
     pub base_fee_burn: TokenAmount,
@@ -96,7 +95,7 @@ impl ApplyRet {
     pub fn prevalidation_fail(
         code: ExitCode,
         message: impl Into<String>,
-        miner_penalty: BigInt,
+        miner_penalty: TokenAmount,
     ) -> ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
@@ -105,19 +104,15 @@ impl ApplyRet {
                 gas_used: 0,
             },
             penalty: miner_penalty,
-            miner_tip: BigInt::zero(),
-            base_fee_burn: TokenAmount::from(0),
-            over_estimation_burn: TokenAmount::from(0),
-            refund: TokenAmount::from(0),
+            miner_tip: TokenAmount::zero(),
+            base_fee_burn: TokenAmount::zero(),
+            over_estimation_burn: TokenAmount::zero(),
+            refund: TokenAmount::zero(),
             gas_refund: 0,
             gas_burned: 0,
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             exec_trace: vec![],
         }
-    }
-
-    pub fn assign_from_slice(&mut self, sign: Sign, slice: &[u32]) {
-        self.miner_tip.assign_from_slice(sign, slice)
     }
 }
 

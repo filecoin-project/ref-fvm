@@ -10,7 +10,7 @@ use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
-use fvm_shared::bigint::BigInt;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
@@ -61,7 +61,7 @@ fn hello_world() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
     // Instantiate machine
@@ -113,7 +113,7 @@ fn ipld() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, Zero::zero())
         .unwrap();
 
     // Instantiate machine
@@ -171,7 +171,7 @@ fn native_stack_overflow() {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, Zero::zero())
         .unwrap();
 
     // Instantiate machine
@@ -235,7 +235,7 @@ fn test_exitcode(wat: &str, code: ExitCode) {
     let actor_address = Address::new_id(10000);
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
     // Instantiate machine
@@ -386,10 +386,10 @@ fn backtraces() {
     let (wasm_abort, wasm_fatal) = (wat2wasm(WAT_ABORT).unwrap(), wat2wasm(WAT_FAIL).unwrap());
     let (abort_address, fatal_address) = (Address::new_id(10000), Address::new_id(10001));
     tester
-        .set_actor_from_bin(&wasm_abort, state_cid, abort_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_abort, state_cid, abort_address, TokenAmount::zero())
         .unwrap();
     tester
-        .set_actor_from_bin(&wasm_fatal, state_cid, fatal_address, BigInt::zero())
+        .set_actor_from_bin(&wasm_fatal, state_cid, fatal_address, TokenAmount::zero())
         .unwrap();
 
     // Instantiate machine

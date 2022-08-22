@@ -107,10 +107,7 @@ where
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
             let priv_key = SecretKey::random(rng);
-            *account = self.make_secp256k1_account(
-                priv_key,
-                TokenAmount::from(10u8) * TokenAmount::from(1000),
-            )?;
+            *account = self.make_secp256k1_account(priv_key, TokenAmount::from_atto(10000))?;
         }
         Ok(ret)
     }
@@ -180,7 +177,7 @@ where
         nc.override_actors(self.builtin_actors);
 
         let mut mc = nc.for_epoch(0, state_root);
-        mc.set_base_fee(TokenAmount::from(DEFAULT_BASE_FEE));
+        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE));
 
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network.clone()).into())?,
