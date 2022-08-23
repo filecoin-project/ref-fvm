@@ -72,7 +72,7 @@ pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
 
     unsafe {
         let written = sys::crypto::hash(
-            hasher.into(),
+            hasher as u64,
             data.as_ptr(),
             data.len() as u32,
             ret.as_mut_ptr(),
