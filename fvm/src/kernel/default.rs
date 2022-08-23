@@ -13,7 +13,6 @@ use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -27,6 +26,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
+use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};

@@ -1,6 +1,24 @@
 use fvm_sdk as sdk;
-use fvm_shared::crypto::hash::SupportedHashes;
+use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::error::ExitCode;
+use multihash::derive::Multihash;
+use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+
+#[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
+#[mh(alloc_size = 64)]
+// import hash funcitons into actor to test against output from syscall
+pub enum SupportedHashes {
+    #[mh(code = 0x12, hasher = Sha2_256)]
+    Sha2_256,
+    #[mh(code = 0xb220, hasher = Blake2b256)]
+    Blake2b256,
+    #[mh(code = 0xb240, hasher = Blake2b512)]
+    Blake2b512,
+    #[mh(code = 0x1b, hasher = Keccak256)]
+    Keccak256,
+    #[mh(code = 0x1053, hasher = Ripemd160)]
+    Ripemd160,
+}
 
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -28,31 +46,38 @@ fn test_expected_hash() {
 
     let blake_local = SupportedHashes::Blake2b256.digest(test_bytes);
     let blake_arr = sdk::crypto::hash_blake2b(test_bytes); // test against old SDK method since it does less unsafe things
-    let blake_vec = sdk::crypto::hash(SupportedHashes::Blake2b256, test_bytes);
+    let blake_vec = sdk::crypto::hash(SharedSupportedHashes::Blake2b256, test_bytes);
 
     assert_eq!(blake_arr.as_slice(), blake_vec.as_slice());
     assert_eq!(blake_local.digest(), blake_vec.as_slice());
 
     // macros dont work so im stuck with writing this out manually
 
-    //sha
+    // blake2b512
+    {
+        let local_digest = SupportedHashes::Blake2b512.digest(test_bytes);
+        let digest = sdk::crypto::hash(SharedSupportedHashes::Blake2b512, test_bytes);
+
+        assert_eq!(local_digest.digest(), digest.as_slice());
+    }
+    // sha
     {
         let local_digest = SupportedHashes::Sha2_256.digest(test_bytes);
-        let digest = sdk::crypto::hash(SupportedHashes::Sha2_256, test_bytes);
+        let digest = sdk::crypto::hash(SharedSupportedHashes::Sha2_256, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
     // keccack
     {
         let local_digest = SupportedHashes::Keccak256.digest(test_bytes);
-        let digest = sdk::crypto::hash(SupportedHashes::Keccak256, test_bytes);
+        let digest = sdk::crypto::hash(SharedSupportedHashes::Keccak256, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
     // ripemd
     {
         let local_digest = SupportedHashes::Ripemd160.digest(test_bytes);
-        let digest = sdk::crypto::hash(SupportedHashes::Ripemd160, test_bytes);
+        let digest = sdk::crypto::hash(SharedSupportedHashes::Ripemd160, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
@@ -66,8 +91,8 @@ fn test_hash_syscall() {
     let test_bytes = b"the quick fox jumped over the lazy dog";
     let mut buffer = [0u8; 64];
 
-    let hasher: u64 = SupportedHashes::Sha2_256.into();
-    let known_digest = sdk::crypto::hash(SupportedHashes::Sha2_256, test_bytes);
+    let hasher: u64 = SharedSupportedHashes::Sha2_256 as u64;
+    let known_digest = sdk::crypto::hash(SharedSupportedHashes::Sha2_256, test_bytes);
 
     // normal case
     unsafe {

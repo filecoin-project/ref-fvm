@@ -17,6 +17,8 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{actor, ActorID, MethodNum};
 
+mod hash;
+
 mod blocks;
 pub mod default;
 
