@@ -1,3 +1,4 @@
+use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -158,7 +159,7 @@ struct EngineInner {
     dummy_memory: Memory,
 
     module_cache: Mutex<HashMap<Cid, Module>>,
-    instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
+    instance_cache: Mutex<HashMap<TypeId, Box<dyn Any + Send>>>,
     config: EngineConfig,
 
     actor_redirect: HashMap<Cid, Cid>,
@@ -196,7 +197,7 @@ impl Engine {
             dummy_memory,
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
-            instance_cache: Mutex::new(anymap::Map::new()),
+            instance_cache: Mutex::new(HashMap::new()),
             config: ec,
             actor_redirect,
         })))
@@ -359,15 +360,22 @@ impl Engine {
         let k = self.with_redirect(k);
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
-        let cache = match instance_cache.entry() {
-            anymap::Entry::Occupied(e) => e.into_mut(),
-            anymap::Entry::Vacant(e) => e.insert({
-                let mut linker = Linker::new(&self.0.engine);
-                linker.allow_shadowing(true);
+        let type_id = TypeId::of::<K>();
+        let cache: &mut Cache<K> = match instance_cache.entry(type_id) {
+            Occupied(e) => &mut *e
+                .into_mut()
+                .downcast_mut()
+                .expect("invalid instance cache entry"),
+            Vacant(e) => &mut *e
+                .insert({
+                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.0.engine);
+                    linker.allow_shadowing(true);
 
-                bind_syscalls(&mut linker)?;
-                Cache { linker }
-            }),
+                    bind_syscalls(&mut linker)?;
+                    Box::new(Cache { linker })
+                })
+                .downcast_mut()
+                .expect("invalid instance cache entry"),
         };
         cache
             .linker
