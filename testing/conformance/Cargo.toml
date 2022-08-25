@@ -9,7 +9,7 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm_shared = { version = "0.9.0", path = "../../shared" }
+fvm_shared = { version = "2.0.0-alpha.2", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt"}
 fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt"}
 fvm_ipld_car = { version = "0.5.0", path = "../../ipld/car" }
