@@ -3,17 +3,17 @@ use std::collections::BTreeMap;
 use anyhow::{Context, Result};
 use cid::Cid;
 use futures::executor::block_on;
+use fvm::machine::Manifest;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_car::load_car_unchecked;
 use fvm_ipld_encoding::CborStore;
-use fvm_shared::actor::builtin::{load_manifest, Type};
 use fvm_shared::version::NetworkVersion;
 use multihash::Code;
 
 use crate::error::Error::{
-    FailedToLoadManifest, FailedToSetActor, FailedToSetState, MultipleRootCid, NoCidInManifest,
+    FailedToLoadManifest, FailedToSetActor, FailedToSetState, MultipleRootCid,
 };
 
 const BUNDLES: [(NetworkVersion, &[u8]); 2] = [
@@ -43,17 +43,11 @@ pub fn fetch_builtin_code_cid(
     builtin_actors: &Cid,
     ver: u32,
 ) -> Result<(Cid, Cid, Cid)> {
-    let manifest = load_manifest(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
+    let manifest = Manifest::load(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
     Ok((
-        *manifest
-            .get_by_right(&Type::System)
-            .ok_or(NoCidInManifest(Type::System))?,
-        *manifest
-            .get_by_right(&Type::Init)
-            .ok_or(NoCidInManifest(Type::Init))?,
-        *manifest
-            .get_by_right(&Type::Account)
-            .ok_or(NoCidInManifest(Type::Init))?,
+        *manifest.get_system_code(),
+        *manifest.get_init_code(),
+        *manifest.get_account_code(),
     ))
 }
 

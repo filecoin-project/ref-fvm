@@ -53,13 +53,12 @@ lazy_static::lazy_static! {
 mod test {
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::actor::builtin::Manifest;
     use fvm_shared::state::StateTreeVersion;
     use multihash::Code;
 
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Consensus, Externs, Rand};
-    use crate::machine::{DefaultMachine, Engine, NetworkConfig};
+    use crate::machine::{DefaultMachine, Engine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
     use crate::{executor, DefaultKernel};
 
@@ -111,11 +110,11 @@ mod test {
 
         // An empty built-in actors manifest.
         let manifest_cid = {
-            let manifest = Manifest::new();
-            bs.put_cbor(&manifest, Code::Blake2b256).unwrap()
+            bs.put_cbor(&Manifest::DUMMY_CODES, Code::Blake2b256)
+                .unwrap()
         };
 
-        let actors_cid = bs.put_cbor(&(0, manifest_cid), Code::Blake2b256).unwrap();
+        let actors_cid = bs.put_cbor(&(1, manifest_cid), Code::Blake2b256).unwrap();
 
         let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V15)
             .override_actors(actors_cid)

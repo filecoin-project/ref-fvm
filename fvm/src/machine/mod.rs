@@ -1,7 +1,6 @@
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -17,6 +16,10 @@ use crate::state_tree::{ActorState, StateTree};
 mod default;
 
 pub use default::DefaultMachine;
+
+mod manifest;
+
+pub use manifest::Manifest;
 
 mod engine;
 

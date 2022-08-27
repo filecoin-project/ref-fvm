@@ -1,11 +1,9 @@
 use core::option::Option; // no_std
 
 use cid::Cid;
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::{actor, ActorID, MAX_CID_LEN};
-use num_traits::FromPrimitive;
+use fvm_shared::{ActorID, MAX_CID_LEN};
 
 use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN};
 
@@ -72,25 +70,28 @@ pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
 
 /// Determines whether the supplied CodeCID belongs to a built-in actor type,
 /// and to which.
-pub fn get_builtin_actor_type(code_cid: &Cid) -> Option<actor::builtin::Type> {
+pub fn get_builtin_actor_type(code_cid: &Cid) -> Option<i32> {
     let cid = code_cid.to_bytes();
     unsafe {
         let res = sys::actor::get_builtin_actor_type(cid.as_ptr())
             .expect("failed to determine if CID belongs to builtin actor");
         // The zero value represents "unknown" and is not modelled in the enum,
         // so it'll be converted to a None.
-        FromPrimitive::from_i32(res)
+        if res == 0 {
+            None
+        } else {
+            Some(res)
+        }
     }
 }
 
 /// Returns the CodeCID for a built-in actor type. Aborts with IllegalArgument
 /// if the supplied type is invalid.
-pub fn get_code_cid_for_type(typ: Type) -> Cid {
+pub fn get_code_cid_for_type(typ: i32) -> Cid {
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
-        let len =
-            sys::actor::get_code_cid_for_type(typ as i32, buf.as_mut_ptr(), MAX_CID_LEN as u32)
-                .expect("failed to get CodeCID for type");
+        let len = sys::actor::get_code_cid_for_type(typ, buf.as_mut_ptr(), MAX_CID_LEN as u32)
+            .expect("failed to get CodeCID for type");
         Cid::read_bytes(&buf[..len as usize]).expect("invalid cid returned")
     }
 }

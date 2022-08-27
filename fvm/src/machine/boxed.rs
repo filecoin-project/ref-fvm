@@ -1,10 +1,9 @@
 use cid::Cid;
-use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
 
-use super::{Engine, Machine, MachineContext};
+use super::{Engine, Machine, MachineContext, Manifest};
 use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 

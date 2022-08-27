@@ -9,7 +9,6 @@ use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Protocol;
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
@@ -117,9 +116,7 @@ where
             .call_manager
             .machine()
             .builtin_actors()
-            .get_by_left(&act.code)
-            .map(Type::is_account_actor)
-            .unwrap_or(false);
+            .is_account_actor(&act.code);
 
         if !is_account {
             // TODO: this is wrong. Maybe some InvalidActor type?
@@ -755,10 +752,11 @@ where
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
         // TODO https://github.com/filecoin-project/builtin-actors/issues/492
         let singleton = self
-            .get_builtin_actor_type(&code_id)
-            .as_ref()
-            .map(Type::is_singleton_actor)
-            .unwrap_or(false);
+            .call_manager
+            .machine()
+            .builtin_actors()
+            .is_singleton_actor(&code_id);
+
         if singleton {
             return Err(
                 syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
@@ -780,19 +778,18 @@ where
         )
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
         self.call_manager
             .machine()
             .builtin_actors()
-            .get_by_left(code_cid)
-            .cloned()
+            .id_by_code(code_cid)
     }
 
-    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+    fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
         self.call_manager
             .machine()
             .builtin_actors()
-            .get_by_right(&typ)
+            .code_by_id(typ)
             .cloned()
             .context("tried to resolve CID of unrecognized actor type")
             .or_illegal_argument()
