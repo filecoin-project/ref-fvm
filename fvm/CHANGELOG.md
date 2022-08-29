@@ -2,9 +2,14 @@
 
 Changes to the reference FVM implementation.
 
-## Unreleased
+## 2.0.0-alpha.1
 
-- Added `recover_secp_public_key` syscall
+- Syscalls:
+    - Added `recover_secp_public_key` syscall
+    - Added debug artifacts syscall (for testing).
+    - Added sha256, keccak256, ripemd160, and blake2b512 to the `hash` syscall.
+- Replaced `TokenAmount` with an actual type (was a type alias).
+- Added gas charges to the execution trace.
 
 ## 1.1.0 [2022-06-27]
 

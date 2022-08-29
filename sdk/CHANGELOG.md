@@ -1,6 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## 2.0.0-alpha.1 [2022-08-29]
+
+- Change randomness return value to a fixed-sized byte array.
+- Remove builtin blake2b hashing.
+    - Removes `Message::to_signing_bytes`.
+    - Removes `Cbor::cid`.
+- Remove actor `Type` enum. Instead, use u32 to identify actor types.
+- Add a `recover_secp_public_key` syscall.
 
 ## 1.0.0 [2022-06-23]
 
