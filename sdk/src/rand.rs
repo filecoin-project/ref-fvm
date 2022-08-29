@@ -1,5 +1,5 @@
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::randomness::Randomness;
+use fvm_shared::randomness::RANDOMNESS_LENGTH;
 
 use crate::{sys, SyscallResult};
 
@@ -11,11 +11,11 @@ pub fn get_chain_randomness(
     dst: i64,
     round: ChainEpoch,
     entropy: &[u8],
-) -> SyscallResult<Randomness> {
+) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
     let ret = unsafe {
         sys::rand::get_chain_randomness(dst, round as i64, entropy.as_ptr(), entropy.len() as u32)?
     };
-    Ok(Randomness(ret.to_vec()))
+    Ok(ret)
 }
 
 /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -26,9 +26,9 @@ pub fn get_beacon_randomness(
     dst: i64,
     round: ChainEpoch,
     entropy: &[u8],
-) -> SyscallResult<Randomness> {
+) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
     let ret = unsafe {
         sys::rand::get_beacon_randomness(dst, round as i64, entropy.as_ptr(), entropy.len() as u32)?
     };
-    Ok(Randomness(ret.to_vec()))
+    Ok(ret)
 }
