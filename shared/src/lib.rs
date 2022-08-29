@@ -7,7 +7,6 @@ extern crate lazy_static;
 use address::Address;
 use clock::ChainEpoch;
 
-pub mod actor;
 pub mod address;
 pub mod bigint;
 pub mod clock;
