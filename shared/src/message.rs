@@ -29,13 +29,6 @@ pub struct Message {
 impl Cbor for Message {}
 
 impl Message {
-    /// Helper function to convert the message into signing bytes.
-    /// This function returns the message `Cid` bytes.
-    pub fn to_signing_bytes(&self) -> Vec<u8> {
-        // Safe to unwrap here, unsigned message cannot fail to serialize.
-        self.cid().unwrap().to_bytes()
-    }
-
     /// Does some basic checks on the Message to see if the fields are valid.
     pub fn check(self: &Message) -> anyhow::Result<()> {
         if self.gas_limit == 0 {
