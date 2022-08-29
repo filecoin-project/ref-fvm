@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0-alpha.1 [2022-08-29]
+## 2.0.0-alpha.2 [2022-08-29]
 
 - Change randomness return value to a fixed-sized byte array.
 - Remove builtin blake2b hashing.
@@ -8,6 +8,10 @@
     - Removes `Cbor::cid`.
 - Remove actor `Type` enum. Instead, use u32 to identify actor types.
 - Add a `recover_secp_public_key` syscall.
+
+## 2.0.0-alpha.1
+
+Bump major version for breaking changes.
 
 ## 1.0.0 [2022-06-23]
 
