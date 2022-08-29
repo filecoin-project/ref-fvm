@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -271,10 +270,7 @@ where
 
         // Create the actor in the state tree.
         let id = {
-            let code_cid = self
-                .builtin_actors()
-                .get_by_right(&Type::Account)
-                .expect("failed to determine account actor CodeCID");
+            let code_cid = self.builtin_actors().get_account_code();
             let state = account_actor::zero_state(*code_cid);
             self.create_actor(addr, state)?
         };

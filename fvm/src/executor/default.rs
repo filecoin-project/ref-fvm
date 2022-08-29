@@ -4,7 +4,6 @@ use std::result::Result as StdResult;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -301,11 +300,7 @@ where
         };
 
         // If sender is not an account actor, the message is invalid.
-        let sender_is_account = self
-            .builtin_actors()
-            .get_by_left(&sender.code)
-            .map(Type::is_account_actor)
-            .unwrap_or(false);
+        let sender_is_account = self.builtin_actors().is_account_actor(&sender.code);
 
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(

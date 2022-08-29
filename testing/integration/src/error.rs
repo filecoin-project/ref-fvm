@@ -1,5 +1,4 @@
 use cid::Cid;
-use fvm_shared::actor::builtin::Type;
 use fvm_shared::version::NetworkVersion;
 
 #[derive(thiserror::Error, Debug)]
@@ -13,8 +12,6 @@ pub(crate) enum Error {
     NoManifestInformation(Cid),
     #[error("could not load builtin manifest")]
     FailedToLoadManifest,
-    #[error("manifest has no cid for builtin actor: {0}")]
-    NoCidInManifest(Type),
     #[error("could not set state in tree for: {0}")]
     FailedToSetState(String),
     #[error("could not set actor: {0}")]

@@ -6,12 +6,13 @@ use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext, MultiEngine, NetworkConfig};
+use fvm::machine::{
+    DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
+};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car_unchecked;
-use fvm_shared::actor::builtin::Manifest;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -26,7 +27,7 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{actor, ActorID, MethodNum, TOTAL_FILECOIN};
+use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
 
 use crate::externs::TestExterns;
@@ -84,7 +85,10 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         // Preload the actors. We don't usually preload actors when testing, so we're going to do
         // this explicitly.
         engine
-            .preload(machine.blockstore(), machine.builtin_actors().left_values())
+            .preload(
+                machine.blockstore(),
+                machine.builtin_actors().builtin_actor_codes(),
+            )
             .unwrap();
 
         let price_list = machine.context().price_list.clone();
@@ -351,11 +355,11 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Option<actor::builtin::Type> {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
         self.0.get_builtin_actor_type(code_cid)
     }
 
-    fn get_code_cid_for_type(&self, typ: actor::builtin::Type) -> Result<Cid> {
+    fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
         self.0.get_code_cid_for_type(typ)
     }
 
