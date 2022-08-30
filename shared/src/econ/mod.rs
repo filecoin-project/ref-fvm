@@ -441,4 +441,28 @@ mod test {
         a -= atto(2);
         assert_eq!(atto(4), a);
     }
+
+    #[test]
+    fn nano_fil() {
+        assert_eq!(
+            TokenAmount::from_nano(1),
+            TokenAmount::from_whole(1).div_floor(10u64.pow(9))
+        )
+    }
+
+    #[test]
+    fn test_mul() {
+        let a = atto(2) * 3;
+        let b = 3 * atto(2);
+        assert_eq!(a, atto(6));
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_sum() {
+        assert_eq!(
+            [1, 2, 3, 4].into_iter().map(atto).sum::<TokenAmount>(),
+            atto(10)
+        );
+    }
 }
