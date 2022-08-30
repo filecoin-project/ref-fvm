@@ -253,6 +253,36 @@ where
     }
 }
 
+macro_rules! impl_mul {
+    ($(impl<$($a:lifetime),*> Mul<$Other:ty> for $Self:ty;)*) => {$(
+        impl<$($a),*> Mul<$Other> for $Self {
+            type Output = TokenAmount;
+
+            #[inline]
+            fn mul(self, other: $Other) -> TokenAmount {
+                other * self
+            }
+        }
+    )*}
+}
+
+macro_rules! impl_muls {
+    ($($t:ty,)*) => {$(
+        impl_mul! {
+            impl<> Mul<TokenAmount> for $t;
+            impl<'b> Mul<&'b TokenAmount> for $t;
+            impl<'a> Mul<TokenAmount> for &'a $t;
+            impl<'a, 'b> Mul<&'b TokenAmount> for &'a $t;
+        }
+    )*};
+}
+
+impl_muls! {
+    u8, u16, u32, u64, u128,
+    i8, i16, i32, i64, i128,
+    BigInt,
+}
+
 impl<T> MulAssign<T> for TokenAmount
 where
     BigInt: MulAssign<T>,
