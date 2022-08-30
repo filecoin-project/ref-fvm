@@ -34,6 +34,14 @@ impl TokenAmount {
         Self { atto: atto.into() }
     }
 
+    /// Creates a token amount from nanoFIL.
+    pub fn from_nano(nano: impl Into<BigInt>) -> Self {
+        const NANO_PRECISION: u64 = 10u64.pow((TokenAmount::DECIMALS as u32) - 9);
+        Self {
+            atto: nano.into() * NANO_PRECISION,
+        }
+    }
+
     /// Creates a token amount from a quantity of whole units (10^18 indivisible units).
     pub fn from_whole(tokens: i64) -> Self {
         Self::from_atto((tokens as i128) * (Self::PRECISION as i128))
