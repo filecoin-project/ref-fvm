@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0-alpha.2 [2022-08-29]
+
+- Add additional math operations to TokenAmount.
+
 ## 2.0.0-alpha.1 [2022-08-29]
 
 - Add recover secp public key syscall.

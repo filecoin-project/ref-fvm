@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 fvm_ipld_encoding = { version = "0.2.2", path = "../../../../ipld/encoding" }
-fvm_sdk = { version = "2.0.0-alpha.2", path = "../../../../sdk" }
-fvm_shared = { version = "2.0.0-alpha.1", path = "../../../../shared" }
+fvm_sdk = { version = "2.0.0-alpha.3", path = "../../../../sdk" }
+fvm_shared = { version = "2.0.0-alpha.2", path = "../../../../shared" }
 minicov = {version = "0.2", optional = true}
 multihash = "0.16.3"
 
