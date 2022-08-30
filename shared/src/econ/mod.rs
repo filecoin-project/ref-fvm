@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::iter::Sum;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use num_bigint::BigInt;
@@ -314,6 +315,18 @@ impl TokenAmount {
         TokenAmount {
             atto: self.atto.div_floor(&other.into()),
         }
+    }
+}
+
+impl Sum for TokenAmount {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        Self::from_atto(iter.map(|t| t.atto).sum::<BigInt>())
+    }
+}
+
+impl<'a> Sum<&'a TokenAmount> for TokenAmount {
+    fn sum<I: Iterator<Item = &'a TokenAmount>>(iter: I) -> Self {
+        Self::from_atto(iter.map(|t| &t.atto).sum::<BigInt>())
     }
 }
 
