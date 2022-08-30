@@ -227,31 +227,30 @@ impl<'a> SubAssign<&'a TokenAmount> for TokenAmount {
     }
 }
 
-// Implements Mul for all combinations of value/reference receiver and 32/64-bit value.
-macro_rules! impl_mul {
-    ($(impl<$($a:lifetime),*> Mul<$Other:ty> for $Self:ty;)*) => {$(
-        impl<$($a),*> Mul<$Other> for $Self {
-            type Output = TokenAmount;
+impl<T> Mul<T> for TokenAmount
+where
+    BigInt: Mul<T, Output = BigInt>,
+{
+    type Output = TokenAmount;
 
-            #[inline]
-            fn mul(self, other: $Other) -> TokenAmount {
-                // automatically match value/ref
-                let TokenAmount { atto: x, .. } = self;
-                // let TokenAmount { atto: y, .. } = other;
-                TokenAmount {atto: x * other}
-            }
+    fn mul(self, rhs: T) -> Self::Output {
+        TokenAmount {
+            atto: self.atto * rhs,
         }
-    )*}
+    }
 }
-impl_mul! {
-    impl<> Mul<u32> for TokenAmount;
-    impl<'a> Mul<u32> for &'a TokenAmount;
-    impl<> Mul<i32> for TokenAmount;
-    impl<'a> Mul<i32> for &'a TokenAmount;
-    impl<> Mul<u64> for TokenAmount;
-    impl<'a> Mul<u64> for &'a TokenAmount;
-    impl<> Mul<i64> for TokenAmount;
-    impl<'a> Mul<i64> for &'a TokenAmount;
+
+impl<'a, T> Mul<T> for &'a TokenAmount
+where
+    &'a BigInt: Mul<T, Output = BigInt>,
+{
+    type Output = TokenAmount;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        TokenAmount {
+            atto: &self.atto * rhs,
+        }
+    }
 }
 
 impl<T> MulAssign<T> for TokenAmount
@@ -271,6 +270,20 @@ impl TokenAmount {
     pub fn div_rem(&self, other: impl Into<BigInt>) -> (TokenAmount, TokenAmount) {
         let (q, r) = self.atto.div_rem(&other.into());
         (TokenAmount { atto: q }, TokenAmount { atto: r })
+    }
+
+    #[inline]
+    pub fn div_ceil(&self, other: impl Into<BigInt>) -> TokenAmount {
+        TokenAmount {
+            atto: self.atto.div_ceil(&other.into()),
+        }
+    }
+
+    #[inline]
+    pub fn div_floor(&self, other: impl Into<BigInt>) -> TokenAmount {
+        TokenAmount {
+            atto: self.atto.div_floor(&other.into()),
+        }
     }
 }
 
