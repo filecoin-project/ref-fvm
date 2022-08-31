@@ -12,7 +12,7 @@ keywords = ["filecoin", "web3", "wasm"]
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { version = "1.0.47", features = ["backtrace"] }
 thiserror = "1.0.30"
 num-traits = "0.2"
 derive_builder = "0.11.2"
