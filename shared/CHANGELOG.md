@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0-alpha.3 [2022-08-31]
+
+- Add even more math operations to TokenAmount.
+- Add a Sum method to TokenAmount.
+
 ## 2.0.0-alpha.2 [2022-08-29]
 
 - Add additional math operations to TokenAmount.
