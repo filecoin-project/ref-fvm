@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::iter::Sum;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use num_bigint::BigInt;
@@ -31,6 +32,14 @@ impl TokenAmount {
     /// Creates a token amount from a quantity of indivisible units  (10^-18 whole units).
     pub fn from_atto(atto: impl Into<BigInt>) -> Self {
         Self { atto: atto.into() }
+    }
+
+    /// Creates a token amount from nanoFIL.
+    pub fn from_nano(nano: impl Into<BigInt>) -> Self {
+        const NANO_PRECISION: u64 = 10u64.pow((TokenAmount::DECIMALS as u32) - 9);
+        Self {
+            atto: nano.into() * NANO_PRECISION,
+        }
     }
 
     /// Creates a token amount from a quantity of whole units (10^18 indivisible units).
@@ -253,6 +262,36 @@ where
     }
 }
 
+macro_rules! impl_mul {
+    ($(impl<$($a:lifetime),*> Mul<$Other:ty> for $Self:ty;)*) => {$(
+        impl<$($a),*> Mul<$Other> for $Self {
+            type Output = TokenAmount;
+
+            #[inline]
+            fn mul(self, other: $Other) -> TokenAmount {
+                other * self
+            }
+        }
+    )*}
+}
+
+macro_rules! impl_muls {
+    ($($t:ty,)*) => {$(
+        impl_mul! {
+            impl<> Mul<TokenAmount> for $t;
+            impl<'b> Mul<&'b TokenAmount> for $t;
+            impl<'a> Mul<TokenAmount> for &'a $t;
+            impl<'a, 'b> Mul<&'b TokenAmount> for &'a $t;
+        }
+    )*};
+}
+
+impl_muls! {
+    u8, u16, u32, u64, u128,
+    i8, i16, i32, i64, i128,
+    BigInt,
+}
+
 impl<T> MulAssign<T> for TokenAmount
 where
     BigInt: MulAssign<T>,
@@ -284,6 +323,18 @@ impl TokenAmount {
         TokenAmount {
             atto: self.atto.div_floor(&other.into()),
         }
+    }
+}
+
+impl Sum for TokenAmount {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        Self::from_atto(iter.map(|t| t.atto).sum::<BigInt>())
+    }
+}
+
+impl<'a> Sum<&'a TokenAmount> for TokenAmount {
+    fn sum<I: Iterator<Item = &'a TokenAmount>>(iter: I) -> Self {
+        Self::from_atto(iter.map(|t| &t.atto).sum::<BigInt>())
     }
 }
 
@@ -389,5 +440,29 @@ mod test {
         assert_eq!(atto(6), a);
         a -= atto(2);
         assert_eq!(atto(4), a);
+    }
+
+    #[test]
+    fn nano_fil() {
+        assert_eq!(
+            TokenAmount::from_nano(1),
+            TokenAmount::from_whole(1).div_floor(10u64.pow(9))
+        )
+    }
+
+    #[test]
+    fn test_mul() {
+        let a = atto(2) * 3;
+        let b = 3 * atto(2);
+        assert_eq!(a, atto(6));
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_sum() {
+        assert_eq!(
+            [1, 2, 3, 4].into_iter().map(atto).sum::<TokenAmount>(),
+            atto(10)
+        );
     }
 }
