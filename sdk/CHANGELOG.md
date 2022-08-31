@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.1 [2022-08-31]
+
+- Bump base version to v3.
+- New `install_actor` syscall.
+
+## 2.0.0...
+
+- Change randomness return value to a fixed-sized byte array.
+- Remove builtin blake2b hashing.
+    - Removes `Message::to_signing_bytes`.
+    - Removes `Cbor::cid`.
+- Remove actor `Type` enum. Instead, use u32 to identify actor types.
+- Add a `recover_secp_public_key` syscall.
+
 ## 1.0.0 [2022-06-23]
 
 - Update to the latest `fvm_shared`, which supports the new proofs types.

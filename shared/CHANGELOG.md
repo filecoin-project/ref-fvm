@@ -1,6 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## 3.0.0-alpha.1 [2022-08-31]
+
+- Bump base version to v3.
+- Add `origin` to `vm::Context`.
+
+## 2.0.0...
+
+See the `release/v2` branch.
+
+- Add recover secp public key syscall.
+- Removed `actor::builtin::Type` (moved to the actors themselves).
+- Add additional hash functions to the hash syscall.
+- Add blake2b512
+- Change TokenAmount from a type alias to a struct wrapping BigInt
 
 ## 0.8.0 [2022-06-13]
 
