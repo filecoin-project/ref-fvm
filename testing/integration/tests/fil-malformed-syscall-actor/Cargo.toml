@@ -2,6 +2,7 @@
 name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 fvm_sdk = { version = "3.0.0-alpha.1", path = "../../../../sdk" }
