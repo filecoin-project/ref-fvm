@@ -1,3 +1,4 @@
+use fil_integer_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
@@ -11,9 +12,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-
-const WASM_COMPILED_PATH: &str =
-    "../../target/debug/wbuild/fil_integer_overflow_actor/fil_integer_overflow_actor.compact.wasm";
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -40,16 +38,10 @@ fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Add
     let actor_address = Address::new_id(10000);
 
     // Get wasm bin
-    let wasm_path = std::env::current_dir()
-        .unwrap()
-        .join(WASM_COMPILED_PATH)
-        .canonicalize()
-        .unwrap();
-
-    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+    let wasm_bin = OVERFLOW_BINARY.unwrap();
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
     (sender[0], tester, actor_address)
