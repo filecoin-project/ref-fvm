@@ -1,13 +1,8 @@
 use cid::Cid;
-use fvm_shared::version::NetworkVersion;
 
 #[derive(thiserror::Error, Debug)]
 /// Util errors for the intergration test framework.
 pub(crate) enum Error {
-    #[error("multiple root cid for network: {0}")]
-    MultipleRootCid(NetworkVersion),
-    #[error("no root cid for network: {0}")]
-    NoRootCid(NetworkVersion),
     #[error("could not find manifest information for cid: {0}")]
     NoManifestInformation(Cid),
     #[error("could not load builtin manifest")]

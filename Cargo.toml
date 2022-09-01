@@ -7,7 +7,7 @@ members = [
     "testing/conformance",
     "testing/integration",
     "ipld/*",
-    "testing/integration/tests/*"
+    "testing/integration/tests/*-actor"
 ]
 
 [profile.actor]
