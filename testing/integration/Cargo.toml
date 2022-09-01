@@ -47,4 +47,3 @@ fil_syscall_actor = { path = "tests/fil-syscall-actor" }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
-wasm-coverage = ["fil_ipld_actor/coverage"]
