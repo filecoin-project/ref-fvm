@@ -1,5 +1,7 @@
 use fvm_sdk::sys::crypto::compute_unsealed_sector_cid;
 
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
     let piece: Vec<u8> = vec![];
