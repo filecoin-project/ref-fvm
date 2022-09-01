@@ -2,6 +2,7 @@
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 fvm_sdk = { version = "2.0.0-alpha.4", path = "../../../../sdk" }
