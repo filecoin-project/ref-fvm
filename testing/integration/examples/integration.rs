@@ -1,4 +1,5 @@
 use fvm::executor::{ApplyKind, Executor};
+use fvm_integration_tests::bundle;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -27,12 +28,10 @@ struct State {
 
 pub fn main() {
     // Instantiate tester
-    let mut tester = Tester::new(
-        NetworkVersion::V15,
-        StateTreeVersion::V4,
-        MemoryBlockstore::default(),
-    )
-    .unwrap();
+    let bs = MemoryBlockstore::default();
+    let bundle_root = bundle::import_bundle(&bs, actors_v10::BUNDLE_CAR).unwrap();
+    let mut tester =
+        Tester::new(NetworkVersion::V15, StateTreeVersion::V4, bundle_root, bs).unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 

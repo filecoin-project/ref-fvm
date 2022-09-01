@@ -17,10 +17,8 @@ use fvm_shared::{ActorID, IPLD_RAW};
 use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
-use crate::builtin::{
-    fetch_builtin_code_cid, import_builtin_actors, set_init_actor, set_sys_actor,
-};
-use crate::error::Error::{FailedToFlushTree, NoManifestInformation, NoRootCid};
+use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor};
+use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
@@ -51,13 +49,12 @@ where
     B: Blockstore,
     E: Externs,
 {
-    pub fn new(nv: NetworkVersion, stv: StateTreeVersion, blockstore: B) -> Result<Self> {
-        // Load the builtin actors bundles into the blockstore.
-        let nv_actors = import_builtin_actors(&blockstore)?;
-
-        // Get the builtin actors index for the concrete network version.
-        let builtin_actors = *nv_actors.get(&nv).ok_or(NoRootCid(nv))?;
-
+    pub fn new(
+        nv: NetworkVersion,
+        stv: StateTreeVersion,
+        builtin_actors: Cid,
+        blockstore: B,
+    ) -> Result<Self> {
         let (manifest_version, manifest_data_cid): (u32, Cid) =
             match blockstore.get_cbor(&builtin_actors)? {
                 Some((manifest_version, manifest_data)) => (manifest_version, manifest_data),

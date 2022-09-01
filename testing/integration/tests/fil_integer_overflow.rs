@@ -15,6 +15,9 @@ use num_traits::Zero;
 const WASM_COMPILED_PATH: &str =
     "../../target/debug/wbuild/fil_integer_overflow_actor/fil_integer_overflow_actor.compact.wasm";
 
+mod bundles;
+use bundles::*;
+
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
     pub value: i64,
@@ -23,7 +26,7 @@ pub struct State {
 // Utility function to instantiation integration tester
 fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V15,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
