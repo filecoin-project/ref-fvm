@@ -15,6 +15,9 @@ use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 use wabt::wat2wasm;
 
+mod bundles;
+use bundles::*;
+
 const WAT_UNKNOWN_SYSCALL: &str = r#"
     (module
         (type $t0 (func))
@@ -39,7 +42,7 @@ fn instantiate_tester(
     wasm_bin: &[u8],
 ) -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V15,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),

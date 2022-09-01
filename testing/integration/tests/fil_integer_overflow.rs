@@ -13,6 +13,9 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 
+mod bundles;
+use bundles::*;
+
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
     pub value: i64,
@@ -21,7 +24,7 @@ pub struct State {
 // Utility function to instantiation integration tester
 fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V15,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),

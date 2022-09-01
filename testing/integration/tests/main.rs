@@ -1,6 +1,3 @@
-mod fil_integer_overflow;
-mod fil_syscall;
-
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -13,7 +10,7 @@ use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
+use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
@@ -25,6 +22,9 @@ use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 use wabt::wat2wasm;
 
+mod bundles;
+use bundles::*;
+
 /// The state object.
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -34,7 +34,7 @@ pub struct State {
 #[test]
 fn hello_world() {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V15,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
@@ -80,7 +80,7 @@ fn hello_world() {
 #[test]
 fn ipld() {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V15,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
@@ -132,7 +132,7 @@ fn ipld() {
 #[test]
 fn syscalls() {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V16,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
@@ -184,7 +184,7 @@ fn syscalls() {
 #[test]
 fn native_stack_overflow() {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V16,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
@@ -249,7 +249,7 @@ fn native_stack_overflow() {
 
 fn test_exitcode(wat: &str, code: ExitCode) {
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V16,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
@@ -405,7 +405,7 @@ fn backtraces() {
     };
 
     // Instantiate tester
-    let mut tester = Tester::new(
+    let mut tester = new_tester(
         NetworkVersion::V16,
         StateTreeVersion::V4,
         blockstore.clone(),
