@@ -2,15 +2,25 @@
 
 Changes to the reference FVM implementation.
 
-## 3.0.0-alpha.1 [Unreleased]
+##  [Unreleased]
 
-- FEVM!
+## 3.0.0-alpha.1
+
+- Add the origin to the `vm::context` syscall.
+- Add an `m2-native` feature to enable native actor deployment.
 
 ## 2.0.0...
 
 See `release/v2`
 
 - Added `recover_secp_public_key` syscall
+- API BREAKING: Change `TokenAmount` type from a newtype to a struct.
+- Add support for additional hash functions in actors:
+    - sha256
+    - keccak256
+    - ripemd160
+    - blake2b512
+- API BREAKING: add gas charges to the execution trace.
 
 ## 1.1.0 [2022-06-27]
 
