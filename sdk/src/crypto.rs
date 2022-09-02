@@ -66,29 +66,18 @@ pub fn hash_blake2b(data: &[u8]) -> [u8; 32] {
 }
 
 /// Hashes input data using one of the supported functions.
-pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
-    let mut ret = Vec::with_capacity(64);
+/// hashes longer than 64 bytes will be truncated to 64
+pub fn hash_owned(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
+    let mut digest = Vec::with_capacity(64);
+    let written = hash_into(hasher, data, &mut digest);
 
-    unsafe {
-        let written = sys::crypto::hash(
-            hasher as u64,
-            data.as_ptr(),
-            data.len() as u32,
-            ret.as_mut_ptr(),
-            64, // maximum the buffer will hold, but will likely be less
-        )
-        .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher))
-            as usize;
-        assert!(written <= ret.capacity());
-        // SAFETY: hash syscall should've written _exactly_ the number of bytes it wrote to the buffer
-        ret.set_len(written as usize);
-    }
-
-    ret
+    assert!(written <= digest.capacity());
+    unsafe { digest.set_len(written) }
+    digest
 }
 
 /// Hashes input data using one of the supported functions into a buffer.
-pub fn hash_mut(hasher: SupportedHashes, data: &[u8], digest: &mut [u8]) -> usize {
+pub fn hash_into(hasher: SupportedHashes, data: &[u8], digest: &mut [u8]) -> usize {
     unsafe {
         sys::crypto::hash(
             hasher as u64,
