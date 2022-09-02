@@ -87,21 +87,18 @@ pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
     ret
 }
 
-/// Hashes input data using one of the supported functions, returning a fixed size array and len bytes written to it.
-pub fn hash_arr(hasher: SupportedHashes, data: &[u8]) -> ([u8; 64], usize) {
-    let mut ret = [0u8; 64];
-    let written = unsafe {
+/// Hashes input data using one of the supported functions into a buffer.
+pub fn hash_arr(hasher: SupportedHashes, data: &[u8], digest: &mut [u8]) -> usize {
+    unsafe {
         sys::crypto::hash(
             hasher as u64,
             data.as_ptr(),
             data.len() as u32,
-            ret.as_mut_ptr(),
-            64, // maximum the buffer will hold, but will likely be less
+            digest.as_mut_ptr(),
+            digest.len() as u32,
         )
         .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher)) as usize
-    };
-
-    (ret, written)
+    }
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
