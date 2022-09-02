@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.2 [2022-09-02]
+
+- New `hash_into` sdk for hashing into a mut buffer.
+- Rename `hash` to `hash_owned`.
+
 ## 3.0.0-alpha.1 [2022-08-31]
 
 - Bump base version to v3.

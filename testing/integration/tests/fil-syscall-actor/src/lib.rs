@@ -6,7 +6,7 @@ use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
 
 #[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
 #[mh(alloc_size = 64)]
-// import hash funcitons into actor to test against output from syscall
+// import hash functions into actor to test against output from syscall
 pub enum SupportedHashes {
     #[mh(code = 0x12, hasher = Sha2_256)]
     Sha2_256,
