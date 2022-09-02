@@ -207,6 +207,14 @@ where
         let k = (&mut **self).flush()?;
         Ok(k)
     }
+
+    fn validate_message(
+        &mut self,
+        msg: Message,
+        sig: Vec<u8>,
+    ) -> anyhow::Result<super::GasSpec> {
+        todo!()
+    }
 }
 
 impl<K> DefaultExecutor<K>

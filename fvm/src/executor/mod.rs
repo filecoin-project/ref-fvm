@@ -6,6 +6,7 @@ use std::fmt::Display;
 use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
+use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -16,6 +17,9 @@ pub use threaded::ThreadedExecutor;
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
 use crate::Kernel;
+
+/// TODO
+pub struct GasSpec;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///
@@ -38,6 +42,9 @@ pub trait Executor {
         apply_kind: ApplyKind,
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet>;
+
+    /// This is the entrypoint to validate a message from an abstract account.
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<GasSpec>;
 
     /// Flushes the state-tree, returning the new root CID.
     fn flush(&mut self) -> anyhow::Result<Cid>;
