@@ -88,7 +88,7 @@ pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
 }
 
 /// Hashes input data using one of the supported functions into a buffer.
-pub fn hash_arr(hasher: SupportedHashes, data: &[u8], digest: &mut [u8]) -> usize {
+pub fn hash_mut(hasher: SupportedHashes, data: &[u8], digest: &mut [u8]) -> usize {
     unsafe {
         sys::crypto::hash(
             hasher as u64,
