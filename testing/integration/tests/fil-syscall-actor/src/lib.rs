@@ -46,7 +46,7 @@ fn test_expected_hash() {
 
     let blake_local = SupportedHashes::Blake2b256.digest(test_bytes);
     let blake_arr = sdk::crypto::hash_blake2b(test_bytes); // test against old SDK method since it does less unsafe things
-    let blake_vec = sdk::crypto::hash(SharedSupportedHashes::Blake2b256, test_bytes);
+    let blake_vec = sdk::crypto::hash_owned(SharedSupportedHashes::Blake2b256, test_bytes);
 
     assert_eq!(blake_arr.as_slice(), blake_vec.as_slice());
     assert_eq!(blake_local.digest(), blake_vec.as_slice());
@@ -56,28 +56,28 @@ fn test_expected_hash() {
     // blake2b512
     {
         let local_digest = SupportedHashes::Blake2b512.digest(test_bytes);
-        let digest = sdk::crypto::hash(SharedSupportedHashes::Blake2b512, test_bytes);
+        let digest = sdk::crypto::hash_owned(SharedSupportedHashes::Blake2b512, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
     // sha
     {
         let local_digest = SupportedHashes::Sha2_256.digest(test_bytes);
-        let digest = sdk::crypto::hash(SharedSupportedHashes::Sha2_256, test_bytes);
+        let digest = sdk::crypto::hash_owned(SharedSupportedHashes::Sha2_256, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
     // keccack
     {
         let local_digest = SupportedHashes::Keccak256.digest(test_bytes);
-        let digest = sdk::crypto::hash(SharedSupportedHashes::Keccak256, test_bytes);
+        let digest = sdk::crypto::hash_owned(SharedSupportedHashes::Keccak256, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
     // ripemd
     {
         let local_digest = SupportedHashes::Ripemd160.digest(test_bytes);
-        let digest = sdk::crypto::hash(SharedSupportedHashes::Ripemd160, test_bytes);
+        let digest = sdk::crypto::hash_owned(SharedSupportedHashes::Ripemd160, test_bytes);
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
@@ -92,7 +92,7 @@ fn test_hash_syscall() {
     let mut buffer = [0u8; 64];
 
     let hasher: u64 = SharedSupportedHashes::Sha2_256 as u64;
-    let known_digest = sdk::crypto::hash(SharedSupportedHashes::Sha2_256, test_bytes);
+    let known_digest = sdk::crypto::hash_owned(SharedSupportedHashes::Sha2_256, test_bytes);
 
     // normal case
     unsafe {
