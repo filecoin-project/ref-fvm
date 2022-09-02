@@ -67,7 +67,6 @@ pub fn hash_blake2b(data: &[u8]) -> [u8; 32] {
 
 /// Hashes input data using one of the supported functions.
 pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
-    // TODO, either this or ([u8; 64], usize)
     let mut ret = Vec::with_capacity(64);
 
     unsafe {
@@ -86,6 +85,23 @@ pub fn hash(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
     }
 
     ret
+}
+
+/// Hashes input data using one of the supported functions, returning a fixed size array and len bytes written to it.
+pub fn hash_arr(hasher: SupportedHashes, data: &[u8]) -> ([u8; 64], usize) {
+    let mut ret = [0u8; 64];
+    let written = unsafe {
+        sys::crypto::hash(
+            hasher as u64,
+            data.as_ptr(),
+            data.len() as u32,
+            ret.as_mut_ptr(),
+            64, // maximum the buffer will hold, but will likely be less
+        )
+        .unwrap_or_else(|_| panic!("failed compute hash using {:?}", hasher)) as usize
+    };
+
+    (ret, written)
 }
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
