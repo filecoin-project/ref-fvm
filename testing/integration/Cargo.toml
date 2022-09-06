@@ -43,7 +43,7 @@ fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor" }
 fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor" }
 fil_syscall_actor = { path = "tests/fil-syscall-actor" }
 
-actors-v10 = { version = "10.0.0-alpha.1", package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+actors-v9 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors" }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
