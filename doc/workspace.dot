@@ -1,0 +1,30 @@
+digraph {
+    fvm;
+    fvm_ipld_amt;
+    fvm_ipld_Blockstore;
+    fvm_ipld_encoding;
+    fvm_ipld_hamt;
+    fvm_shared;
+    fvm_sdk;
+    fvm_ipld_car;
+    fvm_ipld_Bitfield;
+
+    fvm -> fvm_ipld_amt;
+    fvm -> fvm_ipld_Blockstore;
+    fvm -> fvm_ipld_encoding;
+    fvm -> fvm_ipld_hamt;
+    fvm -> fvm_shared;
+    fvm_ipld_amt -> fvm_ipld_Blockstore;
+    fvm_ipld_amt -> fvm_ipld_encoding;
+    fvm_ipld_encoding -> fvm_ipld_Blockstore;
+    fvm_ipld_hamt -> fvm_ipld_Blockstore;
+    fvm_ipld_hamt -> fvm_ipld_encoding;
+    fvm_shared -> fvm_ipld_Blockstore;
+    fvm_shared -> fvm_ipld_encoding;
+    fvm_sdk -> fvm_ipld_encoding;
+    fvm_sdk -> fvm_shared;
+    fvm_ipld_car -> fvm_ipld_Blockstore;
+    fvm_ipld_car -> fvm_ipld_encoding;
+    fvm_ipld_Bitfield -> fvm_ipld_encoding;
+}
+
