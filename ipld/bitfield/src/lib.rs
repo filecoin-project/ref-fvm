@@ -297,6 +297,12 @@ impl BitField {
                 .all(|bit| self.unset.contains(&bit))
     }
 
+    /// Returns `true` if the bit field is _trivially_ empty. This is significantly faster than
+    /// checking if it's actually empty, but can be used to short-circuite certain operations.
+    fn is_trivially_empty(&self) -> bool {
+        self.set.is_empty() && self.ranges.is_empty()
+    }
+
     /// Returns a slice of the bit field with the start index of set bits
     /// and number of bits to include in the slice. Returns `None` if the bit
     /// field contains fewer than `start + len` set bits.
@@ -332,17 +338,18 @@ impl BitField {
 
     /// Returns the union of the given bit fields as a new bit field.
     pub fn union<'a>(bitfields: impl IntoIterator<Item = &'a Self>) -> Self {
-        bitfields.into_iter().fold(Self::new(), |a, b| &a | b)
+        bitfields.into_iter().fold(Self::new(), |a, b| a | b)
     }
 
     /// Returns true if `self` overlaps with `other`.
     pub fn contains_any(&self, other: &BitField) -> bool {
-        self.ranges().intersection(other.ranges()).next().is_some()
+        !(self.is_trivially_empty() || other.is_trivially_empty())
+            && self.ranges().intersection(other.ranges()).next().is_some()
     }
 
     /// Returns true if the `self` is a superset of `other`.
     pub fn contains_all(&self, other: &BitField) -> bool {
-        other.ranges().difference(self.ranges()).next().is_none()
+        other.is_trivially_empty() || other.ranges().difference(self.ranges()).next().is_none()
     }
 }
 
@@ -351,14 +358,76 @@ impl BitOr<&BitField> for &BitField {
 
     #[inline]
     fn bitor(self, rhs: &BitField) -> Self::Output {
-        BitField::from_ranges(self.ranges().union(rhs.ranges()))
+        if self.is_trivially_empty() {
+            rhs.clone()
+        } else if rhs.is_trivially_empty() {
+            self.clone()
+        } else {
+            BitField::from_ranges(self.ranges().union(rhs.ranges()))
+        }
+    }
+}
+
+impl BitOr<BitField> for &BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn bitor(self, rhs: BitField) -> Self::Output {
+        if self.is_trivially_empty() {
+            rhs
+        } else if rhs.is_trivially_empty() {
+            self.clone()
+        } else {
+            BitField::from_ranges(self.ranges().union(rhs.ranges()))
+        }
+    }
+}
+
+impl BitOr<&BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn bitor(self, rhs: &BitField) -> Self::Output {
+        if rhs.is_trivially_empty() {
+            self
+        } else if self.is_trivially_empty() {
+            rhs.clone()
+        } else {
+            BitField::from_ranges(self.ranges().union(rhs.ranges()))
+        }
+    }
+}
+
+impl BitOr<BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn bitor(self, rhs: BitField) -> Self::Output {
+        if self.is_trivially_empty() {
+            rhs
+        } else if rhs.is_trivially_empty() {
+            self
+        } else {
+            BitField::from_ranges(self.ranges().union(rhs.ranges()))
+        }
     }
 }
 
 impl BitOrAssign<&BitField> for BitField {
     #[inline]
     fn bitor_assign(&mut self, rhs: &BitField) {
-        *self = &*self | rhs;
+        if !rhs.is_trivially_empty() {
+            *self = &*self | rhs;
+        }
+    }
+}
+
+impl BitOrAssign<BitField> for BitField {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: BitField) {
+        // by-value to optimize the case where one is empty.
+        let s = std::mem::take(self);
+        *self = s | rhs
     }
 }
 
@@ -367,7 +436,20 @@ impl BitAnd<&BitField> for &BitField {
 
     #[inline]
     fn bitand(self, rhs: &BitField) -> Self::Output {
-        BitField::from_ranges(self.ranges().intersection(rhs.ranges()))
+        if self.is_trivially_empty() || rhs.is_trivially_empty() {
+            BitField::new()
+        } else {
+            BitField::from_ranges(self.ranges().intersection(rhs.ranges()))
+        }
+    }
+}
+
+impl BitAnd<BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn bitand(self, rhs: BitField) -> Self::Output {
+        &self & &rhs
     }
 }
 
@@ -383,14 +465,42 @@ impl Sub<&BitField> for &BitField {
 
     #[inline]
     fn sub(self, rhs: &BitField) -> Self::Output {
-        BitField::from_ranges(self.ranges().difference(rhs.ranges()))
+        if self.is_trivially_empty() || rhs.is_trivially_empty() {
+            self.clone()
+        } else {
+            BitField::from_ranges(self.ranges().difference(rhs.ranges()))
+        }
+    }
+}
+
+impl Sub<&BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn sub(self, rhs: &BitField) -> Self::Output {
+        if self.is_trivially_empty() || rhs.is_trivially_empty() {
+            self
+        } else {
+            BitField::from_ranges(self.ranges().difference(rhs.ranges()))
+        }
+    }
+}
+
+impl Sub<BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn sub(self, rhs: BitField) -> Self::Output {
+        self - &rhs
     }
 }
 
 impl SubAssign<&BitField> for BitField {
     #[inline]
     fn sub_assign(&mut self, rhs: &BitField) {
-        *self = &*self - rhs;
+        if !rhs.is_trivially_empty() {
+            *self = &*self - rhs;
+        }
     }
 }
 
@@ -399,6 +509,14 @@ impl BitXor<&BitField> for &BitField {
 
     fn bitxor(self, rhs: &BitField) -> Self::Output {
         BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
+    }
+}
+
+impl BitXor<BitField> for BitField {
+    type Output = BitField;
+
+    fn bitxor(self, rhs: BitField) -> Self::Output {
+        &self ^ &rhs
     }
 }
 
