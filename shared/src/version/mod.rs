@@ -30,20 +30,22 @@ pub enum NetworkVersion {
     V8,
     /// orange
     V9,
-    /// actors v3 (specs-actors v3.0.x)
+    /// trust (specs-actors v3.0.x)
     V10,
     /// norwegian (specs-actor v3.1.x)
     V11,
-    /// actors v3 (specs-actor v4.0.x)
+    /// turbo (specs-actor v4.0.x)
     V12,
-    /// reserved
+    /// HyperDrive
     V13,
-    /// actors v6
+    /// Chocolate v6
     V14,
-    /// actors v7
+    /// OhSnap v7
     V15,
-    /// actors v8
+    /// Skyr v8
     V16,
+    /// Candy v9
+    V17,
 }
 
 impl Display for NetworkVersion {
@@ -75,6 +77,7 @@ impl TryFrom<u32> for NetworkVersion {
             14 => Ok(V14),
             15 => Ok(V15),
             16 => Ok(V16),
+            17 => Ok(V17),
             _ => Err(value),
         }
     }
