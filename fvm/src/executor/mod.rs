@@ -12,6 +12,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
+use serde::{Serialize, Deserialize};
 pub use threaded::ThreadedExecutor;
 
 use crate::call_manager::Backtrace;
@@ -19,7 +20,12 @@ use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
 /// TODO
-pub struct GasSpec;
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GasSpec {
+    gas_limit: i64,
+    gas_fee_cap: TokenAmount,
+    gas_premium: TokenAmount,
+}
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///

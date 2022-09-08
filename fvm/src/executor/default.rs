@@ -9,10 +9,10 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::ActorID;
+use fvm_shared::{ActorID, BLOCK_GAS_LIMIT};
 use num_traits::Zero;
 
-use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
+use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, GasSpec};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
@@ -208,12 +208,149 @@ where
         Ok(k)
     }
 
+    /// validate a message from an abstract account with a delegate signature 
     fn validate_message(
         &mut self,
         msg: Message,
         sig: Vec<u8>,
     ) -> anyhow::Result<super::GasSpec> {
-        todo!()
+
+        const VALIDATION_GAS_LIMIT: i64 = BLOCK_GAS_LIMIT; // TODO reasonable gas limit
+
+        // Load sender actor state.
+        let sender_id = match self
+            .state_tree()
+            .lookup_id(&msg.from)
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+        {
+            Some(id) => id,
+            None => {
+                return Err(
+                    anyhow!("TODO") // TODO: what to do if no actor found
+                );
+            }
+        };
+
+        // Apply the message.
+        let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
+            // We're processing a chain message, so the sender is the origin of the call stack.
+            let mut cm =
+                K::CallManager::new(machine, VALIDATION_GAS_LIMIT, (sender_id, msg.from), msg.sequence);
+            
+            // Dont charge gas inclusion cost depending on where this is called 
+            // TODO probably a context type to indicate when this is being ran
+            // // This error is fatal because it should have already been accounted for inside
+            // // preflight_message.
+            // if let Err(e) = cm.charge_gas(inclusion_cost) {
+            //     return (Err(e), cm.finish().1);
+            // }
+            if true {
+                return (Err(ExecutionError::OutOfGas), cm.finish().1) // TODO not out of gas
+            }
+
+            let params = 
+                // TODO add message to params block
+                Some(Block::new(DAG_CBOR, sig)); // TODO other params (sig isnt enough for full account abstraction)
+
+
+            let result = cm.with_transaction(|cm| {
+                // TODO call validate instead of invoke                
+                // Invoke the message.
+                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
+
+                Ok(ret)
+            });
+            let (res, machine) = cm.finish();
+            (
+                Ok((result, res.gas_used, res.backtrace, res.exec_trace)),
+                machine,
+            )
+        })?;
+
+        // TODO turn all errors into warnings
+        // Extract the exit code and build the result of the message application.
+        let receipt = match res {
+            Ok(InvocationResult::Return(return_value)) => {
+                // Convert back into a top-level return "value". We throw away the codec here,
+                // unfortunately.
+                let return_data = return_value
+                    .map(|blk| RawBytes::from(blk.data().to_vec()))
+                    .unwrap_or_default();
+
+                backtrace.clear();
+                Receipt {
+                    exit_code: ExitCode::OK,
+                    return_data,
+                    gas_used,
+                }
+            }
+            Ok(InvocationResult::Failure(exit_code)) => {
+                if exit_code.is_success() {
+                    return Err(anyhow!("actor failed with status OK"));
+                }
+                Receipt {
+                    exit_code,
+                    return_data: Default::default(),
+                    gas_used,
+                }
+            }
+            Err(ExecutionError::OutOfGas) => Receipt {
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
+                return_data: Default::default(),
+                gas_used,
+            },
+            Err(ExecutionError::Syscall(err)) => {
+                // Errors indicate the message couldn't be dispatched at all
+                // (as opposed to failing during execution of the receiving actor).
+                // These errors are mapped to exit codes that persist on chain.
+                let exit_code = match err.1 {
+                    ErrorNumber::InsufficientFunds => ExitCode::SYS_INSUFFICIENT_FUNDS,
+                    ErrorNumber::NotFound => ExitCode::SYS_INVALID_RECEIVER,
+                    _ => ExitCode::SYS_ASSERTION_FAILED,
+                };
+
+                backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
+                Receipt {
+                    exit_code,
+                    return_data: Default::default(),
+                    gas_used,
+                }
+            }
+            Err(ExecutionError::Fatal(err)) => {
+                // We produce a receipt with SYS_ASSERTION_FAILED exit code, and
+                // we consume the full gas amount so that, in case of a network-
+                // wide fatal errors, all nodes behave deterministically.
+                //
+                // We set the backtrace from the fatal error to aid diagnosis.
+                // Note that we use backtrace#set_cause instead of backtrace#begin
+                // because we want to retain the propagation chain that we've
+                // accumulated on the way out.
+                let err = err.context(format!(
+                    "[from={}, to={}, seq={}, m={}, h={}]",
+                    msg.from,
+                    msg.to,
+                    msg.sequence,
+                    msg.method_num,
+                    self.context().epoch,
+                ));
+                backtrace.set_cause(backtrace::Cause::from_fatal(err));
+                Receipt {
+                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                    return_data: Default::default(),
+                    gas_used: msg.gas_limit,
+                }
+            }
+        };
+
+        let failure_info = if backtrace.is_empty() || receipt.exit_code.is_success() {
+            None
+        } else {
+            Some(ApplyFailure::MessageBacktrace(backtrace))
+        };
+
+        
+        let ret = receipt.return_data.deserialize::<GasSpec>().map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
+        Ok(ret)
     }
 }
 
