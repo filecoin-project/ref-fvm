@@ -19,6 +19,8 @@ pub enum Protocol {
     Actor = 2,
     /// BLS key addressing
     BLS = 3,
+    /// Namespaced actor protocol addressing
+    Namespaced = 4,
 }
 
 impl Protocol {

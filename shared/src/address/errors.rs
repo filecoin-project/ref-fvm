@@ -7,7 +7,7 @@ use data_encoding::DecodeError;
 use thiserror::Error;
 use unsigned_varint::decode::Error as VarintError;
 
-use super::{BLS_PUB_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN};
+use super::{BLS_PUB_LEN, SECP_PUB_LEN};
 
 /// Address error
 #[derive(Debug, PartialEq, Error)]
@@ -20,7 +20,7 @@ pub enum Error {
     InvalidPayload,
     #[error("Invalid address length")]
     InvalidLength,
-    #[error("Invalid payload length, wanted: {} got: {0}", PAYLOAD_HASH_LEN)]
+    #[error("Invalid payload length: {0}")]
     InvalidPayloadLength(usize),
     #[error("Invalid BLS pub key length, wanted: {} got: {0}", BLS_PUB_LEN)]
     InvalidBLSLength(usize),
