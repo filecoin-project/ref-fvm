@@ -9,7 +9,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::{ActorID, BLOCK_GAS_LIMIT};
+use fvm_shared::ActorID;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, GasSpec};
@@ -208,14 +208,9 @@ where
         Ok(k)
     }
 
-    /// validate a message from an abstract account with a delegate signature 
-    fn validate_message(
-        &mut self,
-        msg: Message,
-        sig: Vec<u8>,
-    ) -> anyhow::Result<super::GasSpec> {
-
-        const VALIDATION_GAS_LIMIT: i64 = BLOCK_GAS_LIMIT; // TODO reasonable gas limit
+    /// validate a message from an abstract account with a delegate signature
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<super::GasSpec> {
+        const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
 
         // Load sender actor state.
         let sender_id = match self
@@ -226,7 +221,7 @@ where
             Some(id) => id,
             None => {
                 return Err(
-                    anyhow!("TODO") // TODO: what to do if no actor found
+                    anyhow!("TODO"), // TODO: what to do if no actor found
                 );
             }
         };
@@ -234,10 +229,14 @@ where
         // Apply the message.
         let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm =
-                K::CallManager::new(machine, VALIDATION_GAS_LIMIT, (sender_id, msg.from), msg.sequence);
-            
-            // Dont charge gas inclusion cost depending on where this is called 
+            let mut cm = K::CallManager::new(
+                machine,
+                VALIDATION_GAS_LIMIT,
+                (sender_id, msg.from),
+                msg.sequence,
+            );
+
+            // Dont charge gas inclusion cost depending on where this is called
             // TODO probably a context type to indicate when this is being ran
             // // This error is fatal because it should have already been accounted for inside
             // // preflight_message.
@@ -245,16 +244,15 @@ where
             //     return (Err(e), cm.finish().1);
             // }
             if true {
-                return (Err(ExecutionError::OutOfGas), cm.finish().1) // TODO not out of gas
+                return (Err(ExecutionError::OutOfGas), cm.finish().1); // TODO not out of gas
             }
 
-            let params = 
+            let params =
                 // TODO add message to params block
                 Some(Block::new(DAG_CBOR, sig)); // TODO other params (sig isnt enough for full account abstraction)
 
-
             let result = cm.with_transaction(|cm| {
-                // TODO call validate instead of invoke                
+                // TODO call validate instead of invoke
                 // Invoke the message.
                 let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
 
@@ -348,8 +346,10 @@ where
             Some(ApplyFailure::MessageBacktrace(backtrace))
         };
 
-        
-        let ret = receipt.return_data.deserialize::<GasSpec>().map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
+        let ret = receipt
+            .return_data
+            .deserialize::<GasSpec>()
+            .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
         Ok(ret)
     }
 }

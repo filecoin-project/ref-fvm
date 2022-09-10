@@ -1,6 +1,7 @@
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
@@ -53,6 +54,13 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: Option<kernel::Block>,
         value: &TokenAmount,
+    ) -> Result<InvocationResult>;
+
+    /// TODO
+    fn validate<K: Kernel<CallManager = Self>>(
+        &mut self,
+        params: kernel::Block, // Message
+        signature: Vec<u8>,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.

@@ -173,6 +173,14 @@ where
         res
     }
 
+    fn validate<K: Kernel<CallManager = Self>>(
+        &mut self,
+        params: crate::kernel::Block, // Message
+        signature: Vec<u8>,
+    ) -> Result<InvocationResult> {
+        todo!()
+    }
+
     fn finish(mut self) -> (FinishRet, Self::Machine) {
         let InnerDefaultCallManager {
             machine,

@@ -6,13 +6,12 @@ use std::fmt::Display;
 use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
-use fvm_shared::crypto::signature::Signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 pub use threaded::ThreadedExecutor;
 
 use crate::call_manager::Backtrace;
