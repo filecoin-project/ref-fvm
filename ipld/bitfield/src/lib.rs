@@ -6,14 +6,13 @@
 #![allow(clippy::comparison_chain)]
 
 pub mod iter;
+mod ops;
 mod range;
 mod rleplus;
 mod unvalidated;
 
 use std::collections::BTreeSet;
-use std::ops::{
-    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Range, Sub, SubAssign,
-};
+use std::ops::Range;
 
 use iter::{ranges_from_bits, RangeIterator};
 pub(crate) use range::RangeSize;
@@ -350,179 +349,6 @@ impl BitField {
     /// Returns true if the `self` is a superset of `other`.
     pub fn contains_all(&self, other: &BitField) -> bool {
         other.is_trivially_empty() || other.ranges().difference(self.ranges()).next().is_none()
-    }
-}
-
-impl BitOr<&BitField> for &BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitor(self, rhs: &BitField) -> Self::Output {
-        if self.is_trivially_empty() {
-            rhs.clone()
-        } else if rhs.is_trivially_empty() {
-            self.clone()
-        } else {
-            BitField::from_ranges(self.ranges().union(rhs.ranges()))
-        }
-    }
-}
-
-impl BitOr<BitField> for &BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitor(self, rhs: BitField) -> Self::Output {
-        if self.is_trivially_empty() {
-            rhs
-        } else if rhs.is_trivially_empty() {
-            self.clone()
-        } else {
-            BitField::from_ranges(self.ranges().union(rhs.ranges()))
-        }
-    }
-}
-
-impl BitOr<&BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitor(self, rhs: &BitField) -> Self::Output {
-        if rhs.is_trivially_empty() {
-            self
-        } else if self.is_trivially_empty() {
-            rhs.clone()
-        } else {
-            BitField::from_ranges(self.ranges().union(rhs.ranges()))
-        }
-    }
-}
-
-impl BitOr<BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitor(self, rhs: BitField) -> Self::Output {
-        if self.is_trivially_empty() {
-            rhs
-        } else if rhs.is_trivially_empty() {
-            self
-        } else {
-            BitField::from_ranges(self.ranges().union(rhs.ranges()))
-        }
-    }
-}
-
-impl BitOrAssign<&BitField> for BitField {
-    #[inline]
-    fn bitor_assign(&mut self, rhs: &BitField) {
-        if !rhs.is_trivially_empty() {
-            *self = &*self | rhs;
-        }
-    }
-}
-
-impl BitOrAssign<BitField> for BitField {
-    #[inline]
-    fn bitor_assign(&mut self, rhs: BitField) {
-        // by-value to optimize the case where one is empty.
-        let s = std::mem::take(self);
-        *self = s | rhs
-    }
-}
-
-impl BitAnd<&BitField> for &BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitand(self, rhs: &BitField) -> Self::Output {
-        if self.is_trivially_empty() || rhs.is_trivially_empty() {
-            BitField::new()
-        } else {
-            BitField::from_ranges(self.ranges().intersection(rhs.ranges()))
-        }
-    }
-}
-
-impl BitAnd<BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitand(self, rhs: BitField) -> Self::Output {
-        &self & &rhs
-    }
-}
-
-impl BitAndAssign<&BitField> for BitField {
-    #[inline]
-    fn bitand_assign(&mut self, rhs: &BitField) {
-        *self = &*self & rhs;
-    }
-}
-
-impl Sub<&BitField> for &BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn sub(self, rhs: &BitField) -> Self::Output {
-        if self.is_trivially_empty() || rhs.is_trivially_empty() {
-            self.clone()
-        } else {
-            BitField::from_ranges(self.ranges().difference(rhs.ranges()))
-        }
-    }
-}
-
-impl Sub<&BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn sub(self, rhs: &BitField) -> Self::Output {
-        if self.is_trivially_empty() || rhs.is_trivially_empty() {
-            self
-        } else {
-            BitField::from_ranges(self.ranges().difference(rhs.ranges()))
-        }
-    }
-}
-
-impl Sub<BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn sub(self, rhs: BitField) -> Self::Output {
-        self - &rhs
-    }
-}
-
-impl SubAssign<&BitField> for BitField {
-    #[inline]
-    fn sub_assign(&mut self, rhs: &BitField) {
-        if !rhs.is_trivially_empty() {
-            *self = &*self - rhs;
-        }
-    }
-}
-
-impl BitXor<&BitField> for &BitField {
-    type Output = BitField;
-
-    fn bitxor(self, rhs: &BitField) -> Self::Output {
-        BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
-    }
-}
-
-impl BitXor<BitField> for BitField {
-    type Output = BitField;
-
-    fn bitxor(self, rhs: BitField) -> Self::Output {
-        &self ^ &rhs
-    }
-}
-
-impl BitXorAssign<&BitField> for BitField {
-    fn bitxor_assign(&mut self, rhs: &BitField) {
-        *self = &*self ^ rhs;
     }
 }
 
