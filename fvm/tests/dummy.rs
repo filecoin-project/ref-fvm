@@ -245,6 +245,14 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
+    fn validate<K: Kernel<CallManager = Self>>(
+            &mut self,
+            _params: kernel::Block, // Message
+            _from: ActorID,
+        ) -> kernel::Result<InvocationResult> {
+        todo!()
+    }
+
     fn with_transaction(
         &mut self,
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,

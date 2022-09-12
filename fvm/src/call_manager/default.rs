@@ -176,7 +176,7 @@ where
     fn validate<K: Kernel<CallManager = Self>>(
         &mut self,
         params: crate::kernel::Block, // Message
-        signature: Vec<u8>,
+        signature: ActorID,
     ) -> Result<InvocationResult> {
         todo!()
     }

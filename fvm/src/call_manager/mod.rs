@@ -60,7 +60,7 @@ pub trait CallManager: 'static {
     fn validate<K: Kernel<CallManager = Self>>(
         &mut self,
         params: kernel::Block, // Message
-        signature: Vec<u8>,
+        from: ActorID,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.

@@ -5,7 +5,7 @@ use std::fmt::Display;
 
 use cid::Cid;
 pub use default::DefaultExecutor;
-use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::{Cbor, RawBytes};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -25,6 +25,15 @@ pub struct GasSpec {
     gas_fee_cap: TokenAmount,
     gas_premium: TokenAmount,
 }
+
+/// TODO
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ValidateParams {
+    signature: Vec<u8>,
+    message_payload: RawBytes,
+}
+
+impl Cbor for ValidateParams {}
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///
