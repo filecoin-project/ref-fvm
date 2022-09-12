@@ -43,8 +43,8 @@ impl TokenAmount {
     }
 
     /// Creates a token amount from a quantity of whole units (10^18 indivisible units).
-    pub fn from_whole(tokens: i64) -> Self {
-        Self::from_atto((tokens as i128) * (Self::PRECISION as i128))
+    pub fn from_whole(tokens: impl Into<BigInt>) -> Self {
+        Self::from_atto(tokens.into() * Self::PRECISION)
     }
 
     /// Returns the quantity of indivisible units.
@@ -365,7 +365,7 @@ mod test {
 
     use crate::TokenAmount;
 
-    fn whole(x: i64) -> TokenAmount {
+    fn whole(x: impl Into<BigInt>) -> TokenAmount {
         TokenAmount::from_whole(x)
     }
 
