@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0-alpha.4 [2022-09-12]
+
+- Add nv17 to network version list (non-breaking).
+- Allow constructing a token amount from whole "bigints".
+
 ## 2.0.0-alpha.3 [2022-08-31]
 
 - Add even more math operations to TokenAmount.
