@@ -27,7 +27,7 @@ mod error;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use multihash::MultihashGeneric;
 
-use crate::call_manager::CallManager;
+use crate::call_manager::{CallManager, ExecutionType};
 use crate::gas::{Gas, PriceList};
 use crate::machine::Machine;
 
@@ -55,6 +55,7 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
+    + Validator
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -79,17 +80,15 @@ pub trait Kernel:
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        execution_type: ExecutionType,
     ) -> Self
     where
-        Self: Sized;
-    
-    fn new_validate(
-        mgr: Self::CallManager,
-        blocks: BlockRegistry,
-        from: ActorID,
-    ) -> Self
-    where
-        Self: Sized;
+        Self: Sized;    
+}
+
+/// TODO
+pub trait Validator {
+    fn is_validator(&self) -> bool;
 }
 
 /// Network-related operations.

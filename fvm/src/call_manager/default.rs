@@ -8,7 +8,7 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID, ExecutionType};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
@@ -47,6 +47,8 @@ pub struct InnerDefaultCallManager<M> {
     exec_trace: ExecutionTrace,
     /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
+    /// TODO
+    execution_type: ExecutionType,
 }
 
 #[doc(hidden)]
@@ -86,6 +88,7 @@ where
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
+            execution_type: ExecutionType::Normal,
         })))
     }
 
@@ -178,6 +181,9 @@ where
         params: crate::kernel::Block, // Message
         from: ActorID,
     ) -> Result<InvocationResult> {
+        if self.execution_type != ExecutionType::Validator {
+            return Err(ExecutionError::Fatal(anyhow!("Tried to call validate with a call manager not configured as a validator.")))
+        }
         if self.machine.context().tracing {
             self.trace(ExecutionEvent::Validate {
                 from,
@@ -193,7 +199,7 @@ where
             }
             return Err(sys_err.into());
         }
-        self.call_stack_depth += 1;
+        self.call_stack_depth = 1;
         // validate unchecked
         let result = {
             // Get the receiver; this will resolve the address.
@@ -204,7 +210,8 @@ where
             self.validate_unchecked::<K>(from, params)
         };
         
-        self.call_stack_depth -= 1;
+        // validate cant call other actors
+        // self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -443,7 +450,7 @@ where
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
-            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
+            let kernel = K::new(cm, block_registry, from, to, method, value.clone(), ExecutionType::Normal);
 
             // Make a store.
             let mut store = engine.new_store(kernel);
@@ -604,7 +611,7 @@ where
         log::trace!("calling validate from {}", from);
         self.map_mut(|cm| {
             // Make the kernel.
-            let kernel = K::new_validate(cm, block_registry, from);
+            let kernel = K::new(cm, block_registry, from, from, 0xff, TokenAmount::zero(), ExecutionType::Validator);
 
             // Make a store.
             let mut store = engine.new_store(kernel);

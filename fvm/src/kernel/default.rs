@@ -27,7 +27,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID, ExecutionType};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
@@ -59,6 +59,9 @@ pub struct DefaultKernel<C> {
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
+
+    /// TODO
+    execution_type: ExecutionType,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -83,6 +86,7 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        execution_type: ExecutionType,
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
@@ -91,23 +95,7 @@ where
             actor_id,
             method,
             value_received,
-        }
-    }
-
-    fn new_validate(
-        mgr: C,
-        blocks: BlockRegistry,
-        from: ActorID,
-    ) -> Self
-    where
-        Self: Sized {
-        DefaultKernel {
-            call_manager: mgr,
-            blocks,
-            caller: from,
-            actor_id: from,
-            method: 0xff, //TODO
-            value_received: TokenAmount::zero(),
+            execution_type,
         }
     }
 }
@@ -258,6 +246,14 @@ where
     }
 }
 
+impl<C> Validator for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn is_validator(&self) -> bool {
+        self.execution_type == ExecutionType::Validator
+    }
+}
 impl<C> IpldBlockOps for DefaultKernel<C>
 where
     C: CallManager,

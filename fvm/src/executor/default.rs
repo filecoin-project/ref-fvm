@@ -11,7 +11,6 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 use num_traits::Zero;
-use serde::Serialize;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, GasSpec};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
@@ -209,8 +208,6 @@ where
         let k = (&mut **self).flush()?;
         Ok(k)
     }
-
-    
 }
 
 impl<K> DefaultExecutor<K>

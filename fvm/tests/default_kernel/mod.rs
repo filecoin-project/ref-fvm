@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use fvm::call_manager::ExecutionType;
 // test target
 use fvm::kernel::default::DefaultKernel;
 use fvm::kernel::{Block, BlockRegistry};
@@ -27,6 +28,7 @@ pub fn build_inspecting_test() -> anyhow::Result<(TestingKernel, Rc<RefCell<Test
         0,
         0,
         Zero::zero(),
+        ExecutionType::Normal,
     );
     Ok((kern, test_data))
 }
@@ -46,6 +48,7 @@ pub fn build_inspecting_gas_test(
         0,
         0,
         Zero::zero(),
+        ExecutionType::Normal,
     );
     Ok((kern, test_data))
 }

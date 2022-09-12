@@ -9,7 +9,7 @@ use crate::{Kernel, machine::Machine};
 use crate::call_manager::{CallManager, InvocationResult};
 use super::{Executor, ValidateExecutor, ApplyKind, ApplyRet, DefaultExecutor};
 
-/// TODO try not to be stuck with Default
+/// TODO try not to be stuck with Default, but it has methods methods i want for validate, which may be candidates for being added to the trait
 pub struct DefaultValidateExecutor<K: Kernel>(pub DefaultExecutor<K>);
 
 

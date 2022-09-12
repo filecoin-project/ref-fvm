@@ -140,6 +140,12 @@ pub enum InvocationResult {
     Failure(ExitCode),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExecutionType {
+    Normal,
+    Validator,
+}
+
 impl Default for InvocationResult {
     fn default() -> Self {
         Self::Return(Default::default())
