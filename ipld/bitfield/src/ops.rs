@@ -218,8 +218,13 @@ impl BitXor<&BitField> for &BitField {
 
     #[inline]
     fn bitxor(self, rhs: &BitField) -> Self::Output {
-        // Nothing to optimize.
-        BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
+        if self.is_trivially_empty() {
+            rhs.clone()
+        } else if rhs.is_trivially_empty() {
+            self.clone()
+        } else {
+            BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
+        }
     }
 }
 
@@ -228,18 +233,13 @@ impl BitXor<BitField> for BitField {
 
     #[inline]
     fn bitxor(self, rhs: BitField) -> Self::Output {
-        // Nothing to optimize.
-        &self ^ &rhs
-    }
-}
-
-impl BitXor<&BitField> for BitField {
-    type Output = BitField;
-
-    #[inline]
-    fn bitxor(self, rhs: &BitField) -> Self::Output {
-        // Nothing to optimize.
-        &self ^ rhs
+        if self.is_trivially_empty() {
+            rhs
+        } else if rhs.is_trivially_empty() {
+            self
+        } else {
+            BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
+        }
     }
 }
 
@@ -248,23 +248,35 @@ impl BitXor<BitField> for &BitField {
 
     #[inline]
     fn bitxor(self, rhs: BitField) -> Self::Output {
-        // Nothing to optimize.
-        self ^ &rhs
+        if self.is_trivially_empty() {
+            rhs
+        } else if rhs.is_trivially_empty() {
+            self.clone()
+        } else {
+            BitField::from_ranges(self.ranges().symmetric_difference(rhs.ranges()))
+        }
+    }
+}
+
+impl BitXor<&BitField> for BitField {
+    type Output = BitField;
+
+    #[inline]
+    fn bitxor(self, rhs: &BitField) -> Self::Output {
+        rhs ^ self
     }
 }
 
 impl BitXorAssign<&BitField> for BitField {
     #[inline]
     fn bitxor_assign(&mut self, rhs: &BitField) {
-        // Nothing to optimize.
-        *self = &*self ^ rhs;
+        *self = std::mem::take(self) ^ rhs;
     }
 }
 
 impl BitXorAssign<BitField> for BitField {
     #[inline]
     fn bitxor_assign(&mut self, rhs: BitField) {
-        // Nothing to optimize.
-        *self = &*self ^ rhs;
+        *self = std::mem::take(self) ^ rhs;
     }
 }
