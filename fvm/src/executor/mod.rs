@@ -1,5 +1,6 @@
 mod default;
 mod threaded;
+mod validator;
 
 use std::fmt::Display;
 
@@ -57,11 +58,15 @@ pub trait Executor {
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet>;
 
-    /// This is the entrypoint to validate a message from an abstract account.
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<GasSpec>;
-
     /// Flushes the state-tree, returning the new root CID.
     fn flush(&mut self) -> anyhow::Result<Cid>;
+}
+
+pub trait ValidateExecutor: Executor {
+    type Validator: Kernel;
+    
+    /// This is the entrypoint to validate a message from an abstract account.
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<GasSpec>;
 }
 
 /// A description of some failure encountered when applying a message.

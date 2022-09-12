@@ -93,6 +93,23 @@ where
             value_received,
         }
     }
+
+    fn new_validate(
+        mgr: C,
+        blocks: BlockRegistry,
+        from: ActorID,
+    ) -> Self
+    where
+        Self: Sized {
+        DefaultKernel {
+            call_manager: mgr,
+            blocks,
+            caller: from,
+            actor_id: from,
+            method: 0xff, //TODO
+            value_received: TokenAmount::zero(),
+        }
+    }
 }
 
 impl<C> DefaultKernel<C>

@@ -210,100 +210,7 @@ where
         Ok(k)
     }
 
-    /// validate a message from an abstract account with a delegate signature
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<super::GasSpec> {
-        const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
-
-        // Load sender actor state.
-        let sender_id = match self
-            .state_tree()
-            .lookup_id(&msg.from)
-            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
-        {
-            Some(id) => id,
-            None => {
-                return Err(
-                    anyhow!("TODO"), // TODO: what to do if no actor found
-                );
-            }
-        };
-
-        // Validate the message.
-        let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
-            // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm = K::CallManager::new(
-                machine,
-                VALIDATION_GAS_LIMIT,
-                (sender_id, msg.from),
-                msg.sequence,
-            );
-
-            // Dont charge gas inclusion cost depending on where this is called
-            // TODO probably a context type to indicate when this is being ran
-            // // This error is fatal because it should have already been accounted for inside
-            // // preflight_message.
-            // if let Err(e) = cm.charge_gas(inclusion_cost) {
-            //     return (Err(e), cm.finish().1);
-            // }
-
-            let params = {
-                let params = ValidateParams { signature: sig, message_payload: msg.params }.marshal_cbor();
-                match params {
-                    Err(_) => return (Err(ExecutionError::OutOfGas), cm.finish().1),
-                    Ok(params) => Some(Block::new(DAG_CBOR, params)),
-                }
-            };
-            let params = params.unwrap(); // TODO err
-
-            let result = cm.with_transaction(|cm| {
-                // TODO call validate instead of invoke
-                // Invoke the message.
-                let ret = cm.validate::<K>(params, sender_id)?;
-
-                Ok(ret)
-            });
-            let (res, machine) = cm.finish();
-            (
-                Ok((result, res.gas_used, res.backtrace, res.exec_trace)),
-                machine,
-            )
-        })?;
-
-        // TODO turn all errors into warnings
-        // Extract the exit code and build the result of the message application.
-        let result = match res {
-            Ok(InvocationResult::Return(return_value)) => {
-                // Convert back into a top-level return "value". We throw away the codec here,
-                // unfortunately.
-                let return_data = return_value
-                    .map(|blk| RawBytes::from(blk.data().to_vec()))
-                    .unwrap_or_default();
-
-                backtrace.clear();
-                Ok(return_data)
-            }
-            Ok(InvocationResult::Failure(exit_code)) => {
-                if exit_code.is_success() {
-                    return Err(anyhow!("actor failed with status OK"));
-                }
-                Err(())
-            },
-            // TODO error case handling for backtraces
-            Err(_) => Err(()),
-        };
-
-        let failure_info = if backtrace.is_empty() || result.is_ok() {
-            None
-        } else {
-            Some(ApplyFailure::MessageBacktrace(backtrace))
-        };
-
-        let ret = result
-            .map_err(|_| anyhow!("actor failed to validate with TODO"))?
-            .deserialize::<GasSpec>()
-            .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
-        Ok(ret)
-    }
+    
 }
 
 impl<K> DefaultExecutor<K>
@@ -510,7 +417,7 @@ where
         })
     }
 
-    fn map_machine<F, T>(&mut self, f: F) -> T
+    pub(crate) fn map_machine<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(
             <K::CallManager as CallManager>::Machine,

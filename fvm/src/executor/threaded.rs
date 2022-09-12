@@ -48,14 +48,4 @@ where
     fn flush(&mut self) -> anyhow::Result<Cid> {
         self.0.flush()
     }
-
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<super::GasSpec> {
-        let mut ret = Err(anyhow!("failed to execute"));
-
-        EXEC_POOL.scoped(|scope| {
-            scope.execute(|| ret = self.0.validate_message(msg, sig));
-        });
-
-        ret
-    }
 }

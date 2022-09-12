@@ -176,9 +176,57 @@ where
     fn validate<K: Kernel<CallManager = Self>>(
         &mut self,
         params: crate::kernel::Block, // Message
-        signature: ActorID,
+        from: ActorID,
     ) -> Result<InvocationResult> {
-        todo!()
+        if self.machine.context().tracing {
+            self.trace(ExecutionEvent::Validate {
+                from,
+                params: params.data().to_owned().into()
+            });
+        }
+
+        // See comment in `send`
+        if self.call_stack_depth > self.machine.context().max_call_depth {
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
+            }
+            return Err(sys_err.into());
+        }
+        self.call_stack_depth += 1;
+        // validate unchecked
+        let result = {
+            // Get the receiver; this will resolve the address.
+            // TODO egg actor creation may be done here in the future ? 
+            // how do you validate from a non existing actor? this is a spec TODO
+
+            // Do the actual validate.
+            self.validate_unchecked::<K>(from, params)
+        };
+        
+        self.call_stack_depth -= 1;
+
+        if self.machine.context().tracing {
+            self.trace(match &result {
+                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
+                    v.as_ref()
+                        .map(|blk| RawBytes::from(blk.data().to_vec()))
+                        .unwrap_or_default(),
+                ),
+                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
+
+                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
+                    ErrorNumber::Forbidden,
+                    "out of gas",
+                )),
+                Err(ExecutionError::Fatal(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
+                }
+                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+            });
+        }
+
+        result
     }
 
     fn finish(mut self) -> (FinishRet, Self::Machine) {
@@ -505,6 +553,165 @@ where
                         val.exit_code()
                     ),
                     Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+                }
+            }
+
+            (ret, cm)
+        })
+    }
+
+    fn validate_unchecked<K>(
+        &mut self,
+        from: ActorID,
+        params: Block,
+
+    ) -> Result<InvocationResult>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        // Lookup the actor.
+        let state = self
+            .state_tree()
+            .get_actor_id(from)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", from))?;
+
+        // TODO Gas charge doesnt happen yet?
+        // // Charge the method gas. Not sure why this comes second, but it does.
+        // self.charge_gas(self.price_list().on_method_invocation(value, method))?;
+
+        // Store the parametrs, and initialize the block registry for the target actor.
+        let mut block_registry = BlockRegistry::new();
+        let params_id = block_registry.put(params)?;
+
+        // validate cant call other actors
+        // // Increment invocation count
+        // self.invocation_count += 1;
+
+        // This is a cheap operation as it doesn't actually clone the struct,
+        // it returns a referenced copy.
+        let engine = self.engine().clone();
+
+        // Ensure that actor's code is loaded and cached in the engine.
+        // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
+        // listed the manifest, and therefore preloaded during system initialization.
+        #[cfg(feature = "m2-native")]
+        self.engine()
+            .prepare_actor_code(&state.code, self.blockstore())
+            .map_err(
+                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
+            )?;
+
+        log::trace!("calling validate from {}", from);
+        self.map_mut(|cm| {
+            // Make the kernel.
+            let kernel = K::new_validate(cm, block_registry, from);
+
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            // From this point on, there are no more syscall errors, only aborts.
+            let result: std::result::Result<BlockId, Abort> = (|| {
+                // Instantiate the module.
+                let instance = engine
+                    .get_instance(&mut store, &state.code)
+                    .and_then(|i| i.context("actor code not found"))
+                    .map_err(Abort::Fatal)?;
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+                store.data_mut().memory = memory;
+
+                // Lookup the invoke method.
+                let validate: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, "validate")
+                    // All abstract accounts will have an validate method.
+                    .map_err(Abort::Fatal)?;
+
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
+                // Invoke it.
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    validate.call(&mut store, (params_id,))
+                }))
+                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
+
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                charge_for_exec(&mut store)?;
+
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res?)
+            })();
+
+            let invocation_data = store.into_data();
+            let last_error = invocation_data.last_error;
+            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                        )
+                    })?)
+                })
+            });
+
+            // Process the result, updating the backtrace if necessary.
+            let ret = match result {
+                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
+                Err(abort) => {
+                    if let Some(err) = last_error {
+                        cm.backtrace.begin(err);
+                    }
+
+                    let (code, message, res) = match abort {
+                        Abort::Exit(code, message) => {
+                            (code, message, Ok(InvocationResult::Failure(code)))
+                        }
+                        Abort::OutOfGas => (
+                            ExitCode::SYS_OUT_OF_GAS,
+                            "out of gas".to_owned(),
+                            Err(ExecutionError::OutOfGas),
+                        ),
+                        Abort::Fatal(err) => (
+                            ExitCode::SYS_ASSERTION_FAILED,
+                            "fatal error".to_owned(),
+                            Err(ExecutionError::Fatal(err)),
+                        ),
+                    };
+
+                    cm.backtrace.push_frame(Frame {
+                        source: from,
+                        method: 0xff, // TODO
+                        message,
+                        code,
+                    });
+
+                    res
+                }
+            };
+
+            // Log the results if tracing is enabled.
+            if log::log_enabled!(log::Level::Trace) {
+                match &ret {
+                    Ok(val) => log::trace!(
+                        "returning {}::validate -> ({})",
+                        from,
+                        val.exit_code()
+                    ),
+                    Err(e) => log::trace!("failing {}::validate -> (err:{})", from, e),
                 }
             }
 

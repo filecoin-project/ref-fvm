@@ -24,6 +24,10 @@ pub enum ExecutionEvent {
         params: RawBytes,
         value: TokenAmount,
     },
+    Validate {
+        from: ActorID,
+        params: RawBytes,
+    },
     CallReturn(RawBytes),
     CallAbort(ExitCode),
     CallError(SyscallError),

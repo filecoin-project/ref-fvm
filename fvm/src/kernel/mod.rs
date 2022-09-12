@@ -82,6 +82,14 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
+    
+    fn new_validate(
+        mgr: Self::CallManager,
+        blocks: BlockRegistry,
+        from: ActorID,
+    ) -> Self
+    where
+        Self: Sized;
 }
 
 /// Network-related operations.
