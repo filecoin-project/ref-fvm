@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.0.0-alpha.3 [2022-09-12]
+
+Add support for nv17.
+
 ## 2.0.0-alpha.2 [2022-08-31]
 
 - Syscalls:
