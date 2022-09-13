@@ -47,7 +47,7 @@ pretty_assertions = "1.2.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
 
 [dependencies.wasmtime]
-version = "0.37.0"
+version = "0.40.1"
 default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 
