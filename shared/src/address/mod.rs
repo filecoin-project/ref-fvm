@@ -123,6 +123,7 @@ impl Address {
         }
     }
 
+    /// Generates a new delegated address from a namespace and a subaddress.
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
             network: NETWORK_DEFAULT,

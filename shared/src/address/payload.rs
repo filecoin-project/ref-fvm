@@ -11,11 +11,12 @@ use super::{
 };
 use crate::ActorID;
 
+/// A "delegated" (f4) address.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct DelegatedAddress {
     namespace: ActorID,
-    len: u8,
-    buf: [u8; MAX_SUBADDRESS_LEN],
+    length: usize,
+    buffer: [u8; MAX_SUBADDRESS_LEN],
 }
 
 #[cfg(feature = "arb")]
@@ -23,13 +24,14 @@ impl<'a> arbitrary::Arbitrary<'a> for DelegatedAddress {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         Ok(DelegatedAddress {
             namespace: arbitrary::Arbitrary::arbitrary(u)?,
-            len: u.int_in_range(0u8..=(MAX_SUBADDRESS_LEN as u8))?,
-            buf: arbitrary::Arbitrary::arbitrary(u)?,
+            length: u.int_in_range(0usize..=MAX_SUBADDRESS_LEN)?,
+            buffer: arbitrary::Arbitrary::arbitrary(u)?,
         })
     }
 }
 
 impl DelegatedAddress {
+    /// Construct a new delegated address from the namespace (actor id) and subaddress.
     pub fn new(namespace: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         let length = subaddress.len();
         if length > MAX_SUBADDRESS_LEN {
@@ -37,21 +39,23 @@ impl DelegatedAddress {
         }
         let mut addr = DelegatedAddress {
             namespace,
-            len: length as u8,
-            buf: [0u8; MAX_SUBADDRESS_LEN],
+            length,
+            buffer: [0u8; MAX_SUBADDRESS_LEN],
         };
-        addr.buf[..length].copy_from_slice(&subaddress[..length]);
+        addr.buffer[..length].copy_from_slice(&subaddress[..length]);
         Ok(addr)
     }
 
+    /// Returns the delegated address's namespace .
     #[inline]
     pub fn namespace(&self) -> ActorID {
         self.namespace
     }
 
+    /// Returns the delegated address's subaddress .
     #[inline]
     pub fn subaddress(&self) -> &[u8] {
-        &self.buf[..self.len as usize]
+        &self.buffer[..self.length as usize]
     }
 }
 
@@ -61,13 +65,13 @@ impl DelegatedAddress {
 pub enum Payload {
     /// f0: ID protocol address.
     ID(u64),
-    /// f1: SECP256K1 key address, 20 byte hash of PublicKey
+    /// f1: SECP256K1 key address, 20 byte hash of PublicKey.
     Secp256k1([u8; PAYLOAD_HASH_LEN]),
-    /// f2: Actor protocol address, 20 byte hash of actor data
+    /// f2: Actor protocol address, 20 byte hash of actor data.
     Actor([u8; PAYLOAD_HASH_LEN]),
-    /// f3: BLS key address, full 48 byte public key
+    /// f3: BLS key address, full 48 byte public key.
     BLS([u8; BLS_PUB_LEN]),
-    /// f4: Delegated addresses.
+    /// f4: Delegated address, a namespace with an arbitrary subaddress.
     Delegated(DelegatedAddress),
 }
 
