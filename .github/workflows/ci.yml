@@ -38,7 +38,6 @@ jobs:
         include:
           - name: build
             key: v3
-            push: true
             command: build
           - name: check-clippy
             key: v3
@@ -62,6 +61,7 @@ jobs:
             key: v3
             command: test
             args: --package fvm_integration_tests --package "*actor"
+            push: true
           - name: conformance
             key: v3
             command: test
