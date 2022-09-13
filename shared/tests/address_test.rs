@@ -220,7 +220,7 @@ fn bls_address() {
 }
 
 #[test]
-fn namespaced_address() {
+fn delegated_address() {
     struct F4TestVec {
         namespace: u64,
         subaddr: &'static [u8],
@@ -245,8 +245,8 @@ fn namespaced_address() {
     ];
 
     for t in test_vectors.iter() {
-        let addr = Address::new_namespaced(t.namespace, t.subaddr).unwrap();
-        test_address(addr, Protocol::Namespaced, t.expected);
+        let addr = Address::new_delegated(t.namespace, t.subaddr).unwrap();
+        test_address(addr, Protocol::Delegated, t.expected);
     }
 }
 

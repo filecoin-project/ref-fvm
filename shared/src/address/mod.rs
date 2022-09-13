@@ -17,6 +17,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
 pub use self::network::Network;
+use self::payload::DelegatedAddress;
 pub use self::payload::Payload;
 pub use self::protocol::Protocol;
 use crate::ActorID;
@@ -122,13 +123,10 @@ impl Address {
         }
     }
 
-    pub fn new_namespaced(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
+    pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
             network: NETWORK_DEFAULT,
-            payload: Payload::Namespaced {
-                namespace: ns,
-                subaddress: subaddress.try_into()?,
-            },
+            payload: Payload::Delegated(DelegatedAddress::new(ns, subaddress)?),
         })
     }
 
@@ -230,10 +228,12 @@ impl fmt::Display for Address {
             Payload::ID(id) => write!(f, "{}", id),
             Payload::Secp256k1(data) | Payload::Actor(data) => write_payload(f, protocol, &*data),
             Payload::BLS(data) => write_payload(f, protocol, &*data),
-            Payload::Namespaced {
-                namespace,
-                subaddress,
-            } => write!(f, "{}-{}", namespace, ADDRESS_ENCODER.encode(&*subaddress)),
+            Payload::Delegated(addr) => write!(
+                f,
+                "{}-{}",
+                addr.namespace(),
+                ADDRESS_ENCODER.encode(addr.subaddress())
+            ),
         }
     }
 }
@@ -259,7 +259,7 @@ impl FromStr for Address {
             "1" => Protocol::Secp256k1,
             "2" => Protocol::Actor,
             "3" => Protocol::BLS,
-            "4" => Protocol::Namespaced,
+            "4" => Protocol::Delegated,
             _ => {
                 return Err(Error::UnknownProtocol);
             }
@@ -279,16 +279,13 @@ impl FromStr for Address {
                     payload: Payload::ID(id),
                 })
             }
-            Protocol::Namespaced => {
+            Protocol::Delegated => {
                 let (id, subaddr) = raw.split_once('-').ok_or(Error::InvalidPayload)?;
                 let id = id.parse::<u64>()?;
                 let subaddr = ADDRESS_ENCODER.decode(subaddr.as_bytes())?;
                 Ok(Address {
                     network,
-                    payload: Payload::Namespaced {
-                        namespace: id,
-                        subaddress: (&*subaddr).try_into()?,
-                    },
+                    payload: Payload::Delegated(DelegatedAddress::new(id, &subaddr)?),
                 })
             }
             Protocol::Secp256k1 | Protocol::Actor | Protocol::BLS => {

@@ -3,7 +3,6 @@
 
 use std::convert::TryInto;
 use std::hash::Hash;
-use std::ops::Deref;
 use std::u64;
 
 use super::{
@@ -13,49 +12,46 @@ use super::{
 use crate::ActorID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Subaddress {
+pub struct DelegatedAddress {
+    namespace: ActorID,
     len: u8,
     buf: [u8; MAX_SUBADDRESS_LEN],
 }
 
 #[cfg(feature = "arb")]
-impl<'a> arbitrary::Arbitrary<'a> for Subaddress {
+impl<'a> arbitrary::Arbitrary<'a> for DelegatedAddress {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(Subaddress {
+        Ok(DelegatedAddress {
+            namespace: arbitrary::Arbitrary::arbitrary(u)?,
             len: u.int_in_range(0u8..=(MAX_SUBADDRESS_LEN as u8))?,
             buf: arbitrary::Arbitrary::arbitrary(u)?,
         })
     }
 }
 
-impl AsRef<[u8]> for Subaddress {
-    fn as_ref(&self) -> &[u8] {
-        &self.buf[..self.len as usize]
-    }
-}
-
-impl Deref for Subaddress {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl<'a> TryFrom<&'a [u8]> for Subaddress {
-    type Error = Error;
-
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        let length = value.len();
+impl DelegatedAddress {
+    pub fn new(namespace: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
+        let length = subaddress.len();
         if length > MAX_SUBADDRESS_LEN {
             return Err(Error::InvalidPayloadLength(length));
         }
-        let mut addr = Subaddress {
+        let mut addr = DelegatedAddress {
+            namespace,
             len: length as u8,
             buf: [0u8; MAX_SUBADDRESS_LEN],
         };
-        addr.buf[..length].copy_from_slice(&value[..length]);
+        addr.buf[..length].copy_from_slice(&subaddress[..length]);
         Ok(addr)
+    }
+
+    #[inline]
+    pub fn namespace(&self) -> ActorID {
+        self.namespace
+    }
+
+    #[inline]
+    pub fn subaddress(&self) -> &[u8] {
+        &self.buf[..self.len as usize]
     }
 }
 
@@ -63,19 +59,16 @@ impl<'a> TryFrom<&'a [u8]> for Subaddress {
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum Payload {
-    /// ID protocol address.
+    /// f0: ID protocol address.
     ID(u64),
-    /// SECP256K1 key address, 20 byte hash of PublicKey
+    /// f1: SECP256K1 key address, 20 byte hash of PublicKey
     Secp256k1([u8; PAYLOAD_HASH_LEN]),
-    /// Actor protocol address, 20 byte hash of actor data
+    /// f2: Actor protocol address, 20 byte hash of actor data
     Actor([u8; PAYLOAD_HASH_LEN]),
-    /// BLS key address, full 48 byte public key
+    /// f3: BLS key address, full 48 byte public key
     BLS([u8; BLS_PUB_LEN]),
-    /// Namespaced
-    Namespaced {
-        namespace: ActorID,
-        subaddress: Subaddress,
-    },
+    /// f4: Delegated addresses.
+    Delegated(DelegatedAddress),
 }
 
 impl Payload {
@@ -87,12 +80,9 @@ impl Payload {
             Secp256k1(arr) => arr.to_vec(),
             Actor(arr) => arr.to_vec(),
             BLS(arr) => arr.to_vec(),
-            Namespaced {
-                namespace,
-                subaddress,
-            } => {
-                let mut buf = to_leb_bytes(namespace);
-                buf.extend(&*subaddress);
+            Delegated(addr) => {
+                let mut buf = to_leb_bytes(addr.namespace());
+                buf.extend(addr.subaddress());
                 buf
             }
         }
@@ -124,12 +114,9 @@ impl Payload {
                     .try_into()
                     .map_err(|_| Error::InvalidPayloadLength(payload.len()))?,
             ),
-            Protocol::Namespaced => {
+            Protocol::Delegated => {
                 let (id, remaining) = unsigned_varint::decode::u64(payload)?;
-                Self::Namespaced {
-                    namespace: id,
-                    subaddress: remaining.try_into()?,
-                }
+                Self::Delegated(DelegatedAddress::new(id, remaining)?)
             }
         };
         Ok(payload)
@@ -143,7 +130,7 @@ impl From<Payload> for Protocol {
             Payload::Secp256k1(_) => Self::Secp256k1,
             Payload::Actor(_) => Self::Actor,
             Payload::BLS(_) => Self::BLS,
-            Payload::Namespaced { .. } => Self::Namespaced,
+            Payload::Delegated { .. } => Self::Delegated,
         }
     }
 }
@@ -155,7 +142,7 @@ impl From<&Payload> for Protocol {
             Payload::Secp256k1(_) => Self::Secp256k1,
             Payload::Actor(_) => Self::Actor,
             Payload::BLS(_) => Self::BLS,
-            Payload::Namespaced { .. } => Self::Namespaced,
+            Payload::Delegated { .. } => Self::Delegated,
         }
     }
 }
