@@ -9,9 +9,9 @@ use crate::{Hash, HashedKey};
 
 /// Algorithm used as the hasher for the Hamt.
 pub trait HashAlgorithm {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+    fn hash<X>(&mut self, key: &X) -> HashedKey
     where
-        X: Hash;
+        X: Hash + ?Sized;
 }
 
 /// Type is needed because the Sha256 hasher does not implement `std::hash::Hasher`
@@ -29,14 +29,13 @@ impl Hasher for Sha2HasherWrapper {
     }
 }
 
-/// Sha256 hashing algorithm used for hashing keys in the Hamt.
-#[derive(Debug)]
-pub enum Sha256 {}
+#[derive(Debug, Default)]
+pub struct DefaultSha256;
 
-impl HashAlgorithm for Sha256 {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+impl HashAlgorithm for DefaultSha256 {
+    fn hash<X>(&mut self, key: &X) -> HashedKey
     where
-        X: Hash,
+        X: Hash + ?Sized,
     {
         let mut hasher = Sha2HasherWrapper::default();
         key.hash(&mut hasher);

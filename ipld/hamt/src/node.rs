@@ -3,7 +3,6 @@
 
 use std::borrow::Borrow;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
@@ -15,23 +14,27 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{Error, KeyValuePair, MAX_ARRAY_WIDTH};
+use crate::{Hash, HashAlgorithm};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
-pub(crate) struct Node<K, V, H> {
+pub(crate) struct Node<K, V> {
     pub(crate) bitfield: Bitfield,
-    pub(crate) pointers: Vec<Pointer<K, V, H>>,
-    hash: PhantomData<H>,
+    pub(crate) pointers: Vec<Pointer<K, V>>,
 }
 
-impl<K: PartialEq, V: PartialEq, H> PartialEq for Node<K, V, H> {
+impl<K, V> PartialEq for Node<K, V>
+where
+    K: PartialEq,
+    V: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
     }
 }
 
-impl<K, V, H> Serialize for Node<K, V, H>
+impl<K, V> Serialize for Node<K, V>
 where
     K: Serialize,
     V: Serialize,
@@ -44,7 +47,7 @@ where
     }
 }
 
-impl<'de, K, V, H> Deserialize<'de> for Node<K, V, H>
+impl<'de, K, V> Deserialize<'de> for Node<K, V>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -54,42 +57,39 @@ where
         D: Deserializer<'de>,
     {
         let (bitfield, pointers) = Deserialize::deserialize(deserializer)?;
-        Ok(Node {
-            bitfield,
-            pointers,
-            hash: Default::default(),
-        })
+        Ok(Node { bitfield, pointers })
     }
 }
 
-impl<K, V, H> Default for Node<K, V, H> {
+impl<K, V> Default for Node<K, V> {
     fn default() -> Self {
-        Node {
-            bitfield: Bitfield::zero(),
-            pointers: Vec::new(),
-            hash: Default::default(),
+        Self {
+            bitfield: Default::default(),
+            pointers: Default::default(),
         }
     }
 }
 
-impl<K, V, H> Node<K, V, H>
+impl<K, V> Node<K, V>
 where
-    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
-    H: HashAlgorithm,
+    K: Hash + ?Sized + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
 {
-    pub fn set<S: Blockstore>(
+    pub fn set<'r, BS, H>(
         &mut self,
         key: K,
         value: V,
-        store: &S,
+        store: &BS,
+        hash_algo: &'r mut H,
         bit_width: u32,
         overwrite: bool,
     ) -> Result<(Option<V>, bool), Error>
     where
+        BS: Blockstore,
         V: PartialEq,
+        H: HashAlgorithm,
     {
-        let hash = H::hash(&key);
+        let hash = hash_algo.hash(&key);
         self.modify_value(
             &mut HashBits::new(&hash),
             bit_width,
@@ -97,37 +97,45 @@ where
             key,
             value,
             store,
+            hash_algo,
             overwrite,
         )
     }
 
     #[inline]
-    pub fn get<Q: ?Sized, S: Blockstore>(
+    pub fn get<'r, BS, Q, H>(
         &self,
         k: &Q,
-        store: &S,
+        store: &BS,
+        hash_algo: &'r mut H,
         bit_width: u32,
     ) -> Result<Option<&V>, Error>
     where
+        BS: Blockstore,
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
+        H: HashAlgorithm,
     {
-        Ok(self.search(k, store, bit_width)?.map(|kv| kv.value()))
+        Ok(self
+            .search(k, store, hash_algo, bit_width)?
+            .map(|kv| kv.value()))
     }
 
     #[inline]
-    pub fn remove_entry<Q: ?Sized, S>(
+    pub fn remove_entry<'r, BS, Q, H>(
         &mut self,
         k: &Q,
-        store: &S,
+        store: &BS,
+        hash_algo: &'r mut H,
         bit_width: u32,
     ) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
-        S: Blockstore,
+        Q: Eq + Hash + ?Sized,
+        BS: Blockstore,
+        H: HashAlgorithm,
     {
-        let hash = H::hash(k);
+        let hash = hash_algo.hash(k);
         self.rm_value(&mut HashBits::new(&hash), bit_width, 0, k, store)
     }
 
@@ -135,10 +143,10 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
+    pub(crate) fn for_each<BS, F>(&self, store: &BS, f: &mut F) -> Result<(), Error>
     where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
-        S: Blockstore,
+        BS: Blockstore,
     {
         for p in &self.pointers {
             match p {
@@ -173,31 +181,35 @@ where
     }
 
     /// Search for a key.
-    fn search<Q: ?Sized, S: Blockstore>(
+    fn search<'r, BS, Q, H>(
         &self,
         q: &Q,
-        store: &S,
+        store: &BS,
+        hash_algo: &'r mut H,
         bit_width: u32,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
     where
+        BS: Blockstore,
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
+        H: HashAlgorithm,
     {
-        let hash = H::hash(q);
+        let hash = hash_algo.hash(q);
         self.get_value(&mut HashBits::new(&hash), bit_width, 0, q, store)
     }
 
-    fn get_value<Q: ?Sized, S: Blockstore>(
+    fn get_value<BS, Q>(
         &self,
         hashed_key: &mut HashBits,
         bit_width: u32,
         depth: u64,
         key: &Q,
-        store: &S,
+        store: &BS,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
     where
+        BS: Blockstore,
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -213,7 +225,7 @@ where
                     // Link node is cached
                     cached_node.get_value(hashed_key, bit_width, depth + 1, key, store)
                 } else {
-                    let node: Box<Node<K, V, H>> = if let Some(node) = store.get_cbor(cid)? {
+                    let node: Box<Node<K, V>> = if let Some(node) = store.get_cbor(cid)? {
                         node
                     } else {
                         #[cfg(not(feature = "ignore-dead-links"))]
@@ -235,18 +247,21 @@ where
 
     /// Internal method to modify values.
     #[allow(clippy::too_many_arguments)]
-    fn modify_value<S: Blockstore>(
+    fn modify_value<'r, BS, H>(
         &mut self,
         hashed_key: &mut HashBits,
         bit_width: u32,
         depth: u64,
         key: K,
         value: V,
-        store: &S,
+        store: &BS,
+        hash_algo: &'r mut H,
         overwrite: bool,
     ) -> Result<(Option<V>, bool), Error>
     where
+        BS: Blockstore,
         V: PartialEq,
+        H: HashAlgorithm,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -275,6 +290,7 @@ where
                     key,
                     value,
                     store,
+                    hash_algo,
                     overwrite,
                 )?;
                 if modified {
@@ -289,6 +305,7 @@ where
                 key,
                 value,
                 store,
+                hash_algo,
                 overwrite,
             )?),
             Pointer::Values(vals) => {
@@ -314,7 +331,7 @@ where
 
                 // If the array is full, create a subshard and insert everything
                 if vals.len() >= MAX_ARRAY_WIDTH {
-                    let mut sub = Node::<K, V, H>::default();
+                    let mut sub = Node::<K, V>::default();
                     let consumed = hashed_key.consumed;
                     let modified = sub.modify_value(
                         hashed_key,
@@ -323,11 +340,12 @@ where
                         key,
                         value,
                         store,
+                        hash_algo,
                         overwrite,
                     )?;
                     let kvs = std::mem::take(vals);
                     for p in kvs.into_iter() {
-                        let hash = H::hash(p.key());
+                        let hash = hash_algo.hash(p.key());
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             bit_width,
@@ -335,6 +353,7 @@ where
                             p.0,
                             p.1,
                             store,
+                            hash_algo,
                             overwrite,
                         )?;
                     }
@@ -447,7 +466,7 @@ where
         Ok(())
     }
 
-    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, H> {
+    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V> {
         self.bitfield.clear_bit(idx);
         self.pointers.remove(i)
     }
@@ -464,11 +483,11 @@ where
         mask.and(&self.bitfield).count_ones()
     }
 
-    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, H> {
+    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V> {
         &mut self.pointers[i]
     }
 
-    fn get_child(&self, i: usize) -> &Pointer<K, V, H> {
+    fn get_child(&self, i: usize) -> &Pointer<K, V> {
         &self.pointers[i]
     }
 }

@@ -1,6 +1,5 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -9,7 +8,7 @@ use cid::{multihash, Cid};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
-use fvm_ipld_hamt::Hamt;
+use fvm_ipld_hamt::{DefaultSha256, Hamt};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
@@ -23,6 +22,7 @@ use crate::syscall_error;
 /// in sync contexts.
 pub struct StateTree<S> {
     hamt: Hamt<S, ActorState>,
+    hash_algo: RefCell<DefaultSha256>,
 
     version: StateTreeVersion,
     info: Option<Cid>,
@@ -219,6 +219,7 @@ where
         let hamt = Hamt::new_with_bit_width(store, HAMT_BIT_WIDTH);
         Ok(Self {
             hamt,
+            hash_algo: RefCell::new(DefaultSha256::default()),
             version,
             info,
             snaps: StateSnapshots::new(),
@@ -263,6 +264,7 @@ where
 
                 Ok(Self {
                     hamt,
+                    hash_algo: RefCell::new(DefaultSha256::default()),
                     version,
                     info,
                     snaps: StateSnapshots::new(),
@@ -294,9 +296,10 @@ where
             StateCacheResult::Uncached => {
                 // if state doesn't exist, find using hamt
                 let key = Address::new_id(id).to_bytes();
+
                 let act = self
                     .hamt
-                    .get(&key)
+                    .get::<DefaultSha256, _>(&key, &mut self.hash_algo.borrow_mut())
                     .with_context(|| format!("failed to lookup actor {}", id))
                     .or_fatal()?
                     .cloned();
@@ -462,11 +465,20 @@ where
             let addr = Address::new_id(id);
             match sto {
                 None => {
-                    self.hamt.delete(&addr.to_bytes()).or_fatal()?;
+                    self.hamt
+                        .delete::<DefaultSha256, _>(
+                            &addr.to_bytes(),
+                            &mut self.hash_algo.borrow_mut(),
+                        )
+                        .or_fatal()?;
                 }
                 Some(ref state) => {
                     self.hamt
-                        .set(addr.to_bytes().into(), state.clone())
+                        .set::<DefaultSha256>(
+                            addr.to_bytes().into(),
+                            state.clone(),
+                            &mut self.hash_algo.borrow_mut(),
+                        )
                         .or_fatal()?;
                 }
             }
