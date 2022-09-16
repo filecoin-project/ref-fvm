@@ -1,12 +1,13 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::iter;
 use std::str::FromStr;
 
 use data_encoding::{DecodeError, DecodeKind};
 use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::{
-    checksum, validate_checksum, Address, Error, Network, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN,
+    Address, Error, Network, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN,
     SECP_PUB_LEN,
 };
 
@@ -38,16 +39,6 @@ fn key_len_validations() {
     // Long
     assert!(Address::new_bls(&[8; BLS_PUB_LEN + 1]).is_err());
     assert!(Address::new_secp256k1(&[8; SECP_PUB_LEN + 1]).is_err());
-}
-
-#[test]
-fn generate_validate_checksum() {
-    let data = [0, 2, 3, 4, 5, 1, 2];
-    let other_data = [1, 4, 3, 6, 7, 1, 2];
-    let cksm = checksum(&data);
-    assert_eq!(cksm.len(), 4);
-    assert!(validate_checksum(&data, cksm.clone()));
-    assert!(!validate_checksum(&other_data, cksm));
 }
 
 struct AddressTestVec<'a> {
@@ -229,6 +220,37 @@ fn bls_address() {
 }
 
 #[test]
+fn delegated_address() {
+    struct F4TestVec {
+        namespace: u64,
+        subaddr: &'static [u8],
+        expected: &'static str,
+    }
+    let test_vectors = &[
+        F4TestVec {
+            namespace: 32,
+            subaddr: &[0xff; 5],
+            expected: "f432-77777777",
+        },
+        F4TestVec {
+            namespace: std::u64::MAX,
+            subaddr: &[],
+            expected: "f418446744073709551615-",
+        },
+        F4TestVec {
+            namespace: 100,
+            subaddr: &[0; MAX_SUBADDRESS_LEN],
+            expected: "f4100-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+    ];
+
+    for t in test_vectors.iter() {
+        let addr = Address::new_delegated(t.namespace, t.subaddr).unwrap();
+        test_address(addr, Protocol::Delegated, t.expected);
+    }
+}
+
+#[test]
 fn id_address() {
     struct IDTestVec {
         input: u64,
@@ -291,7 +313,7 @@ fn invalid_string_addresses() {
             expected: Error::UnknownNetwork,
         },
         StringAddrVec {
-            input: "f4gfvuyh7v2sx3patm5k23wdzmhyhtmqctasbr23y",
+            input: "f5gfvuyh7v2sx3patm5k23wdzmhyhtmqctasbr23y",
             expected: Error::UnknownProtocol,
         },
         StringAddrVec {
@@ -324,12 +346,20 @@ fn invalid_string_addresses() {
             input: "f2",
             expected: Error::InvalidLength,
         },
+        StringAddrVec {
+            input: "f1mzxqu",
+            expected: Error::InvalidLength,
+        },
     ];
 
-    for t in test_vectors.iter() {
+    for (i, t) in test_vectors.iter().enumerate() {
         let res = Address::from_str(t.input);
         match res {
-            Err(e) => assert_eq!(e, t.expected),
+            Err(e) => assert_eq!(
+                e, t.expected,
+                "test case {} with input {} failed",
+                i, t.input
+            ),
             _ => panic!("Addresses should have errored"),
         };
     }
@@ -363,7 +393,7 @@ fn invalid_byte_addresses() {
     let test_vectors = &[
         // Unknown Protocol
         StringAddrVec {
-            input: vec![4, 4, 4],
+            input: vec![5, 4, 4],
             expected: Error::UnknownProtocol,
         },
         // ID protocol
@@ -397,6 +427,18 @@ fn invalid_byte_addresses() {
         StringAddrVec {
             input: bls_s,
             expected: Error::InvalidPayloadLength(47),
+        },
+        // Delegate Protocol
+        StringAddrVec {
+            input: [4, 0]
+                .into_iter()
+                .chain(iter::repeat(0xff).take(MAX_SUBADDRESS_LEN + 1))
+                .collect(),
+            expected: Error::InvalidPayloadLength(MAX_SUBADDRESS_LEN + 1),
+        },
+        StringAddrVec {
+            input: vec![4, 0xff],
+            expected: Error::InvalidPayload,
         },
     ];
 
