@@ -428,7 +428,7 @@ fn invalid_byte_addresses() {
             input: bls_s,
             expected: Error::InvalidPayloadLength(47),
         },
-        // Namespace Protocol
+        // Delegate Protocol
         StringAddrVec {
             input: [4, 0]
                 .into_iter()
