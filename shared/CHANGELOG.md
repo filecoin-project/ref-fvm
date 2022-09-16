@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.0-alpha.3 [UNRELEASED]
+
+## 3.0.0-alpha.2 [2022-09-16]
+
+- Add basic f4 address support (without checksums for now).
+- Change TokenAmount::from_whole to take any `Into<BigInt>` parameter.
+- Add nv17 to the network versions.
+
+The only breaking change is the change to `Address`/`Protocol` (in case anyone is exhaustively matching on them).
+
 ## 3.0.0-alpha.1 [2022-08-31]
 
 - Bump base version to v3.
