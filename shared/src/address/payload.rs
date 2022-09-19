@@ -12,7 +12,7 @@ use super::{
 use crate::ActorID;
 
 /// A "delegated" (f4) address.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DelegatedAddress {
     namespace: ActorID,
     length: usize,
@@ -60,7 +60,7 @@ impl DelegatedAddress {
 }
 
 /// Payload is the data of the Address. Variants are the supported Address protocols.
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum Payload {
     /// f0: ID protocol address.
