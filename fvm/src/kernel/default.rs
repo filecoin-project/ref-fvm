@@ -800,7 +800,7 @@ where
     C: CallManager,
 {
     fn log(&self, msg: String) {
-        println!("{}", msg)
+        log::error!("AL: {}; gas: {}", msg, self.gas_used());
     }
 
     fn debug_enabled(&self) -> bool {

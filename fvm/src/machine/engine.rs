@@ -129,8 +129,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
 
     // Disable debug-related things, wasm-instrument doesn't fix debug info
     // yet, so those aren't useful, just add overhead
-    c.debug_info(false);
-    c.generate_address_map(false);
+    c.debug_info(true);
+    c.generate_address_map(true);
     c.cranelift_debug_verifier(false);
 
     // Reiterate some defaults

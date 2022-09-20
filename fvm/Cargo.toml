@@ -41,6 +41,7 @@ fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
 yastl = "0.1.2"
 arbitrary = {version = "1.1.0", optional = true, features = ["derive"]}
 rand = "0.8.5"
+btrace = { package = "backtrace", version = "0.2" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
