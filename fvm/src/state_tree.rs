@@ -14,10 +14,11 @@ use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
+use num_traits::Zero;
 
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
-use crate::syscall_error;
+use crate::{syscall_error, EMPTY_ARR_CID};
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
@@ -531,6 +532,17 @@ impl ActorState {
             balance,
         }
     }
+
+    /// Construct a new empty actor with the specified code.
+    pub fn new_empty(code: Cid) -> Self {
+        ActorState {
+            code,
+            state: *EMPTY_ARR_CID,
+            sequence: 0,
+            balance: TokenAmount::zero(),
+        }
+    }
+
     /// Safely deducts funds from an Actor
     pub fn deduct_funds(&mut self, amt: &TokenAmount) -> Result<()> {
         if &self.balance < amt {

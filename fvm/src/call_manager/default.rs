@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
-use fvm_shared::address::{Address, Protocol};
+use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::BlockId;
@@ -14,6 +14,7 @@ use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::Machine;
+use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
@@ -277,7 +278,7 @@ where
         // Create the actor in the state tree.
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
-            let state = account_actor::zero_state(*code_cid);
+            let state = ActorState::new_empty(*code_cid);
             self.create_actor(addr, state)?
         };
 
@@ -304,6 +305,19 @@ where
         Ok(id)
     }
 
+    fn create_embryo_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        self.charge_gas(self.price_list().on_create_actor())?;
+
+        // Create the actor in the state tree, but don't call any constructor.
+        let code_cid = self.builtin_actors().get_embryo_code();
+
+        let state = ActorState::new_empty(*code_cid);
+        self.create_actor(addr, state)
+    }
+
     /// Send without checking the call depth.
     fn send_unchecked<K>(
         &mut self,
@@ -319,10 +333,17 @@ where
         // Get the receiver; this will resolve the address.
         let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,
-            None => match to.protocol() {
-                Protocol::BLS | Protocol::Secp256k1 => {
+            None => match to.payload() {
+                Payload::BLS(_) | Payload::Secp256k1(_) => {
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor::<K>(&to)?
+                }
+                // Validate that there's an actor at the target ID (we don't care what is there,
+                // just that something is there).
+                Payload::Delegated(da)
+                    if self.state_tree().get_actor_id(da.namespace())?.is_some() =>
+                {
+                    self.create_embryo_actor::<K>(&to)?
                 }
                 _ => return Err(syscall_error!(NotFound; "actor does not exist: {}", to).into()),
             },

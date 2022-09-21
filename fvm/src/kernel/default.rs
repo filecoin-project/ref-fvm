@@ -31,7 +31,7 @@ use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
-use crate::{syscall_error, EMPTY_ARR_CID};
+use crate::syscall_error;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -796,19 +796,34 @@ where
             );
         }
 
-        let state_tree = self.call_manager.state_tree();
-        if let Ok(Some(_)) = state_tree.get_actor_id(actor_id) {
-            return Err(syscall_error!(Forbidden; "Actor address already exists").into());
-        }
+        // Check to make sure the actor doesn't exist, or is an embryo.
+        let actor = match self.call_manager.state_tree().get_actor_id(actor_id)? {
+            // Replace the embryo
+            Some(mut act)
+                if self
+                    .call_manager
+                    .machine()
+                    .builtin_actors()
+                    .is_embryo_actor(&act.code) =>
+            {
+                act.code = code_id;
+                act
+            }
+            // Don't replace anything else.
+            Some(_) => {
+                return Err(syscall_error!(Forbidden; "Actor address already exists").into());
+            }
+            // Create a new actor.
+            None => {
+                self.call_manager
+                    .charge_gas(self.call_manager.price_list().on_create_actor())?;
+                ActorState::new_empty(code_id)
+            }
+        };
 
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_create_actor())?;
-
-        let state_tree = self.call_manager.state_tree_mut();
-        state_tree.set_actor_id(
-            actor_id,
-            ActorState::new(code_id, *EMPTY_ARR_CID, TokenAmount::zero(), 0),
-        )
+            .state_tree_mut()
+            .set_actor_id(actor_id, actor)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
