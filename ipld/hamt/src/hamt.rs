@@ -35,9 +35,10 @@ use crate::{Error, Hash, HashAlgorithm, Sha256, DEFAULT_BIT_WIDTH};
 pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
     root: Node<K, V, H>,
     store: BS,
-
     bit_width: u32,
     hash: PhantomData<H>,
+    /// Remember the last flushed CID until it changes.
+    flushed_cid: Option<Cid>,
 }
 
 impl<BS, V, K, H> Serialize for Hamt<BS, V, K, H>
@@ -78,6 +79,7 @@ where
             store,
             bit_width,
             hash: Default::default(),
+            flushed_cid: None,
         }
     }
 
@@ -94,6 +96,7 @@ where
                 store,
                 bit_width,
                 hash: Default::default(),
+                flushed_cid: Some(cid.clone()),
             }),
             None => Err(Error::CidNotFound(cid.to_string())),
         }
@@ -102,7 +105,10 @@ where
     /// Sets the root based on the Cid of the root node using the Hamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
         match self.store.get_cbor(cid)? {
-            Some(root) => self.root = root,
+            Some(root) => {
+                self.root = root;
+                self.flushed_cid = Some(cid.clone());
+            }
             None => return Err(Error::CidNotFound(cid.to_string())),
         }
 
@@ -140,9 +146,15 @@ where
     where
         V: PartialEq,
     {
-        self.root
-            .set(key, value, self.store.borrow(), self.bit_width, true)
-            .map(|(r, _)| r)
+        let (old, modified) =
+            self.root
+                .set(key, value, self.store.borrow(), self.bit_width, true)?;
+
+        if modified {
+            self.flushed_cid = None;
+        }
+
+        Ok(old)
     }
 
     /// Inserts a key-value pair into the HAMT only if that key does not already exist.
@@ -175,9 +187,16 @@ where
     where
         V: PartialEq,
     {
-        self.root
+        let set = self
+            .root
             .set(key, value, self.store.borrow(), self.bit_width, false)
-            .map(|(_, set)| set)
+            .map(|(_, set)| set)?;
+
+        if set {
+            self.flushed_cid = None;
+        }
+
+        Ok(set)
     }
 
     /// Returns a reference to the value corresponding to the key.
@@ -268,14 +287,26 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq,
     {
-        self.root
-            .remove_entry(k, self.store.borrow(), self.bit_width)
+        let deleted = self
+            .root
+            .remove_entry(k, self.store.borrow(), self.bit_width)?;
+
+        if deleted.is_some() {
+            self.flushed_cid = None;
+        }
+
+        Ok(deleted)
     }
 
     /// Flush root and return Cid for hamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
+        if let Some(cid) = self.flushed_cid {
+            return Ok(cid);
+        }
         self.root.flush(self.store.borrow())?;
-        Ok(self.store.put_cbor(&self.root, Code::Blake2b256)?)
+        let cid = self.store.put_cbor(&self.root, Code::Blake2b256)?;
+        self.flushed_cid = Some(cid);
+        Ok(cid)
     }
 
     /// Returns true if the HAMT has no entries
