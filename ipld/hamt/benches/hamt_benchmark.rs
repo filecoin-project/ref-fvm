@@ -40,8 +40,12 @@ fn insert(c: &mut Criterion) {
             let mut a = Hamt::<_, _>::new(&db);
 
             for i in 0..black_box(ITEM_COUNT) {
-                a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)), GLOBAL_DEFAULT_SHA256_ALGO.as_ref())
-                    .unwrap();
+                a.set(
+                    black_box(vec![i; 20].into()),
+                    black_box(BenchData::new(i)),
+                    GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
+                )
+                .unwrap();
             }
         })
     });
@@ -56,8 +60,12 @@ fn insert_load_flush(c: &mut Criterion) {
 
             for i in 0..black_box(ITEM_COUNT) {
                 let mut a = Hamt::<_, _>::load(&cid, &db).unwrap();
-                a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)), GLOBAL_DEFAULT_SHA256_ALGO.as_ref())
-                    .unwrap();
+                a.set(
+                    black_box(vec![i; 20].into()),
+                    black_box(BenchData::new(i)),
+                    GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
+                )
+                .unwrap();
                 cid = a.flush().unwrap();
             }
         })
@@ -68,7 +76,12 @@ fn delete(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = Hamt::<_, _>::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+        a.set(
+            vec![i; 20].into(),
+            BenchData::new(i),
+            GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
+        )
+        .unwrap();
     }
     let cid = a.flush().unwrap();
 
@@ -76,7 +89,11 @@ fn delete(c: &mut Criterion) {
         b.iter(|| {
             let mut a = Hamt::<_, BenchData>::load(&cid, &db).unwrap();
             for i in 0..black_box(ITEM_COUNT) {
-                a.delete(black_box([i; 20].as_ref()), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+                a.delete(
+                    black_box([i; 20].as_ref()),
+                    GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
+                )
+                .unwrap();
             }
         })
     });
@@ -86,7 +103,12 @@ fn for_each(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = Hamt::<_, _>::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+        a.set(
+            vec![i; 20].into(),
+            BenchData::new(i),
+            GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
+        )
+        .unwrap();
     }
     let cid = a.flush().unwrap();
 

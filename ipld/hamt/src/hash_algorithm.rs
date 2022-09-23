@@ -59,18 +59,21 @@ impl Hasher for IdentityHasher {
     }
 }
 
+#[cfg(feature = "identity")]
+lazy_static::lazy_static! {
+    pub static ref GLOBAL_DEFAULT_IDENTITY: Arc<Identity> =
+        Arc::new(Identity::default());
+}
+
 /// Identity hashing algorithm used for hashing keys in the Hamt. This should only be used
 /// for testing. The hash is just the first 32 bytes of the serialized key.
 #[cfg(feature = "identity")]
-#[derive(Debug)]
-pub enum Identity {}
+#[derive(Debug, Default)]
+pub struct Identity(PhantomData<u8>);
 
 #[cfg(feature = "identity")]
 impl HashAlgorithm for Identity {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
-    where
-        X: Hash,
-    {
+    fn rt_hash(&self, key: &dyn Hash) -> HashedKey {
         let mut ident_hasher = IdentityHasher::default();
         key.hash(&mut ident_hasher);
         ident_hasher.bz
