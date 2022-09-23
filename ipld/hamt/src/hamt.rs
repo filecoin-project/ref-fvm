@@ -96,7 +96,7 @@ where
                 store,
                 bit_width,
                 hash: Default::default(),
-                flushed_cid: Some(cid.clone()),
+                flushed_cid: Some(*cid),
             }),
             None => Err(Error::CidNotFound(cid.to_string())),
         }
@@ -107,7 +107,7 @@ where
         match self.store.get_cbor(cid)? {
             Some(root) => {
                 self.root = root;
-                self.flushed_cid = Some(cid.clone());
+                self.flushed_cid = Some(*cid);
             }
             None => return Err(Error::CidNotFound(cid.to_string())),
         }
