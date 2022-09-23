@@ -75,21 +75,20 @@ where
     K: Hash + ?Sized + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
 {
-    pub fn set<'r, BS, H>(
+    pub fn set<BS>(
         &mut self,
         key: K,
         value: V,
         store: &BS,
-        hash_algo: &'r mut H,
+        hash_algo: &dyn HashAlgorithm,
         bit_width: u32,
         overwrite: bool,
     ) -> Result<(Option<V>, bool), Error>
     where
         BS: Blockstore,
         V: PartialEq,
-        H: HashAlgorithm,
     {
-        let hash = hash_algo.hash(&key);
+        let hash = hash_algo.rt_hash(&key);
         self.modify_value(
             &mut HashBits::new(&hash),
             bit_width,
@@ -103,18 +102,17 @@ where
     }
 
     #[inline]
-    pub fn get<'r, BS, Q, H>(
+    pub fn get<BS, Q>(
         &self,
         k: &Q,
         store: &BS,
-        hash_algo: &'r mut H,
+        hash_algo: &dyn HashAlgorithm,
         bit_width: u32,
     ) -> Result<Option<&V>, Error>
     where
         BS: Blockstore,
         K: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
-        H: HashAlgorithm,
     {
         Ok(self
             .search(k, store, hash_algo, bit_width)?
@@ -122,20 +120,19 @@ where
     }
 
     #[inline]
-    pub fn remove_entry<'r, BS, Q, H>(
+    pub fn remove_entry<BS, Q>(
         &mut self,
         k: &Q,
         store: &BS,
-        hash_algo: &'r mut H,
+        hash_algo: &dyn HashAlgorithm,
         bit_width: u32,
     ) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
         BS: Blockstore,
-        H: HashAlgorithm,
     {
-        let hash = hash_algo.hash(k);
+        let hash = hash_algo.rt_hash(&k);
         self.rm_value(&mut HashBits::new(&hash), bit_width, 0, k, store)
     }
 
@@ -181,20 +178,19 @@ where
     }
 
     /// Search for a key.
-    fn search<'r, BS, Q, H>(
+    fn search<BS, Q>(
         &self,
         q: &Q,
         store: &BS,
-        hash_algo: &'r mut H,
+        hash_algo: &dyn HashAlgorithm,
         bit_width: u32,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
     where
         BS: Blockstore,
         K: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
-        H: HashAlgorithm,
     {
-        let hash = hash_algo.hash(q);
+        let hash = hash_algo.rt_hash(&q);
         self.get_value(&mut HashBits::new(&hash), bit_width, 0, q, store)
     }
 
@@ -247,7 +243,7 @@ where
 
     /// Internal method to modify values.
     #[allow(clippy::too_many_arguments)]
-    fn modify_value<'r, BS, H>(
+    fn modify_value<BS>(
         &mut self,
         hashed_key: &mut HashBits,
         bit_width: u32,
@@ -255,13 +251,12 @@ where
         key: K,
         value: V,
         store: &BS,
-        hash_algo: &'r mut H,
+        hash_algo: &dyn HashAlgorithm,
         overwrite: bool,
     ) -> Result<(Option<V>, bool), Error>
     where
         BS: Blockstore,
         V: PartialEq,
-        H: HashAlgorithm,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -345,7 +340,7 @@ where
                     )?;
                     let kvs = std::mem::take(vals);
                     for p in kvs.into_iter() {
-                        let hash = hash_algo.hash(p.key());
+                        let hash = hash_algo.rt_hash(p.key());
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             bit_width,

@@ -4,30 +4,30 @@
 use std::borrow::Borrow;
 
 use cid::Cid;
-use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
+use fvm_shared::runtime::traits::{BytesKey, Hash, HashAlgorithm};
 use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
 use crate::node::Node;
-use crate::{Error, Hash, HashAlgorithm, DEFAULT_BIT_WIDTH};
+use crate::{Error, DEFAULT_BIT_WIDTH};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
 /// # Examples
 ///
 /// ```
-/// use fvm_ipld_hamt::Hamt;
+/// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
 ///
 /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
 ///
 /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
-/// map.set(1, "a".to_string()).unwrap();
-/// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
-/// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
-/// assert_eq!(map.get::<_>(&1).unwrap(), None);
+/// map.set(1, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+/// assert_eq!(map.get(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), Some(&"a".to_string()));
+/// assert_eq!(map.delete(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), Some((1, "a".to_string())));
+/// assert_eq!(map.get::<_>(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
 #[derive(Debug)]
@@ -122,22 +122,26 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     /// use std::rc::Rc;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
-    /// map.set(37, "a".to_string()).unwrap();
+    /// map.set(37, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     ///
-    /// map.set(37, "b".to_string()).unwrap();
-    /// map.set(37, "c".to_string()).unwrap();
+    /// map.set(37, "b".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+    /// map.set(37, "c".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     /// ```
-    pub fn set<H>(&mut self, key: K, value: V, hash_algo: &mut H) -> Result<Option<V>, Error>
+    pub fn set(
+        &mut self,
+        key: K,
+        value: V,
+        hash_algo: &dyn HashAlgorithm,
+    ) -> Result<Option<V>, Error>
     where
         V: PartialEq,
-        H: HashAlgorithm,
     {
         self.root
             .set(
@@ -160,27 +164,31 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     /// use std::rc::Rc;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
-    /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
+    /// let a = map.set_if_absent(37, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     /// assert_eq!(a, true);
     ///
-    /// let b = map.set_if_absent(37, "b".to_string()).unwrap();
+    /// let b = map.set_if_absent(37, "b".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     /// assert_eq!(b, false);
-    /// assert_eq!(map.get(&37).unwrap(), Some(&"a".to_string()));
+    /// assert_eq!(map.get(&37, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), Some(&"a".to_string()));
     ///
-    /// let c = map.set_if_absent(30, "c".to_string()).unwrap();
+    /// let c = map.set_if_absent(30, "c".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     /// assert_eq!(c, true);
     /// ```
-    pub fn set_if_absent<H>(&mut self, key: K, value: V, hash_algo: &mut H) -> Result<bool, Error>
+    pub fn set_if_absent(
+        &mut self,
+        key: K,
+        value: V,
+        hash_algo: &dyn HashAlgorithm,
+    ) -> Result<bool, Error>
     where
         V: PartialEq,
-        H: HashAlgorithm,
     {
         self.root
             .set(
@@ -203,23 +211,22 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     /// use std::rc::Rc;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
-    /// map.set(1, "a".to_string()).unwrap();
-    /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
-    /// assert_eq!(map.get(&2).unwrap(), None);
+    /// map.set(1, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+    /// assert_eq!(map.get(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), Some(&"a".to_string()));
+    /// assert_eq!(map.get(&2, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), None);
     /// ```
     #[inline]
-    pub fn get<'r, H, Q>(&self, k: &Q, hash_algo: &'r mut H) -> Result<Option<&V>, Error>
+    pub fn get<Q>(&self, k: &Q, hash_algo: &dyn HashAlgorithm) -> Result<Option<&V>, Error>
     where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
         V: DeserializeOwned,
-        H: HashAlgorithm,
     {
         match self
             .root
@@ -239,22 +246,21 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     /// use std::rc::Rc;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
-    /// map.set(1, "a".to_string()).unwrap();
-    /// assert_eq!(map.contains_key(&1).unwrap(), true);
-    /// assert_eq!(map.contains_key(&2).unwrap(), false);
+    /// map.set(1, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+    /// assert_eq!(map.contains_key(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), true);
+    /// assert_eq!(map.contains_key(&2, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), false);
     /// ```
     #[inline]
-    pub fn contains_key<'r, H, Q>(&mut self, k: &Q, hash_algo: &'r mut H) -> Result<bool, Error>
+    pub fn contains_key<Q>(&self, k: &Q, hash_algo: &dyn HashAlgorithm) -> Result<bool, Error>
     where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
-        H: HashAlgorithm,
     {
         Ok(self
             .root
@@ -272,21 +278,24 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     /// use std::rc::Rc;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
-    /// map.set(1, "a".to_string()).unwrap();
-    /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
-    /// assert_eq!(map.delete(&1).unwrap(), None);
+    /// map.set(1, "a".to_string(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+    /// assert_eq!(map.delete(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), Some((1, "a".to_string())));
+    /// assert_eq!(map.delete(&1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap(), None);
     /// ```
-    pub fn delete<'r, H, Q>(&mut self, k: &Q, hash_algo: &'r mut H) -> Result<Option<(K, V)>, Error>
+    pub fn delete<Q>(
+        &mut self,
+        k: &Q,
+        hash_algo: &dyn HashAlgorithm,
+    ) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
-        H: HashAlgorithm,
     {
         self.root
             .remove_entry(k, self.store.borrow(), hash_algo, self.bit_width)
@@ -310,13 +319,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
     /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
-    /// map.set(1, 1).unwrap();
-    /// map.set(4, 2).unwrap();
+    /// map.set(1, 1, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
+    /// map.set(4, 2, GLOBAL_DEFAULT_SHA256_ALGO.as_ref()).unwrap();
     ///
     /// let mut total = 0;
     /// map.for_each(|_, v: &u64| {

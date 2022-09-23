@@ -22,6 +22,10 @@ See `release/v2`
     - blake2b512
 - API BREAKING: add gas charges to the execution trace.
 
+## 2.0.0-alpha.1
+
+Bump major version for breaking changes.
+
 ## 1.1.0 [2022-06-27]
 
 - debug execution: implement actor redirects in engine
@@ -76,17 +80,17 @@ Additionally, this release includes:
 - Requires builtin-actors v7.4.x
 
 ## 0.7.2 [2022-05-09]
- 
+
 - Add `testing` feature to change module visibility; concretely changed
   visibility of `account_actor`, `init_actor` and `system_actor` to `pub`
   to use them in the integration test framework.
 - Propagate gas outputs in ApplyRet.
 - Migrate CBOR serde to [cbor4ii](https://github.com/quininer/cbor4ii).
-- Instrument Wasm bytecode with [filecoin-project/fvm-wasm-instrument](https://github.com/filecoin-project/fvm-wasm-instrument), 
+- Instrument Wasm bytecode with [filecoin-project/fvm-wasm-instrument](https://github.com/filecoin-project/fvm-wasm-instrument),
   a fork of [paritytech/wasm-instrument](https://github.com/paritytech/wasm-instrument)
   for more accurate stack accounting and execution units metering.
 - Abort when aborting fails.
-- Fix syscall binding docs. 
+- Fix syscall binding docs.
 - Fix bugs in Wasm execution units gas accounting.
 - Fix system actor state serialization.
 - Remove unused dependencies from build graph.

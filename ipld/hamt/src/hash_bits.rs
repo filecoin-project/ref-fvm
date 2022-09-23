@@ -3,7 +3,9 @@
 
 use std::cmp::Ordering;
 
-use crate::{Error, HashedKey};
+use fvm_shared::runtime::traits::HashedKey;
+
+use crate::Error;
 
 /// Helper struct which indexes and allows returning bits from a hashed key
 #[derive(Debug, Clone, Copy)]

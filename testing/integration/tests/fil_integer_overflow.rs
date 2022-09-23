@@ -16,6 +16,9 @@ use num_traits::Zero;
 mod bundles;
 use bundles::*;
 
+mod bundles;
+use bundles::*;
+
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
     pub value: i64,

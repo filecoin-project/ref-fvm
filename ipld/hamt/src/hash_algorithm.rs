@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::hash::Hasher;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
+use fvm_shared::runtime::traits::{Hash, HashAlgorithm, HashedKey};
 use sha2::{Digest, Sha256 as Sha256Hasher};
-
-use crate::{Hash, HashedKey};
-
-/// Algorithm used as the hasher for the Hamt.
-pub trait HashAlgorithm {
-    fn hash<X>(&mut self, key: &X) -> HashedKey
-    where
-        X: Hash + ?Sized;
-}
 
 /// Type is needed because the Sha256 hasher does not implement `std::hash::Hasher`
 #[derive(Default)]
@@ -29,14 +23,18 @@ impl Hasher for Sha2HasherWrapper {
     }
 }
 
+lazy_static::lazy_static! {
+    /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
+    pub static ref GLOBAL_DEFAULT_SHA256_ALGO: Arc<DefaultSha256> =
+        Arc::new(DefaultSha256::default());
+}
+
+/// Sha256 hashing algorithm used for hashing keys in the Hamt.
 #[derive(Debug, Default)]
-pub struct DefaultSha256;
+pub struct DefaultSha256(PhantomData<u8>);
 
 impl HashAlgorithm for DefaultSha256 {
-    fn hash<X>(&mut self, key: &X) -> HashedKey
-    where
-        X: Hash + ?Sized,
-    {
+    fn rt_hash(&self, key: &dyn Hash) -> HashedKey {
         let mut hasher = Sha2HasherWrapper::default();
         key.hash(&mut hasher);
         hasher.0.finalize().into()

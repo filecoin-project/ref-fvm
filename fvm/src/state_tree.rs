@@ -8,7 +8,7 @@ use cid::{multihash, Cid};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
-use fvm_ipld_hamt::{DefaultSha256, Hamt};
+use fvm_ipld_hamt::{Hamt, GLOBAL_DEFAULT_SHA256_ALGO};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
@@ -22,7 +22,6 @@ use crate::syscall_error;
 /// in sync contexts.
 pub struct StateTree<S> {
     hamt: Hamt<S, ActorState>,
-    hash_algo: RefCell<DefaultSha256>,
 
     version: StateTreeVersion,
     info: Option<Cid>,
@@ -219,7 +218,6 @@ where
         let hamt = Hamt::new_with_bit_width(store, HAMT_BIT_WIDTH);
         Ok(Self {
             hamt,
-            hash_algo: RefCell::new(DefaultSha256::default()),
             version,
             info,
             snaps: StateSnapshots::new(),
@@ -264,7 +262,6 @@ where
 
                 Ok(Self {
                     hamt,
-                    hash_algo: RefCell::new(DefaultSha256::default()),
                     version,
                     info,
                     snaps: StateSnapshots::new(),
@@ -299,7 +296,7 @@ where
 
                 let act = self
                     .hamt
-                    .get::<DefaultSha256, _>(&key, &mut self.hash_algo.borrow_mut())
+                    .get::<_>(&key, GLOBAL_DEFAULT_SHA256_ALGO.as_ref())
                     .with_context(|| format!("failed to lookup actor {}", id))
                     .or_fatal()?
                     .cloned();
@@ -466,18 +463,15 @@ where
             match sto {
                 None => {
                     self.hamt
-                        .delete::<DefaultSha256, _>(
-                            &addr.to_bytes(),
-                            &mut self.hash_algo.borrow_mut(),
-                        )
+                        .delete::<_>(&addr.to_bytes(), GLOBAL_DEFAULT_SHA256_ALGO.as_ref())
                         .or_fatal()?;
                 }
                 Some(ref state) => {
                     self.hamt
-                        .set::<DefaultSha256>(
+                        .set(
                             addr.to_bytes().into(),
                             state.clone(),
-                            &mut self.hash_algo.borrow_mut(),
+                            GLOBAL_DEFAULT_SHA256_ALGO.as_ref(),
                         )
                         .or_fatal()?;
                 }
