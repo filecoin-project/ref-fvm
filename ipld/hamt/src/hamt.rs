@@ -74,7 +74,7 @@ where
     /// Construct hamt with a bit width
     pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
         Self {
-            root: Default::default(),
+            root: Node::default(),
             store,
             bit_width,
         }

@@ -60,7 +60,7 @@ BREAKING: Switch syscall struct alignment: https://github.com/filecoin-project/f
 Actors built against this new version of fvm_shared will be incompatible with prior FVM versions,
 and vice-versa.
 
-- Added `Display` trait to `Type` for error printing.
+- Added `Display` trait to `Type` for error printing. 
 - Added _cfg = "testing"_ on `Default` trait for `Message` structure.
 
 ## 0.5.1  [2022-04-11]

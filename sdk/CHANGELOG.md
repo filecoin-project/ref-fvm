@@ -1,25 +1,6 @@
 # Changelog
 
-## 2.0.0-alpha.5 [2022-09-12]
-
-Update fvm_shared.
-
-## 2.0.0-alpha.4 [2022-08-31]
-
-Update fvm_shared.
-
-## 2.0.0-alpha.3 [2022-08-29]
-
-Update fvm_shared.
-
-## 2.0.0-alpha.2 [2022-08-29]
-
-- Change randomness return value to a fixed-sized byte array.
-- Remove builtin blake2b hashing.
-    - Removes `Message::to_signing_bytes`.
-    - Removes `Cbor::cid`.
-- Remove actor `Type` enum. Instead, use u32 to identify actor types.
-- Add a `recover_secp_public_key` syscall.
+## [Unreleased]
 
 ## 3.0.0-alpha.2 [2022-09-02]
 

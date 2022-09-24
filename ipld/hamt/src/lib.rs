@@ -12,7 +12,6 @@
 mod bitfield;
 mod error;
 mod hamt;
-mod hash;
 mod hash_algorithm;
 mod hash_bits;
 mod node;
