@@ -73,11 +73,13 @@ where
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
 
+        let code_cids = vec![sys_code_cid, init_code_cid, accounts_code_cid];
+
         Ok(Tester {
             nv,
             builtin_actors,
             executor: None,
-            code_cids: vec![],
+            code_cids,
             state_tree: Some(state_tree),
             accounts_code_cid,
         })
