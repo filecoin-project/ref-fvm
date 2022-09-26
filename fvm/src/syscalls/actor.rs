@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use fvm_shared::sys;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
@@ -111,4 +112,12 @@ pub fn install_actor(
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
+}
+
+pub fn actor_balance(
+    _context: Context<'_, impl Kernel>,
+    _addr_off: u32,
+    _addr_len: u32,
+) -> Result<sys::TokenAmount> {
+    todo!()
 }

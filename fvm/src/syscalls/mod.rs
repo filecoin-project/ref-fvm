@@ -14,6 +14,7 @@ mod bind;
 mod context;
 mod crypto;
 mod debug;
+mod env;
 mod gas;
 mod ipld;
 mod network;
@@ -137,6 +138,8 @@ pub fn bind_syscalls(
     #[cfg(feature = "m2-native")]
     linker.bind("actor", "install_actor", actor::install_actor)?;
 
+    linker.bind("actor", "actor_balance", actor::actor_balance)?;
+
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind(
         "crypto",
@@ -172,6 +175,7 @@ pub fn bind_syscalls(
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
 
     linker.bind("gas", "charge", gas::charge_gas)?;
+    linker.bind("gas", "available", gas::available)?;
 
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;
@@ -179,6 +183,11 @@ pub fn bind_syscalls(
     linker.bind("debug", "log", debug::log)?;
     linker.bind("debug", "enabled", debug::enabled)?;
     linker.bind("debug", "store_artifact", debug::store_artifact)?;
+
+    linker.bind("env", "timestamp", env::timestamp)?;
+    linker.bind("env", "blockhash", env::blockhash)?;
+    linker.bind("env", "gas_limit", env::gas_limit)?;
+    linker.bind("env", "gas_price", env::gas_price)?;
 
     Ok(())
 }

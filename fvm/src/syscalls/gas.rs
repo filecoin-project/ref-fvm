@@ -16,3 +16,7 @@ pub fn charge_gas(
     // Gas charges from actors are always in full gas units. We use milligas internally, so convert here.
     context.kernel.charge_gas(name, Gas::new(compute))
 }
+
+pub fn available(_context: Context<'_, impl Kernel>) -> Result<u64> {
+    todo!()
+}
