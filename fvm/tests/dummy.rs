@@ -246,10 +246,10 @@ impl CallManager for DummyCallManager {
     }
 
     fn validate<K: Kernel<CallManager = Self>>(
-            &mut self,
-            _params: kernel::Block, // Message
-            _from: ActorID,
-        ) -> kernel::Result<InvocationResult> {
+        &mut self,
+        _params: kernel::Block, // Message
+        _from: ActorID,
+    ) -> kernel::Result<InvocationResult> {
         todo!()
     }
 

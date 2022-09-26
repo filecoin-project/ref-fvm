@@ -64,7 +64,7 @@ pub trait Executor {
 
 pub trait ValidateExecutor: Executor {
     type Validator: Kernel;
-    
+
     /// This is the entrypoint to validate a message from an abstract account.
     fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<GasSpec>;
 }

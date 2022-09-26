@@ -8,7 +8,7 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID, ExecutionType};
+use super::{Backtrace, CallManager, ExecutionType, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
@@ -182,12 +182,14 @@ where
         from: ActorID,
     ) -> Result<InvocationResult> {
         if self.execution_type != ExecutionType::Validator {
-            return Err(ExecutionError::Fatal(anyhow!("Tried to call validate with a call manager not configured as a validator.")))
+            return Err(ExecutionError::Fatal(anyhow!(
+                "Tried to call validate with a call manager not configured as a validator."
+            )));
         }
         if self.machine.context().tracing {
             self.trace(ExecutionEvent::Validate {
                 from,
-                params: params.data().to_owned().into()
+                params: params.data().to_owned().into(),
             });
         }
 
@@ -203,13 +205,13 @@ where
         // validate unchecked
         let result = {
             // Get the receiver; this will resolve the address.
-            // TODO egg actor creation may be done here in the future ? 
+            // TODO egg actor creation may be done here in the future ?
             // how do you validate from a non existing actor? this is a spec TODO
 
             // Do the actual validate.
             self.validate_unchecked::<K>(from, params)
         };
-        
+
         // validate cant call other actors
         // self.call_stack_depth -= 1;
 
@@ -450,7 +452,15 @@ where
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
             // Make the kernel.
-            let kernel = K::new(cm, block_registry, from, to, method, value.clone(), ExecutionType::Normal);
+            let kernel = K::new(
+                cm,
+                block_registry,
+                from,
+                to,
+                method,
+                value.clone(),
+                ExecutionType::Normal,
+            );
 
             // Make a store.
             let mut store = engine.new_store(kernel);
@@ -567,12 +577,7 @@ where
         })
     }
 
-    fn validate_unchecked<K>(
-        &mut self,
-        from: ActorID,
-        params: Block,
-
-    ) -> Result<InvocationResult>
+    fn validate_unchecked<K>(&mut self, from: ActorID, params: Block) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
@@ -611,7 +616,15 @@ where
         log::trace!("calling validate from {}", from);
         self.map_mut(|cm| {
             // Make the kernel.
-            let kernel = K::new(cm, block_registry, from, from, 0xff, TokenAmount::zero(), ExecutionType::Validator);
+            let kernel = K::new(
+                cm,
+                block_registry,
+                from,
+                from,
+                0xff,
+                TokenAmount::zero(),
+                ExecutionType::Validator,
+            );
 
             // Make a store.
             let mut store = engine.new_store(kernel);
@@ -713,11 +726,7 @@ where
             // Log the results if tracing is enabled.
             if log::log_enabled!(log::Level::Trace) {
                 match &ret {
-                    Ok(val) => log::trace!(
-                        "returning {}::validate -> ({})",
-                        from,
-                        val.exit_code()
-                    ),
+                    Ok(val) => log::trace!("returning {}::validate -> ({})", from, val.exit_code()),
                     Err(e) => log::trace!("failing {}::validate -> (err:{})", from, e),
                 }
             }

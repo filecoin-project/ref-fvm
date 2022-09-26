@@ -1,17 +1,17 @@
-use cid::Cid;
-use fvm_ipld_encoding::{DAG_CBOR, RawBytes, Cbor};
-use fvm_shared::message::Message;
 use anyhow::{anyhow, Result};
+use cid::Cid;
+use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
+use fvm_shared::message::Message;
 
-use crate::executor::{ValidateParams, ApplyFailure, GasSpec};
-use crate::kernel::{Context, ExecutionError, Block};
-use crate::{Kernel, machine::Machine};
+use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
 use crate::call_manager::{CallManager, InvocationResult};
-use super::{Executor, ValidateExecutor, ApplyKind, ApplyRet, DefaultExecutor};
+use crate::executor::{ApplyFailure, GasSpec, ValidateParams};
+use crate::kernel::{Block, Context, ExecutionError};
+use crate::machine::Machine;
+use crate::Kernel;
 
 /// TODO try not to be stuck with Default, but it has methods methods i want for validate, which may be candidates for being added to the trait
 pub struct DefaultValidateExecutor<K: Kernel>(pub DefaultExecutor<K>);
-
 
 impl<K> Executor for DefaultValidateExecutor<K>
 where
@@ -34,7 +34,7 @@ where
     }
 }
 
-impl <K> ValidateExecutor for DefaultValidateExecutor<K>
+impl<K> ValidateExecutor for DefaultValidateExecutor<K>
 where
     K: Kernel,
 {
@@ -45,7 +45,8 @@ where
         const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
 
         // Load sender actor state.
-        let sender_id = match self.0
+        let sender_id = match self
+            .0
             .state_tree()
             .lookup_id(&msg.from)
             .with_context(|| format!("failed to lookup actor {}", &msg.from))?
@@ -76,9 +77,12 @@ where
             //     return (Err(e), cm.finish().1);
             // }
 
-
             let params = {
-                let params = ValidateParams { signature: sig, message_payload: msg.params }.marshal_cbor();
+                let params = ValidateParams {
+                    signature: sig,
+                    message_payload: msg.params,
+                }
+                .marshal_cbor();
                 match params {
                     Err(_) => return (Err(ExecutionError::OutOfGas), cm.finish().1),
                     Ok(params) => Some(Block::new(DAG_CBOR, params)),
@@ -118,7 +122,7 @@ where
                     return Err(anyhow!("actor failed with status OK"));
                 }
                 Err(())
-            },
+            }
             // TODO error case handling for backtraces
             Err(_) => Err(()),
         };
@@ -136,4 +140,3 @@ where
         Ok(ret)
     }
 }
-

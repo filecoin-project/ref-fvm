@@ -3,7 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR, Cbor};
+use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};

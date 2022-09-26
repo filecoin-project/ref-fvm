@@ -3,7 +3,9 @@ use std::convert::TryFrom;
 
 use cid::Cid;
 use futures::executor::block_on;
-use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
+use fvm::call_manager::{
+    CallManager, DefaultCallManager, ExecutionType, FinishRet, InvocationResult,
+};
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{
@@ -284,6 +286,14 @@ where
     fn invocation_count(&self) -> u64 {
         self.0.invocation_count()
     }
+
+    fn validate<K: Kernel<CallManager = Self>>(
+        &mut self,
+        params: fvm::kernel::Block, // Message
+        from: ActorID,
+    ) -> Result<InvocationResult> {
+        self.0.validate::<TestKernel<K>>(params, from)
+    }
 }
 
 /// A kernel for intercepting syscalls.
@@ -312,6 +322,7 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        execution_type: ExecutionType,
     ) -> Self
     where
         Self: Sized,
@@ -327,6 +338,7 @@ where
                 actor_id,
                 method,
                 value_received,
+                execution_type,
             ),
             data,
         )
@@ -647,5 +659,16 @@ where
         value: &TokenAmount,
     ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
+    }
+}
+
+impl<M, C, K> Validator for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = TestCallManager<C>>,
+{
+    fn is_validator(&self) -> bool {
+        self.0.is_validator()
     }
 }

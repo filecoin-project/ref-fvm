@@ -27,7 +27,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID, ExecutionType};
+use crate::call_manager::{CallManager, ExecutionType, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
@@ -201,6 +201,8 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
+        crate::assert_validator!(self, "Validator can't set root.");
+
         self.mutate_self(|actor_state| {
             actor_state.state = new;
             Ok(())
@@ -213,6 +215,8 @@ where
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
+        crate::assert_validator!(self, "Validator can't self destruct.");
+
         // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
         self.call_manager
@@ -404,6 +408,8 @@ where
         params_id: BlockId,
         value: &TokenAmount,
     ) -> Result<SendResult> {
+        crate::assert_validator!(self, "Validator can't call send.");
+
         let from = self.actor_id;
 
         // Load parameters.

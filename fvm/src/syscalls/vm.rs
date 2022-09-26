@@ -5,7 +5,7 @@ use fvm_shared::version::NetworkVersion;
 
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{ClassifyResult, Kernel};
+use crate::kernel::{ClassifyResult, Kernel, InvokeContextOps};
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
@@ -49,20 +49,5 @@ pub fn abort(
 }
 
 pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<InvocationContext> {
-    use anyhow::Context as _;
-
-    Ok(InvocationContext {
-        caller: context.kernel.msg_caller(),
-        origin: context.kernel.msg_origin().0,
-        receiver: context.kernel.msg_receiver(),
-        method_number: context.kernel.msg_method_number(),
-        value_received: context
-            .kernel
-            .msg_value_received()
-            .try_into()
-            .context("invalid token amount")
-            .or_fatal()?,
-        network_curr_epoch: context.kernel.network_epoch(),
-        network_version: context.kernel.network_version() as u32,
-    })
+    context.kernel.invoke_context()
 }
