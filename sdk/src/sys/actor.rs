@@ -100,4 +100,9 @@ super::fvm_syscalls! {
     /// **Privileged:** May only be called by the init actor.
     #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
+
+    pub fn actor_balance(
+        addr_off: *const u8,
+        addr_len: u32,
+    )  -> Result<super::TokenAmount>;
 }
