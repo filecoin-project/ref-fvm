@@ -46,7 +46,7 @@ serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.3.0", optional = true }
-actors-v7 = { version = "~7.5", package = "fil_builtin_actors_bundle" }
+actors-v8 = { git = "https://github.com/filecoin-project/builtin-actors.git", package = "fil_builtin_actors_bundle", tag = "v8.0.0" }
 libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [dependencies.fvm]
