@@ -331,6 +331,10 @@ where
             data,
         )
     }
+
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
+        self.0.machine()
+    }
 }
 
 impl<M, C, K> ActorOps for TestKernel<K>
