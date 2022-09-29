@@ -649,3 +649,14 @@ where
         self.0.send(recipient, method, params, value)
     }
 }
+
+impl<M, C, K> EnvOps for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = TestCallManager<C>>,
+{
+    fn tipset_timestamp(&self) -> u64 { 0 }
+
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> { Ok(None) }
+}
