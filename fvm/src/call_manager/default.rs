@@ -79,9 +79,10 @@ where
         gas_limit: i64,
         origin: (ActorID, Address),
         nonce: u64,
+        gas_premium: TokenAmount,
         chain_context: ChainContext,
     ) -> Self {
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
+        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
         if machine.context().tracing {
             gas_tracker.enable_tracing()
         }
@@ -106,7 +107,6 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
-        gas_premium: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -145,7 +145,7 @@ where
             return Err(sys_err.into());
         }
         self.call_stack_depth += 1;
-        let result = self.send_unchecked::<K>(from, to, method, params, value, gas_premium);
+        let result = self.send_unchecked::<K>(from, to, method, params, value);
         self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
@@ -308,7 +308,6 @@ where
             fvm_shared::METHOD_CONSTRUCTOR,
             Some(Block::new(DAG_CBOR, params)),
             &TokenAmount::zero(),
-            &TokenAmount::zero(),
         )?;
 
         Ok(id)
@@ -322,7 +321,6 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
-        gas_premium: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -341,7 +339,7 @@ where
 
         // Do the actual send.
 
-        self.send_resolved::<K>(from, to, method, params, value, gas_premium)
+        self.send_resolved::<K>(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.
@@ -352,7 +350,6 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
-        gas_premium: &TokenAmount,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -403,19 +400,9 @@ where
             )?;
 
         log::trace!("calling {} -> {}::{}", from, to, method);
-        let gas_limit = self.gas_tracker.gas_limit().round_down() as u64;
         self.map_mut(|cm| {
             // Make the kernel.
-            let kernel = K::new(
-                cm,
-                block_registry,
-                from,
-                to,
-                method,
-                value.clone(),
-                gas_premium.clone(),
-                gas_limit,
-            );
+            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
 
             // Make a store.
             let mut store = engine.new_store(kernel);

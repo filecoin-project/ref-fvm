@@ -50,8 +50,6 @@ pub struct DefaultKernel<C> {
     actor_id: ActorID,
     method: MethodNum,
     value_received: TokenAmount,
-    gas_premium: TokenAmount,
-    gas_limit: u64,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
@@ -85,8 +83,6 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
-        gas_premium: TokenAmount,
-        gas_limit: u64,
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
@@ -95,8 +91,6 @@ where
             actor_id,
             method,
             value_received,
-            gas_premium,
-            gas_limit,
         }
     }
 }
@@ -386,11 +380,11 @@ where
     }
 
     fn msg_gas_premium(&self) -> TokenAmount {
-        self.gas_premium.clone()
+        self.call_manager.gas_tracker().gas_premium()
     }
 
     fn msg_gas_limit(&self) -> u64 {
-        self.gas_limit
+        self.call_manager.gas_tracker().gas_limit().round_down() as u64
     }
 }
 
@@ -404,7 +398,6 @@ where
         method: MethodNum,
         params_id: BlockId,
         value: &TokenAmount,
-        gas_premium: &TokenAmount,
     ) -> Result<SendResult> {
         let from = self.actor_id;
 
@@ -421,9 +414,9 @@ where
         }
 
         // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.send::<Self>(from, *recipient, method, params, value, gas_premium)
-        })?;
+        let result = self
+            .call_manager
+            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))?;
 
         // Store result and return.
         Ok(match result {

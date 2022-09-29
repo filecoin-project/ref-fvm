@@ -48,6 +48,7 @@ pub trait CallManager: 'static {
         gas_limit: i64,
         origin: (ActorID, Address),
         nonce: u64,
+        gas_premium: TokenAmount,
         chain_context: ChainContext,
     ) -> Self;
 
@@ -60,7 +61,6 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: Option<kernel::Block>,
         value: &TokenAmount,
-        gas_premium: &TokenAmount,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.
