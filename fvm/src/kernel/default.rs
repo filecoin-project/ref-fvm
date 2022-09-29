@@ -472,7 +472,7 @@ where
         }
         let tipsets = &self.call_manager.chain_context().tipsets;
         if (epoch as usize) < tipsets.len() {
-            return Ok(Some(tipsets[epoch as usize].clone()));
+            return Ok(Some(tipsets[epoch as usize]));
         }
 
         Ok(None)
