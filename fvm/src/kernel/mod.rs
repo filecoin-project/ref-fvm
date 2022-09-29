@@ -196,6 +196,9 @@ pub trait ActorOps {
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
+
+    /// Returns the balance associated with an actor id
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
 }
 
 /// Operations to send messages to other actors.

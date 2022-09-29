@@ -138,7 +138,7 @@ pub fn bind_syscalls(
     #[cfg(feature = "m2-native")]
     linker.bind("actor", "install_actor", actor::install_actor)?;
 
-    linker.bind("actor", "actor_balance", actor::actor_balance)?;
+    linker.bind("actor", "balance_of", actor::balance_of)?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind(

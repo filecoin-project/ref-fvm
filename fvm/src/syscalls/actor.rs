@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use fvm_shared::sys;
 
 use super::Context;
@@ -114,10 +114,10 @@ pub fn install_actor(
     context.kernel.install_actor(typ)
 }
 
-pub fn actor_balance(
-    _context: Context<'_, impl Kernel>,
-    _addr_off: u32,
-    _addr_len: u32,
-) -> Result<sys::TokenAmount> {
-    todo!()
+pub fn balance_of(context: Context<'_, impl Kernel>, actor_id: u64) -> Result<sys::TokenAmount> {
+    let balance = context.kernel.balance_of(actor_id)?;
+    balance
+        .try_into()
+        .context("base-fee exceeds u128 limit")
+        .or_fatal()
 }

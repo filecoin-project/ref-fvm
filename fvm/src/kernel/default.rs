@@ -804,6 +804,17 @@ where
             .preload(self.call_manager.blockstore(), &[code_id])
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
     }
+
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        let balance = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(actor_id)
+            .context("cannot find actor")?
+            .map(|a| a.balance)
+            .unwrap_or_default();
+        Ok(balance)
+    }
 }
 
 impl<C> DebugOps for DefaultKernel<C>

@@ -97,11 +97,10 @@ pub fn get_code_cid_for_type(typ: i32) -> Cid {
     }
 }
 
-/// Retrieves the balance associated with an actor address
-pub fn actor_balance(addr: &Address) -> TokenAmount {
-    let bytes = addr.to_bytes();
+/// Retrieves the balance associated with an actor
+pub fn balance_of(actor_id: ActorID) -> TokenAmount {
     unsafe {
-        sys::actor::actor_balance(bytes.as_ptr(), bytes.len() as u32)
+        sys::actor::balance_of(actor_id)
             .expect("failed to get actor balance")
             .into()
     }

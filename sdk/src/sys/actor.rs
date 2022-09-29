@@ -101,8 +101,7 @@ super::fvm_syscalls! {
     #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 
-    pub fn actor_balance(
-        addr_off: *const u8,
-        addr_len: u32,
+    pub fn balance_of(
+        actor_id: u64
     )  -> Result<super::TokenAmount>;
 }
