@@ -2,7 +2,7 @@
 //! Syscalls for working with chain execution environment
 
 super::fvm_syscalls! {
-    module = "env";
+    module = "chain";
 
     pub fn tipset_timestamp() -> Result<u64>;
 

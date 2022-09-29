@@ -1,7 +1,7 @@
 pub mod actor;
+pub mod chain;
 pub mod crypto;
 pub mod debug;
-pub mod env;
 pub mod error;
 pub mod gas;
 pub mod ipld;
