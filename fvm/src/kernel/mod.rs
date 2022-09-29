@@ -73,6 +73,7 @@ pub trait Kernel:
     /// - `method` is the method that has been invoked.
     /// - `value_received` is value received due to the current call.
     /// - `blocks` is the initial block registry (should already contain the parameters).
+    #[allow(clippy::too-many-arguments)]
     fn new(
         mgr: Self::CallManager,
         blocks: BlockRegistry,
