@@ -79,6 +79,8 @@ pub trait Kernel:
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        gas_premium: TokenAmount,
+        gas_limit: u64,
     ) -> Self
     where
         Self: Sized;
@@ -112,6 +114,12 @@ pub trait MessageOps {
 
     /// The value received from the caller (constant).
     fn msg_value_received(&self) -> TokenAmount;
+
+    /// The current message gas premium
+    fn msg_gas_premium(&self) -> TokenAmount;
+
+    /// The current message gas limit
+    fn msg_gas_limit(&self) -> u64;
 }
 
 /// The IPLD subset of the kernel.
@@ -209,6 +217,7 @@ pub trait SendOps {
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_premium: &TokenAmount,
     ) -> Result<SendResult>;
 }
 

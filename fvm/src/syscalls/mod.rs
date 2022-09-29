@@ -186,8 +186,6 @@ pub fn bind_syscalls(
 
     linker.bind("env", "timestamp", env::timestamp)?;
     linker.bind("env", "blockhash", env::blockhash)?;
-    linker.bind("env", "gas_limit", env::gas_limit)?;
-    linker.bind("env", "gas_price", env::gas_price)?;
 
     Ok(())
 }

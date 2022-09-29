@@ -78,5 +78,9 @@ pub mod vm {
         pub network_version: u32,
         /// The current call's origin actor ID.
         pub origin: ActorID,
+        /// The current gas premium
+        pub gas_premium: TokenAmount,
+        /// The current gas limit
+        pub gas_limit: u64,
     }
 }

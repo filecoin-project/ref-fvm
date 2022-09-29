@@ -10,8 +10,4 @@ super::fvm_syscalls! {
         ret_off: *const u8,
         ret_len: u32,
     ) -> Result<u32>;
-
-    pub fn gas_limit() -> Result<u64>;
-
-    pub fn gas_price() -> Result<u64>;
 }

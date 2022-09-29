@@ -10,11 +10,3 @@ pub fn blockhash(block: u8) -> [u8; 32] {
         .expect("failed to get blockhash");
     ret
 }
-
-pub fn gas_limit() -> u64 {
-    unsafe { sys::env::gas_limit() }.expect("failed to get gas limit")
-}
-
-pub fn gas_price() -> u64 {
-    unsafe { sys::env::gas_price() }.expect("failed to get gas price")
-}

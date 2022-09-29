@@ -2,6 +2,7 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
+use num_traits::Zero;
 
 use super::Context;
 use crate::kernel::{Result, SendResult};
@@ -23,7 +24,10 @@ pub fn send(
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
     Ok(
-        match context.kernel.send(&recipient, method, params_id, &value)? {
+        match context
+            .kernel
+            .send(&recipient, method, params_id, &value, &TokenAmount::zero())?
+        {
             SendResult::Return(id, stat) => sys::out::send::Send {
                 exit_code: ExitCode::OK.value(),
                 return_id: id,

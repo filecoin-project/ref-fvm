@@ -53,6 +53,7 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: Option<kernel::Block>,
         value: &TokenAmount,
+        gas_premium: &TokenAmount,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.

@@ -13,11 +13,3 @@ pub fn blockhash(
 ) -> Result<u32> {
     todo!()
 }
-
-pub fn gas_limit(_context: Context<'_, impl Kernel>) -> Result<u64> {
-    todo!()
-}
-
-pub fn gas_price(_context: Context<'_, impl Kernel>) -> Result<u64> {
-    todo!()
-}
