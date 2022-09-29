@@ -463,6 +463,10 @@ where
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
+        if epoch >= 900 {
+            return Err(syscall_error!(IllegalArgument; "epoch out of finality range").into());
+        }
+
         let tipsets = &self.call_manager.context().network_context.tipsets;
         if (epoch as usize) < tipsets.len() {
             return Ok(Some(tipsets[epoch as usize]));
