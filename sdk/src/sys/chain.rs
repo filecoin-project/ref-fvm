@@ -1,4 +1,3 @@
-#![allow(clippy::missing_safety_doc)]
 //! Syscalls for working with chain execution environment
 
 super::fvm_syscalls! {
