@@ -449,7 +449,7 @@ where
     }
 }
 
-impl<C> EnvOps for DefaultKernel<C>
+impl<C> ChainOps for DefaultKernel<C>
 where
     C: CallManager,
 {

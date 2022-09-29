@@ -11,10 +11,10 @@ pub(crate) mod error;
 
 mod actor;
 mod bind;
+mod chain;
 mod context;
 mod crypto;
 mod debug;
-mod env;
 mod gas;
 mod ipld;
 mod network;
@@ -184,8 +184,8 @@ pub fn bind_syscalls(
     linker.bind("debug", "enabled", debug::enabled)?;
     linker.bind("debug", "store_artifact", debug::store_artifact)?;
 
-    linker.bind("env", "tipset_timestamp", env::tipset_timestamp)?;
-    linker.bind("env", "tipset_cid", env::tipset_cid)?;
+    linker.bind("chain", "tipset_timestamp", chain::tipset_timestamp)?;
+    linker.bind("chain", "tipset_cid", chain::tipset_cid)?;
 
     Ok(())
 }

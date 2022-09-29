@@ -55,7 +55,7 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
-    + EnvOps
+    + ChainOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -358,7 +358,7 @@ pub trait DebugOps {
 }
 
 /// Environment ops
-pub trait EnvOps {
+pub trait ChainOps {
     /// current tipset timestamp
     fn tipset_timestamp(&self) -> u64;
 
