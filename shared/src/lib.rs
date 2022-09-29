@@ -15,6 +15,7 @@ pub mod consensus;
 pub mod crypto;
 pub mod deal;
 pub mod econ;
+pub mod env;
 pub mod error;
 pub mod math;
 pub mod message;
@@ -27,7 +28,6 @@ pub mod smooth;
 pub mod state;
 pub mod sys;
 pub mod version;
-pub mod env;
 
 use econ::TokenAmount;
 
