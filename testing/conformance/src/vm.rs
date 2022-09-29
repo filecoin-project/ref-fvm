@@ -187,8 +187,14 @@ where
 {
     type Machine = C::Machine;
 
-    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self {
-        TestCallManager(C::new(machine, gas_limit, origin, nonce))
+    fn new(
+        machine: Self::Machine,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        gas_premium: TokenAmount,
+    ) -> Self {
+        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium))
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -366,6 +372,10 @@ where
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
         Ok(())
+    }
+
+    fn balance_of(&self, _actor_id: ActorID) -> Result<TokenAmount> {
+        todo!()
     }
 }
 
@@ -562,6 +572,14 @@ where
     fn msg_value_received(&self) -> TokenAmount {
         self.0.msg_value_received()
     }
+
+    fn msg_gas_premium(&self) -> TokenAmount {
+        todo!()
+    }
+
+    fn msg_gas_limit(&self) -> u64 {
+        todo!()
+    }
 }
 
 impl<M, C, K> NetworkOps for TestKernel<K>
@@ -650,17 +668,17 @@ where
     }
 }
 
-impl<M, C, K> EnvOps for TestKernel<K>
+impl<M, C, K> ChainOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     fn tipset_timestamp(&self) -> u64 {
-        0
+        todo!()
     }
 
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
-        Ok(None)
+    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
+        todo!()
     }
 }
