@@ -656,7 +656,11 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn tipset_timestamp(&self) -> u64 { 0 }
+    fn tipset_timestamp(&self) -> u64 {
+        0
+    }
 
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> { Ok(None) }
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
+        Ok(None)
+    }
 }
