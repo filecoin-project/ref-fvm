@@ -3,6 +3,7 @@ use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::env::ChainContext;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
@@ -37,6 +38,8 @@ pub struct InnerDefaultCallManager<M> {
     origin: (ActorID, Address),
     /// The nonce of the chain message that initiated this call stack.
     nonce: u64,
+    /// Chain context (call environment)
+    chain_context: ChainContext,
     /// Number of actors created in this call stack.
     num_actors_created: u64,
     /// Current call-stack depth.
@@ -71,7 +74,13 @@ where
 {
     type Machine = M;
 
-    fn new(machine: M, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self {
+    fn new(
+        machine: M,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        chain_context: ChainContext,
+    ) -> Self {
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
         if machine.context().tracing {
             gas_tracker.enable_tracing()
@@ -81,6 +90,7 @@ where
             gas_tracker,
             origin,
             nonce,
+            chain_context,
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
@@ -239,6 +249,10 @@ where
 
     fn invocation_count(&self) -> u64 {
         self.invocation_count
+    }
+
+    fn chain_context(&self) -> &ChainContext {
+        &self.chain_context
     }
 }
 

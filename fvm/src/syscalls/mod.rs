@@ -184,8 +184,8 @@ pub fn bind_syscalls(
     linker.bind("debug", "enabled", debug::enabled)?;
     linker.bind("debug", "store_artifact", debug::store_artifact)?;
 
-    linker.bind("env", "timestamp", env::timestamp)?;
-    linker.bind("env", "blockhash", env::blockhash)?;
+    linker.bind("env", "tipset_timestamp", env::tipset_timestamp)?;
+    linker.bind("env", "tipset_cid", env::tipset_cid)?;
 
     Ok(())
 }

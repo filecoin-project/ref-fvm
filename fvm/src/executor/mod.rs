@@ -7,6 +7,7 @@ use cid::Cid;
 pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::env::ChainContext;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -37,6 +38,7 @@ pub trait Executor {
         msg: Message,
         apply_kind: ApplyKind,
         raw_length: usize,
+        chain_context: ChainContext,
     ) -> anyhow::Result<ApplyRet>;
 
     /// Flushes the state-tree, returning the new root CID.

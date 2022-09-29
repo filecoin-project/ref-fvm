@@ -456,6 +456,29 @@ where
     }
 }
 
+impl<C> EnvOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    /// current tipset timestamp
+    fn tipset_timestamp(&self) -> u64 {
+        self.call_manager.chain_context().timestamp
+    }
+
+    /// epoch tipset cid
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
+        if epoch < 0 {
+            return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
+        }
+        let tipsets = &self.call_manager.chain_context().tipsets;
+        if (epoch as usize) < tipsets.len() {
+            return Ok(Some(tipsets[epoch as usize].clone()));
+        }
+
+        Ok(None)
+    }
+}
+
 impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,

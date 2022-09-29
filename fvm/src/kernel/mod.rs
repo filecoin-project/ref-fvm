@@ -55,6 +55,7 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
+    + EnvOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -356,4 +357,13 @@ pub trait DebugOps {
     /// Store an artifact.
     /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
+}
+
+/// Environment ops
+pub trait EnvOps {
+    /// current tipset timestamp
+    fn tipset_timestamp(&self) -> u64;
+
+    /// epoch tipset cid
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
 }

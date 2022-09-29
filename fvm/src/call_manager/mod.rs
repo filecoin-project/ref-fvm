@@ -1,5 +1,6 @@
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::env::ChainContext;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
@@ -42,7 +43,13 @@ pub trait CallManager: 'static {
     type Machine: Machine;
 
     /// Construct a new call manager.
-    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self;
+    fn new(
+        machine: Self::Machine,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        chain_context: ChainContext,
+    ) -> Self;
 
     /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
@@ -122,6 +129,9 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Chain context
+    fn chain_context(&self) -> &ChainContext;
 }
 
 /// The result of a method invocation.

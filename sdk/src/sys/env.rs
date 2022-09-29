@@ -3,11 +3,11 @@
 super::fvm_syscalls! {
     module = "env";
 
-    pub fn timestamp() -> Result<u64>;
+    pub fn tipset_timestamp() -> Result<u64>;
 
-    pub fn blockhash(
-        block: u8,
-        ret_off: *const u8,
+    pub fn tipset_cid(
+        epoch: i64,
+        ret_off: *mut u8,
         ret_len: u32,
     ) -> Result<u32>;
 }

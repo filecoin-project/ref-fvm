@@ -6,6 +6,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::env::ChainContext;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -55,6 +56,7 @@ where
         msg: Message,
         apply_kind: ApplyKind,
         raw_length: usize,
+        chain_context: ChainContext,
     ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) =
@@ -66,8 +68,13 @@ where
         // Apply the message.
         let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm =
-                K::CallManager::new(machine, msg.gas_limit, (sender_id, msg.from), msg.sequence);
+            let mut cm = K::CallManager::new(
+                machine,
+                msg.gas_limit,
+                (sender_id, msg.from),
+                msg.sequence,
+                chain_context,
+            );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
