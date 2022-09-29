@@ -82,6 +82,9 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
+
+    /// The kernel's underlying "machine".
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 }
 
 /// Network-related operations.

@@ -93,6 +93,10 @@ where
             value_received,
         }
     }
+
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
+        self.call_manager.machine()
+    }
 }
 
 impl<C> DefaultKernel<C>
