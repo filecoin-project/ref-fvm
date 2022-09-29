@@ -574,11 +574,11 @@ where
     }
 
     fn msg_gas_premium(&self) -> TokenAmount {
-        todo!()
+        self.0.msg_gas_premium()
     }
 
     fn msg_gas_limit(&self) -> u64 {
-        todo!()
+        self.0.msg_gas_limit()
     }
 }
 
