@@ -12,6 +12,7 @@ use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
+use fvm_shared::env::ChainContext;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
@@ -168,6 +169,7 @@ pub struct DummyCallManager {
     pub gas_tracker: GasTracker,
     pub origin: (ActorID, Address),
     pub nonce: u64,
+    pub chain_context: ChainContext,
     pub test_data: Rc<RefCell<TestData>>,
 }
 
@@ -188,6 +190,7 @@ impl DummyCallManager {
                 gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
                 origin: (0, Address::new_actor(&[])),
                 nonce: 0,
+                chain_context: Default::default(),
                 test_data: rc,
             },
             cell_ref,
@@ -205,6 +208,7 @@ impl DummyCallManager {
                 gas_tracker,
                 origin: (0, Address::new_actor(&[])),
                 nonce: 0,
+                chain_context: Default::default(),
                 test_data: rc,
             },
             cell_ref,
@@ -220,6 +224,7 @@ impl CallManager for DummyCallManager {
         _gas_limit: i64,
         origin: (ActorID, Address),
         nonce: u64,
+        chain_context: ChainContext,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
@@ -229,6 +234,7 @@ impl CallManager for DummyCallManager {
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
             origin,
             nonce,
+            chain_context,
             test_data: rc,
         }
     }
@@ -240,6 +246,7 @@ impl CallManager for DummyCallManager {
         _method: fvm_shared::MethodNum,
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
+        _premium: &fvm_shared::econ::TokenAmount,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()
@@ -302,5 +309,9 @@ impl CallManager for DummyCallManager {
 
     fn invocation_count(&self) -> u64 {
         todo!()
+    }
+
+    fn chain_context(&self) -> &ChainContext {
+        &self.chain_context
     }
 }
