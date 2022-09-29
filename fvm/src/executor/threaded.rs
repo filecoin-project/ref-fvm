@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_shared::env::ChainContext;
 use fvm_shared::message::Message;
 use lazy_static::lazy_static;
 
@@ -36,16 +35,11 @@ where
         msg: Message,
         apply_kind: ApplyKind,
         raw_length: usize,
-        chain_context: ChainContext,
     ) -> anyhow::Result<ApplyRet> {
         let mut ret = Err(anyhow!("failed to execute"));
 
         EXEC_POOL.scoped(|scope| {
-            scope.execute(|| {
-                ret = self
-                    .0
-                    .execute_message(msg, apply_kind, raw_length, chain_context)
-            });
+            scope.execute(|| ret = self.0.execute_message(msg, apply_kind, raw_length));
         });
 
         ret

@@ -6,7 +6,6 @@ use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::env::ChainContext;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -56,7 +55,6 @@ where
         msg: Message,
         apply_kind: ApplyKind,
         raw_length: usize,
-        chain_context: ChainContext,
     ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
         let (sender_id, gas_cost, inclusion_cost) =
@@ -74,7 +72,6 @@ where
                 (sender_id, msg.from),
                 msg.sequence,
                 msg.gas_premium.clone(),
-                chain_context,
             );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
@@ -171,7 +168,7 @@ where
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().epoch,
+                    self.context().network_context.epoch,
                 ));
                 backtrace.set_cause(backtrace::Cause::from_fatal(err));
                 Receipt {

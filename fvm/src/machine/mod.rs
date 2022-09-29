@@ -165,13 +165,45 @@ impl NetworkConfig {
     pub fn for_epoch(&self, epoch: ChainEpoch, initial_state: Cid) -> MachineContext {
         MachineContext {
             network: self.clone(),
-            epoch,
+            network_context: NetworkContext {
+                epoch,
+                timestamp: 0,
+                tipsets: vec![],
+            },
             initial_state_root: initial_state,
             base_fee: TokenAmount::zero(),
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
             tracing: false,
         }
     }
+
+    /// Create a ['MachineContext'] for a given network context with the specified `initial_state`
+    pub fn for_network_context(
+        &self,
+        net_ctx: NetworkContext,
+        initial_state: Cid,
+    ) -> MachineContext {
+        MachineContext {
+            network: self.clone(),
+            network_context: net_ctx,
+            initial_state_root: initial_state,
+            base_fee: TokenAmount::zero(),
+            circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
+            tracing: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NetworkContext {
+    /// The network epoch at which the Machine runs.
+    pub epoch: ChainEpoch,
+
+    /// The UNIX timestamp (in seconds) of the current tipset
+    pub timestamp: u64,
+
+    /// The tipset CIDs for the last finality
+    pub tipsets: Vec<Cid>,
 }
 
 /// Per-epoch machine context.
@@ -182,8 +214,8 @@ pub struct MachineContext {
     #[deref_mut]
     pub network: NetworkConfig,
 
-    /// The epoch at which the Machine runs.
-    pub epoch: ChainEpoch,
+    /// The network context with which the Machine runs.
+    pub network_context: NetworkContext,
 
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,

@@ -12,7 +12,6 @@ use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
-use fvm_shared::env::ChainContext;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
@@ -169,7 +168,6 @@ pub struct DummyCallManager {
     pub gas_tracker: GasTracker,
     pub origin: (ActorID, Address),
     pub nonce: u64,
-    pub chain_context: ChainContext,
     pub test_data: Rc<RefCell<TestData>>,
 }
 
@@ -224,7 +222,6 @@ impl CallManager for DummyCallManager {
         _gas_limit: i64,
         origin: (ActorID, Address),
         nonce: u64,
-        chain_context: ChainContext,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
@@ -309,9 +306,5 @@ impl CallManager for DummyCallManager {
 
     fn invocation_count(&self) -> u64 {
         todo!()
-    }
-
-    fn chain_context(&self) -> &ChainContext {
-        &self.chain_context
     }
 }

@@ -15,7 +15,6 @@ pub mod consensus;
 pub mod crypto;
 pub mod deal;
 pub mod econ;
-pub mod env;
 pub mod error;
 pub mod math;
 pub mod message;

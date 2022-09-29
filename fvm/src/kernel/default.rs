@@ -455,7 +455,7 @@ where
 {
     /// current tipset timestamp
     fn tipset_timestamp(&self) -> u64 {
-        self.call_manager.chain_context().timestamp
+        self.call_manager.context().network_context.timestamp
     }
 
     /// epoch tipset cid
@@ -463,7 +463,7 @@ where
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        let tipsets = &self.call_manager.chain_context().tipsets;
+        let tipsets = &self.call_manager.context().network_context.tipsets;
         if (epoch as usize) < tipsets.len() {
             return Ok(Some(tipsets[epoch as usize]));
         }
@@ -683,7 +683,7 @@ where
     C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().epoch
+        self.call_manager.context().network_context.epoch
     }
 
     fn network_version(&self) -> NetworkVersion {
