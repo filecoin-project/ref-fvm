@@ -69,7 +69,7 @@ where
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
             context.network_context.epoch,
-            &context.base_fee,
+            &context.network_context.base_fee,
             context.network_version,
             context.initial_state_root
         );

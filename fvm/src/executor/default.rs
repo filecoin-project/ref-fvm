@@ -260,11 +260,11 @@ where
                     return Ok(Err(ApplyRet::prevalidation_fail(
                         ExitCode::SYS_OUT_OF_GAS,
                         format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                        &self.context().base_fee * inclusion_total,
+                        &self.context().network_context.base_fee * inclusion_total,
                     )));
                 }
 
-                let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
+                let miner_penalty_amount = &self.context().network_context.base_fee * msg.gas_limit;
                 (inclusion_cost, miner_penalty_amount)
             }
         };
@@ -369,7 +369,7 @@ where
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
-            &self.context().base_fee,
+            &self.context().network_context.base_fee,
             &msg.gas_fee_cap,
             &msg.gas_premium,
         );

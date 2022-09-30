@@ -169,9 +169,9 @@ impl NetworkConfig {
                 epoch,
                 timestamp: 0,
                 tipsets: vec![],
+                base_fee: TokenAmount::zero(),
             },
             initial_state_root: initial_state,
-            base_fee: TokenAmount::zero(),
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
             tracing: false,
         }
@@ -187,7 +187,6 @@ impl NetworkConfig {
             network: self.clone(),
             network_context: net_ctx,
             initial_state_root: initial_state,
-            base_fee: TokenAmount::zero(),
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
             tracing: false,
         }
@@ -204,6 +203,11 @@ pub struct NetworkContext {
 
     /// The tipset CIDs for the last finality
     pub tipsets: Vec<Cid>,
+
+    /// The base fee that's in effect when the Machine runs.
+    ///
+    /// Default: 0.
+    pub base_fee: TokenAmount,
 }
 
 /// Per-epoch machine context.
@@ -220,11 +224,6 @@ pub struct MachineContext {
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,
 
-    /// The base fee that's in effect when the Machine runs.
-    ///
-    /// Default: 0.
-    pub base_fee: TokenAmount,
-
     /// v15 and onwards: The amount of FIL that has vested from genesis actors.
     /// v14 and earlier: The amount of FIL that has vested from genesis msigs
     /// (the remainder of the circ supply must be calculated by the FVM)
@@ -240,7 +239,7 @@ pub struct MachineContext {
 impl MachineContext {
     /// Sets [`MachineContext::base_fee`].
     pub fn set_base_fee(&mut self, amt: TokenAmount) -> &mut Self {
-        self.base_fee = amt;
+        self.network_context.base_fee = amt;
         self
     }
 

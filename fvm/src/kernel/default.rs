@@ -668,7 +668,7 @@ where
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().base_fee
+        &self.call_manager.context().network_context.base_fee
     }
 
     fn tipset_timestamp(&self) -> u64 {
