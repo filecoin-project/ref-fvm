@@ -599,6 +599,14 @@ where
     fn network_base_fee(&self) -> &TokenAmount {
         self.0.network_base_fee()
     }
+
+    fn tipset_timestamp(&self) -> u64 {
+        todo!()
+    }
+
+    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
+        todo!()
+    }
 }
 
 impl<M, C, K> RandomnessOps for TestKernel<K>
@@ -665,20 +673,5 @@ where
         value: &TokenAmount,
     ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
-    }
-}
-
-impl<M, C, K> ChainOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
-{
-    fn tipset_timestamp(&self) -> u64 {
-        todo!()
-    }
-
-    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
-        todo!()
     }
 }
