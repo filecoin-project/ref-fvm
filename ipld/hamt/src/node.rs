@@ -234,6 +234,10 @@ where
     }
 
     /// Internal method to modify values.
+    ///
+    /// Returns the a tuple with:
+    /// * the old data at this key, if any
+    /// * whether the data has been modified
     #[allow(clippy::too_many_arguments)]
     fn modify_value<S: Blockstore>(
         &mut self,
