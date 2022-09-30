@@ -1,4 +1,5 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
+use fvm_shared::sys;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
@@ -111,4 +112,12 @@ pub fn install_actor(
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
+}
+
+pub fn balance_of(context: Context<'_, impl Kernel>, actor_id: u64) -> Result<sys::TokenAmount> {
+    let balance = context.kernel.balance_of(actor_id)?;
+    balance
+        .try_into()
+        .context("base-fee exceeds u128 limit")
+        .or_fatal()
 }

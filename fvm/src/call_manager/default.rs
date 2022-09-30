@@ -71,8 +71,14 @@ where
 {
     type Machine = M;
 
-    fn new(machine: M, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self {
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
+    fn new(
+        machine: M,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        gas_premium: TokenAmount,
+    ) -> Self {
+        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
         if machine.context().tracing {
             gas_tracker.enable_tracing()
         }

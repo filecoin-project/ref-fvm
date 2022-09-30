@@ -64,5 +64,12 @@ pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<Invoc
             .or_fatal()?,
         network_curr_epoch: context.kernel.network_epoch(),
         network_version: context.kernel.network_version() as u32,
+        gas_premium: context
+            .kernel
+            .msg_gas_premium()
+            .try_into()
+            .context("invalid gas premium")
+            .or_fatal()?,
+        gas_limit: context.kernel.msg_gas_limit(),
     })
 }

@@ -12,6 +12,8 @@ use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
+use fvm_shared::bigint::Zero;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
@@ -185,7 +187,7 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), TokenAmount::zero()),
                 origin: (0, Address::new_actor(&[])),
                 nonce: 0,
                 test_data: rc,
@@ -220,13 +222,14 @@ impl CallManager for DummyCallManager {
         _gas_limit: i64,
         origin: (ActorID, Address),
         nonce: u64,
+        gas_premium: TokenAmount,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
         }));
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), gas_premium),
             origin,
             nonce,
             test_data: rc,

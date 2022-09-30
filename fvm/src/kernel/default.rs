@@ -382,6 +382,14 @@ where
     fn msg_value_received(&self) -> TokenAmount {
         self.value_received.clone()
     }
+
+    fn msg_gas_premium(&self) -> TokenAmount {
+        self.call_manager.gas_tracker().gas_premium()
+    }
+
+    fn msg_gas_limit(&self) -> u64 {
+        self.call_manager.gas_tracker().gas_limit().round_down() as u64
+    }
 }
 
 impl<C> SendOps for DefaultKernel<C>
@@ -656,7 +664,7 @@ where
     C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().epoch
+        self.call_manager.context().network_context.epoch
     }
 
     fn network_version(&self) -> NetworkVersion {
@@ -664,7 +672,27 @@ where
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().base_fee
+        &self.call_manager.context().network_context.base_fee
+    }
+
+    fn tipset_timestamp(&self) -> u64 {
+        self.call_manager.context().network_context.timestamp
+    }
+
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
+        if epoch < 0 {
+            return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
+        }
+        if epoch >= 900 {
+            return Err(syscall_error!(IllegalArgument; "epoch out of finality range").into());
+        }
+
+        let tipsets = &self.call_manager.context().network_context.tipsets;
+        if (epoch as usize) < tipsets.len() {
+            return Ok(Some(tipsets[epoch as usize]));
+        }
+
+        Ok(None)
     }
 }
 
@@ -807,6 +835,17 @@ where
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
+    }
+
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        let balance = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(actor_id)
+            .context("cannot find actor")?
+            .map(|a| a.balance)
+            .unwrap_or_default();
+        Ok(balance)
     }
 }
 
