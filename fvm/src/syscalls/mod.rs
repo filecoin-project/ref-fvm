@@ -11,7 +11,6 @@ pub(crate) mod error;
 
 mod actor;
 mod bind;
-mod chain;
 mod context;
 mod crypto;
 mod debug;
@@ -108,6 +107,9 @@ pub fn bind_syscalls(
         network::total_fil_circ_supply,
     )?;
 
+    linker.bind("network", "tipset_timestamp", network::tipset_timestamp)?;
+    linker.bind("network", "tipset_cid", network::tipset_cid)?;
+
     linker.bind("ipld", "block_open", ipld::block_open)?;
     linker.bind("ipld", "block_create", ipld::block_create)?;
     linker.bind("ipld", "block_read", ipld::block_read)?;
@@ -183,9 +185,6 @@ pub fn bind_syscalls(
     linker.bind("debug", "log", debug::log)?;
     linker.bind("debug", "enabled", debug::enabled)?;
     linker.bind("debug", "store_artifact", debug::store_artifact)?;
-
-    linker.bind("chain", "tipset_timestamp", chain::tipset_timestamp)?;
-    linker.bind("chain", "tipset_cid", chain::tipset_cid)?;
 
     Ok(())
 }

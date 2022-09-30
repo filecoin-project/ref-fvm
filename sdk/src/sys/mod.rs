@@ -55,7 +55,6 @@ pub use fvm_shared::error::ErrorNumber;
 pub use fvm_shared::sys::TokenAmount;
 
 pub mod actor;
-pub mod chain;
 pub mod crypto;
 #[cfg(feature = "debug")]
 pub mod debug;
