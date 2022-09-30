@@ -449,33 +449,6 @@ where
     }
 }
 
-impl<C> ChainOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    /// current tipset timestamp
-    fn tipset_timestamp(&self) -> u64 {
-        self.call_manager.context().network_context.timestamp
-    }
-
-    /// epoch tipset cid
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
-        if epoch < 0 {
-            return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
-        }
-        if epoch >= 900 {
-            return Err(syscall_error!(IllegalArgument; "epoch out of finality range").into());
-        }
-
-        let tipsets = &self.call_manager.context().network_context.tipsets;
-        if (epoch as usize) < tipsets.len() {
-            return Ok(Some(tipsets[epoch as usize]));
-        }
-
-        Ok(None)
-    }
-}
-
 impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
@@ -696,6 +669,26 @@ where
 
     fn network_base_fee(&self) -> &TokenAmount {
         &self.call_manager.context().base_fee
+    }
+
+    fn tipset_timestamp(&self) -> u64 {
+        self.call_manager.context().network_context.timestamp
+    }
+
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
+        if epoch < 0 {
+            return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
+        }
+        if epoch >= 900 {
+            return Err(syscall_error!(IllegalArgument; "epoch out of finality range").into());
+        }
+
+        let tipsets = &self.call_manager.context().network_context.tipsets;
+        if (epoch as usize) < tipsets.len() {
+            return Ok(Some(tipsets[epoch as usize]));
+        }
+
+        Ok(None)
     }
 }
 

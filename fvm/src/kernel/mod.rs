@@ -55,7 +55,6 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
-    + ChainOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -96,6 +95,12 @@ pub trait NetworkOps {
 
     /// The current base-fee (constant).
     fn network_base_fee(&self) -> &TokenAmount;
+
+    /// current tipset timestamp
+    fn tipset_timestamp(&self) -> u64;
+
+    /// epoch tipset cid
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -355,13 +360,4 @@ pub trait DebugOps {
     /// Store an artifact.
     /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
-}
-
-/// Environment ops
-pub trait ChainOps {
-    /// current tipset timestamp
-    fn tipset_timestamp(&self) -> u64;
-
-    /// epoch tipset cid
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
 }
