@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
 use fvm_shared::message::Message;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
 use crate::call_manager::{CallManager, InvocationResult};
-use crate::executor::{ApplyFailure, GasSpec, ValidateParams};
+use crate::executor::{GasSpec, ValidateParams};
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
 use crate::Kernel;
@@ -123,14 +123,8 @@ where
                 }
                 Err(())
             }
-            // TODO error case handling for backtraces
+            // TODO err types
             Err(_) => Err(()),
-        };
-
-        let failure_info = if backtrace.is_empty() || result.is_ok() {
-            None
-        } else {
-            Some(ApplyFailure::MessageBacktrace(backtrace))
         };
 
         let ret = result

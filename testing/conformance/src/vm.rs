@@ -28,6 +28,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::out::vm::InvocationContext;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
@@ -417,6 +418,17 @@ where
     // Not forwarded. Circulating supply is taken from the TestData.
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
         Ok(self.1.circ_supply.clone())
+    }
+}
+
+impl<M, C, K> InvokeContextOps for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = TestCallManager<C>>,
+{
+    fn invoke_context(&self) -> Result<InvocationContext> {
+        self.0.invoke_context()
     }
 }
 

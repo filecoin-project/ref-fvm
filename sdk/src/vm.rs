@@ -7,6 +7,7 @@ use crate::sys;
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
+// TODO this may cause issues inside of validate contexts depending on how nicely lazy static behaves
 lazy_static::lazy_static! {
     pub(crate) static ref INVOCATION_CONTEXT: InvocationContext = {
         unsafe {

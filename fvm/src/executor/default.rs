@@ -3,7 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -12,9 +12,8 @@ use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
 use num_traits::Zero;
 
-use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, GasSpec};
+use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
-use crate::executor::ValidateParams;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};

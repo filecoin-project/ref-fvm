@@ -9,30 +9,40 @@ use crate::vm::INVOCATION_CONTEXT;
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Returns the ID address of the caller.
+/// 
+/// Panics inside validate context
 #[inline(always)]
 pub fn caller() -> ActorID {
     INVOCATION_CONTEXT.caller
 }
 
 /// Returns the ID address of the origin
+///
+/// Panics inside validate context
 #[inline(always)]
 pub fn origin() -> ActorID {
     INVOCATION_CONTEXT.origin
 }
 
 /// Returns the ID address of the actor.
+///
+/// Panics inside validate context
 #[inline(always)]
 pub fn receiver() -> ActorID {
     INVOCATION_CONTEXT.receiver
 }
 
 /// Returns the message's method number.
+///
+/// Panics inside validate context
 #[inline(always)]
 pub fn method_number() -> MethodNum {
     INVOCATION_CONTEXT.method_number
 }
 
 /// Returns the value received from the caller in AttoFIL.
+///
+/// Panics inside validate context
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
     INVOCATION_CONTEXT

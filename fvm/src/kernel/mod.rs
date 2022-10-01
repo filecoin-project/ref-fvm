@@ -57,6 +57,7 @@ pub trait Kernel:
     + SelfOps
     + SendOps
     + Validator
+    + InvokeContextOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -106,24 +107,6 @@ pub trait NetworkOps {
 
 pub trait InvokeContextOps {
     fn invoke_context(&self) -> Result<InvocationContext>;
-}
-
-impl<T: MessageOps + NetworkOps> InvokeContextOps for T {
-    fn invoke_context(&self) -> Result<InvocationContext> {
-        Ok(InvocationContext {
-            caller: self.msg_caller(),
-            origin: self.msg_origin().0,
-            receiver: self.msg_receiver(),
-            method_number: self.msg_method_number(),
-            value_received: anyhow::Context::context(
-                self.msg_value_received().try_into(),
-                "invalid token amount",
-            )
-            .or_fatal()?,
-            network_curr_epoch: self.network_epoch(),
-            network_version: self.network_version() as u32,
-        })
-    }
 }
 
 /// Accessors to query attributes of the incoming message.

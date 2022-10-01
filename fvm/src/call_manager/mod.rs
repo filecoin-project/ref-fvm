@@ -1,7 +1,6 @@
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::{GasCharge, GasTracker, PriceList};

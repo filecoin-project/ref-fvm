@@ -5,7 +5,7 @@ use fvm_shared::version::NetworkVersion;
 
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{ClassifyResult, Kernel, InvokeContextOps};
+use crate::kernel::{ClassifyResult, Kernel};
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
