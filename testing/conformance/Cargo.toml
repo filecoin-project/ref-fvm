@@ -63,6 +63,11 @@ m2-native = []
 pretty_env_logger = "0.4.0"
 criterion = { version = "0.3", features = ["async_std"] }
 
+[build-dependencies]
+curl = "0.4.44"
+sha2 = "0.10"
+base16ct = { version="0.1.1", features=["alloc"] }
+
 [[bin]]
 name = "perf-conformance"
 test = false

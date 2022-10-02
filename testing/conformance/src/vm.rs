@@ -34,6 +34,7 @@ use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
 
 const DEFAULT_BASE_FEE: u64 = 100;
+pub const BUNDLE_CAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bundle/bundle.car"));
 
 #[derive(Clone)]
 pub struct TestData {
@@ -107,8 +108,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V16, actors_v8::BUNDLE_CAR)];
-        bundles
+        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
+		// let bundles = [(NetworkVersion::V15, BUNDLE_CAR)];
+		bundles
             .into_iter()
             .map(|(nv, car)| {
                 let roots = block_on(async { load_car_unchecked(blockstore, car).await.unwrap() });
