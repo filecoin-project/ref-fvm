@@ -27,11 +27,11 @@ pub struct GasSpec {
     gas_premium: TokenAmount,
 }
 
-/// TODO
+/// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValidateParams {
     signature: Vec<u8>,
-    message_payload: RawBytes,
+    message_payload: Message,
 }
 
 impl Cbor for ValidateParams {}

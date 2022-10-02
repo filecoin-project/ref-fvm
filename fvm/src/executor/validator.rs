@@ -10,7 +10,7 @@ use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
 use crate::Kernel;
 
-/// TODO try not to be stuck with Default, but it has methods methods i want for validate, which may be candidates for being added to the trait
+/// TODO try not to be stuck with Default, but it has methods methods i want for validate.
 pub struct DefaultValidateExecutor<K: Kernel>(pub DefaultExecutor<K>);
 
 impl<K> Executor for DefaultValidateExecutor<K>
@@ -80,7 +80,7 @@ where
             let params = {
                 let params = ValidateParams {
                     signature: sig,
-                    message_payload: msg.params,
+                    message_payload: msg,
                 }
                 .marshal_cbor();
                 match params {
@@ -104,7 +104,7 @@ where
             )
         })?;
 
-        // TODO turn all errors into warnings
+        // TODO use errors as part of message
         // Extract the exit code and build the result of the message application.
         let result = match res {
             Ok(InvocationResult::Return(return_value)) => {
@@ -123,7 +123,6 @@ where
                 }
                 Err(())
             }
-            // TODO err types
             Err(_) => Err(()),
         };
 
