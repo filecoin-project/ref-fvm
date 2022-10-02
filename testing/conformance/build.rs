@@ -31,12 +31,12 @@ const DEFAULT_FIL_BUILDIN_ACTORS_ARTIFACT_PREFIX: &str = "builtin-actors";
 
 // ============== release :: "dev%2F20220609-proofs" ==============
 // cfg-01 | Failed
-const DEFAULT_FIL_BUILDIN_ACTORS_RELEASE_VERSION: &str = "dev%2F20220609-proofs";
-const DEFAULT_FIL_BUILDIN_ACTORS_BUILD_NETWORK: &str = "calibrationnet";
+// const DEFAULT_FIL_BUILDIN_ACTORS_RELEASE_VERSION: &str = "dev%2F20220609-proofs";
+// const DEFAULT_FIL_BUILDIN_ACTORS_BUILD_NETWORK: &str = "calibrationnet";
 
 // cfg-02 | Failed
-// const DEFAULT_FIL_BUILDIN_ACTORS_RELEASE_VERSION: &str = "dev%2F20220609-proofs";
-// const DEFAULT_FIL_BUILDIN_ACTORS_BUILD_NETWORK: &str = "mainnet";
+const DEFAULT_FIL_BUILDIN_ACTORS_RELEASE_VERSION: &str = "dev%2F20220609-proofs";
+const DEFAULT_FIL_BUILDIN_ACTORS_BUILD_NETWORK: &str = "mainnet";
 
 // cfg-03 |
 // const DEFAULT_FIL_BUILDIN_ACTORS_RELEASE_VERSION: &str = "dev%2F20220609-proofs";
@@ -107,12 +107,10 @@ impl BuildinActorsArtifactsDownloader {
         easy.url(source_url)
             .map_err(|err| -> String { format!("Curl Config url failed Err {}", err) })?;
 
-        easy.write_function(move |data| {
-            Ok(writer.write(data).unwrap())
-        })
-        .map_err(|err| -> String {
-            format!("Failed to download artifact {} Err {}", &source_url, err)
-        })?;
+        easy.write_function(move |data| Ok(writer.write(data).unwrap()))
+            .map_err(|err| -> String {
+                format!("Failed to download artifact {} Err {}", &source_url, err)
+            })?;
 
         easy.perform().map_err(|err| -> String {
             format!(
@@ -148,29 +146,20 @@ impl BuildinActorsArtifactsDownloader {
             "sha256",
         );
 
-        let download_file_short = format!(
-            "{}.{}",
-            DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX,
-            "sha256",
-        );
+        let download_file_short =
+            format!("{}.{}", DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX, "sha256",);
 
-        let car_preimage_file_short = format!(
-            "{}.{}",
-            DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX,
-			"car",
-        );
+        let car_preimage_file_short =
+            format!("{}.{}", DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX, "car",);
 
         let mut download_dir = PathBuf::from(&self.fil_buildin_actors_download_root);
-		download_dir = download_dir
-			.join(DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX);
+        download_dir = download_dir.join(DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX);
 
         // Absolute download file path ...
-        let sha256_file_name = download_dir
-            .join(download_file_short);
+        let sha256_file_name = download_dir.join(download_file_short);
 
         // Absolute download file path ...
-        let car_file_name = download_dir
-            .join(car_preimage_file_short);
+        let car_file_name = download_dir.join(car_preimage_file_short);
 
         assert!(
             car_file_name.exists(),
@@ -220,14 +209,11 @@ impl BuildinActorsArtifactsDownloader {
             "car",
         );
 
-        let download_file_short = format!(
-            "{}.{}",
-            DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX, "car",
-        );
+        let download_file_short =
+            format!("{}.{}", DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX, "car",);
 
         let mut download_dir = PathBuf::from(&self.fil_buildin_actors_download_root);
-		download_dir = download_dir
-			.join(DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX);
+        download_dir = download_dir.join(DEFAULT_FIL_BUILDIN_ACTORS_BUNDLE_PREFIX);
 
         if !download_dir.exists() {
             // safe to ignore the unit return code ...
@@ -258,7 +244,7 @@ impl BuildinActorsArtifactsDownloader {
 fn main() {
     let dwnld_runtime: BuildinActorsArtifactsDownloader = Default::default();
 
-	// Trigger download, If no local copy, of the car prebuild artifacts.
+    // Trigger download, If no local copy, of the car prebuild artifacts.
     dwnld_runtime
         .get_car_prebuild_image()
         .map_err(|err| panic!("Artifact Download Failed | {:#?}", err))
