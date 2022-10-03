@@ -80,7 +80,12 @@ fn integer_overflow() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+    assert_eq!(
+        ExitCode::OK,
+        res.msg_receipt.exit_code,
+        "{}",
+        res.failure_info.unwrap()
+    );
 
     // Read inner state value
     let message = Message {
