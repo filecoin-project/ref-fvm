@@ -1,5 +1,5 @@
 [package]
-name = "fil_abstract_account_actor"
+name = "fil_validate_actor"
 version = "0.1.0"
 edition = "2021"
 publish = false

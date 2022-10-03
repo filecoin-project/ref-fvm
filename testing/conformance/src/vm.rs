@@ -208,6 +208,10 @@ where
             .send::<TestKernel<K>>(from, to, method, params, value)
     }
 
+    fn set_execution_type(&mut self, execution_type: ExecutionType) {
+        self.0.set_execution_type(execution_type)
+    }
+
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,

@@ -92,6 +92,10 @@ where
         })))
     }
 
+    fn set_execution_type(&mut self, execution_type: ExecutionType) {
+        self.execution_type = execution_type;
+    }
+
     fn send<K>(
         &mut self,
         from: ActorID,
@@ -606,7 +610,7 @@ where
         // Ensure that actor's code is loaded and cached in the engine.
         // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
         // listed the manifest, and therefore preloaded during system initialization.
-        #[cfg(feature = "m2-native")]
+        // #[cfg(feature = "m2-native")]
         self.engine()
             .prepare_actor_code(&state.code, self.blockstore())
             .map_err(

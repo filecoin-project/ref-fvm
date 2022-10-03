@@ -5,7 +5,7 @@ use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
-use crate::call_manager::{CallManager, InvocationResult};
+use crate::call_manager::{CallManager, InvocationResult, ExecutionType};
 use crate::executor::GasSpec;
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
@@ -69,6 +69,7 @@ where
                 (sender_id, msg.from),
                 msg.sequence,
             );
+            cm.set_execution_type(ExecutionType::Validator);
 
             // Dont charge gas inclusion cost depending on where this is called
             // TODO probably a context type to indicate when this is being ran
@@ -88,16 +89,11 @@ where
             };
             let params = params.unwrap(); // TODO err
 
-            let result = cm.with_transaction(|cm| {
-                // TODO call validate instead of invoke
-                // Invoke the message.
-                let ret = cm.validate::<K>(params, sender_id)?;
-
-                Ok(ret)
-            });
+            let ret = cm.validate::<K>(params, sender_id);
+            println!("{ret:?}");
             let (res, machine) = cm.finish();
             (
-                Ok((result, res.gas_used, res.backtrace, res.exec_trace)),
+                Ok((ret, res.gas_used, res.backtrace, res.exec_trace)),
                 machine,
             )
         })?;
@@ -119,13 +115,13 @@ where
                 if exit_code.is_success() {
                     return Err(anyhow!("actor failed with status OK"));
                 }
-                Err(())
+                Err(ExecutionError::Fatal(anyhow!("validation failed")))
             }
-            Err(_) => Err(()),
+            Err(e) => Err(e),
         };
 
         let ret = result
-            .map_err(|_| anyhow!("actor failed to validate with TODO"))?
+            .map_err(|e| anyhow!("actor failed to validate: {e}"))?
             .deserialize::<GasSpec>()
             .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
         Ok(ret)

@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
-use fil_abstract_account_actor::WASM_BINARY as VALIDATE_BINARY;
+use fil_validate_actor::WASM_BINARY as VALIDATE_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
