@@ -12,7 +12,7 @@ minicov = {version = "0.2", optional = true}
 multihash = "0.16.3"
 
 [build-dependencies]
-wasm-builder = "3.0.1"
+substrate-wasm-builder = "4.0.0"
 
 [features]
 coverage = ["minicov"]
