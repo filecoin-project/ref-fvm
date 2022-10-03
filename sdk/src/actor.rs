@@ -12,7 +12,7 @@ use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN};
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
 /// addresss was already an actor ID).
-/// 
+///
 /// Panics inside validate context
 pub fn resolve_address(addr: &Address) -> Option<ActorID> {
     if let &Payload::ID(id) = addr.payload() {
@@ -30,7 +30,7 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
 }
 
 /// Look up the code ID at an actor address. Returns `None` if the actor cannot be found.
-/// 
+///
 /// Panics inside validate context
 pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
     // In most cases, this address will already be resolved (e.g., the caller, receiver, etc.) so

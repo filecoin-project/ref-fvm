@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
-use fvm::executor::DefaultExecutor;
+use fvm::executor::{DefaultExecutor, DefaultValidateExecutor};
 use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
@@ -24,7 +24,7 @@ const DEFAULT_BASE_FEE: u64 = 100;
 pub trait Store: Blockstore + Sized + 'static {}
 
 pub type IntegrationExecutor<B, E> =
-    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
+    DefaultValidateExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
 
 pub type Account = (ActorID, Address);
 
@@ -175,13 +175,13 @@ where
             externs,
         )?;
 
-        let executor =
-            DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>::new(
-                machine,
-            );
+        let executor = DefaultValidateExecutor(DefaultExecutor::<
+            DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>,
+        >::new(machine));
         executor
+            .0
             .engine()
-            .preload(executor.blockstore(), &self.code_cids)?;
+            .preload(executor.0.blockstore(), &self.code_cids)?;
 
         self.executor = Some(executor);
 
@@ -191,7 +191,7 @@ where
     /// Get blockstore
     pub fn blockstore(&self) -> &dyn Blockstore {
         if self.executor.is_some() {
-            self.executor.as_ref().unwrap().blockstore()
+            self.executor.as_ref().unwrap().0.blockstore()
         } else {
             self.state_tree.as_ref().unwrap().store()
         }

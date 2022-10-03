@@ -41,7 +41,7 @@ pub fn set_root(cid: &Cid) -> Result<(), NoStateError> {
 }
 
 /// Gets the current balance for the calling actor.
-/// 
+///
 /// Panics inside of Validate contexts.
 #[inline(always)]
 pub fn current_balance() -> TokenAmount {

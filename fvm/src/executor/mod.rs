@@ -11,30 +11,15 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::sys::out::validate::GasSpec;
 use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 pub use threaded::ThreadedExecutor;
+pub use validator::DefaultValidateExecutor;
 
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
 use crate::Kernel;
-
-/// TODO
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GasSpec {
-    gas_limit: i64,
-    gas_fee_cap: TokenAmount,
-    gas_premium: TokenAmount,
-}
-
-/// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ValidateParams {
-    signature: Vec<u8>,
-    message_payload: Message,
-}
-
-impl Cbor for ValidateParams {}
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///

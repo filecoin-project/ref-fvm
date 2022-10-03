@@ -9,7 +9,7 @@ use crate::vm::INVOCATION_CONTEXT;
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Returns the ID address of the caller.
-/// 
+///
 /// Panics inside validate context
 #[inline(always)]
 pub fn caller() -> ActorID {

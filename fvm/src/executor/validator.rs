@@ -1,11 +1,12 @@
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
+use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
 use crate::call_manager::{CallManager, InvocationResult};
-use crate::executor::{GasSpec, ValidateParams};
+use crate::executor::GasSpec;
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
 use crate::Kernel;
@@ -78,11 +79,8 @@ where
             // }
 
             let params = {
-                let params = ValidateParams {
-                    signature: sig,
-                    message_payload: msg,
-                }
-                .marshal_cbor();
+                let params = ValidateParams::new(msg, sig).marshal_cbor();
+
                 match params {
                     Err(_) => return (Err(ExecutionError::OutOfGas), cm.finish().1),
                     Ok(params) => Some(Block::new(DAG_CBOR, params)),

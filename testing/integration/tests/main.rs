@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fil_abstract_account_actor::WASM_BINARY as VALIDATE_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
-use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
+use fvm::executor::{ApplyKind, Executor, ThreadedExecutor, ValidateExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -75,6 +76,54 @@ fn hello_world() {
         .unwrap();
 
     assert_eq!(res.msg_receipt.exit_code.value(), 16)
+}
+
+#[test]
+fn validate() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V15,
+        StateTreeVersion::V4,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = VALIDATE_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 1,
+        ..Message::default()
+    };
+
+    let sig = vec![1; 32];
+
+    let res = tester
+        .executor
+        .unwrap()
+        .validate_message(message, sig)
+        .unwrap();
+
+    // assert_eq!(res.msg_receipt.exit_code.value(), 16)
 }
 
 #[test]

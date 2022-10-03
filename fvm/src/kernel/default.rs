@@ -687,7 +687,7 @@ impl<C> NetworkOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn network_epoch(&self) -> ChainEpoch {        
+    fn network_epoch(&self) -> ChainEpoch {
         self.call_manager.context().epoch
     }
 

@@ -93,3 +93,27 @@ impl<'de> Deserialize<'de> for Message {
         })
     }
 }
+
+pub mod params {
+    use serde::{Deserialize, Serialize};
+
+    use super::{Cbor, Message};
+
+    /// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct ValidateParams {
+        signature: Vec<u8>,
+        message: Message,
+    }
+
+    impl ValidateParams {
+        pub fn new(msg: Message, sig: Vec<u8>) -> Self {
+            Self {
+                signature: sig,
+                message: msg,
+            }
+        }
+    }
+
+    impl Cbor for ValidateParams {}
+}

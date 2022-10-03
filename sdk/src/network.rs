@@ -7,12 +7,10 @@ use fvm_shared::version::NetworkVersion;
 use crate::sys;
 use crate::vm::INVOCATION_CONTEXT;
 
-
 /// Panics inside validate context
 pub fn curr_epoch() -> ChainEpoch {
     INVOCATION_CONTEXT.network_curr_epoch
 }
-
 
 /// Panics inside validate context
 pub fn version() -> NetworkVersion {
