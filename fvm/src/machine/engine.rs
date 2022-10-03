@@ -99,15 +99,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
 
-    // wasmtime default: depends on the arch
-    // > This is true by default on x86-64, and false by default on other architectures.
-    //
-    // Not supported in wasm-instrument/parity-wasm; adding support will be complicated.
-    // Note: stack limits may need adjusting after this is enabled
-    // NOTE: only needed when backtraces are enabled.
-    #[cfg(feature = "wasmtime/wasm-backtrace")]
-    c.wasm_reference_types(false);
-
     // wasmtime default: false
     //
     // from wasmtime docs:
@@ -132,6 +123,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.debug_info(false);
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
+    c.wasm_backtrace(false);
+    c.wasm_reference_types(false);
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
