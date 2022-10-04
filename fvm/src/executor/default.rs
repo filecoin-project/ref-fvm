@@ -33,7 +33,7 @@ impl<K: Kernel> Deref for DefaultExecutor<K> {
     type Target = <K::CallManager as CallManager>::Machine;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0.as_ref().expect("machine poisoned")
+        self.0.as_ref().expect("machine poisoned")
     }
 }
 
@@ -209,7 +209,7 @@ where
 
     /// Flush the state-tree to the underlying blockstore.
     fn flush(&mut self) -> anyhow::Result<Cid> {
-        let k = (&mut **self).flush()?;
+        let k = (**self).flush()?;
         Ok(k)
     }
 }

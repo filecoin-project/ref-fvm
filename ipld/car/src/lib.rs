@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use util::{ld_read, ld_write, read_node};
 
 /// CAR file header
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CarHeader {
     pub roots: Vec<Cid>,
     pub version: u64,
@@ -169,12 +169,12 @@ where
     while let Some(block) = car_reader.next_block().await? {
         buf.push((block.cid, block.data));
         if buf.len() > 1000 {
-            s.put_many_keyed(buf.iter().map(|(k, v)| (*k, &*v)))
+            s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
                 .map_err(|e| Error::Other(e.to_string()))?;
             buf.clear();
         }
     }
-    s.put_many_keyed(buf.iter().map(|(k, v)| (*k, &*v)))
+    s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
         .map_err(|e| Error::Other(e.to_string()))?;
     Ok(car_reader.header.roots)
 }
