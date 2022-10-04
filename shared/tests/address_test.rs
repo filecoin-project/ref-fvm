@@ -48,7 +48,7 @@ struct AddressTestVec<'a> {
 
 fn test_address(addr: Address, protocol: Protocol, expected: &'static str) {
     // Test encoding to string
-    assert_eq!(expected.to_owned(), addr.to_string());
+    assert_eq!(expected, &addr.to_string());
 
     // Test decoding from string
     let decoded = Address::from_str(expected).unwrap();
@@ -230,17 +230,17 @@ fn delegated_address() {
         F4TestVec {
             namespace: 32,
             subaddr: &[0xff; 5],
-            expected: "f432-77777777",
+            expected: "f432-77777777x32lpna",
         },
         F4TestVec {
             namespace: std::u64::MAX,
             subaddr: &[],
-            expected: "f418446744073709551615-",
+            expected: "f418446744073709551615-tnkyfaq",
         },
         F4TestVec {
             namespace: 100,
             subaddr: &[0; MAX_SUBADDRESS_LEN],
-            expected: "f4100-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            expected: "f4100-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacf47tke",
         },
     ];
 

@@ -38,7 +38,7 @@ pub const SECP_PUB_LEN: usize = 65;
 pub const BLS_PUB_LEN: usize = 48;
 
 /// Max length of f4 sub addresses.
-pub const MAX_SUBADDRESS_LEN: usize = 32; // TODO: decide on a final length.
+pub const MAX_SUBADDRESS_LEN: usize = 54;
 
 /// Defines first available ID address after builtin actors
 pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
@@ -57,7 +57,7 @@ lazy_static::lazy_static! {
 /// Length of the checksum hash for string encodings.
 pub const CHECKSUM_HASH_LEN: usize = 4;
 
-const MAX_ADDRESS_LEN: usize = 84 + 2; // TODO: update for f4
+const MAX_ADDRESS_LEN: usize = 115;
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
@@ -208,33 +208,43 @@ impl fmt::Display for Address {
         fn write_payload(
             f: &mut fmt::Formatter<'_>,
             protocol: Protocol,
+            prefix: Option<&[u8]>,
             data: &[u8],
         ) -> fmt::Result {
+            let mut hasher = blake2b_simd::Params::new()
+                .hash_length(CHECKSUM_HASH_LEN)
+                .to_state();
+            hasher.update(&[protocol as u8]);
+            if let Some(prefix) = prefix {
+                hasher.update(prefix);
+            }
+            hasher.update(data);
+
             let mut buf = Vec::with_capacity(data.len() + CHECKSUM_HASH_LEN);
             buf.extend(data);
-            buf.extend(
-                blake2b_simd::Params::new()
-                    .hash_length(CHECKSUM_HASH_LEN)
-                    .to_state()
-                    .update(&[protocol as u8])
-                    .update(data)
-                    .finalize()
-                    .as_bytes(),
-            );
+            buf.extend(hasher.finalize().as_bytes());
 
             f.write_str(&ADDRESS_ENCODER.encode(&buf))
         }
 
         match self.payload() {
             Payload::ID(id) => write!(f, "{}", id),
-            Payload::Secp256k1(data) | Payload::Actor(data) => write_payload(f, protocol, data),
-            Payload::BLS(data) => write_payload(f, protocol, data),
-            Payload::Delegated(addr) => write!(
-                f,
-                "{}-{}",
-                addr.namespace(),
-                ADDRESS_ENCODER.encode(addr.subaddress())
-            ),
+            Payload::Secp256k1(data) | Payload::Actor(data) => {
+                write_payload(f, protocol, None, data)
+            }
+            Payload::BLS(data) => write_payload(f, protocol, None, data),
+            Payload::Delegated(addr) => {
+                write!(f, "{}-", addr.namespace())?;
+                write_payload(
+                    f,
+                    protocol,
+                    Some(unsigned_varint::encode::u64(
+                        addr.namespace(),
+                        &mut unsigned_varint::encode::u64_buffer(),
+                    )),
+                    addr.subaddress(),
+                )
+            }
         }
     }
 }
@@ -266,6 +276,29 @@ impl FromStr for Address {
             }
         };
 
+        fn validate_and_split_checksum<'a>(
+            protocol: Protocol,
+            prefix: Option<&[u8]>,
+            payload: &'a [u8],
+        ) -> Result<&'a [u8], Error> {
+            if payload.len() < CHECKSUM_HASH_LEN {
+                return Err(Error::InvalidLength);
+            }
+            let (payload, csum) = payload.split_at(payload.len() - CHECKSUM_HASH_LEN);
+            let mut hasher = blake2b_simd::Params::new()
+                .hash_length(CHECKSUM_HASH_LEN)
+                .to_state();
+            hasher.update(&[protocol as u8]);
+            if let Some(prefix) = prefix {
+                hasher.update(prefix);
+            }
+            hasher.update(payload);
+            if hasher.finalize().as_bytes() != csum {
+                return Err(Error::InvalidChecksum);
+            }
+            Ok(payload)
+        }
+
         // bytes after the protocol character is the data payload of the address
         let raw = addr.get(2..).ok_or(Error::InvalidPayload)?;
         match protocol {
@@ -282,22 +315,33 @@ impl FromStr for Address {
             }
             Protocol::Delegated => {
                 let (id, subaddr) = raw.split_once('-').ok_or(Error::InvalidPayload)?;
+                if id.len() > 20 {
+                    // 20 is max u64 as string
+                    return Err(Error::InvalidLength);
+                }
                 let id = id.parse::<u64>()?;
-                let subaddr = ADDRESS_ENCODER.decode(subaddr.as_bytes())?;
+                // decode subaddr
+                let subaddr_csum = ADDRESS_ENCODER.decode(subaddr.as_bytes())?;
+                // validate and split subaddr.
+                let subaddr = validate_and_split_checksum(
+                    protocol,
+                    Some(unsigned_varint::encode::u64(
+                        id,
+                        &mut unsigned_varint::encode::u64_buffer(),
+                    )),
+                    &subaddr_csum,
+                )?;
+
                 Ok(Address {
                     network,
-                    payload: Payload::Delegated(DelegatedAddress::new(id, &subaddr)?),
+                    payload: Payload::Delegated(DelegatedAddress::new(id, subaddr)?),
                 })
             }
             Protocol::Secp256k1 | Protocol::Actor | Protocol::BLS => {
                 // decode using byte32 encoding
-                let payload = ADDRESS_ENCODER.decode(raw.as_bytes())?;
-
-                // payload includes checksum at end, so split after decoding
-                if payload.len() < CHECKSUM_HASH_LEN {
-                    return Err(Error::InvalidLength);
-                }
-                let (payload, checksum) = payload.split_at(payload.len() - CHECKSUM_HASH_LEN);
+                let payload_csum = ADDRESS_ENCODER.decode(raw.as_bytes())?;
+                // validate and split payload.
+                let payload = validate_and_split_checksum(protocol, None, &payload_csum)?;
 
                 // sanity check to make sure address hash values are correct length
                 if match protocol {
@@ -307,19 +351,6 @@ impl FromStr for Address {
                 } != payload.len()
                 {
                     return Err(Error::InvalidPayload);
-                }
-
-                // Validate checksum.
-                if blake2b_simd::Params::new()
-                    .hash_length(CHECKSUM_HASH_LEN)
-                    .to_state()
-                    .update(&[protocol as u8])
-                    .update(payload)
-                    .finalize()
-                    .as_bytes()
-                    != checksum
-                {
-                    return Err(Error::InvalidChecksum);
                 }
 
                 Address::new(network, protocol, payload)
