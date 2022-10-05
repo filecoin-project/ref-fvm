@@ -361,8 +361,13 @@ where
         self.0.new_actor_address()
     }
 
-    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
-        self.0.create_actor(code_id, actor_id)
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
+        self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
@@ -380,6 +385,10 @@ where
 
     fn balance_of(&self, _actor_id: ActorID) -> Result<TokenAmount> {
         todo!()
+    }
+
+    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        self.0.lookup_address(actor_id)
     }
 }
 

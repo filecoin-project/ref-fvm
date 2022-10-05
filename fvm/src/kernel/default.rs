@@ -782,7 +782,12 @@ where
     }
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
-    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
         // TODO https://github.com/filecoin-project/builtin-actors/issues/492
         let singleton = self
             .call_manager
@@ -806,6 +811,20 @@ where
                     .builtin_actors()
                     .is_embryo_actor(&act.code) =>
             {
+                if act.address.is_none() {
+                    // The FVM made a mistake somewhere.
+                    return Err(ExecutionError::Fatal(anyhow!(
+                        "embryo {actor_id} doesn't have a predictable address"
+                    )));
+                }
+                if act.address != predictable_address {
+                    // The Init actor made a mistake?
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "embryo has a different predictable address"
+                    )
+                    .into());
+                }
                 act.code = code_id;
                 act
             }
@@ -817,7 +836,7 @@ where
             None => {
                 self.call_manager
                     .charge_gas(self.call_manager.price_list().on_create_actor())?;
-                ActorState::new_empty(code_id)
+                ActorState::new_empty(code_id, predictable_address)
             }
         };
 
@@ -862,6 +881,15 @@ where
             .map(|a| a.balance)
             .unwrap_or_default();
         Ok(balance)
+    }
+
+    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        Ok(self
+            .call_manager
+            .state_tree()
+            .get_actor_id(actor_id)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .address)
     }
 }
 

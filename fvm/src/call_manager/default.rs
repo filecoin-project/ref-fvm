@@ -278,7 +278,7 @@ where
         // Create the actor in the state tree.
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
-            let state = ActorState::new_empty(*code_cid);
+            let state = ActorState::new_empty(*code_cid, Some(*addr));
             self.create_actor(addr, state)?
         };
 
@@ -314,7 +314,7 @@ where
         // Create the actor in the state tree, but don't call any constructor.
         let code_cid = self.builtin_actors().get_embryo_code();
 
-        let state = ActorState::new_empty(*code_cid);
+        let state = ActorState::new_empty(*code_cid, Some(*addr));
         self.create_actor(addr, state)
     }
 

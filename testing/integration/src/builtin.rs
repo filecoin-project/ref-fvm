@@ -38,6 +38,7 @@ pub fn set_sys_actor(
         state: sys_state_cid,
         sequence: 0,
         balance: Default::default(),
+        address: None,
     };
     state_tree
         .set_actor(&system_actor::SYSTEM_ACTOR_ADDR, sys_actor_state)
@@ -60,6 +61,7 @@ pub fn set_init_actor(
         state: init_state_cid,
         sequence: 0,
         balance: Default::default(),
+        address: None,
     };
 
     state_tree

@@ -8,7 +8,7 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
-use fvm_shared::address::Address;
+use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -120,12 +120,14 @@ where
         actor_address: Address,
         balance: TokenAmount,
     ) -> Result<Cid> {
-        // Register actor address
-        self.state_tree
-            .as_mut()
-            .unwrap()
-            .register_new_address(&actor_address)
-            .unwrap();
+        // Register actor address (unless ID)
+        if !actor_address.id().is_ok() {
+            self.state_tree
+                .as_mut()
+                .unwrap()
+                .register_new_address(&actor_address)
+                .unwrap();
+        }
 
         // Put the WASM code into the blockstore.
         let code_cid = put_wasm_code(self.state_tree.as_mut().unwrap().store(), wasm_bin)?;
@@ -134,7 +136,16 @@ where
         self.code_cids.push(code_cid);
 
         // Initialize actor state
-        let actor_state = ActorState::new(code_cid, state_cid, balance, 1);
+        let actor_state = ActorState::new(
+            code_cid,
+            state_cid,
+            balance,
+            1,
+            match actor_address.protocol() {
+                Protocol::ID | Protocol::Actor => None,
+                _ => Some(actor_address),
+            },
+        );
 
         // Create actor
         self.state_tree
@@ -222,6 +233,7 @@ where
             state: cid,
             sequence: 0,
             balance: init_balance,
+            address: Some(pub_key_addr),
         };
 
         state_tree

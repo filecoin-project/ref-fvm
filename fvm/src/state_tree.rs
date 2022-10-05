@@ -520,26 +520,38 @@ pub struct ActorState {
     pub sequence: u64,
     /// Tokens available to the actor.
     pub balance: TokenAmount,
+    /// The actor's "predictable" address, if assigned.
+    ///
+    /// This field is set on actor creation and never modified.
+    pub address: Option<Address>,
 }
 
 impl ActorState {
     /// Constructor for actor state
-    pub fn new(code: Cid, state: Cid, balance: TokenAmount, sequence: u64) -> Self {
+    pub fn new(
+        code: Cid,
+        state: Cid,
+        balance: TokenAmount,
+        sequence: u64,
+        address: Option<Address>,
+    ) -> Self {
         Self {
             code,
             state,
             sequence,
             balance,
+            address,
         }
     }
 
     /// Construct a new empty actor with the specified code.
-    pub fn new_empty(code: Cid) -> Self {
+    pub fn new_empty(code: Cid, address: Option<Address>) -> Self {
         ActorState {
             code,
             state: *EMPTY_ARR_CID,
             sequence: 0,
             balance: TokenAmount::zero(),
+            address,
         }
     }
 
@@ -673,8 +685,8 @@ mod tests {
 
     #[test]
     fn get_set_cache() {
-        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1);
-        let act_a = ActorState::new(empty_cid(), empty_cid(), Default::default(), 2);
+        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1, None);
+        let act_a = ActorState::new(empty_cid(), empty_cid(), Default::default(), 2, None);
         let addr = Address::new_id(1);
         let store = MemoryBlockstore::default();
         let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
@@ -697,7 +709,7 @@ mod tests {
         let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
 
         let addr = Address::new_id(3);
-        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1);
+        let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1, None);
         tree.set_actor(&addr, act_s.clone()).unwrap();
         assert_eq!(tree.get_actor(&addr).unwrap(), Some(act_s));
         tree.delete_actor(&addr).unwrap();
@@ -716,7 +728,13 @@ mod tests {
             .map_err(|e| e.to_string())
             .unwrap();
 
-        let act_s = ActorState::new(*DUMMY_INIT_ACTOR_CODE_ID, state_cid, Default::default(), 1);
+        let act_s = ActorState::new(
+            *DUMMY_INIT_ACTOR_CODE_ID,
+            state_cid,
+            Default::default(),
+            1,
+            None,
+        );
 
         tree.begin_transaction();
         tree.set_actor(&INIT_ACTOR_ADDR, act_s).unwrap();
@@ -734,7 +752,8 @@ mod tests {
                 code: *DUMMY_INIT_ACTOR_CODE_ID,
                 state: state_cid,
                 balance: Default::default(),
-                sequence: 2
+                sequence: 2,
+                address: None
             })
         );
 
@@ -764,6 +783,7 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
                 1,
+                None,
             ),
         )
         .unwrap();
@@ -775,6 +795,7 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
                 1,
+                None,
             ),
         )
         .unwrap();
@@ -785,6 +806,7 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
                 1,
+                None,
             ),
         )
         .unwrap();
@@ -797,7 +819,8 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
-                1
+                1,
+                None,
             )
         );
         assert_eq!(
@@ -806,7 +829,8 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
-                1
+                1,
+                None,
             )
         );
 
@@ -816,7 +840,8 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
-                1
+                1,
+                None
             )
         );
     }
@@ -837,6 +862,7 @@ mod tests {
                 *DUMMY_ACCOUNT_ACTOR_CODE_ID,
                 TokenAmount::from_atto(55),
                 1,
+                None,
             ),
         )
         .unwrap();
