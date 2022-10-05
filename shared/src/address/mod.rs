@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod context;
+mod default;
 mod errors;
 mod network;
 mod payload;
@@ -17,7 +17,7 @@ use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-pub use self::context::AddressContext;
+pub use self::default::{default_network, set_default_network};
 pub use self::errors::Error;
 pub use self::network::Network;
 use self::payload::DelegatedAddress;
@@ -86,57 +86,63 @@ impl Address {
     }
 
     /// Creates address from encoded bytes
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn from_bytes(bz: &[u8]) -> Result<Self, Error> {
         if bz.len() < 2 {
             Err(Error::InvalidLength)
         } else {
             let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
-            Self::new(AddressContext::instance().network(), protocol, &bz[1..])
+            Self::new(default_network(), protocol, &bz[1..])
         }
     }
 
     /// Generates new address using ID protocol
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_id(id: u64) -> Self {
         Self {
-            network: AddressContext::instance().network(),
+            network: default_network(),
             payload: Payload::ID(id),
         }
     }
 
     /// Generates new address using Secp256k1 pubkey
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != 65 {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
-            network: AddressContext::instance().network(),
+            network: default_network(),
             payload: Payload::Secp256k1(address_hash(pubkey)),
         })
     }
 
     /// Generates new address using the Actor protocol
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
-            network: AddressContext::instance().network(),
+            network: default_network(),
             payload: Payload::Actor(address_hash(data)),
         }
     }
 
     /// Generates a new delegated address from a namespace and a subaddress.
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
-            network: AddressContext::instance().network(),
+            network: default_network(),
             payload: Payload::Delegated(DelegatedAddress::new(ns, subaddress)?),
         })
     }
 
     /// Generates new address using BLS pubkey
-    /// This API respects the [Network] tag from [AddressContext]
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_bls(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != BLS_PUB_LEN {
             return Err(Error::InvalidBLSLength(pubkey.len()));
@@ -144,7 +150,7 @@ impl Address {
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
         Ok(Self {
-            network: AddressContext::instance().network(),
+            network: default_network(),
             payload: Payload::BLS(key),
         })
     }
