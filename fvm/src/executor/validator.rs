@@ -6,7 +6,6 @@ use fvm_shared::message::Message;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
 use crate::call_manager::{CallManager, ExecutionType, InvocationResult};
-use crate::executor::GasSpec;
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
 use crate::Kernel;
@@ -42,7 +41,7 @@ where
     type Validator = K;
 
     /// validate a message from an abstract account with a delegate signature
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<super::GasSpec> {
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<bool> {
         const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
 
         // Load sender actor state.
@@ -68,6 +67,7 @@ where
                 VALIDATION_GAS_LIMIT,
                 (sender_id, msg.from),
                 msg.sequence,
+                msg.gas_premium.clone(),
             );
             cm.set_execution_type(ExecutionType::Validator);
 
@@ -121,7 +121,7 @@ where
 
         let ret = result
             .map_err(|e| anyhow!("actor failed to validate: {e}"))?
-            .deserialize::<GasSpec>()
+            .deserialize::<bool>()
             .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
         Ok(ret)
     }

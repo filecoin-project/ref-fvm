@@ -4,7 +4,6 @@ use {
     fvm_sdk as sdk,
     fvm_shared::econ::TokenAmount,
     fvm_shared::message::params::ValidateParams,
-    fvm_shared::sys::out::validate::GasSpec,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -36,12 +35,6 @@ pub fn validate(msg: u32) -> u32 {
     //     Some("sample abort"),
     // )
 
-    let spec = GasSpec {
-        gas_limit: 1000, // TODO if we are letting this be chosen by user, are we adding that to whatever is expended here?
-        gas_fee_cap: TokenAmount::from_whole(1),
-        gas_premium: TokenAmount::from_atto(1),
-    };
-
-    sdk::ipld::put_block(DAG_CBOR, RawBytes::serialize(spec).unwrap().bytes())
+    sdk::ipld::put_block(DAG_CBOR, RawBytes::serialize(true).unwrap().bytes())
         .expect("failed to write result")
 }

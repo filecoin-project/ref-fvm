@@ -264,6 +264,10 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
+    fn set_execution_type(&mut self, execution_type: fvm::call_manager::ExecutionType) {
+        todo!()
+    }
+
     fn finish(self) -> (FinishRet, Self::Machine) {
         (
             FinishRet {

@@ -56,26 +56,12 @@ pub mod crypto {
     }
 }
 
-pub mod validate {
-    use serde::{Deserialize, Serialize};
-
-    use crate::econ::TokenAmount;
-
-    /// TODO
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct GasSpec {
-        pub gas_limit: i64,
-        pub gas_fee_cap: TokenAmount,
-        pub gas_premium: TokenAmount,
-    }
-}
-
 pub mod vm {
     use crate::clock::ChainEpoch;
     use crate::sys::TokenAmount;
     use crate::{ActorID, MethodNum};
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Clone, Copy)]
     #[repr(packed, C)]
     pub struct InvocationContext {
         /// The value that was received.

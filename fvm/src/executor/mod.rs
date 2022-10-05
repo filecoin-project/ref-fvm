@@ -11,7 +11,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::sys::out::validate::GasSpec;
 use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 pub use threaded::ThreadedExecutor;
@@ -51,7 +50,7 @@ pub trait ValidateExecutor: Executor {
     type Validator: Kernel;
 
     /// This is the entrypoint to validate a message from an abstract account.
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<GasSpec>;
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<bool>;
 }
 
 /// A description of some failure encountered when applying a message.
