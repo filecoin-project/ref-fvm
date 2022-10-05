@@ -86,6 +86,7 @@ impl Address {
     }
 
     /// Creates address from encoded bytes
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn from_bytes(bz: &[u8]) -> Result<Self, Error> {
         if bz.len() < 2 {
             Err(Error::InvalidLength)
@@ -96,6 +97,7 @@ impl Address {
     }
 
     /// Generates new address using ID protocol
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn new_id(id: u64) -> Self {
         Self {
             network: AddressContext::instance().network(),
@@ -104,6 +106,7 @@ impl Address {
     }
 
     /// Generates new address using Secp256k1 pubkey
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != 65 {
             return Err(Error::InvalidSECPLength(pubkey.len()));
@@ -115,6 +118,7 @@ impl Address {
     }
 
     /// Generates new address using the Actor protocol
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
             network: AddressContext::instance().network(),
@@ -123,6 +127,7 @@ impl Address {
     }
 
     /// Generates a new delegated address from a namespace and a subaddress.
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
             network: AddressContext::instance().network(),
@@ -131,6 +136,7 @@ impl Address {
     }
 
     /// Generates new address using BLS pubkey
+    /// This API respects the [Network] tag from [AddressContext]
     pub fn new_bls(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != BLS_PUB_LEN {
             return Err(Error::InvalidBLSLength(pubkey.len()));
