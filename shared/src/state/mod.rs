@@ -8,7 +8,7 @@ use fvm_ipld_encoding::Cbor;
 use serde::{Deserialize, Serialize};
 
 /// Specifies the version of the state tree
-#[derive(Debug, PartialEq, Clone, Copy, PartialOrd, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum StateTreeVersion {
     /// Corresponds to actors < v2

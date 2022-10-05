@@ -107,6 +107,9 @@ pub fn bind_syscalls(
         network::total_fil_circ_supply,
     )?;
 
+    linker.bind("network", "tipset_timestamp", network::tipset_timestamp)?;
+    linker.bind("network", "tipset_cid", network::tipset_cid)?;
+
     linker.bind("ipld", "block_open", ipld::block_open)?;
     linker.bind("ipld", "block_create", ipld::block_create)?;
     linker.bind("ipld", "block_read", ipld::block_read)?;
@@ -136,6 +139,8 @@ pub fn bind_syscalls(
     // Only wire this syscall when M2 native is enabled.
     #[cfg(feature = "m2-native")]
     linker.bind("actor", "install_actor", actor::install_actor)?;
+
+    linker.bind("actor", "balance_of", actor::balance_of)?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind(
@@ -172,6 +177,7 @@ pub fn bind_syscalls(
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
 
     linker.bind("gas", "charge", gas::charge_gas)?;
+    linker.bind("gas", "available", gas::available)?;
 
     // Ok, this singled-out syscall should probably be in another category.
     linker.bind("send", "send", send::send)?;

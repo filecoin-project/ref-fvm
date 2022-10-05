@@ -19,7 +19,7 @@ pub type SealRandomness = Randomness;
 pub type InteractiveSealRandomness = Randomness;
 
 /// Information needed to verify a seal proof.
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct SealVerifyInfo {
     pub registered_proof: RegisteredSealProof,
     pub sector_id: SectorID,
@@ -39,7 +39,7 @@ impl Cbor for SealVerifyInfo {}
 /// a message to commit a sector. Most of this information is not needed in the
 /// state tree but will be verified in sm.CommitSector. See SealCommitment for
 /// data stored on the state tree for each sector.
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct SealVerifyParams {
     pub sealed_cid: Cid,
     pub interactive_epoch: ChainEpoch,
@@ -52,7 +52,7 @@ pub struct SealVerifyParams {
 }
 
 /// Information needed to verify an aggregated seal proof.
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct AggregateSealVerifyInfo {
     pub sector_number: SectorNumber,
     pub randomness: SealRandomness,
@@ -62,7 +62,7 @@ pub struct AggregateSealVerifyInfo {
     pub unsealed_cid: Cid, // Commd
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct AggregateSealVerifyProofAndInfos {
     pub miner: ActorID,
     pub seal_proof: RegisteredSealProof,
@@ -76,7 +76,7 @@ pub struct AggregateSealVerifyProofAndInfos {
 impl Cbor for AggregateSealVerifyProofAndInfos {}
 
 /// Information needed to verify a replica update
-#[derive(Clone, Debug, PartialEq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct ReplicaUpdateInfo {
     pub update_proof_type: RegisteredUpdateProof,
     pub old_sealed_cid: Cid,

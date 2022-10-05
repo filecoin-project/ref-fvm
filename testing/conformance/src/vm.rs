@@ -190,8 +190,14 @@ where
 {
     type Machine = C::Machine;
 
-    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self {
-        TestCallManager(C::new(machine, gas_limit, origin, nonce))
+    fn new(
+        machine: Self::Machine,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        gas_premium: TokenAmount,
+    ) -> Self {
+        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium))
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -348,6 +354,10 @@ where
             data,
         )
     }
+
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
+        self.0.machine()
+    }
 }
 
 impl<M, C, K> ActorOps for TestKernel<K>
@@ -383,6 +393,10 @@ where
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
         Ok(())
+    }
+
+    fn balance_of(&self, _actor_id: ActorID) -> Result<TokenAmount> {
+        todo!()
     }
 }
 
@@ -590,6 +604,14 @@ where
     fn msg_value_received(&self) -> TokenAmount {
         self.0.msg_value_received()
     }
+
+    fn msg_gas_premium(&self) -> TokenAmount {
+        self.0.msg_gas_premium()
+    }
+
+    fn msg_gas_limit(&self) -> u64 {
+        self.0.msg_gas_limit()
+    }
 }
 
 impl<M, C, K> NetworkOps for TestKernel<K>
@@ -608,6 +630,14 @@ where
 
     fn network_base_fee(&self) -> &TokenAmount {
         self.0.network_base_fee()
+    }
+
+    fn tipset_timestamp(&self) -> u64 {
+        todo!()
+    }
+
+    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
+        todo!()
     }
 }
 

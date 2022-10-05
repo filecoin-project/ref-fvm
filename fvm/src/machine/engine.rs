@@ -12,6 +12,7 @@ use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
+use super::Machine;
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
@@ -99,15 +100,6 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
 
-    // wasmtime default: depends on the arch
-    // > This is true by default on x86-64, and false by default on other architectures.
-    //
-    // Not supported in wasm-instrument/parity-wasm; adding support will be complicated.
-    // Note: stack limits may need adjusting after this is enabled
-    // NOTE: only needed when backtraces are enabled.
-    #[cfg(feature = "wasmtime/wasm-backtrace")]
-    c.wasm_reference_types(false);
-
     // wasmtime default: false
     //
     // from wasmtime docs:
@@ -121,7 +113,7 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // wasmtime default: 512KiB
     // Set to something much higher than the instrumented limiter.
     // Note: This is in bytes, while the instrumented limit is in stack elements
-    c.max_wasm_stack(4 << 20).unwrap();
+    c.max_wasm_stack(4 << 20);
 
     // Execution cost accouting is done through wasm instrumentation,
     c.consume_fuel(false);
@@ -132,6 +124,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.debug_info(false);
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
+    c.wasm_backtrace(false);
+    c.wasm_reference_types(false);
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
@@ -340,18 +334,30 @@ impl Engine {
     }
 
     /// Lookup a loaded wasmtime module.
-    pub fn get_module(&self, k: &Cid) -> Option<Module> {
+    pub fn get_module(
+        &self,
+        blockstore: &impl Blockstore,
+        k: &Cid,
+    ) -> anyhow::Result<Option<Module>> {
         let k = self.with_redirect(k);
-        self.0
+        match self
+            .0
             .module_cache
             .lock()
             .expect("module_cache poisoned")
-            .get(k)
-            .cloned()
+            .entry(*k)
+        {
+            Occupied(v) => Ok(Some(v.get().clone())),
+            Vacant(v) => blockstore
+                .get(k)
+                .context("failed to lookup wasm module in blockstore")?
+                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?).clone()))
+                .transpose(),
+        }
     }
 
     /// Lookup and instantiate a loaded wasmtime module with the given store. This will cache the
-    /// linker, syscalls, "pre" isntance, etc.
+    /// linker, syscalls, etc.
     pub fn get_instance<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
@@ -381,14 +387,25 @@ impl Engine {
             .linker
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
-        let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
-        let module = match module_cache.get(k) {
-            Some(module) => module,
-            None => return Ok(None),
-        };
-        let instance = cache.linker.instantiate(&mut *store, module)?;
-
-        Ok(Some(instance))
+        let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        match module_cache.entry(*k) {
+            Occupied(v) => Ok(Some(cache.linker.instantiate(&mut *store, v.get())?)),
+            Vacant(v) => match store
+                .data()
+                .kernel
+                .machine()
+                .blockstore()
+                .get(k)
+                .context("failed to lookup wasm module in blockstore")?
+            {
+                Some(raw_wasm) => Ok(Some(
+                    cache
+                        .linker
+                        .instantiate(&mut *store, v.insert(self.load_raw(&raw_wasm)?))?,
+                )),
+                None => Ok(None),
+            },
+        }
     }
 
     /// Construct a new wasmtime "store" from the given kernel.

@@ -4,6 +4,7 @@
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
+use fvm_shared::econ::TokenAmount;
 use num_traits::Zero;
 
 pub use self::charge::GasCharge;
@@ -153,16 +154,18 @@ impl Mul<i32> for Gas {
 pub struct GasTracker {
     gas_limit: Gas,
     gas_used: Gas,
+    gas_premium: TokenAmount,
     trace: Option<Vec<GasCharge>>,
 }
 
 impl GasTracker {
     /// Gas limit and gas used are provided in protocol units (i.e. full units).
     /// They are converted to milligas for internal canonical accounting.
-    pub fn new(gas_limit: Gas, gas_used: Gas) -> Self {
+    pub fn new(gas_limit: Gas, gas_used: Gas, gas_premium: TokenAmount) -> Self {
         Self {
             gas_limit,
             gas_used,
+            gas_premium,
             trace: None,
         }
     }
@@ -218,6 +221,11 @@ impl GasTracker {
         self.gas_limit - self.gas_used
     }
 
+    /// Gettr for gas premium
+    pub fn gas_premium(&self) -> TokenAmount {
+        self.gas_premium.clone()
+    }
+
     pub fn drain_trace(&mut self) -> impl Iterator<Item = GasCharge> + '_ {
         self.trace
             .as_mut()
@@ -248,7 +256,7 @@ mod tests {
     #[test]
     #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
-        let mut t = GasTracker::new(Gas::new(20), Gas::new(10));
+        let mut t = GasTracker::new(Gas::new(20), Gas::new(10), Zero::zero());
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(15));
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;

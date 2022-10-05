@@ -141,21 +141,100 @@ fn contains_all() {
 
 #[test]
 fn bit_ops() {
-    let a = &BitField::try_from_bits(vec![1, 2, 3]).unwrap()
-        & &BitField::try_from_bits(vec![1, 3, 4]).unwrap();
-    assert_eq!(a.iter().collect::<Vec<_>>(), &[1, 3]);
+    macro_rules! assert_bits {
+        ($bf:expr; $($bit:expr),*) => {
+            assert_eq!((&($bf)).iter().collect::<Vec<_>>(), &[$($bit,)*])
+        }
+    }
 
-    let mut a = BitField::try_from_bits(vec![1, 2, 3]).unwrap();
-    a &= &BitField::try_from_bits(vec![1, 3, 4]).unwrap();
-    assert_eq!(a.iter().collect::<Vec<_>>(), &[1, 3]);
+    let a = BitField::try_from_bits([1, 2, 3]).unwrap();
+    let b = BitField::try_from_bits([1, 3, 4]).unwrap();
+    let e = BitField::new();
 
-    let a = &BitField::try_from_bits(vec![1, 2, 3]).unwrap()
-        | &BitField::try_from_bits(vec![1, 3, 4]).unwrap();
-    assert_eq!(a.iter().collect::<Vec<_>>(), &[1, 2, 3, 4]);
+    /* AND */
 
-    let mut a = BitField::try_from_bits(vec![1, 2, 3]).unwrap();
-    a |= &BitField::try_from_bits(vec![1, 3, 4]).unwrap();
-    assert_eq!(a.iter().collect::<Vec<_>>(), &[1, 2, 3, 4]);
+    let mut r = a.clone();
+    r &= &b;
+    assert_bits!(r; 1, 3);
+    let mut r = a.clone();
+    r &= b.clone();
+    assert_bits!(r; 1, 3);
+    assert_bits!(&a & &b; 1, 3);
+    assert_bits!(a.clone() & b.clone(); 1, 3);
+    assert_bits!(a.clone() & &b; 1, 3);
+    assert_bits!(&a & b.clone(); 1, 3);
+
+    // Empty combinations
+    assert_bits!(&b & &e; );
+    assert_bits!(&e & &b; );
+    assert_bits!(&e & &e; );
+    assert_bits!(b.clone() & e.clone(); );
+    assert_bits!(e.clone() & b.clone(); );
+
+    /* OR */
+
+    let mut r = a.clone();
+    r |= &b;
+    assert_bits!(r; 1, 2, 3, 4);
+    let mut r = a.clone();
+    r |= b.clone();
+    assert_bits!(r; 1, 2, 3, 4);
+    assert_bits!(&a | &b; 1, 2, 3, 4);
+    assert_bits!(a.clone() | b.clone(); 1, 2, 3, 4);
+    assert_bits!(a.clone() | &b; 1, 2, 3, 4);
+    assert_bits!(&a | b.clone(); 1, 2, 3, 4);
+
+    // Empty combinations
+    assert_bits!(&b | &e; 1, 3, 4);
+    assert_bits!(&e | &b; 1, 3, 4);
+    assert_bits!(&e | &e; );
+    assert_bits!(b.clone() | e.clone(); 1, 3, 4);
+    assert_bits!(&b | e.clone(); 1, 3, 4);
+    assert_bits!(e.clone() | b.clone(); 1, 3, 4);
+    assert_bits!(&e | b.clone(); 1, 3, 4);
+    assert_bits!(e.clone() | &b; 1, 3, 4);
+
+    /* XOR */
+
+    let mut r = a.clone();
+    r ^= &b;
+    assert_bits!(r; 2, 4);
+    let mut r = a.clone();
+    r ^= b.clone();
+    assert_bits!(r; 2, 4);
+    assert_bits!(&a ^ &b; 2, 4);
+    assert_bits!(a.clone() ^ b.clone(); 2, 4);
+    assert_bits!(a.clone() ^ &b; 2, 4);
+    assert_bits!(&a ^ b.clone(); 2, 4);
+
+    // Empty combinations
+    assert_bits!(&b ^ &e; 1, 3, 4);
+    assert_bits!(&e ^ &b; 1, 3, 4);
+    assert_bits!(&e ^ &e; );
+    assert_bits!(b.clone() ^ e.clone(); 1, 3, 4);
+    assert_bits!(&b ^ e.clone(); 1, 3, 4);
+    assert_bits!(e.clone() ^ b.clone(); 1, 3, 4);
+    assert_bits!(&e ^ b.clone(); 1, 3, 4);
+
+    /* Difference */
+
+    let mut r = a.clone();
+    r -= &b;
+    assert_bits!(r; 2);
+    let mut r = a.clone();
+    r -= b.clone();
+    assert_bits!(r; 2);
+    assert_bits!(&a - &b; 2);
+    assert_bits!(a.clone() - b.clone(); 2);
+    assert_bits!(a.clone() - &b; 2);
+    assert_bits!(&a - b.clone(); 2);
+
+    // Empty combinations
+    assert_bits!(&b - &e; 1, 3, 4);
+    assert_bits!(&e - &b; );
+    assert_bits!(&e - &e; );
+    assert_bits!(b.clone() - e.clone(); 1, 3, 4);
+    assert_bits!(e - b.clone(); );
 }
 
 #[test]

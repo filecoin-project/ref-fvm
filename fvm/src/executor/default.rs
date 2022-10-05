@@ -33,7 +33,7 @@ impl<K: Kernel> Deref for DefaultExecutor<K> {
     type Target = <K::CallManager as CallManager>::Machine;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0.as_ref().expect("machine poisoned")
+        self.0.as_ref().expect("machine poisoned")
     }
 }
 
@@ -66,8 +66,13 @@ where
         // Apply the message.
         let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm =
-                K::CallManager::new(machine, msg.gas_limit, (sender_id, msg.from), msg.sequence);
+            let mut cm = K::CallManager::new(
+                machine,
+                msg.gas_limit,
+                (sender_id, msg.from),
+                msg.sequence,
+                msg.gas_premium.clone(),
+            );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
@@ -163,7 +168,7 @@ where
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().epoch,
+                    self.context().network_context.epoch,
                 ));
                 backtrace.set_cause(backtrace::Cause::from_fatal(err));
                 Receipt {
@@ -204,7 +209,7 @@ where
 
     /// Flush the state-tree to the underlying blockstore.
     fn flush(&mut self) -> anyhow::Result<Cid> {
-        let k = (&mut **self).flush()?;
+        let k = (**self).flush()?;
         Ok(k)
     }
 }
@@ -255,11 +260,11 @@ where
                     return Ok(Err(ApplyRet::prevalidation_fail(
                         ExitCode::SYS_OUT_OF_GAS,
                         format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                        &self.context().base_fee * inclusion_total,
+                        &self.context().network_context.base_fee * inclusion_total,
                     )));
                 }
 
-                let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
+                let miner_penalty_amount = &self.context().network_context.base_fee * msg.gas_limit;
                 (inclusion_cost, miner_penalty_amount)
             }
         };
@@ -364,7 +369,7 @@ where
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
-            &self.context().base_fee,
+            &self.context().network_context.base_fee,
             &msg.gas_fee_cap,
             &msg.gas_premium,
         );

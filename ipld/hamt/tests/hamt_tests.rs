@@ -133,7 +133,7 @@ fn set_with_no_effect_does_not_put() {
     );
 
     #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r:0, w:19, br:0, bw:1372});
+    assert_eq!(*store.stats.borrow(), BSStats {r:0, w:18, br:0, bw:1282});
 }
 
 #[test]
@@ -313,7 +313,7 @@ fn for_each() {
     );
 
     #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 30, w: 31, br: 3209, bw: 4529});
+    assert_eq!(*store.stats.borrow(), BSStats {r: 30, w: 30, br: 3209, bw: 3209});
 }
 
 #[cfg(feature = "identity")]

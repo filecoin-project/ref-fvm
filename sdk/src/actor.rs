@@ -2,6 +2,7 @@ use core::option::Option; // no_std
 
 use cid::Cid;
 use fvm_shared::address::{Address, Payload};
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::{ActorID, MAX_CID_LEN};
 
@@ -99,5 +100,14 @@ pub fn get_code_cid_for_type(typ: i32) -> Cid {
         let len = sys::actor::get_code_cid_for_type(typ, buf.as_mut_ptr(), MAX_CID_LEN as u32)
             .expect("failed to get CodeCID for type");
         Cid::read_bytes(&buf[..len as usize]).expect("invalid cid returned")
+    }
+}
+
+/// Retrieves the balance associated with an actor
+pub fn balance_of(actor_id: ActorID) -> TokenAmount {
+    unsafe {
+        sys::actor::balance_of(actor_id)
+            .expect("failed to get actor balance")
+            .into()
     }
 }

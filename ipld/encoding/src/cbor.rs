@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -29,7 +30,7 @@ impl<T> Cbor for Option<T> where T: Cbor {}
 
 /// Raw serialized cbor bytes.
 /// This data is (de)serialized as a byte string.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Hash, Eq, Default)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Hash, Eq, Default)]
 #[serde(transparent)]
 pub struct RawBytes {
     #[serde(with = "serde_bytes")]
@@ -84,5 +85,31 @@ impl RawBytes {
     /// Deserializes the serialized bytes into a defined type.
     pub fn deserialize<O: de::DeserializeOwned>(&self) -> Result<O, Error> {
         from_slice(&self.bytes)
+    }
+}
+
+impl Debug for RawBytes {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RawBytes {{ ")?;
+        for byte in &self.bytes {
+            write!(f, "{:02x}", byte)?;
+        }
+        write!(f, " }}")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::RawBytes;
+
+    #[test]
+    fn debug_hex() {
+        assert_eq!("RawBytes {  }", format!("{:?}", RawBytes::from(vec![])));
+        assert_eq!("RawBytes { 00 }", format!("{:?}", RawBytes::from(vec![0])));
+        assert_eq!("RawBytes { 0f }", format!("{:?}", RawBytes::from(vec![15])));
+        assert_eq!(
+            "RawBytes { 00010a10ff }",
+            format!("{:?}", RawBytes::from(vec![0, 1, 10, 16, 255]))
+        );
     }
 }

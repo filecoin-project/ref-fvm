@@ -8,3 +8,7 @@ pub fn charge(name: &str, compute: u64) {
         // can only happen if name isn't utf8, memory corruption, etc.
         .expect("failed to charge gas")
 }
+
+pub fn available() -> u64 {
+    unsafe { sys::gas::available() }.expect("failed to check available gas")
+}

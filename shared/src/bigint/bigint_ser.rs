@@ -14,7 +14,7 @@ use super::MAX_BIGINT_SIZE;
 pub struct BigIntSer<'a>(#[serde(with = "self")] pub &'a BigInt);
 
 /// Wrapper for deserializing as BigInt from bytes.
-#[derive(Deserialize, Serialize, Clone, Default, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Clone, Default, PartialEq, Eq, Debug)]
 #[serde(transparent)]
 pub struct BigIntDe(#[serde(with = "self")] pub BigInt);
 

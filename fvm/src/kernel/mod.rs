@@ -75,6 +75,7 @@ pub trait Kernel:
     /// - `method` is the method that has been invoked.
     /// - `value_received` is value received due to the current call.
     /// - `blocks` is the initial block registry (should already contain the parameters).
+    #[allow(clippy::too_many_arguments)]
     fn new(
         mgr: Self::CallManager,
         blocks: BlockRegistry,
@@ -86,6 +87,9 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
+
+    /// The kernel's underlying "machine".
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 }
 
 /// TODO
@@ -103,6 +107,12 @@ pub trait NetworkOps {
 
     /// The current base-fee (constant).
     fn network_base_fee(&self) -> &TokenAmount;
+
+    /// current tipset timestamp
+    fn tipset_timestamp(&self) -> u64;
+
+    /// epoch tipset cid
+    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
 }
 
 pub trait InvokeContextOps {
@@ -125,6 +135,12 @@ pub trait MessageOps {
 
     /// The value received from the caller (constant).
     fn msg_value_received(&self) -> TokenAmount;
+
+    /// The current message gas premium
+    fn msg_gas_premium(&self) -> TokenAmount;
+
+    /// The current message gas limit
+    fn msg_gas_limit(&self) -> u64;
 }
 
 /// The IPLD subset of the kernel.
@@ -209,6 +225,9 @@ pub trait ActorOps {
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
+
+    /// Returns the balance associated with an actor id
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
 }
 
 /// Operations to send messages to other actors.

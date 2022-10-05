@@ -42,7 +42,13 @@ pub trait CallManager: 'static {
     type Machine: Machine;
 
     /// Construct a new call manager.
-    fn new(machine: Self::Machine, gas_limit: i64, origin: (ActorID, Address), nonce: u64) -> Self;
+    fn new(
+        machine: Self::Machine,
+        gas_limit: i64,
+        origin: (ActorID, Address),
+        nonce: u64,
+        gas_premium: TokenAmount,
+    ) -> Self;
 
     /// set the execution type used for runtime checking of syscalls
     fn set_execution_type(&mut self, execution_type: ExecutionType);
