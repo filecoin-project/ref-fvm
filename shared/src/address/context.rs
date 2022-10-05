@@ -7,10 +7,11 @@ use once_cell::sync::OnceCell;
 
 use super::Network;
 
-/// Single context that stores the [Network] info
+/// Singleton context that stores the [Network] info
 /// to allow properly tagging the [super::Address] when using
-/// constructors that does not take [Network] parameter
-/// applications are responsible for setting up / make changes to
+/// constructors that does not take [Network] parameter.
+///
+/// applications are responsible for setting up / making changes to
 /// this context at proper time of its lifecycle
 #[derive(Debug, Default)]
 pub struct AddressContext {
@@ -27,13 +28,22 @@ impl AddressContext {
         (&self.network).into()
     }
 
-    pub fn set_network(&mut self, network: Network) {
-        self.network = network.into();
+    pub fn set_network(&self, network: Network) -> Result<(), u8> {
+        let (tag,) = network.into();
+        self.network.update(tag)
     }
 }
 
 #[derive(Debug)]
 struct AtomicNetwork(AtomicU8);
+
+impl AtomicNetwork {
+    fn update(&self, tag: u8) -> Result<(), u8> {
+        self.0
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, move |_| Some(tag))?;
+        Ok(())
+    }
+}
 
 impl Default for AtomicNetwork {
     fn default() -> Self {
@@ -50,12 +60,19 @@ impl From<&AtomicNetwork> for Network {
     }
 }
 
-impl From<Network> for AtomicNetwork {
+impl From<Network> for (u8,) {
     fn from(v: Network) -> Self {
-        Self(AtomicU8::new(match v {
+        (match v {
             Network::Mainnet => 0,
             Network::Testnet => 1,
-        }))
+        },)
+    }
+}
+
+impl From<Network> for AtomicNetwork {
+    fn from(v: Network) -> Self {
+        let (u,) = v.into();
+        Self(AtomicU8::new(u))
     }
 }
 
@@ -72,5 +89,18 @@ mod tests {
             let from_atomic: Network = (&atomic).into();
             assert_eq!(network, from_atomic);
         }
+    }
+
+    #[test]
+    fn set_network() -> Result<(), u8> {
+        let cxt = AddressContext::instance();
+        assert_eq!(cxt.network(), Network::default());
+        // TODO: Consider using `enum_iterator::all::<Network>()`
+        // which requires rust toolchain upgrade.
+        for network in [Network::Mainnet, Network::Testnet] {
+            cxt.set_network(network)?;
+            assert_eq!(cxt.network(), network);
+        }
+        Ok(())
     }
 }
