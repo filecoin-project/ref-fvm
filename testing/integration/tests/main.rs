@@ -4,11 +4,11 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
-use fil_validate_actor::WASM_BINARY as VALIDATE_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
+use fil_validate_actor::WASM_BINARY as VALIDATE_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor, ValidateExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};

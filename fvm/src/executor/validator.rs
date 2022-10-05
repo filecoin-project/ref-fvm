@@ -5,7 +5,7 @@ use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
-use crate::call_manager::{CallManager, InvocationResult, ExecutionType};
+use crate::call_manager::{CallManager, ExecutionType, InvocationResult};
 use crate::executor::GasSpec;
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
@@ -72,7 +72,6 @@ where
             cm.set_execution_type(ExecutionType::Validator);
 
             // Dont charge gas inclusion cost depending on where this is called
-            // TODO probably a context type to indicate when this is being ran
             // // This error is fatal because it should have already been accounted for inside
             // // preflight_message.
             // if let Err(e) = cm.charge_gas(inclusion_cost) {
