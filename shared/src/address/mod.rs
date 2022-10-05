@@ -1,7 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-mod default;
 mod errors;
 mod network;
 mod payload;
@@ -17,9 +16,8 @@ use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-pub use self::default::{default_network, set_default_network};
 pub use self::errors::Error;
-pub use self::network::Network;
+pub use self::network::{default_network, set_default_network, Network};
 use self::payload::DelegatedAddress;
 pub use self::payload::Payload;
 pub use self::protocol::Protocol;
