@@ -29,8 +29,7 @@ impl AddressContext {
     }
 
     pub fn set_network(&self, network: Network) -> Result<(), u8> {
-        let (tag,) = network.into();
-        self.network.update(tag)
+        self.network.update(network.into())
     }
 }
 
@@ -60,25 +59,16 @@ impl From<&AtomicNetwork> for Network {
     }
 }
 
-impl From<Network> for (u8,) {
-    fn from(v: Network) -> Self {
-        (match v {
-            Network::Mainnet => 0,
-            Network::Testnet => 1,
-        },)
-    }
-}
-
 impl From<Network> for AtomicNetwork {
     fn from(v: Network) -> Self {
-        let (u,) = v.into();
-        Self(AtomicU8::new(u))
+        Self(AtomicU8::new(v.into()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::address::Address;
 
     #[test]
     fn network_atomic_convertion_roundtrip() {
@@ -100,6 +90,8 @@ mod tests {
         for network in [Network::Mainnet, Network::Testnet] {
             cxt.set_network(network)?;
             assert_eq!(cxt.network(), network);
+            let addr = Address::new_id(0);
+            assert_eq!(addr.network(), network);
         }
         Ok(())
     }
