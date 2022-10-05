@@ -220,6 +220,6 @@ async fn run_vector(
                 ))
             }
         }
-        other => return Err(anyhow!("unknown test vector class: {}", other)),
+        other => Err(anyhow!("unknown test vector class: {}", other)),
     }
 }

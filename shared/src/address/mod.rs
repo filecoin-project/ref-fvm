@@ -227,8 +227,8 @@ impl fmt::Display for Address {
 
         match self.payload() {
             Payload::ID(id) => write!(f, "{}", id),
-            Payload::Secp256k1(data) | Payload::Actor(data) => write_payload(f, protocol, &*data),
-            Payload::BLS(data) => write_payload(f, protocol, &*data),
+            Payload::Secp256k1(data) | Payload::Actor(data) => write_payload(f, protocol, data),
+            Payload::BLS(data) => write_payload(f, protocol, data),
             Payload::Delegated(addr) => write!(
                 f,
                 "{}-{}",

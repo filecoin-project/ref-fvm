@@ -8,7 +8,7 @@ use crate::bigint::{bigint_ser, BigInt, Integer};
 use crate::clock::ChainEpoch;
 use crate::math::PRECISION;
 
-#[derive(Default, Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq)]
+#[derive(Default, Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq, Eq)]
 pub struct FilterEstimate {
     #[serde(with = "bigint_ser")]
     pub position: BigInt,
