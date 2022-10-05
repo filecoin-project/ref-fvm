@@ -12,9 +12,16 @@ use itertools::sorted;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
+use crate::root::RootImpl;
 use crate::{
     init_sized_vec, nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
+
+#[derive(Debug)]
+pub struct AmtImpl<V, BS, const VER: u8> {
+    root: RootImpl<V, VER>,
+    block_store: BS,
+}
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
 ///
@@ -37,11 +44,9 @@ use crate::{
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
-#[derive(Debug)]
-pub struct Amt<V, BS> {
-    root: Root<V>,
-    block_store: BS,
-}
+pub type Amt<V, BS> = AmtImpl<V, BS, 3>;
+/// Legacy amt V0
+pub type Amtv0<V, BS> = AmtImpl<V, BS, 0>;
 
 impl<V: PartialEq, BS: Blockstore> PartialEq for Amt<V, BS> {
     fn eq(&self, other: &Self) -> bool {
