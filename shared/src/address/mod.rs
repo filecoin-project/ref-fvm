@@ -1,10 +1,12 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+mod context;
 mod errors;
 mod network;
 mod payload;
 mod protocol;
+
 use std::borrow::Cow;
 use std::fmt;
 use std::hash::Hash;
@@ -15,6 +17,7 @@ use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+pub use self::context::AddressContext;
 pub use self::errors::Error;
 pub use self::network::Network;
 use self::payload::DelegatedAddress;
@@ -61,10 +64,6 @@ const MAX_ADDRESS_LEN: usize = 84 + 2; // TODO: update for f4
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
-// TODO pull network from config (probably)
-// TODO: can we do this using build flags?
-pub const NETWORK_DEFAULT: Network = Network::Mainnet;
-
 /// Address is the struct that defines the protocol and data payload conversion from either
 /// a public key or value
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -92,14 +91,14 @@ impl Address {
             Err(Error::InvalidLength)
         } else {
             let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
-            Self::new(NETWORK_DEFAULT, protocol, &bz[1..])
+            Self::new(AddressContext::instance().network(), protocol, &bz[1..])
         }
     }
 
     /// Generates new address using ID protocol
-    pub const fn new_id(id: u64) -> Self {
+    pub fn new_id(id: u64) -> Self {
         Self {
-            network: NETWORK_DEFAULT,
+            network: AddressContext::instance().network(),
             payload: Payload::ID(id),
         }
     }
@@ -110,7 +109,7 @@ impl Address {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: AddressContext::instance().network(),
             payload: Payload::Secp256k1(address_hash(pubkey)),
         })
     }
@@ -118,7 +117,7 @@ impl Address {
     /// Generates new address using the Actor protocol
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
-            network: NETWORK_DEFAULT,
+            network: AddressContext::instance().network(),
             payload: Payload::Actor(address_hash(data)),
         }
     }
@@ -126,7 +125,7 @@ impl Address {
     /// Generates a new delegated address from a namespace and a subaddress.
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: AddressContext::instance().network(),
             payload: Payload::Delegated(DelegatedAddress::new(ns, subaddress)?),
         })
     }
@@ -139,7 +138,7 @@ impl Address {
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: AddressContext::instance().network(),
             payload: Payload::BLS(key),
         })
     }

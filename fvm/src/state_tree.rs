@@ -15,7 +15,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
-use crate::init_actor::State as InitActorState;
+use crate::init_actor::{State as InitActorState, INIT_ACTOR_ADDR_ID};
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
 use crate::syscall_error;
 
@@ -430,7 +430,7 @@ where
             .put_cbor(&state, multihash::Code::Blake2b256)
             .or_fatal()?;
 
-        self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
+        self.set_actor(&Address::new_id(INIT_ACTOR_ADDR_ID), actor)?;
 
         Ok(new_addr)
     }
@@ -644,7 +644,7 @@ mod tests {
     use lazy_static::lazy_static;
 
     use crate::init_actor;
-    use crate::init_actor::INIT_ACTOR_ADDR;
+    use crate::init_actor::INIT_ACTOR_ADDR_ID;
     use crate::state_tree::{ActorState, StateTree};
 
     lazy_static! {
@@ -709,16 +709,17 @@ mod tests {
 
         let act_s = ActorState::new(*DUMMY_INIT_ACTOR_CODE_ID, state_cid, Default::default(), 1);
 
+        let actor_address = Address::new_id(INIT_ACTOR_ADDR_ID);
         tree.begin_transaction();
-        tree.set_actor(&INIT_ACTOR_ADDR, act_s).unwrap();
+        tree.set_actor(&actor_address, act_s).unwrap();
 
         // Test mutate function
-        tree.mutate_actor(&INIT_ACTOR_ADDR, |mut actor| {
+        tree.mutate_actor(&actor_address, |mut actor| {
             actor.sequence = 2;
             Ok(())
         })
         .unwrap();
-        let new_init_s = tree.get_actor(&INIT_ACTOR_ADDR).unwrap();
+        let new_init_s = tree.get_actor(&actor_address).unwrap();
         assert_eq!(
             new_init_s,
             Some(ActorState {

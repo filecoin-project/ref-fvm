@@ -24,7 +24,7 @@ use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
 use crate::state_tree::{ActorState, StateTree};
 
-pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
+pub const INIT_ACTOR_ADDR_ID: u64 = 1;
 
 use crate::kernel::{ClassifyResult, Result};
 
@@ -71,7 +71,7 @@ impl State {
         B: Blockstore,
     {
         let init_act = state_tree
-            .get_actor(&INIT_ACTOR_ADDR)?
+            .get_actor(&Address::new_id(INIT_ACTOR_ADDR_ID))?
             .context("init actor address could not be resolved")
             .or_fatal()?;
 

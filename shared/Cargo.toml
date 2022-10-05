@@ -1,7 +1,7 @@
 [package]
 name = "fvm_shared"
 description = "Filecoin Virtual Machine shared types and functions"
-version = "3.0.0-alpha.2"
+version = "3.0.0-alpha.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
@@ -18,6 +18,7 @@ data-encoding = "2.3.2"
 data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
+once_cell = "1.15"
 cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
 multihash = { version = "0.16.3", default-features = false, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
 unsigned-varint = "0.7.1"
