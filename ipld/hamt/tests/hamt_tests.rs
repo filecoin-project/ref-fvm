@@ -10,7 +10,7 @@ use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Config, Hamt, Hash};
+use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash::Code;
 use serde::Serialize;
 use serde_bytes::ByteBuf;
@@ -48,16 +48,21 @@ impl HamtFactory {
         Hamt::new_with_config(store, conf)
     }
 
-    fn load<BS, V, K>(&self, cid: &Cid, store: BS) -> Hamt<BS, V, K>
+    fn load<BS, V, K>(&self, cid: &Cid, store: BS) -> Result<Hamt<BS, V, K>, Error>
     where
         BS: Blockstore,
         K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
         V: Serialize + DeserializeOwned,
     {
-        Hamt::load_with_config(cid, store, self.conf.clone()).unwrap()
+        Hamt::load_with_config(cid, store, self.conf.clone())
     }
 
-    fn load_with_bit_width<BS, V, K>(&self, cid: &Cid, store: BS, bit_width: u32) -> Hamt<BS, V, K>
+    fn load_with_bit_width<BS, V, K>(
+        &self,
+        cid: &Cid,
+        store: BS,
+        bit_width: u32,
+    ) -> Result<Hamt<BS, V, K>, Error>
     where
         BS: Blockstore,
         K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
@@ -67,7 +72,7 @@ impl HamtFactory {
             bit_width,
             ..self.conf
         };
-        Hamt::load_with_config(cid, store, conf).unwrap()
+        Hamt::load_with_config(cid, store, conf)
     }
 }
 
@@ -130,24 +135,26 @@ fn test_load(factory: HamtFactory) {
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world2".to_string()));
     let c = hamt.flush().unwrap();
 
-    let new_hamt = factory.load(&c, &store);
+    let new_hamt = factory.load(&c, &store).unwrap();
     assert_eq!(hamt, new_hamt);
 
     // set value in the first one
     hamt.set(2, "stuff".to_string()).unwrap();
 
     // loading original hash should returnnot be equal now
-    let new_hamt = factory.load(&c, &store);
+    let new_hamt = factory.load(&c, &store).unwrap();
     assert_ne!(hamt, new_hamt);
 
     // loading new hash
     let c2 = hamt.flush().unwrap();
-    let new_hamt = factory.load(&c2, &store);
+    let new_hamt = factory.load(&c2, &store).unwrap();
     assert_eq!(hamt, new_hamt);
 
     // loading from an empty store does not work
     let empty_store = MemoryBlockstore::default();
-    assert!(Hamt::<_, usize>::load(&c2, &empty_store).is_err());
+    assert!(factory
+        .load::<_, usize, BytesKey>(&c2, &empty_store)
+        .is_err());
 
     // storing the hamt should produce the same cid as storing the root
     let c3 = hamt.flush().unwrap();
@@ -173,7 +180,7 @@ fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: Ci
 
     let c = hamt.flush().unwrap();
 
-    let mut h2 = factory.load(&c, &store);
+    let mut h2 = factory.load(&c, &store).unwrap();
     // Reloading should still have same effect
     assert!(!h2
         .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
@@ -229,11 +236,13 @@ fn delete(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     hamt.set(tstring("foo"), tstring("cat dog bear")).unwrap();
     hamt.set(tstring("bar"), tstring("cat dog")).unwrap();
     hamt.set(tstring("baz"), tstring("cat")).unwrap();
+    assert!(hamt.get(&tstring("foo")).unwrap().is_some());
 
     let c = hamt.flush().unwrap();
     cids.check_next(c);
 
-    let mut h2 = Hamt::<_, BytesKey>::load(&c, &store).unwrap();
+    let mut h2: Hamt<_, BytesKey> = factory.load(&c, &store).unwrap();
+    assert!(h2.get(&b"foo".to_vec()).unwrap().is_some());
     assert!(h2.delete(&b"foo".to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&b"foo".to_vec()).unwrap(), None);
 
@@ -256,7 +265,7 @@ fn delete_case(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecke
     let c = hamt.flush().unwrap();
     cids.check_next(c);
 
-    let mut h2: Hamt<_, ByteBuf> = factory.load(&c, &store);
+    let mut h2: Hamt<_, ByteBuf> = factory.load(&c, &store).unwrap();
     assert!(h2.delete(&[0].to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&[0].to_vec()).unwrap(), None);
 
@@ -274,7 +283,7 @@ fn reload_empty(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCheck
     let hamt: Hamt<_, ()> = factory.new(&store);
     let c = store.put_cbor(&hamt, Code::Blake2b256).unwrap();
 
-    let h2: Hamt<_, ()> = factory.load(&c, &store);
+    let h2: Hamt<_, ()> = factory.load(&c, &store).unwrap();
     let c2 = store.put_cbor(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
     cids.check_next(c);
@@ -342,7 +351,7 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     let c = hamt.flush().unwrap();
     cids.check_next(c);
 
-    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5);
+    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5).unwrap();
 
     // Iterating through hamt with no cache.
     let mut count = 0;
@@ -514,12 +523,12 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
 
     let root = h.flush().unwrap();
     cids.check_next(root);
-    let mut h: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
+    let mut h: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5).unwrap();
 
     h.delete(&make_key(104)).unwrap();
     h.delete(&make_key(108)).unwrap();
     let root = h.flush().unwrap();
-    let _: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
+    let _: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5).unwrap();
 
     cids.check_next(root);
 
@@ -645,7 +654,7 @@ mod test_extension {
         HamtFactory {
             conf: Config {
                 use_extensions: true,
-                ..Config::default()
+                bit_width: 2,
             },
         }
     }
