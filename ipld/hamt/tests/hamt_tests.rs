@@ -3,22 +3,51 @@
 
 use std::fmt::Display;
 
+use cid::Cid;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
-use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Hamt};
+use fvm_ipld_hamt::{BytesKey, Hamt, Hash};
 use multihash::Code;
+use serde::Serialize;
 
 // Redeclaring max array size of Hamt to avoid exposing value
 const BUCKET_SIZE: usize = 3;
 
-#[test]
-fn test_basics() {
+/// Help reuse tests with different HAMT configurations.
+trait HamtFactory {
+    fn new<BS, V, K>(&self, store: BS) -> Hamt<BS, V, K>
+    where
+        BS: Blockstore,
+        K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+        V: Serialize + DeserializeOwned;
+
+    fn new_with_bit_width<BS, V, K>(&self, store: BS, bit_width: u32) -> Hamt<BS, V, K>
+    where
+        BS: Blockstore,
+        K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+        V: Serialize + DeserializeOwned;
+
+    fn load<BS, V, K>(&self, cid: &Cid, store: BS) -> Hamt<BS, V, K>
+    where
+        BS: Blockstore,
+        K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+        V: Serialize + DeserializeOwned;
+
+    fn load_with_bit_width<BS, V, K>(&self, cid: &Cid, store: BS, bit_width: u32) -> Hamt<BS, V, K>
+    where
+        BS: Blockstore,
+        K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+        V: Serialize + DeserializeOwned;
+}
+
+fn test_basics(factory: impl HamtFactory) {
     let store = MemoryBlockstore::default();
-    let mut hamt = Hamt::<_, String, _>::new(&store);
+    let mut hamt = factory.new(&store);
     hamt.set(1, "world".to_string()).unwrap();
 
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world".to_string()));
@@ -26,11 +55,10 @@ fn test_basics() {
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world2".to_string()));
 }
 
-#[test]
-fn test_load() {
+fn test_load(factory: impl HamtFactory) {
     let store = MemoryBlockstore::default();
 
-    let mut hamt: Hamt<_, _, usize> = Hamt::new(&store);
+    let mut hamt: Hamt<_, _, usize> = factory.new(&store);
     hamt.set(1, "world".to_string()).unwrap();
 
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world".to_string()));
@@ -38,19 +66,19 @@ fn test_load() {
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world2".to_string()));
     let c = hamt.flush().unwrap();
 
-    let new_hamt = Hamt::load(&c, &store).unwrap();
+    let new_hamt = factory.load(&c, &store);
     assert_eq!(hamt, new_hamt);
 
     // set value in the first one
     hamt.set(2, "stuff".to_string()).unwrap();
 
     // loading original hash should returnnot be equal now
-    let new_hamt = Hamt::load(&c, &store).unwrap();
+    let new_hamt = factory.load(&c, &store);
     assert_ne!(hamt, new_hamt);
 
     // loading new hash
     let c2 = hamt.flush().unwrap();
-    let new_hamt = Hamt::load(&c2, &store).unwrap();
+    let new_hamt = factory.load(&c2, &store);
     assert_eq!(hamt, new_hamt);
 
     // loading from an empty store does not work
@@ -62,12 +90,11 @@ fn test_load() {
     assert_eq!(c3, c2);
 }
 
-#[test]
-fn test_set_if_absent() {
+fn test_set_if_absent(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut hamt: Hamt<_, _> = Hamt::new(&store);
+    let mut hamt: Hamt<_, _> = factory.new(&store);
     assert!(hamt
         .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
         .unwrap());
@@ -82,7 +109,7 @@ fn test_set_if_absent() {
 
     let c = hamt.flush().unwrap();
 
-    let mut h2 = Hamt::<_, BytesKey>::load(&c, &store).unwrap();
+    let mut h2 = factory.load(&c, &store);
     // Reloading should still have same effect
     assert!(!h2
         .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
@@ -92,16 +119,16 @@ fn test_set_if_absent() {
         c.to_string().as_str(),
         "bafy2bzaced2tgnlsq4n2ioe6ldy75fw3vlrrkyfv4bq6didbwoob2552zvpuk"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 1, w: 1, br: 63, bw: 63});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
-#[test]
-fn set_with_no_effect_does_not_put() {
+fn set_with_no_effect_does_not_put(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut begn: Hamt<_, _> = Hamt::new_with_bit_width(&store, 1);
+    let mut begn: Hamt<_, _> = factory.new_with_bit_width(&store, 1);
     let entries = 2 * BUCKET_SIZE * 5;
     for i in 0..entries {
         begn.set(tstring(i), tstring("filler")).unwrap();
@@ -120,9 +147,9 @@ fn set_with_no_effect_does_not_put() {
         c2.to_string().as_str(),
         "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 0, w: 18, br: 0, bw: 1282});
-
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
     // This insert should not change value or affect reads or writes
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
@@ -132,16 +159,16 @@ fn set_with_no_effect_does_not_put() {
         "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku"
     );
 
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r:0, w:18, br:0, bw:1282});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
-#[test]
-fn delete() {
+fn delete(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut hamt: Hamt<_, _> = Hamt::new(&store);
+    let mut hamt: Hamt<_, _> = factory.new(&store);
     hamt.set(tstring("foo"), tstring("cat dog bear")).unwrap();
     hamt.set(tstring("bar"), tstring("cat dog")).unwrap();
     hamt.set(tstring("baz"), tstring("cat")).unwrap();
@@ -161,16 +188,16 @@ fn delete() {
         c2.to_string().as_str(),
         "bafy2bzaced7up7wkm7cirieh5bs4iyula5inrprihmjzozmku3ywvekzzmlyi"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r:1, w:2, br:79, bw:139});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
-#[test]
-fn delete_case() {
+fn delete_case(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut hamt: Hamt<_, _> = Hamt::new(&store);
+    let mut hamt: Hamt<_, _> = factory.new(&store);
 
     hamt.set([0].to_vec().into(), ByteBuf(b"Test data".as_ref().into()))
         .unwrap();
@@ -181,7 +208,7 @@ fn delete_case() {
         "bafy2bzaceb2hikcc6tfuuuuehjstbiq356oruwx6ejyse77zupq445unranv6"
     );
 
-    let mut h2 = Hamt::<_, ByteBuf>::load(&c, &store).unwrap();
+    let mut h2: Hamt<_, ByteBuf> = factory.load(&c, &store);
     assert!(h2.delete(&[0].to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&[0].to_vec()).unwrap(), None);
 
@@ -190,36 +217,36 @@ fn delete_case() {
         c2.to_string().as_str(),
         "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 1, w: 2, br: 31, bw: 34});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
-#[test]
-fn reload_empty() {
+fn reload_empty(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let hamt: Hamt<_, ()> = Hamt::new(&store);
+    let hamt: Hamt<_, ()> = factory.new(&store);
     let c = store.put_cbor(&hamt, Code::Blake2b256).unwrap();
 
-    let h2 = Hamt::<_, ()>::load(&c, &store).unwrap();
+    let h2: Hamt<_, ()> = factory.load(&c, &store);
     let c2 = store.put_cbor(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
     assert_eq!(
         c.to_string().as_str(),
         "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 1, w: 2, br: 3, bw: 6});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
-#[test]
-fn set_delete_many() {
+fn set_delete_many(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
     // Test vectors setup specifically for bit width of 5
-    let mut hamt: Hamt<_, BytesKey> = Hamt::new_with_bit_width(&store, 5);
+    let mut hamt: Hamt<_, BytesKey> = factory.new_with_bit_width(&store, 5);
 
     for i in 0..200 {
         hamt.set(tstring(i), tstring(i)).unwrap();
@@ -254,15 +281,16 @@ fn set_delete_many() {
         cid_d.to_string().as_str(),
         "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
     );
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 0, w: 93, br: 0, bw: 11734});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
-#[test]
-fn for_each() {
+
+fn for_each(factory: impl HamtFactory, stats: Option<BSStats>) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut hamt: Hamt<_, BytesKey> = Hamt::new_with_bit_width(&store, 5);
+    let mut hamt: Hamt<_, BytesKey> = factory.new_with_bit_width(&store, 5);
 
     for i in 0..200 {
         hamt.set(tstring(i), tstring(i)).unwrap();
@@ -284,7 +312,7 @@ fn for_each() {
         "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
     );
 
-    let mut hamt: Hamt<_, BytesKey> = Hamt::load_with_bit_width(&c, &store, 5).unwrap();
+    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5);
 
     // Iterating through hamt with no cache.
     let mut count = 0;
@@ -312,8 +340,9 @@ fn for_each() {
         "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
     );
 
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 30, w: 30, br: 3209, bw: 3209});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
 #[cfg(feature = "identity")]
@@ -438,8 +467,7 @@ fn canonical_structure_alt_bit_width() {
     }
 }
 
-#[test]
-fn clean_child_ordering() {
+fn clean_child_ordering(factory: impl HamtFactory, stats: Option<BSStats>) {
     let make_key = |i: u64| -> BytesKey {
         let mut key = unsigned_varint::encode::u64_buffer();
         let n = unsigned_varint::encode::u64(i, &mut key);
@@ -451,7 +479,7 @@ fn clean_child_ordering() {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
-    let mut h: Hamt<_, _> = Hamt::new_with_bit_width(&store, 5);
+    let mut h: Hamt<_, _> = factory.new_with_bit_width(&store, 5);
 
     for i in 100..195 {
         h.set(make_key(i), dummy_value).unwrap();
@@ -462,22 +490,142 @@ fn clean_child_ordering() {
         root.to_string().as_str(),
         "bafy2bzacebqox3gtng4ytexyacr6zmaliyins3llnhbnfbcrqmhzuhmuuawqk"
     );
-    let mut h = Hamt::<_, u8>::load_with_bit_width(&root, &store, 5).unwrap();
+    let mut h: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
 
     h.delete(&make_key(104)).unwrap();
     h.delete(&make_key(108)).unwrap();
     let root = h.flush().unwrap();
-    Hamt::<_, u8>::load_with_bit_width(&root, &store, 5).unwrap();
+    let _: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
 
     assert_eq!(
         root.to_string().as_str(),
         "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6"
     );
 
-    #[rustfmt::skip]
-    assert_eq!(*store.stats.borrow(), BSStats {r: 3, w: 11, br: 1449, bw: 1751});
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
 }
 
 fn tstring(v: impl Display) -> BytesKey {
     BytesKey(v.to_string().into_bytes())
+}
+
+mod test_defaults {
+    use cid::Cid;
+    use fvm_ipld_blockstore::tracking::BSStats;
+    use fvm_ipld_blockstore::Blockstore;
+    use fvm_ipld_encoding::de::DeserializeOwned;
+    use fvm_ipld_hamt::{Hamt, Hash};
+    use serde::Serialize;
+
+    use crate::HamtFactory;
+
+    struct DefaultFactory;
+
+    impl HamtFactory for DefaultFactory {
+        fn new<BS, V, K>(&self, store: BS) -> Hamt<BS, V, K>
+        where
+            BS: Blockstore,
+            K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+            V: Serialize + DeserializeOwned,
+        {
+            Hamt::new(store)
+        }
+
+        fn new_with_bit_width<BS, V, K>(&self, store: BS, bit_width: u32) -> Hamt<BS, V, K>
+        where
+            BS: Blockstore,
+            K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+            V: Serialize + DeserializeOwned,
+        {
+            Hamt::new_with_bit_width(store, bit_width)
+        }
+
+        fn load<BS, V, K>(&self, cid: &Cid, store: BS) -> Hamt<BS, V, K>
+        where
+            BS: Blockstore,
+            K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+            V: Serialize + DeserializeOwned,
+        {
+            Hamt::load(cid, store).unwrap()
+        }
+
+        fn load_with_bit_width<BS, V, K>(
+            &self,
+            cid: &Cid,
+            store: BS,
+            bit_width: u32,
+        ) -> Hamt<BS, V, K>
+        where
+            BS: Blockstore,
+            K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+            V: Serialize + DeserializeOwned,
+        {
+            Hamt::load_with_bit_width(cid, store, bit_width).unwrap()
+        }
+    }
+
+    #[test]
+    fn test_basics() {
+        super::test_basics(DefaultFactory)
+    }
+
+    #[test]
+    fn test_load() {
+        super::test_load(DefaultFactory)
+    }
+
+    #[test]
+    fn test_set_if_absent() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 1, w: 1, br: 63, bw: 63};
+        super::test_set_if_absent(DefaultFactory, Some(stats))
+    }
+
+    #[test]
+    fn set_with_no_effect_does_not_put() {
+        #[rustfmt::skip]
+        let stats = BSStats {r:0, w:18, br:0, bw:1282};
+        super::set_with_no_effect_does_not_put(DefaultFactory, Some(stats));
+    }
+
+    #[test]
+    fn delete() {
+        #[rustfmt::skip]
+        let stats = BSStats {r:1, w:2, br:79, bw:139};
+        super::delete(DefaultFactory, Some(stats));
+    }
+
+    #[test]
+    fn delete_case() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 1, w: 2, br: 31, bw: 34};
+        super::delete_case(DefaultFactory, Some(stats));
+    }
+
+    #[test]
+    fn reload_empty() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 1, w: 2, br: 3, bw: 6};
+        super::reload_empty(DefaultFactory, Some(stats));
+    }
+    #[test]
+    fn set_delete_many() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 0, w: 93, br: 0, bw: 11734};
+        super::set_delete_many(DefaultFactory, Some(stats));
+    }
+    #[test]
+    fn for_each() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 30, w: 30, br: 3209, bw: 3209};
+        super::for_each(DefaultFactory, Some(stats));
+    }
+    #[test]
+    fn clean_child_ordering() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 3, w: 11, br: 1449, bw: 1751};
+        super::clean_child_ordering(DefaultFactory, Some(stats));
+    }
 }
