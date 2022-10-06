@@ -11,10 +11,7 @@ pub fn resolve_address(
     addr_len: u32,
 ) -> Result<u64> {
     let addr = context.memory.read_address(addr_off, addr_len)?;
-    let actor_id = context
-        .kernel
-        .resolve_address(&addr)?
-        .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?;
+    let actor_id = context.kernel.resolve_address(&addr)?;
     Ok(actor_id)
 }
 
@@ -27,10 +24,7 @@ pub fn get_actor_code_cid(
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
-    let typ = context
-        .kernel
-        .get_actor_code_cid(actor_id)?
-        .ok_or_else(|| syscall_error!(NotFound; "target actor not found"))?;
+    let typ = context.kernel.get_actor_code_cid(actor_id)?;
 
     context.memory.write_cid(&typ, obuf_off, obuf_len)
 }

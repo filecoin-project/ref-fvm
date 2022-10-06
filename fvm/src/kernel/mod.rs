@@ -188,10 +188,10 @@ pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
+    fn resolve_address(&self, address: &Address) -> Result<ActorID>;
 
     /// Look up the code CID of an actor.
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>>;
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
