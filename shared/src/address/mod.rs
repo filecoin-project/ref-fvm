@@ -17,7 +17,7 @@ use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
-pub use self::network::{default_network, set_default_network, Network};
+pub use self::network::{current_network, set_current_network, Network};
 use self::payload::DelegatedAddress;
 pub use self::payload::Payload;
 pub use self::protocol::Protocol;
@@ -68,79 +68,61 @@ const TESTNET_PREFIX: &str = "t";
 #[cfg_attr(feature = "testing", derive(Default))]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub struct Address {
-    network: Network,
     payload: Payload,
 }
 
 impl Cbor for Address {}
 
 impl Address {
-    /// Address constructor
-    fn new(network: Network, protocol: Protocol, bz: &[u8]) -> Result<Self, Error> {
+    /// Construct a new address with the specified network.
+    fn new(protocol: Protocol, bz: &[u8]) -> Result<Self, Error> {
         Ok(Self {
-            network,
             payload: Payload::new(protocol, bz)?,
         })
     }
 
-    /// Creates address from encoded bytes
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
+    /// Creates address from encoded bytes.
     pub fn from_bytes(bz: &[u8]) -> Result<Self, Error> {
         if bz.len() < 2 {
             Err(Error::InvalidLength)
         } else {
             let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
-            Self::new(default_network(), protocol, &bz[1..])
+            Self::new(protocol, &bz[1..])
         }
     }
 
-    /// Generates new address using ID protocol
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
-    pub fn new_id(id: u64) -> Self {
+    /// Generates new address using ID protocol.
+    pub const fn new_id(id: u64) -> Self {
         Self {
-            network: default_network(),
             payload: Payload::ID(id),
         }
     }
 
-    /// Generates new address using Secp256k1 pubkey
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
+    /// Generates new address using Secp256k1 pubkey.
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != 65 {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
-            network: default_network(),
             payload: Payload::Secp256k1(address_hash(pubkey)),
         })
     }
 
-    /// Generates new address using the Actor protocol
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
+    /// Generates new address using the Actor protocol.
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
-            network: default_network(),
             payload: Payload::Actor(address_hash(data)),
         }
     }
 
     /// Generates a new delegated address from a namespace and a subaddress.
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
-            network: default_network(),
             payload: Payload::Delegated(DelegatedAddress::new(ns, subaddress)?),
         })
     }
 
-    /// Generates new address using BLS pubkey
-    /// This API uses [Network::Mainnet] as default
-    /// unless it's changed by [set_default_network]
+    /// Generates new address using BLS pubkey.
     pub fn new_bls(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != BLS_PUB_LEN {
             return Err(Error::InvalidBLSLength(pubkey.len()));
@@ -148,7 +130,6 @@ impl Address {
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
         Ok(Self {
-            network: default_network(),
             payload: Payload::BLS(key),
         })
     }
@@ -182,17 +163,6 @@ impl Address {
         self.payload.to_raw_bytes()
     }
 
-    /// Returns network configuration of Address
-    pub fn network(&self) -> Network {
-        self.network
-    }
-
-    /// Sets the network for the address and returns a mutable reference to it
-    pub fn set_network(&mut self, network: Network) -> &mut Self {
-        self.network = network;
-        self
-    }
-
     /// Returns encoded bytes of Address
     pub fn to_bytes(self) -> Vec<u8> {
         self.payload.to_bytes()
@@ -212,7 +182,7 @@ impl fmt::Display for Address {
         let protocol = self.protocol();
 
         // write `fP` where P is the protocol number.
-        write!(f, "{}{}", self.network.to_prefix(), protocol)?;
+        write!(f, "{}{}", current_network().to_prefix(), protocol)?;
 
         fn write_payload(
             f: &mut fmt::Formatter<'_>,
@@ -264,14 +234,10 @@ impl FromStr for Address {
         if addr.len() > MAX_ADDRESS_LEN || addr.len() < 3 {
             return Err(Error::InvalidLength);
         }
-        // ensure the network character is valid before converting
-        let network: Network = match addr.get(0..1).ok_or(Error::UnknownNetwork)? {
-            TESTNET_PREFIX => Network::Testnet,
-            MAINNET_PREFIX => Network::Mainnet,
-            _ => {
-                return Err(Error::UnknownNetwork);
-            }
-        };
+        // Ensure the address is for the correct network.
+        if addr.get(0..1) != Some(current_network().to_prefix()) {
+            return Err(Error::UnknownNetwork);
+        }
 
         // get protocol from second character
         let protocol: Protocol = match addr.get(1..2).ok_or(Error::UnknownProtocol)? {
@@ -318,7 +284,6 @@ impl FromStr for Address {
                 }
                 let id = raw.parse::<u64>()?;
                 Ok(Address {
-                    network,
                     payload: Payload::ID(id),
                 })
             }
@@ -342,7 +307,6 @@ impl FromStr for Address {
                 )?;
 
                 Ok(Address {
-                    network,
                     payload: Payload::Delegated(DelegatedAddress::new(id, subaddr)?),
                 })
             }
@@ -362,7 +326,7 @@ impl FromStr for Address {
                     return Err(Error::InvalidPayload);
                 }
 
-                Address::new(network, protocol, payload)
+                Address::new(protocol, payload)
             }
         }
     }
