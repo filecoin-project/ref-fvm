@@ -238,7 +238,7 @@ where
             }
         };
 
-        match Self::match_extension(conf, hashed_key, ext)? {
+        match match_extension(conf, hashed_key, ext)? {
             ExtensionMatch::Full { skipped } => {
                 node.get_value(hashed_key, conf, depth + 1 + skipped, key, store)
             }
@@ -277,49 +277,47 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => {
-                match Self::match_extension(conf, hashed_key, ext)? {
-                    ExtensionMatch::Full { skipped } => {
-                        cache.get_or_try_init(|| {
-                            store
-                                .get_cbor(cid)?
-                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                        })?;
-                        let child_node = cache.get_mut().expect("filled line above");
+            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
+                ExtensionMatch::Full { skipped } => {
+                    cache.get_or_try_init(|| {
+                        store
+                            .get_cbor(cid)?
+                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                    })?;
+                    let child_node = cache.get_mut().expect("filled line above");
 
-                        let (old, modified) = child_node.modify_value(
-                            hashed_key,
-                            conf,
-                            depth + 1 + skipped,
-                            key,
-                            value,
-                            store,
-                            overwrite,
-                        )?;
-                        if modified {
-                            *child = Pointer::Dirty {
-                                node: std::mem::take(child_node),
-                                ext: ext.take(),
-                            };
-                        }
-                        Ok((old, modified))
+                    let (old, modified) = child_node.modify_value(
+                        hashed_key,
+                        conf,
+                        depth + 1 + skipped,
+                        key,
+                        value,
+                        store,
+                        overwrite,
+                    )?;
+                    if modified {
+                        *child = Pointer::Dirty {
+                            node: std::mem::take(child_node),
+                            ext: ext.take(),
+                        };
                     }
-                    ExtensionMatch::Partial(part) => {
-                        *child = Self::split_extension(
-                            conf,
-                            hashed_key,
-                            &part,
-                            key,
-                            value,
-                            |midway, idx, tail| {
-                                midway.insert_child_link(idx, *cid, tail);
-                            },
-                        )?;
-                        Ok((None, true))
-                    }
+                    Ok((old, modified))
                 }
-            }
-            Pointer::Dirty { node, ext } => match Self::match_extension(conf, hashed_key, ext)? {
+                ExtensionMatch::Partial(part) => {
+                    *child = Self::split_extension(
+                        conf,
+                        hashed_key,
+                        &part,
+                        key,
+                        value,
+                        |midway, idx, tail| {
+                            midway.insert_child_link(idx, *cid, tail);
+                        },
+                    )?;
+                    Ok((None, true))
+                }
+            },
+            Pointer::Dirty { node, ext } => match match_extension(conf, hashed_key, ext)? {
                 ExtensionMatch::Full { skipped } => node.modify_value(
                     hashed_key,
                     conf,
@@ -370,7 +368,7 @@ where
                     let hashes = kvs.iter().map(|kv| H::hash(kv.key())).collect::<Vec<_>>();
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
-                    let ext = Self::find_longest_extension(conf, hashed_key, &hashes)?;
+                    let ext = find_longest_extension(conf, hashed_key, &hashes)?;
                     let skipped = ext
                         .as_ref()
                         .map(|e| e.consumed() as u32 / conf.bit_width)
@@ -445,7 +443,7 @@ where
 
         match child {
             Pointer::Link { cid, cache, ext } => {
-                match Self::match_extension(conf, hashed_key, ext)? {
+                match match_extension(conf, hashed_key, ext)? {
                     ExtensionMatch::Full { skipped } => {
                         cache.get_or_try_init(|| {
                             store
@@ -476,7 +474,7 @@ where
                 }
             }
             Pointer::Dirty { node, ext } => {
-                match Self::match_extension(conf, hashed_key, ext)? {
+                match match_extension(conf, hashed_key, ext)? {
                     ExtensionMatch::Full { skipped } => {
                         // Delete value and return deleted value
                         let deleted =
@@ -579,48 +577,6 @@ where
         &self.pointers[i]
     }
 
-    /// Helper method to check if a key matches an extension (if there is one)
-    /// and return the number of levels skipped. If the key doesn't match,
-    /// this will be the number of levels where the extension has to be split.
-    fn match_extension<'a, 'b>(
-        conf: &Config,
-        hashed_key: &'a mut HashBits,
-        ext: &'b Option<Extension>,
-    ) -> Result<ExtensionMatch<'b>, Error> {
-        match ext {
-            None => Ok(ExtensionMatch::Full { skipped: 0 }),
-            Some(ext) => {
-                let matched = ext.longest_match(hashed_key, conf.bit_width)?;
-                let skipped = matched as u32 / conf.bit_width;
-
-                if matched == ext.consumed() {
-                    Ok(ExtensionMatch::Full { skipped })
-                } else {
-                    Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
-                }
-            }
-        }
-    }
-
-    /// Find the longest common non-empty prefix between the new key and the existing keys
-    /// that fell into the same bucket at some existing height.
-    fn find_longest_extension(
-        conf: &Config,
-        hashed_key: &mut HashBits,
-        hashes: &[HashedKey],
-    ) -> Result<Option<Extension>, Error> {
-        if !conf.use_extensions {
-            Ok(None)
-        } else {
-            let ext = Extension::longest_common_prefix(hashed_key, conf.bit_width, hashes)?;
-            if ext.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(ext))
-            }
-        }
-    }
-
     /// We found a key that partially matched an extension. We have to insert a new node at the longest
     /// match and replace the existing link with one that points at this new node. The new node should
     /// in turn will have two children: a link to the original extension target, and the new key value pair.
@@ -653,6 +609,48 @@ where
             node: Box::new(midway),
             ext: head,
         })
+    }
+}
+
+/// Find the longest common non-empty prefix between the new key and the existing keys
+/// that fell into the same bucket at some existing height.
+fn find_longest_extension(
+    conf: &Config,
+    hashed_key: &mut HashBits,
+    hashes: &[HashedKey],
+) -> Result<Option<Extension>, Error> {
+    if !conf.use_extensions {
+        Ok(None)
+    } else {
+        let ext = Extension::longest_common_prefix(hashed_key, conf.bit_width, hashes)?;
+        if ext.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(ext))
+        }
+    }
+}
+
+/// Helper method to check if a key matches an extension (if there is one)
+/// and return the number of levels skipped. If the key doesn't match,
+/// this will be the number of levels where the extension has to be split.
+fn match_extension<'a, 'b>(
+    conf: &Config,
+    hashed_key: &'a mut HashBits,
+    ext: &'b Option<Extension>,
+) -> Result<ExtensionMatch<'b>, Error> {
+    match ext {
+        None => Ok(ExtensionMatch::Full { skipped: 0 }),
+        Some(ext) => {
+            let matched = ext.longest_match(hashed_key, conf.bit_width)?;
+            let skipped = matched as u32 / conf.bit_width;
+
+            if matched == ext.consumed() {
+                Ok(ExtensionMatch::Full { skipped })
+            } else {
+                Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
+            }
+        }
     }
 }
 
