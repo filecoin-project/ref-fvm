@@ -5,15 +5,18 @@ use std::cmp::Ordering;
 
 use crate::{Error, HashedKey};
 
+/// Part of a `HashedKey`.
+pub type HashedKeySlice = [u8];
+
 /// Helper struct which indexes and allows returning bits from a hashed key
 #[derive(Debug, Clone, Copy)]
 pub struct HashBits<'a> {
-    b: &'a HashedKey,
+    b: &'a HashedKeySlice,
     pub consumed: u32,
 }
 
 #[inline]
-fn mkmask(n: u32) -> u32 {
+pub(crate) fn mkmask(n: u32) -> u32 {
     ((1u64 << n) - 1) as u32
 }
 
@@ -27,6 +30,14 @@ impl<'a> HashBits<'a> {
         Self {
             b: hash_buffer,
             consumed,
+        }
+    }
+
+    /// Constructs hash bits with a partial key.
+    pub fn new_from_slice(hash_buffer: &'a HashedKeySlice) -> HashBits<'a> {
+        Self {
+            b: hash_buffer,
+            consumed: 0,
         }
     }
 
@@ -74,6 +85,11 @@ impl<'a> HashBits<'a> {
                 out as u32
             }
         }
+    }
+
+    /// Length in number of bits.
+    pub fn len(&self) -> usize {
+        self.b.len() * 8
     }
 }
 
