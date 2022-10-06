@@ -2,6 +2,9 @@
 
 ## 3.0.0-alpha.3 [UNRELEASED]
 
+- Replace the `NETWORK_DEFAULT` constant with a pair of functions for atomically getting and setting
+  the current default network.
+
 ## 3.0.0-alpha.2 [2022-09-16]
 
 - Add basic f4 address support (without checksums for now).
