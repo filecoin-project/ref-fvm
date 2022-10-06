@@ -101,7 +101,7 @@ pub struct RandomnessMatch {
     pub ret: Vec<u8>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum RandomnessKind {
     Beacon,
@@ -109,7 +109,7 @@ pub enum RandomnessKind {
 }
 
 /// Rule for matching when randomness is returned.
-#[derive(Debug, Deserialize_tuple, PartialEq, Clone)]
+#[derive(Debug, Deserialize_tuple, PartialEq, Eq, Clone)]
 pub struct RandomnessRule {
     pub kind: RandomnessKind,
     pub dst: i64,

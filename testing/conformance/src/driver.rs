@@ -163,11 +163,11 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
         )?;
     }
 
-    return Err(anyhow!(
+    Err(anyhow!(
         "wrong post root cid; expected {}, but got {}",
         &vector.postconditions.state_tree.root_cid,
         root
-    ));
+    ))
 }
 
 /// Represents the result from running a vector.

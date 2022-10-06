@@ -11,7 +11,7 @@ use thiserror::Error;
 ///
 /// This error will provide any details about the data which was attempted to be
 /// encoded or decoded.
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, PartialEq, Eq, Error)]
 #[error("Serialization error for {protocol} protocol: {description}")]
 pub struct Error {
     pub description: String,
@@ -55,7 +55,7 @@ impl From<Error> for io::Error {
 ///
 /// This is used with the encoding errors, to detail the encoding protocol or any other
 /// information about how the data was encoded or decoded
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum CodecProtocol {
     Cbor,
 }

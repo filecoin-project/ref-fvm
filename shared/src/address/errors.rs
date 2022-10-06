@@ -10,7 +10,7 @@ use unsigned_varint::decode::Error as VarintError;
 use super::{BLS_PUB_LEN, SECP_PUB_LEN};
 
 /// Address error
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, PartialEq, Eq, Error)]
 pub enum Error {
     #[error("Unknown address network")]
     UnknownNetwork,

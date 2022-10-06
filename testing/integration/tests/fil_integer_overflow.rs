@@ -60,7 +60,7 @@ fn integer_overflow() {
 
     // Params setup
     let x: i64 = 10000000000;
-    let params = RawBytes::serialize(&x).unwrap();
+    let params = RawBytes::serialize(x).unwrap();
 
     // Send message to set
     let message = Message {

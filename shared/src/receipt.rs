@@ -7,7 +7,7 @@ use fvm_ipld_encoding::{Cbor, RawBytes};
 use crate::error::ExitCode;
 
 /// Result of a state transition from a message
-#[derive(Debug, PartialEq, Clone, Serialize_tuple, Deserialize_tuple)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize_tuple, Deserialize_tuple)]
 pub struct Receipt {
     pub exit_code: ExitCode,
     pub return_data: RawBytes,
