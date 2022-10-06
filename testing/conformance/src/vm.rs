@@ -349,11 +349,11 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
         self.0.resolve_address(address)
     }
 
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
         self.0.get_actor_code_cid(id)
     }
 

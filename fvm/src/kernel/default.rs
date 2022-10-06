@@ -223,10 +223,7 @@ where
             // exists; if missing, it fails the self destruct.
             //
             // In FVM we check unconditionally, since we only support nv13+.
-            let beneficiary_id = self
-                .resolve_address(beneficiary)?
-                .context("beneficiary doesn't exist")
-                .or_error(ErrorNumber::NotFound)?;
+            let beneficiary_id = self.resolve_address(beneficiary)?;
 
             if beneficiary_id == self.actor_id {
                 return Err(syscall_error!(Forbidden, "benefactor cannot be beneficiary").into());
@@ -745,18 +742,23 @@ impl<C> ActorOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
-        self.call_manager.state_tree().lookup_id(address)
+    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
+        Ok(self
+            .call_manager
+            .state_tree()
+            .lookup_id(address)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?)
     }
 
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
         Ok(self
             .call_manager
             .state_tree()
             .get_actor_id(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
-            .map(|act| act.code))
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .code)
     }
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
