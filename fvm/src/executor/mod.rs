@@ -6,13 +6,12 @@ use std::fmt::Display;
 
 use cid::Cid;
 pub use default::DefaultExecutor;
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
-use serde::{Deserialize, Serialize};
 pub use threaded::ThreadedExecutor;
 pub use validator::DefaultValidateExecutor;
 
@@ -50,7 +49,7 @@ pub trait ValidateExecutor: Executor {
     type Validator: Kernel;
 
     /// This is the entrypoint to validate a message from an abstract account.
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<bool>;
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet>;
 }
 
 /// A description of some failure encountered when applying a message.
@@ -75,6 +74,17 @@ impl Display for ApplyFailure {
         }
         Ok(())
     }
+}
+
+/// Apply message return data.
+#[derive(Clone, Debug)]
+pub struct ValidateRet {
+    pub exit_code: ExitCode,
+    pub gas_used: i64,
+    // /// Additional failure information for debugging, if any.
+    // pub failure_info: Option<ApplyFailure>,
+    // /// Execution trace information, for debugging.
+    // pub exec_trace: ExecutionTrace,
 }
 
 /// Apply message return data.

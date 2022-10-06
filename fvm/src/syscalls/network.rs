@@ -18,7 +18,10 @@ pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
 
 /// Returns the network circ supply split as two u64 ordered in little endian.
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    crate::assert_validator!(context.kernel, "Validator can't get total circulating FIL supply.");
+    crate::assert_validator!(
+        context.kernel,
+        "Validator can't get total circulating FIL supply."
+    );
 
     context
         .kernel

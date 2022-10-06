@@ -667,8 +667,8 @@ where
             })();
 
             let invocation_data = store.into_data();
-            let last_error = invocation_data.last_error;
-            let (mut cm, block_registry) = invocation_data.kernel.into_inner();
+            let _last_error = invocation_data.last_error;
+            let (cm, block_registry) = invocation_data.kernel.into_inner();
 
             // Resolve the return block's ID into an actual block, converting to an abort if it
             // doesn't exist.
@@ -689,7 +689,7 @@ where
             let ret = match result {
                 Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
                 Err(abort) => {
-                    let (code, message, res) = match abort {
+                    let (_code, _message, res) = match abort {
                         Abort::Exit(code, message) => {
                             (code, message, Ok(InvocationResult::Failure(code)))
                         }

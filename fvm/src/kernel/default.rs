@@ -731,7 +731,12 @@ impl<C: CallManager> InvokeContextOps for DefaultKernel<C> {
             caller: self.msg_caller(),
             origin: self.msg_origin().0,
             gas_limit: self.msg_gas_limit(),
-            gas_premium: self.msg_gas_premium().try_into().map_err(|_| syscall_error!(AssertionFailed, "failed to convert gas premium inside context"))?,
+            gas_premium: self.msg_gas_premium().try_into().map_err(|_| {
+                syscall_error!(
+                    AssertionFailed,
+                    "failed to convert gas premium inside context"
+                )
+            })?,
             receiver: self.msg_receiver(),
             method_number: self.msg_method_number(),
             value_received: anyhow::Context::context(

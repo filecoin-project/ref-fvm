@@ -1,10 +1,11 @@
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
+use fvm_shared::error::ExitCode;
 use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
 
-use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor};
+use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor, ValidateRet};
 use crate::call_manager::{CallManager, ExecutionType, InvocationResult};
 use crate::kernel::{Block, Context, ExecutionError};
 use crate::machine::Machine;
@@ -41,7 +42,7 @@ where
     type Validator = K;
 
     /// validate a message from an abstract account with a delegate signature
-    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<bool> {
+    fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet> {
         const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
 
         // Load sender actor state.
@@ -60,7 +61,7 @@ where
         };
 
         // Validate the message.
-        let (res, gas_used, mut backtrace, exec_trace) = self.0.map_machine(|machine| {
+        let (res, gas_used, mut backtrace, _exec_trace) = self.0.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
             let mut cm = K::CallManager::new(
                 machine,
@@ -123,6 +124,9 @@ where
             .map_err(|e| anyhow!("actor failed to validate: {e}"))?
             .deserialize::<bool>()
             .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
-        Ok(ret)
+        Ok(ValidateRet {
+            exit_code: ExitCode::new(ret as u32),
+            gas_used,
+        })
     }
 }
