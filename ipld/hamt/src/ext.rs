@@ -196,9 +196,9 @@ mod tests {
         key[3] = 0b11011011;
         key[4] = 0b11101110;
 
-        let mut key2 = key.clone();
+        let mut key2 = key;
         key2[3] = 0b11010111;
-        let mut key3 = key.clone();
+        let mut key3 = key;
         key3[4] = 0b11111110;
 
         let mut hb = HashBits::new(&key);

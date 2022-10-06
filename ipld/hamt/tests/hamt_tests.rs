@@ -25,6 +25,7 @@ struct HamtFactory {
 }
 
 impl HamtFactory {
+    #[allow(clippy::wrong_self_convention, clippy::new_ret_no_self)]
     fn new<BS, V, K>(&self, store: BS) -> Hamt<BS, V, K>
     where
         BS: Blockstore,
