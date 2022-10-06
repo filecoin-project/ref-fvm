@@ -5,6 +5,7 @@ mod errors;
 mod network;
 mod payload;
 mod protocol;
+
 use std::borrow::Cow;
 use std::fmt;
 use std::hash::Hash;
@@ -16,7 +17,7 @@ use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
-pub use self::network::Network;
+pub use self::network::{default_network, set_default_network, Network};
 use self::payload::DelegatedAddress;
 pub use self::payload::Payload;
 pub use self::protocol::Protocol;
@@ -61,10 +62,6 @@ const MAX_ADDRESS_LEN: usize = 115;
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
-// TODO pull network from config (probably)
-// TODO: can we do this using build flags?
-pub const NETWORK_DEFAULT: Network = Network::Mainnet;
-
 /// Address is the struct that defines the protocol and data payload conversion from either
 /// a public key or value
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -87,51 +84,63 @@ impl Address {
     }
 
     /// Creates address from encoded bytes
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn from_bytes(bz: &[u8]) -> Result<Self, Error> {
         if bz.len() < 2 {
             Err(Error::InvalidLength)
         } else {
             let protocol = Protocol::from_byte(bz[0]).ok_or(Error::UnknownProtocol)?;
-            Self::new(NETWORK_DEFAULT, protocol, &bz[1..])
+            Self::new(default_network(), protocol, &bz[1..])
         }
     }
 
     /// Generates new address using ID protocol
-    pub const fn new_id(id: u64) -> Self {
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
+    pub fn new_id(id: u64) -> Self {
         Self {
-            network: NETWORK_DEFAULT,
+            network: default_network(),
             payload: Payload::ID(id),
         }
     }
 
     /// Generates new address using Secp256k1 pubkey
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != 65 {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: default_network(),
             payload: Payload::Secp256k1(address_hash(pubkey)),
         })
     }
 
     /// Generates new address using the Actor protocol
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_actor(data: &[u8]) -> Self {
         Self {
-            network: NETWORK_DEFAULT,
+            network: default_network(),
             payload: Payload::Actor(address_hash(data)),
         }
     }
 
     /// Generates a new delegated address from a namespace and a subaddress.
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_delegated(ns: ActorID, subaddress: &[u8]) -> Result<Self, Error> {
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: default_network(),
             payload: Payload::Delegated(DelegatedAddress::new(ns, subaddress)?),
         })
     }
 
     /// Generates new address using BLS pubkey
+    /// This API uses [Network::Mainnet] as default
+    /// unless it's changed by [set_default_network]
     pub fn new_bls(pubkey: &[u8]) -> Result<Self, Error> {
         if pubkey.len() != BLS_PUB_LEN {
             return Err(Error::InvalidBLSLength(pubkey.len()));
@@ -139,7 +148,7 @@ impl Address {
         let mut key = [0u8; BLS_PUB_LEN];
         key.copy_from_slice(pubkey);
         Ok(Self {
-            network: NETWORK_DEFAULT,
+            network: default_network(),
             payload: Payload::BLS(key),
         })
     }

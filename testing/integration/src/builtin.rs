@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use cid::Cid;
+use fvm::init_actor::INIT_ACTOR_ADDR_ID;
 use fvm::machine::Manifest;
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::system_actor::SYSTEM_ACTOR_ADDR_ID;
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
+use fvm_shared::address::Address;
 use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
@@ -40,7 +43,7 @@ pub fn set_sys_actor(
         balance: Default::default(),
     };
     state_tree
-        .set_actor(&system_actor::SYSTEM_ACTOR_ADDR, sys_actor_state)
+        .set_actor(&Address::new_id(SYSTEM_ACTOR_ADDR_ID), sys_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("system actor".to_owned()))
 }
@@ -63,7 +66,7 @@ pub fn set_init_actor(
     };
 
     state_tree
-        .set_actor(&init_actor::INIT_ACTOR_ADDR, init_actor_state)
+        .set_actor(&Address::new_id(INIT_ACTOR_ADDR_ID), init_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("init actor".to_owned()))
 }
