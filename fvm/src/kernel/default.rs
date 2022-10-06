@@ -301,9 +301,6 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
-        // TODO may just no-op instead of err here
-        crate::assert_validator!(self, "Validator can't mutate state.");
-
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
@@ -311,9 +308,6 @@ where
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
-        // TODO may just no-op instead of err here
-        crate::assert_validator!(self, "Validator can't call send.");
-
         if hash_fun != BLAKE2B_256 || hash_len != 32 {
             return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
         }
@@ -684,7 +678,6 @@ where
     }
 
     fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
-        crate::assert_validator!(self, "Validator can't TODO.");
         self.call_manager
             .gas_tracker_mut()
             .charge_gas(name, compute)
@@ -824,7 +817,7 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        crate::assert_validator!(self, "Validator can't create a new actor address.");
         let origin_addr = *self.call_manager.origin().1;
         let oa = self
             .resolve_to_key_addr(&origin_addr, false)
@@ -884,7 +877,7 @@ where
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        crate::assert_validator!(self, "Validator can't get code CID for type? TODO.");
         self.call_manager
             .machine()
             .builtin_actors()

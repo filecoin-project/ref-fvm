@@ -11,6 +11,9 @@ pub fn charge_gas(
     name_len: u32,
     compute: i64,
 ) -> Result<()> {
+    // check done here since it is used often internally
+    crate::assert_validator!(context.kernel, "Validator can't charge for gas.");
+
     let name =
         str::from_utf8(context.memory.try_slice(name_off, name_len)?).or_illegal_argument()?;
     // Gas charges from actors are always in full gas units. We use milligas internally, so convert here.

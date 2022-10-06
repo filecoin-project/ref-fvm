@@ -106,9 +106,8 @@ fn validate() {
     // Instantiate machine
     tester.instantiate_machine(DummyExterns).unwrap();
 
-    // Send message
     let message = Message {
-        from: sender[0].1,
+        from: actor_address,
         to: actor_address,
         gas_limit: 1000000000,
         method_num: 1,
@@ -117,11 +116,21 @@ fn validate() {
 
     let sig = vec![1; 32];
 
-    let res = tester
+    assert!(tester
         .executor
+        .as_mut()
         .unwrap()
-        .validate_message(message, sig)
-        .unwrap();
+        .validate_message(message.clone(), sig)
+        .unwrap());
+
+    let invalid_sig = vec![0; 32];
+
+    assert!(!tester
+        .executor
+        .as_mut()
+        .unwrap()
+        .validate_message(message, invalid_sig)
+        .unwrap());
 
     // assert_eq!(res.msg_receipt.exit_code.value(), 16)
 }

@@ -102,8 +102,8 @@ pub mod params {
     /// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
     #[derive(Debug, Serialize, Deserialize)]
     pub struct ValidateParams {
-        signature: Vec<u8>,
-        message: Message,
+        pub signature: Vec<u8>,
+        pub message: Message,
     }
 
     impl ValidateParams {

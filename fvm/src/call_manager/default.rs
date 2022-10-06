@@ -202,16 +202,6 @@ where
                 params: params.data().to_owned().into(),
             });
         }
-
-        // See comment in `send`
-        if self.call_stack_depth > self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
-        }
-        self.call_stack_depth = 1;
         // validate unchecked
         let result = {
             // Get the receiver; this will resolve the address.
@@ -221,9 +211,6 @@ where
             // Do the actual validate.
             self.validate_unchecked::<K>(from, params)
         };
-
-        // validate cant call other actors
-        // self.call_stack_depth -= 1;
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -616,12 +603,12 @@ where
         // Ensure that actor's code is loaded and cached in the engine.
         // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
         // listed the manifest, and therefore preloaded during system initialization.
-        // #[cfg(feature = "m2-native")]
-        self.engine()
-            .prepare_actor_code(&state.code, self.blockstore())
-            .map_err(
-                |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
-            )?;
+        // // #[cfg(feature = "m2-native")]
+        // self.engine()
+        //     .prepare_actor_code(&state.code, self.blockstore())
+        //     .map_err(
+        //         |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
+        //     )?;
 
         log::trace!("calling validate from {}", from);
         self.map_mut(|cm| {
@@ -631,7 +618,7 @@ where
                 block_registry,
                 from,
                 from,
-                0xff,
+                0,
                 TokenAmount::zero(),
                 ExecutionType::Validator,
             );
@@ -702,10 +689,6 @@ where
             let ret = match result {
                 Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
                 Err(abort) => {
-                    if let Some(err) = last_error {
-                        cm.backtrace.begin(err);
-                    }
-
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message) => {
                             (code, message, Ok(InvocationResult::Failure(code)))
@@ -721,13 +704,6 @@ where
                             Err(ExecutionError::Fatal(err)),
                         ),
                     };
-
-                    cm.backtrace.push_frame(Frame {
-                        source: from,
-                        method: 0xff, // TODO
-                        message,
-                        code,
-                    });
 
                     res
                 }
