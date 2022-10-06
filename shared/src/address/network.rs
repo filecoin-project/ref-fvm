@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 
-use super::{MAINNET_PREFIX, TESTNET_PREFIX};
+use super::{Address, Error, MAINNET_PREFIX, TESTNET_PREFIX};
 
 static ATOMIC_NETWORK: AtomicU8 = AtomicU8::new(0);
 
@@ -33,6 +33,25 @@ impl Network {
             Network::Mainnet => MAINNET_PREFIX,
             Network::Testnet => TESTNET_PREFIX,
         }
+    }
+
+    /// from_prefix is used to convert the network from a string
+    /// used when parsing
+    pub(super) fn from_prefix(s: &str) -> Result<Self, Error> {
+        match s {
+            MAINNET_PREFIX => Ok(Network::Mainnet),
+            TESTNET_PREFIX => Ok(Network::Testnet),
+            _ => Err(Error::UnknownNetwork),
+        }
+    }
+
+    /// Parse an address belonging to this network.
+    pub fn parse_address(self, addr: &str) -> Result<Address, Error> {
+        let (addr, network) = super::parse_address(addr)?;
+        if network != self {
+            return Err(Error::UnknownNetwork);
+        }
+        Ok(addr)
     }
 }
 
@@ -67,6 +86,11 @@ mod tests {
         // We're in mainnet mode.
         let addr1 = Address::from_str("f01");
         Address::from_str("t01").expect_err("should have failed to parse testnet address");
+        assert_eq!(
+            addr1,
+            Network::Testnet.parse_address("t01"),
+            "parsing an explicit address should still work"
+        );
 
         // Switch to testnet mode.
         set_current_network(Network::Testnet);
