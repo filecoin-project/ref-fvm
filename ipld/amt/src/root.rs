@@ -74,28 +74,22 @@ where
     where
         D: de::Deserializer<'de>,
     {
+        let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
+            Deserialize::deserialize(deserializer)?;
         match VER {
-            V3 => {
-                let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
-                    Deserialize::deserialize(deserializer)?;
-                Ok(Self {
-                    bit_width,
-                    height,
-                    count,
-                    node: node.expand(bit_width).map_err(de::Error::custom)?,
-                })
-            }
+            V3 => Ok(Self {
+                bit_width,
+                height,
+                count,
+                node: node.expand(bit_width).map_err(de::Error::custom)?,
+            }),
             // legacy amt v0
-            V0 => {
-                let (height, count, node): (_, _, CollapsedNode<V>) =
-                    Deserialize::deserialize(deserializer)?;
-                Ok(Self {
-                    bit_width: DEFAULT_BIT_WIDTH,
-                    height,
-                    count,
-                    node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
-                })
-            }
+            V0 => Ok(Self {
+                bit_width: DEFAULT_BIT_WIDTH,
+                height,
+                count,
+                node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
+            }),
             _ => unreachable!(),
         }
     }
@@ -130,14 +124,22 @@ mod tests {
     }
 
     #[test]
-    fn serialize_deserialize_v3_v0() {
-        let mut root: Root<_> = Root::new(3);
+    fn serialize_deserialize_from_v3_to_v0() {
+        let mut root: Root<String> = Root::new(3);
         root.height = 2;
         root.count = 1;
         root.node = Node::Leaf {
             vals: vec![None; 8],
         };
         let rbz = to_vec(&root).unwrap();
-        assert_eq!(from_slice::<Root<String>>(&rbz).unwrap(), root);
+
+        let mut root_v0: Rootv0<_> = Rootv0::new();
+        root_v0.height = 2;
+        root_v0.count = 1;
+        root_v0.node = Node::Leaf {
+            vals: vec![None; 8],
+        };
+
+        assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root_v0);
     }
 }
