@@ -39,11 +39,11 @@ impl<V> RootImpl<V, V3> {
 impl<V> RootImpl<V, V0> {
     pub(crate) fn new() -> Rootv0<V> {
         Self {
-            bit_width: crate::DEFAULT_BIT_WIDTH,
+            bit_width: DEFAULT_BIT_WIDTH,
             count: 0,
             height: 0,
             node: Node::Leaf {
-                vals: init_sized_vec(crate::DEFAULT_BIT_WIDTH),
+                vals: init_sized_vec(DEFAULT_BIT_WIDTH),
             },
         }
     }
@@ -90,12 +90,10 @@ where
                 let (height, count, node): (_, _, CollapsedNode<V>) =
                     Deserialize::deserialize(deserializer)?;
                 Ok(Self {
-                    bit_width: crate::DEFAULT_BIT_WIDTH,
+                    bit_width: DEFAULT_BIT_WIDTH,
                     height,
                     count,
-                    node: node
-                        .expand(crate::DEFAULT_BIT_WIDTH)
-                        .map_err(de::Error::custom)?,
+                    node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
                 })
             }
             _ => unreachable!(),
@@ -114,9 +112,7 @@ mod tests {
         let mut root = Root::new(0);
         root.height = 2;
         root.count = 1;
-        root.node = Node::Leaf {
-            vals: vec![None, None],
-        };
+        root.node = Node::Leaf { vals: vec![None] };
         let rbz = to_vec(&root).unwrap();
         assert_eq!(from_slice::<Root<String>>(&rbz).unwrap(), root);
     }
@@ -130,6 +126,18 @@ mod tests {
             vals: vec![None; 8],
         };
         let rbz = to_vec(&root).unwrap();
-        assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root); // FIXME: fails currently
+        assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root);
+    }
+
+    #[test]
+    fn serialize_deserialize_v3_v0() {
+        let mut root: Root<_> = Root::new(3);
+        root.height = 2;
+        root.count = 1;
+        root.node = Node::Leaf {
+            vals: vec![None; 8],
+        };
+        let rbz = to_vec(&root).unwrap();
+        assert_eq!(from_slice::<Root<String>>(&rbz).unwrap(), root);
     }
 }
