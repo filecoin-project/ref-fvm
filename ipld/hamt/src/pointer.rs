@@ -82,8 +82,8 @@ where
                 // Using a `Map` and not a tuple so it's easy to distinguish from the case of `Values`.
                 // Constructing the map manually so we don't have to clone the extension and give it to a struct.
                 let mut map = BTreeMap::new();
-                add_to_ipld_map::<S, _>(&mut map, "cid", cid)?;
-                add_to_ipld_map::<S, _>(&mut map, "ext", e)?;
+                add_to_ipld_map::<S, _>(&mut map, "c", cid)?;
+                add_to_ipld_map::<S, _>(&mut map, "e", e)?;
                 Ipld::Map(map).serialize(serializer)
             }
             Pointer::Dirty { .. } => Err(ser::Error::custom("Cannot serialize cached values")),
@@ -110,8 +110,8 @@ where
                 cache: Default::default(),
             }),
             Ipld::Map(mut map) => {
-                let cid: Cid = from_ipld_map(&mut map, "cid")?;
-                let ext: Extension = from_ipld_map(&mut map, "ext")?;
+                let cid: Cid = from_ipld_map(&mut map, "c")?;
+                let ext: Extension = from_ipld_map(&mut map, "e")?;
 
                 Ok(Self::Link {
                     cid,
