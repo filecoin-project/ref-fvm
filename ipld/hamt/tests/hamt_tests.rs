@@ -376,7 +376,7 @@ fn canonical_structure() {
         &[b"K"],
         &[b"B"],
         "bafy2bzacecosy45hp4sz2t4o4flxvntnwjy7yaq43bykci22xycpeuj542lse",
-        BSStats {r: 2, w: 4, br: 38, bw: 76},
+        BSStats {r: 2, w: 2, br: 38, bw: 38},
     );
 
     #[rustfmt::skip]
@@ -385,7 +385,7 @@ fn canonical_structure() {
         &[b"K0", b"K1", b"KAA1", b"KAA2", b"KAA3"],
         &[b"KAA4"],
         "bafy2bzaceaqdaj5aqkwugr7wx4to3fahynoqlxuo5j6xznly3khazgyxihkbo",
-        BSStats {r:3, w:6, br:163, bw:326},
+        BSStats {r:3, w:4, br:163, bw:214},
     );
 }
 
@@ -406,16 +406,16 @@ fn canonical_structure_alt_bit_width() {
 
     #[rustfmt::skip]
     let kb_stats = [
-        BSStats {r: 2, w: 4, br: 22, bw: 44},
-        BSStats {r: 2, w: 4, br: 24, bw: 48},
-        BSStats {r: 2, w: 4, br: 28, bw: 56},
+        BSStats {r: 2, w: 2, br: 22, bw: 22},
+        BSStats {r: 2, w: 2, br: 24, bw: 24},
+        BSStats {r: 2, w: 2, br: 28, bw: 28},
     ];
 
     #[rustfmt::skip]
     let other_stats = [
-        BSStats {r: 3, w: 6, br: 139, bw: 278},
-        BSStats {r: 3, w: 6, br: 146, bw: 292},
-        BSStats {r: 3, w: 6, br: 154, bw: 308},
+        BSStats {r: 3, w: 4, br: 139, bw: 182},
+        BSStats {r: 3, w: 4, br: 146, bw: 194},
+        BSStats {r: 3, w: 4, br: 154, bw: 206},
     ];
 
     for i in 5..8 {
