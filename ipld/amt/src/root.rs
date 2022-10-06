@@ -11,9 +11,9 @@ const V0: u8 = 0;
 const V3: u8 = 3;
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
-pub(super) type Root<V> = RootImpl<V, 3>;
-
-pub(super) type Rootv0<V> = RootImpl<V, 0>;
+pub(super) type Root<V> = RootImpl<V, V3>;
+/// Legacy AMT v0, used to read block headers.
+pub(super) type Rootv0<V> = RootImpl<V, V0>;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct RootImpl<V, const VER: u8 = V3> {
@@ -37,7 +37,7 @@ impl<V> RootImpl<V, V3> {
 }
 
 impl<V> RootImpl<V, V0> {
-    pub(super) fn new() -> Rootv0<V> {
+    pub(crate) fn new() -> Rootv0<V> {
         Self {
             bit_width: crate::DEFAULT_BIT_WIDTH,
             count: 0,
@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<'de, V> Deserialize<'de> for RootImpl<V, V3>
+impl<'de, V, const VER: u8> Deserialize<'de> for RootImpl<V, VER>
 where
     V: Deserialize<'de>,
 {
@@ -74,37 +74,32 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
-            Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            bit_width,
-            height,
-            count,
-            node: node.expand(bit_width).map_err(de::Error::custom)?,
-        })
-    }
-}
-
-// Deserialize impl for legacy amt v0
-impl<'de, V> Deserialize<'de> for RootImpl<V, V0>
-where
-    V: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        // legacy amt v0 doesn't include bit_width as DEFAULT_BIT_WIDTH is used.
-        let (height, count, node): (_, _, CollapsedNode<V>) =
-            Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            bit_width: crate::DEFAULT_BIT_WIDTH,
-            height,
-            count,
-            node: node
-                .expand(crate::DEFAULT_BIT_WIDTH)
-                .map_err(de::Error::custom)?,
-        })
+        match VER {
+            V3 => {
+                let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
+                    Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    bit_width,
+                    height,
+                    count,
+                    node: node.expand(bit_width).map_err(de::Error::custom)?,
+                })
+            }
+            // legacy amt v0
+            V0 => {
+                let (height, count, node): (_, _, CollapsedNode<V>) =
+                    Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    bit_width: crate::DEFAULT_BIT_WIDTH,
+                    height,
+                    count,
+                    node: node
+                        .expand(crate::DEFAULT_BIT_WIDTH)
+                        .map_err(de::Error::custom)?,
+                })
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -119,7 +114,9 @@ mod tests {
         let mut root = Root::new(0);
         root.height = 2;
         root.count = 1;
-        root.node = Node::Leaf { vals: vec![None] };
+        root.node = Node::Leaf {
+            vals: vec![None, None],
+        };
         let rbz = to_vec(&root).unwrap();
         assert_eq!(from_slice::<Root<String>>(&rbz).unwrap(), root);
     }
@@ -129,7 +126,9 @@ mod tests {
         let mut root: Rootv0<_> = Rootv0::new();
         root.height = 2;
         root.count = 1;
-        root.node = Node::Leaf {vals: vec![None]};
+        root.node = Node::Leaf {
+            vals: vec![None; 8],
+        };
         let rbz = to_vec(&root).unwrap();
         assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root); // FIXME: fails currently
     }
