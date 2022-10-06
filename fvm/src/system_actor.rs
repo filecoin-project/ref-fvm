@@ -8,7 +8,7 @@ use fvm_shared::address::Address;
 use crate::kernel::{ClassifyResult, Result};
 use crate::state_tree::{ActorState, StateTree};
 
-pub const SYSTEM_ACTOR_ADDR_ID: u64 = 0;
+pub const SYSTEM_ACTOR_ADDR: Address = Address::new_id(0);
 
 #[derive(Default, Deserialize_tuple, Serialize_tuple)]
 pub struct State {
@@ -23,7 +23,7 @@ impl State {
         B: Blockstore,
     {
         let system_act = state_tree
-            .get_actor(&Address::new_id(SYSTEM_ACTOR_ADDR_ID))?
+            .get_actor(&SYSTEM_ACTOR_ADDR)?
             .context("system actor address could not be resolved")
             .or_fatal()?;
 
