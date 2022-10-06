@@ -26,3 +26,9 @@ name = "simple"
 path = "fuzz_targets/simple.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "extensions"
+path = "fuzz_targets/extensions.rs"
+test = false
+doc = false
