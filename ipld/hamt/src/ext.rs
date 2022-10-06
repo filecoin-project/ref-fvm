@@ -107,14 +107,15 @@ impl Extension {
         Ok(builder.build())
     }
 
-    /// Split the extension after `consumed` bits into a head and a tail,
-    /// both of which can possibly be empty. Returns error if the consumed
-    /// bits would be longer than the path.
-    pub fn split(&self, consumed: u8) -> Result<(Self, Self), Error> {
+    /// Split the extension after `consumed` bits into a head, a tail, and the bits between.
+    ///
+    /// Returns error if the consumed bits would be longer than the path.
+    pub fn split(&self, consumed: u8, bit_width: u32) -> Result<(Self, Self, Self), Error> {
         let mut path = self.path_bits();
         let head = Self::from_bits(&mut path, consumed)?;
-        let tail = Self::from_bits(&mut path, self.consumed - head.consumed)?;
-        Ok((head, tail))
+        let idx = Self::from_bits(&mut path, bit_width as u8)?;
+        let tail = Self::from_bits(&mut path, self.consumed - head.consumed - bit_width as u8)?;
+        Ok((head, idx, tail))
     }
 
     /// Build an extension from a prefix of some hashed bits, starting from however
@@ -233,22 +234,26 @@ mod tests {
         key[3] = 0b11011011;
         key[4] = 0b11101110;
 
+        let bit_width = 3;
         let mut hb = HashBits::new(&key);
-        hb.next(3).unwrap();
+        hb.next(bit_width).unwrap();
 
         let ext = Extension::from_bits(&mut hb, 253).unwrap();
         assert_eq!(ext.consumed, 253);
         assert_eq!(ext.path[0], 0b01000100);
 
-        let (head, tail) = ext.split(20).unwrap();
+        let (head, midx, tail) = ext.split(20, bit_width).unwrap();
 
         assert_eq!(head.consumed, 20);
         assert_eq!(head.path[0], 0b01000100);
         assert_eq!(head.path[1], 0b10010101);
         assert_eq!(head.path[2], 0b01010000);
 
-        assert_eq!(tail.consumed, 233);
-        assert_eq!(tail.path[0], 0b01101101);
-        assert_eq!(tail.path[1], 0b11110111);
+        assert_eq!(midx.consumed, 3);
+        assert_eq!(midx.path[0], 0b01100000);
+
+        assert_eq!(tail.consumed, 230);
+        assert_eq!(tail.path[0], 0b01101111);
+        assert_eq!(tail.path[1], 0b10111000);
     }
 }

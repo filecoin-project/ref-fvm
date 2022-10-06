@@ -312,7 +312,7 @@ where
                             key,
                             value,
                             |midway, idx, tail| {
-                                midway.insert_child_link(idx, *cid, Some(tail));
+                                midway.insert_child_link(idx, *cid, tail);
                             },
                         )?;
                         Ok((None, true))
@@ -337,7 +337,7 @@ where
                         key,
                         value,
                         |midway, idx, tail| {
-                            midway.insert_child_dirty(idx, std::mem::take(node), Some(tail));
+                            midway.insert_child_dirty(idx, std::mem::take(node), tail);
                         },
                     )?;
                     Ok((None, true))
@@ -633,14 +633,14 @@ where
         insert_pointer: F,
     ) -> Result<Pointer<K, V, H>, Error>
     where
-        F: FnOnce(&mut Node<K, V, H>, u32, Extension),
+        F: FnOnce(&mut Node<K, V, H>, u32, Option<Extension>),
     {
-        // Need to split the extension.
+        // Need a new node at the split point.
         let mut midway = Node::<K, V, H>::default();
-        let (head, tail) = part.split();
 
         // Point at the original node the link pointed at in the next nibble of the path after the split.
-        let idx = part.next(conf.bit_width)?;
+        let (head, idx, tail) = part.split(conf.bit_width)?;
+
         // Insert pointer to original.
         insert_pointer(&mut midway, idx, tail);
 
@@ -672,25 +672,20 @@ struct PartialMatch<'a> {
 }
 
 impl<'a> PartialMatch<'a> {
-    /// Get the next `i` bits from the path *after* the match.
-    pub fn next(&self, bit_width: u32) -> Result<u32, Error> {
-        let mut bits = self.ext.path_bits();
-        bits.consumed = self.matched as u32;
-        bits.next(bit_width)
-    }
-
     /// Split the extension into the part before the match (which could be empty)
-    /// and the part after the match (which will not be empty otherwise it would
-    /// have been a `Full` match).
-    pub fn split(&self) -> (Option<Extension>, Extension) {
-        let (head, tail) = self
-            .ext
-            .split(self.matched)
-            .expect("extension is at least `matched` bits long");
+    /// the next nibble where the link pointing to the tail needs to be inserted
+    /// into the new midway node, and the part after (which again could be empty).
+    pub fn split(
+        &self,
+        bit_width: u32,
+    ) -> Result<(Option<Extension>, u32, Option<Extension>), Error> {
+        let (head, idx, tail) = self.ext.split(self.matched, bit_width)?;
 
         // Drop an empty head so we don't store it.
-        let head = Some(head).filter(|h| !h.is_empty());
+        let head = Some(head).filter(|e| !e.is_empty());
+        let idx = idx.path_bits().next(bit_width)?;
+        let tail = Some(tail).filter(|e| !e.is_empty());
 
-        (head, tail)
+        Ok((head, idx, tail))
     }
 }
