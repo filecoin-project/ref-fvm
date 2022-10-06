@@ -70,6 +70,44 @@ impl HamtFactory {
     }
 }
 
+/// Check hard-coded CIDs during testing.
+struct CidChecker {
+    checked: usize,
+    cids: Option<Vec<&'static str>>,
+}
+
+impl CidChecker {
+    pub fn new(cids: Vec<&'static str>) -> Self {
+        Self {
+            cids: Some(cids),
+            checked: 0,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            cids: None,
+            checked: 0,
+        }
+    }
+
+    pub fn check_next(&mut self, cid: Cid) {
+        if let Some(cids) = &self.cids {
+            assert_ne!(self.checked, cids.len());
+            assert_eq!(cid.to_string().as_str(), cids[self.checked]);
+            self.checked += 1;
+        }
+    }
+}
+
+impl Drop for CidChecker {
+    fn drop(&mut self) {
+        if let Some(cids) = &self.cids {
+            assert_eq!(self.checked, cids.len())
+        }
+    }
+}
+
 fn test_basics(factory: HamtFactory) {
     let store = MemoryBlockstore::default();
     let mut hamt = factory.new(&store);
@@ -115,7 +153,7 @@ fn test_load(factory: HamtFactory) {
     assert_eq!(c3, c2);
 }
 
-fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>) {
+fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -140,16 +178,18 @@ fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>) {
         .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap());
 
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzaced2tgnlsq4n2ioe6ldy75fw3vlrrkyfv4bq6didbwoob2552zvpuk"
-    );
+    cids.check_next(c);
+
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn set_with_no_effect_does_not_put(factory: HamtFactory, stats: Option<BSStats>) {
+fn set_with_no_effect_does_not_put(
+    factory: HamtFactory,
+    stats: Option<BSStats>,
+    mut cids: CidChecker,
+) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -160,18 +200,12 @@ fn set_with_no_effect_does_not_put(factory: HamtFactory, stats: Option<BSStats>)
     }
 
     let c = begn.flush().unwrap();
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzacebjilcrsqa4uyxuh36gllup4rlgnvwgeywdm5yqq2ks4jrsj756qq"
-    );
+    cids.check_next(c);
 
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
     let c2 = begn.flush().unwrap();
-    assert_eq!(
-        c2.to_string().as_str(),
-        "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku"
-    );
+    cids.check_next(c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -179,17 +213,14 @@ fn set_with_no_effect_does_not_put(factory: HamtFactory, stats: Option<BSStats>)
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
     let c3 = begn.flush().unwrap();
-    assert_eq!(
-        c3.to_string().as_str(),
-        "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku"
-    );
+    cids.check_next(c3);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn delete(factory: HamtFactory, stats: Option<BSStats>) {
+fn delete(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -199,26 +230,20 @@ fn delete(factory: HamtFactory, stats: Option<BSStats>) {
     hamt.set(tstring("baz"), tstring("cat")).unwrap();
 
     let c = hamt.flush().unwrap();
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzacebql36crv4odvxzstx2ubaczmawy2tlljxezvorcsoqeyyojxkrom"
-    );
+    cids.check_next(c);
 
     let mut h2 = Hamt::<_, BytesKey>::load(&c, &store).unwrap();
     assert!(h2.delete(&b"foo".to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&b"foo".to_vec()).unwrap(), None);
 
     let c2 = h2.flush().unwrap();
-    assert_eq!(
-        c2.to_string().as_str(),
-        "bafy2bzaced7up7wkm7cirieh5bs4iyula5inrprihmjzozmku3ywvekzzmlyi"
-    );
+    cids.check_next(c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn delete_case(factory: HamtFactory, stats: Option<BSStats>) {
+fn delete_case(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -228,26 +253,20 @@ fn delete_case(factory: HamtFactory, stats: Option<BSStats>) {
         .unwrap();
 
     let c = hamt.flush().unwrap();
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzaceb2hikcc6tfuuuuehjstbiq356oruwx6ejyse77zupq445unranv6"
-    );
+    cids.check_next(c);
 
     let mut h2: Hamt<_, ByteBuf> = factory.load(&c, &store);
     assert!(h2.delete(&[0].to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&[0].to_vec()).unwrap(), None);
 
     let c2 = h2.flush().unwrap();
-    assert_eq!(
-        c2.to_string().as_str(),
-        "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
-    );
+    cids.check_next(c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn reload_empty(factory: HamtFactory, stats: Option<BSStats>) {
+fn reload_empty(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -257,16 +276,13 @@ fn reload_empty(factory: HamtFactory, stats: Option<BSStats>) {
     let h2: Hamt<_, ()> = factory.load(&c, &store);
     let c2 = store.put_cbor(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
-    );
+    cids.check_next(c);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn set_delete_many(factory: HamtFactory, stats: Option<BSStats>) {
+fn set_delete_many(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -278,20 +294,14 @@ fn set_delete_many(factory: HamtFactory, stats: Option<BSStats>) {
     }
 
     let c1 = hamt.flush().unwrap();
-    assert_eq!(
-        c1.to_string().as_str(),
-        "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
-    );
+    cids.check_next(c1);
 
     for i in 200..400 {
         hamt.set(tstring(i), tstring(i)).unwrap();
     }
 
     let cid_all = hamt.flush().unwrap();
-    assert_eq!(
-        cid_all.to_string().as_str(),
-        "bafy2bzacecxcp736xkl2mcyjlors3tug6vdlbispbzxvb75xlrhthiw2xwxvw"
-    );
+    cids.check_next(cid_all);
 
     for i in 200..400 {
         assert!(hamt.delete(&tstring(i)).unwrap().is_some());
@@ -302,16 +312,13 @@ fn set_delete_many(factory: HamtFactory, stats: Option<BSStats>) {
     }
 
     let cid_d = hamt.flush().unwrap();
-    assert_eq!(
-        cid_d.to_string().as_str(),
-        "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
-    );
+    cids.check_next(cid_d);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
 }
 
-fn for_each(factory: HamtFactory, stats: Option<BSStats>) {
+fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -332,10 +339,7 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>) {
     assert_eq!(count, 200);
 
     let c = hamt.flush().unwrap();
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
-    );
+    cids.check_next(c);
 
     let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5);
 
@@ -360,10 +364,7 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>) {
     assert_eq!(count, 200);
 
     let c = hamt.flush().unwrap();
-    assert_eq!(
-        c.to_string().as_str(),
-        "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a"
-    );
+    cids.check_next(c);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -492,7 +493,7 @@ fn canonical_structure_alt_bit_width() {
     }
 }
 
-fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>) {
+fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let make_key = |i: u64| -> BytesKey {
         let mut key = unsigned_varint::encode::u64_buffer();
         let n = unsigned_varint::encode::u64(i, &mut key);
@@ -511,10 +512,7 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>) {
     }
 
     let root = h.flush().unwrap();
-    assert_eq!(
-        root.to_string().as_str(),
-        "bafy2bzacebqox3gtng4ytexyacr6zmaliyins3llnhbnfbcrqmhzuhmuuawqk"
-    );
+    cids.check_next(root);
     let mut h: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
 
     h.delete(&make_key(104)).unwrap();
@@ -522,10 +520,7 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>) {
     let root = h.flush().unwrap();
     let _: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5);
 
-    assert_eq!(
-        root.to_string().as_str(),
-        "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6"
-    );
+    cids.check_next(root);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -536,10 +531,10 @@ fn tstring(v: impl Display) -> BytesKey {
     BytesKey(v.to_string().into_bytes())
 }
 
-mod test_defaults {
+mod test_default {
     use fvm_ipld_blockstore::tracking::BSStats;
 
-    use crate::HamtFactory;
+    use crate::{CidChecker, HamtFactory};
 
     #[test]
     fn test_basics() {
@@ -555,52 +550,152 @@ mod test_defaults {
     fn test_set_if_absent() {
         #[rustfmt::skip]
         let stats = BSStats {r: 1, w: 1, br: 63, bw: 63};
-        super::test_set_if_absent(HamtFactory::default(), Some(stats))
+        let cids = CidChecker::new(vec![
+            "bafy2bzaced2tgnlsq4n2ioe6ldy75fw3vlrrkyfv4bq6didbwoob2552zvpuk",
+        ]);
+        super::test_set_if_absent(HamtFactory::default(), Some(stats), cids)
     }
 
     #[test]
     fn set_with_no_effect_does_not_put() {
         #[rustfmt::skip]
         let stats = BSStats {r:0, w:18, br:0, bw:1282};
-        super::set_with_no_effect_does_not_put(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzacebjilcrsqa4uyxuh36gllup4rlgnvwgeywdm5yqq2ks4jrsj756qq",
+            "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku",
+            "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku",
+        ]);
+        super::set_with_no_effect_does_not_put(HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
     fn delete() {
         #[rustfmt::skip]
         let stats = BSStats {r:1, w:2, br:79, bw:139};
-        super::delete(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzacebql36crv4odvxzstx2ubaczmawy2tlljxezvorcsoqeyyojxkrom",
+            "bafy2bzaced7up7wkm7cirieh5bs4iyula5inrprihmjzozmku3ywvekzzmlyi",
+        ]);
+        super::delete(HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
     fn delete_case() {
         #[rustfmt::skip]
         let stats = BSStats {r: 1, w: 2, br: 31, bw: 34};
-        super::delete_case(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceb2hikcc6tfuuuuehjstbiq356oruwx6ejyse77zupq445unranv6",
+            "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay",
+        ]);
+        super::delete_case(HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
     fn reload_empty() {
         #[rustfmt::skip]
         let stats = BSStats {r: 1, w: 2, br: 3, bw: 6};
-        super::reload_empty(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay",
+        ]);
+        super::reload_empty(HamtFactory::default(), Some(stats), cids);
     }
+
     #[test]
     fn set_delete_many() {
         #[rustfmt::skip]
         let stats = BSStats {r: 0, w: 93, br: 0, bw: 11734};
-        super::set_delete_many(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzacecxcp736xkl2mcyjlors3tug6vdlbispbzxvb75xlrhthiw2xwxvw",
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+        ]);
+        super::set_delete_many(HamtFactory::default(), Some(stats), cids);
     }
+
     #[test]
     fn for_each() {
         #[rustfmt::skip]
         let stats = BSStats {r: 30, w: 30, br: 3209, bw: 3209};
-        super::for_each(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+        ]);
+        super::for_each(HamtFactory::default(), Some(stats), cids);
     }
+
     #[test]
     fn clean_child_ordering() {
         #[rustfmt::skip]
         let stats = BSStats {r: 3, w: 11, br: 1449, bw: 1751};
-        super::clean_child_ordering(HamtFactory::default(), Some(stats));
+        let cids = CidChecker::new(vec![
+            "bafy2bzacebqox3gtng4ytexyacr6zmaliyins3llnhbnfbcrqmhzuhmuuawqk",
+            "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6",
+        ]);
+        super::clean_child_ordering(HamtFactory::default(), Some(stats), cids);
+    }
+}
+
+mod test_extension {
+    use fvm_ipld_hamt::Config;
+
+    use crate::{CidChecker, HamtFactory};
+
+    fn make_factory() -> HamtFactory {
+        HamtFactory {
+            conf: Config {
+                use_extensions: true,
+                ..Config::default()
+            },
+        }
+    }
+
+    #[test]
+    fn test_basics() {
+        super::test_basics(make_factory())
+    }
+
+    #[test]
+    fn test_load() {
+        super::test_load(make_factory())
+    }
+
+    #[test]
+    fn test_set_if_absent() {
+        super::test_set_if_absent(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn set_with_no_effect_does_not_put() {
+        super::set_with_no_effect_does_not_put(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn delete() {
+        super::delete(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn delete_case() {
+        super::delete_case(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn reload_empty() {
+        super::reload_empty(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn set_delete_many() {
+        super::set_delete_many(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn for_each() {
+        super::for_each(make_factory(), None, CidChecker::empty())
+    }
+
+    #[test]
+    fn clean_child_ordering() {
+        super::clean_child_ordering(make_factory(), None, CidChecker::empty())
     }
 }
