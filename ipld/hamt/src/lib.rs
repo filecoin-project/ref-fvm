@@ -33,12 +33,12 @@ const MAX_ARRAY_WIDTH: usize = 3;
 const DEFAULT_BIT_WIDTH: u32 = 8;
 
 /// Configuration options for a HAMT instance.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// The `bit_width` drives how wide and high the tree is going to be.
     /// Each node in the tree will have `2^bit_width` number of slots for child nodes,
     /// and consume `bit_width` number of bits from the hashed keys at each level.
-    bit_width: u32,
+    pub bit_width: u32,
     /// Enabling extensions can help when the `HashAlgorithm` used by the HAMT is `Identity`,
     /// which allows the user of the HAMT to set the keys arbitrarily. This can result in
     /// parts of the tree being very deep, if there are keys that share a long common prefix.
@@ -50,7 +50,7 @@ pub struct Config {
     /// but everyone has to agree whether to use them or not for the CIDs to match.
     ///
     /// It's also safe to disable it, the code will still handle extensions that already exist.
-    use_extensions: bool,
+    pub use_extensions: bool,
 }
 
 impl Default for Config {
