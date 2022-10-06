@@ -23,5 +23,4 @@ fvm_ipld_encoding = { version = "0.2", path = "../ipld/encoding" }
 [features]
 default = ["debug"]
 debug = ["lazy_static"]
-testing = []
 m2-native = []
