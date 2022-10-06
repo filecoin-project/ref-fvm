@@ -27,10 +27,10 @@ pub use engine::{Engine, EngineConfig, MultiEngine};
 
 mod boxed;
 
-pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
+pub const REWARD_ACTOR_ADDR_ID: u64 = 2;
 
 /// Distinguished Account actor that is the destination of all burnt funds.
-pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
+pub const BURNT_FUNDS_ACTOR_ADDR_ID: u64 = 99;
 
 /// The Machine is the top-level object of the FVM.
 ///

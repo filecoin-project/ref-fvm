@@ -16,7 +16,7 @@ use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
-use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
+use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR_ID, REWARD_ACTOR_ADDR_ID};
 
 /// The default [`Executor`].
 ///
@@ -391,11 +391,14 @@ where
             Ok(())
         };
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        let burnt_funds_actor_addr = Address::new_id(BURNT_FUNDS_ACTOR_ADDR_ID);
+        let reward_actor_addr = Address::new_id(REWARD_ACTOR_ADDR_ID);
 
-        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(&burnt_funds_actor_addr, &base_fee_burn)?;
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(&reward_actor_addr, &miner_tip)?;
+
+        transfer_to_actor(&burnt_funds_actor_addr, &over_estimation_burn)?;
 
         // refund unused gas
         transfer_to_actor(&msg.from, &refund)?;
