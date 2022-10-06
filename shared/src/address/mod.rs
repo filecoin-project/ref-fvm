@@ -103,7 +103,7 @@ impl Address {
 
     /// Generates new address using Secp256k1 pubkey.
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
-        if pubkey.len() != 65 {
+        if pubkey.len() != SECP_PUB_LEN {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
