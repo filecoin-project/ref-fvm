@@ -114,7 +114,7 @@ impl Extension {
         let mut path = self.path_bits();
         let head = Self::from_bits(&mut path, consumed)?;
         let idx = Self::from_bits(&mut path, bit_width as u8)?;
-        let tail = Self::from_bits(&mut path, self.consumed - head.consumed - bit_width as u8)?;
+        let tail = Self::from_bits(&mut path, self.consumed - head.consumed - idx.consumed)?;
         Ok((head, idx, tail))
     }
 
