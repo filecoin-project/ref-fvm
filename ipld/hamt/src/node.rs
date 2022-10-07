@@ -187,14 +187,13 @@ where
         Q: Eq + Hash,
     {
         let hash = H::hash(q);
-        self.get_value(&mut HashBits::new(&hash), conf, 0, q, store)
+        self.get_value(&mut HashBits::new(&hash), conf, q, store)
     }
 
     fn get_value<Q: ?Sized, S: Blockstore>(
         &self,
         hashed_key: &mut HashBits,
         conf: &Config,
-        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
@@ -239,9 +238,7 @@ where
         };
 
         match match_extension(conf, hashed_key, ext)? {
-            ExtensionMatch::Full { skipped } => {
-                node.get_value(hashed_key, conf, depth + 1 + skipped, key, store)
-            }
+            ExtensionMatch::Full { .. } => node.get_value(hashed_key, conf, key, store),
             ExtensionMatch::Partial { .. } => Ok(None),
         }
     }
