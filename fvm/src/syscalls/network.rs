@@ -37,9 +37,6 @@ pub fn tipset_cid(
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
-    if let Some(cid) = context.kernel.tipset_cid(epoch)? {
-        context.memory.write_cid(&cid, obuf_off, obuf_len)
-    } else {
-        Ok(0)
-    }
+    let cid = context.kernel.tipset_cid(epoch)?;
+    context.memory.write_cid(&cid, obuf_off, obuf_len)
 }

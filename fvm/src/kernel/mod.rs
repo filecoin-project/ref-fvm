@@ -99,11 +99,11 @@ pub trait NetworkOps {
     /// The current base-fee (constant).
     fn network_base_fee(&self) -> &TokenAmount;
 
-    /// current tipset timestamp
+    /// The current tipset timestamp (seconds since the unix epoch).
     fn tipset_timestamp(&self) -> u64;
 
-    /// epoch tipset cid
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
+    /// The CID of the tipset at the specified epoch.
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
 }
 
 /// Accessors to query attributes of the incoming message.

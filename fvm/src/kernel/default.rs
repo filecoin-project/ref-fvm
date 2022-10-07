@@ -676,20 +676,19 @@ where
         self.call_manager.context().network_context.timestamp
     }
 
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>> {
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        if epoch >= 900 {
-            return Err(syscall_error!(IllegalArgument; "epoch out of finality range").into());
+        let offset = self.call_manager.context().network_context.epoch - epoch;
+        if offset < 0 {
+            return Err(syscall_error!(IllegalArgument; "epoch is in the future").into());
         }
-
         let tipsets = &self.call_manager.context().network_context.tipsets;
-        if (epoch as usize) < tipsets.len() {
-            return Ok(Some(tipsets[epoch as usize]));
+        if offset >= tipsets.len() as i64 {
+            return Err(syscall_error!(LimitExceeded; "tipset lookback exceeded limit").into());
         }
-
-        Ok(None)
+        Ok(tipsets[offset as usize])
     }
 }
 

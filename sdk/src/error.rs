@@ -11,3 +11,11 @@ pub enum ActorDeleteError {
     #[error("deletion beneficiary does not exist")]
     BeneficiaryDoesNotExist,
 }
+
+#[derive(Copy, Clone, Debug, Error)]
+pub enum EpochBoundsError {
+    #[error("the requested epoch isn't valid")]
+    Invalid,
+    #[error("the requested epoch exceeds the maximum lookback")]
+    ExceedsLookback,
+}

@@ -7,6 +7,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MAX_CID_LEN;
 
+use crate::error::EpochBoundsError;
 use crate::sys;
 use crate::vm::INVOCATION_CONTEXT;
 
@@ -37,17 +38,21 @@ pub fn total_fil_circ_supply() -> TokenAmount {
     }
 }
 
+/// Returns the current block time in seconds since the EPOCH.
 pub fn tipset_timestamp() -> u64 {
     unsafe { sys::network::tipset_timestamp() }.expect("failed to get timestamp")
 }
 
-pub fn tipset_cid(epoch: i64) -> Option<Cid> {
+/// Returns the tipset CID of the specified epoch, if available. Allows querying from now up to
+/// finality (900 epochs).
+pub fn tipset_cid(epoch: ChainEpoch) -> Result<Cid, EpochBoundsError> {
     let mut buf = [0u8; MAX_CID_LEN];
 
     unsafe {
         match sys::network::tipset_cid(epoch, buf.as_mut_ptr(), MAX_CID_LEN as u32) {
-            Ok(len) => Some(Cid::read_bytes(&buf[..len as usize]).expect("invalid cid")),
-            Err(ErrorNumber::NotFound) => None,
+            Ok(len) => Ok(Cid::read_bytes(&buf[..len as usize]).expect("invalid cid")),
+            Err(ErrorNumber::IllegalArgument) => Err(EpochBoundsError::Invalid),
+            Err(ErrorNumber::LimitExceeded) => Err(EpochBoundsError::ExceedsLookback),
             Err(other) => panic!("unexpected cid resolution failure: {}", other),
         }
     }
