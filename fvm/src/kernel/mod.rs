@@ -56,7 +56,6 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
-    + Validator
     + InvokeContextOps
     + 'static
 {
@@ -90,11 +89,6 @@ pub trait Kernel:
 
     /// The kernel's underlying "machine".
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
-}
-
-/// TODO
-pub trait Validator {
-    fn is_validator(&self) -> bool;
 }
 
 /// Network-related operations.

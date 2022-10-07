@@ -199,6 +199,10 @@ where
                 }
             })
     }
+
+    fn is_validator(&self) -> bool {
+        self.execution_type == ExecutionType::Validator
+    }
 }
 
 impl<C> SelfOps for DefaultKernel<C>
@@ -266,14 +270,6 @@ where
     }
 }
 
-impl<C> Validator for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn is_validator(&self) -> bool {
-        self.execution_type == ExecutionType::Validator
-    }
-}
 impl<C> IpldBlockOps for DefaultKernel<C>
 where
     C: CallManager,
@@ -694,7 +690,10 @@ where
     }
 
     fn usr_charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
-        assert_validator!(self, "Validator shouldn't (in the future can't) be charging gas arbitrarily.");
+        assert_validator!(
+            self,
+            "Validator shouldn't (in the future can't) be charging gas arbitrarily."
+        );
         self.charge_gas(name, compute)
     }
 
@@ -890,17 +889,21 @@ where
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
-        // This breaks the contract of validate being a pure function of its state and the message, as 
+        // This breaks the contract of validate being a pure function of its state and the message, as
         // it can an give a hint of what network is running the actor.
-        assert_validator!(self, "Validator can't get builtin actor type for code CIDs.");
-        Ok(self.call_manager
+        assert_validator!(
+            self,
+            "Validator can't get builtin actor type for code CIDs."
+        );
+        Ok(self
+            .call_manager
             .machine()
             .builtin_actors()
             .id_by_code(code_cid))
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
-        // This breaks the contract of validate being a pure function of its state and the message, as 
+        // This breaks the contract of validate being a pure function of its state and the message, as
         // it can an give a hint of what network is running the actor.
         assert_validator!(self, "Validator can't get code CID for builtin actor type.");
         self.call_manager

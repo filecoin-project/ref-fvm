@@ -198,7 +198,14 @@ where
         gas_premium: TokenAmount,
         execution_type: ExecutionType,
     ) -> Self {
-        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium, execution_type))
+        TestCallManager(C::new(
+            machine,
+            gas_limit,
+            origin,
+            nonce,
+            gas_premium,
+            execution_type,
+        ))
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -629,7 +636,7 @@ where
         self.0.network_version()
     }
 
-    fn network_base_fee(&self) -> &TokenAmount {
+    fn network_base_fee(&self) -> Result<&TokenAmount> {
         self.0.network_base_fee()
     }
 
@@ -706,16 +713,5 @@ where
         value: &TokenAmount,
     ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
-    }
-}
-
-impl<M, C, K> Validator for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
-{
-    fn is_validator(&self) -> bool {
-        self.0.is_validator()
     }
 }

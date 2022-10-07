@@ -72,7 +72,7 @@ where
                 (sender_id, msg.from),
                 msg.sequence,
                 msg.gas_premium.clone(),
-                crate::call_manager::ExecutionType::Normal
+                crate::call_manager::ExecutionType::Normal,
             );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.

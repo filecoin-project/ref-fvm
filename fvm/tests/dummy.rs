@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::Context;
-use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult, ExecutionType};
+use fvm::call_manager::{Backtrace, CallManager, ExecutionType, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};

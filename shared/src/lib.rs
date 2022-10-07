@@ -104,4 +104,4 @@ pub const METHOD_SEND: MethodNum = 0;
 pub const METHOD_CONSTRUCTOR: MethodNum = 1;
 
 // TODO reasonable gas limit
-pub const VALIDATION_GAS_LIMIT: i64 = i64::MAX; 
+pub const VALIDATION_GAS_LIMIT: i64 = i64::MAX;

@@ -1,10 +1,10 @@
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
-use fvm_shared::VALIDATION_GAS_LIMIT;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
+use fvm_shared::VALIDATION_GAS_LIMIT;
 
 use super::{ApplyKind, ApplyRet, DefaultExecutor, Executor, ValidateExecutor, ValidateRet};
 use crate::call_manager::{CallManager, ExecutionType, InvocationResult};
@@ -44,7 +44,6 @@ where
 
     /// validate a message from an abstract account with a delegate signature
     fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet> {
-
         // Load sender actor state.
         let sender_id = match self
             .0
