@@ -39,7 +39,7 @@ pub fn total_fil_circ_supply() -> TokenAmount {
 }
 
 /// Returns the current block time in seconds since the EPOCH.
-pub fn tipset_timestamp() -> i64 {
+pub fn tipset_timestamp() -> u64 {
     unsafe { sys::network::tipset_timestamp() }.expect("failed to get timestamp")
 }
 

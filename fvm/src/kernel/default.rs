@@ -672,7 +672,7 @@ where
         &self.call_manager.context().network_context.base_fee
     }
 
-    fn tipset_timestamp(&self) -> i64 {
+    fn tipset_timestamp(&self) -> u64 {
         self.call_manager.context().network_context.timestamp
     }
 

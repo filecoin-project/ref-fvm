@@ -200,7 +200,7 @@ pub struct NetworkContext {
     pub epoch: ChainEpoch,
 
     /// The UNIX timestamp (in seconds) of the current tipset
-    pub timestamp: i64,
+    pub timestamp: u64,
 
     /// The tipset CIDs for the last finality
     pub tipsets: Vec<Cid>,

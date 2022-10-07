@@ -100,7 +100,7 @@ pub trait NetworkOps {
     fn network_base_fee(&self) -> &TokenAmount;
 
     /// The current tipset timestamp (seconds since the unix epoch).
-    fn tipset_timestamp(&self) -> i64;
+    fn tipset_timestamp(&self) -> u64;
 
     /// The CID of the tipset at the specified epoch.
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;

@@ -26,7 +26,7 @@ super::fvm_syscalls! {
     /// # Errors
     ///
     /// None
-    pub fn tipset_timestamp() -> Result<i64>;
+    pub fn tipset_timestamp() -> Result<u64>;
 
     /// Retrieves a tipset's CID within the last finality, if available
     ///

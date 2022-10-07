@@ -604,7 +604,7 @@ where
         self.0.network_base_fee()
     }
 
-    fn tipset_timestamp(&self) -> i64 {
+    fn tipset_timestamp(&self) -> u64 {
         self.0.tipset_timestamp()
     }
 
