@@ -161,7 +161,13 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean(&mut self, conf: &Config) -> Result<(), Error> {
+    pub(crate) fn clean(&mut self, conf: &Config, depth: u32) -> Result<(), Error> {
+        // All cleaning is about bringing `Pointer::Values` up a level if that's the only
+        // content in the node. If we're in the shallows where we don't want to keep data
+        // we can skip cleaning completely.
+        if depth < conf.min_data_depth {
+            return Ok(());
+        }
         match self {
             Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),

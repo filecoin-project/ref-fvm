@@ -51,6 +51,20 @@ pub struct Config {
     ///
     /// It's also safe to disable it, the code will still handle extensions that already exist.
     pub use_extensions: bool,
+    /// The minimum depth at which the HAMT can store key-value pairs in a `Node`.
+    ///
+    /// Storing values in the nodes means we have to read and write larger chunks of data
+    /// whenever we're accessing something (be it a link or values) in any other bucket.
+    /// This is particularly costly in the root node, which is always retrieved as soon
+    /// as the HAMT is instantiated.
+    ///
+    /// This setting allows us to keep the root, and possibly a few more levels, free of
+    /// data, reserved for links. A sufficiently saturated tree will tend to contain only
+    /// links in the first levels anyway, once all the buckets have been filled and pushed
+    /// further down.
+    ///
+    /// A value of 0 means data can be put in the root node, which is the default behaviour.
+    pub min_data_depth: u32,
 }
 
 impl Default for Config {
@@ -58,6 +72,7 @@ impl Default for Config {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
             use_extensions: false,
+            min_data_depth: 0,
         }
     }
 }

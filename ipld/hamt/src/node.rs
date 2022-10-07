@@ -269,7 +269,14 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            self.insert_child(idx, key, value);
+            if conf.min_data_depth <= depth {
+                self.insert_child(idx, key, value);
+            } else {
+                // Need to insert some empty nodes reserved for links.
+                let mut sub = Node::<K, V, H>::default();
+                sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
+                self.insert_child_dirty(idx, Box::new(sub), None);
+            }
             return Ok((None, true));
         }
 
@@ -465,7 +472,7 @@ where
                                 ext: ext.take(),
                             };
                             // Clean to retrieve canonical form
-                            child.clean(conf)?;
+                            child.clean(conf, depth)?;
                         }
 
                         Ok(deleted)
@@ -481,7 +488,7 @@ where
                             node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
                         // Clean to ensure canonical form
-                        child.clean(conf)?;
+                        child.clean(conf, depth)?;
                         Ok(deleted)
                     }
                     ExtensionMatch::Partial(_) => Ok(None),
