@@ -604,12 +604,12 @@ where
         self.0.network_base_fee()
     }
 
-    fn tipset_timestamp(&self) -> u64 {
-        todo!()
+    fn tipset_timestamp(&self) -> i64 {
+        self.0.tipset_timestamp()
     }
 
-    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
-        todo!()
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
+        self.0.tipset_cid(epoch)
     }
 }
 

@@ -167,6 +167,7 @@ impl NetworkConfig {
             network: self.clone(),
             network_context: NetworkContext {
                 epoch,
+                // TODO #933
                 timestamp: 0,
                 tipsets: vec![],
                 base_fee: TokenAmount::zero(),
@@ -199,7 +200,7 @@ pub struct NetworkContext {
     pub epoch: ChainEpoch,
 
     /// The UNIX timestamp (in seconds) of the current tipset
-    pub timestamp: u64,
+    pub timestamp: i64,
 
     /// The tipset CIDs for the last finality
     pub tipsets: Vec<Cid>,
