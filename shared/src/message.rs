@@ -100,8 +100,9 @@ pub mod params {
     use super::{Cbor, Message};
 
     /// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
     pub struct ValidateParams {
+        #[serde(with = "serde_bytes")]
         pub signature: Vec<u8>,
         pub message: Message,
     }
