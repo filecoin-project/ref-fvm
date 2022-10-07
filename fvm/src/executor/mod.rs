@@ -1,6 +1,5 @@
 mod default;
 mod threaded;
-mod validator;
 
 use std::fmt::Display;
 
@@ -13,7 +12,6 @@ use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 pub use threaded::ThreadedExecutor;
-pub use validator::DefaultValidateExecutor;
 
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
@@ -43,10 +41,6 @@ pub trait Executor {
 
     /// Flushes the state-tree, returning the new root CID.
     fn flush(&mut self) -> anyhow::Result<Cid>;
-}
-
-pub trait ValidateExecutor: Executor {
-    type Validator: Kernel;
 
     /// This is the entrypoint to validate a message from an abstract account.
     fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet>;

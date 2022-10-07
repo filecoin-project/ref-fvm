@@ -95,7 +95,7 @@ impl<'de> Deserialize<'de> for Message {
 }
 
 pub mod params {
-    use serde::{Deserialize, Serialize};
+    use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 
     use super::{Cbor, Message};
 

@@ -3,7 +3,7 @@ use cid::Cid;
 use fvm_shared::message::Message;
 use lazy_static::lazy_static;
 
-use super::{ApplyKind, ApplyRet, Executor, ValidateExecutor, ValidateRet};
+use super::{ApplyKind, ApplyRet, Executor, ValidateRet};
 
 lazy_static! {
     static ref EXEC_POOL: yastl::Pool = yastl::Pool::with_config(
@@ -48,13 +48,6 @@ where
     fn flush(&mut self) -> anyhow::Result<Cid> {
         self.0.flush()
     }
-}
-
-impl<E> ValidateExecutor for ThreadedExecutor<E>
-where
-    E: Executor + ValidateExecutor + Send,
-{
-    type Validator = E::Kernel;
 
     fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet> {
         let mut ret = Err(anyhow!("failed to validate"));
