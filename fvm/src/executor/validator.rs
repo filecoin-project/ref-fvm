@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
+use fvm_shared::VALIDATION_GAS_LIMIT;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
@@ -43,7 +44,6 @@ where
 
     /// validate a message from an abstract account with a delegate signature
     fn validate_message(&mut self, msg: Message, sig: Vec<u8>) -> anyhow::Result<ValidateRet> {
-        const VALIDATION_GAS_LIMIT: i64 = i64::MAX; // TODO reasonable gas limit
 
         // Load sender actor state.
         let sender_id = match self
