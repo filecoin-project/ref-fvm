@@ -7,8 +7,7 @@ use std::str::FromStr;
 use data_encoding::{DecodeError, DecodeKind};
 use fvm_ipld_encoding::{from_slice, Cbor};
 use fvm_shared::address::{
-    Address, Error, Network, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN,
-    SECP_PUB_LEN,
+    Address, Error, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN,
 };
 
 #[test]
@@ -586,31 +585,6 @@ fn address_hashmap() {
 
     // validate original value was not overriden
     assert_eq!(hm.get(&h1).unwrap(), &1);
-}
-
-#[test]
-fn set_network() {
-    // Assert network can be chained when printing string
-    let mut addr: Address = from_slice(&[66, 0, 1]).unwrap();
-    assert_eq!(addr.network(), Network::Mainnet);
-    assert_eq!(addr.set_network(Network::Testnet).to_string(), "t01");
-
-    // Assert network can be set before printing
-    let mut addr: Address = from_slice(&[66, 0, 1]).unwrap();
-    assert_eq!(addr.network(), Network::Mainnet);
-    addr.set_network(Network::Testnet);
-    assert_eq!(addr.network(), Network::Testnet);
-    assert_eq!(addr.to_string(), "t01");
-}
-
-#[test]
-fn from_string_retains_network() {
-    let addr_str = "f01";
-    let addr: Address = addr_str.parse().unwrap();
-    assert_eq!(addr.network(), Network::Mainnet);
-
-    let addr_to_string = addr.to_string();
-    assert_eq!(addr_str, &addr_to_string);
 }
 
 #[test]

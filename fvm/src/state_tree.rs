@@ -737,12 +737,12 @@ mod tests {
     fn test_transactions() {
         let store = MemoryBlockstore::default();
         let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
-        let mut addresses: Vec<Address> = Vec::new();
 
-        let test_addresses = vec!["t0100", "t0101", "t0102"];
-        for a in test_addresses.iter() {
-            addresses.push(a.parse().unwrap());
-        }
+        let addresses = &[
+            Address::new_id(101),
+            Address::new_id(102),
+            Address::new_id(103),
+        ];
 
         tree.begin_transaction();
         tree.set_actor(
