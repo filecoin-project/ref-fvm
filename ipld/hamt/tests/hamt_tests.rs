@@ -878,6 +878,7 @@ test_hamt_mod!(
         conf: Config {
             use_extensions: true,
             bit_width: 1, // Use smaller bit width to induce more overlap in key prefixes
+            min_data_depth: 1,
         },
     }
 );

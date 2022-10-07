@@ -194,7 +194,7 @@ where
         &self,
         hashed_key: &mut HashBits,
         conf: &Config,
-        _depth: u32,
+        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
@@ -240,7 +240,7 @@ where
 
         match match_extension(conf, hashed_key, ext)? {
             ExtensionMatch::Full { skipped } => {
-                node.get_value(hashed_key, conf, _depth + 1 + skipped, key, store)
+                node.get_value(hashed_key, conf, depth + 1 + skipped, key, store)
             }
             ExtensionMatch::Partial { .. } => Ok(None),
         }
@@ -256,7 +256,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
-        _depth: u32,
+        depth: u32,
         key: K,
         value: V,
         store: &S,
@@ -269,7 +269,14 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            self.insert_child(idx, key, value);
+            if conf.min_data_depth <= depth {
+                self.insert_child(idx, key, value);
+            } else {
+                // Need to insert some empty nodes reserved for links.
+                let mut sub = Node::<K, V, H>::default();
+                sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
+                self.insert_child_dirty(idx, Box::new(sub), None);
+            }
             return Ok((None, true));
         }
 
@@ -289,7 +296,7 @@ where
                     let (old, modified) = child_node.modify_value(
                         hashed_key,
                         conf,
-                        _depth + 1 + skipped,
+                        depth + 1 + skipped,
                         key,
                         value,
                         store,
@@ -321,7 +328,7 @@ where
                 ExtensionMatch::Full { skipped } => node.modify_value(
                     hashed_key,
                     conf,
-                    _depth + 1 + skipped,
+                    depth + 1 + skipped,
                     key,
                     value,
                     store,
@@ -379,7 +386,7 @@ where
                     let modified = sub.modify_value(
                         hashed_key,
                         conf,
-                        _depth + 1 + skipped,
+                        depth + 1 + skipped,
                         key,
                         value,
                         store,
@@ -390,7 +397,7 @@ where
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             conf,
-                            _depth + 1 + skipped,
+                            depth + 1 + skipped,
                             p.0,
                             p.1,
                             store,
@@ -423,7 +430,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
-        _depth: u32,
+        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<(K, V)>, Error>
@@ -455,7 +462,7 @@ where
                         let deleted = child_node.rm_value(
                             hashed_key,
                             conf,
-                            _depth + 1 + skipped,
+                            depth + 1 + skipped,
                             key,
                             store,
                         )?;
@@ -465,7 +472,7 @@ where
                                 ext: ext.take(),
                             };
                             // Clean to retrieve canonical form
-                            child.clean(conf)?;
+                            child.clean(conf, depth)?;
                         }
 
                         Ok(deleted)
@@ -478,10 +485,10 @@ where
                     ExtensionMatch::Full { skipped } => {
                         // Delete value and return deleted value
                         let deleted =
-                            node.rm_value(hashed_key, conf, _depth + 1 + skipped, key, store)?;
+                            node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
                         // Clean to ensure canonical form
-                        child.clean(conf)?;
+                        child.clean(conf, depth)?;
                         Ok(deleted)
                     }
                     ExtensionMatch::Partial(_) => Ok(None),
