@@ -88,8 +88,6 @@ fn validate() {
     )
     .unwrap();
 
-    let sender: [Account; 1] = tester.create_accounts().unwrap();
-
     let wasm_bin = VALIDATE_BINARY.unwrap();
 
     // Set actor state
@@ -115,22 +113,23 @@ fn validate() {
     };
 
     let sig = vec![1; 32];
-
-    assert!(tester
+    let out = tester
         .executor
         .as_mut()
         .unwrap()
         .validate_message(message.clone(), sig)
-        .unwrap());
+        .unwrap();
+    assert!(out.exit_code.value() == 0);
 
     let invalid_sig = vec![0; 32];
 
-    assert!(!tester
+    let out = tester
         .executor
         .as_mut()
         .unwrap()
         .validate_message(message, invalid_sig)
-        .unwrap());
+        .unwrap();
+    assert!(out.exit_code.value() != 0);
 
     // assert_eq!(res.msg_receipt.exit_code.value(), 16)
 }

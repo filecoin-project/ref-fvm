@@ -196,8 +196,9 @@ where
         origin: (ActorID, Address),
         nonce: u64,
         gas_premium: TokenAmount,
+        execution_type: ExecutionType,
     ) -> Self {
-        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium))
+        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium, execution_type))
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -212,10 +213,6 @@ where
         // We wrap that here.
         self.0
             .send::<TestKernel<K>>(from, to, method, params, value)
-    }
-
-    fn set_execution_type(&mut self, execution_type: ExecutionType) {
-        self.0.set_execution_type(execution_type)
     }
 
     fn with_transaction(

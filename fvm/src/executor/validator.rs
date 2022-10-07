@@ -69,8 +69,8 @@ where
                 (sender_id, msg.from),
                 msg.sequence,
                 msg.gas_premium.clone(),
+                ExecutionType::Validator,
             );
-            cm.set_execution_type(ExecutionType::Validator);
 
             // Dont charge gas inclusion cost depending on where this is called
             // // This error is fatal because it should have already been accounted for inside
@@ -125,7 +125,9 @@ where
             .deserialize::<bool>()
             .map_err(|_| anyhow!("failed to unmarshall return data from validate"))?; // TODO better Errs
         Ok(ValidateRet {
-            exit_code: ExitCode::new(ret as u32),
+            // TODO this is a very very bad no good bad hack, change this ASAP when spec decides if we want a return value or not
+            // turns the returned bool into an "exit code"
+            exit_code: ExitCode::new(!ret as u32),
             gas_used,
         })
     }

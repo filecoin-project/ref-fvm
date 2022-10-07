@@ -79,6 +79,7 @@ where
         origin: (ActorID, Address),
         nonce: u64,
         gas_premium: TokenAmount,
+        execution_type: ExecutionType,
     ) -> Self {
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
         if machine.context().tracing {
@@ -94,12 +95,8 @@ where
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
-            execution_type: ExecutionType::Normal,
+            execution_type,
         })))
-    }
-
-    fn set_execution_type(&mut self, execution_type: ExecutionType) {
-        self.execution_type = execution_type;
     }
 
     fn send<K>(

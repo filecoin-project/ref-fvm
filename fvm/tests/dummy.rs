@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::Context;
-use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult, ExecutionType};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
@@ -223,6 +223,7 @@ impl CallManager for DummyCallManager {
         origin: (ActorID, Address),
         nonce: u64,
         gas_premium: TokenAmount,
+        excecution_type: ExecutionType,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
@@ -261,10 +262,6 @@ impl CallManager for DummyCallManager {
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
-        todo!()
-    }
-
-    fn set_execution_type(&mut self, execution_type: fvm::call_manager::ExecutionType) {
         todo!()
     }
 
