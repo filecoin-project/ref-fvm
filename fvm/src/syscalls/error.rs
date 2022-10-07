@@ -98,14 +98,3 @@ impl std::error::Error for Envelope {
         Some(self)
     }
 }
-
-#[macro_export]
-macro_rules! assert_validator {
-    ($kern:expr, $msg:expr) => {
-        if $kern.is_validator() {
-            return Err($crate::kernel::ExecutionError::Syscall(
-                $crate::syscall_error!(Forbidden, $msg),
-            ));
-        }
-    };
-}

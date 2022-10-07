@@ -6,11 +6,9 @@ use crate::kernel::{ClassifyResult, Kernel, Result};
 
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    crate::assert_validator!(context.kernel, "Validator can't fetch the base fee.");
-
     context
         .kernel
-        .network_base_fee()
+        .network_base_fee()?
         .try_into()
         .context("base-fee exceeds u128 limit")
         .or_fatal()
@@ -18,11 +16,6 @@ pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
 
 /// Returns the network circ supply split as two u64 ordered in little endian.
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    crate::assert_validator!(
-        context.kernel,
-        "Validator can't get total circulating FIL supply."
-    );
-
     context
         .kernel
         .total_fil_circ_supply()?

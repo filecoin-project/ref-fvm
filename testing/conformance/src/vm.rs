@@ -379,7 +379,7 @@ where
         self.0.create_actor(code_id, actor_id)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
 
@@ -573,6 +573,10 @@ where
 
     fn gas_available(&self) -> Gas {
         self.0.gas_available()
+    }
+
+    fn usr_charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+        self.0.usr_charge_gas(name, compute)
     }
 }
 

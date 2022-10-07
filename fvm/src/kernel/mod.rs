@@ -106,7 +106,7 @@ pub trait NetworkOps {
     fn network_version(&self) -> NetworkVersion;
 
     /// The current base-fee (constant).
-    fn network_base_fee(&self) -> &TokenAmount;
+    fn network_base_fee(&self) -> Result<&TokenAmount>;
 
     /// current tipset timestamp
     fn tipset_timestamp(&self) -> u64;
@@ -221,7 +221,7 @@ pub trait ActorOps {
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns the actor's "type" (if builitin) or 0 (if not).
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
@@ -265,6 +265,9 @@ pub trait GasOps {
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point.
     fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()>;
+
+    /// Same as charge_gas but for external calls
+    fn usr_charge_gas(&mut self, name: &str, compute: Gas) -> Result<()>;
 
     /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;

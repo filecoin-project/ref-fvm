@@ -33,6 +33,16 @@ use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
 use crate::{syscall_error, EMPTY_ARR_CID};
 
+macro_rules! assert_validator {
+    ($kern:expr, $msg:expr) => {
+        if $kern.is_validator() {
+            return Err(crate::kernel::ExecutionError::Syscall(
+                crate::syscall_error!(Forbidden, $msg),
+            ));
+        }
+    };
+}
+
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
     static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
@@ -205,7 +215,7 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        crate::assert_validator!(self, "Validator can't set root.");
+        assert_validator!(self, "Validator can't set root.");
 
         self.mutate_self(|actor_state| {
             actor_state.state = new;
@@ -214,14 +224,14 @@ where
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        crate::assert_validator!(self, "Validators don't have a balance.");
+        assert_validator!(self, "Validators don't have a balance.");
 
         // If the actor doesn't exist, it has zero balance.
         Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default())
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        crate::assert_validator!(self, "Validator can't self destruct.");
+        assert_validator!(self, "Validator can't self destruct.");
 
         // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
@@ -422,7 +432,7 @@ where
         params_id: BlockId,
         value: &TokenAmount,
     ) -> Result<SendResult> {
-        crate::assert_validator!(self, "Validator can't call send.");
+        assert_validator!(self, "Validator can't call send.");
 
         let from = self.actor_id;
 
@@ -467,7 +477,7 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't get total circulating FIL supply.");
         // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
         // The value reported to the FVM from clients is now the static value,
         // the FVM simply reports that value to actors.
@@ -533,7 +543,7 @@ where
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -547,7 +557,7 @@ where
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
 
@@ -557,7 +567,7 @@ where
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
@@ -571,7 +581,7 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
@@ -595,7 +605,7 @@ where
     }
 
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
@@ -641,7 +651,7 @@ where
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<bool> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -653,7 +663,7 @@ where
     }
 
     fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't use privileged crypto syscalls.");
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -683,6 +693,11 @@ where
             .charge_gas(name, compute)
     }
 
+    fn usr_charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+        assert_validator!(self, "Validator shouldn't (in the future can't) be charging gas arbitrarily.");
+        self.charge_gas(name, compute)
+    }
+
     fn price_list(&self) -> &PriceList {
         self.call_manager.price_list()
     }
@@ -700,8 +715,9 @@ where
         self.call_manager.context().network_version
     }
 
-    fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().network_context.base_fee
+    fn network_base_fee(&self) -> Result<&TokenAmount> {
+        assert_validator!(self, "Validator can't fetch the base fee.");
+        Ok(&self.call_manager.context().network_context.base_fee)
     }
 
     fn tipset_timestamp(&self) -> u64 {
@@ -760,7 +776,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        crate::assert_validator!(self, "Validator can't use randomness.");
+        assert_validator!(self, "Validator can't use randomness.");
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -781,7 +797,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        crate::assert_validator!(self, "Validator can't use randomness.");
+        assert_validator!(self, "Validator can't use randomness.");
 
         self.call_manager.charge_gas(
             self.call_manager
@@ -803,13 +819,13 @@ where
     C: CallManager,
 {
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
-        crate::assert_validator!(self, "Validator can't resolve addresses.");
+        assert_validator!(self, "Validator can't resolve addresses.");
 
         self.call_manager.state_tree().lookup_id(address)
     }
 
     fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't resolve code CIDs.");
 
         Ok(self
             .call_manager
@@ -822,7 +838,7 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
-        crate::assert_validator!(self, "Validator can't create a new actor address.");
+        assert_validator!(self, "Validator can't create a new actor address.");
         let origin_addr = *self.call_manager.origin().1;
         let oa = self
             .resolve_to_key_addr(&origin_addr, false)
@@ -844,7 +860,7 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't create an actor.");
         // TODO https://github.com/filecoin-project/builtin-actors/issues/492
         let singleton = self
             .call_manager
@@ -873,16 +889,20 @@ where
         )
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
-        // crate::assert_validator!(self, "Validator can't TODO.");
-        self.call_manager
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
+        // This breaks the contract of validate being a pure function of its state and the message, as 
+        // it can an give a hint of what network is running the actor.
+        assert_validator!(self, "Validator can't get builtin actor type for code CIDs.");
+        Ok(self.call_manager
             .machine()
             .builtin_actors()
-            .id_by_code(code_cid)
+            .id_by_code(code_cid))
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
-        crate::assert_validator!(self, "Validator can't get code CID for type? TODO.");
+        // This breaks the contract of validate being a pure function of its state and the message, as 
+        // it can an give a hint of what network is running the actor.
+        assert_validator!(self, "Validator can't get code CID for builtin actor type.");
         self.call_manager
             .machine()
             .builtin_actors()
@@ -894,7 +914,7 @@ where
 
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
-        crate::assert_validator!(self, "Validator can't TODO.");
+        assert_validator!(self, "Validator can't TODO.");
         // TODO figure out gas
         self.call_manager
             .machine()
@@ -904,6 +924,7 @@ where
     }
 
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        assert_validator!(self, "Validator can't get the balance of another actor.");
         let balance = self
             .call_manager
             .state_tree()
