@@ -35,7 +35,7 @@ pub struct State {
 fn hello_world() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V15,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )
@@ -81,7 +81,7 @@ fn hello_world() {
 fn ipld() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V15,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )
@@ -133,7 +133,7 @@ fn ipld() {
 fn syscalls() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )
@@ -185,7 +185,7 @@ fn syscalls() {
 fn native_stack_overflow() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )
@@ -250,7 +250,7 @@ fn native_stack_overflow() {
 fn test_exitcode(wat: &str, code: ExitCode) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )
@@ -406,7 +406,7 @@ fn backtraces() {
 
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         blockstore.clone(),
     )

@@ -43,7 +43,7 @@ fn instantiate_tester(
 ) -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V15,
+        NetworkVersion::V18,
         StateTreeVersion::V4,
         MemoryBlockstore::default(),
     )

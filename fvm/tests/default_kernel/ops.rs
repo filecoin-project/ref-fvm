@@ -541,7 +541,7 @@ mod gas {
             STUB_NETWORK_VER
         );
 
-        let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
+        let unexpected_list = price_list_by_network_version(NetworkVersion::V18);
         assert_ne!(kern.price_list(), unexpected_list);
 
         Ok(())
