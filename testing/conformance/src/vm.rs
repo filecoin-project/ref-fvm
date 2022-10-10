@@ -107,7 +107,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
+        let bundles = [(NetworkVersion::V18, actors_v10::BUNDLE_CAR)];
         bundles
             .into_iter()
             .map(|(nv, car)| {

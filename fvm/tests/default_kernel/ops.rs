@@ -433,8 +433,7 @@ mod gas {
     use fvm::gas::*;
     use fvm::kernel::GasOps;
     use fvm_shared::econ::TokenAmount;
-    use fvm_shared::version::NetworkVersion;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
@@ -540,9 +539,6 @@ mod gas {
             "price list should be the same as the one used in the kernel {}",
             STUB_NETWORK_VER
         );
-
-        let unexpected_list = price_list_by_network_version(NetworkVersion::V16);
-        assert_ne!(kern.price_list(), unexpected_list);
 
         Ok(())
     }
