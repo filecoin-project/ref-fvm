@@ -124,6 +124,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.debug_info(false);
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
+    c.native_unwind_info(false);
+    #[allow(deprecated)] // TODO https://github.com/bytecodealliance/wasmtime/issues/5037
     c.wasm_backtrace(false);
     c.wasm_reference_types(false);
 
