@@ -266,13 +266,32 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            if conf.min_data_depth <= depth {
-                self.insert_child(idx, key, value);
-            } else {
+            if conf.push_data_to_leaves {
+                // Consume all but the last level as an extension, then insert a node.
+                let (is_leaf, ext, skipped) = extension_to_leaf(conf, hashed_key)?;
+                if is_leaf {
+                    self.insert_child(idx, key, value);
+                } else {
+                    // Add a leaf node an an extension pointing at it.
+                    let mut sub = Node::<K, V, H>::default();
+                    sub.modify_value(
+                        hashed_key,
+                        conf,
+                        depth + 1 + skipped,
+                        key,
+                        value,
+                        store,
+                        overwrite,
+                    )?;
+                    self.insert_child_dirty(idx, Box::new(sub), ext);
+                }
+            } else if depth < conf.min_data_depth {
                 // Need to insert some empty nodes reserved for links.
                 let mut sub = Node::<K, V, H>::default();
                 sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
                 self.insert_child_dirty(idx, Box::new(sub), None);
+            } else {
+                self.insert_child(idx, key, value);
             }
             return Ok((None, true));
         }
@@ -614,11 +633,13 @@ where
     /// Clean after delete to retrieve canonical form.
     ///
     /// Returns true if the child pointer is completely empty and can be removed,
-    /// which can happen if we artificially inserted nodes during insertion.
+    /// which can happen if we artificially added nodes during insertion.
     fn clean(child: &mut Pointer<K, V, H>, conf: &Config, depth: u32) -> Result<bool, Error> {
         match child.clean(conf, depth) {
             Ok(()) => Ok(false),
-            Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
+            Err(Error::ZeroPointers) if depth < conf.min_data_depth || conf.push_data_to_leaves => {
+                Ok(true)
+            }
             Err(err) => Err(err),
         }
     }
@@ -641,6 +662,34 @@ fn find_longest_extension(
             Ok(Some(ext))
         }
     }
+}
+
+/// Consume all but the very last level as an extension and return if non-empty.
+/// The rest of the key will be used as the index in the leaf node.
+///
+/// Returns a flag telling if we're in the leaf node already, any extensions to
+/// reach the leaf, and the number of levels skipped by the extension.
+fn extension_to_leaf(
+    conf: &Config,
+    hashed_key: &mut HashBits,
+) -> Result<(bool, Option<Extension>, u32), Error> {
+    let bits_left = hashed_key.len() as u32 - hashed_key.consumed;
+    if bits_left == 0 {
+        // We are already in the leaf node.
+        return Ok((true, None, 0));
+    }
+
+    // There is at least one more level to go.
+    let consume = match bits_left {
+        x if x <= conf.bit_width => 0,
+        x if x % conf.bit_width == 0 => x - conf.bit_width,
+        x => x - x % conf.bit_width,
+    };
+
+    let ext = Extension::from_bits(hashed_key, consume as u8)?;
+    let ext = if ext.is_empty() { None } else { Some(ext) };
+
+    Ok((false, ext, consume / conf.bit_width))
 }
 
 /// Helper method to check if a key matches an extension (if there is one)

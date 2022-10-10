@@ -65,6 +65,15 @@ pub struct Config {
     ///
     /// A value of 0 means data can be put in the root node, which is the default behaviour.
     pub min_data_depth: u32,
+    /// With this setting data is never stored in intermediary nodes, only in the lowest level
+    /// of the tree, a.k.a. leaves. Due to hashing, only the first few levels of the tree are
+    /// likely to see overlapping keys, after which an extension is used to point straight at
+    /// the leaf. This will result in entries being stored in their own nodes and not weighing
+    /// down on independent lookups, the intermediary nodes are reserved for routing.
+    ///
+    /// With hybrid hashing strategies it is still possible to co-locate related entries,
+    /// such as array items, which can speed up iteration over them.
+    pub push_data_to_leaves: bool,
 }
 
 impl Default for Config {
@@ -73,6 +82,7 @@ impl Default for Config {
             bit_width: DEFAULT_BIT_WIDTH,
             use_extensions: false,
             min_data_depth: 0,
+            push_data_to_leaves: false,
         }
     }
 }

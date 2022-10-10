@@ -880,7 +880,7 @@ test_hamt_mod!(
         conf: Config {
             use_extensions: true,
             bit_width: 1, // Use smaller bit width to induce more overlap in key prefixes
-            min_data_depth: 0,
+            ..Default::default()
         },
     }
 );
@@ -889,9 +889,9 @@ test_hamt_mod!(
     test_min_data_depth,
     HamtFactory {
         conf: Config {
-            use_extensions: false,
             bit_width: 4,
             min_data_depth: 1,
+            ..Default::default()
         },
     }
 );
@@ -903,6 +903,17 @@ test_hamt_mod!(
             use_extensions: true,
             bit_width: 2,
             min_data_depth: 1,
+            ..Default::default()
+        },
+    }
+);
+
+test_hamt_mod!(
+    test_push_data_to_leaves,
+    HamtFactory {
+        conf: Config {
+            push_data_to_leaves: true,
+            ..Default::default()
         },
     }
 );
