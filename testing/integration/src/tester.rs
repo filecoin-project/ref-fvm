@@ -120,8 +120,8 @@ where
         actor_address: Address,
         balance: TokenAmount,
     ) -> Result<Cid> {
-        // Register actor address (unless ID)
-        if !actor_address.id().is_ok() {
+        // Register actor address (unless it's an ID address)
+        if actor_address.id().is_err() {
             self.state_tree
                 .as_mut()
                 .unwrap()

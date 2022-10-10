@@ -28,8 +28,8 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
     }
 }
 
-/// Looks up the "predictable" address of an actor by ID address. Returns `None` if either the target actor doesn't exist, or if it doesn't have...
-/// cannot be resolved.
+/// Looks up the f1, f3, or f4 address of the specified actor. Returns `None` if the actor doesn't
+/// exist or it doesn't have an f1, f3, or f4 address.
 pub fn lookup_address(addr: ActorID) -> Option<Address> {
     let mut out_buffer = [0u8; MAX_ACTOR_ADDR_LEN];
     unsafe {
