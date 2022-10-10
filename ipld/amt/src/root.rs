@@ -1,14 +1,30 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::marker::PhantomData;
+
 use serde::de::{self, Deserialize};
 use serde::ser::{self, Serialize};
 
 use crate::node::CollapsedNode;
 use crate::{init_sized_vec, Node, DEFAULT_BIT_WIDTH};
 
-const V0: u8 = 0;
-const V3: u8 = 3;
+#[derive(PartialEq, Debug)]
+pub struct V0;
+#[derive(PartialEq, Debug)]
+pub struct V3;
+
+pub trait Version {
+    const NUMBER: usize;
+}
+
+impl Version for V0 {
+    const NUMBER: usize = 0;
+}
+
+impl Version for V3 {
+    const NUMBER: usize = 3;
+}
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
 pub(super) type Root<V> = RootImpl<V, V3>;
@@ -16,15 +32,16 @@ pub(super) type Root<V> = RootImpl<V, V3>;
 pub(super) type Rootv0<V> = RootImpl<V, V0>;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct RootImpl<V, const VER: u8 = V3> {
+pub(crate) struct RootImpl<V, Ver> {
     pub bit_width: u32,
     pub height: u32,
     pub count: u64,
     pub node: Node<V>,
+    ver: PhantomData<Ver>,
 }
 
-impl<V> RootImpl<V, V3> {
-    pub(super) fn new(bit_width: u32) -> Self {
+impl<V, Ver> RootImpl<V, Ver> {
+    pub(super) fn new_with_bit_width(bit_width: u32) -> Self {
         Self {
             bit_width,
             count: 0,
@@ -32,6 +49,7 @@ impl<V> RootImpl<V, V3> {
             node: Node::Leaf {
                 vals: init_sized_vec(bit_width),
             },
+            ver: PhantomData,
         }
     }
 }
@@ -45,51 +63,62 @@ impl<V> RootImpl<V, V0> {
             node: Node::Leaf {
                 vals: init_sized_vec(DEFAULT_BIT_WIDTH),
             },
+            ver: PhantomData,
         }
     }
 }
 
-impl<V, const VER: u8> Serialize for RootImpl<V, VER>
+impl<V, Ver> Serialize for RootImpl<V, Ver>
 where
     V: Serialize,
+    Ver: Version,
 {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
-        match VER {
+        match Ver::NUMBER {
             // legacy amt v0 doesn't serialize bit_width as DEFAULT_BIT_WIDTH is used.
-            V0 => (&self.height, &self.count, &self.node).serialize(s),
-            V3 => (&self.bit_width, &self.height, &self.count, &self.node).serialize(s),
+            0 => (&self.height, &self.count, &self.node).serialize(s),
+            3 => (&self.bit_width, &self.height, &self.count, &self.node).serialize(s),
             _ => unreachable!(),
         }
     }
 }
 
-impl<'de, V, const VER: u8> Deserialize<'de> for RootImpl<V, VER>
+impl<'de, V, Ver> Deserialize<'de> for RootImpl<V, Ver>
 where
     V: Deserialize<'de>,
+    Ver: Version,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
-            Deserialize::deserialize(deserializer)?;
-        match VER {
-            V3 => Ok(Self {
-                bit_width,
-                height,
-                count,
-                node: node.expand(bit_width).map_err(de::Error::custom)?,
-            }),
+        match Ver::NUMBER {
+            3 => {
+                let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
+                    Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    bit_width,
+                    height,
+                    count,
+                    node: node.expand(bit_width).map_err(de::Error::custom)?,
+                    ver: PhantomData,
+                })
+            }
             // legacy amt v0
-            V0 => Ok(Self {
-                bit_width: DEFAULT_BIT_WIDTH,
-                height,
-                count,
-                node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
-            }),
+            0 => {
+                let (height, count, node): (_, _, CollapsedNode<V>) =
+                    Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    bit_width: DEFAULT_BIT_WIDTH,
+                    height,
+                    count,
+                    node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
+                    ver: PhantomData,
+                })
+            }
             _ => unreachable!(),
         }
     }
@@ -103,7 +132,7 @@ mod tests {
 
     #[test]
     fn serialize_symmetric() {
-        let mut root = Root::new(0);
+        let mut root = Root::new_with_bit_width(0);
         root.height = 2;
         root.count = 1;
         root.node = Node::Leaf { vals: vec![None] };
@@ -125,7 +154,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_from_v3_to_v0() {
-        let mut root: Root<String> = Root::new(3);
+        let mut root: Root<String> = Root::new_with_bit_width(3);
         root.height = 2;
         root.count = 1;
         root.node = Node::Leaf {

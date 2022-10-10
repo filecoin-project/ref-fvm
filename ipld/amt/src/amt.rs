@@ -12,14 +12,14 @@ use itertools::sorted;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
-use crate::root::RootImpl;
+use crate::root::{RootImpl, Version as AmtVersion, V0, V3};
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
 
 #[derive(Debug)]
-pub struct AmtImpl<V, BS, const VER: u8> {
-    root: RootImpl<V, VER>,
+pub struct AmtImpl<V, BS, Ver> {
+    root: RootImpl<V, Ver>,
     block_store: BS,
 }
 
@@ -44,30 +44,31 @@ pub struct AmtImpl<V, BS, const VER: u8> {
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
-pub type Amt<V, BS> = AmtImpl<V, BS, 3>;
+pub type Amt<V, BS> = AmtImpl<V, BS, V3>;
 /// Legacy amt V0
-pub type Amtv0<V, BS> = AmtImpl<V, BS, 0>;
+pub type Amtv0<V, BS> = AmtImpl<V, BS, V0>;
 
-impl<V: PartialEq, BS: Blockstore> PartialEq for Amt<V, BS> {
+impl<V: PartialEq, BS: Blockstore, Ver: PartialEq> PartialEq for AmtImpl<V, BS, Ver> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<V, BS> Amt<V, BS>
+impl<V, BS, Ver> AmtImpl<V, BS, Ver>
 where
     V: DeserializeOwned + Serialize,
     BS: Blockstore,
+    Ver: AmtVersion,
 {
-    /// Constructor for Root AMT node
+    /// Constructor for Root AMT node (v0)
     pub fn new(block_store: BS) -> Self {
         Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }
 
-    /// Construct new Amt with given bit width.
+    /// Construct new Amt with given bit width (v3)
     pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
         Self {
-            root: Root::new(bit_width),
+            root: RootImpl::<V, Ver>::new_with_bit_width(bit_width),
             block_store,
         }
     }
@@ -79,7 +80,7 @@ where
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
     pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
         // Load root bytes from database
-        let root: Root<V> = block_store
+        let root: RootImpl<V, Ver> = block_store
             .get_cbor(cid)?
             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?;
 
