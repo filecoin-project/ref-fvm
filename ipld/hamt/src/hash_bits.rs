@@ -33,7 +33,7 @@ impl<'a> HashBits<'a> {
     /// Returns next `i` bits of the hash and returns the value as an integer and returns
     /// Error when maximum depth is reached
     pub fn next(&mut self, i: u32) -> Result<u32, Error> {
-        if i > 8 {
+        if i > 8 || i == 0 {
             return Err(Error::InvalidHashBitLen);
         }
         if (self.consumed + i) as usize > self.b.len() * 8 {
@@ -100,5 +100,18 @@ mod tests {
             hb.next(8).unwrap();
         }
         assert!(matches!(hb.next(1), Err(Error::MaxDepth)));
+    }
+
+    #[test]
+    fn test_partial_last_bits() {
+        let mut key: HashedKey = Default::default();
+        key[31] = 0b00000001;
+        let bit_width = 5;
+        let mut hb = HashBits::new(&key);
+        for _ in 0..(256 / bit_width) {
+            hb.next(bit_width).unwrap();
+        }
+        assert!(matches!(hb.next(bit_width), Ok(1)));
+        assert!(matches!(hb.next(bit_width), Err(Error::MaxDepth)));
     }
 }
