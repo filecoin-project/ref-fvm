@@ -36,10 +36,13 @@ impl<'a> HashBits<'a> {
         if i > 8 || i == 0 {
             return Err(Error::InvalidHashBitLen);
         }
-        if (self.consumed + i) as usize > self.b.len() * 8 {
+        let maxi = (self.b.len() as u32) * 8 - self.consumed;
+        if maxi == 0 {
             return Err(Error::MaxDepth);
         }
-        Ok(self.next_bits(i))
+        // Only take what's left. If we consume 5 bits at a time from a 256 bit key,
+        // there will be 1 bit left at the bottom.
+        Ok(self.next_bits(std::cmp::min(i, maxi)))
     }
 
     fn next_bits(&mut self, i: u32) -> u32 {
