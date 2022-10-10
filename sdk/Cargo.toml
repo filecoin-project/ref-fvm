@@ -4,7 +4,7 @@ description = "Filecoin Virtual Machine actor development SDK"
 version = "3.0.0-alpha.2"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [lib]
