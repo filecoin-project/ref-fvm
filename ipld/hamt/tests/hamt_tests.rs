@@ -645,67 +645,86 @@ mod test_default {
     }
 }
 
-mod test_extension {
-    use fvm_ipld_hamt::Config;
+/// Run all the tests with a different configuration.
+///
+/// For example:
+/// ```text
+/// test_hamt_mod!(test_extension, || {
+///   HamtFactory {
+///       conf: Config {
+///           use_extensions: true,
+///           bit_width: 2,
+///           min_data_depth: 1,
+///           data_in_leaves_only: false,
+///       },
+///   }
+/// });
+/// ```
+#[macro_export]
+macro_rules! test_hamt_mod {
+    ($name:ident, $make:expr) => {
+        mod $name {
+            use fvm_ipld_hamt::Config;
+            use $crate::{CidChecker, HamtFactory};
 
-    use crate::{CidChecker, HamtFactory};
+            #[test]
+            fn test_basics() {
+                super::test_basics($make())
+            }
 
-    fn make_factory() -> HamtFactory {
-        HamtFactory {
-            conf: Config {
-                use_extensions: true,
-                bit_width: 2,
-            },
+            #[test]
+            fn test_load() {
+                super::test_load($make())
+            }
+
+            #[test]
+            fn test_set_if_absent() {
+                super::test_set_if_absent($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn set_with_no_effect_does_not_put() {
+                super::set_with_no_effect_does_not_put($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn delete() {
+                super::delete($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn delete_case() {
+                super::delete_case($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn reload_empty() {
+                super::reload_empty($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn set_delete_many() {
+                super::set_delete_many($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn for_each() {
+                super::for_each($make(), None, CidChecker::empty())
+            }
+
+            #[test]
+            fn clean_child_ordering() {
+                super::clean_child_ordering($make(), None, CidChecker::empty())
+            }
         }
-    }
-
-    #[test]
-    fn test_basics() {
-        super::test_basics(make_factory())
-    }
-
-    #[test]
-    fn test_load() {
-        super::test_load(make_factory())
-    }
-
-    #[test]
-    fn test_set_if_absent() {
-        super::test_set_if_absent(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn set_with_no_effect_does_not_put() {
-        super::set_with_no_effect_does_not_put(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn delete() {
-        super::delete(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn delete_case() {
-        super::delete_case(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn reload_empty() {
-        super::reload_empty(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn set_delete_many() {
-        super::set_delete_many(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn for_each() {
-        super::for_each(make_factory(), None, CidChecker::empty())
-    }
-
-    #[test]
-    fn clean_child_ordering() {
-        super::clean_child_ordering(make_factory(), None, CidChecker::empty())
-    }
+    };
 }
+
+test_hamt_mod!(test_extension, || {
+    HamtFactory {
+        conf: Config {
+            use_extensions: true,
+            bit_width: 2,
+        },
+    }
+});
