@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.5 [2022-10-10]
+
+- Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+
 ## 3.0.0-alpha.4 [2022-10-10]
 
 - Add support for recording & looking up f4 addresses.
