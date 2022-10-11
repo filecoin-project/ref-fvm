@@ -1,9 +1,14 @@
 # Changelog
 
-## 3.0.0-alpha.3 [UNRELEASED]
+## 3.0.0-alpha.4 [UNRELEASED]
 
-- Replace the `NETWORK_DEFAULT` constant with a pair of functions for atomically getting and setting
-  the current default network.
+## 3.0.0-alpha.3 [2022-10-10]
+
+- Switch to rust 2021 edition.
+- Add network version 18.
+- BREAKING: Allow changing the address "network" at runtime.
+- BREAKING: Update the f4 address format and include a checksum.
+- BREAKING: Add the gas premium and gas limit to the `vm::context` return type.
 
 ## 3.0.0-alpha.2 [2022-09-16]
 
