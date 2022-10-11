@@ -8,7 +8,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::{de, from_slice, ser, to_vec};
+use crate::{de, from_slice, ser, serde_bytes, to_vec};
 
 pub const DAG_CBOR: u64 = 0x71;
 
