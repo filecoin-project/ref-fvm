@@ -22,7 +22,6 @@ fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbit
 fvm_ipld_encoding = { path = "../../../ipld/encoding" }
 fvm_shared = { path = "../../../shared", features = ["arb"] }
 serde = { version = "1", features = ["derive"] }
-serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
 hex = "0.4"
 
 # Prevent this from interfering with workspaces

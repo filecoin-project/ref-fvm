@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 
+use fvm_ipld_encoding::serde_bytes;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
@@ -86,7 +87,7 @@ mod tests {
         let bad_bytes = {
             let mut source = bad1.to_bytes_be();
             source.insert(0, 0);
-            to_vec(&serde_bytes::Bytes::new(&source)).unwrap()
+            to_vec(&serde_bytes::ByteBuf(source)).unwrap()
         };
 
         let res: Result<BigUintDe, _> = from_slice(&bad_bytes);
