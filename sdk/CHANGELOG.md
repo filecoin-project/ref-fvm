@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.4 [2022-10-10]
+
+- Add support for recording & looking up f4 addresses.
+
 ## 3.0.0-alpha.3 [2022-10-10]
 
 - Rust 2021 edition.
