@@ -237,9 +237,9 @@ fn delegated_address() {
             expected: "f418446744073709551615-tnkyfaq",
         },
         F4TestVec {
-            namespace: 100,
+            namespace: std::u64::MAX,
             subaddr: &[0; MAX_SUBADDRESS_LEN],
-            expected: "f4100-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacf47tke",
+            expected: "f418446744073709551615-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafbbuagu",
         },
     ];
 

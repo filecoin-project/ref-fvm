@@ -122,6 +122,7 @@ pub fn bind_syscalls(
     linker.bind("self", "self_destruct", sself::self_destruct)?;
 
     linker.bind("actor", "resolve_address", actor::resolve_address)?;
+    linker.bind("actor", "lookup_address", actor::lookup_address)?;
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
     linker.bind("actor", "new_actor_address", actor::new_actor_address)?;
     linker.bind("actor", "create_actor", actor::create_actor)?;

@@ -24,6 +24,32 @@ super::fvm_syscalls! {
         addr_len: u32,
     ) -> Result<u64>;
 
+    /// Looks up the "predictable" address of the target actor.
+    ///
+    /// # Arguments
+    ///
+    /// `addr_buf_off` and `addr_buf_len` specify the location and length of the output buffer in
+    /// which to store the address.
+    ///
+    /// # Returns
+    ///
+    /// The length of the address written to the output buffer, or 0 if the target actor has no
+    /// predictable address.
+    ///
+    /// # Errors
+    ///
+    /// | Error               | Reason                                                           |
+    /// |---------------------|------------------------------------------------------------------|
+    /// | [`NotFound`]        | if the target actor does not exist                               |
+    /// | [`BufferTooSmall`]  | if the output buffer isn't large enough to fit the address       |
+    /// | [`IllegalArgument`] | if the output buffer isn't valid, in memory, etc.                |
+    pub fn lookup_address(
+        actor_id: u64,
+        addr_buf_off: *mut u8,
+        addr_buf_len: u32,
+    ) -> Result<u32>;
+
+
     /// Gets the CodeCID of an actor by address.
     ///
     /// # Arguments
@@ -89,12 +115,17 @@ super::fvm_syscalls! {
     #[doc(hidden)]
     pub fn new_actor_address(obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
 
-    /// Creates a new actor of the specified type in the state tree, under
-    /// the provided address.
+    /// Creates a new actor in the state-tree with the specified actor ID, recording the specified
+    /// "predictable" address in the actor root if non-empty, and returning a new stable address.
     ///
     /// **Privileged:** May only be called by the init actor.
     #[doc(hidden)]
-    pub fn create_actor(actor_id: u64, typ_off: *const u8) -> Result<()>;
+    pub fn create_actor(
+        actor_id: u64,
+        typ_off: *const u8,
+        predictable_addr_off: *const u8,
+        predictable_addr_len: u32,
+    ) -> Result<()>;
 
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.

@@ -58,7 +58,10 @@ lazy_static::lazy_static! {
 /// Length of the checksum hash for string encodings.
 pub const CHECKSUM_HASH_LEN: usize = 4;
 
-const MAX_ADDRESS_LEN: usize = 115;
+/// The max encoded length of an address.
+pub const MAX_ADDRESS_LEN: usize = 65;
+
+const MAX_ADDRRESS_TEXT_LEN: usize = 138;
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
@@ -100,7 +103,7 @@ impl Address {
 
     /// Generates new address using Secp256k1 pubkey.
     pub fn new_secp256k1(pubkey: &[u8]) -> Result<Self, Error> {
-        if pubkey.len() != 65 {
+        if pubkey.len() != SECP_PUB_LEN {
             return Err(Error::InvalidSECPLength(pubkey.len()));
         }
         Ok(Self {
@@ -229,7 +232,7 @@ impl fmt::Display for Address {
 }
 
 pub(self) fn parse_address(addr: &str) -> Result<(Address, Network), Error> {
-    if addr.len() > MAX_ADDRESS_LEN || addr.len() < 3 {
+    if addr.len() > MAX_ADDRRESS_TEXT_LEN || addr.len() < 3 {
         return Err(Error::InvalidLength);
     }
     let network = Network::from_prefix(addr.get(0..1).ok_or(Error::UnknownNetwork)?)?;
