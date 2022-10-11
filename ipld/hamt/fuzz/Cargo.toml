@@ -32,3 +32,9 @@ name = "extensions"
 path = "fuzz_targets/extensions.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "leaves"
+path = "fuzz_targets/leaves.rs"
+test = false
+doc = false
