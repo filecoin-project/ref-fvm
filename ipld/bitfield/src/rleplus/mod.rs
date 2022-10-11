@@ -70,6 +70,7 @@ use std::borrow::Cow;
 #[cfg(feature = "enable-arbitrary")]
 use arbitrary::{size_hint, Arbitrary, Unstructured};
 pub use error::Error;
+use fvm_ipld_encoding::serde_bytes;
 pub use reader::BitReader;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;

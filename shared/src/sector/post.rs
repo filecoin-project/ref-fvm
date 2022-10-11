@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::{serde_bytes, Cbor};
 use serde_tuple::*;
 
 use super::*;
