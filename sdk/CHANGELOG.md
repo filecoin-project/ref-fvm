@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.3 [2022-10-10]
+
+- Rust 2021 edition.
+- Add a new `balance_of` syscall.
+- Add a new tipset_cid syscall.
+- Add a new timestamp syscall.
+- Add an sdk "initialization" helper (for initializing logging, panic handlers, etc.).
+- Removes custom assert macros (initialize error handling instead).
+- Add syscalls to get the gas limit and premium.
+- Add a syscall to get the available gas.
+
 ## 3.0.0-alpha.2 [2022-09-02]
 
 - New `hash_into` sdk for hashing into a mut buffer.
