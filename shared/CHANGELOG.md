@@ -1,6 +1,11 @@
 # Changelog
 
-## 3.0.0-alpha.4 [UNRELEASED]
+
+## 3.0.0-alpha.5 [UNRELEASED]
+
+## 3.0.0-alpha.4 [2022-10-10]
+
+- Small f4 address fixes.
 
 ## 3.0.0-alpha.3 [2022-10-10]
 
