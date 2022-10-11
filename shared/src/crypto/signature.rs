@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::error;
 
 use fvm_ipld_encoding::repr::*;
-use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, Error as EncodingError};
+use fvm_ipld_encoding::{de, ser, strict_bytes, Cbor, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use thiserror::Error;
@@ -53,7 +53,7 @@ impl ser::Serialize for Signature {
         bytes.push(self.sig_type as u8);
         bytes.extend_from_slice(&self.bytes);
 
-        serde_bytes::Serialize::serialize(&bytes, serializer)
+        strict_bytes::Serialize::serialize(&bytes, serializer)
     }
 }
 
@@ -62,7 +62,7 @@ impl<'de> de::Deserialize<'de> for Signature {
     where
         D: de::Deserializer<'de>,
     {
-        let bytes: Cow<'de, [u8]> = serde_bytes::Deserialize::deserialize(deserializer)?;
+        let bytes: Cow<'de, [u8]> = strict_bytes::Deserialize::deserialize(deserializer)?;
         if bytes.is_empty() {
             return Err(de::Error::custom("Cannot deserialize empty bytes"));
         }

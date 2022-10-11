@@ -5,7 +5,7 @@ use std::fmt::Display;
 
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::serde_bytes::ByteBuf;
+use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;

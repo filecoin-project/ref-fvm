@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
+use fvm_ipld_encoding::{strict_bytes, Cbor};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
@@ -343,7 +343,7 @@ impl Serialize for Address {
         S: Serializer,
     {
         let address_bytes = self.to_bytes();
-        serde_bytes::Serialize::serialize(&address_bytes, s)
+        strict_bytes::Serialize::serialize(&address_bytes, s)
     }
 }
 
@@ -352,7 +352,7 @@ impl<'de> Deserialize<'de> for Address {
     where
         D: Deserializer<'de>,
     {
-        let bz: Cow<'de, [u8]> = serde_bytes::Deserialize::deserialize(deserializer)?;
+        let bz: Cow<'de, [u8]> = strict_bytes::Deserialize::deserialize(deserializer)?;
 
         // Create and return created address of unmarshalled bytes
         Address::from_bytes(&bz).map_err(de::Error::custom)
