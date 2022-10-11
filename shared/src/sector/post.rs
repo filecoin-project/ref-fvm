@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
+use fvm_ipld_encoding::{strict_bytes, Cbor};
 use serde_tuple::*;
 
 use super::*;
@@ -25,7 +25,7 @@ pub struct SectorInfo {
 #[derive(Debug, PartialEq, Clone, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct PoStProof {
     pub post_proof: RegisteredPoStProof,
-    #[serde(with = "serde_bytes")]
+    #[serde(with = "strict_bytes")]
     pub proof_bytes: Vec<u8>,
 }
 

@@ -3,7 +3,7 @@
 
 use std::borrow::Cow;
 
-use fvm_ipld_encoding::serde_bytes;
+use fvm_ipld_encoding::strict_bytes;
 use num_bigint::{BigInt, Sign};
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +38,7 @@ where
     }
 
     // Serialize as bytes
-    serde_bytes::Serialize::serialize(&bz, serializer)
+    strict_bytes::Serialize::serialize(&bz, serializer)
 }
 
 /// Deserializes bytes into big int.
@@ -46,7 +46,7 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<BigInt, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let bz: Cow<'de, [u8]> = serde_bytes::Deserialize::deserialize(deserializer)?;
+    let bz: Cow<'de, [u8]> = strict_bytes::Deserialize::deserialize(deserializer)?;
     if bz.is_empty() {
         return Ok(BigInt::default());
     }
@@ -105,7 +105,7 @@ mod tests {
                 Sign::Minus => source.insert(0, 0),
                 _ => source.insert(0, 1),
             }
-            to_vec(&serde_bytes::ByteBuf(source)).unwrap()
+            to_vec(&strict_bytes::ByteBuf(source)).unwrap()
         };
 
         let res: Result<BigIntDe, _> = from_slice(&bad_bytes);

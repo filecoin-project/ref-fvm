@@ -3,9 +3,10 @@
 
 /// A much simplified version of serde_bytes that:
 ///
-/// 1. Refuses to decode strings/arrays into "bytes".
+/// 1. Refuses to decode strings/arrays into "bytes", only accepting "bytes" (hence the "strict"
+///    part).
 /// 2. Can decode to/from byte arrays.
-pub mod serde_bytes {
+pub mod strict_bytes {
     use std::borrow::Cow;
     use std::fmt;
 
@@ -166,15 +167,18 @@ pub mod serde_bytes {
     }
 }
 
-pub use serde_bytes::ByteBuf as BytesDe;
+pub use strict_bytes::ByteBuf as BytesDe;
 
 /// Wrapper for serializing slice of bytes.
 #[derive(serde::Serialize)]
 #[serde(transparent)]
-pub struct BytesSer<'a>(#[serde(with = "serde_bytes")] pub &'a [u8]);
+pub struct BytesSer<'a>(#[serde(with = "strict_bytes")] pub &'a [u8]);
 
 pub fn bytes_32(buf: &[u8]) -> [u8; 32] {
     let mut array = [0; 32];
     array.copy_from_slice(buf.as_ref());
     array
 }
+
+#[deprecated = "Use strict_bytes. serde_bytes is a deprecated alias."]
+pub use strict_bytes as serde_bytes;
