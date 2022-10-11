@@ -97,11 +97,13 @@ pub fn get_code_cid_for_type(typ: i32) -> Cid {
     }
 }
 
-/// Retrieves the balance associated with an actor
-pub fn balance_of(actor_id: ActorID) -> TokenAmount {
+/// Retrieves the balance of the specified actor, or None if the actor doesn't exist.
+pub fn balance_of(actor_id: ActorID) -> Option<TokenAmount> {
     unsafe {
-        sys::actor::balance_of(actor_id)
-            .expect("failed to get actor balance")
-            .into()
+        match sys::actor::balance_of(actor_id) {
+            Ok(balance) => Some(balance.into()),
+            Err(ErrorNumber::NotFound) => None,
+            Err(e) => panic!("unexpected error: {e}"),
+        }
     }
 }
