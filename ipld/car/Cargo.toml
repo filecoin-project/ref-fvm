@@ -3,7 +3,7 @@ name = "fvm_ipld_car"
 description = "IPLD CAR handling library"
 version = "0.5.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/filecoin-project/ref-fvm"
 

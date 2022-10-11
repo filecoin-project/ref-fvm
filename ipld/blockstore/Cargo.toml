@@ -4,7 +4,7 @@ description = "Sharded IPLD Blockstore."
 version = "0.1.1"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
