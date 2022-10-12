@@ -5,6 +5,7 @@
 ## 0.5.0
 
 - Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+- Remove `ahash` and just use a vec.
 
 ## 0.4.2
 
