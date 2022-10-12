@@ -12,7 +12,8 @@ use itertools::sorted;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
-use crate::root::{RootImpl, Version as AmtVersion, V0, V3};
+use crate::root::version::{Version as AmtVersion, V0, V3};
+use crate::root::RootImpl;
 use crate::{
     init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
@@ -65,10 +66,10 @@ where
         Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }
 
-    /// Construct new Amt with given bit width (v3)
+    /// Construct new Amt with given bit width
     pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
         Self {
-            root: RootImpl::<V, Ver>::new_with_bit_width(bit_width),
+            root: RootImpl::new_with_bit_width(bit_width),
             block_store,
         }
     }

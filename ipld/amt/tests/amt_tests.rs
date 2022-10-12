@@ -51,6 +51,9 @@ fn basic_get_set() {
 }
 
 #[test]
+fn foo() {}
+
+#[test]
 fn legacy_amtv0_basic_get_set() {
     let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);

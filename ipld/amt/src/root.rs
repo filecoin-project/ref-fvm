@@ -9,27 +9,29 @@ use serde::ser::{self, Serialize};
 use crate::node::CollapsedNode;
 use crate::{init_sized_vec, Node, DEFAULT_BIT_WIDTH};
 
-#[derive(PartialEq, Debug)]
-pub struct V0;
-#[derive(PartialEq, Debug)]
-pub struct V3;
+pub(crate) mod version {
+    #[derive(PartialEq, Debug)]
+    pub struct V0;
+    #[derive(PartialEq, Debug)]
+    pub struct V3;
 
-pub trait Version {
-    const NUMBER: usize;
-}
+    pub trait Version {
+        const NUMBER: usize;
+    }
 
-impl Version for V0 {
-    const NUMBER: usize = 0;
-}
+    impl Version for V0 {
+        const NUMBER: usize = 0;
+    }
 
-impl Version for V3 {
-    const NUMBER: usize = 3;
+    impl Version for V3 {
+        const NUMBER: usize = 3;
+    }
 }
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
-pub(super) type Root<V> = RootImpl<V, V3>;
+pub(super) type Root<V> = RootImpl<V, self::version::V3>;
 /// Legacy AMT v0, used to read block headers.
-pub(super) type Rootv0<V> = RootImpl<V, V0>;
+pub(super) type Rootv0<V> = RootImpl<V, self::version::V0>;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct RootImpl<V, Ver> {
@@ -54,7 +56,7 @@ impl<V, Ver> RootImpl<V, Ver> {
     }
 }
 
-impl<V> RootImpl<V, V0> {
+impl<V> RootImpl<V, self::version::V0> {
     pub(crate) fn new() -> Rootv0<V> {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
@@ -71,7 +73,7 @@ impl<V> RootImpl<V, V0> {
 impl<V, Ver> Serialize for RootImpl<V, Ver>
 where
     V: Serialize,
-    Ver: Version,
+    Ver: self::version::Version,
 {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -89,7 +91,7 @@ where
 impl<'de, V, Ver> Deserialize<'de> for RootImpl<V, Ver>
 where
     V: Deserialize<'de>,
-    Ver: Version,
+    Ver: self::version::Version,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
