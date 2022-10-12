@@ -99,11 +99,11 @@ pub trait NetworkOps {
     /// The current base-fee (constant).
     fn network_base_fee(&self) -> &TokenAmount;
 
-    /// current tipset timestamp
+    /// The current tipset timestamp (seconds since the unix epoch).
     fn tipset_timestamp(&self) -> u64;
 
-    /// epoch tipset cid
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
+    /// The CID of the tipset at the specified epoch.
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -188,10 +188,13 @@ pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
+    fn resolve_address(&self, address: &Address) -> Result<ActorID>;
+
+    /// Looks-up the "predictable" address of the specified actor, if any.
+    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
 
     /// Look up the code CID of an actor.
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>>;
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
@@ -199,9 +202,14 @@ pub trait ActorOps {
     /// Always an ActorExec address.
     fn new_actor_address(&mut self) -> Result<Address>;
 
-    /// Creates an actor with code `code_cid` and id `actor_id`, with empty state.
-    /// May only be called by Init actor.
-    fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
+    /// Creates an actor with given `code_cid`, `actor_id`, `predictable_address` (if specified),
+    /// and an empty state.
+    fn create_actor(
+        &mut self,
+        code_cid: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()>;
 
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]

@@ -4,6 +4,10 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.6.0 [2022-10-11]
+
+- Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+
 ## 0.5.0 [2022-08-03]
 
 This release includes several CAR sanity checks and validations.

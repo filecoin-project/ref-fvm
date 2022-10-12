@@ -18,10 +18,12 @@ const SINGLETON_ACTOR_NAMES: &[&str] = &[
 const ACCOUNT_ACTOR_NAME: &str = "account";
 const INIT_ACTOR_NAME: &str = "init";
 const SYSTEM_ACTOR_NAME: &str = "system";
+const EMBRYO_ACTOR_NAME: &str = "embryo";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
     account_code: Cid,
+    embryo_code: Cid,
     system_code: Cid,
     init_code: Cid,
     singletons: HashSet<Cid>,
@@ -62,6 +64,7 @@ impl Manifest {
         ("init", id_cid(b"fil/test/init")),
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
+        ("embryo", id_cid(b"fil/test/embryo")),
     ];
 
     #[cfg(any(feature = "testing", test))]
@@ -117,10 +120,15 @@ impl Manifest {
             .get(INIT_ACTOR_NAME)
             .context("manifest missing init actor")?;
 
+        let embryo_code = *by_name
+            .get(EMBRYO_ACTOR_NAME)
+            .context("manifest missing embryo actor")?;
+
         Ok(Self {
             account_code,
             system_code,
             init_code,
+            embryo_code,
             singletons,
             by_id,
             by_code,
@@ -140,6 +148,11 @@ impl Manifest {
     /// Returns true id the passed code CID is the account actor.
     pub fn is_account_actor(&self, cid: &Cid) -> bool {
         &self.account_code == cid
+    }
+
+    /// Returns true id the passed code CID is the embryo actor.
+    pub fn is_embryo_actor(&self, cid: &Cid) -> bool {
+        &self.embryo_code == cid
     }
 
     /// Returns true id the passed code is a singleton actor.
@@ -164,5 +177,10 @@ impl Manifest {
     /// Returns the code CID for the system actor.
     pub fn get_system_code(&self) -> &Cid {
         &self.system_code
+    }
+
+    /// Returns the code CID for the system actor.
+    pub fn get_embryo_code(&self) -> &Cid {
+        &self.embryo_code
     }
 }

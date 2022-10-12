@@ -4,7 +4,7 @@
 use cid::Cid;
 use clock::ChainEpoch;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
+use fvm_ipld_encoding::{strict_bytes, Cbor};
 
 use crate::randomness::Randomness;
 use crate::sector::{
@@ -26,7 +26,7 @@ pub struct SealVerifyInfo {
     pub deal_ids: Vec<deal::DealID>,
     pub randomness: SealRandomness,
     pub interactive_randomness: InteractiveSealRandomness,
-    #[serde(with = "serde_bytes")]
+    #[serde(with = "strict_bytes")]
     pub proof: Vec<u8>,
     pub sealed_cid: Cid,   // Commr
     pub unsealed_cid: Cid, // Commd
@@ -44,7 +44,7 @@ pub struct SealVerifyParams {
     pub sealed_cid: Cid,
     pub interactive_epoch: ChainEpoch,
     pub registered_seal_proof: RegisteredSealProof,
-    #[serde(with = "serde_bytes")]
+    #[serde(with = "strict_bytes")]
     pub proof: Vec<u8>,
     pub deal_ids: Vec<deal::DealID>,
     pub sector_num: SectorNumber,
@@ -67,7 +67,7 @@ pub struct AggregateSealVerifyProofAndInfos {
     pub miner: ActorID,
     pub seal_proof: RegisteredSealProof,
     pub aggregate_proof: RegisteredAggregateProof,
-    #[serde(with = "serde_bytes")]
+    #[serde(with = "strict_bytes")]
     pub proof: Vec<u8>,
     pub infos: Vec<AggregateSealVerifyInfo>,
 }

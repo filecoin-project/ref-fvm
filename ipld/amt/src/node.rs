@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{serde_bytes, BytesSer, CborStore};
+use fvm_ipld_encoding::{strict_bytes, BytesSer, CborStore};
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Serialize};
@@ -117,7 +117,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct CollapsedNode<V>(#[serde(with = "serde_bytes")] Vec<u8>, Vec<Cid>, Vec<V>);
+pub(crate) struct CollapsedNode<V>(#[serde(with = "strict_bytes")] Vec<u8>, Vec<Cid>, Vec<V>);
 
 impl<V> CollapsedNode<V> {
     pub(crate) fn expand(self, bit_width: u32) -> Result<Node<V>, Error> {

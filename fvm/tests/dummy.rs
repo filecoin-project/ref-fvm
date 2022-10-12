@@ -19,7 +19,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use multihash::Code;
 
-pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
+pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
 
 /// Unimplemented and empty `Externs` impl
 pub struct DummyExterns;

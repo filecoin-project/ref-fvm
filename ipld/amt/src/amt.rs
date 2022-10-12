@@ -359,7 +359,7 @@ where
         // change, and since it should not be feasibly triggered, it's left as this for now.
         #[cfg(feature = "go-interop")]
         {
-            let mut mutated = ahash::AHashMap::new();
+            let mut mutated = Vec::new();
 
             self.root.node.for_each_while_mut(
                 &self.block_store,
@@ -375,14 +375,14 @@ where
                         // which we cannot do because it is memory unsafe (and I'm not certain we
                         // don't have side effects from doing this unsafely)
                         value.mark_unchanged();
-                        mutated.insert(idx, value.clone());
+                        mutated.push((idx, value.clone()));
                     }
 
                     Ok(keep_going)
                 },
             )?;
 
-            for (i, v) in mutated.into_iter() {
+            for (i, v) in mutated {
                 self.set(i, v)?;
             }
 

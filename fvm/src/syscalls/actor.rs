@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context as _};
-use fvm_shared::sys;
+use fvm_shared::{sys, ActorID};
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
@@ -11,11 +11,29 @@ pub fn resolve_address(
     addr_len: u32,
 ) -> Result<u64> {
     let addr = context.memory.read_address(addr_off, addr_len)?;
-    let actor_id = context
-        .kernel
-        .resolve_address(&addr)?
-        .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?;
+    let actor_id = context.kernel.resolve_address(&addr)?;
     Ok(actor_id)
+}
+
+pub fn lookup_address(
+    context: Context<'_, impl Kernel>,
+    actor_id: ActorID,
+    obuf_off: u32,
+    obuf_len: u32,
+) -> Result<u32> {
+    let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
+    match context.kernel.lookup_address(actor_id)? {
+        Some(address) => {
+            let address = address.to_bytes();
+            obuf.get_mut(..address.len())
+                .ok_or_else(
+                    || syscall_error!(BufferTooSmall; "address output buffer is too small"),
+                )?
+                .copy_from_slice(&address);
+            Ok(address.len() as u32)
+        }
+        None => Ok(0),
+    }
 }
 
 pub fn get_actor_code_cid(
@@ -27,10 +45,7 @@ pub fn get_actor_code_cid(
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
-    let typ = context
-        .kernel
-        .get_actor_code_cid(actor_id)?
-        .ok_or_else(|| syscall_error!(NotFound; "target actor not found"))?;
+    let typ = context.kernel.get_actor_code_cid(actor_id)?;
 
     context.memory.write_cid(&typ, obuf_off, obuf_len)
 }
@@ -78,11 +93,21 @@ pub fn new_actor_address(
 
 pub fn create_actor(
     context: Context<'_, impl Kernel>,
-    actor_id: u64, // Address
+    actor_id: u64, // ID
     typ_off: u32,  // Cid
+    predictable_addr_off: u32,
+    predictable_addr_len: u32,
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
-    context.kernel.create_actor(typ, actor_id)
+    let addr = (predictable_addr_len == 0)
+        .then(|| {
+            context
+                .memory
+                .read_address(predictable_addr_off, predictable_addr_len)
+        })
+        .transpose()?;
+
+    context.kernel.create_actor(typ, actor_id, addr)
 }
 
 pub fn get_builtin_actor_type(

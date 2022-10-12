@@ -8,7 +8,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::{de, from_slice, ser, to_vec};
+use crate::{de, from_slice, ser, strict_bytes, to_vec};
 
 pub const DAG_CBOR: u64 = 0x71;
 
@@ -33,7 +33,7 @@ impl<T> Cbor for Option<T> where T: Cbor {}
 #[derive(Clone, PartialEq, Serialize, Deserialize, Hash, Eq, Default)]
 #[serde(transparent)]
 pub struct RawBytes {
-    #[serde(with = "serde_bytes")]
+    #[serde(with = "strict_bytes")]
     bytes: Vec<u8>,
 }
 

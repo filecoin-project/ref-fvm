@@ -107,7 +107,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
+        let bundles = [(NetworkVersion::V18, actors_v10::BUNDLE_CAR)];
         bundles
             .into_iter()
             .map(|(nv, car)| {
@@ -349,11 +349,11 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
         self.0.resolve_address(address)
     }
 
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>> {
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
         self.0.get_actor_code_cid(id)
     }
 
@@ -361,8 +361,13 @@ where
         self.0.new_actor_address()
     }
 
-    fn create_actor(&mut self, code_id: Cid, actor_id: ActorID) -> Result<()> {
-        self.0.create_actor(code_id, actor_id)
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
+        self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
@@ -380,6 +385,10 @@ where
 
     fn balance_of(&self, _actor_id: ActorID) -> Result<TokenAmount> {
         todo!()
+    }
+
+    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        self.0.lookup_address(actor_id)
     }
 }
 
@@ -605,11 +614,11 @@ where
     }
 
     fn tipset_timestamp(&self) -> u64 {
-        todo!()
+        self.0.tipset_timestamp()
     }
 
-    fn tipset_cid(&self, _epoch: i64) -> Result<Option<Cid>> {
-        todo!()
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
+        self.0.tipset_cid(epoch)
     }
 }
 

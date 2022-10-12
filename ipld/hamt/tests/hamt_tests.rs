@@ -7,13 +7,13 @@ use cid::Cid;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash::Code;
 use serde::Serialize;
-use serde_bytes::ByteBuf;
 
 // Redeclaring max array size of Hamt to avoid exposing value
 const BUCKET_SIZE: usize = 3;
@@ -221,7 +221,7 @@ fn set_with_no_effect_does_not_put(
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
     let c3 = begn.flush().unwrap();
-    cids.check_next(c3);
+    assert_eq!(c3, c2);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -259,7 +259,7 @@ fn delete_case(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecke
 
     let mut hamt: Hamt<_, _> = factory.new(&store);
 
-    hamt.set([0].to_vec().into(), ByteBuf::from(b"Test data".as_ref()))
+    hamt.set([0].to_vec().into(), ByteBuf(b"Test data".as_ref().into()))
         .unwrap();
 
     let c = hamt.flush().unwrap();
@@ -322,7 +322,8 @@ fn set_delete_many(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
     }
 
     let cid_d = hamt.flush().unwrap();
-    cids.check_next(cid_d);
+    assert_eq!(cid_d, c1);
+
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -348,10 +349,10 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     .unwrap();
     assert_eq!(count, 200);
 
-    let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    let c1 = hamt.flush().unwrap();
+    cids.check_next(c1);
 
-    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5).unwrap();
+    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c1, &store, 5).unwrap();
 
     // Iterating through hamt with no cache.
     let mut count = 0;
@@ -373,8 +374,8 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     .unwrap();
     assert_eq!(count, 200);
 
-    let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    let c2 = hamt.flush().unwrap();
+    assert_eq!(c2, c1);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -573,7 +574,6 @@ mod test_default {
         let cids = CidChecker::new(vec![
             "bafy2bzacebjilcrsqa4uyxuh36gllup4rlgnvwgeywdm5yqq2ks4jrsj756qq",
             "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku",
-            "bafy2bzacea7biyabzk7v7le2rrlec5tesjbdnymh5sk4lfprxibg4rtudwtku",
         ]);
         super::set_with_no_effect_does_not_put(HamtFactory::default(), Some(stats), cids);
     }
@@ -617,7 +617,6 @@ mod test_default {
         let cids = CidChecker::new(vec![
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
             "bafy2bzacecxcp736xkl2mcyjlors3tug6vdlbispbzxvb75xlrhthiw2xwxvw",
-            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
         ]);
         super::set_delete_many(HamtFactory::default(), Some(stats), cids);
     }
@@ -627,7 +626,6 @@ mod test_default {
         #[rustfmt::skip]
         let stats = BSStats {r: 30, w: 30, br: 3209, bw: 3209};
         let cids = CidChecker::new(vec![
-            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
         ]);
         super::for_each(HamtFactory::default(), Some(stats), cids);

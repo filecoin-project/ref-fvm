@@ -167,6 +167,7 @@ impl NetworkConfig {
             network: self.clone(),
             network_context: NetworkContext {
                 epoch,
+                // TODO #933
                 timestamp: 0,
                 tipsets: vec![],
                 base_fee: TokenAmount::zero(),
