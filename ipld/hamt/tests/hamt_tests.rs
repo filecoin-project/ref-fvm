@@ -14,6 +14,7 @@ use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash::Code;
+use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use serde::Serialize;
@@ -541,20 +542,41 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     }
 }
 
-/// Test that insertion order doesn't matter, the resulting HAMT has the same CID.
-fn prop_cid_indep_of_insert_order(factory: HamtFactory, kvs: Vec<(u8, i64)>, seed: u64) -> bool {
-    let store = MemoryBlockstore::default();
+/// List of key value pairs with unique keys.
+///
+/// Uniqueness is used so insert order doesn't cause overwrites.
+/// Not using a `HashMap` so the iteration order is deterministic.
+#[derive(Clone, Debug)]
+struct UniqueKeyValuePairs<K, V>(Vec<(K, V)>);
 
-    // Keys need to be unique so there are no overwrites.
-    let (kvs1, _) =
-        kvs.into_iter()
-            .fold((Vec::new(), HashSet::new()), |(mut kvs, mut ks), (k, v)| {
-                if !ks.contains(&k) {
-                    kvs.push((k, v));
-                    ks.insert(k);
-                }
-                (kvs, ks)
-            });
+impl<K, V> Arbitrary for UniqueKeyValuePairs<K, V>
+where
+    K: Arbitrary + Eq + std::hash::Hash,
+    V: Arbitrary,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let kvs: Vec<(K, V)> = Arbitrary::arbitrary(g);
+        let (kvs, _) =
+            kvs.into_iter()
+                .fold((Vec::new(), HashSet::new()), |(mut kvs, mut ks), (k, v)| {
+                    if !ks.contains(&k) {
+                        ks.insert(k.clone());
+                        kvs.push((k, v));
+                    }
+                    (kvs, ks)
+                });
+        Self(kvs)
+    }
+}
+
+/// Test that insertion order doesn't matter, the resulting HAMT has the same CID.
+fn prop_cid_indep_of_insert_order(
+    factory: HamtFactory,
+    kvs: UniqueKeyValuePairs<u8, i64>,
+    seed: u64,
+) -> bool {
+    let store = MemoryBlockstore::default();
+    let kvs1 = kvs.0;
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
     let mut kvs2 = kvs1.clone();
@@ -584,7 +606,7 @@ mod test_default {
     use fvm_ipld_blockstore::tracking::BSStats;
     use quickcheck_macros::quickcheck;
 
-    use crate::{CidChecker, HamtFactory};
+    use crate::{CidChecker, HamtFactory, UniqueKeyValuePairs};
 
     #[test]
     fn test_basics() {
@@ -682,7 +704,7 @@ mod test_default {
     }
 
     #[quickcheck]
-    fn prop_cid_indep_of_insert_order(kvs: Vec<(u8, i64)>, seed: u64) -> bool {
+    fn prop_cid_indep_of_insert_order(kvs: UniqueKeyValuePairs<u8, i64>, seed: u64) -> bool {
         super::prop_cid_indep_of_insert_order(HamtFactory::default(), kvs, seed)
     }
 }
@@ -708,7 +730,7 @@ macro_rules! test_hamt_mod {
         mod $name {
             use fvm_ipld_hamt::Config;
             use quickcheck_macros::quickcheck;
-            use $crate::{CidChecker, HamtFactory};
+            use $crate::{CidChecker, HamtFactory, UniqueKeyValuePairs};
 
             #[test]
             fn test_basics() {
@@ -761,7 +783,10 @@ macro_rules! test_hamt_mod {
             }
 
             #[quickcheck]
-            fn prop_cid_indep_of_insert_order(kvs: Vec<(u8, i64)>, seed: u64) -> bool {
+            fn prop_cid_indep_of_insert_order(
+                kvs: UniqueKeyValuePairs<u8, i64>,
+                seed: u64,
+            ) -> bool {
                 super::prop_cid_indep_of_insert_order($factory, kvs, seed)
             }
         }
