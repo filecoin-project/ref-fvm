@@ -30,6 +30,9 @@ ignore-dead-links = []
 hex = "0.4.2"
 criterion = "0.4.0"
 unsigned-varint = "0.7"
+quickcheck = "1"
+quickcheck_macros = "1"
+rand = "0.8.5"
 
 [[bench]]
 name = "hamt_beckmark"

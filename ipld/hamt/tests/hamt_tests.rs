@@ -1,6 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::HashSet;
 use std::fmt::Display;
 
 use cid::Cid;
@@ -13,6 +14,8 @@ use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash::Code;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
 use serde::Serialize;
 
 // Redeclaring max array size of Hamt to avoid exposing value
@@ -537,12 +540,48 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     }
 }
 
+/// Test that insertion order doesn't matter, the resulting HAMT has the same CID.
+fn prop_cid_indep_of_insert_order(factory: HamtFactory, kvs: Vec<(u8, i64)>, seed: u64) -> bool {
+    let store = MemoryBlockstore::default();
+
+    // Keys need to be unique so there are no overwrites.
+    let (kvs1, _) =
+        kvs.into_iter()
+            .fold((Vec::new(), HashSet::new()), |(mut kvs, mut ks), (k, v)| {
+                if !ks.contains(&k) {
+                    kvs.push((k, v));
+                    ks.insert(k);
+                }
+                (kvs, ks)
+            });
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut kvs2 = kvs1.clone();
+    kvs2.shuffle(&mut rng);
+
+    let mut hamt1 = factory.new(&store);
+    let mut hamt2 = factory.new(&store);
+
+    for (k, v) in kvs1 {
+        hamt1.set(k, v).unwrap();
+    }
+    for (k, v) in kvs2 {
+        hamt2.set(k, v).unwrap();
+    }
+
+    let cid1 = hamt1.flush().unwrap();
+    let cid2 = hamt2.flush().unwrap();
+
+    cid1 == cid2
+}
+
 fn tstring(v: impl Display) -> BytesKey {
     BytesKey(v.to_string().into_bytes())
 }
 
 mod test_default {
     use fvm_ipld_blockstore::tracking::BSStats;
+    use quickcheck_macros::quickcheck;
 
     use crate::{CidChecker, HamtFactory};
 
@@ -643,6 +682,11 @@ mod test_default {
         ]);
         super::clean_child_ordering(HamtFactory::default(), Some(stats), cids);
     }
+
+    #[quickcheck]
+    fn prop_cid_indep_of_insert_order(kvs: Vec<(u8, i64)>, seed: u64) -> bool {
+        super::prop_cid_indep_of_insert_order(HamtFactory::default(), kvs, seed)
+    }
 }
 
 /// Run all the tests with a different configuration.
@@ -662,69 +706,76 @@ mod test_default {
 /// ```
 #[macro_export]
 macro_rules! test_hamt_mod {
-    ($name:ident, $make:expr) => {
+    ($name:ident, $factory:expr) => {
         mod $name {
             use fvm_ipld_hamt::Config;
+            use quickcheck_macros::quickcheck;
             use $crate::{CidChecker, HamtFactory};
 
             #[test]
             fn test_basics() {
-                super::test_basics($make())
+                super::test_basics($factory)
             }
 
             #[test]
             fn test_load() {
-                super::test_load($make())
+                super::test_load($factory)
             }
 
             #[test]
             fn test_set_if_absent() {
-                super::test_set_if_absent($make(), None, CidChecker::empty())
+                super::test_set_if_absent($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn set_with_no_effect_does_not_put() {
-                super::set_with_no_effect_does_not_put($make(), None, CidChecker::empty())
+                super::set_with_no_effect_does_not_put($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn delete() {
-                super::delete($make(), None, CidChecker::empty())
+                super::delete($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn delete_case() {
-                super::delete_case($make(), None, CidChecker::empty())
+                super::delete_case($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn reload_empty() {
-                super::reload_empty($make(), None, CidChecker::empty())
+                super::reload_empty($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn set_delete_many() {
-                super::set_delete_many($make(), None, CidChecker::empty())
+                super::set_delete_many($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn for_each() {
-                super::for_each($make(), None, CidChecker::empty())
+                super::for_each($factory, None, CidChecker::empty())
             }
 
             #[test]
             fn clean_child_ordering() {
-                super::clean_child_ordering($make(), None, CidChecker::empty())
+                super::clean_child_ordering($factory, None, CidChecker::empty())
+            }
+
+            #[quickcheck]
+            fn prop_cid_indep_of_insert_order(kvs: Vec<(u8, i64)>, seed: u64) -> bool {
+                super::prop_cid_indep_of_insert_order($factory, kvs, seed)
             }
         }
     };
 }
 
-test_hamt_mod!(test_extension, || {
+test_hamt_mod!(
+    test_extension,
     HamtFactory {
         conf: Config {
             use_extensions: true,
             bit_width: 2,
         },
     }
-});
+);
