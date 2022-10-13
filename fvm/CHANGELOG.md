@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.1.0 [2022-10-13]
+
+Update wasmtime to 1.0.0
+
 ## 2.0.0 [2022-10-12]
 
 Update to wasmtime 0.40.1.
