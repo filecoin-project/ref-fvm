@@ -249,7 +249,7 @@ where
     /// * the old data at this key, if any
     /// * whether the data has been modified
     #[allow(clippy::too_many_arguments)]
-    fn modify_value<S: Blockstore>(
+    fn modify_value<S>(
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
@@ -261,6 +261,7 @@ where
     ) -> Result<(Option<V>, bool), Error>
     where
         V: PartialEq,
+        S: Blockstore,
     {
         let idx = hashed_key.next(conf.bit_width)?;
 
@@ -331,8 +332,11 @@ where
                         conf,
                         hashed_key,
                         &part,
+                        depth,
                         key,
                         value,
+                        store,
+                        overwrite,
                         |midway, idx, tail| {
                             midway.insert_child_link(idx, *cid, tail, std::mem::take(cache));
                         },
@@ -355,8 +359,11 @@ where
                         conf,
                         hashed_key,
                         &part,
+                        depth,
                         key,
                         value,
+                        store,
+                        overwrite,
                         |midway, idx, tail| {
                             midway.insert_child_dirty(idx, std::mem::take(node), tail);
                         },
@@ -599,16 +606,21 @@ where
     /// We found a key that partially matched an extension. We have to insert a new node at the longest
     /// match and replace the existing link with one that points at this new node. The new node should
     /// in turn will have two children: a link to the original extension target, and the new key value pair.
-    fn split_extension<'a, F>(
+    fn split_extension<'a, F, S>(
         conf: &Config,
         hashed_key: &'a mut HashBits,
         part: &PartialMatch,
+        depth: u32,
         key: K,
         value: V,
+        store: &S,
+        overwrite: bool,
         insert_pointer: F,
     ) -> Result<Pointer<K, V, H>, Error>
     where
         F: FnOnce(&mut Node<K, V, H>, u32, Option<Extension>),
+        S: Blockstore,
+        V: PartialEq,
     {
         // Need a new node at the split point.
         let mut midway = Node::<K, V, H>::default();
@@ -620,8 +632,20 @@ where
         insert_pointer(&mut midway, idx, tail);
 
         // Insert the value at the next nibble of the hash.
-        let idx = hashed_key.next(conf.bit_width)?;
-        midway.insert_child(idx, key, value);
+        let skipped = head
+            .as_ref()
+            .map(|h| h.consumed() as u32 / conf.bit_width)
+            .unwrap_or_default();
+
+        midway.modify_value(
+            hashed_key,
+            conf,
+            depth + 1 + skipped,
+            key,
+            value,
+            store,
+            overwrite,
+        )?;
 
         // Replace the link in this node with one pointing at the midway node.
         Ok(Pointer::Dirty {
