@@ -866,7 +866,7 @@ macro_rules! test_hamt_mod {
 
             #[quickcheck]
             fn prop_cid_ops_reduced(ops: LimitedKeyOps<10>) -> bool {
-                super::prop_cid_ops_reduced(HamtFactory::default(), ops)
+                super::prop_cid_ops_reduced($factory, ops)
             }
         }
     };
