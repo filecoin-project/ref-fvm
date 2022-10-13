@@ -162,15 +162,17 @@ where
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
     pub(crate) fn clean(&mut self, conf: &Config, depth: u32) -> Result<(), Error> {
-        // All cleaning is about bringing `Pointer::Values` up a level if that's the only
-        // content in the node. If we're in the shallows where we don't want to keep data
-        // we can skip cleaning completely.
-        if depth < conf.min_data_depth {
-            return Ok(());
-        }
         match self {
             Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
+                _ if depth < conf.min_data_depth => {
+                    // We are in the shallows where we don't want key-value pairs, just links,
+                    // so as long as they are pointing at non-empty nodes we can keep them.
+                    // The rest of the rules would either move key-value pairs up, or undo a split.
+                    // But if we use extensions and minimum data depth, splits will only happen after
+                    // the minimum data depth as well, and these don't need undoing. So we can skip.
+                    Ok(())
+                }
                 1 => {
                     // Node has only one pointer, swap with parent node
                     // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
