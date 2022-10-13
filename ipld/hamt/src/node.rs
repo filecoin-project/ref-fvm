@@ -606,6 +606,7 @@ where
     /// We found a key that partially matched an extension. We have to insert a new node at the longest
     /// match and replace the existing link with one that points at this new node. The new node should
     /// in turn will have two children: a link to the original extension target, and the new key value pair.
+    #[allow(clippy::too_many_arguments)]
     fn split_extension<'a, F, S>(
         conf: &Config,
         hashed_key: &'a mut HashBits,
