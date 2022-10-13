@@ -4,6 +4,17 @@ Changes to the reference FVM implementation.
 
 ##  [Unreleased]
 
+## 3.0.0-alpha.2
+
+- Autoload wasm modules from the blockstore if they haven't been preloaded.
+- Add a new `balance_of` syscall.
+- Add a new `tipset_cid` syscall.
+- Add a new `timestamp` syscall.
+- Add syscalls to get the gas limit, premium, and available gas.
+- Add support for f4 addresses and auto-creating "embryos" on first send to an f4 address.
+- Update wasmtime to 1.0.
+- Add support for network version 18.
+
 ## 3.0.0-alpha.1
 
 - Add the origin to the `vm::context` syscall.
