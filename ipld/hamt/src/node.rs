@@ -311,7 +311,7 @@ where
                         key,
                         value,
                         |midway, idx, tail| {
-                            midway.insert_child_link(idx, *cid, tail);
+                            midway.insert_child_link(idx, *cid, tail, std::mem::take(cache));
                         },
                     )?;
                     Ok((None, true))
@@ -544,17 +544,16 @@ where
         self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
-    fn insert_child_link(&mut self, idx: u32, cid: Cid, ext: Option<Extension>) {
+    fn insert_child_link(
+        &mut self,
+        idx: u32,
+        cid: Cid,
+        ext: Option<Extension>,
+        cache: OnceCell<Box<Node<K, V, H>>>,
+    ) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers.insert(
-            i,
-            Pointer::Link {
-                cid,
-                ext,
-                cache: Default::default(),
-            },
-        )
+        self.pointers.insert(i, Pointer::Link { cid, ext, cache })
     }
 
     fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H>>, ext: Option<Extension>) {
