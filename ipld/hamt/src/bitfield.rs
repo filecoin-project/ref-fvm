@@ -86,6 +86,16 @@ impl Bitfield {
         self.0.iter().map(|a| a.count_ones() as usize).sum()
     }
 
+    pub fn last_one_idx(&self) -> Option<usize> {
+        [192, 128, 64, 0]
+            .iter()
+            .enumerate()
+            .find_map(|(i, offset)| match self.0[3 - i] {
+                0 => None,
+                n => Some((n as f64).log2().floor() as usize + offset),
+            })
+    }
+
     pub fn and(self, other: &Self) -> Self {
         Bitfield([
             self.0[0] & other.0[0],
@@ -143,6 +153,7 @@ impl std::fmt::Binary for Bitfield {
 #[cfg(test)]
 mod tests {
     use fvm_ipld_encoding::{from_slice, to_vec};
+    use quickcheck_macros::quickcheck;
 
     use super::*;
 
@@ -180,5 +191,22 @@ mod tests {
         let bz = to_vec(&b0).unwrap();
         assert_eq!(&bz, &[73, 1, 0, 0, 0, 0, 0, 0, 0, 1]);
         assert_eq!(&from_slice::<Bitfield>(&bz).unwrap(), &b0);
+    }
+
+    #[quickcheck]
+    fn last_one_idx_of_single_is_self(idx: u8) -> bool {
+        let mut b = Bitfield::zero();
+        let i1 = b.last_one_idx();
+        b.set_bit(idx as u32);
+        let i2 = b.last_one_idx();
+        i1.is_none() && i2 == Some(idx as usize)
+    }
+
+    #[quickcheck]
+    fn last_one_idx_of_multi_is_max(idx1: u8, idx2: u8) -> bool {
+        let mut b = Bitfield::zero();
+        b.set_bit(idx1 as u32);
+        b.set_bit(idx2 as u32);
+        b.last_one_idx() == Some(std::cmp::max(idx1, idx2) as usize)
     }
 }

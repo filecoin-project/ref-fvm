@@ -118,6 +118,32 @@ impl Extension {
         Ok((head, idx, tail))
     }
 
+    /// Merge two extensions, to undo a prior split.
+    pub fn unsplit(ext1: &Option<Self>, idx: &Self, ext2: &Option<Self>) -> Result<Self, Error> {
+        let bit_width = idx.consumed as u32;
+        let parts = vec![ext1.as_ref(), Some(idx), ext2.as_ref()]
+            .into_iter()
+            .flatten()
+            .collect();
+        Self::merge(parts, bit_width)
+    }
+
+    /// Merge multiple extensions into one.
+    fn merge(exts: Vec<&Self>, bit_width: u32) -> Result<Self, Error> {
+        let mut builder = ExtensionBuilder::new();
+        for ext in exts {
+            let mut path = ext.path_bits();
+            let mut bits_left = ext.consumed as u32;
+            while bits_left > 0 {
+                let i = min(bit_width, bits_left);
+                let n = path.next(i)?;
+                builder.add(i, n as u8);
+                bits_left -= i;
+            }
+        }
+        Ok(builder.build())
+    }
+
     /// Build an extension from a prefix of some hashed bits, starting from however
     /// far it has been consumed so far, taking the next `consumed` bits.
     pub fn from_bits(bits: &mut HashBits, mut consumed: u8) -> Result<Extension, Error> {
@@ -129,6 +155,13 @@ impl Extension {
             builder.add(i as u32, n);
         }
         Ok(builder.build())
+    }
+
+    /// Create an extension from an index.
+    pub fn from_idx(idx: u8, bit_width: u32) -> Extension {
+        let mut builder = ExtensionBuilder::new();
+        builder.add(bit_width, idx);
+        builder.build()
     }
 }
 
@@ -255,5 +288,8 @@ mod tests {
         assert_eq!(tail.consumed, 230);
         assert_eq!(tail.path[0], 0b01101111);
         assert_eq!(tail.path[1], 0b10111000);
+
+        let ext2 = Extension::unsplit(&Some(head), &midx, &Some(tail)).unwrap();
+        assert_eq!(ext, ext2);
     }
 }

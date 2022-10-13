@@ -16,6 +16,7 @@ use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
 use crate::ext::Extension;
+use crate::Config;
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
@@ -159,18 +160,44 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean(&mut self) -> Result<(), Error> {
+    pub(crate) fn clean(&mut self, conf: &Config) -> Result<(), Error> {
         match self {
-            Pointer::Dirty { node: n, .. } => match n.pointers.len() {
+            Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
                 1 => {
                     // Node has only one pointer, swap with parent node
-                    if let Pointer::Values(vals) = &mut n.pointers[0] {
-                        // Take child values, to ensure canonical ordering
-                        let values = std::mem::take(vals);
+                    match &mut n.pointers[0] {
+                        Pointer::Values(vals) => {
+                            // Take child values, to ensure canonical ordering
+                            let values = std::mem::take(vals);
 
-                        // move parent node up
-                        *self = Pointer::Values(values)
+                            // move parent node up
+                            *self = Pointer::Values(values)
+                        }
+                        Pointer::Dirty {
+                            node: sub,
+                            ext: ext2,
+                        } if conf.use_extensions => {
+                            // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
+                            // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
+                            // the nodes it pointed at had been removed since.
+
+                            // Figure out which bucket contains the pointer.
+                            let idx = n
+                                .bitfield
+                                .last_one_idx()
+                                .expect("There is exactly one pointer")
+                                as u8;
+
+                            let idx = Extension::from_idx(idx, conf.bit_width);
+                            let ext = Extension::unsplit(ext1, &idx, ext2)?;
+
+                            *self = Pointer::Dirty {
+                                node: std::mem::take(sub),
+                                ext: Some(ext),
+                            }
+                        }
+                        _ => (),
                     }
                     Ok(())
                 }
