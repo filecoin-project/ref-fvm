@@ -3,7 +3,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -82,7 +82,7 @@ where
             let params = if msg.params.is_empty() {
                 None
             } else {
-                Some(Block::new(DAG_CBOR, msg.params.bytes()))
+                Some(Block::new(DAG_CBOR, &*msg.params))
             };
 
             let result = cm.with_transaction(|cm| {
@@ -111,7 +111,7 @@ where
                 // Convert back into a top-level return "value". We throw away the codec here,
                 // unfortunately.
                 let return_data = return_value
-                    .map(|blk| RawBytes::from(blk.data().to_vec()))
+                    .map(|blk| blk.data().to_vec())
                     .unwrap_or_default();
 
                 backtrace.clear();

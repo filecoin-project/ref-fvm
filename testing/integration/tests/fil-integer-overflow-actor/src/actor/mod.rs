@@ -1,7 +1,7 @@
 use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{to_vec, CborStore, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{from_slice, to_vec, CborStore, DAG_CBOR};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_sdk::NO_DATA_BLOCK_ID;
@@ -72,11 +72,11 @@ impl State {
 #[no_mangle]
 pub fn invoke(params_pointer: u32) -> u32 {
     // Conduct method dispatch. Handle input parameters and return data.
-    let ret: Option<RawBytes> = match fvm_sdk::message::method_number() {
+    let ret: Option<Vec<u8>> = match fvm_sdk::message::method_number() {
         // Set initial value
         1 => {
             let params = params_raw(params_pointer).unwrap().1;
-            let x: i64 = RawBytes::new(params).deserialize().unwrap();
+            let x: i64 = from_slice(&params).unwrap();
 
             let mut state = State::load();
             state.value = x;
@@ -98,7 +98,7 @@ pub fn invoke(params_pointer: u32) -> u32 {
             let state = State::load();
             let ret = to_vec(&state.value);
             match ret {
-                Ok(ret) => Some(RawBytes::new(ret)),
+                Ok(ret) => Some(ret),
                 Err(err) => {
                     abort(
                         ExitCode::USR_ILLEGAL_STATE.value(),
@@ -115,7 +115,7 @@ pub fn invoke(params_pointer: u32) -> u32 {
 
     match ret {
         None => NO_DATA_BLOCK_ID,
-        Some(v) => match fvm_sdk::ipld::put_block(DAG_CBOR, v.bytes()) {
+        Some(v) => match fvm_sdk::ipld::put_block(DAG_CBOR, &v) {
             Ok(id) => id,
             Err(err) => abort(
                 ExitCode::USR_SERIALIZATION.value(),

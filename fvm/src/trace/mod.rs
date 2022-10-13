@@ -1,4 +1,3 @@
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -21,10 +20,10 @@ pub enum ExecutionEvent {
         from: ActorID,
         to: Address,
         method: MethodNum,
-        params: RawBytes,
+        params: Vec<u8>,
         value: TokenAmount,
     },
-    CallReturn(RawBytes),
+    CallReturn(Vec<u8>),
     CallAbort(ExitCode),
     CallError(SyscallError),
 }

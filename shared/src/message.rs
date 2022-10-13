@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
-use fvm_ipld_encoding::de::{Deserialize, Deserializer};
-use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::{strict_bytes, Cbor};
 
 use crate::address::Address;
 use crate::econ::TokenAmount;
@@ -12,18 +11,24 @@ use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[cfg_attr(feature = "testing", derive(Default))]
-#[derive(PartialEq, Clone, Debug, Hash, Eq)]
+#[derive(PartialEq, Clone, Debug, Hash, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct Message {
     pub version: i64,
-    pub from: Address,
+
     pub to: Address,
+    pub from: Address,
+
     pub sequence: u64,
+
     pub value: TokenAmount,
-    pub method_num: MethodNum,
-    pub params: RawBytes,
+
     pub gas_limit: i64,
     pub gas_fee_cap: TokenAmount,
     pub gas_premium: TokenAmount,
+
+    pub method_num: MethodNum,
+    #[serde(with = "strict_bytes")]
+    pub params: Vec<u8>,
 }
 
 impl Cbor for Message {}
@@ -38,58 +43,5 @@ impl Message {
             return Err(anyhow!("Message has negative gas limit"));
         }
         Ok(())
-    }
-}
-
-impl Serialize for Message {
-    fn serialize<S>(&self, s: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        (
-            &self.version,
-            &self.to,
-            &self.from,
-            &self.sequence,
-            &self.value,
-            &self.gas_limit,
-            &self.gas_fee_cap,
-            &self.gas_premium,
-            &self.method_num,
-            &self.params,
-        )
-            .serialize(s)
-    }
-}
-
-impl<'de> Deserialize<'de> for Message {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let (
-            version,
-            to,
-            from,
-            sequence,
-            value,
-            gas_limit,
-            gas_fee_cap,
-            gas_premium,
-            method_num,
-            params,
-        ) = Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            version,
-            from,
-            to,
-            sequence,
-            value,
-            method_num,
-            params,
-            gas_limit,
-            gas_fee_cap,
-            gas_premium,
-        })
     }
 }

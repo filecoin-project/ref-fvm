@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -148,7 +148,7 @@ where
             self.trace(match &result {
                 Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
                     v.as_ref()
-                        .map(|blk| RawBytes::from(blk.data().to_vec()))
+                        .map(|blk| blk.data().to_vec())
                         .unwrap_or_default(),
                 ),
                 Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),

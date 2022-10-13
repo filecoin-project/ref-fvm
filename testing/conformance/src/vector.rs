@@ -228,7 +228,6 @@ mod base64_bytes {
 }
 
 mod message_receipt_vec {
-    use fvm_ipld_encoding::RawBytes;
     use fvm_shared::error::ExitCode;
 
     use super::*;
@@ -249,7 +248,7 @@ mod message_receipt_vec {
         Ok(s.into_iter()
             .map(|v| Receipt {
                 exit_code: v.exit_code,
-                return_data: RawBytes::new(v.return_value),
+                return_data: v.return_value,
                 gas_used: v.gas_used,
             })
             .collect())

@@ -4,7 +4,7 @@ use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::{from_slice, to_vec};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -60,7 +60,7 @@ fn integer_overflow() {
 
     // Params setup
     let x: i64 = 10000000000;
-    let params = RawBytes::serialize(x).unwrap();
+    let params = to_vec(&x).unwrap();
 
     // Send message to set
     let message = Message {
@@ -104,7 +104,7 @@ fn integer_overflow() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+    let current_state_value: i64 = from_slice(&res.msg_receipt.return_data).unwrap();
 
     assert_eq!(current_state_value, x);
 
@@ -142,7 +142,7 @@ fn integer_overflow() {
         .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
-    let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+    let current_state_value: i64 = from_slice(&res.msg_receipt.return_data).unwrap();
 
     // Check overflow
     let overflow_value: i64 = -5340232216128654848;

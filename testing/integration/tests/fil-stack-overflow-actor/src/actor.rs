@@ -55,12 +55,7 @@ pub fn call_extern() {
 
 #[inline(never)]
 pub fn do_send(m: u64) -> u32 {
-    let r = sdk::send::send(
-        &Address::new_id(10000),
-        m + 1,
-        Vec::new().into(),
-        TokenAmount::zero(),
-    );
+    let r = sdk::send::send(&Address::new_id(10000), m + 1, &[], TokenAmount::zero());
     match r {
         Ok(rec) => match rec.exit_code {
             ExitCode::OK => 0,

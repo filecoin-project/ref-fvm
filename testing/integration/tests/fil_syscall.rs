@@ -5,7 +5,6 @@ use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -77,7 +76,7 @@ fn non_existing_syscall() {
     tester.instantiate_machine(DummyExterns).unwrap();
 
     // Params setup
-    let params = RawBytes::new(Vec::<u8>::new());
+    let params = Vec::new();
 
     // Send message to set
     let message = Message {
@@ -133,7 +132,7 @@ fn malformed_syscall_parameter() {
     tester.instantiate_machine(DummyExterns).unwrap();
 
     // Params setup
-    let params = RawBytes::new(Vec::<u8>::new());
+    let params = Vec::new();
 
     // Send message to set
     let message = Message {

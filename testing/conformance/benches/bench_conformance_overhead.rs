@@ -7,7 +7,7 @@ use criterion::*;
 use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ADDR};
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::Cbor;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use num_traits::Zero;
@@ -55,7 +55,7 @@ fn bench_500_simple_state_access(
                 sequence: i,
                 value: TokenAmount::zero(),
                 method_num: 2,
-                params: RawBytes::default(),
+                params: Vec::new(),
                 gas_limit: 5000000000,
                 gas_fee_cap: TokenAmount::zero(),
                 gas_premium: TokenAmount::zero(),

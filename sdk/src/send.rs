@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -15,7 +15,7 @@ use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 pub fn send(
     to: &Address,
     method: MethodNum,
-    params: RawBytes,
+    params: &[u8],
     value: TokenAmount,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
@@ -56,7 +56,7 @@ pub fn send(
                 // Now read the return data.
                 let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
                 assert_eq!(0, unread);
-                RawBytes::from(bytes)
+                bytes
             }
             _ => Default::default(),
         };

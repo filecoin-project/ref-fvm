@@ -1,4 +1,3 @@
-use fvm_ipld_encoding::RawBytes;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::bigint::Zero;
@@ -24,7 +23,7 @@ pub fn invoke(params: u32) -> u32 {
         2 => {
             // Create an account.
             let addr = Address::new_secp256k1(&[0; SECP_PUB_LEN]).unwrap();
-            assert!(sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero())
+            assert!(sdk::send::send(&addr, 0, &[], Zero::zero())
                 .unwrap()
                 .exit_code
                 .is_success());
@@ -42,7 +41,7 @@ pub fn invoke(params: u32) -> u32 {
             // Create an embryo.
             let addr =
                 Address::new_delegated(0, b"foobar").expect("failed to construct f4 address");
-            assert!(sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero())
+            assert!(sdk::send::send(&addr, 0, &[], Zero::zero())
                 .unwrap()
                 .exit_code
                 .is_success());
@@ -62,7 +61,7 @@ pub fn invoke(params: u32) -> u32 {
                 Address::new_delegated(999, b"foobar").expect("failed to construct f4 address");
             assert_eq!(
                 Err(ErrorNumber::NotFound),
-                sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero()),
+                sdk::send::send(&addr, 0, &[], Zero::zero()),
                 "expected send to unassignable f4 address to fail"
             );
         }

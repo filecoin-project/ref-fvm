@@ -5,7 +5,6 @@ use std::fmt::Display;
 
 use cid::Cid;
 pub use default::DefaultExecutor;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -100,7 +99,7 @@ impl ApplyRet {
         ApplyRet {
             msg_receipt: Receipt {
                 exit_code: code,
-                return_data: RawBytes::default(),
+                return_data: Vec::new(),
                 gas_used: 0,
             },
             penalty: miner_penalty,
