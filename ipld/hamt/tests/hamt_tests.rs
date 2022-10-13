@@ -597,38 +597,6 @@ fn prop_cid_indep_of_insert_order(
     cid1 == cid2
 }
 
-/// Test that inserting some values then deleting them is equivalent to never inserting them as far as CID goes.
-fn prop_cid_insert_then_delete(
-    factory: HamtFactory,
-    kvs: UniqueKeyValuePairs<u8, i64>,
-    n: usize,
-) -> bool {
-    let kvs = kvs.0;
-    if kvs.len() == 0 {
-        return true;
-    }
-    let n = n % kvs.len();
-
-    let store = MemoryBlockstore::default();
-    let mut hamt1 = factory.new(&store);
-    let mut hamt2 = factory.new(&store);
-
-    for (k, v) in kvs.iter() {
-        hamt1.set(*k, *v).unwrap();
-    }
-    for (k, _) in kvs.iter().skip(n) {
-        hamt1.delete(k).unwrap();
-    }
-    for (k, v) in kvs.iter().take(n) {
-        hamt2.set(*k, *v).unwrap();
-    }
-
-    let cid1 = hamt1.flush().unwrap();
-    let cid2 = hamt2.flush().unwrap();
-
-    cid1 == cid2
-}
-
 #[derive(Clone, Debug)]
 enum Operation<K, V> {
     Set((K, V)),
@@ -812,11 +780,6 @@ mod test_default {
     }
 
     #[quickcheck]
-    fn prop_cid_insert_then_delete(kvs: UniqueKeyValuePairs<u8, i64>, n: usize) -> bool {
-        super::prop_cid_insert_then_delete(HamtFactory::default(), kvs, n)
-    }
-
-    #[quickcheck]
     fn prop_cid_ops_reduced(ops: LimitedKeyOps<10>) -> bool {
         super::prop_cid_ops_reduced(HamtFactory::default(), ops)
     }
@@ -901,11 +864,6 @@ macro_rules! test_hamt_mod {
                 seed: u64,
             ) -> bool {
                 super::prop_cid_indep_of_insert_order($factory, kvs, seed)
-            }
-
-            #[quickcheck]
-            fn prop_cid_insert_then_delete(kvs: UniqueKeyValuePairs<u8, i64>, n: usize) -> bool {
-                super::prop_cid_insert_then_delete(HamtFactory::default(), kvs, n)
             }
 
             #[quickcheck]
