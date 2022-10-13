@@ -1,7 +1,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use cid::Cid;
@@ -604,10 +604,13 @@ fn prop_cid_insert_then_delete(
     kvs: UniqueKeyValuePairs<u8, i64>,
     n: usize,
 ) -> bool {
-    let store = MemoryBlockstore::default();
     let kvs = kvs.0;
+    if kvs.len() == 0 {
+        return true;
+    }
     let n = n % kvs.len();
 
+    let store = MemoryBlockstore::default();
     let mut hamt1 = factory.new(&store);
     let mut hamt2 = factory.new(&store);
 
@@ -627,6 +630,75 @@ fn prop_cid_insert_then_delete(
     cid1 == cid2
 }
 
+#[derive(Clone, Debug)]
+enum Operation<K, V> {
+    Set((K, V)),
+    Delete(K),
+}
+
+impl<K, V> Arbitrary for Operation<K, V>
+where
+    K: Arbitrary + Eq + std::hash::Hash,
+    V: Arbitrary,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        match bool::arbitrary(g) {
+            false => Operation::Delete(K::arbitrary(g)),
+            true => Operation::Set((K::arbitrary(g), V::arbitrary(g))),
+        }
+    }
+}
+
+/// A numeric key with a maximum value.
+#[derive(Clone, Debug, PartialEq, Eq, std::hash::Hash)]
+struct LimitedU32<const L: u32>(u32);
+
+impl<const L: u32> Arbitrary for LimitedU32<L> {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self(u32::arbitrary(g) % L)
+    }
+}
+
+/// Operations with a limited key range, to induce lots of overlaps in sets and deletes.
+type LimitedKeyOps<const N: u32> = Vec<Operation<LimitedU32<N>, i32>>;
+
+/// Test that randomly inserting, updating and deleting random elements is equivalent to just doing the reduced insertions.
+fn prop_cid_ops_reduced(factory: HamtFactory, ops: LimitedKeyOps<10>) -> bool {
+    let store = MemoryBlockstore::default();
+
+    let reduced = ops.iter().fold(HashMap::new(), |mut m, op| {
+        match op {
+            Operation::Set((k, v)) => m.insert(k.0, *v),
+            Operation::Delete(k) => m.remove(&k.0),
+        };
+        m
+    });
+
+    let mut hamt1 = ops.into_iter().fold(factory.new(&store), |mut hamt, op| {
+        match op {
+            Operation::Set((k, v)) => {
+                hamt.set(k.0, v).unwrap();
+            }
+            Operation::Delete(k) => {
+                hamt.delete(&k.0).unwrap();
+            }
+        };
+        hamt
+    });
+
+    let mut hamt2 = reduced
+        .into_iter()
+        .fold(factory.new(&store), |mut hamt, (k, v)| {
+            hamt.set(k, v).unwrap();
+            hamt
+        });
+
+    let cid1 = hamt1.flush().unwrap();
+    let cid2 = hamt2.flush().unwrap();
+
+    cid1 == cid2
+}
+
 fn tstring(v: impl Display) -> BytesKey {
     BytesKey(v.to_string().into_bytes())
 }
@@ -635,7 +707,7 @@ mod test_default {
     use fvm_ipld_blockstore::tracking::BSStats;
     use quickcheck_macros::quickcheck;
 
-    use crate::{CidChecker, HamtFactory, UniqueKeyValuePairs};
+    use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
 
     #[test]
     fn test_basics() {
@@ -741,6 +813,11 @@ mod test_default {
     fn prop_cid_insert_then_delete(kvs: UniqueKeyValuePairs<u8, i64>, n: usize) -> bool {
         super::prop_cid_insert_then_delete(HamtFactory::default(), kvs, n)
     }
+
+    #[quickcheck]
+    fn prop_cid_ops_reduced(ops: LimitedKeyOps<10>) -> bool {
+        super::prop_cid_ops_reduced(HamtFactory::default(), ops)
+    }
 }
 
 /// Run all the tests with a different configuration.
@@ -764,7 +841,7 @@ macro_rules! test_hamt_mod {
         mod $name {
             use fvm_ipld_hamt::Config;
             use quickcheck_macros::quickcheck;
-            use $crate::{CidChecker, HamtFactory, UniqueKeyValuePairs};
+            use $crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
 
             #[test]
             fn test_basics() {
@@ -827,6 +904,11 @@ macro_rules! test_hamt_mod {
             #[quickcheck]
             fn prop_cid_insert_then_delete(kvs: UniqueKeyValuePairs<u8, i64>, n: usize) -> bool {
                 super::prop_cid_insert_then_delete(HamtFactory::default(), kvs, n)
+            }
+
+            #[quickcheck]
+            fn prop_cid_ops_reduced(ops: LimitedKeyOps<10>) -> bool {
+                super::prop_cid_ops_reduced(HamtFactory::default(), ops)
             }
         }
     };
