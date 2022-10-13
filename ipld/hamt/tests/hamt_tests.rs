@@ -630,7 +630,7 @@ impl<const L: u32> Arbitrary for LimitedU32<L> {
 type LimitedKeyOps<const N: u32> = Vec<Operation<LimitedU32<N>, i32>>;
 
 /// Test that randomly inserting, updating and deleting random elements is equivalent to just doing the reduced insertions.
-fn prop_cid_ops_reduced(factory: HamtFactory, ops: LimitedKeyOps<10>) -> bool {
+fn prop_cid_ops_reduced<const N: u32>(factory: HamtFactory, ops: LimitedKeyOps<N>) -> bool {
     let store = MemoryBlockstore::default();
 
     let reduced = ops.iter().fold(HashMap::new(), |mut m, op| {
@@ -879,7 +879,7 @@ test_hamt_mod!(
     HamtFactory {
         conf: Config {
             use_extensions: true,
-            bit_width: 2,
+            bit_width: 1, // Use smaller bit width to induce more overlap in key prefixes
         },
     }
 );

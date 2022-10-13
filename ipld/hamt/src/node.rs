@@ -465,7 +465,7 @@ where
                                 ext: ext.take(),
                             };
                             // Clean to retrieve canonical form
-                            child.clean()?;
+                            child.clean(conf)?;
                         }
 
                         Ok(deleted)
@@ -481,7 +481,7 @@ where
                             node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
                         // Clean to ensure canonical form
-                        child.clean()?;
+                        child.clean(conf)?;
                         Ok(deleted)
                     }
                     ExtensionMatch::Partial(_) => Ok(None),
