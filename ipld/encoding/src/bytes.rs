@@ -182,3 +182,41 @@ pub fn bytes_32(buf: &[u8]) -> [u8; 32] {
 
 #[deprecated = "Use strict_bytes. serde_bytes is a deprecated alias."]
 pub use strict_bytes as serde_bytes;
+
+#[cfg(test)]
+mod test {
+    use serde::{Deserialize, Serialize};
+
+    use crate::{from_slice, strict_bytes, to_vec, BytesDe, BytesSer};
+
+    #[test]
+    fn round_trip() {
+        let buf = &[1u8, 2, 3, 4][..];
+        let serialized = to_vec(&BytesSer(buf)).unwrap();
+        let result: BytesDe = from_slice(&serialized).unwrap();
+        assert_eq!(buf, &result.0);
+    }
+
+    #[test]
+    fn wrapper() {
+        #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+        #[serde(transparent)]
+        struct Wrapper(#[serde(with = "strict_bytes")] Vec<u8>);
+        let input = Wrapper(vec![1, 2, 3, 4]);
+        let serialized = to_vec(&input).unwrap();
+        let result: Wrapper = from_slice(&serialized).unwrap();
+        assert_eq!(input, result);
+    }
+
+    #[test]
+    fn from_string_fails() {
+        let serialized = to_vec(&"abcde").unwrap();
+        from_slice::<BytesDe>(&serialized).expect_err("can't decode string into bytes");
+    }
+
+    #[test]
+    fn from_list_fails() {
+        let serialized = to_vec(&[1u8, 2, 3, 4]).unwrap();
+        from_slice::<BytesDe>(&serialized).expect_err("can't decode list into bytes");
+    }
+}
