@@ -165,7 +165,7 @@ where
         match self {
             Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
-                _ if depth < conf.min_data_depth => {
+                _ if depth < conf.min_data_depth || conf.push_data_to_leaves => {
                     // We are in the shallows where we don't want key-value pairs, just links,
                     // so as long as they are pointing at non-empty nodes we can keep them.
                     // The rest of the rules would either move key-value pairs up, or undo a split.
