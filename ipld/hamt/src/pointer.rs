@@ -165,7 +165,7 @@ where
         match self {
             Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
-                _ if depth < conf.min_data_depth || conf.push_data_to_leaves => {
+                _ if depth < conf.min_data_depth => {
                     // We are in the shallows where we don't want key-value pairs, just links,
                     // so as long as they are pointing at non-empty nodes we can keep them.
                     // The rest of the rules would either move key-value pairs up, or undo a split.
@@ -178,10 +178,10 @@ where
                     // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
                     // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
                     // the nodes it pointed at had been removed since.
-                    let can_have_splits = conf.use_extensions;
+                    let can_have_splits = conf.use_extensions || conf.push_data_to_leaves;
 
                     match &mut n.pointers[0] {
-                        Pointer::Values(vals) => {
+                        Pointer::Values(vals) if !conf.push_data_to_leaves => {
                             // Take child values, to ensure canonical ordering
                             let values = std::mem::take(vals);
 
@@ -215,7 +215,7 @@ where
                     }
                     Ok(())
                 }
-                2..=MAX_ARRAY_WIDTH => {
+                2..=MAX_ARRAY_WIDTH if !conf.push_data_to_leaves => {
                     // If more child values than max width, nothing to change.
                     let mut children_len = 0;
                     for c in n.pointers.iter() {
