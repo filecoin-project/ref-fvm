@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0 [2022-10-12]
+
+No change.
+
 ## 2.0.0-alpha.5 [2022-09-12]
 
 Update fvm_shared.

@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.0.0 [2022-10-12]
+
+Update to wasmtime 0.40.1.
+
 ## 2.0.0-alpha.3 [2022-09-12]
 
 Add support for nv17.
