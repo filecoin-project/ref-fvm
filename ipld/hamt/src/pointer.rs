@@ -15,6 +15,7 @@ use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use crate::bitfield::Bitfield;
 use crate::ext::Extension;
 use crate::Config;
 
@@ -166,6 +167,11 @@ where
                 0 => Err(Error::ZeroPointers),
                 1 => {
                     // Node has only one pointer, swap with parent node
+                    // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
+                    // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
+                    // the nodes it pointed at had been removed since.
+                    let can_have_splits = conf.use_extensions;
+
                     match &mut n.pointers[0] {
                         Pointer::Values(vals) => {
                             // Take child values, to ensure canonical ordering
@@ -174,27 +180,27 @@ where
                             // move parent node up
                             *self = Pointer::Values(values)
                         }
+                        Pointer::Link {
+                            cid,
+                            ext: ext2,
+                            cache,
+                        } if can_have_splits => {
+                            // Replace `self` with a
+                            let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
+                            *self = Pointer::Link {
+                                cid: *cid,
+                                ext,
+                                cache: std::mem::take(cache),
+                            }
+                        }
                         Pointer::Dirty {
                             node: sub,
                             ext: ext2,
-                        } if conf.use_extensions => {
-                            // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
-                            // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
-                            // the nodes it pointed at had been removed since.
-
-                            // Figure out which bucket contains the pointer.
-                            let idx = n
-                                .bitfield
-                                .last_one_idx()
-                                .expect("There is exactly one pointer")
-                                as u8;
-
-                            let idx = Extension::from_idx(idx, conf.bit_width);
-                            let ext = Extension::unsplit(ext1, &idx, ext2)?;
-
+                        } if can_have_splits => {
+                            let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
                             *self = Pointer::Dirty {
                                 node: std::mem::take(sub),
-                                ext: Some(ext),
+                                ext,
                             }
                         }
                         _ => (),
@@ -270,4 +276,21 @@ fn add_to_ipld_map<S: Serializer, T: Serialize>(
         to_ipld(value).map_err(|e| S::Error::custom(format!("cannot serialize `{key}`: {e}")))?;
     map.insert(key.to_owned(), value);
     Ok(())
+}
+
+/// Helper method to undo a former split.
+fn unsplit_ext(
+    conf: &Config,
+    bf: &Bitfield,
+    parent_ext: &Option<Extension>,
+    child_ext: &Option<Extension>,
+) -> Result<Option<Extension>, Error> {
+    // Figure out which bucket contains the pointer.
+    let idx = bf
+        .last_one_idx()
+        .expect("There is supposed to be exactly one pointer") as u8;
+
+    let idx = Extension::from_idx(idx, conf.bit_width);
+    let ext = Extension::unsplit(parent_ext, &idx, child_ext)?;
+    Ok(Some(ext))
 }
