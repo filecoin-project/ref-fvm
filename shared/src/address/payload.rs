@@ -151,13 +151,13 @@ impl From<&Payload> for Protocol {
     }
 }
 
-impl TryFrom<Payload> for DelegatedAddress {
-    type Error = ();
+impl TryFrom<&Payload> for DelegatedAddress {
+    type Error = Error;
 
-    fn try_from(value: Payload) -> Result<Self, Self::Error> {
+    fn try_from(value: &Payload) -> Result<Self, Self::Error> {
         match value {
-            Payload::Delegated(d) => Ok(d),
-            _ => Err(()),
+            Payload::Delegated(d) => Ok(*d),
+            _ => Err(Error::NonDelegatedAddress),
         }
     }
 }

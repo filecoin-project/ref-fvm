@@ -32,6 +32,8 @@ pub enum Error {
     Base32Decoding(#[from] DecodeError),
     #[error("Cannot get id from non id address")]
     NonIDAddress,
+    #[error("Cannot get delegated address from non delegate address")]
+    NonDelegatedAddress,
 }
 
 impl From<num::ParseIntError> for Error {
