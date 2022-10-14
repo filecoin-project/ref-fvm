@@ -18,7 +18,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
 pub use self::network::{current_network, set_current_network, Network};
-use self::payload::DelegatedAddress;
+pub use self::payload::DelegatedAddress;
 pub use self::payload::Payload;
 pub use self::protocol::Protocol;
 use crate::ActorID;

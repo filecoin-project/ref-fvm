@@ -151,6 +151,18 @@ impl From<&Payload> for Protocol {
     }
 }
 
+impl TryFrom<Payload> for DelegatedAddress {
+    type Error = ();
+    
+    fn try_from(value: Payload) -> Result<Self, Self::Error> {
+        match value {
+            Payload::Delegated(d) => Ok(d),
+            _ => Err(()),
+        }
+    }
+
+}
+
 #[cfg(feature = "testing")]
 impl Default for Payload {
     fn default() -> Self {
