@@ -19,6 +19,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct AmtImpl<V, BS, Ver> {
     root: RootImpl<V, Ver>,
     block_store: BS,
@@ -61,7 +62,7 @@ where
     BS: Blockstore,
     Ver: AmtVersion,
 {
-    /// Constructor for Root AMT node (v0)
+    /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
         Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }

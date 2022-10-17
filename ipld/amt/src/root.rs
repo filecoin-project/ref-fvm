@@ -29,9 +29,9 @@ pub(crate) mod version {
 }
 
 /// Root of an AMT vector, can be serialized and keeps track of height and count
-pub(super) type Root<V> = RootImpl<V, self::version::V3>;
+type Root<V> = RootImpl<V, self::version::V3>;
 /// Legacy AMT v0, used to read block headers.
-pub(super) type Rootv0<V> = RootImpl<V, self::version::V0>;
+type Rootv0<V> = RootImpl<V, self::version::V0>;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct RootImpl<V, Ver> {
@@ -43,7 +43,7 @@ pub(crate) struct RootImpl<V, Ver> {
 }
 
 impl<V, Ver> RootImpl<V, Ver> {
-    pub(super) fn new_with_bit_width(bit_width: u32) -> Self {
+    pub(crate) fn new_with_bit_width(bit_width: u32) -> Self {
         Self {
             bit_width,
             count: 0,
