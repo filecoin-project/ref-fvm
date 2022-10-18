@@ -99,7 +99,7 @@ pub fn create_actor(
     predictable_addr_len: u32,
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
-    let addr = (predictable_addr_len == 0)
+    let addr = (predictable_addr_len > 0)
         .then(|| {
             context
                 .memory
