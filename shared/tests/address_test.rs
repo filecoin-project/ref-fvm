@@ -229,17 +229,17 @@ fn delegated_address() {
         F4TestVec {
             namespace: 32,
             subaddr: &[0xff; 5],
-            expected: "f432-77777777x32lpna",
+            expected: "f432f77777777x32lpna",
         },
         F4TestVec {
             namespace: std::u64::MAX,
             subaddr: &[],
-            expected: "f418446744073709551615-tnkyfaq",
+            expected: "f418446744073709551615ftnkyfaq",
         },
         F4TestVec {
             namespace: std::u64::MAX,
             subaddr: &[0; MAX_SUBADDRESS_LEN],
-            expected: "f418446744073709551615-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafbbuagu",
+            expected: "f418446744073709551615faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafbbuagu",
         },
     ];
 
