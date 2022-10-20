@@ -1,7 +1,12 @@
 # Changelog
 
 
-## 3.0.0-alpha.6 [UNRELEASED]
+## 3.0.0-alpha.7 [UNRELEASED]
+
+## 3.0.0-alpha.6 [2022-10-20]
+
+- Make the f4 address conform to FIP0048 (use `f` as the separator).
+- Implement `TryFrom<Payload>` for `DelegatedAddress` (and make `DelegatedAddress` public).
 
 ## 3.0.0-alpha.5 [2022-10-10]
 
