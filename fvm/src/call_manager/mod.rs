@@ -45,7 +45,7 @@ pub trait CallManager: 'static {
     fn new(
         machine: Self::Machine,
         gas_limit: i64,
-        origin: (ActorID, Address),
+        origin: ActorID,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self;
@@ -81,7 +81,7 @@ pub trait CallManager: 'static {
     fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
     /// Getter for origin actor.
-    fn origin(&self) -> (ActorID, &Address);
+    fn origin(&self) -> ActorID;
 
     /// Getter for message nonce.
     fn nonce(&self) -> u64;

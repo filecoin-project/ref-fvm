@@ -190,7 +190,7 @@ where
     fn new(
         machine: Self::Machine,
         gas_limit: i64,
-        origin: (ActorID, Address),
+        origin: ActorID,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -247,7 +247,7 @@ where
         self.0.gas_tracker_mut()
     }
 
-    fn origin(&self) -> (ActorID, &Address) {
+    fn origin(&self) -> ActorID {
         self.0.origin()
     }
 
@@ -570,7 +570,7 @@ where
         self.0.msg_caller()
     }
 
-    fn msg_origin(&self) -> (ActorID, &Address) {
+    fn msg_origin(&self) -> ActorID {
         self.0.msg_origin()
     }
 

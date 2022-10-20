@@ -34,8 +34,8 @@ pub struct InnerDefaultCallManager<M> {
     /// The gas tracker.
     gas_tracker: GasTracker,
     /// The ActorID and the address of the original sender of the chain message that initiated
-    /// this call stack. The Address is the address as provided in the chain message.
-    origin: (ActorID, Address),
+    /// this call stack.
+    origin: ActorID,
     /// The nonce of the chain message that initiated this call stack.
     nonce: u64,
     /// Number of actors created in this call stack.
@@ -75,7 +75,7 @@ where
     fn new(
         machine: M,
         gas_limit: i64,
-        origin: (ActorID, Address),
+        origin: ActorID,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -227,8 +227,8 @@ where
 
     // Other accessor methods
 
-    fn origin(&self) -> (ActorID, &Address) {
-        (self.origin.0, &self.origin.1)
+    fn origin(&self) -> ActorID {
+        self.origin
     }
 
     fn nonce(&self) -> u64 {

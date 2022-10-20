@@ -69,7 +69,7 @@ where
             let mut cm = K::CallManager::new(
                 machine,
                 msg.gas_limit,
-                (sender_id, msg.from),
+                sender_id,
                 msg.sequence,
                 msg.gas_premium.clone(),
             );

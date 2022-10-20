@@ -8,8 +8,8 @@ use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, from_slice, to_vec};
-use fvm_shared::address::Protocol;
+use fvm_ipld_encoding::{bytes_32, to_vec};
+use fvm_shared::address::{Payload, Protocol};
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
@@ -103,61 +103,6 @@ impl<C> DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn resolve_to_key_addr(&mut self, addr: &Address, charge_gas: bool) -> Result<Address> {
-        if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
-            return Ok(*addr);
-        }
-
-        let act = self
-            .call_manager
-            .machine()
-            .state_tree()
-            .get_actor(addr)?
-            .context("state tree doesn't contain actor")
-            .or_error(ErrorNumber::NotFound)?;
-
-        let is_account = self
-            .call_manager
-            .machine()
-            .builtin_actors()
-            .is_account_actor(&act.code);
-
-        if !is_account {
-            // TODO: this is wrong. Maybe some InvalidActor type?
-            // The argument is syntactically correct, but semantically wrong.
-            return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
-        }
-
-        if charge_gas {
-            self.call_manager
-                .charge_gas(self.call_manager.price_list().on_block_open_base())?;
-        }
-
-        let state_block = self
-            .call_manager
-            .state_tree()
-            .store()
-            .get(&act.state)
-            .context("failed to look up state")
-            .or_fatal()?
-            .context("account actor state not found")
-            .or_fatal()?;
-
-        if charge_gas {
-            self.call_manager.charge_gas(
-                self.call_manager
-                    .price_list()
-                    .on_block_open_per_byte(state_block.len()),
-            )?;
-        }
-
-        let state: crate::account_actor::State = from_slice(&state_block)
-            .context("failed to decode actor state as an account")
-            .or_fatal()?; // because we've checked and this should be an account.
-
-        Ok(state.address)
-    }
-
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
     fn get_self(&self) -> Result<Option<ActorState>> {
         self.call_manager
@@ -364,7 +309,7 @@ where
         self.caller
     }
 
-    fn msg_origin(&self) -> (ActorID, &Address) {
+    fn msg_origin(&self) -> ActorID {
         self.call_manager.origin()
     }
 
@@ -465,7 +410,25 @@ where
             .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
 
         // Resolve to key address before verifying signature.
-        let signing_addr = self.resolve_to_key_addr(signer, true)?;
+        let signing_addr = match signer.payload() {
+            // Already a key address.
+            Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
+            // Resolve and re-check.
+            Payload::ID(id) => {
+                let addr = self
+                    .lookup_address(*id)?
+                    .context("address not found")
+                    .or_error(ErrorNumber::NotFound)?;
+                if !matches!(addr.protocol(), Protocol::Secp256k1 | Protocol::BLS) {
+                    return Err(syscall_error!(NotFound; "address protocol not supported").into());
+                }
+                addr
+            }
+            // Not a key address.
+            _ => {
+                return Err(syscall_error!(NotFound; "address protocol not supported").into());
+            }
+        };
 
         // Verify signature, catching errors. Signature verification can include some complicated
         // math.
@@ -762,11 +725,11 @@ where
 
     // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn new_actor_address(&mut self) -> Result<Address> {
-        let origin_addr = *self.call_manager.origin().1;
         let oa = self
-            .resolve_to_key_addr(&origin_addr, false)
-            // This is already an execution error, but we're _making_ it fatal.
-            .or_fatal()?;
+            .lookup_address(self.call_manager.origin())
+            .or_fatal()? // actor not found
+            .context("origin does not have a predictable address")
+            .or_fatal()?; // actor doesn't have a predictable address.
 
         let mut b = to_vec(&oa)
             .or_fatal()
@@ -931,7 +894,7 @@ where
             let dir: PathBuf = [
                 dir,
                 self.call_manager.machine().machine_id(),
-                &self.call_manager.origin().0.to_string(),
+                &self.call_manager.origin().to_string(),
                 &self.call_manager.nonce().to_string(),
                 &self.actor_id.to_string(),
                 &self.call_manager.invocation_count().to_string(),
