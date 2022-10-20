@@ -28,11 +28,6 @@ pub(crate) mod version {
     }
 }
 
-/// Root of an AMT vector, can be serialized and keeps track of height and count
-type Root<V> = RootImpl<V, self::version::V3>;
-/// Legacy AMT v0, used to read block headers.
-type Rootv0<V> = RootImpl<V, self::version::V0>;
-
 #[derive(PartialEq, Debug)]
 pub(crate) struct RootImpl<V, Ver> {
     pub bit_width: u32,
@@ -50,20 +45,6 @@ impl<V, Ver> RootImpl<V, Ver> {
             height: 0,
             node: Node::Leaf {
                 vals: init_sized_vec(bit_width),
-            },
-            ver: PhantomData,
-        }
-    }
-}
-
-impl<V> RootImpl<V, self::version::V0> {
-    pub(crate) fn new() -> Rootv0<V> {
-        Self {
-            bit_width: DEFAULT_BIT_WIDTH,
-            count: 0,
-            height: 0,
-            node: Node::Leaf {
-                vals: init_sized_vec(DEFAULT_BIT_WIDTH),
             },
             ver: PhantomData,
         }
@@ -131,6 +112,25 @@ mod tests {
     use fvm_ipld_encoding::{from_slice, to_vec};
 
     use super::*;
+
+    /// Root of an AMT vector, can be serialized and keeps track of height and count
+    type Root<V> = RootImpl<V, self::version::V3>;
+    /// Legacy AMT v0, used to read block headers.
+    type Rootv0<V> = RootImpl<V, self::version::V0>;
+
+    impl<V> RootImpl<V, self::version::V0> {
+        pub(crate) fn new() -> Rootv0<V> {
+            Self {
+                bit_width: DEFAULT_BIT_WIDTH,
+                count: 0,
+                height: 0,
+                node: Node::Leaf {
+                    vals: init_sized_vec(DEFAULT_BIT_WIDTH),
+                },
+                ver: PhantomData,
+            }
+        }
+    }
 
     #[test]
     fn serialize_symmetric() {
