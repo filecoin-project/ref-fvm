@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ##  [Unreleased]
 
+## 3.0.0-alpha.3
+
+- Fix the address length checks in the `create_actor` syscall. The previous release was broken.
+
 ## 3.0.0-alpha.2
 
 - Autoload wasm modules from the blockstore if they haven't been preloaded.
