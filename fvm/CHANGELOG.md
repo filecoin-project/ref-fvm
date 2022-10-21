@@ -4,6 +4,11 @@ Changes to the reference FVM implementation.
 
 ##  [Unreleased]
 
+## 3.0.0-alpha.4
+
+- Resolve key addresses from the state tree instead of reaching into the account actor state
+- Temporary workaround: allow validating signatures from embryo f4 addresses
+
 ## 3.0.0-alpha.3
 
 - Fix the address length checks in the `create_actor` syscall. The previous release was broken.
