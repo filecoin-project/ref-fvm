@@ -27,6 +27,8 @@ mod account_actor;
 mod init_actor;
 #[cfg(not(feature = "testing"))]
 mod system_actor;
+#[cfg(not(feature = "testing"))]
+mod eam_actor;
 
 #[cfg(feature = "testing")]
 pub mod account_actor;
@@ -34,6 +36,8 @@ pub mod account_actor;
 pub mod init_actor;
 #[cfg(feature = "testing")]
 pub mod system_actor;
+#[cfg(feature = "testing")]
+pub mod eam_actor;
 
 pub mod trace;
 

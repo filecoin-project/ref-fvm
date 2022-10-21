@@ -5,7 +5,7 @@ use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, system_actor, DefaultKernel};
+use fvm::{init_actor, system_actor, eam_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_shared::address::{Address, Protocol};
@@ -17,7 +17,7 @@ use lazy_static::lazy_static;
 use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
-use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor};
+use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor, set_eam_actor};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -68,17 +68,21 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
         let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
+        // EAM state
+        let eam_state = eam_actor::State{ empty: vec![] };
+
         // Deploy init and sys actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
+        set_eam_actor(&mut state_tree, eam_code_cid, eam_state)?;
 
         Ok(Tester {
             nv,

@@ -29,7 +29,8 @@ struct State {
 pub fn main() {
     // Instantiate tester
     let bs = MemoryBlockstore::default();
-    let bundle_root = bundle::import_bundle(&bs, actors_v10::BUNDLE_CAR).unwrap();
+    let actors = std::fs::read("./examples/builtin-actors-devnet-wasm.car").expect("Unable to read actor devnet file file");
+    let bundle_root = bundle::import_bundle(&bs, &actors).unwrap();
     let mut tester =
         Tester::new(NetworkVersion::V18, StateTreeVersion::V5, bundle_root, bs).unwrap();
 

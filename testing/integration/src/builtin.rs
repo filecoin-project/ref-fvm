@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::machine::Manifest;
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, system_actor};
+use fvm::{init_actor, system_actor, eam_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use multihash::Code;
@@ -21,6 +21,7 @@ pub fn fetch_builtin_code_cid(
         *manifest.get_init_code(),
         *manifest.get_account_code(),
         *manifest.get_embryo_code(),
+        *manifest.get_eam_code(),
     ))
 }
 
@@ -69,4 +70,28 @@ pub fn set_init_actor(
         .set_actor(&init_actor::INIT_ACTOR_ADDR, init_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("init actor".to_owned()))
+}
+
+pub fn set_eam_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    eam_code_cid: Cid,
+    eam_state: eam_actor::State,
+) -> Result<()> {
+    let eam_state_cid = state_tree
+        .store()
+        .put_cbor(&eam_state, Code::Blake2b256)
+        .context(FailedToSetState("eam actor".to_owned()))?;
+
+    let eam_actor_state = ActorState {
+        code: eam_code_cid,
+        state: eam_state_cid,
+        sequence: 0,
+        balance: Default::default(),
+        address: None,
+    };
+
+    state_tree
+        .set_actor(&eam_actor::EAM_ACTOR_ADDR, eam_actor_state)
+        .map_err(anyhow::Error::from)
+        .context(FailedToSetActor("eam actor".to_owned()))
 }

@@ -8,6 +8,7 @@ use fvm_ipld_encoding::CborStore;
 const SINGLETON_ACTOR_NAMES: &[&str] = &[
     "system",
     "init",
+    "eam",
     "reward",
     "cron",
     "storagepower",
@@ -19,6 +20,7 @@ const ACCOUNT_ACTOR_NAME: &str = "account";
 const INIT_ACTOR_NAME: &str = "init";
 const SYSTEM_ACTOR_NAME: &str = "system";
 const EMBRYO_ACTOR_NAME: &str = "embryo";
+const EAM_ACTOR_NAME: &str = "eam";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -26,6 +28,7 @@ pub struct Manifest {
     embryo_code: Cid,
     system_code: Cid,
     init_code: Cid,
+    eam_code: Cid,
     singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
@@ -62,6 +65,7 @@ impl Manifest {
     pub const DUMMY_CODES: &'static [(&'static str, Cid)] = &[
         ("system", id_cid(b"fil/test/system")),
         ("init", id_cid(b"fil/test/init")),
+        ("eam", id_cid(b"fil/test/eam")),
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
         ("embryo", id_cid(b"fil/test/embryo")),
@@ -84,6 +88,9 @@ impl Manifest {
                 return Err(anyhow!("cannot find manifest root cid {}", root_cid));
             }
         };
+
+        dbg!(&vec);
+
         Manifest::new(vec)
     }
 
@@ -124,11 +131,16 @@ impl Manifest {
             .get(EMBRYO_ACTOR_NAME)
             .context("manifest missing embryo actor")?;
 
+        let eam_code = *by_name
+            .get(EAM_ACTOR_NAME)
+            .context("manifest missing eam actor")?;
+
         Ok(Self {
             account_code,
             system_code,
             init_code,
             embryo_code,
+            eam_code,
             singletons,
             by_id,
             by_code,
@@ -177,6 +189,11 @@ impl Manifest {
     /// Returns the code CID for the system actor.
     pub fn get_system_code(&self) -> &Cid {
         &self.system_code
+    }
+
+    /// Returns the code CID for the eam actor.
+    pub fn get_eam_code(&self) -> &Cid {
+        &self.eam_code
     }
 
     /// Returns the code CID for the system actor.
