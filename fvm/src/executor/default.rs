@@ -307,6 +307,15 @@ where
         // If sender is not an account actor, the message is invalid.
         let sender_is_account = self.builtin_actors().is_account_actor(&sender.code);
 
+        // Unless we have the f4-as-account hack enabled, and the sender is an embryo created by the EAM.
+        #[cfg(feature = "f4-as-account")]
+        let sender_is_account = sender_is_account
+            || sender
+                .address
+                .map(|a| matches!(a.payload(), Payload::Delgated(da) if da.namespace() == 10 /* eam */))
+                .unwrap_or_default()
+                && self.builtin_actors().is_embryo_actor(cid);
+
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_INVALID,
