@@ -35,19 +35,22 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     let engines = MultiEngine::new();
 
-    let vector_results = match var("VECTOR") {
-        Ok(v) => either::Either::Left(
+    let path = var("VECTOR").unwrap_or("test-vectors/corpus".to_owned());
+    let path = Path::new(path.as_str()).to_path_buf();
+
+    let vector_results = if path.is_file() {
+        either::Either::Left(
             iter::once(async move {
-                let path = Path::new(v.as_str()).to_path_buf();
                 let res = run_vector(path.clone(), engines)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
             })
             .map(futures::future::Either::Left),
-        ),
-        Err(_) => either::Either::Right(
-            WalkDir::new("test-vectors/corpus")
+        )
+    } else {
+        either::Either::Right(
+            WalkDir::new(path)
                 .into_iter()
                 .filter_ok(is_runnable)
                 .map(|e| {
@@ -61,7 +64,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                     }
                 })
                 .map(futures::future::Either::Right),
-        ),
+        )
     };
 
     let mut results = Box::pin(
@@ -220,6 +223,6 @@ async fn run_vector(
                 ))
             }
         }
-        other => return Err(anyhow!("unknown test vector class: {}", other)),
+        other => Err(anyhow!("unknown test vector class: {}", other)),
     }
 }
