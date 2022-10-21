@@ -52,7 +52,7 @@ default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 
 [features]
-f4-as-account = []
+f4-as-account = ["fvm_shared/f4-as-account"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]

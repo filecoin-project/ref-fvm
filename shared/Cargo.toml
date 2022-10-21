@@ -36,6 +36,7 @@ filecoin-proofs-api = { version = "12", default-features = false, optional = tru
 libsecp256k1 = { version = "0.7", optional = true }
 bls-signatures = { version = "0.12", default-features = false, optional = true }
 byteorder = "1.4.3"
+sha3 = { version = "0.10.0", default-features = false, optional = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -45,6 +46,7 @@ multihash = { version = "0.16.3", default-features = false, features = ["multiha
 
 [features]
 default = []
+f4-as-account = ["sha3"]
 crypto = ["libsecp256k1", "blst", "proofs"]
 proofs = ["filecoin-proofs-api"]
 secp256k1 = ["libsecp256k1"]

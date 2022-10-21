@@ -413,6 +413,8 @@ where
         let signing_addr = match signer.payload() {
             // Already a key address.
             Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
+            #[cfg(feature = "f4-as-account")]
+            Payload::Delegated(addr) if addr.namespace() == 10 /* eam id */ => *signer,
             // Resolve and re-check.
             Payload::ID(id) => {
                 let addr = self
