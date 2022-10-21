@@ -12,8 +12,9 @@ pub mod sself;
 pub mod sys;
 pub mod vm;
 
-/// The maximum actor address length (class 2 addresses).
-pub const MAX_ACTOR_ADDR_LEN: usize = 21;
+/// The maximum actor address length. Governed by f4 addresses.
+/// f4 address length = 1 (protocol) + 9 (id; max uvarint bytes) + 54 (max subaddress size) = 64
+pub const MAX_ADDR_LEN: usize = 64;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;

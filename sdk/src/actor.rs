@@ -8,7 +8,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::{ActorID, MAX_CID_LEN};
 use log::error;
 
-use crate::{sys, SyscallResult, MAX_ACTOR_ADDR_LEN};
+use crate::{sys, SyscallResult, MAX_ADDR_LEN};
 
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
@@ -31,7 +31,7 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
 /// Looks up the f1, f3, or f4 address of the specified actor. Returns `None` if the actor doesn't
 /// exist or it doesn't have an f1, f3, or f4 address.
 pub fn lookup_address(addr: ActorID) -> Option<Address> {
-    let mut out_buffer = [0u8; MAX_ACTOR_ADDR_LEN];
+    let mut out_buffer = [0u8; MAX_ADDR_LEN];
     unsafe {
         match sys::actor::lookup_address(addr, out_buffer.as_mut_ptr(), out_buffer.len() as u32) {
             Ok(0) => None,
@@ -76,9 +76,9 @@ pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
 
 /// Generates a new actor address for an actor deployed by the calling actor.
 pub fn new_actor_address() -> Address {
-    let mut buf = [0u8; MAX_ACTOR_ADDR_LEN];
+    let mut buf = [0u8; MAX_ADDR_LEN];
     unsafe {
-        let len = sys::actor::new_actor_address(buf.as_mut_ptr(), MAX_ACTOR_ADDR_LEN as u32)
+        let len = sys::actor::new_actor_address(buf.as_mut_ptr(), MAX_ADDR_LEN as u32)
             .expect("failed to create a new actor address");
         Address::from_bytes(&buf[..len as usize]).expect("syscall returned invalid address")
     }
