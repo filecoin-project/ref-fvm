@@ -1,7 +1,10 @@
 # Changelog
 
+## 3.0.0-alpha.8 [UNRELEASED]
 
-## 3.0.0-alpha.7 [UNRELEASED]
+## 3.0.0-alpha.7 [2022-10-21]
+
+- Temporary workaround: allow validating signatures from embryo f4 addresses
 
 ## 3.0.0-alpha.6 [2022-10-20]
 

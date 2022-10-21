@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.7 [2022-10-21]
+
+- Dependency upgrades.
+
+## 3.0.0-alpha.6 [2022-10-20]
+
+- Dependency upgrades.
+
 ## 3.0.0-alpha.5 [2022-10-10]
 
 - Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
