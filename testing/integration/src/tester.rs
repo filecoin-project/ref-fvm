@@ -35,6 +35,8 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     builtin_actors: Cid,
     // Accounts actor cid
     accounts_code_cid: Cid,
+    // Embryo code cid.
+    embryo_code_cid: Cid,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
@@ -61,7 +63,7 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
@@ -80,6 +82,7 @@ where
             code_cids: vec![],
             state_tree: Some(state_tree),
             accounts_code_cid,
+            embryo_code_cid,
         })
     }
 
@@ -96,6 +99,32 @@ where
             *account = self.make_secp256k1_account(priv_key, TokenAmount::from_atto(10000))?;
         }
         Ok(ret)
+    }
+
+    pub fn create_embryo(&mut self, address: &Address, init_balance: TokenAmount) -> Result<()> {
+        assert_eq!(address.protocol(), Protocol::Delegated);
+
+        let state_tree = self
+            .state_tree
+            .as_mut()
+            .ok_or_else(|| anyhow!("unable get state tree"))?;
+
+        let id = state_tree.register_new_address(address).unwrap();
+        let state: [u8; 32] = [0; 32];
+
+        let cid = state_tree.store().put_cbor(&state, Code::Blake2b256)?;
+
+        let actor_state = ActorState {
+            code: self.embryo_code_cid,
+            state: cid,
+            sequence: 0,
+            balance: init_balance,
+            address: Some(*address),
+        };
+
+        state_tree
+            .set_actor(&Address::new_id(id), actor_state)
+            .map_err(anyhow::Error::from)
     }
 
     /// Set a new state in the state tree
