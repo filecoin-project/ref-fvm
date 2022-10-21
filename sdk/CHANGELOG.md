@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.8 [2022-10-21]
+
+- Fix address buffer length in new_actor_address and lookup_address.
+
 ## 3.0.0-alpha.7 [2022-10-21]
 
 - Dependency upgrades.
