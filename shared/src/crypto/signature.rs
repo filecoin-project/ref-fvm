@@ -287,7 +287,7 @@ pub mod ops {
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<Address, Error> {
         use sha3::Digest;
-        let pubkey = recover_secp_public_key(hash, &signature)?.serialize();
+        let pubkey = recover_secp_public_key(hash, signature)?.serialize();
         let mut hasher = sha3::Keccak256::default();
         hasher.update(&pubkey[1..]);
         let digest = hasher.finalize();
