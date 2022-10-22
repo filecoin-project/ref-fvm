@@ -16,6 +16,7 @@ lazy_static! {
             .collect();
 }
 
+#[allow(dead_code)]
 pub fn new_tester<B: Blockstore, E: Externs>(
     nv: NetworkVersion,
     stv: StateTreeVersion,

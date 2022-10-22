@@ -5,6 +5,8 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
+#[cfg(feature = "f4-as-account")]
+use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
@@ -312,9 +314,9 @@ where
         let sender_is_account = sender_is_account
             || sender
                 .address
-                .map(|a| matches!(a.payload(), Payload::Delgated(da) if da.namespace() == 10 /* eam */))
+                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == 10 /* eam */))
                 .unwrap_or_default()
-                && self.builtin_actors().is_embryo_actor(cid);
+                && self.builtin_actors().is_embryo_actor(&sender.code);
 
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(

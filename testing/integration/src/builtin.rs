@@ -14,12 +14,13 @@ pub fn fetch_builtin_code_cid(
     blockstore: &impl Blockstore,
     builtin_actors: &Cid,
     ver: u32,
-) -> Result<(Cid, Cid, Cid)> {
+) -> Result<(Cid, Cid, Cid, Cid)> {
     let manifest = Manifest::load(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
     Ok((
         *manifest.get_system_code(),
         *manifest.get_init_code(),
         *manifest.get_account_code(),
+        *manifest.get_embryo_code(),
     ))
 }
 
