@@ -13,6 +13,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
+use lazy_static::lazy_static;
 use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
@@ -20,6 +21,10 @@ use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
+
+lazy_static! {
+    pub static ref INITIAL_ACCOUNT_BALANCE: TokenAmount = TokenAmount::from_atto(10000);
+}
 
 pub trait Store: Blockstore + Sized + 'static {}
 
@@ -96,7 +101,7 @@ where
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
             let priv_key = SecretKey::random(rng);
-            *account = self.make_secp256k1_account(priv_key, TokenAmount::from_atto(10000))?;
+            *account = self.make_secp256k1_account(priv_key, INITIAL_ACCOUNT_BALANCE.clone())?;
         }
         Ok(ret)
     }
