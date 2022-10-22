@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ##  [Unreleased]
 
+## 3.0.0-alpha.5
+
+- fix compile issues with f4-as-account feature.
+
 ## 3.0.0-alpha.4
 
 - Resolve key addresses from the state tree instead of reaching into the account actor state

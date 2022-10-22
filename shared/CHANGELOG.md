@@ -1,6 +1,10 @@
 # Changelog
 
-## 3.0.0-alpha.8 [UNRELEASED]
+## 3.0.0-alpha.9 [UNRELEASED]
+
+## 3.0.0-alpha.8 [2022-10-22]
+
+- fix compile issues with f4-as-account feature.
 
 ## 3.0.0-alpha.7 [2022-10-21]
 
