@@ -6,7 +6,7 @@ of tests and benchmarks.
 ## Instructions
 
 - To run all tests, just run `cargo test`.
-- To run all test vectors under a specific directory, run eg. `VECTOR=test-vectors/corpus/extracted cargo test conformance`
+- To run all test vectors under a specific directory, run eg. `VECTOR=test-vectors/corpus/extracted cargo test conformance -- --nocapture`
 - To run a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v7/REST_OF_TEST_VECTOR.json cargo test -- conformance --nocapture`
 - To bench a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v7/REST_OF_TEST_VECTOR.json cargo bench -- conformance --nocapture`
 - To bench the system's overhead for the setup of the machine for a given test vector, run `VECTOR=test-vectors/corpus/specs_actors_v7/REST_OF_TEST_VECTOR.json cargo bench -- overhead --nocapture`. Note that the vector choice doesn't matter much, because the Machine initialization procedure is identicall for all vectors.

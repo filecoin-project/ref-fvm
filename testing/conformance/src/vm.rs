@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
+use anyhow::anyhow;
 use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
@@ -52,9 +53,10 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         variant: &Variant,
         blockstore: MemoryBlockstore,
         engines: &MultiEngine,
-    ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
-        let network_version =
-            NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
+    ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
+        let network_version = NetworkVersion::try_from(variant.nv)
+            .map_err(|_| anyhow!("unrecognized network version"))?;
+
         let base_fee = v
             .preconditions
             .basefee
@@ -71,14 +73,14 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         // Get the builtin actors index for the concrete network version.
         let builtin_actors = *nv_actors
             .get(&network_version)
-            .expect("no builtin actors index for nv");
+            .ok_or_else(|| anyhow!("no builtin actors index for NV {network_version}"))?;
 
         let mut nc = NetworkConfig::new(network_version);
         nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, state_root);
         mc.set_base_fee(base_fee);
 
-        let engine = engines.get(&mc.network).expect("getting engine");
+        let engine = engines.get(&mc.network).map_err(|e| anyhow!(e))?;
 
         let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
 
@@ -93,7 +95,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let price_list = machine.context().price_list.clone();
 
-        TestMachine::<Box<DefaultMachine<_, _>>> {
+        let machine = TestMachine::<Box<DefaultMachine<_, _>>> {
             machine: Box::new(machine),
             data: TestData {
                 circ_supply: v
@@ -103,7 +105,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list,
             },
-        }
+        };
+
+        Ok(machine)
     }
 
     pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
