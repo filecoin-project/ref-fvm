@@ -23,8 +23,10 @@ use crate::vm::{TestKernel, TestMachine};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
-        // currently empty.
-    ];
+        // TestMachine::import_actors no longer loads V6 bundle required for NetworkVersion 15
+        ".*/specs_actors_v6/.*",
+        ".*/fil_6_.*"
+    ].into_iter().map(|re| Regex::new(re).unwrap()).collect();
 }
 
 /// Checks if the file is a runnable vector.
