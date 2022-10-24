@@ -246,7 +246,7 @@ async fn run_vector(
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         futures::future::Either::Right(
                             task::Builder::new()
-                                .name(name)
+                                .name(name.clone())
                                 .spawn(async move {
                                     run_variant(
                                         bs,
@@ -255,6 +255,7 @@ async fn run_vector(
                                         &engines,
                                         true,
                                     )
+                                    .with_context(|| format!("failed to run {name}"))
                                 })
                                 .unwrap(),
                         )
