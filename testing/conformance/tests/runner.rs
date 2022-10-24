@@ -64,7 +64,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     let engines = MultiEngine::new();
 
-    let path = var("VECTOR").unwrap_or("test-vectors/corpus".to_owned());
+    let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
 
     let vector_results = if path.is_file() {
