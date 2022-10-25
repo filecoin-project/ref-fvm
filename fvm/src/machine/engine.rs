@@ -10,7 +10,10 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
+use wasmtime::{
+    Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
+    Module, Mutability, PoolingAllocationStrategy, Val, ValType,
+};
 
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
@@ -28,7 +31,9 @@ pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 /// The proper way of getting this struct is to convert from `NetworkConfig`
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct EngineConfig {
+    pub max_call_depth: u32,
     pub max_wasm_stack: u32,
+    pub max_inst_memory_bytes: u64,
     pub wasm_prices: &'static WasmGasPrices,
     pub actor_redirect: Vec<(Cid, Cid)>,
 }
@@ -36,7 +41,9 @@ pub struct EngineConfig {
 impl From<&NetworkConfig> for EngineConfig {
     fn from(nc: &NetworkConfig) -> Self {
         EngineConfig {
+            max_call_depth: nc.max_call_depth,
             max_wasm_stack: nc.max_wasm_stack,
+            max_inst_memory_bytes: nc.max_inst_memory_bytes,
             wasm_prices: &nc.price_list.wasm_rules,
             actor_redirect: nc.actor_redirect.clone(),
         }
@@ -71,8 +78,24 @@ impl Default for MultiEngine {
     }
 }
 
-pub fn default_wasmtime_config() -> wasmtime::Config {
+pub fn default_wasmtime_config(
+    instance_count: u32,
+    instance_memory_maximum_size: u64,
+) -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
+
+    // wasmtime default: OnDeand
+    // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
+    c.allocation_strategy(InstanceAllocationStrategy::Pooling {
+        strategy: PoolingAllocationStrategy::ReuseAffinity,
+        instance_limits: InstanceLimits {
+            count: instance_count,
+            ..Default::default()
+        },
+    });
+
+    // wasmtime default: 4GB
+    c.static_memory_maximum_size(instance_memory_maximum_size);
 
     // wasmtime default: false
     // We don't want threads, there is no way to ensure determisism
@@ -168,7 +191,10 @@ impl Deref for Engine {
 
 impl Engine {
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
-        Engine::new(&default_wasmtime_config(), ec)
+        Engine::new(
+            &default_wasmtime_config(ec.max_call_depth, ec.max_inst_memory_bytes),
+            ec,
+        )
     }
 
     /// Create a new Engine from a wasmtime config.
@@ -372,6 +398,8 @@ impl Engine {
             last_milligas_available: 0,
             memory: self.0.dummy_memory,
         };
+
+        //        todo!("Configure resource limiter");
 
         let mut store = wasmtime::Store::new(&self.0.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
