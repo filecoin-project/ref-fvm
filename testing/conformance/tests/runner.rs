@@ -55,7 +55,7 @@ lazy_static! {
         .map(|s| {
             let s = s.to_str().unwrap();
             s.parse().expect("unexpected post condition error action")
-        }).unwrap_or(ErrorAction::Error);
+        }).unwrap_or(ErrorAction::Warn);
 }
 
 #[async_std::test]
