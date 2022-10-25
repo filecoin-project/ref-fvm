@@ -2,6 +2,7 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
+use wasmtime::ResourceLimiter;
 
 use crate::gas::{GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
@@ -121,6 +122,9 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Limit memory usage throughout a message execution and charge gas for memory expansion.
+    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter;
 }
 
 /// The result of a method invocation.

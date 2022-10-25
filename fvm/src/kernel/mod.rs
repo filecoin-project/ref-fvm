@@ -26,6 +26,7 @@ mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use multihash::MultihashGeneric;
+use wasmtime::ResourceLimiter;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
@@ -82,6 +83,9 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
+
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter;
 }
 
 /// Network-related operations.
