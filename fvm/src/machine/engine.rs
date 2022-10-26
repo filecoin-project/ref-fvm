@@ -94,6 +94,10 @@ pub fn default_wasmtime_config(
         },
     });
 
+    // wasmtime default: true
+    // Included here to make sure the memory-init-cow feature is enabled.
+    c.memory_init_cow(true);
+
     // wasmtime default: 4GB
     c.static_memory_maximum_size(instance_memory_maximum_size);
 
