@@ -30,6 +30,7 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
+use wasmtime::ResourceLimiter;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -129,7 +130,7 @@ where
 {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
-    type Limiter = M::Limiter;
+    type Limiter = TestLimiter<M::Limiter>;
 
     fn engine(&self) -> &Engine {
         self.machine.engine()
@@ -180,7 +181,9 @@ where
     }
 
     fn new_limiter(&self) -> Self::Limiter {
-        self.machine.new_limiter()
+        TestLimiter {
+            inner: self.machine.new_limiter(),
+        }
     }
 }
 
@@ -660,5 +663,23 @@ where
 {
     fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
         self.0.limiter_mut()
+    }
+}
+
+/// Wrap a `ResourceLimiter` and collect statistics.
+pub struct TestLimiter<L> {
+    inner: L,
+}
+
+impl<L> ResourceLimiter for TestLimiter<L>
+where
+    L: ResourceLimiter,
+{
+    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+        self.inner.memory_growing(current, desired, maximum)
+    }
+
+    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
+        self.inner.table_growing(current, desired, maximum)
     }
 }
