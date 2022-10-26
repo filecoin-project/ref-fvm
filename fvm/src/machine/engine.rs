@@ -150,7 +150,6 @@ pub fn default_wasmtime_config(
     c.debug_info(false);
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
-    c.wasm_backtrace(false);
     c.wasm_reference_types(false);
 
     // Reiterate some defaults
