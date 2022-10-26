@@ -105,8 +105,8 @@ impl DummyMachine {
 
 impl Machine for DummyMachine {
     type Blockstore = MemoryBlockstore;
-
     type Externs = DummyExterns;
+    type Limiter = StoreLimits;
 
     fn engine(&self) -> &Engine {
         &self.engine
@@ -159,6 +159,10 @@ impl Machine for DummyMachine {
 
     fn machine_id(&self) -> &str {
         todo!()
+    }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        StoreLimits::default()
     }
 }
 
@@ -217,19 +221,19 @@ impl DummyCallManager {
 
 impl CallManager for DummyCallManager {
     type Machine = DummyMachine;
-    type Limiter = StoreLimits;
 
     fn new(machine: Self::Machine, _gas_limit: i64, origin: Address, nonce: u64) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
         }));
+        let limits = machine.new_limiter();
         Self {
             machine,
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
             origin,
             nonce,
             test_data: rc,
-            limits: StoreLimits::default(),
+            limits,
         }
     }
 
@@ -304,7 +308,7 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
         &mut self.limits
     }
 }

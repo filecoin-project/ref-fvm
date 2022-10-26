@@ -129,6 +129,7 @@ where
 {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
+    type Limiter = M::Limiter;
 
     fn engine(&self) -> &Engine {
         self.machine.engine()
@@ -177,6 +178,10 @@ where
     fn machine_id(&self) -> &str {
         self.machine.machine_id()
     }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        self.machine.new_limiter()
+    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -190,7 +195,6 @@ where
     C: CallManager<Machine = TestMachine<M>>,
 {
     type Machine = C::Machine;
-    type Limiter = C::Limiter;
 
     fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         TestCallManager(C::new(machine, gas_limit, origin, nonce))
@@ -290,7 +294,7 @@ where
         self.0.invocation_count()
     }
 
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
         self.0.limiter_mut()
     }
 }

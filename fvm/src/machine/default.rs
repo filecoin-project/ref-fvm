@@ -10,9 +10,11 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
+use wasmtime::{StoreLimits, StoreLimitsBuilder};
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
+use crate::call_manager::limiter::ExecResourceLimiter;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::machine::Manifest;
@@ -144,6 +146,7 @@ where
 {
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
+    type Limiter = ExecResourceLimiter;
 
     fn engine(&self) -> &Engine {
         &self.engine
@@ -247,5 +250,9 @@ where
 
     fn machine_id(&self) -> &str {
         &self.id
+    }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        ExecResourceLimiter::for_network(&self.context().network)
     }
 }
