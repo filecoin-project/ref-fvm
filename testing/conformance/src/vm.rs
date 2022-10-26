@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
+use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
@@ -43,9 +44,31 @@ pub struct TestData {
     price_list: PriceList,
 }
 
+/// Statistics about the resources used by test vector executions.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TestStats {
+    pub min_desired_memory_bytes: usize,
+    pub max_desired_memory_bytes: usize,
+}
+
+impl TestStats {
+    pub fn new() -> TestStatsRef {
+        Some(Arc::new(Mutex::new(Self::default())))
+    }
+
+    pub fn update(&mut self, desired: usize) {
+        self.max_desired_memory_bytes = std::cmp::max(self.max_desired_memory_bytes, desired);
+        self.min_desired_memory_bytes = std::cmp::min(self.min_desired_memory_bytes, desired);
+    }
+}
+
+/// Global statistics about all test vector executions.
+pub type TestStatsRef = Option<Arc<Mutex<TestStats>>>;
+
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
+    stats: TestStatsRef,
 }
 
 impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
@@ -54,6 +77,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         variant: &Variant,
         blockstore: MemoryBlockstore,
         engines: &MultiEngine,
+        stats: TestStatsRef,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
@@ -106,6 +130,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list,
             },
+            stats,
         };
 
         Ok(machine)
@@ -183,6 +208,7 @@ where
     fn new_limiter(&self) -> Self::Limiter {
         TestLimiter {
             inner: self.machine.new_limiter(),
+            stats: self.stats.clone(),
         }
     }
 }
@@ -669,6 +695,7 @@ where
 /// Wrap a `ResourceLimiter` and collect statistics.
 pub struct TestLimiter<L> {
     inner: L,
+    stats: TestStatsRef,
 }
 
 impl<L> ResourceLimiter for TestLimiter<L>
@@ -676,6 +703,9 @@ where
     L: ResourceLimiter,
 {
     fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+        if let Some(stats) = &self.stats {
+            stats.lock().unwrap().update(desired);
+        }
         self.inner.memory_growing(current, desired, maximum)
     }
 

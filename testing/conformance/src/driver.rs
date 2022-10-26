@@ -19,7 +19,7 @@ use regex::Regex;
 use walkdir::DirEntry;
 
 use crate::vector::{MessageVector, Variant};
-use crate::vm::{TestKernel, TestMachine};
+use crate::vm::{TestKernel, TestMachine, TestStatsRef};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
@@ -192,11 +192,12 @@ pub fn run_variant(
     variant: &Variant,
     engines: &MultiEngine,
     check_correctness: bool,
+    stats: TestStatsRef,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, engines)?;
+    let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats)?;
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.

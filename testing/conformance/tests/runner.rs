@@ -17,6 +17,7 @@ use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::{MessageVector, Selector};
+use fvm_conformance_tests::vm::{TestStats, TestStatsRef};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -66,11 +67,12 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
+    let stats = TestStats::new();
 
     let vector_results = if path.is_file() {
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines)
+                let res = run_vector(path.clone(), engines, stats)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -84,9 +86,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .filter_ok(is_runnable)
                 .map(|e| {
                     let engines = engines.clone();
+                    let stats = stats.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engines)
+                        let res = run_vector(path.clone(), engines, stats)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -161,6 +164,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 async fn run_vector(
     path: PathBuf,
     engines: MultiEngine,
+    stats: TestStatsRef,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -244,6 +248,7 @@ async fn run_vector(
                         let engines = engines.clone();
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
+                        let stats = stats.clone();
                         futures::future::Either::Right(
                             task::Builder::new()
                                 .name(name.clone())
@@ -254,6 +259,7 @@ async fn run_vector(
                                         &v.preconditions.variants[i],
                                         &engines,
                                         true,
+                                        stats,
                                     )
                                     .with_context(|| format!("failed to run {name}"))
                                 })
