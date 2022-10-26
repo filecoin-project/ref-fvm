@@ -190,6 +190,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
 {
     type Machine = C::Machine;
+    type Limiter = C::Limiter;
 
     fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         TestCallManager(C::new(machine, gas_limit, origin, nonce))
@@ -289,7 +290,7 @@ where
         self.0.invocation_count()
     }
 
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.0.limiter_mut()
     }
 }

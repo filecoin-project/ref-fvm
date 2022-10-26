@@ -217,6 +217,7 @@ impl DummyCallManager {
 
 impl CallManager for DummyCallManager {
     type Machine = DummyMachine;
+    type Limiter = StoreLimits;
 
     fn new(machine: Self::Machine, _gas_limit: i64, origin: Address, nonce: u64) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
@@ -303,7 +304,7 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
         &mut self.limits
     }
 }

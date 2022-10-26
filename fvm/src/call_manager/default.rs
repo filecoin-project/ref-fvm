@@ -72,6 +72,7 @@ where
     M: Machine,
 {
     type Machine = M;
+    type Limiter = StoreLimits;
 
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
@@ -95,7 +96,7 @@ where
         })))
     }
 
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
         &mut self.limits
     }
 

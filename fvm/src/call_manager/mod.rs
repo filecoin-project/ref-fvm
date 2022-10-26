@@ -41,6 +41,7 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 pub trait CallManager: 'static {
     /// The underlying [`Machine`] on top of which this [`CallManager`] executes.
     type Machine: Machine;
+    type Limiter: ResourceLimiter;
 
     /// Construct a new call manager.
     fn new(machine: Self::Machine, gas_limit: i64, origin: Address, nonce: u64) -> Self;
@@ -124,7 +125,7 @@ pub trait CallManager: 'static {
     }
 
     /// Limit memory usage throughout a message execution and charge gas for memory expansion.
-    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter;
+    fn limiter_mut(&mut self) -> &mut Self::Limiter;
 }
 
 /// The result of a method invocation.
