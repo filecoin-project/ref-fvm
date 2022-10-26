@@ -56,6 +56,7 @@ pub trait Kernel:
     + RandomnessOps
     + SelfOps
     + SendOps
+    + LimiterOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -83,9 +84,6 @@ pub trait Kernel:
     ) -> Self
     where
         Self: Sized;
-
-    /// Give access to the limiter of the underlying call manager.
-    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter;
 }
 
 /// Network-related operations.
@@ -341,4 +339,14 @@ pub trait DebugOps {
     /// Store an artifact.
     /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
+}
+
+/// Track and charge for memory expansion.
+///
+/// This interface is not one of the operations the kernel provides to actors.
+/// It's only part of the kernel out of necessity to pass it through to the
+/// call manager which tracks the limits across the whole execution stack.
+pub trait LimiterOps {
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter;
 }

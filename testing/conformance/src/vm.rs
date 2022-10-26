@@ -339,10 +339,6 @@ where
             data,
         )
     }
-
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
-        self.0.limiter_mut()
-    }
 }
 
 impl<M, C, K> ActorOps for TestKernel<K>
@@ -650,5 +646,14 @@ where
         value: &TokenAmount,
     ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
+    }
+}
+
+impl<K> LimiterOps for TestKernel<K>
+where
+    K: LimiterOps,
+{
+    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+        self.0.limiter_mut()
     }
 }

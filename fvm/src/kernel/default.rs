@@ -93,10 +93,6 @@ where
             value_received,
         }
     }
-
-    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter {
-        self.call_manager.limiter_mut()
-    }
 }
 
 impl<C> DefaultKernel<C>
@@ -858,6 +854,15 @@ where
             )
         }
         Ok(())
+    }
+}
+
+impl<C> LimiterOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter {
+        self.call_manager.limiter_mut()
     }
 }
 
