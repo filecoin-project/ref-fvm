@@ -10,10 +10,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{
-    Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
-    Module, Mutability, PoolingAllocationStrategy, Val, ValType,
-};
+use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
 
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
@@ -79,7 +76,7 @@ impl Default for MultiEngine {
 }
 
 pub fn default_wasmtime_config(
-    instance_count: u32,
+    _instance_count: u32,
     instance_memory_maximum_size: u64,
 ) -> wasmtime::Config {
     let mut c = wasmtime::Config::default();

@@ -10,7 +10,6 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
-use wasmtime::{StoreLimits, StoreLimitsBuilder};
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;

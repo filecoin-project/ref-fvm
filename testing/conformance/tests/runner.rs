@@ -70,6 +70,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let stats = TestStats::new();
 
     let vector_results = if path.is_file() {
+        let stats = stats.clone();
         either::Either::Left(
             iter::once(async move {
                 let res = run_vector(path.clone(), engines, stats)
@@ -151,6 +152,19 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         )
         .bold()
     );
+
+    if let Some(ref stats) = stats {
+        let stats = stats.lock().unwrap();
+        println!();
+        println!(
+            "{}",
+            format!(
+                "memory stats: min {} - {} max",
+                stats.min_desired_memory_bytes, stats.max_desired_memory_bytes,
+            )
+            .bold()
+        );
+    }
 
     if failed > 0 {
         Err(anyhow!("some vectors failed"))
