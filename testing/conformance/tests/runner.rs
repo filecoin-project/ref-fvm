@@ -17,7 +17,7 @@ use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::{MessageVector, Selector};
-use fvm_conformance_tests::vm::{TestStats, TestStatsRef};
+use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -67,7 +67,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
-    let stats = TestStats::new_ref();
+    let stats = TestStatsGlobal::new_ref();
 
     let vector_results = if path.is_file() {
         let stats = stats.clone();
@@ -158,8 +158,11 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         println!(
             "{}",
             format!(
-                "memory stats:\n minimax: {}\n maximax: {}\n",
-                stats.min_desired_memory_bytes, stats.max_desired_memory_bytes,
+                "memory stats:\n init.min: {}\n init.max: {}\n exec.min: {}\n exec.max: {}\n",
+                stats.init.min_desired_memory_bytes,
+                stats.init.max_desired_memory_bytes,
+                stats.exec.min_desired_memory_bytes,
+                stats.exec.max_desired_memory_bytes,
             )
             .bold()
         );

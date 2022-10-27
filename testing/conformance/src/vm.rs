@@ -51,14 +51,22 @@ pub struct TestStats {
     pub max_desired_memory_bytes: usize,
 }
 
-impl TestStats {
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TestStatsGlobal {
+    /// Min/Max for the initial memory.
+    pub init: TestStats,
+    /// Min/Max of the overall memory.
+    pub exec: TestStats,
+}
+
+impl TestStatsGlobal {
     pub fn new_ref() -> TestStatsRef {
         Some(Arc::new(Mutex::new(Self::default())))
     }
 }
 
 /// Global statistics about all test vector executions.
-pub type TestStatsRef = Option<Arc<Mutex<TestStats>>>;
+pub type TestStatsRef = Option<Arc<Mutex<TestStatsGlobal>>>;
 
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
@@ -704,7 +712,6 @@ where
             self.local_stats.max_desired_memory_bytes = desired;
         }
 
-        // Not using this value now, but we could print the minimum starting memory required by any test.
         if self.local_stats.min_desired_memory_bytes == 0 {
             self.local_stats.min_desired_memory_bytes = desired;
         }
@@ -722,16 +729,27 @@ impl<L> Drop for TestLimiter<L> {
     fn drop(&mut self) {
         if let Some(ref stats) = self.global_stats {
             if let Ok(mut stats) = stats.lock() {
-                let max_desired_memory_bytes = self.local_stats.max_desired_memory_bytes;
+                let max_desired = self.local_stats.max_desired_memory_bytes;
+                let min_desired = self.local_stats.min_desired_memory_bytes;
 
-                if stats.max_desired_memory_bytes < max_desired_memory_bytes {
-                    stats.max_desired_memory_bytes = max_desired_memory_bytes;
+                if stats.exec.max_desired_memory_bytes < max_desired {
+                    stats.exec.max_desired_memory_bytes = max_desired;
                 }
 
-                if stats.min_desired_memory_bytes == 0
-                    || stats.min_desired_memory_bytes > max_desired_memory_bytes
+                if stats.exec.min_desired_memory_bytes == 0
+                    || stats.exec.min_desired_memory_bytes > max_desired
                 {
-                    stats.min_desired_memory_bytes = max_desired_memory_bytes;
+                    stats.exec.min_desired_memory_bytes = max_desired;
+                }
+
+                if stats.init.max_desired_memory_bytes < min_desired {
+                    stats.init.max_desired_memory_bytes = min_desired;
+                }
+
+                if stats.init.min_desired_memory_bytes == 0
+                    || stats.init.min_desired_memory_bytes > min_desired
+                {
+                    stats.init.min_desired_memory_bytes = min_desired;
                 }
             }
         }
