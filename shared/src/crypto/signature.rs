@@ -106,6 +106,24 @@ impl Signature {
     }
 }
 
+#[cfg(test)]
+impl quickcheck::Arbitrary for SignatureType {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        *g.choose(&[SignatureType::Secp256k1, SignatureType::BLS])
+            .unwrap()
+    }
+}
+
+#[cfg(test)]
+impl quickcheck::Arbitrary for Signature {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            bytes: Vec::arbitrary(g),
+            sig_type: SignatureType::arbitrary(g),
+        }
+    }
+}
+
 #[cfg(feature = "crypto")]
 impl Signature {
     /// Checks if a signature is valid given data and address.
