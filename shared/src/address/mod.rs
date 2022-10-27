@@ -233,10 +233,9 @@ impl fmt::Display for Address {
 #[cfg(test)]
 impl quickcheck::Arbitrary for Address {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let address =
-            arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(&Vec::arbitrary(g)))
-                .unwrap();
-        address
+        Self {
+            payload: Payload::arbitrary(g),
+        }
     }
 }
 

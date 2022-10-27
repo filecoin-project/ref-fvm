@@ -45,6 +45,7 @@ rand = "0.8.5"
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
+quickcheck = "1"
 
 [dependencies.wasmtime]
 version = "1.0.1"

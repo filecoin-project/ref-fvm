@@ -19,6 +19,20 @@ pub struct DelegatedAddress {
     buffer: [u8; MAX_SUBADDRESS_LEN],
 }
 
+#[cfg(test)]
+impl quickcheck::Arbitrary for DelegatedAddress {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            namespace: ActorID::arbitrary(g),
+            length: usize::arbitrary(g),
+            buffer: arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(
+                &Vec::arbitrary(g),
+            ))
+            .unwrap(),
+        }
+    }
+}
+
 #[cfg(feature = "arb")]
 impl<'a> arbitrary::Arbitrary<'a> for DelegatedAddress {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
@@ -73,6 +87,30 @@ pub enum Payload {
     BLS([u8; BLS_PUB_LEN]),
     /// f4: Delegated address, a namespace with an arbitrary subaddress.
     Delegated(DelegatedAddress),
+}
+
+#[cfg(test)]
+impl quickcheck::Arbitrary for Payload {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let id = Payload::ID(u64::arbitrary(g));
+        let secp = Payload::Secp256k1(
+            arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(&Vec::arbitrary(g)))
+                .unwrap(),
+        );
+        let actor = Payload::Actor(
+            arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(&Vec::arbitrary(g)))
+                .unwrap(),
+        );
+        let bls = Payload::BLS(
+            arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(&Vec::arbitrary(g)))
+                .unwrap(),
+        );
+        let delegated = Payload::Delegated(DelegatedAddress::arbitrary(g));
+        let payload_slice = &[id, secp, actor, bls, delegated];
+        let payload = g.choose(payload_slice).unwrap();
+
+        payload.clone()
+    }
 }
 
 impl Payload {
