@@ -67,7 +67,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
-    let stats = TestStats::new();
+    let stats = TestStats::new_ref();
 
     let vector_results = if path.is_file() {
         let stats = stats.clone();
@@ -155,11 +155,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 
     if let Some(ref stats) = stats {
         let stats = stats.lock().unwrap();
-        println!();
         println!(
             "{}",
             format!(
-                "memory stats: min {} - {} max",
+                "memory stats:\n minimax: {}\n maximax: {}\n",
                 stats.min_desired_memory_bytes, stats.max_desired_memory_bytes,
             )
             .bold()

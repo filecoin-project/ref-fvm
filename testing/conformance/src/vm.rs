@@ -52,13 +52,8 @@ pub struct TestStats {
 }
 
 impl TestStats {
-    pub fn new() -> TestStatsRef {
+    pub fn new_ref() -> TestStatsRef {
         Some(Arc::new(Mutex::new(Self::default())))
-    }
-
-    pub fn update(&mut self, desired: usize) {
-        self.max_desired_memory_bytes = std::cmp::max(self.max_desired_memory_bytes, desired);
-        self.min_desired_memory_bytes = std::cmp::min(self.min_desired_memory_bytes, desired);
     }
 }
 
@@ -208,7 +203,8 @@ where
     fn new_limiter(&self) -> Self::Limiter {
         TestLimiter {
             inner: self.machine.new_limiter(),
-            stats: self.stats.clone(),
+            global_stats: self.stats.clone(),
+            local_stats: TestStats::default(),
         }
     }
 }
@@ -695,7 +691,8 @@ where
 /// Wrap a `ResourceLimiter` and collect statistics.
 pub struct TestLimiter<L> {
     inner: L,
-    stats: TestStatsRef,
+    global_stats: TestStatsRef,
+    local_stats: TestStats,
 }
 
 impl<L> ResourceLimiter for TestLimiter<L>
@@ -703,13 +700,40 @@ where
     L: ResourceLimiter,
 {
     fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
-        if let Some(stats) = &self.stats {
-            stats.lock().unwrap().update(desired);
+        if self.local_stats.max_desired_memory_bytes < desired {
+            self.local_stats.max_desired_memory_bytes = desired;
         }
+
+        // Not using this value now, but we could print the minimum starting memory required by any test.
+        if self.local_stats.min_desired_memory_bytes == 0 {
+            self.local_stats.min_desired_memory_bytes = desired;
+        }
+
         self.inner.memory_growing(current, desired, maximum)
     }
 
     fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
         self.inner.table_growing(current, desired, maximum)
+    }
+}
+
+/// Store the minimum of the maximums of desired memories in the global stats.
+impl<L> Drop for TestLimiter<L> {
+    fn drop(&mut self) {
+        if let Some(ref stats) = self.global_stats {
+            if let Ok(mut stats) = stats.lock() {
+                let max_desired_memory_bytes = self.local_stats.max_desired_memory_bytes;
+
+                if stats.max_desired_memory_bytes < max_desired_memory_bytes {
+                    stats.max_desired_memory_bytes = max_desired_memory_bytes;
+                }
+
+                if stats.min_desired_memory_bytes == 0
+                    || stats.min_desired_memory_bytes > max_desired_memory_bytes
+                {
+                    stats.min_desired_memory_bytes = max_desired_memory_bytes;
+                }
+            }
+        }
     }
 }
