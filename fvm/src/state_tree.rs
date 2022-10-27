@@ -572,6 +572,23 @@ impl ActorState {
     }
 }
 
+#[cfg(test)]
+impl quickcheck::Arbitrary for ActorState {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let cid = Cid::new_v1(
+            u64::arbitrary(g),
+            cid::multihash::Multihash::wrap(u64::arbitrary(g), &[u8::arbitrary(g)]).unwrap(),
+        );
+        Self {
+            code: cid,
+            state: cid,
+            sequence: u64::arbitrary(g),
+            balance: TokenAmount::from_atto(u64::arbitrary(g)),
+            address: Address::arbitrary(g),
+        }
+    }
+}
+
 #[cfg(feature = "json")]
 pub mod json {
     use std::str::FromStr;
