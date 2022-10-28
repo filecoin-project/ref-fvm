@@ -22,13 +22,11 @@ pub struct DelegatedAddress {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for DelegatedAddress {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let buffer: [u8; MAX_SUBADDRESS_LEN] = core::array::from_fn(|_| u8::arbitrary(g));
         Self {
             namespace: ActorID::arbitrary(g),
             length: usize::arbitrary(g),
-            buffer: arbitrary::Arbitrary::arbitrary(&mut arbitrary::Unstructured::new(
-                &Vec::arbitrary(g),
-            ))
-            .unwrap(),
+            buffer,
         }
     }
 }
