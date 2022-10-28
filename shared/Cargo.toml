@@ -28,6 +28,7 @@ serde = { version = "1", default-features = false }
 serde_tuple = "0.5"
 serde_repr = "0.1"
 arbitrary = { version = "1.1", optional = true, features = ["derive"]}
+quickcheck = { version = "1", optional = true }
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but
@@ -43,8 +44,6 @@ rand = "0.8"
 rand_chacha = "0.3"
 serde_json = "1.0.56"
 multihash = { version = "0.16.3", default-features = false, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
-quickcheck = "1"
-arbitrary = "1.2.0"
 
 [features]
 default = []
@@ -55,4 +54,4 @@ secp256k1 = ["libsecp256k1"]
 blst = ["bls-signatures/blst"]
 pairing = ["bls-signatures/pairing"]
 testing = []
-arb = ["arbitrary"]
+arb = ["arbitrary", "dep:quickcheck", "num-bigint/quickcheck"]

@@ -50,7 +50,6 @@ fvm = { path = ".", features = ["testing"], default-features = false }
 version = "1.0.1"
 default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
-quickcheck = "1"
 
 [features]
 f4-as-account = ["fvm_shared/f4-as-account"]
