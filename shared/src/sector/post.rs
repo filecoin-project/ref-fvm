@@ -29,7 +29,7 @@ pub struct PoStProof {
     pub proof_bytes: Vec<u8>,
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for PoStProof {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let registered_postproof = g

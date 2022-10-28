@@ -106,7 +106,7 @@ impl Signature {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for SignatureType {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         *g.choose(&[SignatureType::Secp256k1, SignatureType::BLS])
@@ -114,7 +114,7 @@ impl quickcheck::Arbitrary for SignatureType {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Signature {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         Self {

@@ -94,7 +94,7 @@ impl<'de> Deserialize<'de> for Message {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Message {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         Self {
