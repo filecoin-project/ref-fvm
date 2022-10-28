@@ -19,7 +19,7 @@ pub struct DelegatedAddress {
     buffer: [u8; MAX_SUBADDRESS_LEN],
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for DelegatedAddress {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         Self {
@@ -89,7 +89,7 @@ pub enum Payload {
     Delegated(DelegatedAddress),
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Payload {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let id = Payload::ID(u64::arbitrary(g));
@@ -109,7 +109,7 @@ impl quickcheck::Arbitrary for Payload {
         let payload_slice = &[id, secp, actor, bls, delegated];
         let payload = g.choose(payload_slice).unwrap();
 
-        payload.clone()
+        *payload
     }
 }
 

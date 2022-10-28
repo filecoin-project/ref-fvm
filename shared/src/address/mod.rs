@@ -230,7 +230,7 @@ impl fmt::Display for Address {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Address {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         Self {
