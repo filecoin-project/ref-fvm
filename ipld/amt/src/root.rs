@@ -10,9 +10,9 @@ use crate::node::CollapsedNode;
 use crate::{init_sized_vec, Node, DEFAULT_BIT_WIDTH};
 
 pub(crate) mod version {
-    #[derive(PartialEq, Debug)]
+    #[derive(PartialEq, Eq, Debug)]
     pub struct V0;
-    #[derive(PartialEq, Debug)]
+    #[derive(PartialEq, Eq, Debug)]
     pub struct V3;
 
     pub trait Version {
@@ -152,25 +152,5 @@ mod tests {
         };
         let rbz = to_vec(&root).unwrap();
         assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root);
-    }
-
-    #[test]
-    fn serialize_deserialize_from_v3_to_v0() {
-        let mut root: Root<String> = Root::new_with_bit_width(3);
-        root.height = 2;
-        root.count = 1;
-        root.node = Node::Leaf {
-            vals: vec![None; 8],
-        };
-        let rbz = to_vec(&root).unwrap();
-
-        let mut root_v0: Rootv0<_> = Rootv0::new();
-        root_v0.height = 2;
-        root_v0.count = 1;
-        root_v0.node = Node::Leaf {
-            vals: vec![None; 8],
-        };
-
-        assert_eq!(from_slice::<Rootv0<String>>(&rbz).unwrap(), root_v0);
     }
 }
