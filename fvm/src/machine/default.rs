@@ -13,9 +13,9 @@ use log::debug;
 
 use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
-use crate::call_manager::limiter::ExecResourceLimiter;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::machine::limiter::ExecResourceLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;

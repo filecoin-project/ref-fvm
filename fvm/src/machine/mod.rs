@@ -18,6 +18,7 @@ mod default;
 
 pub use default::DefaultMachine;
 
+pub mod limiter;
 mod manifest;
 
 pub use manifest::Manifest;
