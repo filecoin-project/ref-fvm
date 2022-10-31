@@ -13,10 +13,12 @@ use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
-use crate::machine::limiter::MemorySizeSnapshot;
+use crate::machine::limiter::ExecMemory;
 use crate::machine::{Engine, Machine};
 use crate::syscalls::error::Abort;
-use crate::syscalls::{charge_for_exec, charge_for_memory, update_gas_available};
+use crate::syscalls::{
+    charge_for_exec, charge_for_memory, update_gas_available, update_memory_available,
+};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{account_actor, syscall_error};
 
@@ -420,6 +422,9 @@ where
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
+
+                // Set the maximum memory we have gas for.
+                update_memory_available(&mut store, memory_gas_per_byte);
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

@@ -2,10 +2,15 @@ use wasmtime::ResourceLimiter;
 
 use crate::machine::NetworkConfig;
 
-/// Get a snapshot of the total memory required by the Wasm module so far.
-pub trait MemorySizeSnapshot {
-    /// Total execution memory so far.
+/// Execution level memory tracking and adjustment.
+pub trait ExecMemory {
+    /// Get a snapshot of the total memory required by the Wasm module so far.
     fn total_exec_memory_bytes(&self) -> usize;
+
+    /// Limit the maximum memory bytes available for the rest of the execution.
+    ///
+    /// This can only make the maximum smaller than what it currently is, not raise it.
+    fn max_exec_memory_bytes(&mut self, limit: usize);
 }
 
 /// Limit resources throughout the whole message execution,
@@ -60,9 +65,15 @@ impl ResourceLimiter for ExecResourceLimiter {
     }
 }
 
-impl MemorySizeSnapshot for ExecResourceLimiter {
+impl ExecMemory for ExecResourceLimiter {
     fn total_exec_memory_bytes(&self) -> usize {
         self.total_exec_memory_bytes
+    }
+
+    fn max_exec_memory_bytes(&mut self, limit: usize) {
+        if limit < self.max_exec_memory_bytes {
+            self.max_exec_memory_bytes = limit;
+        }
     }
 }
 

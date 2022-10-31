@@ -1,11 +1,12 @@
 use std::mem;
 
 use anyhow::{anyhow, Context as _};
+use num_traits::Zero;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
 use crate::gas::Gas;
-use crate::machine::limiter::MemorySizeSnapshot;
+use crate::machine::limiter::ExecMemory;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -59,6 +60,25 @@ pub fn update_gas_available(
 
     ctx.data_mut().last_milligas_available = avail_milligas;
     Ok(())
+}
+
+/// Update the amount of maximum memory that can be paid for with the remaining gas.
+pub fn update_memory_available(
+    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
+    memory_gas_per_byte: Gas,
+) {
+    if memory_gas_per_byte.is_zero() {
+        return;
+    }
+
+    let mut ctx = ctx.as_context_mut();
+    let avail_gas = ctx.data_mut().kernel.gas_available();
+    let avail_memory = avail_gas.as_milligas() / memory_gas_per_byte.as_milligas();
+
+    ctx.data_mut()
+        .kernel
+        .limiter_mut()
+        .max_exec_memory_bytes(avail_memory as usize);
 }
 
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.

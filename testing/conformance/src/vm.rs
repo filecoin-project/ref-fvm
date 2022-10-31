@@ -8,7 +8,7 @@ use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::limiter::MemorySizeSnapshot;
+use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{
     DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
@@ -759,11 +759,15 @@ impl<L> Drop for TestLimiter<L> {
     }
 }
 
-impl<L> MemorySizeSnapshot for TestLimiter<L>
+impl<L> ExecMemory for TestLimiter<L>
 where
-    L: MemorySizeSnapshot,
+    L: ExecMemory,
 {
     fn total_exec_memory_bytes(&self) -> usize {
         self.inner.total_exec_memory_bytes()
+    }
+
+    fn max_exec_memory_bytes(&mut self, limit: usize) {
+        self.inner.max_exec_memory_bytes(limit)
     }
 }

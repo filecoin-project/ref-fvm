@@ -30,7 +30,7 @@ use wasmtime::ResourceLimiter;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, PriceList};
-use crate::machine::limiter::MemorySizeSnapshot;
+use crate::machine::limiter::ExecMemory;
 use crate::machine::Machine;
 
 pub enum SendResult {
@@ -348,7 +348,7 @@ pub trait DebugOps {
 /// It's only part of the kernel out of necessity to pass it through to the
 /// call manager which tracks the limits across the whole execution stack.
 pub trait LimiterOps {
-    type Limiter: ResourceLimiter + MemorySizeSnapshot;
+    type Limiter: ResourceLimiter + ExecMemory;
     /// Give access to the limiter of the underlying call manager.
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
 }

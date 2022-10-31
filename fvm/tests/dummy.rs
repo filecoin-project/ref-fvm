@@ -6,7 +6,7 @@ use anyhow::Context;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
-use fvm::machine::limiter::MemorySizeSnapshot;
+use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
@@ -73,9 +73,13 @@ impl ResourceLimiter for DummyLimiter {
     }
 }
 
-impl MemorySizeSnapshot for DummyLimiter {
+impl ExecMemory for DummyLimiter {
     fn total_exec_memory_bytes(&self) -> usize {
         self.total_exec_memory_bytes
+    }
+
+    fn max_exec_memory_bytes(&mut self, _limit: usize) {
+        // The dummy doesn't limit memory.
     }
 }
 
