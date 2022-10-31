@@ -144,6 +144,7 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Zero::zero(),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
     };
 
@@ -270,7 +271,9 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
+
     };
 }
 
@@ -419,6 +422,8 @@ pub struct PriceList {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WasmGasPrices {
     pub(crate) exec_instruction_cost: Gas,
+    /// Gas cost for every byte made writeable in Wasm memory.
+    pub(crate) memory_expansion_per_byte_cost: Gas,
 }
 
 impl PriceList {

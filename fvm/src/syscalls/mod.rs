@@ -5,6 +5,7 @@ use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
 use crate::gas::Gas;
+use crate::machine::limiter::MemorySizeSnapshot;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -84,6 +85,38 @@ pub fn charge_for_exec(
     ctx.data_mut()
         .kernel
         .charge_gas("wasm_exec", Gas::from_milligas(milligas_used))
+        .map_err(Abort::from_error_as_fatal)?;
+
+    Ok(())
+}
+
+/// Updates the FVM-side gas tracker with newly accrued execution memory charges.
+///
+/// Whether we ran out of memory or not has been tracked during the execution,
+/// but gas has not been charged for it yet. Technically we could charge for
+/// gas at the same time we check memory limits in `memory_grow`, but we'd lose
+/// the typed error if the reason memory expansion fails is that we ran out of gas.
+pub fn charge_for_memory(
+    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
+    memory_bytes_before: usize,
+    memory_gas_per_byte: Gas,
+) -> Result<(), Abort> {
+    let mut ctx = ctx.as_context_mut();
+
+    let memory_bytes_after = ctx
+        .data_mut()
+        .kernel
+        .limiter_mut()
+        .total_exec_memory_bytes();
+
+    let memory_delta_bytes = memory_bytes_after - memory_bytes_before;
+
+    ctx.data_mut()
+        .kernel
+        .charge_gas(
+            "wasm_memory",
+            memory_gas_per_byte * (memory_delta_bytes as i64),
+        )
         .map_err(Abort::from_error_as_fatal)?;
 
     Ok(())

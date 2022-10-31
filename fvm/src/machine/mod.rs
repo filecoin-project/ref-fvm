@@ -27,6 +27,8 @@ mod engine;
 
 pub use engine::{Engine, EngineConfig, MultiEngine};
 
+use self::limiter::MemorySizeSnapshot;
+
 mod boxed;
 
 pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
@@ -48,7 +50,7 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
-    type Limiter: ResourceLimiter;
+    type Limiter: ResourceLimiter + MemorySizeSnapshot;
 
     /// Returns the underlying WASM engine. Cloning it will simply create a new handle with a
     /// static lifetime.
