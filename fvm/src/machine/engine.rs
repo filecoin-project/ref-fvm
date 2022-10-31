@@ -198,7 +198,7 @@ impl Deref for Engine {
 impl Engine {
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
         Engine::new(
-            &default_wasmtime_config(ec.max_call_depth, ec.max_inst_memory_bytes),
+            &default_wasmtime_config(1 + ec.max_call_depth, ec.max_inst_memory_bytes),
             ec,
         )
     }
