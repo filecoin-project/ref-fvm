@@ -20,9 +20,6 @@ use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
 
-// Copied from `wasmtime_environ`.
-const WASM_PAGE_SIZE: u64 = 0x10000;
-
 /// A caching wasmtime engine.
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
@@ -95,7 +92,7 @@ pub fn default_wasmtime_config(
             count: instance_count,
             // Adjust the maximum amount of host memory that can be committed to an instance to
             // match the static linear memory size we reserve for each slot.
-            memory_pages: instance_memory_maximum_size / WASM_PAGE_SIZE,
+            memory_pages: instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
             ..Default::default()
         },
     });
