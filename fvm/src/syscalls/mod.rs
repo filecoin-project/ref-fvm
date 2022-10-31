@@ -78,7 +78,7 @@ pub fn update_memory_available(
     ctx.data_mut()
         .kernel
         .limiter_mut()
-        .max_exec_memory_bytes(avail_memory as usize);
+        .avail_exec_memory_bytes(avail_memory as usize);
 }
 
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.

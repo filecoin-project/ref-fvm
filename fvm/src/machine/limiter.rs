@@ -10,7 +10,7 @@ pub trait ExecMemory {
     /// Limit the maximum memory bytes available for the rest of the execution.
     ///
     /// This can only make the maximum smaller than what it currently is, not raise it.
-    fn max_exec_memory_bytes(&mut self, limit: usize);
+    fn avail_exec_memory_bytes(&mut self, limit: usize);
 }
 
 /// Limit resources throughout the whole message execution,
@@ -24,6 +24,8 @@ pub struct ExecResourceLimiter {
     /// This is a constraint for all stores created with the
     /// same call manager.
     total_exec_memory_bytes: usize,
+    /// If set, the available memory left for the execution.
+    avail_exec_memory_bytes: Option<usize>,
 }
 
 impl ExecResourceLimiter {
@@ -32,6 +34,7 @@ impl ExecResourceLimiter {
             max_inst_memory_bytes,
             max_exec_memory_bytes,
             total_exec_memory_bytes: 0,
+            avail_exec_memory_bytes: None,
         }
     }
 
@@ -49,13 +52,22 @@ impl ResourceLimiter for ExecResourceLimiter {
             return false;
         }
 
-        let total_desired = self.total_exec_memory_bytes + (desired - current);
+        let delta_desired = desired - current;
+        let total_desired = self.total_exec_memory_bytes + delta_desired;
 
         if total_desired > min(self.max_exec_memory_bytes, maximum) {
             return false;
         }
 
+        if let Some(avail_memory) = self.avail_exec_memory_bytes {
+            if delta_desired > avail_memory {
+                return false;
+            }
+            self.avail_exec_memory_bytes = Some(avail_memory - delta_desired);
+        }
+
         self.total_exec_memory_bytes = total_desired;
+
         true
     }
 
@@ -70,10 +82,8 @@ impl ExecMemory for ExecResourceLimiter {
         self.total_exec_memory_bytes
     }
 
-    fn max_exec_memory_bytes(&mut self, limit: usize) {
-        if limit < self.max_exec_memory_bytes {
-            self.max_exec_memory_bytes = limit;
-        }
+    fn avail_exec_memory_bytes(&mut self, limit: usize) {
+        self.avail_exec_memory_bytes = Some(limit)
     }
 }
 
@@ -86,6 +96,7 @@ mod tests {
     use wasmtime::ResourceLimiter;
 
     use super::ExecResourceLimiter;
+    use crate::machine::limiter::ExecMemory;
 
     #[test]
     fn basics() {
@@ -101,5 +112,15 @@ mod tests {
 
         assert!(limits.table_growing(0, 100, None));
         assert!(!limits.table_growing(0, 100, Some(10)));
+    }
+
+    #[test]
+    fn avail_exec_memory_bytes() {
+        let mut limits = ExecResourceLimiter::new(6, 10);
+        limits.avail_exec_memory_bytes(9); // budget less than max
+        assert!(limits.memory_growing(0, 4, None)); // spend some of it
+        limits.avail_exec_memory_bytes(5); // reduce budget by spent amount
+        assert!(limits.memory_growing(0, 5, None)); // we should be able to grow by what's left
+        assert!(!limits.memory_growing(0, 1, None)); // but by now the budget is exhausted
     }
 }

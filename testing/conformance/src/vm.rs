@@ -767,7 +767,7 @@ where
         self.inner.total_exec_memory_bytes()
     }
 
-    fn max_exec_memory_bytes(&mut self, limit: usize) {
-        self.inner.max_exec_memory_bytes(limit)
+    fn avail_exec_memory_bytes(&mut self, limit: usize) {
+        self.inner.avail_exec_memory_bytes(limit)
     }
 }

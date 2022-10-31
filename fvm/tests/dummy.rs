@@ -78,7 +78,7 @@ impl ExecMemory for DummyLimiter {
         self.total_exec_memory_bytes
     }
 
-    fn max_exec_memory_bytes(&mut self, _limit: usize) {
+    fn avail_exec_memory_bytes(&mut self, _limit: usize) {
         // The dummy doesn't limit memory.
     }
 }
