@@ -26,6 +26,9 @@ mod vm;
 
 pub(self) use context::Context;
 
+/// As per FIP-0037 the first page of memory is free.
+const FREE_MEMORY_BYTES: usize = wasmtime_environ::WASM_PAGE_SIZE as usize;
+
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
     /// The kernel on which this actor is being executed.
@@ -78,7 +81,7 @@ pub fn update_memory_available(
     ctx.data_mut()
         .kernel
         .limiter_mut()
-        .avail_exec_memory_bytes(avail_memory as usize);
+        .avail_exec_memory_bytes(FREE_MEMORY_BYTES + avail_memory as usize);
 }
 
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.
@@ -130,12 +133,13 @@ pub fn charge_for_memory(
         .total_exec_memory_bytes();
 
     let memory_delta_bytes = memory_bytes_after - memory_bytes_before;
+    let memory_chargeable_bytes = std::cmp::max(0, memory_delta_bytes as usize - FREE_MEMORY_BYTES);
 
     ctx.data_mut()
         .kernel
         .charge_gas(
             "wasm_memory",
-            memory_gas_per_byte * (memory_delta_bytes as i64),
+            memory_gas_per_byte * memory_chargeable_bytes as i64,
         )
         .map_err(Abort::from_error_as_fatal)?;
 
