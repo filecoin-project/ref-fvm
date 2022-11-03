@@ -26,9 +26,6 @@ mod vm;
 
 pub(self) use context::Context;
 
-/// As per FIP-0037 the first page of memory is free.
-const FREE_MEMORY_BYTES: usize = wasmtime_environ::WASM_PAGE_SIZE as usize;
-
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
     /// The kernel on which this actor is being executed.
@@ -45,6 +42,12 @@ pub struct InvocationData<K> {
     /// _difference_ between the current gas available (the wasm global) and the
     /// `last_milligas_available`.
     pub last_milligas_available: i64,
+
+    /// The total size of the memory used by the execution at the beginning of this call.
+    pub start_memory_bytes: usize,
+
+    /// The total size of the memory used by the execution the last time we charged gas for it.
+    pub last_memory_bytes: usize,
 
     /// The invocation's imported "memory".
     pub memory: Memory,
@@ -65,25 +68,6 @@ pub fn update_gas_available(
     Ok(())
 }
 
-/// Update the amount of maximum memory that can be paid for with the remaining gas.
-pub fn update_memory_available(
-    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
-    memory_gas_per_byte: Gas,
-) {
-    if memory_gas_per_byte.is_zero() {
-        return;
-    }
-
-    let mut ctx = ctx.as_context_mut();
-    let avail_gas = ctx.data_mut().kernel.gas_available();
-    let avail_memory = avail_gas.as_milligas() / memory_gas_per_byte.as_milligas();
-
-    ctx.data_mut()
-        .kernel
-        .limiter_mut()
-        .avail_exec_memory_bytes(FREE_MEMORY_BYTES + avail_memory as usize);
-}
-
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.
 pub fn charge_for_exec(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
@@ -98,50 +82,41 @@ pub fn charge_for_exec(
         .map_err(Abort::Fatal)?;
 
     // Determine milligas used, and update the gas tracker.
-    let milligas_used = {
+    let mut exec_gas = {
         let data = ctx.data_mut();
         let last_milligas = mem::replace(&mut data.last_milligas_available, milligas_available);
         // This should never be negative, but we might as well check.
-        last_milligas.saturating_sub(milligas_available)
+        Gas::from_milligas(last_milligas.saturating_sub(milligas_available))
     };
 
-    ctx.data_mut()
-        .kernel
-        .charge_gas("wasm_exec", Gas::from_milligas(milligas_used))
+    let data = ctx.data_mut();
+
+    // Separate the amount of gas charged for memory and apply discount on first page.
+    // The separation of wasm_exec and wasm_memory is optional, it might be nice to have for statistics.
+    let memory_price = data.kernel.memory_expansion_per_byte_cost();
+    let memory_bytes = data.kernel.limiter_mut().total_exec_memory_bytes();
+    let memory_delta_bytes = memory_bytes - data.last_memory_bytes;
+    let mut memory_gas = memory_price * memory_delta_bytes as i64;
+    exec_gas = (exec_gas - memory_gas).max(Gas::zero());
+
+    // The memory grows by at least one page, so if we're haven't yet charged for any memory,
+    // then this is the time to apply the first-page discount.
+    if data.last_memory_bytes == data.start_memory_bytes && memory_bytes > data.start_memory_bytes {
+        let free_memory_gas = memory_price * wasmtime_environ::WASM_PAGE_SIZE as i64;
+        memory_gas = (memory_gas - free_memory_gas).max(Gas::zero());
+    }
+
+    data.last_memory_bytes = memory_bytes;
+
+    data.kernel
+        .charge_gas("wasm_exec", exec_gas)
         .map_err(Abort::from_error_as_fatal)?;
 
-    Ok(())
-}
-
-/// Updates the FVM-side gas tracker with newly accrued execution memory charges.
-///
-/// Whether we ran out of memory or not has been tracked during the execution,
-/// but gas has not been charged for it yet. Technically we could charge for
-/// gas at the same time we check memory limits in `memory_grow`, but we'd lose
-/// the typed error if the reason memory expansion fails is that we ran out of gas.
-pub fn charge_for_memory(
-    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
-    memory_bytes_before: usize,
-    memory_gas_per_byte: Gas,
-) -> Result<(), Abort> {
-    let mut ctx = ctx.as_context_mut();
-
-    let memory_bytes_after = ctx
-        .data_mut()
-        .kernel
-        .limiter_mut()
-        .total_exec_memory_bytes();
-
-    let memory_delta_bytes = memory_bytes_after - memory_bytes_before;
-    let memory_chargeable_bytes = std::cmp::max(0, memory_delta_bytes as usize - FREE_MEMORY_BYTES);
-
-    ctx.data_mut()
-        .kernel
-        .charge_gas(
-            "wasm_memory",
-            memory_gas_per_byte * memory_chargeable_bytes as i64,
-        )
-        .map_err(Abort::from_error_as_fatal)?;
+    if !memory_gas.is_zero() {
+        data.kernel
+            .charge_gas("wasm_memory", memory_gas)
+            .map_err(Abort::from_error_as_fatal)?;
+    }
 
     Ok(())
 }

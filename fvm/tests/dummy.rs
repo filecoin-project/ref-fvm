@@ -77,10 +77,6 @@ impl ExecMemory for DummyLimiter {
     fn total_exec_memory_bytes(&self) -> usize {
         self.total_exec_memory_bytes
     }
-
-    fn avail_exec_memory_bytes(&mut self, _limit: usize) {
-        // The dummy doesn't limit memory.
-    }
 }
 
 /// Minimal *pseudo-functional* implementation of `Machine` for tests

@@ -866,6 +866,13 @@ where
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.call_manager.limiter_mut()
     }
+
+    fn memory_expansion_per_byte_cost(&self) -> Gas {
+        self.call_manager
+            .price_list()
+            .wasm_rules
+            .memory_expansion_per_byte_cost
+    }
 }
 
 fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {

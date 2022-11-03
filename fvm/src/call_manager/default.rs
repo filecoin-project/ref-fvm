@@ -13,12 +13,9 @@ use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
-use crate::machine::limiter::ExecMemory;
 use crate::machine::{Engine, Machine};
 use crate::syscalls::error::Abort;
-use crate::syscalls::{
-    charge_for_exec, charge_for_memory, update_gas_available, update_memory_available,
-};
+use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{account_actor, syscall_error};
 
@@ -387,11 +384,7 @@ where
         let engine: Engine = self.engine().clone();
 
         log::trace!("calling {} -> {}::{}", from, to, method);
-        self.map_mut(|mut cm| {
-            // Take a snapshot of the memory before execution.
-            let memory_bytes_before = cm.limiter_mut().total_exec_memory_bytes();
-            let memory_gas_per_byte = cm.price_list().wasm_rules.memory_expansion_per_byte_cost;
-
+        self.map_mut(|cm| {
             // Make the kernel.
             let kernel = K::new(cm, block_registry, from, to, method, value.clone());
 
@@ -423,9 +416,6 @@ where
                 // Set the available gas.
                 update_gas_available(&mut store)?;
 
-                // Set the maximum memory we have gas for.
-                update_memory_available(&mut store, memory_gas_per_byte);
-
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     invoke.call(&mut store, (params_id,))
@@ -434,9 +424,6 @@ where
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run out.
                 charge_for_exec(&mut store)?;
-
-                // Charge for the memory used during the execution, returning an error if we run out.
-                charge_for_memory(&mut store, memory_bytes_before, memory_gas_per_byte)?;
 
                 // If the invocation failed due to running out of exec_units, we have already
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
