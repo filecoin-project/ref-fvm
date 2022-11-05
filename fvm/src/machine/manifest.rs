@@ -89,8 +89,6 @@ impl Manifest {
             }
         };
 
-        dbg!(&vec);
-
         Manifest::new(vec)
     }
 
