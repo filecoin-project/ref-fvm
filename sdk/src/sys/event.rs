@@ -7,7 +7,9 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "event";
 
-    /// Records an actor event. Expect a DAG-CBOR representation of the event.
+    /// Emits an actor event to be recorded in the receipt.
+    ///
+    /// Expects a DAG-CBOR representation of the ActorEvent struct.
     ///
     /// # Errors
     ///
