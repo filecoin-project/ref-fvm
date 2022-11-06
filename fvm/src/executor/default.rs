@@ -27,7 +27,7 @@ use crate::trace::ExecutionTrace;
 /// # Warning
 ///
 /// Message execution might run out of stack and crash (the entire process) if it doesn't have at
-/// least 64MiB of stacks space. If you can't guarantee 64MiB of stack space, wrap this executor in
+/// least 64MiB of stack space. If you can't guarantee 64MiB of stack space, wrap this executor in
 /// a [`ThreadedExecutor`][super::ThreadedExecutor].
 // If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
