@@ -139,7 +139,7 @@ where
                     exit_code: ExitCode::OK,
                     return_data,
                     gas_used,
-                    events: events_root,
+                    events_root,
                 }
             }
             Ok(InvocationResult::Failure(exit_code)) => {
@@ -150,14 +150,14 @@ where
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
-                    events: events_root,
+                    events_root,
                 }
             }
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),
                 gas_used,
-                events: events_root,
+                events_root,
             },
             Err(ExecutionError::Syscall(err)) => {
                 // Errors indicate the message couldn't be dispatched at all
@@ -174,7 +174,7 @@ where
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
-                    events: events_root,
+                    events_root,
                 }
             }
             Err(ExecutionError::Fatal(err)) => {
@@ -199,7 +199,7 @@ where
                     exit_code: ExitCode::SYS_ASSERTION_FAILED,
                     return_data: Default::default(),
                     gas_used: msg.gas_limit,
-                    events: events_root,
+                    events_root,
                 }
             }
         };

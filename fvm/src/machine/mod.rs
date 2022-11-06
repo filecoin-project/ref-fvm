@@ -91,9 +91,9 @@ pub trait Machine: 'static {
     /// Returns a generated ID of a machine
     fn machine_id(&self) -> &str;
 
-    /// Builds the events AMT, writes the AMT to the store, and returns its root.
-    /// It also resets the event accumulator in order to prepare for the next message.
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Cid>;
+    /// Commits the events to the machine by building the events AMT, and making sure that events
+    /// are written to the store.
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>>;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

@@ -105,7 +105,7 @@ impl ApplyRet {
                 exit_code: code,
                 return_data: RawBytes::default(),
                 gas_used: 0,
-                events: Cid::default(),
+                events_root: None,
             },
             penalty: miner_penalty,
             miner_tip: TokenAmount::zero(),

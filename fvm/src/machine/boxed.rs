@@ -75,7 +75,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Cid> {
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
         (**self).commit_events(events)
     }
 }

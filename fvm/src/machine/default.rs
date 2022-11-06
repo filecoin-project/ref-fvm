@@ -265,7 +265,11 @@ where
         Ok(())
     }
 
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Cid> {
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
+        if events.is_empty() {
+            return Ok(None);
+        }
+
         let blockstore = self.blockstore();
 
         let amt_cid = {
@@ -285,7 +289,7 @@ where
             .context("failed to flush the events AMT root CID through the buffered store")
             .or_fatal()?;
 
-        Ok(amt_cid)
+        Ok(Some(amt_cid))
     }
 
     fn into_store(self) -> Self::Blockstore {
