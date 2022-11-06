@@ -20,6 +20,7 @@ use fvm_shared::crypto::signature::{
     SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::event::{ActorEvent, StampedEvent};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
@@ -173,6 +174,10 @@ where
     fn machine_id(&self) -> &str {
         self.machine.machine_id()
     }
+
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
+        self.machine.commit_events(events)
+    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -289,6 +294,10 @@ where
 
     fn invocation_count(&self) -> u64 {
         self.0.invocation_count()
+    }
+
+    fn append_event(&mut self, evt: StampedEvent) {
+        self.0.append_event(evt)
     }
 }
 
@@ -686,5 +695,16 @@ where
         value: &TokenAmount,
     ) -> Result<SendResult> {
         self.0.send(recipient, method, params, value)
+    }
+}
+
+impl<M, C, K> EventOps for TestKernel<K>
+where
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = TestCallManager<C>>,
+    M: Machine,
+{
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+        self.0.emit_event(evt)
     }
 }

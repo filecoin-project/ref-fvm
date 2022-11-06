@@ -66,8 +66,9 @@ fn events_test() {
     assert_eq!(2, res.events.len());
 
     // Check the events AMT.
+    assert!(res.msg_receipt.events_root.is_some());
     let events_amt: Amt<StampedEvent, _> =
-        Amt::load(&res.msg_receipt.events, executor.blockstore()).unwrap();
+        Amt::load(&res.msg_receipt.events_root.unwrap(), executor.blockstore()).unwrap();
     assert_eq!(2, events_amt.count());
 
     // Check that events in the AMT match events returned in ApplyRet.
@@ -87,4 +88,5 @@ fn events_test() {
         .unwrap();
 
     assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+    assert!(res.msg_receipt.events_root.is_none());
 }

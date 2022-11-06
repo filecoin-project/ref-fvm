@@ -1,4 +1,4 @@
-use fvm_shared::event::{ActorEvent, Entry, StampedEvent};
+use fvm_shared::event::ActorEvent;
 
 use crate::{sys, SyscallResult};
 
