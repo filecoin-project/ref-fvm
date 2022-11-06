@@ -1,6 +1,7 @@
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::event::StampedEvent;
 use fvm_shared::ActorID;
 
 use super::{Engine, Machine, MachineContext, Manifest};
@@ -59,17 +60,22 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn into_store(self) -> Self::Blockstore {
-        (*self).into_store()
-    }
-
-    #[inline(always)]
     fn flush(&mut self) -> Result<Cid> {
         (**self).flush()
     }
 
     #[inline(always)]
+    fn into_store(self) -> Self::Blockstore {
+        (*self).into_store()
+    }
+
+    #[inline(always)]
     fn machine_id(&self) -> &str {
         (**self).machine_id()
+    }
+
+    #[inline(always)]
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Cid> {
+        (**self).commit_events(events)
     }
 }

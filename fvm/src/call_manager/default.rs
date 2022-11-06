@@ -4,6 +4,7 @@ use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
@@ -48,6 +49,8 @@ pub struct InnerDefaultCallManager<M> {
     exec_trace: ExecutionTrace,
     /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
+    /// Accumulator for events emitted in this call stack.
+    events: Vec<StampedEvent>,
 }
 
 #[doc(hidden)]
@@ -93,6 +96,7 @@ where
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
+            events: Vec::with_capacity(8),
         })))
     }
 
@@ -186,6 +190,7 @@ where
             backtrace,
             mut gas_tracker,
             mut exec_trace,
+            events,
             ..
         } = *self.0.take().expect("call manager is poisoned");
 
@@ -202,6 +207,7 @@ where
                 gas_used,
                 backtrace,
                 exec_trace,
+                events,
             },
             machine,
         )
@@ -245,6 +251,10 @@ where
 
     fn invocation_count(&self) -> u64 {
         self.invocation_count
+    }
+
+    fn append_event(&mut self, evt: StampedEvent) {
+        self.events.push(evt)
     }
 }
 

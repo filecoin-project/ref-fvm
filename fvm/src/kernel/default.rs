@@ -920,6 +920,19 @@ where
     }
 }
 
+impl<C> EventOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+        // TODO charge gas
+        // TODO validate entries
+        let evt = StampedEvent::new(self.actor_id, evt);
+        self.call_manager.append_event(evt);
+        Ok(())
+    }
+}
+
 fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
     match panic::catch_unwind(f) {
         Ok(v) => v,

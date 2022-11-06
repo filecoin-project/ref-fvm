@@ -24,6 +24,7 @@ pub use manifest::Manifest;
 mod engine;
 
 pub use engine::{Engine, EngineConfig, MultiEngine};
+use fvm_shared::event::StampedEvent;
 
 mod boxed;
 
@@ -89,6 +90,10 @@ pub trait Machine: 'static {
 
     /// Returns a generated ID of a machine
     fn machine_id(&self) -> &str;
+
+    /// Builds the events AMT, writes the AMT to the store, and returns its root.
+    /// It also resets the event accumulator in order to prepare for the next message.
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Cid>;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

@@ -25,6 +25,7 @@ pub mod default;
 mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
+use fvm_shared::event::{ActorEvent, StampedEvent};
 use multihash::MultihashGeneric;
 
 use crate::call_manager::CallManager;
@@ -49,6 +50,7 @@ pub trait Kernel:
     + CircSupplyOps
     + CryptoOps
     + DebugOps
+    + EventOps
     + GasOps
     + MessageOps
     + NetworkOps
@@ -371,4 +373,10 @@ pub trait DebugOps {
     /// Store an artifact.
     /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
+}
+
+/// Eventing APIs.
+pub trait EventOps {
+    /// Records an event emitted throughout execution.
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()>;
 }
