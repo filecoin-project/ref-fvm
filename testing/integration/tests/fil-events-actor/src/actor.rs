@@ -4,7 +4,7 @@ use fvm_sdk::vm;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::bigint::Zero;
 use fvm_shared::error::ExitCode;
-use fvm_shared::event::{Entry, Flags, StampedEvent, FLAG_INDEXED};
+use fvm_shared::event::{Entry, Flags, StampedEvent};
 use sdk::sys::ErrorNumber;
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
@@ -39,7 +39,7 @@ pub fn invoke(params: u32) -> u32 {
     };
 
     let single_entry_evt = vec![Entry {
-        flags: Flags(FLAG_INDEXED),
+        flags: Flags::all(),
         key: "foo".to_owned(),
         value: payload.marshal_cbor().unwrap(),
     }];
@@ -55,12 +55,12 @@ pub fn invoke(params: u32) -> u32 {
 
     let multi_entry = vec![
         Entry {
-            flags: Flags(0),
+            flags: Flags::all(),
             key: "bar".to_owned(),
             value: payload1.marshal_cbor().unwrap(),
         },
         Entry {
-            flags: Flags(FLAG_INDEXED),
+            flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
             key: "baz".to_string(),
             value: payload2.marshal_cbor().unwrap(),
         },

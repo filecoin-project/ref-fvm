@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use fvm_ipld_encoding::Cbor;
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
@@ -24,23 +25,35 @@ impl StampedEvent {
 
 /// An event as originally emitted by the actor.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct ActorEvent(Vec<Entry>);
+pub struct ActorEvent {
+    pub entries: Vec<Entry>,
+}
 
 impl Cbor for ActorEvent {}
 
 impl From<Vec<Entry>> for ActorEvent {
     fn from(entries: Vec<Entry>) -> Self {
-        Self(entries)
+        Self { entries }
     }
 }
 
-/// Flags associated with an Event entry.
-#[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
-#[serde(transparent)]
-pub struct Flags(pub u8);
+bitflags! {
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct Flags: u8 {
+        const FLAG_INDEXED_KEY      = 0b00000001;
+        const FLAG_INDEXED_VALUE    = 0b00000010;
+        const FLAG_INDEXED_ALL      = Self::FLAG_INDEXED_KEY.bits | Self::FLAG_INDEXED_VALUE.bits;
+    }
+}
 
-/// Signals that an entry must be indexed.
-pub const FLAG_INDEXED: u8 = 0x01;
+// /// Flags associated with an Event entry.
+// #[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
+// #[serde(transparent)]
+// pub struct Flags(pub u8);
+
+// /// Signals that an entry must be indexed.
+// pub const FLAG_INDEXED: u8 = 0x01;
 
 /// A key value entry inside an Event.
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]

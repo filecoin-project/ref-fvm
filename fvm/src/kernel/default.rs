@@ -925,8 +925,11 @@ where
     C: CallManager,
 {
     fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
-        // TODO charge gas
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
+
         // TODO validate entries
+
         let evt = StampedEvent::new(self.actor_id, evt);
         self.call_manager.append_event(evt);
         Ok(())

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
@@ -145,6 +146,11 @@ lazy_static! {
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Zero::zero(),
         },
+
+        event_emit_base_cost: Zero::zero(),
+        event_per_entry_cost: Zero::zero(),
+        event_entry_index_cost: Zero::zero(),
+        event_per_byte_cost: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -271,6 +277,150 @@ lazy_static! {
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
         },
+
+        event_emit_base_cost: Zero::zero(),
+        event_per_entry_cost: Zero::zero(),
+        event_entry_index_cost: Zero::zero(),
+        event_per_byte_cost: Zero::zero(),
+    };
+
+    static ref HYGGE_PRICES: PriceList = PriceList {
+        // START (Copied from SKYR_PRICES)
+
+        storage_gas_multiplier: 1300,
+
+        on_chain_message_compute_base: Gas::new(38863),
+        on_chain_message_storage_base: Gas::new(36),
+        on_chain_message_storage_per_byte: Gas::new(1),
+
+        on_chain_return_value_per_byte: Gas::new(1),
+
+        send_base: Gas::new(29233),
+        send_transfer_funds: Gas::new(27500),
+        send_transfer_only_premium: Gas::new(159672),
+        send_invoke_method: Gas::new(-5377),
+
+        create_actor_compute: Gas::new(1108454),
+        create_actor_storage: Gas::new(36 + 40),
+        delete_actor: Gas::new(-(36 + 40)),
+
+        bls_sig_cost: Gas::new(16598605),
+        secp256k1_sig_cost: Gas::new(1637292),
+        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
+
+        hashing_base: Gas::new(31355),
+        compute_unsealed_sector_cid_base: Gas::new(98647),
+        verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
+
+        verify_aggregate_seal_base: Zero::zero(),
+        verify_aggregate_seal_per: [
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P1,
+                Gas::new(449900)
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P1,
+                Gas::new(359272)
+            )
+        ].iter().copied().collect(),
+        verify_aggregate_seal_steps: [
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P1,
+                StepCost (
+                    vec![
+                        Step{start: 4, cost: Gas::new(103994170)},
+                        Step{start: 7, cost: Gas::new(112356810)},
+                        Step{start: 13, cost: Gas::new(122912610)},
+                        Step{start: 26, cost: Gas::new(137559930)},
+                        Step{start: 52, cost: Gas::new(162039100)},
+                        Step{start: 103, cost: Gas::new(210960780)},
+                        Step{start: 205, cost: Gas::new(318351180)},
+                        Step{start: 410, cost: Gas::new(528274980)},
+                    ]
+                )
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P1,
+                StepCost (
+                    vec![
+                        Step{start: 4, cost: Gas::new(102581240)},
+                        Step{start: 7, cost: Gas::new(110803030)},
+                        Step{start: 13, cost: Gas::new(120803700)},
+                        Step{start: 26, cost: Gas::new(134642130)},
+                        Step{start: 52, cost: Gas::new(157357890)},
+                        Step{start: 103, cost: Gas::new(203017690)},
+                        Step{start: 205, cost: Gas::new(304253590)},
+                        Step{start: 410, cost: Gas::new(509880640)},
+                    ]
+                )
+            )
+        ].iter()
+        .cloned()
+        .collect(),
+
+        verify_consensus_fault: Gas::new(495422),
+        verify_replica_update: Gas::new(36316136),
+        verify_post_lookup: [
+            (
+                RegisteredPoStProof::StackedDRGWindow512MiBV1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow32GiBV1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow64GiBV1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+        ]
+        .iter()
+        .copied()
+        .collect(),
+
+        get_randomness_base: Zero::zero(),
+        get_randomness_per_byte: Zero::zero(),
+
+        block_memcpy_per_byte_cost: Gas::from_milligas(500),
+
+        block_open_base: Gas::new(114617),
+        block_open_memret_per_byte_cost: Gas::new(10),
+
+        block_link_base: Gas::new(353640),
+        block_link_storage_per_byte_cost: Gas::new(1),
+
+        block_create_base: Zero::zero(),
+        block_create_memret_per_byte_cost: Gas::new(10),
+
+        block_read_base: Zero::zero(),
+        block_stat_base: Zero::zero(),
+
+        syscall_cost: Gas::new(14000),
+        extern_cost: Gas::new(21000),
+
+        wasm_rules: WasmGasPrices{
+            exec_instruction_cost: Gas::new(4),
+        },
+
+        // END (Copied from SKYR_PRICES)
+
+        // TODO GAS_PARAM
+        event_emit_base_cost: Zero::zero(),
+        // TODO GAS_PARAM
+        event_per_entry_cost: Zero::zero(),
+        // TODO GAS_PARAM
+        event_entry_index_cost: Zero::zero(),
+        // TODO GAS_PARAM
+        event_per_byte_cost: Zero::zero(),
     };
 }
 
@@ -414,6 +564,12 @@ pub struct PriceList {
 
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
+
+    // Event-related pricing factors.
+    pub(crate) event_emit_base_cost: Gas,
+    pub(crate) event_per_entry_cost: Gas,
+    pub(crate) event_entry_index_cost: Gas,
+    pub(crate) event_per_byte_cost: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -684,13 +840,35 @@ impl PriceList {
     pub fn on_block_stat(&self) -> GasCharge {
         GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
     }
+
+    #[inline]
+    pub fn on_actor_event(&self, evt: &ActorEvent) -> GasCharge {
+        let (mut indexed_entries, mut total_bytes) = (0, 0);
+        for evt in evt.entries.iter() {
+            indexed_entries += evt
+                .flags
+                .intersection(Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE)
+                .bits()
+                .count_ones();
+            total_bytes += evt.key.len() + evt.value.len();
+        }
+
+        GasCharge::new(
+            "OnActorEvent",
+            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len()),
+            (self.event_entry_index_cost * indexed_entries)
+                + (self.event_per_byte_cost * total_bytes),
+        )
+    }
 }
 
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
         NetworkVersion::V15 => &OH_SNAP_PRICES,
-        _ => &SKYR_PRICES,
+        NetworkVersion::V16 | NetworkVersion::V17 => &SKYR_PRICES,
+        NetworkVersion::V18 => &HYGGE_PRICES,
+        _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
 
