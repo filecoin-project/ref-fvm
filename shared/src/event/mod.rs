@@ -1,26 +1,63 @@
+use fvm_ipld_encoding::Cbor;
+use serde::{Deserialize, Serialize};
+use serde_tuple::*;
+
 use crate::ActorID;
 
-/// Represents an event emitted throughout message execution.
-struct Event {
+/// Event with extra information stamped by the FVM. This is the structure that gets committed
+/// on-chain via the receipt.
+#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
+pub struct StampedEvent {
     /// Carries the ID of the actor that emitted this event.
     emitter: ActorID,
-    /// Key values making up this event.
-    entries: Vec<Entry>,
+    /// The event as emitted by the actor.
+    event: ActorEvent,
+}
+
+impl Cbor for StampedEvent {}
+
+impl StampedEvent {
+    pub fn new(emitter: ActorID, event: ActorEvent) -> Self {
+        Self { emitter, event }
+    }
+}
+
+/// An event as originally emitted by the actor.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ActorEvent(Vec<Entry>);
+
+impl Cbor for ActorEvent {}
+
+impl From<Vec<Entry>> for ActorEvent {
+    fn from(entries: Vec<Entry>) -> Self {
+        Self(entries)
+    }
 }
 
 /// Flags associated with an Event entry.
-#[repr(transparent)]
-struct Flags(u8);
+#[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
+#[serde(transparent)]
+pub struct Flags(pub u8);
 
 /// Signals that an entry must be indexed.
 pub const FLAG_INDEXED: u8 = 0x01;
 
 /// A key value entry inside an Event.
-struct Entry {
+#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
+pub struct Entry {
     /// A bitmap conveying metadata or hints about this entry.
-    flags: Flags,
+    pub flags: Flags,
     /// The key of this event.
-    key: String,
+    pub key: String,
     /// Any DAG-CBOR encodeable type.
-    value: Vec<u8>,
+    pub value: Vec<u8>,
 }
+
+impl Cbor for Entry {}
+
+// TODO write macro
+// event!({
+//     "foo" | indexed1 | indexed2 => value1,
+//     "foo" => value2,
+//     "foo" => value3,
+// })
