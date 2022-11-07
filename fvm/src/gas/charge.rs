@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Cow;
+use std::sync::Arc;
 use std::time::Duration;
+
+use once_cell::sync::OnceCell;
 
 use super::Gas;
 
@@ -15,8 +18,8 @@ pub struct GasCharge {
     pub compute_gas: Gas,
     /// Storage costs
     pub storage_gas: Gas,
-    /// Execution time related to this charge, if measured.
-    pub elapsed: Option<Duration>,
+    /// Execution time related to this charge, if successfully measured.
+    pub elapsed: Arc<OnceCell<Duration>>,
 }
 
 impl GasCharge {
@@ -26,7 +29,7 @@ impl GasCharge {
             name,
             compute_gas,
             storage_gas,
-            elapsed: None,
+            elapsed: Default::default(),
         }
     }
 
