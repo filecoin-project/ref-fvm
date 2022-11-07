@@ -84,7 +84,7 @@ where
 
                 // Charge for including the result (before we end the transaction).
                 if let InvocationResult::Return(value) = &ret {
-                    cm.charge_gas(cm.context().price_list.on_chain_return_value(
+                    let _ = cm.charge_gas(cm.context().price_list.on_chain_return_value(
                         value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
                     ))?;
                 }

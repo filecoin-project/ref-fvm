@@ -29,7 +29,7 @@ use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
-use crate::gas::GasCharge;
+use crate::gas::{GasCharge, GasTimer};
 use crate::state_tree::ActorState;
 use crate::{syscall_error, EMPTY_ARR_CID};
 
@@ -125,9 +125,12 @@ where
         }
 
         if charge_gas {
-            self.call_manager
+            let _ = self
+                .call_manager
                 .charge_gas(self.call_manager.price_list().on_block_open_base())?;
         }
+
+        let start = GasTimer::start();
 
         let state_block = self
             .call_manager
@@ -140,11 +143,12 @@ where
             .or_fatal()?;
 
         if charge_gas {
-            self.call_manager.charge_gas(
+            let t = self.call_manager.charge_gas(
                 self.call_manager
                     .price_list()
                     .on_block_open_per_byte(state_block.len()),
             )?;
+            t.stop_with(start);
         }
 
         let state: crate::account_actor::State = from_slice(&state_block)
@@ -210,7 +214,8 @@ where
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
         // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_delete_actor())?;
 
         let balance = self.current_balance()?;
@@ -237,7 +242,11 @@ where
         // Delete the executing actor
         self.call_manager
             .state_tree_mut()
-            .delete_actor_id(self.actor_id)
+            .delete_actor_id(self.actor_id)?;
+
+        t.stop();
+
+        Ok(())
     }
 }
 
@@ -248,8 +257,11 @@ where
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         // TODO(M2): Check for reachability here.
 
-        self.call_manager
+        let _ = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
+
+        let start = GasTimer::start();
 
         let data = self
             .call_manager
@@ -266,7 +278,7 @@ where
 
         let block = Block::new(cid.codec(), data);
 
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_block_open_per_byte(block.size() as usize),
@@ -274,14 +286,16 @@ where
 
         let stat = block.stat();
         let id = self.blocks.put(block)?;
+        t.stop_with(start);
         Ok((id, stat))
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
-        Ok(self.blocks.put(Block::new(codec, data))?)
+        t.record(Ok(self.blocks.put(Block::new(codec, data))?))
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
@@ -293,7 +307,7 @@ where
         let code = multihash::Code::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
 
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_block_link(block.size() as usize),
@@ -311,10 +325,12 @@ where
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        t.stop();
         Ok(k)
     }
 
     fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+        let tstart = GasTimer::start();
         // First, find the end of the _logical_ buffer (taking the offset into account).
         // This must fit into an i32.
 
@@ -334,7 +350,8 @@ where
         let to_read = std::cmp::min(data.len().saturating_sub(start), buf.len());
 
         // We can now _charge_, because we actually know how many bytes we need to read.
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_read(to_read))?;
 
         // Copy into the output buffer, but only if were're reading. If to_read == 0, start may be
@@ -342,16 +359,17 @@ where
         if to_read != 0 {
             buf[..to_read].copy_from_slice(&data[start..(start + to_read)]);
         }
-
+        t.stop_with(tstart);
         // Returns the difference between the end of the block, and offset + buf.len()
         Ok((data.len() as i32) - end)
     }
 
     fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
-        Ok(self.blocks.stat(id)?)
+        t.record(Ok(self.blocks.stat(id)?))
     }
 }
 
@@ -448,7 +466,8 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
 
         // Resolve to key address before verifying signature.
@@ -456,9 +475,9 @@ where
 
         // Verify signature, catching errors. Signature verification can include some complicated
         // math.
-        catch_and_log_panic("verifying signature", || {
+        t.record(catch_and_log_panic("verifying signature", || {
             Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
-        })
+        }))
     }
 
     fn recover_secp_public_key(
@@ -466,18 +485,22 @@ where
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_recover_secp_public_key())?;
 
-        signature::ops::recover_secp_public_key(hash, signature)
-            .map(|pubkey| pubkey.serialize())
-            .map_err(|e| {
-                syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
-            })
+        t.record(
+            signature::ops::recover_secp_public_key(hash, signature)
+                .map(|pubkey| pubkey.serialize())
+                .map_err(|e| {
+                    syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
+                }),
+        )
     }
 
     fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
         let hasher = SupportedHashes::try_from(code).map_err(|e| {
@@ -487,7 +510,7 @@ where
                 syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
             }
         })?;
-        Ok(hasher.digest(data))
+        t.record(Ok(hasher.digest(data)))
     }
 
     fn compute_unsealed_sector_cid(
@@ -495,33 +518,37 @@ where
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_compute_unsealed_sector_cid(proof_type, pieces),
         )?;
 
-        catch_and_log_panic("computing unsealed sector CID", || {
+        t.record(catch_and_log_panic("computing unsealed sector CID", || {
             compute_unsealed_sector_cid(proof_type, pieces)
-        })
+        }))
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
     fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
 
         // It's probably _fine_ to just let these turn into fatal errors, but seal verification is
         // pretty self contained, so catching panics here probably doesn't hurt.
-        catch_and_log_panic("verifying seal", || verify_seal(vi))
+        t.record(catch_and_log_panic("verifying seal", || verify_seal(vi)))
     }
 
     fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
         // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
-        catch_and_log_panic("verifying post", || verify_post(verify_info))
+        t.record(catch_and_log_panic("verifying post", || {
+            verify_post(verify_info)
+        }))
     }
 
     fn verify_consensus_fault(
@@ -530,7 +557,8 @@ where
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
@@ -541,8 +569,10 @@ where
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
 
+        t.stop();
+
         if self.network_version() <= NetworkVersion::V15 {
-            self.call_manager.charge_gas(GasCharge::new(
+            let _ = self.call_manager.charge_gas(GasCharge::new(
                 "verify_consensus_fault_accesses",
                 Gas::new(gas),
                 Gas::zero(),
@@ -598,25 +628,25 @@ where
         &mut self,
         aggregate: &AggregateSealVerifyProofAndInfos,
     ) -> Result<bool> {
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_verify_aggregate_seals(aggregate),
         )?;
-        catch_and_log_panic("verifying aggregate seals", || {
+        t.record(catch_and_log_panic("verifying aggregate seals", || {
             verify_aggregate_seals(aggregate)
-        })
+        }))
     }
 
     fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_verify_replica_update(replica),
         )?;
-        catch_and_log_panic("verifying replica update", || {
+        t.record(catch_and_log_panic("verifying replica update", || {
             verify_replica_update(replica)
-        })
+        }))
     }
 }
 
@@ -632,7 +662,7 @@ where
         self.call_manager.gas_tracker().gas_available()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<GasTimer> {
         self.call_manager
             .gas_tracker_mut()
             .charge_gas(name, compute)
@@ -670,7 +700,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_get_randomness(entropy.len()),
@@ -678,10 +708,12 @@ where
 
         // TODO(M2): Check error code
         // Specifically, lookback length?
-        self.call_manager
-            .externs()
-            .get_chain_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+        t.record(
+            self.call_manager
+                .externs()
+                .get_chain_randomness(personalization, rand_epoch, entropy)
+                .or_illegal_argument(),
+        )
     }
 
     fn get_randomness_from_beacon(
@@ -690,7 +722,7 @@ where
         rand_epoch: ChainEpoch,
         entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.call_manager.charge_gas(
+        let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
                 .on_get_randomness(entropy.len()),
@@ -698,10 +730,12 @@ where
 
         // TODO(M2): Check error code
         // Specifically, lookback length?
-        self.call_manager
-            .externs()
-            .get_beacon_randomness(personalization, rand_epoch, entropy)
-            .or_illegal_argument()
+        t.record(
+            self.call_manager
+                .externs()
+                .get_beacon_randomness(personalization, rand_epoch, entropy)
+                .or_illegal_argument(),
+        )
     }
 }
 
@@ -767,7 +801,8 @@ where
             return Err(syscall_error!(Forbidden; "Actor address already exists").into());
         }
 
-        self.call_manager
+        let _ = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_create_actor())?;
 
         let state_tree = self.call_manager.state_tree_mut();
