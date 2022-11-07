@@ -351,7 +351,4 @@ pub trait LimiterOps {
     type Limiter: ResourceLimiter + ExecMemory;
     /// Give access to the limiter of the underlying call manager.
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
-
-    /// Gas price of expanding the Wasm memory.
-    fn memory_expansion_per_byte_cost(&self) -> Gas;
 }

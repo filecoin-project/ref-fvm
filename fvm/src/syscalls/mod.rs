@@ -69,8 +69,8 @@ pub fn update_gas_available(
 }
 
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.
-pub fn charge_for_exec(
-    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
+pub fn charge_for_exec<K: Kernel>(
+    ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
     let global = ctx.data_mut().avail_gas_global;
@@ -92,8 +92,12 @@ pub fn charge_for_exec(
     let data = ctx.data_mut();
 
     // Separate the amount of gas charged for memory and apply discount on first page.
-    // The separation of wasm_exec and wasm_memory is optional, it might be nice to have for statistics.
-    let memory_price = data.kernel.memory_expansion_per_byte_cost();
+    let memory_price = data
+        .kernel
+        .price_list()
+        .wasm_rules
+        .memory_expansion_per_byte_cost;
+
     let memory_bytes = data.kernel.limiter_mut().total_exec_memory_bytes();
     let memory_delta_bytes = memory_bytes - data.last_memory_bytes;
     let mut memory_gas = memory_price * memory_delta_bytes as i64;
@@ -107,6 +111,8 @@ pub fn charge_for_exec(
     }
 
     data.last_memory_bytes = memory_bytes;
+
+    // The separation of wasm_exec and wasm_memory is optional, it might be nice to have for statistics.
 
     data.kernel
         .charge_gas("wasm_exec", exec_gas)

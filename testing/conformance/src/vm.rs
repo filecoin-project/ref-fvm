@@ -697,10 +697,6 @@ where
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.0.limiter_mut()
     }
-
-    fn memory_expansion_per_byte_cost(&self) -> Gas {
-        self.0.memory_expansion_per_byte_cost()
-    }
 }
 
 /// Wrap a `ResourceLimiter` and collect statistics.
