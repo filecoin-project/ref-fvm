@@ -207,7 +207,11 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(DummyExterns, |nc| {
+            nc.max_exec_memory_bytes = 4 * (1 << 30) // Use 4GB memory.
+        })
+        .unwrap();
 
     let exec_test =
         |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
