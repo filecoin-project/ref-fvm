@@ -21,6 +21,8 @@ pub enum StateTreeVersion {
     V3,
     /// Corresponds to actors >= v5
     V4,
+    /// Corresponding to actors >= v10
+    V5,
 }
 
 /// State root information. Contains information about the version of the state tree,

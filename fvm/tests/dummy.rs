@@ -72,7 +72,7 @@ impl DummyMachine {
         let bs = MemoryBlockstore::new();
 
         // generate new state root
-        let mut state_tree = StateTree::new(bs, StateTreeVersion::V4)?;
+        let mut state_tree = StateTree::new(bs, StateTreeVersion::V5)?;
         let root = state_tree.flush()?;
         let bs = state_tree.into_store();
 
