@@ -36,7 +36,7 @@ fn hello_world() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -82,7 +82,7 @@ fn ipld() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -134,7 +134,7 @@ fn syscalls() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -186,7 +186,7 @@ fn native_stack_overflow() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -251,7 +251,7 @@ fn test_exitcode(wat: &str, code: ExitCode) {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -407,7 +407,7 @@ fn backtraces() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         blockstore.clone(),
     )
     .unwrap();
