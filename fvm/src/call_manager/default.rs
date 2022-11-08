@@ -13,7 +13,7 @@ use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
-use crate::machine::Machine;
+use crate::machine::{Engine, Machine};
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
@@ -399,7 +399,7 @@ where
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
-        let engine = self.engine().clone();
+        let engine: Engine = self.engine().clone();
 
         // Ensure that actor's code is loaded and cached in the engine.
         // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
