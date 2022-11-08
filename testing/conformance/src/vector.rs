@@ -80,6 +80,8 @@ impl Selector {
     pub fn supported(&self) -> bool {
         self.chaos_actor.as_deref() != Some("true")
             && self.consensus_fault.as_deref() != Some("true")
+            // Chocolate requires Network Version 14 which `TestMachine::import_actors` no longer loads.
+            && self.min_protocol_version.as_deref() != Some("chocolate")
     }
 }
 

@@ -45,7 +45,7 @@ pub fn bench_vector_variant(
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
                 // NOTE next few lines don't impact the benchmarks.
-                let machine = TestMachine::new_for_vector(vector, variant, bs, engines);
+                let machine = TestMachine::new_for_vector(vector, variant, bs, engines).unwrap();
                 // can assume this works because it passed a test before this ran
                 let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                 (messages_with_lengths.clone(), exec)
