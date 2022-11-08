@@ -7,6 +7,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use num_traits::Zero;
+use wasmtime::ResourceLimiter;
 
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
@@ -17,6 +18,7 @@ mod default;
 
 pub use default::DefaultMachine;
 
+pub mod limiter;
 mod manifest;
 
 pub use manifest::Manifest;
@@ -46,6 +48,7 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
+    type Limiter: ResourceLimiter;
 
     /// Returns the underlying WASM engine. Cloning it will simply create a new handle with a
     /// static lifetime.
@@ -89,6 +92,9 @@ pub trait Machine: 'static {
 
     /// Returns a generated ID of a machine
     fn machine_id(&self) -> &str;
+
+    /// Creates a new limiter to track the resources of a message execution.
+    fn new_limiter(&self) -> Self::Limiter;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
+use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
@@ -30,6 +31,7 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
+use wasmtime::ResourceLimiter;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -42,9 +44,34 @@ pub struct TestData {
     price_list: PriceList,
 }
 
+/// Statistics about the resources used by test vector executions.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TestStats {
+    pub min_desired_memory_bytes: usize,
+    pub max_desired_memory_bytes: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TestStatsGlobal {
+    /// Min/Max for the initial memory.
+    pub init: TestStats,
+    /// Min/Max of the overall memory.
+    pub exec: TestStats,
+}
+
+impl TestStatsGlobal {
+    pub fn new_ref() -> TestStatsRef {
+        Some(Arc::new(Mutex::new(Self::default())))
+    }
+}
+
+/// Global statistics about all test vector executions.
+pub type TestStatsRef = Option<Arc<Mutex<TestStatsGlobal>>>;
+
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
+    stats: TestStatsRef,
 }
 
 impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
@@ -53,6 +80,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         variant: &Variant,
         blockstore: MemoryBlockstore,
         engines: &MultiEngine,
+        stats: TestStatsRef,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
@@ -105,6 +133,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                     .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
                 price_list,
             },
+            stats,
         };
 
         Ok(machine)
@@ -129,6 +158,7 @@ where
 {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
+    type Limiter = TestLimiter<M::Limiter>;
 
     fn engine(&self) -> &Engine {
         self.machine.engine()
@@ -176,6 +206,14 @@ where
 
     fn machine_id(&self) -> &str {
         self.machine.machine_id()
+    }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        TestLimiter {
+            inner: self.machine.new_limiter(),
+            global_stats: self.stats.clone(),
+            local_stats: TestStats::default(),
+        }
     }
 }
 
@@ -295,7 +333,7 @@ where
         self.0.invocation_count()
     }
 
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
         self.0.limiter_mut()
     }
 }
@@ -703,5 +741,65 @@ where
 {
     fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
         self.0.limiter_mut()
+    }
+}
+
+/// Wrap a `ResourceLimiter` and collect statistics.
+pub struct TestLimiter<L> {
+    inner: L,
+    global_stats: TestStatsRef,
+    local_stats: TestStats,
+}
+
+impl<L> ResourceLimiter for TestLimiter<L>
+where
+    L: ResourceLimiter,
+{
+    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+        if self.local_stats.max_desired_memory_bytes < desired {
+            self.local_stats.max_desired_memory_bytes = desired;
+        }
+
+        if self.local_stats.min_desired_memory_bytes == 0 {
+            self.local_stats.min_desired_memory_bytes = desired;
+        }
+
+        self.inner.memory_growing(current, desired, maximum)
+    }
+
+    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
+        self.inner.table_growing(current, desired, maximum)
+    }
+}
+
+/// Store the minimum of the maximums of desired memories in the global stats.
+impl<L> Drop for TestLimiter<L> {
+    fn drop(&mut self) {
+        if let Some(ref stats) = self.global_stats {
+            if let Ok(mut stats) = stats.lock() {
+                let max_desired = self.local_stats.max_desired_memory_bytes;
+                let min_desired = self.local_stats.min_desired_memory_bytes;
+
+                if stats.exec.max_desired_memory_bytes < max_desired {
+                    stats.exec.max_desired_memory_bytes = max_desired;
+                }
+
+                if stats.exec.min_desired_memory_bytes == 0
+                    || stats.exec.min_desired_memory_bytes > max_desired
+                {
+                    stats.exec.min_desired_memory_bytes = max_desired;
+                }
+
+                if stats.init.max_desired_memory_bytes < min_desired {
+                    stats.init.max_desired_memory_bytes = min_desired;
+                }
+
+                if stats.init.min_desired_memory_bytes == 0
+                    || stats.init.min_desired_memory_bytes > min_desired
+                {
+                    stats.init.min_desired_memory_bytes = min_desired;
+                }
+            }
+        }
     }
 }

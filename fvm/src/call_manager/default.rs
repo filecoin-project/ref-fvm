@@ -8,7 +8,6 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::limiter::ExecResourceLimiter;
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
@@ -23,11 +22,11 @@ use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
-pub struct DefaultCallManager<M>(Option<Box<InnerDefaultCallManager<M>>>);
+pub struct DefaultCallManager<M: Machine>(Option<Box<InnerDefaultCallManager<M>>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct InnerDefaultCallManager<M> {
+pub struct InnerDefaultCallManager<M: Machine> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
@@ -50,11 +49,11 @@ pub struct InnerDefaultCallManager<M> {
     /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
     /// Limits on memory throughout the execution.
-    limits: ExecResourceLimiter,
+    limits: M::Limiter,
 }
 
 #[doc(hidden)]
-impl<M> std::ops::Deref for DefaultCallManager<M> {
+impl<M: Machine> std::ops::Deref for DefaultCallManager<M> {
     type Target = InnerDefaultCallManager<M>;
 
     fn deref(&self) -> &Self::Target {
@@ -63,7 +62,7 @@ impl<M> std::ops::Deref for DefaultCallManager<M> {
 }
 
 #[doc(hidden)]
-impl<M> std::ops::DerefMut for DefaultCallManager<M> {
+impl<M: Machine> std::ops::DerefMut for DefaultCallManager<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
@@ -82,7 +81,7 @@ where
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
-        let limits = ExecResourceLimiter::for_network(&machine.context().network);
+        let limits = machine.new_limiter();
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
 
         if machine.context().tracing {
@@ -103,7 +102,7 @@ where
         })))
     }
 
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
         &mut self.limits
     }
 
