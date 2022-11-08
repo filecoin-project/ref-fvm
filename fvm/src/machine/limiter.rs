@@ -3,9 +3,23 @@ use wasmtime::ResourceLimiter;
 use crate::machine::NetworkConfig;
 
 /// Execution level memory tracking and adjustment.
-pub trait ExecMemory {
-    /// Get a snapshot of the total memory required by the Wasm module so far.
-    fn total_exec_memory_bytes(&self) -> usize;
+pub trait ExecMemory
+where
+    Self: Sized,
+{
+    /// Get a snapshot of the total memory required by the modules on the call stack so far.
+    fn curr_exec_memory_bytes(&self) -> usize;
+
+    /// Push a new instance onto the call stack, and remember the current execution memory
+    /// so we can restore it later with `pop_call_stack`. Each call to `push_call_stack`
+    /// _must_ be paired with an eventual `pop_call_stack`.
+    fn push_call_stack(&mut self);
+
+    /// Pop the last instance from the call stack, restoring the current execution memory
+    /// to the value it was before we entered the last call.
+    ///
+    /// Panics if we're trying to pop more than we pushed.
+    fn pop_call_stack(&mut self);
 }
 
 /// Limit resources throughout the whole message execution,
@@ -15,10 +29,10 @@ pub struct ExecResourceLimiter {
     max_inst_memory_bytes: usize,
     /// Maximum bytes that can be used during an execution, in total.
     max_exec_memory_bytes: usize,
-    /// Total bytes desired so far in the whole execution.
-    /// This is a constraint for all stores created with the
-    /// same call manager.
-    total_exec_memory_bytes: usize,
+    /// Total bytes desired so far by all the instances including the currently executing instance on the call stack.
+    curr_exec_memory_bytes: usize,
+    /// Total bytes desired up to the previous instances in the call stack.
+    prev_exec_memory_bytes: Vec<usize>,
 }
 
 impl ExecResourceLimiter {
@@ -26,7 +40,8 @@ impl ExecResourceLimiter {
         Self {
             max_inst_memory_bytes,
             max_exec_memory_bytes,
-            total_exec_memory_bytes: 0,
+            curr_exec_memory_bytes: 0,
+            prev_exec_memory_bytes: Vec::new(),
         }
     }
 
@@ -45,14 +60,13 @@ impl ResourceLimiter for ExecResourceLimiter {
         }
 
         let delta_desired = desired - current;
-        let total_desired = self.total_exec_memory_bytes + delta_desired;
+        let total_desired = self.curr_exec_memory_bytes + delta_desired;
 
         if total_desired > min(self.max_exec_memory_bytes, maximum) {
             return false;
         }
 
-        self.total_exec_memory_bytes = total_desired;
-
+        self.curr_exec_memory_bytes = total_desired;
         true
     }
 
@@ -63,8 +77,34 @@ impl ResourceLimiter for ExecResourceLimiter {
 }
 
 impl ExecMemory for ExecResourceLimiter {
-    fn total_exec_memory_bytes(&self) -> usize {
-        self.total_exec_memory_bytes
+    fn curr_exec_memory_bytes(&self) -> usize {
+        self.curr_exec_memory_bytes
+    }
+
+    fn push_call_stack(&mut self) {
+        // Remember the current memory high watermark, so we can return to it
+        // when the current call frame is finished.
+        self.prev_exec_memory_bytes
+            .push(self.curr_exec_memory_bytes);
+    }
+
+    fn pop_call_stack(&mut self) {
+        self.curr_exec_memory_bytes = self
+            .prev_exec_memory_bytes
+            .pop()
+            .expect("There is no previous memory on the stack!");
+    }
+}
+
+/// Sanity check that we're using push/pop correctly.
+impl Drop for ExecResourceLimiter {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            assert!(
+                self.prev_exec_memory_bytes.is_empty(),
+                "Memory call stack isn't popped!"
+            )
+        }
     }
 }
 
@@ -77,19 +117,34 @@ mod tests {
     use wasmtime::ResourceLimiter;
 
     use super::ExecResourceLimiter;
+    use crate::machine::limiter::ExecMemory;
 
     #[test]
     fn basics() {
         let mut limits = ExecResourceLimiter::new(4, 10);
         assert!(limits.memory_growing(0, 3, None));
-        assert!(!limits.memory_growing(3, 4, Some(2)));
-        assert!(limits.memory_growing(3, 4, None));
-        assert!(!limits.memory_growing(4, 5, None));
-        assert!(limits.memory_growing(0, 4, None));
-        assert!(!limits.memory_growing(0, 3, None));
-        assert!(limits.memory_growing(0, 2, None));
-        assert!(!limits.memory_growing(0, 2, None));
+        assert!(!limits.memory_growing(3, 4, Some(2))); // The maximum in the args takes precedence.
+        assert!(limits.memory_growing(3, 4, None)); // Ok, just at instance limit.
+        assert!(!limits.memory_growing(4, 5, None)); // Fail, over instance limit.
+        {
+            limits.push_call_stack(); // New instance.
+            assert!(limits.memory_growing(0, 4, None)); // Ok, within instance limit.
+            {
+                limits.push_call_stack();
+                assert!(!limits.memory_growing(0, 3, None)); // Fail, 4+4+3 would be over the call stack limit of 10.
+                assert!(limits.memory_growing(0, 2, None)); // Ok, just at the call stack limit (although we should used a seen a push as well.)
+                assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4 + 2);
+                limits.pop_call_stack();
+            }
+            assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4);
+            limits.pop_call_stack();
+        }
+        assert_eq!(limits.curr_exec_memory_bytes(), 4);
+    }
 
+    #[test]
+    fn table() {
+        let mut limits = ExecResourceLimiter::new(1, 1);
         assert!(limits.table_growing(0, 100, None));
         assert!(!limits.table_growing(0, 100, Some(10)));
     }

@@ -763,7 +763,15 @@ impl<L> ExecMemory for TestLimiter<L>
 where
     L: ExecMemory,
 {
-    fn total_exec_memory_bytes(&self) -> usize {
-        self.inner.total_exec_memory_bytes()
+    fn curr_exec_memory_bytes(&self) -> usize {
+        self.inner.curr_exec_memory_bytes()
+    }
+
+    fn push_call_stack(&mut self) {
+        self.inner.push_call_stack()
+    }
+
+    fn pop_call_stack(&mut self) {
+        self.inner.pop_call_stack()
     }
 }

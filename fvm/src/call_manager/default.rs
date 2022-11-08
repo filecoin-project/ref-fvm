@@ -13,6 +13,7 @@ use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
+use crate::machine::limiter::ExecMemory;
 use crate::machine::{Engine, Machine};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
@@ -142,9 +143,9 @@ where
             }
             return Err(sys_err.into());
         }
-        self.call_stack_depth += 1;
+        self.push_call_stack();
         let result = self.send_unchecked::<K>(from, to, method, params, value);
-        self.call_stack_depth -= 1;
+        self.pop_call_stack();
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -508,5 +509,16 @@ where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
+    }
+
+    fn push_call_stack(&mut self) {
+        self.call_stack_depth += 1;
+        self.limiter_mut().push_call_stack();
+    }
+
+    fn pop_call_stack(&mut self) {
+        assert_ne!(self.call_stack_depth, 0);
+        self.limiter_mut().pop_call_stack();
+        self.call_stack_depth -= 1;
     }
 }
