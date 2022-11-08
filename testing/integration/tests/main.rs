@@ -226,6 +226,8 @@ fn native_stack_overflow() {
                 .execute_message(message, ApplyKind::Explicit, 100)
                 .unwrap();
 
+            eprintln!("STACKOVERFLOW RESULT = {:?}", res);
+
             res.msg_receipt.exit_code.value()
         };
 
