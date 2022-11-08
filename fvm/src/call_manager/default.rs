@@ -8,6 +8,7 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
+use super::limiter::ExecResourceLimiter;
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
@@ -48,6 +49,8 @@ pub struct InnerDefaultCallManager<M> {
     exec_trace: ExecutionTrace,
     /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
+    /// Limits on memory throughout the execution.
+    limits: ExecResourceLimiter,
 }
 
 #[doc(hidden)]
@@ -79,10 +82,13 @@ where
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
+        let limits = ExecResourceLimiter::for_network(&machine.context().network);
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
+
         if machine.context().tracing {
             gas_tracker.enable_tracing()
         }
+
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker,
@@ -93,7 +99,12 @@ where
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
+            limits,
         })))
+    }
+
+    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+        &mut self.limits
     }
 
     fn send<K>(

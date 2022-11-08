@@ -109,8 +109,13 @@ pub struct NetworkConfig {
 
     /// Maximum size of memory of any Wasm instance, ie. each level of the recursion, in bytes.
     ///
-    /// DEFAULT: 4GB
+    /// DEFAULT: 512MiB
     pub max_inst_memory_bytes: u64,
+
+    /// Maximum size of memory used during the entire (recursive) message execution.
+    ///
+    /// DEFAULT: 512MiB
+    pub max_exec_memory_bytes: u64,
 
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
     /// "manifest".
@@ -139,7 +144,8 @@ impl NetworkConfig {
             network_version,
             max_call_depth: 1024,
             max_wasm_stack: 2048,
-            max_inst_memory_bytes: 4 * (1 << 30),
+            max_inst_memory_bytes: 512 * (1 << 20),
+            max_exec_memory_bytes: 512 * (1 << 20),
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),

@@ -453,13 +453,13 @@ impl Engine {
             memory: self.0.dummy_memory,
         };
 
-        //        todo!("Configure resource limiter");
-
         let mut store = wasmtime::Store::new(&self.0.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
         let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
+
+        store.limiter(|id| id.kernel.limiter_mut());
 
         store
     }
