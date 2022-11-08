@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
+use std::num::NonZeroU64;
 
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
@@ -144,6 +145,7 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Zero::zero(),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
     };
 
@@ -270,7 +272,9 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
+
     };
 }
 
@@ -419,6 +423,8 @@ pub struct PriceList {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WasmGasPrices {
     pub(crate) exec_instruction_cost: Gas,
+    /// Gas cost for every byte made writeable in Wasm memory.
+    pub(crate) memory_expansion_per_byte_cost: Gas,
 }
 
 impl PriceList {
@@ -719,6 +725,15 @@ impl Rules for WasmGasPrices {
     }
 
     fn memory_grow_cost(&self) -> MemoryGrowCost {
-        MemoryGrowCost::Free
+        if self.memory_expansion_per_byte_cost.is_zero() {
+            MemoryGrowCost::Free
+        } else {
+            let milligas_per_page = self.memory_expansion_per_byte_cost.as_milligas() as u64
+                * wasmtime_environ::WASM_PAGE_SIZE as u64;
+
+            MemoryGrowCost::Linear(
+                NonZeroU64::new(milligas_per_page).expect("Price should be positive."),
+            )
+        }
     }
 }

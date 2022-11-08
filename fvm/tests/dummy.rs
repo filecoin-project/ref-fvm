@@ -6,6 +6,7 @@ use anyhow::Context;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
+use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
@@ -18,7 +19,7 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use multihash::Code;
-use wasmtime::StoreLimits;
+use wasmtime::ResourceLimiter;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
 
@@ -56,6 +57,28 @@ impl Consensus for DummyExterns {
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
         // consensus is always valid for tests :)
         anyhow::Result::Ok((None, 0))
+    }
+}
+
+#[derive(Default)]
+pub struct DummyLimiter {
+    total_exec_memory_bytes: usize,
+}
+
+impl ResourceLimiter for DummyLimiter {
+    fn memory_growing(&mut self, current: usize, desired: usize, _maximum: Option<usize>) -> bool {
+        self.total_exec_memory_bytes += desired - current;
+        true
+    }
+
+    fn table_growing(&mut self, _current: u32, _desired: u32, _maximum: Option<u32>) -> bool {
+        true
+    }
+}
+
+impl ExecMemory for DummyLimiter {
+    fn total_exec_memory_bytes(&self) -> usize {
+        self.total_exec_memory_bytes
     }
 }
 
@@ -109,7 +132,7 @@ impl DummyMachine {
 impl Machine for DummyMachine {
     type Blockstore = MemoryBlockstore;
     type Externs = DummyExterns;
-    type Limiter = StoreLimits;
+    type Limiter = DummyLimiter;
 
     fn engine(&self) -> &Engine {
         &self.engine
@@ -165,7 +188,7 @@ impl Machine for DummyMachine {
     }
 
     fn new_limiter(&self) -> Self::Limiter {
-        StoreLimits::default()
+        DummyLimiter::default()
     }
 }
 
@@ -176,7 +199,7 @@ pub struct DummyCallManager {
     pub origin: ActorID,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
-    limits: StoreLimits,
+    limits: DummyLimiter,
 }
 
 /// Information to be read by external tests
@@ -197,7 +220,7 @@ impl DummyCallManager {
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
-                limits: StoreLimits::default(),
+                limits: DummyLimiter::default(),
             },
             cell_ref,
         )
@@ -215,7 +238,7 @@ impl DummyCallManager {
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
-                limits: StoreLimits::default(),
+                limits: DummyLimiter::default(),
             },
             cell_ref,
         )

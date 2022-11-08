@@ -76,6 +76,6 @@ impl<M: Machine> Machine for Box<M> {
 
     #[inline(always)]
     fn new_limiter(&self) -> Self::Limiter {
-        (&**self).new_limiter()
+        (**self).new_limiter()
     }
 }

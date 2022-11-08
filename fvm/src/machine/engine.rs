@@ -16,6 +16,7 @@ use wasmtime::{
 };
 
 use super::Machine;
+use super::limiter::ExecMemory;
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, InvocationData};
@@ -444,12 +445,16 @@ impl Engine {
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
+    pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
+        let memory_bytes = kernel.limiter_mut().total_exec_memory_bytes();
+
         let id = InvocationData {
             kernel,
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
             last_milligas_available: 0,
+            start_memory_bytes: memory_bytes,
+            last_memory_bytes: memory_bytes,
             memory: self.0.dummy_memory,
         };
 

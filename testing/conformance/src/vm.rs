@@ -8,6 +8,7 @@ use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
+use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{
     DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
@@ -739,7 +740,9 @@ impl<K> LimiterOps for TestKernel<K>
 where
     K: LimiterOps,
 {
-    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+    type Limiter = K::Limiter;
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.0.limiter_mut()
     }
 }
@@ -801,5 +804,14 @@ impl<L> Drop for TestLimiter<L> {
                 }
             }
         }
+    }
+}
+
+impl<L> ExecMemory for TestLimiter<L>
+where
+    L: ExecMemory,
+{
+    fn total_exec_memory_bytes(&self) -> usize {
+        self.inner.total_exec_memory_bytes()
     }
 }
