@@ -861,7 +861,9 @@ impl<C> LimiterOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter {
+    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.call_manager.limiter_mut()
     }
 }

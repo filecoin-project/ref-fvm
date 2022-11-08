@@ -1,10 +1,12 @@
 use std::mem;
 
 use anyhow::{anyhow, Context as _};
+use num_traits::Zero;
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
 use crate::call_manager::backtrace;
 use crate::gas::Gas;
+use crate::machine::limiter::ExecMemory;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -41,6 +43,12 @@ pub struct InvocationData<K> {
     /// `last_milligas_available`.
     pub last_milligas_available: i64,
 
+    /// The total size of the memory used by the execution at the beginning of this call.
+    pub start_memory_bytes: usize,
+
+    /// The total size of the memory used by the execution the last time we charged gas for it.
+    pub last_memory_bytes: usize,
+
     /// The invocation's imported "memory".
     pub memory: Memory,
 }
@@ -61,8 +69,8 @@ pub fn update_gas_available(
 }
 
 /// Updates the FVM-side gas tracker with newly accrued execution gas charges.
-pub fn charge_for_exec(
-    ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
+pub fn charge_for_exec<K: Kernel>(
+    ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
     let global = ctx.data_mut().avail_gas_global;
@@ -74,17 +82,47 @@ pub fn charge_for_exec(
         .map_err(Abort::Fatal)?;
 
     // Determine milligas used, and update the gas tracker.
-    let milligas_used = {
+    let mut exec_gas = {
         let data = ctx.data_mut();
         let last_milligas = mem::replace(&mut data.last_milligas_available, milligas_available);
         // This should never be negative, but we might as well check.
-        last_milligas.saturating_sub(milligas_available)
+        Gas::from_milligas(last_milligas.saturating_sub(milligas_available))
     };
 
-    ctx.data_mut()
+    let data = ctx.data_mut();
+
+    // Separate the amount of gas charged for memory and apply discount on first page.
+    let memory_price = data
         .kernel
-        .charge_gas("wasm_exec", Gas::from_milligas(milligas_used))
+        .price_list()
+        .wasm_rules
+        .memory_expansion_per_byte_cost;
+
+    let memory_bytes = data.kernel.limiter_mut().total_exec_memory_bytes();
+    let memory_delta_bytes = memory_bytes - data.last_memory_bytes;
+    let mut memory_gas = memory_price * memory_delta_bytes as i64;
+    exec_gas = (exec_gas - memory_gas).max(Gas::zero());
+
+    // The memory grows by at least one page, so if we're haven't yet charged for any memory,
+    // then this is the time to apply the first-page discount.
+    if data.last_memory_bytes == data.start_memory_bytes && memory_bytes > data.start_memory_bytes {
+        let free_memory_gas = memory_price * wasmtime_environ::WASM_PAGE_SIZE as i64;
+        memory_gas = (memory_gas - free_memory_gas).max(Gas::zero());
+    }
+
+    data.last_memory_bytes = memory_bytes;
+
+    // The separation of wasm_exec and wasm_memory is optional, it might be nice to have for statistics.
+
+    data.kernel
+        .charge_gas("wasm_exec", exec_gas)
         .map_err(Abort::from_error_as_fatal)?;
+
+    if !memory_gas.is_zero() {
+        data.kernel
+            .charge_gas("wasm_memory", memory_gas)
+            .map_err(Abort::from_error_as_fatal)?;
+    }
 
     Ok(())
 }

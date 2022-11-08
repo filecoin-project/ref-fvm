@@ -404,6 +404,7 @@ where
                     .get_memory(&mut store, "memory")
                     .context("actor has no memory export")
                     .map_err(Abort::Fatal)?;
+
                 store.data_mut().memory = memory;
 
                 // Lookup the invoke method.
@@ -421,8 +422,7 @@ where
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
-                // Charge for any remaining uncharged execution gas, returning an error if we run
-                // out.
+                // Charge for any remaining uncharged execution gas, returning an error if we run out.
                 charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already

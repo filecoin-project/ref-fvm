@@ -2,6 +2,12 @@ use wasmtime::ResourceLimiter;
 
 use crate::machine::NetworkConfig;
 
+/// Execution level memory tracking and adjustment.
+pub trait ExecMemory {
+    /// Get a snapshot of the total memory required by the Wasm module so far.
+    fn total_exec_memory_bytes(&self) -> usize;
+}
+
 /// Limit resources throughout the whole message execution,
 /// across all Wasm instances.
 pub struct ExecResourceLimiter {
@@ -38,19 +44,27 @@ impl ResourceLimiter for ExecResourceLimiter {
             return false;
         }
 
-        let total_desired = self.total_exec_memory_bytes + (desired - current);
+        let delta_desired = desired - current;
+        let total_desired = self.total_exec_memory_bytes + delta_desired;
 
         if total_desired > min(self.max_exec_memory_bytes, maximum) {
             return false;
         }
 
         self.total_exec_memory_bytes = total_desired;
+
         true
     }
 
     /// No limit on table elements.
     fn table_growing(&mut self, _current: u32, desired: u32, maximum: Option<u32>) -> bool {
         maximum.map_or(true, |m| desired <= m)
+    }
+}
+
+impl ExecMemory for ExecResourceLimiter {
+    fn total_exec_memory_bytes(&self) -> usize {
+        self.total_exec_memory_bytes
     }
 }
 
