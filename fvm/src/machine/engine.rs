@@ -84,7 +84,7 @@ pub fn default_wasmtime_config(
 ) -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
 
-    // wasmtime default: OnDeand
+    // wasmtime default: OnDemand
     // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
     c.allocation_strategy(InstanceAllocationStrategy::Pooling {
         strategy: PoolingAllocationStrategy::ReuseAffinity,
