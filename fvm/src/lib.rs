@@ -104,7 +104,7 @@ mod test {
     #[test]
     fn test_constructor() {
         let mut bs = MemoryBlockstore::default();
-        let mut st = StateTree::new(bs, StateTreeVersion::V4).unwrap();
+        let mut st = StateTree::new(bs, StateTreeVersion::V5).unwrap();
         let root = st.flush().unwrap();
         bs = st.into_store();
 
