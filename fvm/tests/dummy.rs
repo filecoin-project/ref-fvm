@@ -15,6 +15,7 @@ use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use multihash::Code;
+use wasmtime::StoreLimits;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
@@ -168,6 +169,7 @@ pub struct DummyCallManager {
     pub origin: Address,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
+    limits: StoreLimits,
 }
 
 /// Information to be read by external tests
@@ -188,6 +190,7 @@ impl DummyCallManager {
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
+                limits: StoreLimits::default(),
             },
             cell_ref,
         )
@@ -205,6 +208,7 @@ impl DummyCallManager {
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
+                limits: StoreLimits::default(),
             },
             cell_ref,
         )
@@ -224,6 +228,7 @@ impl CallManager for DummyCallManager {
             origin,
             nonce,
             test_data: rc,
+            limits: StoreLimits::default(),
         }
     }
 
@@ -296,5 +301,9 @@ impl CallManager for DummyCallManager {
 
     fn invocation_count(&self) -> u64 {
         todo!()
+    }
+
+    fn limiter_mut(&mut self) -> &mut dyn wasmtime::ResourceLimiter {
+        &mut self.limits
     }
 }

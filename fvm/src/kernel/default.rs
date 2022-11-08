@@ -857,6 +857,15 @@ where
     }
 }
 
+impl<C> LimiterOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn limiter_mut(&mut self) -> &mut dyn ResourceLimiter {
+        self.call_manager.limiter_mut()
+    }
+}
+
 fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
     match panic::catch_unwind(f) {
         Ok(v) => v,
