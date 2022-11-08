@@ -16,7 +16,7 @@ fn basic_address_tests() {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
-        StateTreeVersion::V4,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();

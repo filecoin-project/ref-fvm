@@ -31,7 +31,7 @@ pub fn main() {
     let bs = MemoryBlockstore::default();
     let bundle_root = bundle::import_bundle(&bs, actors_v10::BUNDLE_CAR).unwrap();
     let mut tester =
-        Tester::new(NetworkVersion::V18, StateTreeVersion::V4, bundle_root, bs).unwrap();
+        Tester::new(NetworkVersion::V18, StateTreeVersion::V5, bundle_root, bs).unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
