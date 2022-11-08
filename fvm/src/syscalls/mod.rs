@@ -116,16 +116,17 @@ pub fn charge_for_exec<K: Kernel>(
 /// only charges for growing the memory _beyond_ the initial amount. It's up to us to make sure
 /// the minimum memory is properly charged for.
 pub fn charge_for_init<K: Kernel>(
-    store: &mut wasmtime::Store<InvocationData<K>>,
+    ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
     module: &Module,
 ) -> crate::kernel::Result<()> {
     let min_memory_bytes = min_memory_bytes(module)?;
-    let kernel = &mut store.data_mut().kernel;
+    let mut ctx = ctx.as_context_mut();
+    let kernel = &mut ctx.data_mut().kernel;
     let charge = kernel.price_list().init_memory_gas(min_memory_bytes);
     kernel.charge_gas("wasm_memory_init", charge)?;
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
-    store.data_mut().last_memory_bytes += min_memory_bytes;
+    ctx.data_mut().last_memory_bytes += min_memory_bytes;
 
     Ok(())
 }
