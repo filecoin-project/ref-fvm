@@ -855,9 +855,9 @@ impl PriceList {
 
         GasCharge::new(
             "OnActorEvent",
-            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len()),
-            (self.event_entry_index_cost * indexed_entries)
-                + (self.event_per_byte_cost * total_bytes),
+            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len() as i64),
+            (self.event_entry_index_cost * indexed_entries as i64)
+                + (self.event_per_byte_cost * total_bytes as i64),
         )
     }
 }
