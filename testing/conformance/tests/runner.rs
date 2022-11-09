@@ -17,7 +17,7 @@ use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::{MessageVector, Selector};
-use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef};
+use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef, TestTraceFun, TestTracesRef};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -51,7 +51,7 @@ lazy_static! {
 
 lazy_static! {
     /// By default a post-condition error is fatal and stops all testing. We can use this env var to relax that
-    /// and let the test carry on (optionally with a warning); there's a correctness check agains the post condition anyway.
+    /// and let the test carry on (optionally with a warning); there's a correctness check against the post condition anyway.
     static ref TEST_VECTOR_POSTCONDITION_MISSING_ACTION: ErrorAction = std::env::var_os("TEST_VECTOR_POSTCONDITION_MISSING_ACTION")
         .map(|s| {
             let s = s.to_str().unwrap();
@@ -68,12 +68,14 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
     let stats = TestStatsGlobal::new_ref();
+    let traces: TestTracesRef = Some(Default::default());
 
     let vector_results = if path.is_file() {
         let stats = stats.clone();
+        let traces = traces.clone();
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines, stats)
+                let res = run_vector(path.clone(), engines, stats, traces)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -88,9 +90,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .map(|e| {
                     let engines = engines.clone();
                     let stats = stats.clone();
+                    let traces = traces.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engines, stats)
+                        let res = run_vector(path.clone(), engines, stats, traces)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -168,6 +171,21 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         );
     }
 
+    if let Some(ref traces) = traces {
+        let traces = traces.lock().unwrap();
+
+        let cnt: usize = traces
+            .iter()
+            .map(|(_, ts)| ts.iter().map(|mt| mt.exec_trace.len()).sum::<usize>())
+            .sum();
+
+        println!(
+            "collected {} traces across {} test variants",
+            cnt,
+            traces.len()
+        );
+    }
+
     if failed > 0 {
         Err(anyhow!("some vectors failed"))
     } else {
@@ -181,6 +199,7 @@ async fn run_vector(
     path: PathBuf,
     engines: MultiEngine,
     stats: TestStatsRef,
+    traces: TestTracesRef,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -265,6 +284,7 @@ async fn run_vector(
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         let stats = stats.clone();
+                        let traces = traces.clone();
                         futures::future::Either::Right(
                             task::Builder::new()
                                 .name(name.clone())
@@ -276,6 +296,13 @@ async fn run_vector(
                                         &engines,
                                         true,
                                         stats,
+                                        traces.map(|traces| {
+                                            let key = name.clone();
+                                            let ins: TestTraceFun = Box::new(move |msg_traces| {
+                                                traces.lock().unwrap().insert(key, msg_traces);
+                                            });
+                                            ins
+                                        }),
                                     )
                                     .with_context(|| format!("failed to run {name}"))
                                 })

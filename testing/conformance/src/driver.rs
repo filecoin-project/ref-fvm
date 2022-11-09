@@ -1,4 +1,5 @@
 use std::fmt;
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -19,7 +20,7 @@ use regex::Regex;
 use walkdir::DirEntry;
 
 use crate::vector::{MessageVector, Variant};
-use crate::vm::{TestKernel, TestMachine, TestStatsRef};
+use crate::vm::{TestKernel, TestMachine, TestMessageTrace, TestStatsRef, TestTraceFun};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
@@ -193,12 +194,14 @@ pub fn run_variant(
     engines: &MultiEngine,
     check_correctness: bool,
     stats: TestStatsRef,
+    trace: Option<TestTraceFun>,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats)?;
+    let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats, trace.is_some())?;
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
+    let mut traces = Vec::new();
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
@@ -211,6 +214,7 @@ pub fn run_variant(
             raw_length += SECP_SIG_LEN + 4;
         }
 
+        let start = Instant::now();
         let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
@@ -223,6 +227,19 @@ pub fn run_variant(
                 return Ok(VariantResult::Failed { id, reason: err });
             }
         }
+
+        if trace.is_some() {
+            let trace = TestMessageTrace {
+                gas_burned: ret.gas_burned,
+                elapsed: start.elapsed(),
+                exec_trace: ret.exec_trace,
+            };
+            traces.push(trace);
+        }
+    }
+
+    if let Some(f) = trace {
+        f(traces);
     }
 
     // Flush the machine, obtain the blockstore, and compare the

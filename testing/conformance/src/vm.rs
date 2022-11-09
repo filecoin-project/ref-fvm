@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use cid::Cid;
@@ -13,6 +14,7 @@ use fvm::machine::{
     DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::trace::ExecutionTrace;
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car_unchecked;
@@ -69,6 +71,22 @@ impl TestStatsGlobal {
 /// Global statistics about all test vector executions.
 pub type TestStatsRef = Option<Arc<Mutex<TestStatsGlobal>>>;
 
+/// Global collection of execution traces.
+pub type TestTracesRef = Option<Arc<Mutex<TestTraces>>>;
+
+/// Clojure to be passed to runner that inserts into the map of traces.
+pub type TestTraceFun = Box<dyn FnOnce(Vec<TestMessageTrace>)>;
+
+/// Message traces keyed by variant name (assumed to be unique).
+pub type TestTraces = BTreeMap<String, Vec<TestMessageTrace>>;
+
+/// Traces of a single message inside a variant.
+pub struct TestMessageTrace {
+    pub gas_burned: i64,
+    pub elapsed: Duration,
+    pub exec_trace: ExecutionTrace,
+}
+
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
@@ -82,6 +100,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         blockstore: MemoryBlockstore,
         engines: &MultiEngine,
         stats: TestStatsRef,
+        tracing: bool,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
@@ -108,6 +127,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, state_root);
         mc.set_base_fee(base_fee);
+        mc.tracing = tracing;
 
         let engine = engines.get(&mc.network).map_err(|e| anyhow!(e))?;
 
