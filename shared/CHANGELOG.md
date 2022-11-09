@@ -2,6 +2,10 @@
 
 ## 3.0.0-alpha.9 [UNRELEASED]
 
+## 3.0.0-alpha.9 [2022-11-08]
+
+- Add support for state-tree v5.
+
 ## 3.0.0-alpha.8 [2022-10-22]
 
 - fix compile issues with f4-as-account feature.
