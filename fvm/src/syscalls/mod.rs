@@ -98,7 +98,7 @@ pub fn charge_for_exec<K: Kernel>(
         .wasm_rules
         .memory_expansion_per_byte_cost;
 
-    let memory_bytes = data.kernel.limiter_mut().total_exec_memory_bytes();
+    let memory_bytes = data.kernel.limiter_mut().curr_exec_memory_bytes();
     let memory_delta_bytes = memory_bytes - data.last_memory_bytes;
     let mut memory_gas = memory_price * memory_delta_bytes as i64;
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());

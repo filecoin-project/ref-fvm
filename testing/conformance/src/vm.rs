@@ -811,7 +811,15 @@ impl<L> ExecMemory for TestLimiter<L>
 where
     L: ExecMemory,
 {
-    fn total_exec_memory_bytes(&self) -> usize {
-        self.inner.total_exec_memory_bytes()
+    fn curr_exec_memory_bytes(&self) -> usize {
+        self.inner.curr_exec_memory_bytes()
+    }
+
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        L::with_stack_frame(t, |t| &mut g(t).inner, f)
     }
 }
