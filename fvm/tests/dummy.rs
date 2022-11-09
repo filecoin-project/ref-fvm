@@ -59,12 +59,12 @@ impl Consensus for DummyExterns {
 
 #[derive(Default)]
 pub struct DummyLimiter {
-    total_exec_memory_bytes: usize,
+    curr_exec_memory_bytes: usize,
 }
 
 impl ResourceLimiter for DummyLimiter {
     fn memory_growing(&mut self, current: usize, desired: usize, _maximum: Option<usize>) -> bool {
-        self.total_exec_memory_bytes += desired - current;
+        self.curr_exec_memory_bytes += desired - current;
         true
     }
 
@@ -74,8 +74,19 @@ impl ResourceLimiter for DummyLimiter {
 }
 
 impl ExecMemory for DummyLimiter {
-    fn total_exec_memory_bytes(&self) -> usize {
-        self.total_exec_memory_bytes
+    fn curr_exec_memory_bytes(&self) -> usize {
+        self.curr_exec_memory_bytes
+    }
+
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        let memory_bytes = g(t).curr_exec_memory_bytes;
+        let ret = f(t);
+        g(t).curr_exec_memory_bytes = memory_bytes;
+        ret
     }
 }
 
