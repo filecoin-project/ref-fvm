@@ -10,16 +10,12 @@ where
     /// Get a snapshot of the total memory required by the modules on the call stack so far.
     fn curr_exec_memory_bytes(&self) -> usize;
 
-    /// Push a new instance onto the call stack, and remember the current execution memory
-    /// so we can restore it later with `pop_call_stack`. Each call to `push_call_stack`
-    /// _must_ be paired with an eventual `pop_call_stack`.
-    fn push_call_stack(&mut self);
-
-    /// Pop the last instance from the call stack, restoring the current execution memory
-    /// to the value it was before we entered the last call.
-    ///
-    /// Panics if we're trying to pop more than we pushed.
-    fn pop_call_stack(&mut self);
+    /// Push a new frame onto the call stack, and keep tallying up the current execution memory,
+    /// then restore it to the current value when the frame is finished.
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R;
 }
 
 /// Limit resources throughout the whole message execution,
@@ -31,8 +27,6 @@ pub struct ExecResourceLimiter {
     max_exec_memory_bytes: usize,
     /// Total bytes desired so far by all the instances including the currently executing instance on the call stack.
     curr_exec_memory_bytes: usize,
-    /// Total bytes desired up to the previous instances in the call stack.
-    prev_exec_memory_bytes: Vec<usize>,
 }
 
 impl ExecResourceLimiter {
@@ -41,7 +35,6 @@ impl ExecResourceLimiter {
             max_inst_memory_bytes,
             max_exec_memory_bytes,
             curr_exec_memory_bytes: 0,
-            prev_exec_memory_bytes: Vec::new(),
         }
     }
 
@@ -81,30 +74,17 @@ impl ExecMemory for ExecResourceLimiter {
         self.curr_exec_memory_bytes
     }
 
-    fn push_call_stack(&mut self) {
-        // Remember the current memory high watermark, so we can return to it
-        // when the current call frame is finished.
-        self.prev_exec_memory_bytes
-            .push(self.curr_exec_memory_bytes);
-    }
-
-    fn pop_call_stack(&mut self) {
-        self.curr_exec_memory_bytes = self
-            .prev_exec_memory_bytes
-            .pop()
-            .expect("There is no previous memory on the stack!");
-    }
-}
-
-/// Sanity check that we're using push/pop correctly.
-impl Drop for ExecResourceLimiter {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            assert!(
-                self.prev_exec_memory_bytes.is_empty(),
-                "Memory call stack isn't popped!"
-            )
-        }
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        let memory_bytes = g(t).curr_exec_memory_bytes;
+        let ret = f(t);
+        // This method is part of the trait so that a setter like this
+        // doesn't have to be made public.
+        g(t).curr_exec_memory_bytes = memory_bytes;
+        ret
     }
 }
 
@@ -126,19 +106,23 @@ mod tests {
         assert!(!limits.memory_growing(3, 4, Some(2))); // The maximum in the args takes precedence.
         assert!(limits.memory_growing(3, 4, None)); // Ok, just at instance limit.
         assert!(!limits.memory_growing(4, 5, None)); // Fail, over instance limit.
-        {
-            limits.push_call_stack(); // New instance.
-            assert!(limits.memory_growing(0, 4, None)); // Ok, within instance limit.
-            {
-                limits.push_call_stack();
-                assert!(!limits.memory_growing(0, 3, None)); // Fail, 4+4+3 would be over the call stack limit of 10.
-                assert!(limits.memory_growing(0, 2, None)); // Ok, just at the call stack limit (although we should used a seen a push as well.)
-                assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4 + 2);
-                limits.pop_call_stack();
-            }
-            assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4);
-            limits.pop_call_stack();
-        }
+        ExecResourceLimiter::with_stack_frame(
+            &mut limits,
+            |x| x,
+            |limits| {
+                assert!(limits.memory_growing(0, 4, None)); // Ok, within instance limit.
+                ExecResourceLimiter::with_stack_frame(
+                    limits,
+                    |x| x,
+                    |limits| {
+                        assert!(!limits.memory_growing(0, 3, None)); // Fail, 4+4+3 would be over the call stack limit of 10.
+                        assert!(limits.memory_growing(0, 2, None)); // Ok, just at the call stack limit (although we should used a seen a push as well.)
+                        assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4 + 2);
+                    },
+                );
+                assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4);
+            },
+        );
         assert_eq!(limits.curr_exec_memory_bytes(), 4);
     }
 

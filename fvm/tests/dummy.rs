@@ -60,7 +60,6 @@ impl Consensus for DummyExterns {
 #[derive(Default)]
 pub struct DummyLimiter {
     curr_exec_memory_bytes: usize,
-    prev_exec_memory_bytes: Vec<usize>,
 }
 
 impl ResourceLimiter for DummyLimiter {
@@ -78,12 +77,16 @@ impl ExecMemory for DummyLimiter {
     fn curr_exec_memory_bytes(&self) -> usize {
         self.curr_exec_memory_bytes
     }
-    fn push_call_stack(&mut self) {
-        self.prev_exec_memory_bytes
-            .push(self.curr_exec_memory_bytes);
-    }
-    fn pop_call_stack(&mut self) {
-        self.curr_exec_memory_bytes = self.prev_exec_memory_bytes.pop().unwrap();
+
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        let memory_bytes = g(t).curr_exec_memory_bytes;
+        let ret = f(t);
+        g(t).curr_exec_memory_bytes = memory_bytes;
+        ret
     }
 }
 

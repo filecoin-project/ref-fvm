@@ -767,11 +767,11 @@ where
         self.inner.curr_exec_memory_bytes()
     }
 
-    fn push_call_stack(&mut self) {
-        self.inner.push_call_stack()
-    }
-
-    fn pop_call_stack(&mut self) {
-        self.inner.pop_call_stack()
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        L::with_stack_frame(t, |t| &mut g(t).inner, f)
     }
 }
