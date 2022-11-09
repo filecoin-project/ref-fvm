@@ -4,6 +4,11 @@ Changes to the reference FVM implementation.
 
 ##  [Unreleased]
 
+## 3.0.0-alpha.6
+
+- update the state-tree version to v5
+- enable instrumentation of sign extension instructions (only relevant to anyone playing around with native actor support).
+
 ## 3.0.0-alpha.5
 
 - fix compile issues with f4-as-account feature.
