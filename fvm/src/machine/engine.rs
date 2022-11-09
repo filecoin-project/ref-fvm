@@ -405,7 +405,7 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        let memory_bytes = kernel.limiter_mut().total_exec_memory_bytes();
+        let memory_bytes = kernel.limiter_mut().curr_exec_memory_bytes();
 
         let id = InvocationData {
             kernel,

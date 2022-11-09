@@ -90,7 +90,7 @@ pub fn charge_for_exec<K: Kernel>(
     let data = ctx.data_mut();
 
     // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
-    let memory_bytes = data.kernel.limiter_mut().total_exec_memory_bytes();
+    let memory_bytes = data.kernel.limiter_mut().curr_exec_memory_bytes();
     let memory_delta_bytes = (memory_bytes - data.last_memory_bytes).max(0);
     let memory_gas = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
 
@@ -122,8 +122,11 @@ pub fn charge_for_init<K: Kernel>(
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
     let kernel = &mut ctx.data_mut().kernel;
-    let charge = kernel.price_list().init_memory_gas(min_memory_bytes);
-    kernel.charge_gas("wasm_memory_init", charge)?;
+    let memory_gas = kernel.price_list().init_memory_gas(min_memory_bytes);
+
+    if !memory_gas.is_zero() {
+        kernel.charge_gas("wasm_memory_init", memory_gas)?;
+    }
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
     ctx.data_mut().last_memory_bytes += min_memory_bytes;
