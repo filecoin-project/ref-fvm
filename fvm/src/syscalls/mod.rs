@@ -2,10 +2,11 @@ use std::mem;
 
 use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
-use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
+use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
 use crate::call_manager::backtrace;
 use crate::gas::Gas;
+use crate::kernel::ExecutionError;
 use crate::machine::limiter::ExecMemory;
 use crate::Kernel;
 
@@ -42,9 +43,6 @@ pub struct InvocationData<K> {
     /// _difference_ between the current gas available (the wasm global) and the
     /// `last_milligas_available`.
     pub last_milligas_available: i64,
-
-    /// The total size of the memory used by the execution at the beginning of this call.
-    pub start_memory_bytes: usize,
 
     /// The total size of the memory used by the execution the last time we charged gas for it.
     pub last_memory_bytes: usize,
@@ -91,28 +89,12 @@ pub fn charge_for_exec<K: Kernel>(
 
     let data = ctx.data_mut();
 
-    // Separate the amount of gas charged for memory and apply discount on first page.
-    let memory_price = data
-        .kernel
-        .price_list()
-        .wasm_rules
-        .memory_expansion_per_byte_cost;
-
+    // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
     let memory_bytes = data.kernel.limiter_mut().curr_exec_memory_bytes();
-    let memory_delta_bytes = memory_bytes - data.last_memory_bytes;
-    let mut memory_gas = memory_price * memory_delta_bytes as i64;
+    let memory_delta_bytes = (memory_bytes - data.last_memory_bytes).max(0);
+    let memory_gas = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
+
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());
-
-    // The memory grows by at least one page, so if we're haven't yet charged for any memory,
-    // then this is the time to apply the first-page discount.
-    if data.last_memory_bytes == data.start_memory_bytes && memory_bytes > data.start_memory_bytes {
-        let free_memory_gas = memory_price * wasmtime_environ::WASM_PAGE_SIZE as i64;
-        memory_gas = (memory_gas - free_memory_gas).max(Gas::zero());
-    }
-
-    data.last_memory_bytes = memory_bytes;
-
-    // The separation of wasm_exec and wasm_memory is optional, it might be nice to have for statistics.
 
     data.kernel
         .charge_gas("wasm_exec", exec_gas)
@@ -120,11 +102,50 @@ pub fn charge_for_exec<K: Kernel>(
 
     if !memory_gas.is_zero() {
         data.kernel
-            .charge_gas("wasm_memory", memory_gas)
+            .charge_gas("wasm_memory_grow", memory_gas)
             .map_err(Abort::from_error_as_fatal)?;
     }
+    data.last_memory_bytes = memory_bytes;
 
     Ok(())
+}
+
+/// Charge for the initial memory before a Wasm module is instantiated.
+///
+/// The Wasm instrumentation machinery via [fvm_wasm_instrument::gas_metering::MemoryGrowCost]
+/// only charges for growing the memory _beyond_ the initial amount. It's up to us to make sure
+/// the minimum memory is properly charged for.
+pub fn charge_for_init<K: Kernel>(
+    ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
+    module: &Module,
+) -> crate::kernel::Result<()> {
+    let min_memory_bytes = min_memory_bytes(module)?;
+    let mut ctx = ctx.as_context_mut();
+    let kernel = &mut ctx.data_mut().kernel;
+    let memory_gas = kernel.price_list().init_memory_gas(min_memory_bytes);
+
+    if !memory_gas.is_zero() {
+        kernel.charge_gas("wasm_memory_init", memory_gas)?;
+    }
+
+    // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
+    ctx.data_mut().last_memory_bytes += min_memory_bytes;
+
+    Ok(())
+}
+
+/// Get the minimum amount of memory required by a module.
+fn min_memory_bytes(module: &Module) -> crate::kernel::Result<usize> {
+    // NOTE: Inside wasmtime this happens slightly differently, by iterating the memory plans:
+    // https://github.com/bytecodealliance/wasmtime/blob/v2.0.1/crates/runtime/src/instance/allocator/pooling.rs#L380-L403
+    // However, we don't have access to that level of module runtime info, hence relying on the exported memory
+    // that the `CallManager` will be looking for as well.
+    if let Some(ExternType::Memory(m)) = module.get_export("memory") {
+        let min_memory_bytes = m.minimum() * wasmtime_environ::WASM_PAGE_SIZE as u64;
+        Ok(min_memory_bytes as usize)
+    } else {
+        Err(ExecutionError::Fatal(anyhow!("actor has no memory export")))
+    }
 }
 
 use self::bind::BindSyscall;

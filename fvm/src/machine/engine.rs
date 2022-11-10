@@ -15,11 +15,11 @@ use wasmtime::{
     Module, Mutability, PoolingAllocationStrategy, Val, ValType,
 };
 
-use super::Machine;
 use super::limiter::ExecMemory;
+use super::Machine;
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
-use crate::syscalls::{bind_syscalls, InvocationData};
+use crate::syscalls::{bind_syscalls, charge_for_init, InvocationData};
 use crate::Kernel;
 
 /// A caching wasmtime engine.
@@ -424,8 +424,21 @@ impl Engine {
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
         let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+
+        let instantiate = |store: &mut wasmtime::Store<InvocationData<K>>, module| {
+            // Before we instantiate the module, we should make sure the user has sufficient gas to
+            // pay for the minimum memory requirements. The module instrumentation in `inject` only
+            // adds code to charge for _growing_ the memory, but not for the amount made accessible
+            // initially. The limits are checked by wasmtime during instantiation, though.
+            charge_for_init(store, module)?;
+
+            let inst = cache.linker.instantiate(store, module)?;
+
+            Ok(Some(inst))
+        };
+
         match module_cache.entry(*k) {
-            Occupied(v) => Ok(Some(cache.linker.instantiate(&mut *store, v.get())?)),
+            Occupied(v) => instantiate(store, v.get()),
             Vacant(v) => match store
                 .data()
                 .kernel
@@ -434,11 +447,7 @@ impl Engine {
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
             {
-                Some(raw_wasm) => Ok(Some(
-                    cache
-                        .linker
-                        .instantiate(&mut *store, v.insert(self.load_raw(&raw_wasm)?))?,
-                )),
+                Some(raw_wasm) => instantiate(store, v.insert(self.load_raw(&raw_wasm)?)),
                 None => Ok(None),
             },
         }
@@ -453,7 +462,6 @@ impl Engine {
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
             last_milligas_available: 0,
-            start_memory_bytes: memory_bytes,
             last_memory_bytes: memory_bytes,
             memory: self.0.dummy_memory,
         };
