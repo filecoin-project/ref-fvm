@@ -112,6 +112,14 @@ pub fn charge_for_exec<K: Kernel>(
         .charge_gas("wasm_exec", exec_gas)
         .map_err(Abort::from_error_as_fatal)?;
 
+    // It should be okay to record time associated with Wasm execution because `charge_for_exec` is called
+    // before syscalls `impl_bind_syscalls`, so the syscall timings are going to be interleaved, rather than
+    // nested inside it. But we also have to make sure to reset the timer after each syscall, when Wasm resumes,
+    // which happens in `update_gas_available`.
+    t.stop_with(data.last_charge_time);
+    data.last_charge_time = GasTimer::start();
+    data.last_memory_bytes = memory_bytes;
+
     if !memory_gas.is_zero() {
         // Only recording time for the execution, not for the memory part, which is unknown.
         // But we could perform stomething like a multi-variate linear regression to see if the amount of
@@ -121,7 +129,6 @@ pub fn charge_for_exec<K: Kernel>(
             .charge_gas("wasm_memory_grow", memory_gas)
             .map_err(Abort::from_error_as_fatal)?;
     }
-    data.last_memory_bytes = memory_bytes;
 
     Ok(())
 }
@@ -142,10 +149,6 @@ pub fn charge_for_init<K: Kernel>(
 
     if !memory_gas.is_zero() {
         let t = data.kernel.charge_gas("wasm_memory_init", memory_gas)?;
-        // It should be okay to record time associated with Wasm execution because `charge_for_exec` is called
-        // before syscalls `impl_bind_syscalls`, so the syscall timings are going to be interleaved, rather than
-        // nested inside it. But we also have to make sure to reset the timer after each syscall, when Wasm resumes,
-        // which happens in `update_gas_available`.
         t.stop_with(data.last_charge_time);
     }
 
