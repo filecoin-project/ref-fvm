@@ -8,6 +8,7 @@ use std::io::BufReader;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Context as _};
 use async_std::{stream, sync, task};
@@ -16,8 +17,9 @@ use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
+use fvm_conformance_tests::tracing::{TestTraceExporter, TestTraceExporterRef};
 use fvm_conformance_tests::vector::{MessageVector, Selector};
-use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef, TestTraceFun, TestTracesRef};
+use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -68,14 +70,17 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
     let stats = TestStatsGlobal::new_ref();
-    let traces: TestTracesRef = Some(Default::default());
+
+    let tracer = std::env::var("TRACES")
+        .ok()
+        .map(|path| TestTraceExporter::new(Path::new(path.as_str()).to_path_buf()));
 
     let vector_results = if path.is_file() {
         let stats = stats.clone();
-        let traces = traces.clone();
+        let tracer = tracer.clone();
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines, stats, traces)
+                let res = run_vector(path.clone(), engines, stats, tracer)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -90,10 +95,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .map(|e| {
                     let engines = engines.clone();
                     let stats = stats.clone();
-                    let traces = traces.clone();
+                    let tracer = tracer.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engines, stats, traces)
+                        let res = run_vector(path.clone(), engines, stats, tracer)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -171,19 +176,12 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         );
     }
 
-    if let Some(ref traces) = traces {
-        let traces = traces.lock().unwrap();
-
-        let cnt: usize = traces
-            .iter()
-            .map(|(_, ts)| ts.iter().map(|mt| mt.exec_trace.len()).sum::<usize>())
-            .sum();
-
-        println!(
-            "collected {} traces across {} test variants",
-            cnt,
-            traces.len()
-        );
+    if let Some(ref tracer) = tracer {
+        if let Ok(tracer) = Arc::try_unwrap(tracer.to_owned()) {
+            tracer.export_tombstones();
+        } else {
+            panic!("The async tests should have all finished.")
+        }
     }
 
     if failed > 0 {
@@ -199,7 +197,7 @@ async fn run_vector(
     path: PathBuf,
     engines: MultiEngine,
     stats: TestStatsRef,
-    traces: TestTracesRef,
+    tracer: TestTraceExporterRef,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -281,10 +279,11 @@ async fn run_vector(
                         let v = v.clone();
                         let bs = bs.clone();
                         let engines = engines.clone();
-                        let name =
-                            format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
+                        let path = path.clone();
+                        let variant_id = v.preconditions.variants[i].id.clone();
+                        let name = format!("{} | {}", path.display(), variant_id);
                         let stats = stats.clone();
-                        let traces = traces.clone();
+                        let tracer = tracer.clone();
                         futures::future::Either::Right(
                             task::Builder::new()
                                 .name(name.clone())
@@ -296,13 +295,7 @@ async fn run_vector(
                                         &engines,
                                         true,
                                         stats,
-                                        traces.map(|traces| {
-                                            let key = name.clone();
-                                            let ins: TestTraceFun = Box::new(move |msg_traces| {
-                                                traces.lock().unwrap().insert(key, msg_traces);
-                                            });
-                                            ins
-                                        }),
+                                        tracer.map(|t| t.export_fun(path, variant_id)),
                                     )
                                     .with_context(|| format!("failed to run {name}"))
                                 })

@@ -19,8 +19,9 @@ use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
 
+use crate::tracing::TestTraceFun;
 use crate::vector::{MessageVector, Variant};
-use crate::vm::{TestKernel, TestMachine, TestMessageTrace, TestStatsRef, TestTraceFun};
+use crate::vm::{TestKernel, TestMachine, TestStatsRef};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
@@ -201,7 +202,7 @@ pub fn run_variant(
     // Construct the Machine.
     let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats, trace.is_some())?;
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
-    let mut traces = Vec::new();
+    let mut rets = Vec::new();
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
@@ -228,18 +229,11 @@ pub fn run_variant(
             }
         }
 
-        if trace.is_some() {
-            let trace = TestMessageTrace {
-                gas_burned: ret.gas_burned,
-                elapsed: start.elapsed(),
-                exec_trace: ret.exec_trace,
-            };
-            traces.push(trace);
-        }
+        rets.push((start.elapsed(), ret));
     }
 
     if let Some(f) = trace {
-        f(traces);
+        f(rets);
     }
 
     // Flush the machine, obtain the blockstore, and compare the
