@@ -62,7 +62,7 @@ pub mod vm {
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
-    pub struct SyscallMessageContext {
+    pub struct MessageContext {
         /// The current call's origin actor ID.
         pub origin: ActorID,
         /// The caller's actor ID.
@@ -82,9 +82,10 @@ pub mod vm {
 
 pub mod network {
     use crate::clock::ChainEpoch;
+    
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
-    pub struct SyscallNetworkContext {
+    pub struct NetworkContext {
         /// The current epoch.
         pub network_curr_epoch: ChainEpoch,
         /// The network version.

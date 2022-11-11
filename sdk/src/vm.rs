@@ -1,20 +1,11 @@
 use std::ptr;
 
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::SyscallMessageContext;
 
 use crate::sys;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
-
-lazy_static::lazy_static! {
-    pub(crate) static ref MESSAGE_CONTEXT: SyscallMessageContext = {
-        unsafe {
-            sys::vm::message_context().expect("failed to lookup message context")
-        }
-    };
-}
 
 /// Abort execution.
 pub fn abort(code: u32, message: Option<&str>) -> ! {

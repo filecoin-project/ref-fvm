@@ -4,7 +4,7 @@ use cid::Cid;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::sys::out::network::SyscallNetworkContext;
+use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MAX_CID_LEN;
 
@@ -12,7 +12,7 @@ use crate::error::EpochBoundsError;
 use crate::sys;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref NETWORK_CONTEXT: SyscallNetworkContext = {
+    pub(crate) static ref NETWORK_CONTEXT: NetworkContext = {
         unsafe {
             sys::network::context().expect("failed to lookup network context")
         }

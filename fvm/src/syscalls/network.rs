@@ -1,6 +1,6 @@
 use anyhow::Context as _;
-use fvm_shared::sys::out::network::SyscallNetworkContext;
-use fvm_shared::sys::{self};
+use fvm_shared::sys::out::network::NetworkContext as SyscallNetworkContext;
+use fvm_shared::sys;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};

@@ -2,7 +2,7 @@
 
 // for documentation links
 #[doc(inline)]
-pub use fvm_shared::sys::out::network::SyscallNetworkContext;
+pub use fvm_shared::sys::out::network::NetworkContext;
 
 #[cfg(doc)]
 use crate::sys::ErrorNumber::*;
@@ -60,5 +60,5 @@ super::fvm_syscalls! {
     /// # Errors
     ///
     /// None
-    pub fn context() -> Result<SyscallNetworkContext>;
+    pub fn context() -> Result<NetworkContext>;
 }

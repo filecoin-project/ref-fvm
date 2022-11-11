@@ -1,7 +1,7 @@
 //! Syscalls for interacting with the VM.
 
 #[doc(inline)]
-pub use fvm_shared::sys::out::vm::SyscallMessageContext;
+pub use fvm_shared::sys::out::vm::MessageContext;
 
 super::fvm_syscalls! {
     module = "vm";
@@ -30,5 +30,5 @@ super::fvm_syscalls! {
     /// # Errors
     ///
     /// None
-    pub fn message_context() -> Result<SyscallMessageContext>;
+    pub fn message_context() -> Result<MessageContext>;
 }

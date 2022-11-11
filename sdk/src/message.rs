@@ -2,11 +2,19 @@ use std::convert::TryInto;
 
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::vm::MESSAGE_CONTEXT;
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
+
+lazy_static::lazy_static! {
+    pub(crate) static ref MESSAGE_CONTEXT: MessageContext = {
+        unsafe {
+            sys::vm::message_context().expect("failed to lookup message context")
+        }
+    };
+}
 
 /// Returns the ID address of the caller.
 #[inline(always)]
