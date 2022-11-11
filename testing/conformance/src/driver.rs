@@ -36,6 +36,15 @@ lazy_static! {
     ].into_iter().map(|re| Regex::new(re).unwrap()).collect();
 }
 
+lazy_static! {
+    /// Override prices with a different network version.
+    static ref PRICE_NETWORK_VERSION: Option<NetworkVersion> = std::env::var("PRICE_NETWORK_VERSION").ok()
+        .map(|nv| {
+            let nv = nv.parse::<u32>().expect("PRICE_NETWORK_VERSION should be a number");
+            NetworkVersion::try_from(nv).expect("unknown price network version")
+        });
+}
+
 /// Checks if the file is a runnable vector.
 pub fn is_runnable(entry: &DirEntry) -> bool {
     let file_name = match entry.path().to_str() {
@@ -194,12 +203,16 @@ pub fn run_variant(
     v: &MessageVector,
     variant: &Variant,
     engines: &MultiEngine,
-    check_correctness: bool,
+    mut check_correctness: bool,
     stats: TestStatsRef,
     trace: Option<TestTraceFun>,
-    price_network_version: Option<NetworkVersion>,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
+
+    // We can't expect gas as the final state to match if we apply a price override.
+    if PRICE_NETWORK_VERSION.is_some() {
+        check_correctness = false;
+    }
 
     // Construct the Machine.
     let machine = TestMachine::new_for_vector(
@@ -209,7 +222,7 @@ pub fn run_variant(
         engines,
         stats,
         trace.is_some(),
-        price_network_version,
+        *PRICE_NETWORK_VERSION,
     )?;
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
     let mut rets = Vec::new();

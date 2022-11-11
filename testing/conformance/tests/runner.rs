@@ -19,7 +19,6 @@ use fvm_conformance_tests::report;
 use fvm_conformance_tests::tracing::{TestTraceExporter, TestTraceExporterRef};
 use fvm_conformance_tests::vector::{MessageVector, Selector};
 use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef};
-use fvm_shared::version::NetworkVersion;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -76,20 +75,12 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         .ok()
         .map(|path| TestTraceExporter::new(Path::new(path.as_str()).to_path_buf()));
 
-    let price_network_version = match std::env::var("PRICE_NETWORK_VERSION") {
-        Ok(nv) => {
-            let nv = nv.parse::<u32>()?;
-            Some(NetworkVersion::try_from(nv).expect("unknown price network version"))
-        }
-        _ => None,
-    };
-
     let vector_results = if path.is_file() {
         let stats = stats.clone();
         let tracer = tracer.clone();
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines, stats, tracer, price_network_version)
+                let res = run_vector(path.clone(), engines, stats, tracer)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -107,12 +98,9 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                     let tracer = tracer.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res =
-                            run_vector(path.clone(), engines, stats, tracer, price_network_version)
-                                .await
-                                .with_context(|| {
-                                    format!("failed to run vector: {}", path.display())
-                                })?;
+                        let res = run_vector(path.clone(), engines, stats, tracer)
+                            .await
+                            .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
                     }
                 })
@@ -206,7 +194,6 @@ async fn run_vector(
     engines: MultiEngine,
     stats: TestStatsRef,
     tracer: TestTraceExporterRef,
-    price_network_version: Option<NetworkVersion>,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -302,10 +289,9 @@ async fn run_vector(
                                         &v,
                                         &v.preconditions.variants[i],
                                         &engines,
-                                        price_network_version.is_none(),
+                                        true,
                                         stats,
                                         tracer.map(|t| t.export_fun(path, variant_id)),
-                                        price_network_version,
                                     )
                                     .with_context(|| format!("failed to run {name}"))
                                 })
