@@ -51,4 +51,4 @@ actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
 m2-native = []
-f4-as-account = ["fvm_shared/f4-as-account"]
+f4-as-account = ["fvm/f4-as-account"]

@@ -55,11 +55,10 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation", "memory-in
 version = "1.0.1"
 
 [features]
-
-m2-native = []
-
+f4-as-account = ["fvm_shared/f4-as-account"]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 testing = []
 arb = ["arbitrary"]
+m2-native = []
