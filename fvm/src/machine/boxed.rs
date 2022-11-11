@@ -12,6 +12,7 @@ type Type = MachineContext;
 impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
+    type Limiter = M::Limiter;
 
     #[inline(always)]
     fn engine(&self) -> &Engine {
@@ -71,5 +72,10 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn machine_id(&self) -> &str {
         (**self).machine_id()
+    }
+
+    #[inline(always)]
+    fn new_limiter(&self) -> Self::Limiter {
+        (**self).new_limiter()
     }
 }

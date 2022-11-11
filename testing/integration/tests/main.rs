@@ -207,7 +207,13 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(DummyExterns, |nc| {
+            // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
+            nc.max_exec_memory_bytes = 4 * (1 << 30);
+            nc.max_inst_memory_bytes = 4 * (1 << 30);
+        })
+        .unwrap();
 
     let exec_test =
         |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
@@ -225,6 +231,8 @@ fn native_stack_overflow() {
             let res = exec
                 .execute_message(message, ApplyKind::Explicit, 100)
                 .unwrap();
+
+            eprintln!("STACKOVERFLOW RESULT = {:?}", res);
 
             res.msg_receipt.exit_code.value()
         };
