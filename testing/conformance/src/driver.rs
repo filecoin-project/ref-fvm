@@ -14,6 +14,7 @@ use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::version::NetworkVersion;
 use lazy_static::lazy_static;
 use libipld_core::ipld::Ipld;
 use regex::Regex;
@@ -196,11 +197,20 @@ pub fn run_variant(
     check_correctness: bool,
     stats: TestStatsRef,
     trace: Option<TestTraceFun>,
+    price_network_version: Option<NetworkVersion>,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats, trace.is_some())?;
+    let machine = TestMachine::new_for_vector(
+        v,
+        variant,
+        bs,
+        engines,
+        stats,
+        trace.is_some(),
+        price_network_version,
+    )?;
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
     let mut rets = Vec::new();
 
@@ -264,9 +274,9 @@ pub fn run_variant(
         }
     }
 
-    // Exporting now when all checks have passed, so we don't have any results for (partial) Failures.
-    // Note that if we changed the gas prices then the post condition checks would fail, so in their
-    // current form these tests are only good checking the time-to-gas ratio but not really for calibration.
+    // Exporting now when all checks have passed, so we don't have any results for (partial) Failures
+    // where the overall gas expenditure might contain punishments for error, rather than fair charge for exec.
+    // NOTE: This was the intention, but correctness checks had to be disabled to get some gas for Wasm.
     if let Some(f) = trace {
         f(rets)?;
     }

@@ -46,7 +46,8 @@ pub fn bench_vector_variant(
                 let bs = bs.clone();
                 // NOTE next few lines don't impact the benchmarks.
                 let machine =
-                    TestMachine::new_for_vector(vector, variant, bs, engines, None, false).unwrap();
+                    TestMachine::new_for_vector(vector, variant, bs, engines, None, false, None)
+                        .unwrap();
                 // can assume this works because it passed a test before this ran
                 let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                 (messages_with_lengths.clone(), exec)
@@ -93,15 +94,23 @@ pub fn bench_vector_file(
         // if we broke the test, it's not a valid optimization :P
         let testresult = match check_strength {
             CheckStrength::FullTest => {
-                run_variant(bs.clone(), vector, variant, engines, true, None, None).map_err(
+                run_variant(bs.clone(), vector, variant, engines, true, None, None, None).map_err(
                     |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
                 )?
             }
-            CheckStrength::OnlyCheckSuccess => {
-                run_variant(bs.clone(), vector, variant, engines, false, None, None).map_err(
-                    |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
-                )?
-            }
+            CheckStrength::OnlyCheckSuccess => run_variant(
+                bs.clone(),
+                vector,
+                variant,
+                engines,
+                false,
+                None,
+                None,
+                None,
+            )
+            .map_err(|e| {
+                anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
+            })?,
             CheckStrength::NoChecks => VariantResult::Ok {
                 id: variant.id.clone(),
             },

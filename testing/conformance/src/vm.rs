@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
-use fvm::gas::{Gas, GasTimer, GasTracker, PriceList};
+use fvm::gas::{price_list_by_network_version, Gas, GasTimer, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{
@@ -83,6 +83,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         engines: &MultiEngine,
         stats: TestStatsRef,
         tracing: bool,
+        price_network_version: Option<NetworkVersion>,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
@@ -107,6 +108,12 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let mut nc = NetworkConfig::new(network_version);
         nc.override_actors(builtin_actors);
+
+        // Allow overriding prices to some other network version.
+        if let Some(nv) = price_network_version {
+            nc.price_list = price_list_by_network_version(nv);
+        }
+
         let mut mc = nc.for_epoch(epoch, state_root);
         mc.set_base_fee(base_fee);
         mc.tracing = tracing;
