@@ -6,6 +6,7 @@ use anyhow::Context;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
+use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
@@ -15,6 +16,7 @@ use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use multihash::Code;
+use wasmtime::ResourceLimiter;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
@@ -52,6 +54,39 @@ impl Consensus for DummyExterns {
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
         // consensus is always valid for tests :)
         anyhow::Result::Ok((None, 0))
+    }
+}
+
+#[derive(Default)]
+pub struct DummyLimiter {
+    curr_exec_memory_bytes: usize,
+}
+
+impl ResourceLimiter for DummyLimiter {
+    fn memory_growing(&mut self, current: usize, desired: usize, _maximum: Option<usize>) -> bool {
+        self.curr_exec_memory_bytes += desired - current;
+        true
+    }
+
+    fn table_growing(&mut self, _current: u32, _desired: u32, _maximum: Option<u32>) -> bool {
+        true
+    }
+}
+
+impl ExecMemory for DummyLimiter {
+    fn curr_exec_memory_bytes(&self) -> usize {
+        self.curr_exec_memory_bytes
+    }
+
+    fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
+    where
+        G: Fn(&mut T) -> &mut Self,
+        F: FnOnce(&mut T) -> R,
+    {
+        let memory_bytes = g(t).curr_exec_memory_bytes;
+        let ret = f(t);
+        g(t).curr_exec_memory_bytes = memory_bytes;
+        ret
     }
 }
 
@@ -104,8 +139,8 @@ impl DummyMachine {
 
 impl Machine for DummyMachine {
     type Blockstore = MemoryBlockstore;
-
     type Externs = DummyExterns;
+    type Limiter = DummyLimiter;
 
     fn engine(&self) -> &Engine {
         &self.engine
@@ -159,6 +194,10 @@ impl Machine for DummyMachine {
     fn machine_id(&self) -> &str {
         todo!()
     }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        DummyLimiter::default()
+    }
 }
 
 /// Minimal *pseudo-functional* implementation CallManager
@@ -168,6 +207,7 @@ pub struct DummyCallManager {
     pub origin: Address,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
+    limits: DummyLimiter,
 }
 
 /// Information to be read by external tests
@@ -188,6 +228,7 @@ impl DummyCallManager {
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
+                limits: DummyLimiter::default(),
             },
             cell_ref,
         )
@@ -205,6 +246,7 @@ impl DummyCallManager {
                 origin: Address::new_actor(&[]),
                 nonce: 0,
                 test_data: rc,
+                limits: DummyLimiter::default(),
             },
             cell_ref,
         )
@@ -218,12 +260,14 @@ impl CallManager for DummyCallManager {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
         }));
+        let limits = machine.new_limiter();
         Self {
             machine,
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
             origin,
             nonce,
             test_data: rc,
+            limits,
         }
     }
 
@@ -296,5 +340,9 @@ impl CallManager for DummyCallManager {
 
     fn invocation_count(&self) -> u64 {
         todo!()
+    }
+
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
+        &mut self.limits
     }
 }

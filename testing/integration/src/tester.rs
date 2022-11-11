@@ -159,6 +159,17 @@ where
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
+        self.instantiate_machine_with_config(externs, |_| ())
+    }
+
+    /// Sets the Machine and the Executor in our Tester structure.
+    ///
+    /// The `configure` function allows the caller to adjust the `NetworkConfiguration` before
+    /// it's used to instantiate the rest of the components.
+    pub fn instantiate_machine_with_config<F>(&mut self, externs: E, configure: F) -> Result<()>
+    where
+        F: FnOnce(&mut NetworkConfig),
+    {
         // Take the state tree and leave None behind.
         let mut state_tree = self.state_tree.take().unwrap();
 
@@ -175,6 +186,9 @@ where
         nc.actor_debugging = true;
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
+
+        // Custom configuration.
+        configure(&mut nc);
 
         let mut mc = nc.for_epoch(0, state_root);
         mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE));

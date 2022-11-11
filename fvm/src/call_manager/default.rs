@@ -13,7 +13,8 @@ use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
-use crate::machine::Machine;
+use crate::machine::limiter::ExecMemory;
+use crate::machine::{Engine, Machine};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
@@ -21,11 +22,11 @@ use crate::{account_actor, syscall_error};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
-pub struct DefaultCallManager<M>(Option<Box<InnerDefaultCallManager<M>>>);
+pub struct DefaultCallManager<M: Machine>(Option<Box<InnerDefaultCallManager<M>>>);
 
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
-pub struct InnerDefaultCallManager<M> {
+pub struct InnerDefaultCallManager<M: Machine> {
     /// The machine this kernel is attached to.
     #[deref]
     #[deref_mut]
@@ -46,10 +47,12 @@ pub struct InnerDefaultCallManager<M> {
     exec_trace: ExecutionTrace,
     /// Number of actors that have been invoked in this message execution.
     invocation_count: u64,
+    /// Limits on memory throughout the execution.
+    limits: M::Limiter,
 }
 
 #[doc(hidden)]
-impl<M> std::ops::Deref for DefaultCallManager<M> {
+impl<M: Machine> std::ops::Deref for DefaultCallManager<M> {
     type Target = InnerDefaultCallManager<M>;
 
     fn deref(&self) -> &Self::Target {
@@ -58,7 +61,7 @@ impl<M> std::ops::Deref for DefaultCallManager<M> {
 }
 
 #[doc(hidden)]
-impl<M> std::ops::DerefMut for DefaultCallManager<M> {
+impl<M: Machine> std::ops::DerefMut for DefaultCallManager<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect("call manager is poisoned")
     }
@@ -72,9 +75,12 @@ where
 
     fn new(machine: M, gas_limit: i64, origin: Address, nonce: u64) -> Self {
         let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
+        let limits = machine.new_limiter();
+
         if machine.context().tracing {
             gas_tracker.enable_tracing()
         }
+
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker,
@@ -85,7 +91,12 @@ where
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
+            limits,
         })))
+    }
+
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
+        &mut self.limits
     }
 
     fn send<K>(
@@ -112,29 +123,8 @@ where
             });
         }
 
-        // We check _then_ set because we don't count the top call. This effectivly allows a
-        // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
-        // likely a bug, this is how NV15 behaves so we mimic that behavior here.
-        //
-        // By example:
-        //
-        // 1. If the max depth is 0, call_stack_depth will be 1 and the top-level message won't be
-        //    able to make sub-calls (1 > 0).
-        // 2. If the max depth is 1, the call_stack_depth will be 1 in the top-level message, 2 in
-        //    sub-calls, and said sub-calls will not be able to make further subcalls (2 > 1).
-        //
-        // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
-        // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
-        }
-        self.call_stack_depth += 1;
-        let result = self.send_unchecked::<K>(from, to, method, params, value);
-        self.call_stack_depth -= 1;
+        let result =
+            self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -371,7 +361,7 @@ where
 
         // This is a cheap operation as it doesn't actually clone the struct,
         // it returns a referenced copy.
-        let engine = self.engine().clone();
+        let engine: Engine = self.engine().clone();
 
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
@@ -394,6 +384,7 @@ where
                     .get_memory(&mut store, "memory")
                     .context("actor has no memory export")
                     .map_err(Abort::Fatal)?;
+
                 store.data_mut().memory = memory;
 
                 // Lookup the invoke method.
@@ -411,8 +402,7 @@ where
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
-                // Charge for any remaining uncharged execution gas, returning an error if we run
-                // out.
+                // Charge for any remaining uncharged execution gas, returning an error if we run out.
                 charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already
@@ -493,10 +483,50 @@ where
         })
     }
 
+    /// Temporarily replace `self` with a version that contains `None` for the inner part,
+    /// to be able to hand over ownership of `self` to a new kernel, while the older kernel
+    /// has a reference to the hollowed out version.
     fn map_mut<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
+    }
+
+    /// Check that we're not violating the call stack depth, then envelope a call
+    /// with an increase/decrease of the depth to make sure none of them are missed.
+    fn with_stack_frame<F, V>(&mut self, f: F) -> Result<V>
+    where
+        F: FnOnce(&mut Self) -> Result<V>,
+    {
+        // We check _then_ set because we don't count the top call. This effectivly allows a
+        // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
+        // likely a bug, this is how NV15 behaves so we mimic that behavior here.
+        //
+        // By example:
+        //
+        // 1. If the max depth is 0, call_stack_depth will be 1 and the top-level message won't be
+        //    able to make sub-calls (1 > 0).
+        // 2. If the max depth is 1, the call_stack_depth will be 1 in the top-level message, 2 in
+        //    sub-calls, and said sub-calls will not be able to make further subcalls (2 > 1).
+        //
+        // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
+        // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
+        if self.call_stack_depth > self.machine.context().max_call_depth {
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
+            }
+            return Err(sys_err.into());
+        }
+
+        self.call_stack_depth += 1;
+        let res = <<<DefaultCallManager<M> as CallManager>::Machine as Machine>::Limiter>::with_stack_frame(
+            self,
+            |s| s.limiter_mut(),
+            f,
+        );
+        self.call_stack_depth -= 1;
+        res
     }
 }

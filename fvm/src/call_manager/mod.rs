@@ -10,7 +10,6 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
-
 pub use backtrace::Backtrace;
 
 mod default;
@@ -121,6 +120,9 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Limit memory usage throughout a message execution and charge gas for memory expansion.
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter;
 }
 
 /// The result of a method invocation.

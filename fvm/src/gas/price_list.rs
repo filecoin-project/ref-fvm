@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
+use std::num::NonZeroU64;
 
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
@@ -144,6 +145,7 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Zero::zero(),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
     };
 
@@ -270,7 +272,9 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
+            memory_expansion_per_byte_cost: Zero::zero(),
         },
+
     };
 }
 
@@ -419,6 +423,8 @@ pub struct PriceList {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WasmGasPrices {
     pub(crate) exec_instruction_cost: Gas,
+    /// Gas cost for every byte made writeable in Wasm memory.
+    pub(crate) memory_expansion_per_byte_cost: Gas,
 }
 
 impl PriceList {
@@ -684,6 +690,19 @@ impl PriceList {
     pub fn on_block_stat(&self) -> GasCharge {
         GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
     }
+
+    /// Returns the gas required for initializing memory.
+    pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
+        // FIP-0037: The first page is free.
+        let free_memory_bytes = wasmtime_environ::WASM_PAGE_SIZE as usize;
+        let charge_memory_bytes = (min_memory_bytes - free_memory_bytes).max(0) as i64;
+        self.wasm_rules.memory_expansion_per_byte_cost * charge_memory_bytes
+    }
+
+    /// Returns the gas required for growing memory.
+    pub fn grow_memory_gas(&self, grow_memory_bytes: usize) -> Gas {
+        self.wasm_rules.memory_expansion_per_byte_cost * grow_memory_bytes as i64
+    }
 }
 
 /// Returns gas price list by NetworkVersion for gas consumption.
@@ -719,6 +738,15 @@ impl Rules for WasmGasPrices {
     }
 
     fn memory_grow_cost(&self) -> MemoryGrowCost {
-        MemoryGrowCost::Free
+        if self.memory_expansion_per_byte_cost.is_zero() {
+            MemoryGrowCost::Free
+        } else {
+            let milligas_per_page = self.memory_expansion_per_byte_cost.as_milligas() as u64
+                * wasmtime_environ::WASM_PAGE_SIZE as u64;
+
+            MemoryGrowCost::Linear(
+                NonZeroU64::new(milligas_per_page).expect("Price should be positive."),
+            )
+        }
     }
 }

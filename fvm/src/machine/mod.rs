@@ -7,6 +7,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use num_traits::Zero;
+use wasmtime::ResourceLimiter;
 
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
@@ -17,6 +18,7 @@ mod default;
 
 pub use default::DefaultMachine;
 
+pub mod limiter;
 mod manifest;
 
 pub use manifest::Manifest;
@@ -24,6 +26,8 @@ pub use manifest::Manifest;
 mod engine;
 
 pub use engine::{Engine, EngineConfig, MultiEngine};
+
+use self::limiter::ExecMemory;
 
 mod boxed;
 
@@ -46,6 +50,7 @@ pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
+    type Limiter: ResourceLimiter + ExecMemory;
 
     /// Returns the underlying WASM engine. Cloning it will simply create a new handle with a
     /// static lifetime.
@@ -89,6 +94,9 @@ pub trait Machine: 'static {
 
     /// Returns a generated ID of a machine
     fn machine_id(&self) -> &str;
+
+    /// Creates a new limiter to track the resources of a message execution.
+    fn new_limiter(&self) -> Self::Limiter;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a
@@ -100,12 +108,22 @@ pub struct NetworkConfig {
 
     /// The maximum call depth.
     ///
-    /// DEFAULT: 4096
+    /// DEFAULT: 1024
     pub max_call_depth: u32,
 
     /// The maximum number of elements on wasm stack
     /// DEFAULT: 64Ki (512KiB of u64 elements)
     pub max_wasm_stack: u32,
+
+    /// Maximum size of memory of any Wasm instance, ie. each level of the recursion, in bytes.
+    ///
+    /// DEFAULT: 512MiB
+    pub max_inst_memory_bytes: u64,
+
+    /// Maximum size of memory used during the entire (recursive) message execution.
+    ///
+    /// DEFAULT: 512MiB
+    pub max_exec_memory_bytes: u64,
 
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
     /// "manifest".
@@ -134,6 +152,8 @@ impl NetworkConfig {
             network_version,
             max_call_depth: 1024,
             max_wasm_stack: 2048,
+            max_inst_memory_bytes: 512 * (1 << 20),
+            max_exec_memory_bytes: 512 * (1 << 20),
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),

@@ -15,6 +15,7 @@ use super::{Engine, Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::machine::limiter::ExecResourceLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
@@ -144,6 +145,7 @@ where
 {
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
+    type Limiter = ExecResourceLimiter;
 
     fn engine(&self) -> &Engine {
         &self.engine
@@ -247,5 +249,9 @@ where
 
     fn machine_id(&self) -> &str {
         &self.id
+    }
+
+    fn new_limiter(&self) -> Self::Limiter {
+        ExecResourceLimiter::for_network(&self.context().network)
     }
 }
