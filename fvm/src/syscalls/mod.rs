@@ -106,11 +106,7 @@ pub fn bind_syscalls(
         "total_fil_circ_supply",
         network::total_fil_circ_supply,
     )?;
-    linker.bind(
-        "network",
-        "context",
-        network::context,
-    )?;
+    linker.bind("network", "context", network::context)?;
 
     linker.bind("network", "tipset_timestamp", network::tipset_timestamp)?;
     linker.bind("network", "tipset_cid", network::tipset_cid)?;

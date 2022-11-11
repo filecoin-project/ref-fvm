@@ -1,4 +1,5 @@
-use fvm_shared::{error::ExitCode, sys::out::vm::SyscallMessageContext};
+use fvm_shared::error::ExitCode;
+use fvm_shared::sys::out::vm::SyscallMessageContext;
 use fvm_shared::sys::SyscallSafe;
 use fvm_shared::version::NetworkVersion;
 
@@ -47,7 +48,9 @@ pub fn abort(
     Err(Abort::Exit(code, message))
 }
 
-pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<SyscallMessageContext> {
+pub fn message_context(
+    context: Context<'_, impl Kernel>,
+) -> crate::kernel::Result<SyscallMessageContext> {
     use anyhow::Context as _;
 
     Ok(SyscallMessageContext {

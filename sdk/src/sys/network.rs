@@ -1,11 +1,11 @@
 //! Syscalls for network metadata.
 
 // for documentation links
-#[cfg(doc)]
-use crate::sys::ErrorNumber::*;
-
 #[doc(inline)]
 pub use fvm_shared::sys::out::network::SyscallNetworkContext;
+
+#[cfg(doc)]
+use crate::sys::ErrorNumber::*;
 
 super::fvm_syscalls! {
     module = "network";

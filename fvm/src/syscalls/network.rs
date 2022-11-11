@@ -1,8 +1,9 @@
 use anyhow::Context as _;
-use fvm_shared::sys::{self, out::network::SyscallNetworkContext};
+use fvm_shared::sys::out::network::SyscallNetworkContext;
+use fvm_shared::sys::{self};
 
 use super::Context;
-use crate::{kernel::{ClassifyResult, Kernel, Result}};
+use crate::kernel::{ClassifyResult, Kernel, Result};
 
 /// Returns the base fee split as two u64 ordered in little endian.
 pub fn base_fee(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
