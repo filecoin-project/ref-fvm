@@ -98,13 +98,18 @@ pub fn bind_syscalls(
     linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
 ) -> anyhow::Result<()> {
     linker.bind("vm", "abort", vm::abort)?;
-    linker.bind("vm", "context", vm::context)?;
+    linker.bind("vm", "message_context", vm::message_context)?;
 
     linker.bind("network", "base_fee", network::base_fee)?;
     linker.bind(
         "network",
         "total_fil_circ_supply",
         network::total_fil_circ_supply,
+    )?;
+    linker.bind(
+        "network",
+        "context",
+        network::context,
     )?;
 
     linker.bind("network", "tipset_timestamp", network::tipset_timestamp)?;

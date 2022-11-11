@@ -76,7 +76,8 @@ assert_syscall_safe! {
     out::ipld::IpldStat,
     out::send::Send,
     out::crypto::VerifyConsensusFault,
-    out::vm::InvocationContext,
+    out::network::SyscallNetworkContext,
+    out::vm::SyscallMessageContext,
 }
 
 unsafe impl<T, const N: usize> SyscallSafe for [T; N] where T: SyscallSafe {}

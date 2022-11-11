@@ -1,7 +1,7 @@
 use std::ptr;
 
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::InvocationContext;
+use fvm_shared::sys::out::vm::SyscallMessageContext;
 
 use crate::sys;
 
@@ -9,9 +9,9 @@ use crate::sys;
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref INVOCATION_CONTEXT: InvocationContext = {
+    pub(crate) static ref MESSAGE_CONTEXT: SyscallMessageContext = {
         unsafe {
-            sys::vm::context().expect("failed to lookup invocation context")
+            sys::vm::message_context().expect("failed to lookup message context")
         }
     };
 }

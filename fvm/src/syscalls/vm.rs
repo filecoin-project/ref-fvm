@@ -1,5 +1,4 @@
-use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::InvocationContext;
+use fvm_shared::{error::ExitCode, sys::out::vm::SyscallMessageContext};
 use fvm_shared::sys::SyscallSafe;
 use fvm_shared::version::NetworkVersion;
 
@@ -48,10 +47,10 @@ pub fn abort(
     Err(Abort::Exit(code, message))
 }
 
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<InvocationContext> {
+pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<SyscallMessageContext> {
     use anyhow::Context as _;
 
-    Ok(InvocationContext {
+    Ok(SyscallMessageContext {
         caller: context.kernel.msg_caller(),
         origin: context.kernel.msg_origin(),
         receiver: context.kernel.msg_receiver(),
@@ -62,8 +61,6 @@ pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<Invoc
             .try_into()
             .context("invalid token amount")
             .or_fatal()?,
-        network_curr_epoch: context.kernel.network_epoch(),
-        network_version: context.kernel.network_version() as u32,
         gas_premium: context
             .kernel
             .msg_gas_premium()

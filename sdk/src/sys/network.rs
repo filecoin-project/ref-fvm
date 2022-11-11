@@ -4,6 +4,9 @@
 #[cfg(doc)]
 use crate::sys::ErrorNumber::*;
 
+#[doc(inline)]
+pub use fvm_shared::sys::out::network::SyscallNetworkContext;
+
 super::fvm_syscalls! {
     module = "network";
 
@@ -51,4 +54,11 @@ super::fvm_syscalls! {
         ret_off: *mut u8,
         ret_len: u32,
     ) -> Result<u32>;
+
+    /// Returns the details about the network.
+    ///
+    /// # Errors
+    ///
+    /// None
+    pub fn context() -> Result<SyscallNetworkContext>;
 }

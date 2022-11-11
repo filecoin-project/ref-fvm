@@ -5,37 +5,37 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::vm::INVOCATION_CONTEXT;
+use crate::vm::MESSAGE_CONTEXT;
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> ActorID {
-    INVOCATION_CONTEXT.caller
+    MESSAGE_CONTEXT.caller
 }
 
 /// Returns the ID address of the origin
 #[inline(always)]
 pub fn origin() -> ActorID {
-    INVOCATION_CONTEXT.origin
+    MESSAGE_CONTEXT.origin
 }
 
 /// Returns the ID address of the actor.
 #[inline(always)]
 pub fn receiver() -> ActorID {
-    INVOCATION_CONTEXT.receiver
+    MESSAGE_CONTEXT.receiver
 }
 
 /// Returns the message's method number.
 #[inline(always)]
 pub fn method_number() -> MethodNum {
-    INVOCATION_CONTEXT.method_number
+    MESSAGE_CONTEXT.method_number
 }
 
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    INVOCATION_CONTEXT
+    MESSAGE_CONTEXT
         .value_received
         .try_into()
         .expect("invalid bigint")
@@ -44,12 +44,12 @@ pub fn value_received() -> TokenAmount {
 /// Returns the execution gas limit
 #[inline(always)]
 pub fn gas_limit() -> u64 {
-    INVOCATION_CONTEXT.gas_limit
+    MESSAGE_CONTEXT.gas_limit
 }
 
 /// Returns the execution gas premium
 pub fn gas_premium() -> TokenAmount {
-    INVOCATION_CONTEXT
+    MESSAGE_CONTEXT
         .gas_premium
         .try_into()
         .expect("invalid bigint")
