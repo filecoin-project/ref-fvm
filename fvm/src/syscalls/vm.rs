@@ -48,9 +48,7 @@ pub fn abort(
     Err(Abort::Exit(code, message))
 }
 
-pub fn message_context(
-    context: Context<'_, impl Kernel>,
-) -> crate::kernel::Result<MessageContext> {
+pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
     use anyhow::Context as _;
 
     Ok(MessageContext {

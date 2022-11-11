@@ -82,7 +82,7 @@ pub mod vm {
 
 pub mod network {
     use crate::clock::ChainEpoch;
-    
+
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
     pub struct NetworkContext {
