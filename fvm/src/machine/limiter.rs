@@ -52,8 +52,8 @@ impl ResourceLimiter for ExecResourceLimiter {
             return false;
         }
 
-        let delta_desired = desired - current;
-        let total_desired = self.curr_exec_memory_bytes + delta_desired;
+        let delta_desired = desired.saturating_sub(current);
+        let total_desired = self.curr_exec_memory_bytes.saturating_add(delta_desired);
 
         if total_desired > self.max_exec_memory_bytes {
             return false;

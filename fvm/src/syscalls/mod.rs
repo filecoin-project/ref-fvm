@@ -91,7 +91,7 @@ pub fn charge_for_exec<K: Kernel>(
 
     // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
     let memory_bytes = data.kernel.limiter_mut().curr_exec_memory_bytes();
-    let memory_delta_bytes = (memory_bytes - data.last_memory_bytes).max(0);
+    let memory_delta_bytes = memory_bytes.saturating_sub(data.last_memory_bytes);
     let memory_gas = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
 
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());
