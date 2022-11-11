@@ -121,7 +121,7 @@ pub trait CallManager: 'static {
         Ok(())
     }
 
-    /// Limit memory usage throughout a message execution and charge gas for memory expansion.
+    /// Limit memory usage throughout a message execution.
     fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter;
 }
 

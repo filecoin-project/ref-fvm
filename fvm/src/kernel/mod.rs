@@ -342,7 +342,7 @@ pub trait DebugOps {
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
 }
 
-/// Track and charge for memory expansion.
+/// Track and limit memory expansion.
 ///
 /// This interface is not one of the operations the kernel provides to actors.
 /// It's only part of the kernel out of necessity to pass it through to the

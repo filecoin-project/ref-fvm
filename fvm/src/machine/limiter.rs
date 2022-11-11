@@ -23,7 +23,7 @@ where
 pub struct ExecResourceLimiter {
     /// Maximum bytes that a single Wasm instance can use.
     max_inst_memory_bytes: usize,
-    /// Maximum bytes that can be used during an execution, in total.
+    /// Maximum bytes that can be used at any point in time during an execution.
     max_exec_memory_bytes: usize,
     /// Total bytes desired so far by all the instances including the currently executing instance on the call stack.
     curr_exec_memory_bytes: usize,
@@ -55,7 +55,7 @@ impl ResourceLimiter for ExecResourceLimiter {
         let delta_desired = desired - current;
         let total_desired = self.curr_exec_memory_bytes + delta_desired;
 
-        if total_desired > min(self.max_exec_memory_bytes, maximum) {
+        if total_desired > self.max_exec_memory_bytes {
             return false;
         }
 
