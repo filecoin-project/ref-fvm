@@ -8,7 +8,6 @@ use std::io::BufReader;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Arc;
 
 use anyhow::{anyhow, Context as _};
 use async_std::{stream, sync, task};
@@ -71,7 +70,8 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let path = Path::new(path.as_str()).to_path_buf();
     let stats = TestStatsGlobal::new_ref();
 
-    let tracer = std::env::var("TRACES")
+    // Optionally create a component to export gas charge traces.
+    let tracer = std::env::var("TRACE_DIR")
         .ok()
         .map(|path| TestTraceExporter::new(Path::new(path.as_str()).to_path_buf()));
 
@@ -177,11 +177,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     }
 
     if let Some(ref tracer) = tracer {
-        if let Ok(tracer) = Arc::try_unwrap(tracer.to_owned()) {
-            tracer.export_tombstones();
-        } else {
-            panic!("The async tests should have all finished.")
-        }
+        tracer.export_tombstones()?;
     }
 
     if failed > 0 {

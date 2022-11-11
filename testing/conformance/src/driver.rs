@@ -232,10 +232,6 @@ pub fn run_variant(
         rets.push((start.elapsed(), ret));
     }
 
-    if let Some(f) = trace {
-        f(rets);
-    }
-
     // Flush the machine, obtain the blockstore, and compare the
     // resulting state root with the expected state root.
     let final_root = match exec.flush() {
@@ -266,6 +262,13 @@ pub fn run_variant(
                 reason: err.context("comparing state roots failed"),
             });
         }
+    }
+
+    // Exporting now when all checks have passed, so we don't have any results for (partial) Failures.
+    // Note that if we changed the gas prices then the post condition checks would fail, so in their
+    // current form these tests are only good checking the time-to-gas ratio but not really for calibration.
+    if let Some(f) = trace {
+        f(rets)?;
     }
 
     Ok(VariantResult::Ok { id })
