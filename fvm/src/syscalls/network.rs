@@ -1,5 +1,6 @@
 use anyhow::Context as _;
 use fvm_shared::sys;
+use fvm_shared::sys::out::network::NetworkContext as SyscallNetworkContext;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
@@ -22,6 +23,13 @@ pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::T
         .try_into()
         .context("circulating supply exceeds u128 limit")
         .or_fatal()
+}
+
+pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<SyscallNetworkContext> {
+    Ok(SyscallNetworkContext {
+        network_curr_epoch: context.kernel.network_epoch(),
+        network_version: context.kernel.network_version() as u32,
+    })
 }
 
 pub fn tipset_timestamp(context: Context<'_, impl Kernel>) -> Result<u64> {

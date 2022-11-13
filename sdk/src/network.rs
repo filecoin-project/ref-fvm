@@ -4,19 +4,27 @@ use cid::Cid;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::MAX_CID_LEN;
 
 use crate::error::EpochBoundsError;
 use crate::sys;
-use crate::vm::INVOCATION_CONTEXT;
+
+lazy_static::lazy_static! {
+    pub(crate) static ref NETWORK_CONTEXT: NetworkContext = {
+        unsafe {
+            sys::network::context().expect("failed to lookup network context")
+        }
+    };
+}
 
 pub fn curr_epoch() -> ChainEpoch {
-    INVOCATION_CONTEXT.network_curr_epoch
+    NETWORK_CONTEXT.network_curr_epoch
 }
 
 pub fn version() -> NetworkVersion {
-    INVOCATION_CONTEXT
+    NETWORK_CONTEXT
         .network_version
         .try_into()
         .expect("invalid network version")

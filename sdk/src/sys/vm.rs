@@ -1,7 +1,7 @@
 //! Syscalls for interacting with the VM.
 
 #[doc(inline)]
-pub use fvm_shared::sys::out::vm::InvocationContext;
+pub use fvm_shared::sys::out::vm::MessageContext;
 
 super::fvm_syscalls! {
     module = "vm";
@@ -25,10 +25,10 @@ super::fvm_syscalls! {
     pub fn abort(code: u32, message_off: *const u8, message_len: u32) -> !;
 
 
-    /// Returns the details about this invocation.
+    /// Returns the details about the message causing this invocation.
     ///
     /// # Errors
     ///
     /// None
-    pub fn context() -> Result<InvocationContext>;
+    pub fn message_context() -> Result<MessageContext>;
 }

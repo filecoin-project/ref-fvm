@@ -57,30 +57,38 @@ pub mod crypto {
 }
 
 pub mod vm {
-    use crate::clock::ChainEpoch;
     use crate::sys::TokenAmount;
     use crate::{ActorID, MethodNum};
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
-    pub struct InvocationContext {
-        /// The value that was received.
-        pub value_received: TokenAmount,
+    pub struct MessageContext {
+        /// The current call's origin actor ID.
+        pub origin: ActorID,
         /// The caller's actor ID.
         pub caller: ActorID,
         /// The receiver's actor ID (i.e. ourselves).
         pub receiver: ActorID,
         /// The method number from the message.
         pub method_number: MethodNum,
-        /// The current epoch.
-        pub network_curr_epoch: ChainEpoch,
-        /// The network version.
-        pub network_version: u32,
-        /// The current call's origin actor ID.
-        pub origin: ActorID,
+        /// The value that was received.
+        pub value_received: TokenAmount,
         /// The current gas premium
         pub gas_premium: TokenAmount,
         /// The current gas limit
         pub gas_limit: u64,
+    }
+}
+
+pub mod network {
+    use crate::clock::ChainEpoch;
+
+    #[derive(Debug, Copy, Clone)]
+    #[repr(packed, C)]
+    pub struct NetworkContext {
+        /// The current epoch.
+        pub network_curr_epoch: ChainEpoch,
+        /// The network version.
+        pub network_version: u32,
     }
 }

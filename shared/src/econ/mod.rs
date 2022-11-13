@@ -117,7 +117,7 @@ impl fmt::Display for TokenAmount {
         let after_decimal = if r.is_zero() {
             "0".to_string()
         } else {
-            let fraction_str = r.to_str_radix(10);
+            let fraction_str = r.abs().to_str_radix(10);
             let render = "0".repeat(Self::DECIMALS - fraction_str.len()) + fraction_str.as_str();
             render.trim_end_matches('0').to_string()
         };
@@ -137,7 +137,7 @@ impl fmt::Display for TokenAmount {
         // Always show the decimal point, even with ".0".
         let complete_without_sign = before_decimal + "." + after_decimal.as_str();
         // Padding works even though we have a decimal point.
-        f.pad_integral(!q.is_negative(), "", &complete_without_sign)
+        f.pad_integral(!self.atto().is_negative(), "", &complete_without_sign)
     }
 }
 
@@ -422,6 +422,11 @@ mod test {
             "00.123",
             format!("{:06.3}", atto(123_456_789_000_000_000_u64))
         );
+    }
+
+    #[test]
+    fn display_negative() {
+        assert_eq!("-0.000001", format!("{:01}", -TokenAmount::from_nano(1000)));
     }
 
     #[test]
