@@ -62,8 +62,8 @@ pub fn invoke(params: u32) -> u32 {
 
     match sdk::message::method_number() {
         EmitSeveralOk => {
-            sdk::event::emit_event(single_entry_evt.into()).unwrap();
-            sdk::event::emit_event(multi_entry.into()).unwrap();
+            sdk::event::emit_event(&single_entry_evt.into()).unwrap();
+            sdk::event::emit_event(&multi_entry.into()).unwrap();
         }
         EmitMalformed => unsafe {
             // mangle an event.
