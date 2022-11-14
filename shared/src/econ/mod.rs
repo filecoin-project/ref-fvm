@@ -109,9 +109,7 @@ impl fmt::Debug for TokenAmount {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for TokenAmount {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        Self {
-            atto: BigInt::arbitrary(g),
-        }
+        TokenAmount::from_atto(BigInt::arbitrary(g))
     }
 }
 

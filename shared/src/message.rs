@@ -99,7 +99,7 @@ impl quickcheck::Arbitrary for Message {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         Self {
             to: Address::arbitrary(g),
-            from: Address::new_id(u64::arbitrary(g)),
+            from: Address::arbitrary(g),
             version: i64::arbitrary(g),
             sequence: u64::arbitrary(g),
             value: TokenAmount::arbitrary(g),
