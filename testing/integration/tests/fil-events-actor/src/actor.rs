@@ -20,11 +20,11 @@ struct EventPayload2 {
 impl Cbor for EventPayload2 {}
 
 #[no_mangle]
-pub fn invoke(params: u32) -> u32 {
+pub fn invoke(_params: u32) -> u32 {
     sdk::initialize();
 
-    const EmitSeveralOk: u64 = 2;
-    const EmitMalformed: u64 = 3;
+    const EMIT_SEVERAL_OK: u64 = 2;
+    const EMIT_MALFORMED: u64 = 3;
 
     // Emit a single-entry event.
     let payload = EventPayload1 {
@@ -61,11 +61,11 @@ pub fn invoke(params: u32) -> u32 {
     ];
 
     match sdk::message::method_number() {
-        EmitSeveralOk => {
+        EMIT_SEVERAL_OK => {
             sdk::event::emit_event(&single_entry_evt.into()).unwrap();
             sdk::event::emit_event(&multi_entry.into()).unwrap();
         }
-        EmitMalformed => unsafe {
+        EMIT_MALFORMED => unsafe {
             // mangle an event.
             let mut serialized = single_entry_evt.marshal_cbor().unwrap();
             serialized[1] = 0xff;
