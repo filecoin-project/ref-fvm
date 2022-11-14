@@ -25,6 +25,7 @@ impl StampedEvent {
 
 /// An event as originally emitted by the actor.
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
+#[serde(transparent)]
 pub struct ActorEvent {
     pub entries: Vec<Entry>,
 }
@@ -38,6 +39,7 @@ impl From<Vec<Entry>> for ActorEvent {
 }
 
 bitflags! {
+    /// Flags associated with an Event entry.
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct Flags: u8 {
@@ -46,14 +48,6 @@ bitflags! {
         const FLAG_INDEXED_ALL      = Self::FLAG_INDEXED_KEY.bits | Self::FLAG_INDEXED_VALUE.bits;
     }
 }
-
-// /// Flags associated with an Event entry.
-// #[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
-// #[serde(transparent)]
-// pub struct Flags(pub u8);
-
-// /// Signals that an entry must be indexed.
-// pub const FLAG_INDEXED: u8 = 0x01;
 
 /// A key value entry inside an Event.
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
