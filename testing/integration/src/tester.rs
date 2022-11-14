@@ -226,7 +226,8 @@ where
         configure(&mut nc);
 
         let mut mc = nc.for_epoch(0, state_root);
-        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE));
+        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
+            .enable_tracing();
 
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network.clone()).into())?,
