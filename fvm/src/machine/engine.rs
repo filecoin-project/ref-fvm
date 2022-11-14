@@ -80,10 +80,17 @@ impl Default for MultiEngine {
     }
 }
 
-pub fn default_wasmtime_config(
-    instance_count: u32,
-    instance_memory_maximum_size: u64,
-) -> wasmtime::Config {
+fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
+    let instance_count = 1 + ec.max_call_depth;
+    let instance_memory_maximum_size = ec.max_inst_memory_bytes;
+    if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
+        return Err(anyhow!(
+            "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
+            instance_memory_maximum_size,
+            wasmtime_environ::WASM_PAGE_SIZE
+        ));
+    }
+
     let mut c = wasmtime::Config::default();
 
     // wasmtime default: OnDemand
@@ -171,7 +178,7 @@ pub fn default_wasmtime_config(
     // todo(M2): make sure this is guaranteed to run in linear time.
     c.cranelift_opt_level(Speed);
 
-    c
+    Ok(c)
 }
 
 struct EngineInner {
@@ -202,10 +209,7 @@ impl Deref for Engine {
 
 impl Engine {
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
-        Engine::new(
-            &default_wasmtime_config(1 + ec.max_call_depth, ec.max_inst_memory_bytes),
-            ec,
-        )
+        Engine::new(&wasmtime_config(&ec)?, ec)
     }
 
     /// Create a new Engine from a wasmtime config.
