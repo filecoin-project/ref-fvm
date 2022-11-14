@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.10 [2022-11-14]
+
+- Split `InvokeContext` into two (#1070)
+
 ## 3.0.0-alpha.9 [2022-10-21]
 
 - When debugging is enabled, set the default actor log level to trace. This won't affect actors unless debugging is enabled.
