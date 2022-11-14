@@ -35,7 +35,7 @@ pub fn invoke(_params: u32) -> u32 {
     let single_entry_evt = vec![Entry {
         flags: Flags::all(),
         key: "foo".to_owned(),
-        value: payload.marshal_cbor().unwrap(),
+        value: payload.marshal_cbor().unwrap().into(),
     }];
 
     let payload1 = EventPayload1 {
@@ -51,12 +51,12 @@ pub fn invoke(_params: u32) -> u32 {
         Entry {
             flags: Flags::all(),
             key: "bar".to_owned(),
-            value: payload1.marshal_cbor().unwrap(),
+            value: payload1.marshal_cbor().unwrap().into(),
         },
         Entry {
             flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
             key: "baz".to_string(),
-            value: payload2.marshal_cbor().unwrap(),
+            value: payload2.marshal_cbor().unwrap().into(),
         },
     ];
 

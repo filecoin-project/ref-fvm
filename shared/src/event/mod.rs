@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::{Cbor, RawBytes};
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
 
@@ -57,7 +57,7 @@ pub struct Entry {
     /// The key of this event.
     pub key: String,
     /// Any DAG-CBOR encodeable type.
-    pub value: Vec<u8>,
+    pub value: RawBytes,
 }
 
 impl Cbor for Entry {}

@@ -869,7 +869,7 @@ impl PriceList {
                 .intersection(Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE)
                 .bits()
                 .count_ones();
-            total_bytes += evt.key.len() + evt.value.len();
+            total_bytes += evt.key.len() + evt.value.bytes().len();
         }
 
         GasCharge::new(
