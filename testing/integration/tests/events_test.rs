@@ -1,6 +1,6 @@
 mod bundles;
 use bundles::*;
-use fil_events_actor::WASM_BINARY as ADDRESS_BINARY;
+use fil_events_actor::WASM_BINARY as EVENTS_BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -27,7 +27,7 @@ fn events_test() {
 
     let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
 
-    let wasm_bin = ADDRESS_BINARY.unwrap();
+    let wasm_bin = EVENTS_BINARY.unwrap();
 
     // Set actor state
     let actor_state = [(); 0];
