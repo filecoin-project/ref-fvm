@@ -24,7 +24,7 @@ impl StampedEvent {
 }
 
 /// An event as originally emitted by the actor.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 pub struct ActorEvent {
     pub entries: Vec<Entry>,
 }
