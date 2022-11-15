@@ -5,12 +5,12 @@ use std::fmt::Display;
 
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Hamt};
 use multihash::Code;
-use serde_bytes::ByteBuf;
 
 // Redeclaring max array size of Hamt to avoid exposing value
 const BUCKET_SIZE: usize = 3;
@@ -172,7 +172,7 @@ fn delete_case() {
 
     let mut hamt: Hamt<_, _> = Hamt::new(&store);
 
-    hamt.set([0].to_vec().into(), ByteBuf::from(b"Test data".as_ref()))
+    hamt.set([0].to_vec().into(), ByteBuf(b"Test data".as_ref().into()))
         .unwrap();
 
     let c = hamt.flush().unwrap();

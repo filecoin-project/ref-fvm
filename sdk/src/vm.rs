@@ -1,20 +1,11 @@
 use std::ptr;
 
-use fvm_shared::sys::out::vm::InvocationContext;
+use fvm_shared::error::ExitCode;
 
 use crate::sys;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
-
-// TODO this may cause issues inside of validate contexts depending on how nicely lazy static behaves
-lazy_static::lazy_static! {
-    pub(crate) static ref INVOCATION_CONTEXT: InvocationContext = {
-        unsafe {
-            sys::vm::context().expect("failed to lookup invocation context")
-        }
-    };
-}
 
 /// Abort execution.
 pub fn abort(code: u32, message: Option<&str>) -> ! {
@@ -27,4 +18,17 @@ pub fn abort(code: u32, message: Option<&str>) -> ! {
 
         sys::vm::abort(code, message, message_len as u32);
     }
+}
+
+/// Sets a panic handler to turn all panics into aborts with `USR_ASSERTION_FAILED`. This should be
+/// called early in the actor to improve debuggability.
+///
+/// NOTE: This will incure a small cost on failure (to format an error message).
+pub fn set_panic_handler() {
+    std::panic::set_hook(Box::new(|info| {
+        abort(
+            ExitCode::USR_ASSERTION_FAILED.value(),
+            Some(&format!("{}", info)),
+        )
+    }));
 }

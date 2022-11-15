@@ -6,7 +6,7 @@ use std::u64;
 use byteorder::{BigEndian, ByteOrder};
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::serde_bytes;
+use fvm_ipld_encoding::strict_bytes;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);
@@ -25,11 +25,11 @@ impl Serialize for Bitfield {
 
         for i in 0..v.len() {
             if v[i] != 0 {
-                return serde_bytes::Serialize::serialize(&v[i..], serializer);
+                return strict_bytes::Serialize::serialize(&v[i..], serializer);
             }
         }
 
-        <[u8] as serde_bytes::Serialize>::serialize(&[], serializer)
+        <[u8] as strict_bytes::Serialize>::serialize(&[], serializer)
     }
 }
 
@@ -39,7 +39,7 @@ impl<'de> Deserialize<'de> for Bitfield {
         D: Deserializer<'de>,
     {
         let mut res = Bitfield::zero();
-        let bytes = serde_bytes::ByteBuf::deserialize(deserializer)?.into_vec();
+        let bytes = strict_bytes::ByteBuf::deserialize(deserializer)?.into_vec();
 
         let mut arr = [0u8; 4 * 8];
         let len = bytes.len();

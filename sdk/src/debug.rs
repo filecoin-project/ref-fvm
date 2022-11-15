@@ -16,6 +16,7 @@ mod inner {
 #[cfg(feature = "debug")]
 mod inner {
     use lazy_static::lazy_static;
+    use log::LevelFilter;
 
     use crate::sys;
 
@@ -32,9 +33,11 @@ mod inner {
         }
     }
     /// Initialize logging if debugging is enabled.
+    #[inline(always)]
     pub fn init_logging() {
         if enabled() {
             log::set_logger(&Logger).expect("failed to enable logging");
+            log::set_max_level(LevelFilter::Trace);
         }
     }
 

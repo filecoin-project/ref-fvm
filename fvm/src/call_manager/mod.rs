@@ -10,12 +10,12 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
-
 pub use backtrace::Backtrace;
 
 mod default;
 
 pub use default::DefaultCallManager;
+use fvm_shared::event::StampedEvent;
 
 use crate::trace::ExecutionTrace;
 
@@ -45,7 +45,7 @@ pub trait CallManager: 'static {
     fn new(
         machine: Self::Machine,
         gas_limit: i64,
-        origin: (ActorID, Address),
+        origin: ActorID,
         nonce: u64,
         gas_premium: TokenAmount,
         execution_type: ExecutionType,
@@ -89,7 +89,7 @@ pub trait CallManager: 'static {
     fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
     /// Getter for origin actor.
-    fn origin(&self) -> (ActorID, &Address);
+    fn origin(&self) -> ActorID;
 
     /// Getter for message nonce.
     fn nonce(&self) -> u64;
@@ -135,6 +135,12 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Limit memory usage throughout a message execution.
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter;
+
+    /// Appends an event to the event accumulator.
+    fn append_event(&mut self, evt: StampedEvent);
 }
 
 /// The result of a method invocation.
@@ -174,4 +180,5 @@ pub struct FinishRet {
     pub gas_used: i64,
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
+    pub events: Vec<StampedEvent>,
 }

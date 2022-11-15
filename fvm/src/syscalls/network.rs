@@ -1,5 +1,6 @@
 use anyhow::Context as _;
 use fvm_shared::sys;
+use fvm_shared::sys::out::network::NetworkContext as SyscallNetworkContext;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
@@ -24,6 +25,13 @@ pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::T
         .or_fatal()
 }
 
+pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<SyscallNetworkContext> {
+    Ok(SyscallNetworkContext {
+        network_curr_epoch: context.kernel.network_epoch(),
+        network_version: context.kernel.network_version() as u32,
+    })
+}
+
 pub fn tipset_timestamp(context: Context<'_, impl Kernel>) -> Result<u64> {
     Ok(context.kernel.tipset_timestamp())
 }
@@ -37,9 +45,6 @@ pub fn tipset_cid(
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
-    if let Some(cid) = context.kernel.tipset_cid(epoch)? {
-        context.memory.write_cid(&cid, obuf_off, obuf_len)
-    } else {
-        Ok(0)
-    }
+    let cid = context.kernel.tipset_cid(epoch)?;
+    context.memory.write_cid(&cid, obuf_off, obuf_len)
 }

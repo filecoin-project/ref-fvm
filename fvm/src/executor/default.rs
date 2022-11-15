@@ -5,8 +5,11 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{Cbor, RawBytes, DAG_CBOR};
 use fvm_shared::address::Address;
+#[cfg(feature = "f4-as-account")]
+use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::event::StampedEvent;
 use fvm_shared::message::params::ValidateParams;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
@@ -14,17 +17,18 @@ use fvm_shared::{ActorID, VALIDATION_GAS_LIMIT};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, ValidateRet};
-use crate::call_manager::{backtrace, CallManager, ExecutionType, InvocationResult};
+use crate::call_manager::{backtrace, Backtrace, CallManager, ExecutionType, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
+use crate::trace::ExecutionTrace;
 
 /// The default [`Executor`].
 ///
 /// # Warning
 ///
 /// Message execution might run out of stack and crash (the entire process) if it doesn't have at
-/// least 64MiB of stacks space. If you can't guarantee 64MiB of stack space, wrap this executor in
+/// least 64MiB of stack space. If you can't guarantee 64MiB of stack space, wrap this executor in
 /// a [`ThreadedExecutor`][super::ThreadedExecutor].
 // If the inner value is `None` it means the machine got poisoned and is unusable.
 #[repr(transparent)]
@@ -64,16 +68,25 @@ where
                 Err(apply_ret) => return Ok(apply_ret),
             };
 
+        struct MachineExecRet {
+            result: crate::kernel::error::Result<InvocationResult>,
+            gas_used: i64,
+            backtrace: Backtrace,
+            exec_trace: ExecutionTrace,
+            events_root: Option<Cid>,
+            events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
+        }
+
         // Apply the message.
-        let (res, gas_used, mut backtrace, exec_trace) = self.map_machine(|machine| {
+        let ret = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
             let mut cm = K::CallManager::new(
                 machine,
                 msg.gas_limit,
-                (sender_id, msg.from),
+                sender_id,
                 msg.sequence,
                 msg.gas_premium.clone(),
-                crate::call_manager::ExecutionType::Normal,
+                ExecutionType::Normal,
             );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
@@ -101,11 +114,34 @@ where
                 Ok(ret)
             });
             let (res, machine) = cm.finish();
+
+            // Flush all events to the store.
+            let events_root = match machine.commit_events(res.events.as_slice()) {
+                Ok(cid) => cid,
+                Err(e) => return (Err(e), machine),
+            };
+
             (
-                Ok((result, res.gas_used, res.backtrace, res.exec_trace)),
+                Ok(MachineExecRet {
+                    result,
+                    gas_used: res.gas_used,
+                    backtrace: res.backtrace,
+                    exec_trace: res.exec_trace,
+                    events_root,
+                    events: res.events,
+                }),
                 machine,
             )
         })?;
+
+        let MachineExecRet {
+            result: res,
+            gas_used,
+            mut backtrace,
+            exec_trace,
+            events_root,
+            events,
+        } = ret;
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
@@ -121,6 +157,7 @@ where
                     exit_code: ExitCode::OK,
                     return_data,
                     gas_used,
+                    events_root,
                 }
             }
             Ok(InvocationResult::Failure(exit_code)) => {
@@ -131,12 +168,14 @@ where
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
+                    events_root,
                 }
             }
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),
                 gas_used,
+                events_root,
             },
             Err(ExecutionError::Syscall(err)) => {
                 // Errors indicate the message couldn't be dispatched at all
@@ -153,6 +192,7 @@ where
                     exit_code,
                     return_data: Default::default(),
                     gas_used,
+                    events_root,
                 }
             }
             Err(ExecutionError::Fatal(err)) => {
@@ -177,6 +217,7 @@ where
                     exit_code: ExitCode::SYS_ASSERTION_FAILED,
                     return_data: Default::default(),
                     gas_used: msg.gas_limit,
+                    events_root,
                 }
             }
         };
@@ -188,12 +229,9 @@ where
         };
 
         match apply_kind {
-            ApplyKind::Explicit => self
-                .finish_message(msg, receipt, failure_info, gas_cost)
-                .map(|mut apply_ret| {
-                    apply_ret.exec_trace = exec_trace;
-                    apply_ret
-                }),
+            ApplyKind::Explicit => {
+                self.finish_message(msg, receipt, failure_info, gas_cost, exec_trace, events)
+            }
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
                 penalty: TokenAmount::zero(),
@@ -205,6 +243,7 @@ where
                 gas_burned: 0,
                 failure_info,
                 exec_trace,
+                events,
             }),
         }
     }
@@ -237,7 +276,7 @@ where
             let mut cm = K::CallManager::new(
                 machine,
                 VALIDATION_GAS_LIMIT,
-                (sender_id, msg.from),
+                sender_id,
                 msg.sequence,
                 msg.gas_premium.clone(),
                 ExecutionType::Validator,
@@ -397,6 +436,15 @@ where
         // If sender is not an account actor, the message is invalid.
         let sender_is_account = self.builtin_actors().is_account_actor(&sender.code);
 
+        // Unless we have the f4-as-account hack enabled, and the sender is an embryo created by the EAM.
+        #[cfg(feature = "f4-as-account")]
+        let sender_is_account = sender_is_account
+            || sender
+                .address
+                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == 10 /* eam */))
+                .unwrap_or_default()
+                && self.builtin_actors().is_embryo_actor(&sender.code);
+
         if !sender_is_account {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_INVALID,
@@ -446,6 +494,8 @@ where
         receipt: Receipt,
         failure_info: Option<ApplyFailure>,
         gas_cost: TokenAmount,
+        exec_trace: ExecutionTrace,
+        events: Vec<StampedEvent>,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -504,7 +554,8 @@ where
             gas_refund,
             gas_burned,
             failure_info,
-            exec_trace: vec![],
+            exec_trace,
+            events,
         })
     }
 

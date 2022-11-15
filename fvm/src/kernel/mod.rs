@@ -14,7 +14,6 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::sys::out::vm::InvocationContext;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
 
@@ -23,13 +22,16 @@ mod hash;
 mod blocks;
 pub mod default;
 
-mod error;
+pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
+use fvm_shared::event::{ActorEvent, StampedEvent};
 use multihash::MultihashGeneric;
+use wasmtime::ResourceLimiter;
 
 use crate::call_manager::{CallManager, ExecutionType};
 use crate::gas::{Gas, PriceList};
+use crate::machine::limiter::ExecMemory;
 use crate::machine::Machine;
 
 pub enum SendResult {
@@ -50,13 +52,14 @@ pub trait Kernel:
     + CircSupplyOps
     + CryptoOps
     + DebugOps
+    + EventOps
     + GasOps
     + MessageOps
     + NetworkOps
     + RandomnessOps
     + SelfOps
     + SendOps
-    + InvokeContextOps
+    + LimiterOps
     + 'static
 {
     /// The [`Kernel`]'s [`CallManager`] is
@@ -102,15 +105,11 @@ pub trait NetworkOps {
     /// The current base-fee (constant).
     fn network_base_fee(&self) -> Result<&TokenAmount>;
 
-    /// current tipset timestamp
+    /// The current tipset timestamp (seconds since the unix epoch).
     fn tipset_timestamp(&self) -> u64;
 
-    /// epoch tipset cid
-    fn tipset_cid(&self, epoch: i64) -> Result<Option<Cid>>;
-}
-
-pub trait InvokeContextOps {
-    fn invoke_context(&self) -> Result<InvocationContext>;
+    /// The CID of the tipset at the specified epoch.
+    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
 }
 
 /// Accessors to query attributes of the incoming message.
@@ -119,7 +118,7 @@ pub trait MessageOps {
     fn msg_caller(&self) -> ActorID;
 
     /// The origin actor
-    fn msg_origin(&self) -> (ActorID, &Address);
+    fn msg_origin(&self) -> ActorID;
 
     /// The receiving actor (this actor) (constant).
     fn msg_receiver(&self) -> ActorID;
@@ -195,10 +194,13 @@ pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
     /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
+    fn resolve_address(&self, address: &Address) -> Result<ActorID>;
+
+    /// Looks-up the "predictable" address of the specified actor, if any.
+    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
 
     /// Look up the code CID of an actor.
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Option<Cid>>;
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
 
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
@@ -206,9 +208,14 @@ pub trait ActorOps {
     /// Always an ActorExec address.
     fn new_actor_address(&mut self) -> Result<Address>;
 
-    /// Creates an actor with code `code_cid` and id `actor_id`, with empty state.
-    /// May only be called by Init actor.
-    fn create_actor(&mut self, code_cid: Cid, actor_id: ActorID) -> Result<()>;
+    /// Creates an actor with given `code_cid`, `actor_id`, `predictable_address` (if specified),
+    /// and an empty state.
+    fn create_actor(
+        &mut self,
+        code_cid: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()>;
 
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]
@@ -373,4 +380,21 @@ pub trait DebugOps {
     /// Store an artifact.
     /// Returns error on malformed name, returns Ok and logs the error on system/os errors.
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
+}
+
+/// Track and limit memory expansion.
+///
+/// This interface is not one of the operations the kernel provides to actors.
+/// It's only part of the kernel out of necessity to pass it through to the
+/// call manager which tracks the limits across the whole execution stack.
+pub trait LimiterOps {
+    type Limiter: ResourceLimiter + ExecMemory;
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut Self::Limiter;
+}
+
+/// Eventing APIs.
+pub trait EventOps {
+    /// Records an event emitted throughout execution.
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()>;
 }

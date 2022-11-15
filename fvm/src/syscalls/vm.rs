@@ -1,5 +1,5 @@
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::InvocationContext;
+use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SyscallSafe;
 use fvm_shared::version::NetworkVersion;
 
@@ -48,6 +48,27 @@ pub fn abort(
     Err(Abort::Exit(code, message))
 }
 
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<InvocationContext> {
-    context.kernel.invoke_context()
+pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
+    use anyhow::Context as _;
+    // TODO: check that we can call this syscall
+
+    Ok(MessageContext {
+        caller: context.kernel.msg_caller(),
+        origin: context.kernel.msg_origin(),
+        receiver: context.kernel.msg_receiver(),
+        method_number: context.kernel.msg_method_number(),
+        value_received: context
+            .kernel
+            .msg_value_received()
+            .try_into()
+            .context("invalid token amount")
+            .or_fatal()?,
+        gas_premium: context
+            .kernel
+            .msg_gas_premium()
+            .try_into()
+            .context("invalid gas premium")
+            .or_fatal()?,
+        gas_limit: context.kernel.msg_gas_limit(),
+    })
 }

@@ -8,18 +8,23 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
-use fvm_shared::address::Address;
+use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
+use lazy_static::lazy_static;
 use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
-use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor};
+use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
+
+lazy_static! {
+    pub static ref INITIAL_ACCOUNT_BALANCE: TokenAmount = TokenAmount::from_atto(10000);
+}
 
 pub trait Store: Blockstore + Sized + 'static {}
 
@@ -35,6 +40,8 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     builtin_actors: Cid,
     // Accounts actor cid
     accounts_code_cid: Cid,
+    // Embryo code cid.
+    embryo_code_cid: Cid,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
@@ -61,17 +68,18 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
         let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
-        // Deploy init and sys actors
+        // Deploy init, sys, and eam actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
+        set_eam_actor(&mut state_tree, eam_code_cid)?;
 
         Ok(Tester {
             nv,
@@ -80,6 +88,7 @@ where
             code_cids: vec![],
             state_tree: Some(state_tree),
             accounts_code_cid,
+            embryo_code_cid,
         })
     }
 
@@ -93,9 +102,35 @@ where
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
             let priv_key = SecretKey::random(rng);
-            *account = self.make_secp256k1_account(priv_key, TokenAmount::from_atto(10000))?;
+            *account = self.make_secp256k1_account(priv_key, INITIAL_ACCOUNT_BALANCE.clone())?;
         }
         Ok(ret)
+    }
+
+    pub fn create_embryo(&mut self, address: &Address, init_balance: TokenAmount) -> Result<()> {
+        assert_eq!(address.protocol(), Protocol::Delegated);
+
+        let state_tree = self
+            .state_tree
+            .as_mut()
+            .ok_or_else(|| anyhow!("unable get state tree"))?;
+
+        let id = state_tree.register_new_address(address).unwrap();
+        let state: [u8; 32] = [0; 32];
+
+        let cid = state_tree.store().put_cbor(&state, Code::Blake2b256)?;
+
+        let actor_state = ActorState {
+            code: self.embryo_code_cid,
+            state: cid,
+            sequence: 0,
+            balance: init_balance,
+            address: Some(*address),
+        };
+
+        state_tree
+            .set_actor(&Address::new_id(id), actor_state)
+            .map_err(anyhow::Error::from)
     }
 
     /// Set a new state in the state tree
@@ -120,12 +155,14 @@ where
         actor_address: Address,
         balance: TokenAmount,
     ) -> Result<Cid> {
-        // Register actor address
-        self.state_tree
-            .as_mut()
-            .unwrap()
-            .register_new_address(&actor_address)
-            .unwrap();
+        // Register actor address (unless it's an ID address)
+        if actor_address.id().is_err() {
+            self.state_tree
+                .as_mut()
+                .unwrap()
+                .register_new_address(&actor_address)
+                .unwrap();
+        }
 
         // Put the WASM code into the blockstore.
         let code_cid = put_wasm_code(self.state_tree.as_mut().unwrap().store(), wasm_bin)?;
@@ -134,7 +171,16 @@ where
         self.code_cids.push(code_cid);
 
         // Initialize actor state
-        let actor_state = ActorState::new(code_cid, state_cid, balance, 1);
+        let actor_state = ActorState::new(
+            code_cid,
+            state_cid,
+            balance,
+            1,
+            match actor_address.protocol() {
+                Protocol::ID | Protocol::Actor => None,
+                _ => Some(actor_address),
+            },
+        );
 
         // Create actor
         self.state_tree
@@ -148,6 +194,17 @@ where
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
+        self.instantiate_machine_with_config(externs, |_| ())
+    }
+
+    /// Sets the Machine and the Executor in our Tester structure.
+    ///
+    /// The `configure` function allows the caller to adjust the `NetworkConfiguration` before
+    /// it's used to instantiate the rest of the components.
+    pub fn instantiate_machine_with_config<F>(&mut self, externs: E, configure: F) -> Result<()>
+    where
+        F: FnOnce(&mut NetworkConfig),
+    {
         // Take the state tree and leave None behind.
         let mut state_tree = self.state_tree.take().unwrap();
 
@@ -165,8 +222,12 @@ where
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 
+        // Custom configuration.
+        configure(&mut nc);
+
         let mut mc = nc.for_epoch(0, state_root);
-        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE));
+        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
+            .enable_tracing();
 
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network.clone()).into())?,
@@ -219,6 +280,7 @@ where
             state: cid,
             sequence: 0,
             balance: init_balance,
+            address: Some(pub_key_addr),
         };
 
         state_tree

@@ -2,18 +2,26 @@ use std::convert::TryInto;
 
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::{BlockId, Codec};
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::vm::INVOCATION_CONTEXT;
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
+
+lazy_static::lazy_static! {
+    pub(crate) static ref MESSAGE_CONTEXT: MessageContext = {
+        unsafe {
+            sys::vm::message_context().expect("failed to lookup message context")
+        }
+    };
+}
 
 /// Returns the ID address of the caller.
 ///
 /// Panics inside validate context
 #[inline(always)]
 pub fn caller() -> ActorID {
-    INVOCATION_CONTEXT.caller
+    MESSAGE_CONTEXT.caller
 }
 
 /// Returns the ID address of the origin
@@ -21,7 +29,7 @@ pub fn caller() -> ActorID {
 /// Panics inside validate context
 #[inline(always)]
 pub fn origin() -> ActorID {
-    INVOCATION_CONTEXT.origin
+    MESSAGE_CONTEXT.origin
 }
 
 /// Returns the ID address of the actor.
@@ -29,7 +37,7 @@ pub fn origin() -> ActorID {
 /// Panics inside validate context
 #[inline(always)]
 pub fn receiver() -> ActorID {
-    INVOCATION_CONTEXT.receiver
+    MESSAGE_CONTEXT.receiver
 }
 
 /// Returns the message's method number.
@@ -37,7 +45,7 @@ pub fn receiver() -> ActorID {
 /// Panics inside validate context
 #[inline(always)]
 pub fn method_number() -> MethodNum {
-    INVOCATION_CONTEXT.method_number
+    MESSAGE_CONTEXT.method_number
 }
 
 /// Returns the value received from the caller in AttoFIL.
@@ -45,7 +53,7 @@ pub fn method_number() -> MethodNum {
 /// Panics inside validate context
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    INVOCATION_CONTEXT
+    MESSAGE_CONTEXT
         .value_received
         .try_into()
         .expect("invalid bigint")
@@ -54,12 +62,12 @@ pub fn value_received() -> TokenAmount {
 /// Returns the execution gas limit
 #[inline(always)]
 pub fn gas_limit() -> u64 {
-    INVOCATION_CONTEXT.gas_limit
+    MESSAGE_CONTEXT.gas_limit
 }
 
 /// Returns the execution gas premium
 pub fn gas_premium() -> TokenAmount {
-    INVOCATION_CONTEXT
+    MESSAGE_CONTEXT
         .gas_premium
         .try_into()
         .expect("invalid bigint")

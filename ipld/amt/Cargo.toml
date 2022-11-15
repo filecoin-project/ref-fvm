@@ -1,10 +1,10 @@
 [package]
 name = "fvm_ipld_amt"
 description = "Sharded IPLD Array implementation."
-version = "0.4.2"
+version = "0.5.0"
 license = "MIT OR Apache-2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
@@ -12,17 +12,16 @@ cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] 
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 once_cell = "1.5"
-ahash = { version = "0.7", optional = true }
 itertools = "0.10"
 anyhow = "1.0.51"
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
-fvm_ipld_encoding = { version = "0.2", path = "../encoding" }
+fvm_ipld_encoding = { version = "0.3", path = "../encoding" }
 
 [features]
-go-interop = ["ahash"]
+go-interop = []
 
 [dev-dependencies]
-criterion = "0.3.1"
+criterion = "0.4.0"
 
 [[bench]]
 name = "amt_benchmark"

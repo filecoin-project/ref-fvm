@@ -65,6 +65,7 @@ pub fn send(
             exit_code,
             return_data,
             gas_used: 0,
+            events_root: Default::default(), // TODO; it's likely time to change the Receipt return type here.
         })
     }
 }

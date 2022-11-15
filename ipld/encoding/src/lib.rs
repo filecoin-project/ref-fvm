@@ -9,7 +9,6 @@ mod vec;
 use std::io;
 
 pub use serde::{self, de, ser};
-pub use serde_bytes;
 
 pub use self::bytes::*;
 pub use self::cbor::*;

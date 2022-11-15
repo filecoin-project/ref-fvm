@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.11 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
+## 3.0.0-alpha.10 [2022-11-14]
+
+- Split `InvokeContext` into two (#1070)
+
+## 3.0.0-alpha.9 [2022-10-21]
+
+- When debugging is enabled, set the default actor log level to trace. This won't affect actors unless debugging is enabled.
+
+## 3.0.0-alpha.8 [2022-10-21]
+
+- Fix address buffer length in new_actor_address and lookup_address.
+
+## 3.0.0-alpha.7 [2022-10-21]
+
+- Dependency upgrades.
+
+## 3.0.0-alpha.6 [2022-10-20]
+
+- Dependency upgrades.
+
+## 3.0.0-alpha.5 [2022-10-10]
+
+- Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+
+## 3.0.0-alpha.4 [2022-10-10]
+
+- Add support for recording & looking up f4 addresses.
+
+## 3.0.0-alpha.3 [2022-10-10]
+
+- Rust 2021 edition.
+- Add a new `balance_of` syscall.
+- Add a new tipset_cid syscall.
+- Add a new timestamp syscall.
+- Add an sdk "initialization" helper (for initializing logging, panic handlers, etc.).
+- Removes custom assert macros (initialize error handling instead).
+- Add syscalls to get the gas limit and premium.
+- Add a syscall to get the available gas.
+
 ## 3.0.0-alpha.2 [2022-09-02]
 
 - New `hash_into` sdk for hashing into a mut buffer.

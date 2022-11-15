@@ -8,13 +8,13 @@ authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "3.0.0-alpha.1", path = "../../fvm", default-features = false }
-fvm_shared = { version = "3.0.0-alpha.2", path = "../../shared" }
-fvm_ipld_hamt = { version = "0.5.1", path = "../../ipld/hamt" }
-fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt" }
-fvm_ipld_car = { version = "0.5.0", path = "../../ipld/car" }
+fvm = { version = "3.0.0-alpha.8", path = "../../fvm", default-features = false }
+fvm_shared = { version = "3.0.0-alpha.11", path = "../../shared" }
+fvm_ipld_hamt = { version = "0.6.1", path = "../../ipld/hamt" }
+fvm_ipld_amt = { version = "0.5.0", path = "../../ipld/amt" }
+fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2.2", path = "../../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.3.0", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
@@ -31,7 +31,7 @@ serde_repr = "0.1"
 thiserror = "1.0.30"
 
 [dependencies.wasmtime]
-version = "0.40.1"
+version = "1.0.1"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
@@ -45,10 +45,12 @@ fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor" }
 fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor" }
 fil_syscall_actor = { path = "tests/fil-syscall-actor" }
 fil_validate_actor = { path = "tests/fil-validate-actor" }
-
+fil_address_actor = { path = "tests/fil-address-actor" }
+fil_events_actor = { path = "tests/fil-events-actor" }
 
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]
 m2-native = []
+f4-as-account = ["fvm/f4-as-account"]

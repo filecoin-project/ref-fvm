@@ -10,12 +10,16 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
+use wasmtime::{
+    Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
+    Module, Mutability, PoolingAllocationStrategy, Val, ValType,
+};
 
+use super::limiter::ExecMemory;
 use super::Machine;
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
-use crate::syscalls::{bind_syscalls, InvocationData};
+use crate::syscalls::{bind_syscalls, charge_for_init, InvocationData};
 use crate::Kernel;
 
 /// A caching wasmtime engine.
@@ -29,7 +33,9 @@ pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
 /// The proper way of getting this struct is to convert from `NetworkConfig`
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct EngineConfig {
+    pub max_call_depth: u32,
     pub max_wasm_stack: u32,
+    pub max_inst_memory_bytes: u64,
     pub wasm_prices: &'static WasmGasPrices,
     pub actor_redirect: Vec<(Cid, Cid)>,
 }
@@ -37,7 +43,9 @@ pub struct EngineConfig {
 impl From<&NetworkConfig> for EngineConfig {
     fn from(nc: &NetworkConfig) -> Self {
         EngineConfig {
+            max_call_depth: nc.max_call_depth,
             max_wasm_stack: nc.max_wasm_stack,
+            max_inst_memory_bytes: nc.max_inst_memory_bytes,
             wasm_prices: &nc.price_list.wasm_rules,
             actor_redirect: nc.actor_redirect.clone(),
         }
@@ -72,8 +80,38 @@ impl Default for MultiEngine {
     }
 }
 
-pub fn default_wasmtime_config() -> wasmtime::Config {
+fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
+    let instance_count = 1 + ec.max_call_depth;
+    let instance_memory_maximum_size = ec.max_inst_memory_bytes;
+    if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
+        return Err(anyhow!(
+            "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
+            instance_memory_maximum_size,
+            wasmtime_environ::WASM_PAGE_SIZE
+        ));
+    }
+
     let mut c = wasmtime::Config::default();
+
+    // wasmtime default: OnDemand
+    // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
+    c.allocation_strategy(InstanceAllocationStrategy::Pooling {
+        strategy: PoolingAllocationStrategy::ReuseAffinity,
+        instance_limits: InstanceLimits {
+            count: instance_count,
+            // Adjust the maximum amount of host memory that can be committed to an instance to
+            // match the static linear memory size we reserve for each slot.
+            memory_pages: instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
+            ..Default::default()
+        },
+    });
+
+    // wasmtime default: true
+    // Included here to make sure the memory-init-cow feature is enabled.
+    c.memory_init_cow(true);
+
+    // wasmtime default: 4GB
+    c.static_memory_maximum_size(instance_memory_maximum_size);
 
     // wasmtime default: false
     // We don't want threads, there is no way to ensure determisism
@@ -124,6 +162,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.debug_info(false);
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
+    c.native_unwind_info(false);
+    #[allow(deprecated)] // TODO https://github.com/bytecodealliance/wasmtime/issues/5037
     c.wasm_backtrace(false);
     c.wasm_reference_types(false);
 
@@ -138,7 +178,7 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // todo(M2): make sure this is guaranteed to run in linear time.
     c.cranelift_opt_level(Speed);
 
-    c
+    Ok(c)
 }
 
 struct EngineInner {
@@ -169,7 +209,7 @@ impl Deref for Engine {
 
 impl Engine {
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
-        Engine::new(&default_wasmtime_config(), ec)
+        Engine::new(&wasmtime_config(&ec)?, ec)
     }
 
     /// Create a new Engine from a wasmtime config.
@@ -388,8 +428,21 @@ impl Engine {
             .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
 
         let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+
+        let instantiate = |store: &mut wasmtime::Store<InvocationData<K>>, module| {
+            // Before we instantiate the module, we should make sure the user has sufficient gas to
+            // pay for the minimum memory requirements. The module instrumentation in `inject` only
+            // adds code to charge for _growing_ the memory, but not for the amount made accessible
+            // initially. The limits are checked by wasmtime during instantiation, though.
+            charge_for_init(store, module)?;
+
+            let inst = cache.linker.instantiate(store, module)?;
+
+            Ok(Some(inst))
+        };
+
         match module_cache.entry(*k) {
-            Occupied(v) => Ok(Some(cache.linker.instantiate(&mut *store, v.get())?)),
+            Occupied(v) => instantiate(store, v.get()),
             Vacant(v) => match store
                 .data()
                 .kernel
@@ -398,23 +451,22 @@ impl Engine {
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
             {
-                Some(raw_wasm) => Ok(Some(
-                    cache
-                        .linker
-                        .instantiate(&mut *store, v.insert(self.load_raw(&raw_wasm)?))?,
-                )),
+                Some(raw_wasm) => instantiate(store, v.insert(self.load_raw(&raw_wasm)?)),
                 None => Ok(None),
             },
         }
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(&self, kernel: K) -> wasmtime::Store<InvocationData<K>> {
+    pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
+        let memory_bytes = kernel.limiter_mut().curr_exec_memory_bytes();
+
         let id = InvocationData {
             kernel,
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
             last_milligas_available: 0,
+            last_memory_bytes: memory_bytes,
             memory: self.0.dummy_memory,
         };
 
@@ -423,6 +475,8 @@ impl Engine {
         let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
+
+        store.limiter(|id| id.kernel.limiter_mut());
 
         store
     }

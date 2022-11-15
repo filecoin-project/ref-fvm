@@ -10,12 +10,13 @@ use fvm_shared::version::NetworkVersion;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref BUNDLES: BTreeMap<NetworkVersion, &'static [u8]> = [
-        (NetworkVersion::V15, actors_v10::BUNDLE_CAR),
-        (NetworkVersion::V16, actors_v10::BUNDLE_CAR), // todo bad hack
-    ].into_iter().collect();
+    static ref BUNDLES: BTreeMap<NetworkVersion, &'static [u8]> =
+        [(NetworkVersion::V18, actors_v10::BUNDLE_CAR),]
+            .into_iter()
+            .collect();
 }
 
+#[allow(dead_code)]
 pub fn new_tester<B: Blockstore, E: Externs>(
     nv: NetworkVersion,
     stv: StateTreeVersion,

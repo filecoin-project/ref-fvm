@@ -1,6 +1,50 @@
 # Changelog
 
-## 3.0.0-alpha.3 [UNRELEASED]
+## [Unreleased]
+
+- ...
+
+## 3.0.0-alpha.11 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
+## 3.0.0-alpha.10 [2022-11-14]
+
+- Split `InvokeContext` into two (#1070)
+- fix: correctly format negative token amounts (#1065)
+
+## 3.0.0-alpha.9 [2022-11-08]
+
+- Add support for state-tree v5.
+
+## 3.0.0-alpha.8 [2022-10-22]
+
+- fix compile issues with f4-as-account feature.
+
+## 3.0.0-alpha.7 [2022-10-21]
+
+- Temporary workaround: allow validating signatures from embryo f4 addresses
+
+## 3.0.0-alpha.6 [2022-10-20]
+
+- Make the f4 address conform to FIP0048 (use `f` as the separator).
+- Implement `TryFrom<Payload>` for `DelegatedAddress` (and make `DelegatedAddress` public).
+
+## 3.0.0-alpha.5 [2022-10-10]
+
+- Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+
+## 3.0.0-alpha.4 [2022-10-10]
+
+- Small f4 address fixes.
+
+## 3.0.0-alpha.3 [2022-10-10]
+
+- Switch to rust 2021 edition.
+- Add network version 18.
+- BREAKING: Allow changing the address "network" at runtime.
+- BREAKING: Update the f4 address format and include a checksum.
+- BREAKING: Add the gas premium and gas limit to the `vm::context` return type.
 
 ## 3.0.0-alpha.2 [2022-09-16]
 

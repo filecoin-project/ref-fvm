@@ -36,8 +36,8 @@ pub struct State {
 fn hello_world() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V15,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -138,8 +138,8 @@ fn validate() {
 fn ipld() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V15,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -190,8 +190,8 @@ fn ipld() {
 fn syscalls() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -242,8 +242,8 @@ fn syscalls() {
 fn native_stack_overflow() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -264,7 +264,13 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(DummyExterns, |nc| {
+            // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
+            nc.max_exec_memory_bytes = 4 * (1 << 30);
+            nc.max_inst_memory_bytes = 4 * (1 << 30);
+        })
+        .unwrap();
 
     let exec_test =
         |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
@@ -282,6 +288,8 @@ fn native_stack_overflow() {
             let res = exec
                 .execute_message(message, ApplyKind::Explicit, 100)
                 .unwrap();
+
+            eprintln!("STACKOVERFLOW RESULT = {:?}", res);
 
             res.msg_receipt.exit_code.value()
         };
@@ -307,8 +315,8 @@ fn native_stack_overflow() {
 fn test_exitcode(wat: &str, code: ExitCode) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
     .unwrap();
@@ -463,8 +471,8 @@ fn backtraces() {
 
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V16,
-        StateTreeVersion::V4,
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
         blockstore.clone(),
     )
     .unwrap();

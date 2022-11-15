@@ -2,7 +2,46 @@
 
 Changes to the reference FVM implementation.
 
-##  [Unreleased]
+## [Unreleased]
+
+## 3.0.0-alpha.8 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
+## 3.0.0-alpha.7 [2022-11-14]
+
+- MEM-851: Memory expansion gas (#1067)
+- Split `InvokeContext` into two (#1070)
+- Support EAM singleton in manifest (#1005)
+
+## 3.0.0-alpha.6
+
+- update the state-tree version to v5
+- enable instrumentation of sign extension instructions (only relevant to anyone playing around with native actor support).
+
+## 3.0.0-alpha.5
+
+- fix compile issues with f4-as-account feature.
+
+## 3.0.0-alpha.4
+
+- Resolve key addresses from the state tree instead of reaching into the account actor state
+- Temporary workaround: allow validating signatures from embryo f4 addresses
+
+## 3.0.0-alpha.3
+
+- Fix the address length checks in the `create_actor` syscall. The previous release was broken.
+
+## 3.0.0-alpha.2
+
+- Autoload wasm modules from the blockstore if they haven't been preloaded.
+- Add a new `balance_of` syscall.
+- Add a new `tipset_cid` syscall.
+- Add a new `timestamp` syscall.
+- Add syscalls to get the gas limit, premium, and available gas.
+- Add support for f4 addresses and auto-creating "embryos" on first send to an f4 address.
+- Update wasmtime to 1.0.
+- Add support for network version 18.
 
 ## 3.0.0-alpha.1
 

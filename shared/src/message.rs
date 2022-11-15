@@ -95,6 +95,7 @@ impl<'de> Deserialize<'de> for Message {
 }
 
 pub mod params {
+    use fvm_ipld_encoding::strict_bytes;
     use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 
     use super::{Cbor, Message};
@@ -102,7 +103,7 @@ pub mod params {
     /// Params of the `validate` entrypoint, signature raw bytes and the whole filecoin message to be validated
     #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
     pub struct ValidateParams {
-        #[serde(with = "serde_bytes")]
+        #[serde(with = "strict_bytes")]
         pub signature: Vec<u8>,
         pub message: Message,
     }

@@ -12,9 +12,18 @@ use itertools::sorted;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
+use crate::root::version::{Version as AmtVersion, V0, V3};
+use crate::root::RootImpl;
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, Root, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub struct AmtImpl<V, BS, Ver> {
+    root: RootImpl<V, Ver>,
+    block_store: BS,
+}
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
 ///
@@ -37,32 +46,31 @@ use crate::{
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
-#[derive(Debug)]
-pub struct Amt<V, BS> {
-    root: Root<V>,
-    block_store: BS,
-}
+pub type Amt<V, BS> = AmtImpl<V, BS, V3>;
+/// Legacy amt V0
+pub type Amtv0<V, BS> = AmtImpl<V, BS, V0>;
 
-impl<V: PartialEq, BS: Blockstore> PartialEq for Amt<V, BS> {
+impl<V: PartialEq, BS: Blockstore, Ver: PartialEq> PartialEq for AmtImpl<V, BS, Ver> {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<V, BS> Amt<V, BS>
+impl<V, BS, Ver> AmtImpl<V, BS, Ver>
 where
     V: DeserializeOwned + Serialize,
     BS: Blockstore,
+    Ver: AmtVersion,
 {
     /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
         Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }
 
-    /// Construct new Amt with given bit width.
+    /// Construct new Amt with given bit width
     pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
         Self {
-            root: Root::new(bit_width),
+            root: RootImpl::new_with_bit_width(bit_width),
             block_store,
         }
     }
@@ -74,7 +82,7 @@ where
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
     pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
         // Load root bytes from database
-        let root: Root<V> = block_store
+        let root: RootImpl<V, Ver> = block_store
             .get_cbor(cid)?
             .ok_or_else(|| Error::CidNotFound(cid.to_string()))?;
 
@@ -359,7 +367,7 @@ where
         // change, and since it should not be feasibly triggered, it's left as this for now.
         #[cfg(feature = "go-interop")]
         {
-            let mut mutated = ahash::AHashMap::new();
+            let mut mutated = Vec::new();
 
             self.root.node.for_each_while_mut(
                 &self.block_store,
@@ -375,14 +383,14 @@ where
                         // which we cannot do because it is memory unsafe (and I'm not certain we
                         // don't have side effects from doing this unsafely)
                         value.mark_unchanged();
-                        mutated.insert(idx, value.clone());
+                        mutated.push((idx, value.clone()));
                     }
 
                     Ok(keep_going)
                 },
             )?;
 
-            for (i, v) in mutated.into_iter() {
+            for (i, v) in mutated {
                 self.set(i, v)?;
             }
 

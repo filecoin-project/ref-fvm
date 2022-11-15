@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+- ...
+
+## 0.6.1 [2022-11-14]
+
+- FIX: HashBits::next when bit_width does not divide 256 and the full hash is consumed
+
+## 0.6.0
+
+- Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.
+
 ## 0.5.1
 
 - Update `fvm_ipld_encoding` to 0.2.0.
