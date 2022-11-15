@@ -6,6 +6,7 @@ use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -77,6 +78,7 @@ fn events_test() {
     }
 
     // === Emits an improperly formatted event ===
+
     let message = Message {
         method_num: 3,
         sequence: 1,
@@ -84,9 +86,46 @@ fn events_test() {
     };
 
     let res = executor
-        .execute_message(message, ApplyKind::Explicit, 100)
+        .execute_message(message.clone(), ApplyKind::Explicit, 100)
         .unwrap();
 
     assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
     assert!(res.msg_receipt.events_root.is_none());
+
+    let counter: u64 = 10;
+
+    // === Performs subcalls, each emitting 2 events and all succeeding ===
+    let message = Message {
+        method_num: 4,
+        sequence: 2,
+        params: to_vec(&counter).unwrap().into(),
+        ..message
+    };
+
+    let res = executor
+        .execute_message(message.clone(), ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+
+    // Check that we got twenty events, 2 per actor in the chain.
+    assert_eq!(20, res.events.len());
+
+    // === Performs subcalls, each emitting 2 events and reverting ===
+    let message = Message {
+        method_num: 5,
+        sequence: 3,
+        params: to_vec(&counter).unwrap().into(),
+        ..message
+    };
+
+    let res = executor
+        .execute_message(message.clone(), ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+
+    // Check that we got ten events events only; the events from the last five
+    // actors in the call stack were discarded due to an abort.
+    assert_eq!(10, res.events.len());
 }

@@ -1,5 +1,8 @@
 use fvm_ipld_encoding::Cbor;
 use fvm_sdk as sdk;
+use fvm_shared::address::Address;
+use fvm_shared::bigint::Zero;
+use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 use serde_tuple::*;
 
@@ -20,11 +23,13 @@ struct EventPayload2 {
 impl Cbor for EventPayload2 {}
 
 #[no_mangle]
-pub fn invoke(_params: u32) -> u32 {
+pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 
     const EMIT_SEVERAL_OK: u64 = 2;
     const EMIT_MALFORMED: u64 = 3;
+    const EMIT_SUBCALLS: u64 = 4;
+    const EMIT_SUBCALLS_REVERT: u64 = 5;
 
     // Emit a single-entry event.
     let payload = EventPayload1 {
@@ -75,6 +80,52 @@ pub fn invoke(_params: u32) -> u32 {
                 "expected failed syscall"
             );
         },
+        EMIT_SUBCALLS => {
+            let (codec, data) = sdk::message::params_raw(params).unwrap();
+            assert_eq!(codec, fvm_ipld_encoding::DAG_CBOR);
+
+            let mut counter: u64 =
+                fvm_ipld_encoding::from_slice(&data).expect("failed to deserialize param");
+
+            counter -= 1;
+
+            // emit two events.
+            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+
+            let our_addr = Address::new_id(sdk::message::receiver());
+
+            if counter > 0 {
+                let params = fvm_ipld_encoding::to_vec(&counter).expect("failed to serialize");
+                sdk::send::send(&our_addr, EMIT_SUBCALLS, params.into(), Zero::zero()).unwrap();
+            }
+        }
+        EMIT_SUBCALLS_REVERT => {
+            let (codec, data) = sdk::message::params_raw(params).unwrap();
+            assert_eq!(codec, fvm_ipld_encoding::DAG_CBOR);
+
+            let mut counter: u64 = fvm_ipld_encoding::from_slice(&data).unwrap();
+
+            counter -= 1;
+
+            // emit two events.
+            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+
+            let our_addr = Address::new_id(sdk::message::receiver());
+
+            if counter > 0 {
+                let params = fvm_ipld_encoding::to_vec(&counter).expect("failed to serialize");
+                sdk::send::send(&our_addr, EMIT_SUBCALLS_REVERT, params.into(), Zero::zero());
+            }
+
+            // The 6th call will abort after performing its send. The caller won't rethrow, so we
+            // will observe an OK externally. The events from the depth-most 4 callees + us should
+            // be discarded (i.e. 10 events discarded).
+            if counter == 4 {
+                sdk::vm::abort(ExitCode::USR_ASSERTION_FAILED.value(), None);
+            }
+        }
         _ => panic!("invalid method number"),
     }
     0

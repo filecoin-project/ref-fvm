@@ -53,7 +53,7 @@ pub struct InnerDefaultCallManager<M: Machine> {
     /// Limits on memory throughout the execution.
     limits: M::Limiter,
     /// Accumulator for events emitted in this call stack.
-    events: Vec<StampedEvent>,
+    events: EventsAccumulator,
 }
 
 #[doc(hidden)]
@@ -103,7 +103,7 @@ where
             exec_trace: vec![],
             invocation_count: 0,
             limits,
-            events: vec![],
+            events: Default::default(),
         })))
     }
 
@@ -166,11 +166,20 @@ where
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction();
+        self.events.create_layer();
+
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code().is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
         self.state_tree_mut().end_transaction(revert)?;
+
+        if revert {
+            self.events.discard_last_layer();
+        } else {
+            self.events.merge_last_layer();
+        }
+
         res
     }
 
@@ -191,6 +200,8 @@ where
         if machine.context().tracing {
             exec_trace.extend(gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
         }
+
+        let events = events.finish();
 
         (
             FinishRet {
@@ -244,7 +255,7 @@ where
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
-        self.events.push(evt)
+        self.events.append_event(evt)
     }
 }
 
@@ -576,5 +587,69 @@ where
         );
         self.call_stack_depth -= 1;
         res
+    }
+}
+
+/// Stores events in layers as they are emitted by actors. As the call stack progresses, when an
+/// actor exits normally, its events should be merged onto the previous layer (merge_last_layer).
+/// If an actor aborts, the last layer should be discarded (discard_last_layer). This will also
+/// throw away any events collected from subcalls (and previously merged as those subcalls returned
+/// normally).
+///
+/// For things to operate normally, this struct must be constructed with an empty vector as the
+/// first layer. This is where final retained events will eventually be folded into. The Default
+/// implementation constructs this object correctly.
+pub struct EventsAccumulator(Vec<Vec<StampedEvent>>);
+
+impl EventsAccumulator {
+    fn append_event(&mut self, evt: StampedEvent) {
+        self.0
+            .last_mut()
+            .expect("expected an event accumulator layer on append_event")
+            .push(evt)
+    }
+
+    fn create_layer(&mut self) {
+        self.0.push(Default::default())
+    }
+
+    fn merge_last_layer(&mut self) {
+        let mut last = self
+            .0
+            .pop()
+            .expect("expected an event accumulator layer on merge_last_layer");
+
+        if !last.is_empty() {
+            let prev = self
+                .0
+                .last_mut()
+                .expect("expected second event accumulator layer on merge_last_layer");
+            if prev.is_empty() {
+                let _ = std::mem::replace::<Vec<StampedEvent>>(prev, last);
+            } else {
+                prev.append(&mut last)
+            }
+        }
+    }
+
+    fn discard_last_layer(&mut self) {
+        self.0
+            .pop()
+            .expect("expected an event accumulator layer on discard_last_layer");
+    }
+
+    fn finish(mut self) -> Vec<StampedEvent> {
+        let ret = self
+            .0
+            .pop()
+            .expect("expected final event accumulator layer on finish");
+        assert!(self.0.is_empty(), "non-empty event accumulator on finish");
+        ret
+    }
+}
+
+impl Default for EventsAccumulator {
+    fn default() -> Self {
+        EventsAccumulator(vec![Vec::default()])
     }
 }
