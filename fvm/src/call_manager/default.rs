@@ -103,7 +103,7 @@ where
             exec_trace: vec![],
             invocation_count: 0,
             limits,
-            events: Vec::with_capacity(8),
+            events: vec![],
         })))
     }
 
