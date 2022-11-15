@@ -187,14 +187,13 @@ where
         Q: Eq + Hash,
     {
         let hash = H::hash(q);
-        self.get_value(&mut HashBits::new(&hash), conf, 0, q, store)
+        self.get_value(&mut HashBits::new(&hash), conf, q, store)
     }
 
     fn get_value<Q: ?Sized, S: Blockstore>(
         &self,
         hashed_key: &mut HashBits,
         conf: &Config,
-        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
@@ -239,9 +238,7 @@ where
         };
 
         match match_extension(conf, hashed_key, ext)? {
-            ExtensionMatch::Full { skipped } => {
-                node.get_value(hashed_key, conf, depth + 1 + skipped, key, store)
-            }
+            ExtensionMatch::Full { .. } => node.get_value(hashed_key, conf, key, store),
             ExtensionMatch::Partial { .. } => Ok(None),
         }
     }
@@ -269,7 +266,14 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            self.insert_child(idx, key, value);
+            if conf.min_data_depth <= depth {
+                self.insert_child(idx, key, value);
+            } else {
+                // Need to insert some empty nodes reserved for links.
+                let mut sub = Node::<K, V, H>::default();
+                sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
+                self.insert_child_dirty(idx, Box::new(sub), None);
+            }
             return Ok((None, true));
         }
 
@@ -442,37 +446,32 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => {
-                match match_extension(conf, hashed_key, ext)? {
-                    ExtensionMatch::Full { skipped } => {
-                        cache.get_or_try_init(|| {
-                            store
-                                .get_cbor(cid)?
-                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                        })?;
-                        let child_node = cache.get_mut().expect("filled line above");
+            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
+                ExtensionMatch::Full { skipped } => {
+                    cache.get_or_try_init(|| {
+                        store
+                            .get_cbor(cid)?
+                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                    })?;
+                    let child_node = cache.get_mut().expect("filled line above");
 
-                        let deleted = child_node.rm_value(
-                            hashed_key,
-                            conf,
-                            depth + 1 + skipped,
-                            key,
-                            store,
-                        )?;
-                        if deleted.is_some() {
-                            *child = Pointer::Dirty {
-                                node: std::mem::take(child_node),
-                                ext: ext.take(),
-                            };
-                            // Clean to retrieve canonical form
-                            child.clean(conf)?;
+                    let deleted =
+                        child_node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
+
+                    if deleted.is_some() {
+                        *child = Pointer::Dirty {
+                            node: std::mem::take(child_node),
+                            ext: ext.take(),
+                        };
+                        if Self::clean(child, conf, depth)? {
+                            self.rm_child(cindex, idx);
                         }
-
-                        Ok(deleted)
                     }
-                    ExtensionMatch::Partial(_) => Ok(None),
+
+                    Ok(deleted)
                 }
-            }
+                ExtensionMatch::Partial(_) => Ok(None),
+            },
             Pointer::Dirty { node, ext } => {
                 match match_extension(conf, hashed_key, ext)? {
                     ExtensionMatch::Full { skipped } => {
@@ -480,8 +479,10 @@ where
                         let deleted =
                             node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
-                        // Clean to ensure canonical form
-                        child.clean(conf)?;
+                        if deleted.is_some() && Self::clean(child, conf, depth)? {
+                            self.rm_child(cindex, idx);
+                        }
+
                         Ok(deleted)
                     }
                     ExtensionMatch::Partial(_) => Ok(None),
@@ -608,6 +609,18 @@ where
             node: Box::new(midway),
             ext: head,
         })
+    }
+
+    /// Clean after delete to retrieve canonical form.
+    ///
+    /// Returns true if the child pointer is completely empty and can be removed,
+    /// which can happen if we artificially inserted nodes during insertion.
+    fn clean(child: &mut Pointer<K, V, H>, conf: &Config, depth: u32) -> Result<bool, Error> {
+        match child.clean(conf, depth) {
+            Ok(()) => Ok(false),
+            Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
+            Err(err) => Err(err),
+        }
     }
 }
 
