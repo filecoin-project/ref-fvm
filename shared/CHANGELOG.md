@@ -4,6 +4,10 @@
 
 - ...
 
+## 3.0.0-alpha.11 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
 ## 3.0.0-alpha.10 [2022-11-14]
 
 - Split `InvokeContext` into two (#1070)
