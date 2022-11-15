@@ -17,7 +17,6 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use crate::ext::Extension;
 use crate::{Config, HashedKey};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
@@ -164,7 +163,7 @@ where
                         cache_node.for_each(store, f)?
                     }
                 }
-                Pointer::Dirty { node, .. } => node.for_each(store, f)?,
+                Pointer::Dirty(node) => node.for_each(store, f)?,
                 Pointer::Values(kvs) => {
                     for kv in kvs {
                         f(kv.0.borrow(), kv.1.borrow())?;
@@ -210,9 +209,9 @@ where
         let cindex = self.index_for_bit_pos(idx);
         let child = self.get_child(cindex);
 
-        let (node, ext) = match child {
-            Pointer::Link { cid, cache, ext } => {
-                let node = if let Some(cached_node) = cache.get() {
+        let node = match child {
+            Pointer::Link { cid, cache } => {
+                if let Some(cached_node) = cache.get() {
                     // Link node is cached
                     cached_node
                 } else {
@@ -227,20 +226,15 @@ where
                     };
                     // Intentionally ignoring error, cache will always be the same.
                     cache.get_or_init(|| node)
-                };
-
-                (node, ext)
+                }
             }
-            Pointer::Dirty { node, ext } => (node, ext),
+            Pointer::Dirty(node) => node,
             Pointer::Values(vals) => {
                 return Ok(vals.iter().find(|kv| key.eq(kv.key().borrow())));
             }
         };
 
-        match match_extension(conf, hashed_key, ext)? {
-            ExtensionMatch::Full { .. } => node.get_value(hashed_key, conf, key, store),
-            ExtensionMatch::Partial { .. } => Ok(None),
-        }
+        node.get_value(hashed_key, conf, key, store)
     }
 
     /// Internal method to modify values.
@@ -272,7 +266,7 @@ where
                 // Need to insert some empty nodes reserved for links.
                 let mut sub = Node::<K, V, H>::default();
                 sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
-                self.insert_child_dirty(idx, Box::new(sub), None);
+                self.insert_child_dirty(idx, Box::new(sub));
             }
             return Ok((None, true));
         }
@@ -281,70 +275,31 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
-                ExtensionMatch::Full { skipped } => {
-                    cache.get_or_try_init(|| {
-                        store
-                            .get_cbor(cid)?
-                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                    })?;
-                    let child_node = cache.get_mut().expect("filled line above");
+            Pointer::Link { cid, cache } => {
+                cache.get_or_try_init(|| {
+                    store
+                        .get_cbor(cid)?
+                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                })?;
+                let child_node = cache.get_mut().expect("filled line above");
 
-                    let (old, modified) = child_node.modify_value(
-                        hashed_key,
-                        conf,
-                        depth + 1 + skipped,
-                        key,
-                        value,
-                        store,
-                        overwrite,
-                    )?;
-                    if modified {
-                        *child = Pointer::Dirty {
-                            node: std::mem::take(child_node),
-                            ext: ext.take(),
-                        };
-                    }
-                    Ok((old, modified))
-                }
-                ExtensionMatch::Partial(part) => {
-                    *child = Self::split_extension(
-                        conf,
-                        hashed_key,
-                        &part,
-                        key,
-                        value,
-                        |midway, idx, tail| {
-                            midway.insert_child_link(idx, *cid, tail, std::mem::take(cache));
-                        },
-                    )?;
-                    Ok((None, true))
-                }
-            },
-            Pointer::Dirty { node, ext } => match match_extension(conf, hashed_key, ext)? {
-                ExtensionMatch::Full { skipped } => node.modify_value(
+                let (old, modified) = child_node.modify_value(
                     hashed_key,
                     conf,
-                    depth + 1 + skipped,
+                    depth + 1,
                     key,
                     value,
                     store,
                     overwrite,
-                ),
-                ExtensionMatch::Partial(part) => {
-                    *child = Self::split_extension(
-                        conf,
-                        hashed_key,
-                        &part,
-                        key,
-                        value,
-                        |midway, idx, tail| {
-                            midway.insert_child_dirty(idx, std::mem::take(node), tail);
-                        },
-                    )?;
-                    Ok((None, true))
+                )?;
+                if modified {
+                    *child = Pointer::Dirty(std::mem::take(child_node));
                 }
-            },
+                Ok((old, modified))
+            }
+            Pointer::Dirty(node) => {
+                node.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)
+            }
             Pointer::Values(vals) => {
                 // Update, if the key already exists.
                 if let Some(i) = vals.iter().position(|p| p.key() == &key) {
@@ -371,19 +326,12 @@ where
                     let kvs = std::mem::take(vals);
                     let hashes = kvs.iter().map(|kv| H::hash(kv.key())).collect::<Vec<_>>();
 
-                    // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
-                    let ext = find_longest_extension(conf, hashed_key, &hashes)?;
-                    let skipped = ext
-                        .as_ref()
-                        .map(|e| e.consumed() as u32 / conf.bit_width)
-                        .unwrap_or_default();
-
                     let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H>::default();
                     let modified = sub.modify_value(
                         hashed_key,
                         conf,
-                        depth + 1 + skipped,
+                        depth + 1,
                         key,
                         value,
                         store,
@@ -394,7 +342,7 @@ where
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             conf,
-                            depth + 1 + skipped,
+                            depth + 1,
                             p.0,
                             p.1,
                             store,
@@ -402,10 +350,7 @@ where
                         )?;
                     }
 
-                    *child = Pointer::Dirty {
-                        node: Box::new(sub),
-                        ext,
-                    };
+                    *child = Pointer::Dirty(Box::new(sub));
 
                     return Ok(modified);
                 }
@@ -446,47 +391,34 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
-                ExtensionMatch::Full { skipped } => {
-                    cache.get_or_try_init(|| {
-                        store
-                            .get_cbor(cid)?
-                            .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                    })?;
-                    let child_node = cache.get_mut().expect("filled line above");
+            Pointer::Link { cid, cache } => {
+                cache.get_or_try_init(|| {
+                    store
+                        .get_cbor(&cid)?
+                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
+                })?;
+                let child_node = cache.get_mut().expect("filled line above");
 
-                    let deleted =
-                        child_node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
+                let deleted = child_node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
-                    if deleted.is_some() {
-                        *child = Pointer::Dirty {
-                            node: std::mem::take(child_node),
-                            ext: ext.take(),
-                        };
-                        if Self::clean(child, conf, depth)? {
-                            self.rm_child(cindex, idx);
-                        }
+                if deleted.is_some() {
+                    *child = Pointer::Dirty(std::mem::take(child_node));
+                    if Self::clean(child, conf, depth)? {
+                        self.rm_child(cindex, idx);
                     }
-
-                    Ok(deleted)
                 }
-                ExtensionMatch::Partial(_) => Ok(None),
-            },
-            Pointer::Dirty { node, ext } => {
-                match match_extension(conf, hashed_key, ext)? {
-                    ExtensionMatch::Full { skipped } => {
-                        // Delete value and return deleted value
-                        let deleted =
-                            node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
-                        if deleted.is_some() && Self::clean(child, conf, depth)? {
-                            self.rm_child(cindex, idx);
-                        }
+                Ok(deleted)
+            }
+            Pointer::Dirty(node) => {
+                // Delete value and return deleted value
+                let deleted = node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
-                        Ok(deleted)
-                    }
-                    ExtensionMatch::Partial(_) => Ok(None),
+                if deleted.is_some() && Self::clean(child, conf, depth)? {
+                    self.rm_child(cindex, idx);
                 }
+
+                Ok(deleted)
             }
             Pointer::Values(vals) => {
                 // Delete value
@@ -512,7 +444,7 @@ where
 
     pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error> {
         for pointer in &mut self.pointers {
-            if let Pointer::Dirty { node, ext } = pointer {
+            if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
                 node.flush(store)?;
 
@@ -523,11 +455,7 @@ where
                 let cache = OnceCell::from(std::mem::take(node));
 
                 // Replace cached node with Cid link
-                *pointer = Pointer::Link {
-                    cid,
-                    ext: ext.take(),
-                    cache,
-                };
+                *pointer = Pointer::Link { cid, cache };
             }
         }
 
@@ -545,22 +473,16 @@ where
         self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
-    fn insert_child_link(
-        &mut self,
-        idx: u32,
-        cid: Cid,
-        ext: Option<Extension>,
-        cache: OnceCell<Box<Node<K, V, H>>>,
-    ) {
+    fn insert_child_link(&mut self, idx: u32, cid: Cid, cache: OnceCell<Box<Node<K, V, H>>>) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers.insert(i, Pointer::Link { cid, ext, cache })
+        self.pointers.insert(i, Pointer::Link { cid, cache })
     }
 
-    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H>>, ext: Option<Extension>) {
+    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H>>) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers.insert(i, Pointer::Dirty { node, ext })
+        self.pointers.insert(i, Pointer::Dirty(node))
     }
 
     fn index_for_bit_pos(&self, bp: u32) -> usize {
@@ -577,40 +499,6 @@ where
         &self.pointers[i]
     }
 
-    /// We found a key that partially matched an extension. We have to insert a new node at the longest
-    /// match and replace the existing link with one that points at this new node. The new node should
-    /// in turn will have two children: a link to the original extension target, and the new key value pair.
-    fn split_extension<'a, F>(
-        conf: &Config,
-        hashed_key: &'a mut HashBits,
-        part: &PartialMatch,
-        key: K,
-        value: V,
-        insert_pointer: F,
-    ) -> Result<Pointer<K, V, H>, Error>
-    where
-        F: FnOnce(&mut Node<K, V, H>, u32, Option<Extension>),
-    {
-        // Need a new node at the split point.
-        let mut midway = Node::<K, V, H>::default();
-
-        // Point at the original node the link pointed at in the next nibble of the path after the split.
-        let (head, idx, tail) = part.split(conf.bit_width)?;
-
-        // Insert pointer to original.
-        insert_pointer(&mut midway, idx, tail);
-
-        // Insert the value at the next nibble of the hash.
-        let idx = hashed_key.next(conf.bit_width)?;
-        midway.insert_child(idx, key, value);
-
-        // Replace the link in this node with one pointing at the midway node.
-        Ok(Pointer::Dirty {
-            node: Box::new(midway),
-            ext: head,
-        })
-    }
-
     /// Clean after delete to retrieve canonical form.
     ///
     /// Returns true if the child pointer is completely empty and can be removed,
@@ -621,81 +509,5 @@ where
             Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
             Err(err) => Err(err),
         }
-    }
-}
-
-/// Find the longest common non-empty prefix between the new key and the existing keys
-/// that fell into the same bucket at some existing height.
-fn find_longest_extension(
-    conf: &Config,
-    hashed_key: &mut HashBits,
-    hashes: &[HashedKey],
-) -> Result<Option<Extension>, Error> {
-    if !conf.use_extensions {
-        Ok(None)
-    } else {
-        let ext = Extension::longest_common_prefix(hashed_key, conf.bit_width, hashes)?;
-        if ext.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(ext))
-        }
-    }
-}
-
-/// Helper method to check if a key matches an extension (if there is one)
-/// and return the number of levels skipped. If the key doesn't match,
-/// this will be the number of levels where the extension has to be split.
-fn match_extension<'a, 'b>(
-    conf: &Config,
-    hashed_key: &'a mut HashBits,
-    ext: &'b Option<Extension>,
-) -> Result<ExtensionMatch<'b>, Error> {
-    match ext {
-        None => Ok(ExtensionMatch::Full { skipped: 0 }),
-        Some(ext) => {
-            let matched = ext.longest_match(hashed_key, conf.bit_width)?;
-            let skipped = matched as u32 / conf.bit_width;
-
-            if matched == ext.consumed() {
-                Ok(ExtensionMatch::Full { skipped })
-            } else {
-                Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
-            }
-        }
-    }
-}
-
-/// Result of matching a `HashedKey` to an `Extension`.
-enum ExtensionMatch<'a> {
-    /// The hash fully matched the extension, which is also the case if there was no extension at all.
-    Full { skipped: u32 },
-    /// The hash matched some (potentially empty) prefix of the extension.
-    Partial(PartialMatch<'a>),
-}
-
-struct PartialMatch<'a> {
-    /// The original extension.
-    ext: &'a Extension,
-    /// Number of bits matched.
-    matched: u8,
-}
-
-impl<'a> PartialMatch<'a> {
-    /// Split the extension into the part before the match (which could be empty)
-    /// the next nibble where the link pointing to the tail needs to be inserted
-    /// into the new midway node, and the part after (which again could be empty).
-    pub fn split(
-        &self,
-        bit_width: u32,
-    ) -> Result<(Option<Extension>, u32, Option<Extension>), Error> {
-        let (head, idx, tail) = self.ext.split(self.matched, bit_width)?;
-
-        // Drop an empty head so we don't store it.
-        let head = Some(head).filter(|e| !e.is_empty());
-        let idx = idx.path_bits().next(bit_width)?;
-        let tail = Some(tail).filter(|e| !e.is_empty());
-
-        Ok((head, idx, tail))
     }
 }

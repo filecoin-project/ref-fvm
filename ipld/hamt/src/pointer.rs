@@ -2,21 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
-use fvm_ipld_encoding::ser::Error as EncodingError;
 use libipld_core::ipld::Ipld;
-use libipld_core::serde::to_ipld;
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use crate::bitfield::Bitfield;
-use crate::ext::Extension;
 use crate::Config;
 
 /// Pointer to index values or a link to another child node.
@@ -25,41 +20,17 @@ pub(crate) enum Pointer<K, V, H> {
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
-        ext: Option<Extension>,
         cache: OnceCell<Box<Node<K, V, H>>>,
     },
-    Dirty {
-        node: Box<Node<K, V, H>>,
-        ext: Option<Extension>,
-    },
+    Dirty(Box<Node<K, V, H>>),
 }
 
 impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (&Pointer::Values(ref a), &Pointer::Values(ref b)) => a == b,
-            (
-                &Pointer::Link {
-                    cid: ref a,
-                    ext: ref e1,
-                    ..
-                },
-                &Pointer::Link {
-                    cid: ref b,
-                    ext: ref e2,
-                    ..
-                },
-            ) => a == b && e1 == e2,
-            (
-                &Pointer::Dirty {
-                    node: ref a,
-                    ext: ref e1,
-                },
-                &Pointer::Dirty {
-                    node: ref b,
-                    ext: ref e2,
-                },
-            ) => a == b && e1 == e2,
+            (&Pointer::Link { cid: ref a, .. }, &Pointer::Link { cid: ref b, .. }) => a == b,
+            (&Pointer::Dirty(ref a), &Pointer::Dirty(ref b)) => a == b,
             _ => false,
         }
     }
@@ -77,18 +48,8 @@ where
     {
         match self {
             Pointer::Values(vals) => vals.serialize(serializer),
-            Pointer::Link { cid, ext: None, .. } => cid.serialize(serializer),
-            Pointer::Link {
-                cid, ext: Some(e), ..
-            } => {
-                // Using a `Map` and not a tuple so it's easy to distinguish from the case of `Values`.
-                // Constructing the map manually so we don't have to clone the extension and give it to a struct.
-                let mut map = BTreeMap::new();
-                add_to_ipld_map::<S, _>(&mut map, "c", cid)?;
-                add_to_ipld_map::<S, _>(&mut map, "e", e)?;
-                Ipld::Map(map).serialize(serializer)
-            }
-            Pointer::Dirty { .. } => Err(ser::Error::custom("Cannot serialize cached values")),
+            Pointer::Link { cid, .. } => cid.serialize(serializer),
+            Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
         }
     }
 }
@@ -108,21 +69,10 @@ where
             }
             Ipld::Link(cid) => Ok(Self::Link {
                 cid,
-                ext: None,
                 cache: Default::default(),
             }),
-            Ipld::Map(mut map) => {
-                let cid: Cid = from_ipld_map(&mut map, "c")?;
-                let ext: Extension = from_ipld_map(&mut map, "e")?;
-
-                Ok(Self::Link {
-                    cid,
-                    ext: Some(ext),
-                    cache: Default::default(),
-                })
-            }
             other => Err(format!(
-                "Expected `Ipld::List`, `Ipld::Map` and `Ipld::Link`, got {:#?}",
+                "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
                 other
             )),
         }
@@ -163,7 +113,7 @@ where
     /// after deletes.
     pub(crate) fn clean(&mut self, conf: &Config, depth: u32) -> Result<(), Error> {
         match self {
-            Pointer::Dirty { node: n, ext: ext1 } => match n.pointers.len() {
+            Pointer::Dirty(n) => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
                 _ if depth < conf.min_data_depth => {
                     // We are in the shallows where we don't want key-value pairs, just links,
@@ -175,43 +125,12 @@ where
                 }
                 1 => {
                     // Node has only one pointer, swap with parent node
-                    // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
-                    // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
-                    // the nodes it pointed at had been removed since.
-                    let can_have_splits = conf.use_extensions;
+                    if let Pointer::Values(vals) = &mut n.pointers[0] {
+                        // Take child values, to ensure canonical ordering
+                        let values = std::mem::take(vals);
 
-                    match &mut n.pointers[0] {
-                        Pointer::Values(vals) => {
-                            // Take child values, to ensure canonical ordering
-                            let values = std::mem::take(vals);
-
-                            // move parent node up
-                            *self = Pointer::Values(values)
-                        }
-                        Pointer::Link {
-                            cid,
-                            ext: ext2,
-                            cache,
-                        } if can_have_splits => {
-                            // Replace `self` with a
-                            let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
-                            *self = Pointer::Link {
-                                cid: *cid,
-                                ext,
-                                cache: std::mem::take(cache),
-                            }
-                        }
-                        Pointer::Dirty {
-                            node: sub,
-                            ext: ext2,
-                        } if can_have_splits => {
-                            let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
-                            *self = Pointer::Dirty {
-                                node: std::mem::take(sub),
-                                ext,
-                            }
-                        }
-                        _ => (),
+                        // move parent node up
+                        *self = Pointer::Values(values)
                     }
                     Ok(())
                 }
@@ -262,43 +181,4 @@ where
 
 fn from_ipld<T: DeserializeOwned>(ipld: Ipld) -> Result<T, String> {
     Deserialize::deserialize(ipld).map_err(|error| error.to_string())
-}
-
-fn from_ipld_map<T: DeserializeOwned>(
-    map: &mut BTreeMap<String, Ipld>,
-    key: &str,
-) -> Result<T, String> {
-    let ipld = map
-        .remove(key)
-        .ok_or_else(|| format!("`{key}` not found in map."))?;
-
-    from_ipld(ipld)
-}
-
-fn add_to_ipld_map<S: Serializer, T: Serialize>(
-    map: &mut BTreeMap<String, Ipld>,
-    key: &str,
-    value: &T,
-) -> Result<(), S::Error> {
-    let value =
-        to_ipld(value).map_err(|e| S::Error::custom(format!("cannot serialize `{key}`: {e}")))?;
-    map.insert(key.to_owned(), value);
-    Ok(())
-}
-
-/// Helper method to undo a former split.
-fn unsplit_ext(
-    conf: &Config,
-    bf: &Bitfield,
-    parent_ext: &Option<Extension>,
-    child_ext: &Option<Extension>,
-) -> Result<Option<Extension>, Error> {
-    // Figure out which bucket contains the pointer.
-    let idx = bf
-        .last_one_idx()
-        .expect("There is supposed to be exactly one pointer") as u8;
-
-    let idx = Extension::from_idx(idx, conf.bit_width);
-    let ext = Extension::unsplit(parent_ext, &idx, child_ext)?;
-    Ok(Some(ext))
 }
