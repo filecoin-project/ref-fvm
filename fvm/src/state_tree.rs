@@ -15,6 +15,8 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use num_traits::Zero;
+#[cfg(feature = "arb")]
+use quickcheck::Arbitrary;
 
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
@@ -579,6 +581,23 @@ impl ActorState {
     /// Deposits funds to an Actor
     pub fn deposit_funds(&mut self, amt: &TokenAmount) {
         self.balance += amt;
+    }
+}
+
+#[cfg(feature = "arb")]
+impl Arbitrary for ActorState {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let cid = Cid::new_v1(
+            u64::arbitrary(g),
+            cid::multihash::Multihash::wrap(u64::arbitrary(g), &[u8::arbitrary(g)]).unwrap(),
+        );
+        Self {
+            code: cid,
+            state: cid,
+            sequence: u64::arbitrary(g),
+            balance: TokenAmount::from_atto(u64::arbitrary(g)),
+            address: None,
+        }
     }
 }
 
