@@ -1,7 +1,6 @@
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SyscallSafe;
-use fvm_shared::version::NetworkVersion;
 
 use super::error::Abort;
 use super::Context;
@@ -24,7 +23,7 @@ pub fn abort(
     use crate::kernel::Context as _;
 
     let code = ExitCode::new(code);
-    if context.kernel.network_version() >= NetworkVersion::V16 && code.is_system_error() {
+    if code.is_system_error() {
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
