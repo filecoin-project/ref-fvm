@@ -593,63 +593,36 @@ where
 /// Stores events in layers as they are emitted by actors. As the call stack progresses, when an
 /// actor exits normally, its events should be merged onto the previous layer (merge_last_layer).
 /// If an actor aborts, the last layer should be discarded (discard_last_layer). This will also
-/// throw away any events collected from subcalls (and previously merged as those subcalls returned
+/// throw away any events collected from subcalls (and previously merged, as those subcalls returned
 /// normally).
-///
-/// For things to operate normally, this struct must be constructed with an empty vector as the
-/// first layer. This is where final retained events will eventually be folded into. The Default
-/// implementation constructs this object correctly.
-pub struct EventsAccumulator(Vec<Vec<StampedEvent>>);
+#[derive(Default)]
+pub struct EventsAccumulator(Vec<StampedEvent>, Vec<usize>);
 
 impl EventsAccumulator {
     fn append_event(&mut self, evt: StampedEvent) {
-        self.0
-            .last_mut()
-            .expect("expected an event accumulator layer on append_event")
-            .push(evt)
+        self.0.push(evt)
     }
 
     fn create_layer(&mut self) {
-        self.0.push(Default::default())
+        self.1.push(self.0.len());
     }
 
     fn merge_last_layer(&mut self) {
-        let mut last = self
-            .0
+        self.1
             .pop()
-            .expect("expected an event accumulator layer on merge_last_layer");
-
-        if !last.is_empty() {
-            let prev = self
-                .0
-                .last_mut()
-                .expect("expected second event accumulator layer on merge_last_layer");
-            if prev.is_empty() {
-                let _ = std::mem::replace::<Vec<StampedEvent>>(prev, last);
-            } else {
-                prev.append(&mut last)
-            }
-        }
+            .expect("no index in the event accumulator when calling merge_last_layer");
     }
 
     fn discard_last_layer(&mut self) {
+        let idx = self
+            .1
+            .pop()
+            .expect("no index in the event accumulator when calling discard_last_layer");
+        self.0.truncate(idx)
+    }
+
+    fn finish(self) -> Vec<StampedEvent> {
+        assert!(self.1.is_empty(), "non-empty event accumulator on finish");
         self.0
-            .pop()
-            .expect("expected an event accumulator layer on discard_last_layer");
-    }
-
-    fn finish(mut self) -> Vec<StampedEvent> {
-        let ret = self
-            .0
-            .pop()
-            .expect("expected final event accumulator layer on finish");
-        assert!(self.0.is_empty(), "non-empty event accumulator on finish");
-        ret
-    }
-}
-
-impl Default for EventsAccumulator {
-    fn default() -> Self {
-        EventsAccumulator(vec![Vec::default()])
     }
 }
