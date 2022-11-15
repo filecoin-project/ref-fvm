@@ -17,6 +17,7 @@ mod bind;
 mod context;
 mod crypto;
 mod debug;
+mod event;
 mod gas;
 mod ipld;
 mod network;
@@ -196,12 +197,11 @@ pub fn bind_syscalls(
         "get_code_cid_for_type",
         actor::get_code_cid_for_type,
     )?;
+    linker.bind("actor", "balance_of", actor::balance_of)?;
 
     // Only wire this syscall when M2 native is enabled.
     #[cfg(feature = "m2-native")]
     linker.bind("actor", "install_actor", actor::install_actor)?;
-
-    linker.bind("actor", "balance_of", actor::balance_of)?;
 
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind(
@@ -233,6 +233,8 @@ pub fn bind_syscalls(
         crypto::verify_replica_update,
     )?;
     linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
+
+    linker.bind("event", "emit_event", event::emit_event)?;
 
     linker.bind("rand", "get_chain_randomness", rand::get_chain_randomness)?;
     linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;

@@ -931,6 +931,23 @@ where
     }
 }
 
+impl<C> EventOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
+
+        // TODO eventually validate entries
+        //  https://github.com/filecoin-project/ref-fvm/issues/1082
+
+        let evt = StampedEvent::new(self.actor_id, evt);
+        self.call_manager.append_event(evt);
+        Ok(())
+    }
+}
+
 fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
     match panic::catch_unwind(f) {
         Ok(v) => v,

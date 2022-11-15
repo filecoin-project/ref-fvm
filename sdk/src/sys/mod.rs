@@ -58,6 +58,7 @@ pub mod actor;
 pub mod crypto;
 #[cfg(feature = "debug")]
 pub mod debug;
+pub mod event;
 pub mod gas;
 pub mod ipld;
 pub mod network;

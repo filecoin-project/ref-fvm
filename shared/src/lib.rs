@@ -16,6 +16,7 @@ pub mod crypto;
 pub mod deal;
 pub mod econ;
 pub mod error;
+pub mod event;
 pub mod math;
 pub mod message;
 pub mod piece;

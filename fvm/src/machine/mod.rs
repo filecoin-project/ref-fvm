@@ -26,6 +26,7 @@ pub use manifest::Manifest;
 mod engine;
 
 pub use engine::{Engine, EngineConfig, MultiEngine};
+use fvm_shared::event::StampedEvent;
 
 use self::limiter::ExecMemory;
 
@@ -97,6 +98,10 @@ pub trait Machine: 'static {
 
     /// Creates a new limiter to track the resources of a message execution.
     fn new_limiter(&self) -> Self::Limiter;
+
+    /// Commits the events to the machine by building the events AMT, and making sure that events
+    /// are written to the store.
+    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>>;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

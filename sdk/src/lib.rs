@@ -2,6 +2,7 @@ pub mod actor;
 pub mod crypto;
 pub mod debug;
 pub mod error;
+pub mod event;
 pub mod gas;
 pub mod ipld;
 pub mod message;
