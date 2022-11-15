@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.8 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
 ## 3.0.0-alpha.7 [2022-11-14]
 
 - MEM-851: Memory expansion gas (#1067)
