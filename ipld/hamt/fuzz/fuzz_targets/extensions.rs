@@ -9,7 +9,9 @@ mod common;
 
 fuzz_target!(|data: (u8, Vec<common::Operation>)| {
     let (flush_rate, operations) = data;
-    let mut conf = Config::default();
-    conf.bit_width = 5;
+    let conf = Config {
+        bit_width: 2,
+        use_extensions: true,
+    };
     common::run(flush_rate, operations, conf);
 });
