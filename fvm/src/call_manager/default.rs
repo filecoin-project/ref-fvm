@@ -175,9 +175,9 @@ where
         self.state_tree_mut().end_transaction(revert)?;
 
         if revert {
-            self.events.discard_last_layer();
+            self.events.discard_last_layer()?;
         } else {
-            self.events.merge_last_layer();
+            self.events.merge_last_layer()?;
         }
 
         res
@@ -596,33 +596,42 @@ where
 /// throw away any events collected from subcalls (and previously merged, as those subcalls returned
 /// normally).
 #[derive(Default)]
-pub struct EventsAccumulator(Vec<StampedEvent>, Vec<usize>);
+pub struct EventsAccumulator {
+    events: Vec<StampedEvent>,
+    idxs: Vec<usize>,
+}
 
 impl EventsAccumulator {
     fn append_event(&mut self, evt: StampedEvent) {
-        self.0.push(evt)
+        self.events.push(evt)
     }
 
     fn create_layer(&mut self) {
-        self.1.push(self.0.len());
+        self.idxs.push(self.events.len());
     }
 
-    fn merge_last_layer(&mut self) {
-        self.1
-            .pop()
-            .expect("no index in the event accumulator when calling merge_last_layer");
+    fn merge_last_layer(&mut self) -> Result<()> {
+        self.idxs.pop().map(|_| {}).ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when calling merge_last_layer"
+            ))
+        })
     }
 
-    fn discard_last_layer(&mut self) {
-        let idx = self
-            .1
-            .pop()
-            .expect("no index in the event accumulator when calling discard_last_layer");
-        self.0.truncate(idx)
+    fn discard_last_layer(&mut self) -> Result<()> {
+        let idx = self.idxs.pop().ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when calling discard_last_layer"
+            ))
+        })?;
+        self.events.truncate(idx);
+        Ok(())
     }
 
     fn finish(self) -> Vec<StampedEvent> {
-        assert!(self.1.is_empty(), "non-empty event accumulator on finish");
-        self.0
+        // Ideally would assert here, but there's risk of poisoning the Machine.
+        // Cannot return a Result because the call site expects infallibility.
+        // assert!(self.idxs.is_empty());
+        self.events
     }
 }
