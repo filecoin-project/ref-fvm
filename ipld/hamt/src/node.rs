@@ -5,7 +5,6 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use multihash::Code;
@@ -17,7 +16,7 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use crate::{Config, HashedKey};
+use crate::Config;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
@@ -394,7 +393,7 @@ where
             Pointer::Link { cid, cache } => {
                 cache.get_or_try_init(|| {
                     store
-                        .get_cbor(&cid)?
+                        .get_cbor(cid)?
                         .ok_or_else(|| Error::CidNotFound(cid.to_string()))
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
@@ -471,12 +470,6 @@ where
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::from_key_value(key, value))
-    }
-
-    fn insert_child_link(&mut self, idx: u32, cid: Cid, cache: OnceCell<Box<Node<K, V, H>>>) {
-        let i = self.index_for_bit_pos(idx);
-        self.bitfield.set_bit(idx);
-        self.pointers.insert(i, Pointer::Link { cid, cache })
     }
 
     fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H>>) {

@@ -33,14 +33,6 @@ impl<'a> HashBits<'a> {
         }
     }
 
-    /// Constructs hash bits with a partial key.
-    pub fn new_from_slice(hash_buffer: &'a HashedKeySlice) -> HashBits<'a> {
-        Self {
-            b: hash_buffer,
-            consumed: 0,
-        }
-    }
-
     /// Returns next `i` bits of the hash and returns the value as an integer and returns
     /// Error when maximum depth is reached
     pub fn next(&mut self, i: u32) -> Result<u32, Error> {
@@ -85,11 +77,6 @@ impl<'a> HashBits<'a> {
                 out as u32
             }
         }
-    }
-
-    /// Length in number of bits.
-    pub fn len(&self) -> usize {
-        self.b.len() * 8
     }
 }
 
