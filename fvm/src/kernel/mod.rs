@@ -22,7 +22,7 @@ mod hash;
 mod blocks;
 pub mod default;
 
-mod error;
+pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use fvm_shared::event::{ActorEvent, StampedEvent};

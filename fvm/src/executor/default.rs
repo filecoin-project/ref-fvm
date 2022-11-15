@@ -16,7 +16,7 @@ use fvm_shared::ActorID;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
-use crate::call_manager::{backtrace, CallManager, InvocationResult};
+use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
@@ -67,63 +67,79 @@ where
                 Err(apply_ret) => return Ok(apply_ret),
             };
 
+        struct MachineExecRet {
+            result: crate::kernel::error::Result<InvocationResult>,
+            gas_used: i64,
+            backtrace: Backtrace,
+            exec_trace: ExecutionTrace,
+            events_root: Option<Cid>,
+            events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
+        }
+
         // Apply the message.
-        let (res, gas_used, mut backtrace, exec_trace, events_root, events) =
-            self.map_machine(|machine| {
-                // We're processing a chain message, so the sender is the origin of the call stack.
-                let mut cm = K::CallManager::new(
-                    machine,
-                    msg.gas_limit,
-                    sender_id,
-                    msg.sequence,
-                    msg.gas_premium.clone(),
-                );
-                // This error is fatal because it should have already been accounted for inside
-                // preflight_message.
-                if let Err(e) = cm.charge_gas(inclusion_cost) {
-                    return (Err(e), cm.finish().1);
+        let ret = self.map_machine(|machine| {
+            // We're processing a chain message, so the sender is the origin of the call stack.
+            let mut cm = K::CallManager::new(
+                machine,
+                msg.gas_limit,
+                sender_id,
+                msg.sequence,
+                msg.gas_premium.clone(),
+            );
+            // This error is fatal because it should have already been accounted for inside
+            // preflight_message.
+            if let Err(e) = cm.charge_gas(inclusion_cost) {
+                return (Err(e), cm.finish().1);
+            }
+
+            let params = if msg.params.is_empty() {
+                None
+            } else {
+                Some(Block::new(DAG_CBOR, msg.params.bytes()))
+            };
+
+            let result = cm.with_transaction(|cm| {
+                // Invoke the message.
+                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
+
+                // Charge for including the result (before we end the transaction).
+                if let InvocationResult::Return(value) = &ret {
+                    cm.charge_gas(cm.context().price_list.on_chain_return_value(
+                        value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
+                    ))?;
                 }
 
-                let params = if msg.params.is_empty() {
-                    None
-                } else {
-                    Some(Block::new(DAG_CBOR, msg.params.bytes()))
-                };
+                Ok(ret)
+            });
+            let (res, machine) = cm.finish();
 
-                let result = cm.with_transaction(|cm| {
-                    // Invoke the message.
-                    let ret =
-                        cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
+            // Flush all events to the store.
+            let events_root = match machine.commit_events(res.events.as_slice()) {
+                Ok(cid) => cid,
+                Err(e) => return (Err(e), machine),
+            };
 
-                    // Charge for including the result (before we end the transaction).
-                    if let InvocationResult::Return(value) = &ret {
-                        cm.charge_gas(cm.context().price_list.on_chain_return_value(
-                            value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
-                        ))?;
-                    }
+            (
+                Ok(MachineExecRet {
+                    result,
+                    gas_used: res.gas_used,
+                    backtrace: res.backtrace,
+                    exec_trace: res.exec_trace,
+                    events_root,
+                    events: res.events,
+                }),
+                machine,
+            )
+        })?;
 
-                    Ok(ret)
-                });
-                let (res, machine) = cm.finish();
-
-                // Flush all events to the store.
-                let events_root = match machine.commit_events(res.events.as_slice()) {
-                    Ok(cid) => cid,
-                    Err(e) => return (Err(e), machine),
-                };
-
-                (
-                    Ok((
-                        result,
-                        res.gas_used,
-                        res.backtrace,
-                        res.exec_trace,
-                        events_root,
-                        res.events,
-                    )),
-                    machine,
-                )
-            })?;
+        let MachineExecRet {
+            result: res,
+            gas_used,
+            mut backtrace,
+            exec_trace,
+            events_root,
+            events,
+        } = ret;
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
