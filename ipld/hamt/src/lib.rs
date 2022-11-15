@@ -11,7 +11,6 @@
 
 mod bitfield;
 mod error;
-mod ext;
 mod hamt;
 mod hash;
 mod hash_algorithm;
@@ -39,18 +38,7 @@ pub struct Config {
     /// Each node in the tree will have `2^bit_width` number of slots for child nodes,
     /// and consume `bit_width` number of bits from the hashed keys at each level.
     pub bit_width: u32,
-    /// Enabling extensions can help when the `HashAlgorithm` used by the HAMT is `Identity`,
-    /// which allows the user of the HAMT to set the keys arbitrarily. This can result in
-    /// parts of the tree being very deep, if there are keys that share a long common prefix.
-    /// Extensions allow the HAMT to eschew storing almost empty nodes all along the way to
-    /// the bottom by skipping levels which would only have a single pointer to the next
-    /// node in the chain, the length of which is dictated by `bit_width`.
-    ///
-    /// It is safe to enable this on a HAMT which has been built without extensions,
-    /// but everyone has to agree whether to use them or not for the CIDs to match.
-    ///
-    /// It's also safe to disable it, the code will still handle extensions that already exist.
-    pub use_extensions: bool,
+
     /// The minimum depth at which the HAMT can store key-value pairs in a `Node`.
     ///
     /// Storing values in the nodes means we have to read and write larger chunks of data
@@ -64,6 +52,9 @@ pub struct Config {
     /// further down.
     ///
     /// A value of 0 means data can be put in the root node, which is the default behaviour.
+    ///
+    /// The setting makes most sense when the size of values outweigh the size of the link
+    /// pointing at them. When storing small, hash-sized values, it might not matter.
     pub min_data_depth: u32,
 }
 
@@ -71,7 +62,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
-            use_extensions: false,
             min_data_depth: 0,
         }
     }

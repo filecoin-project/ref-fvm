@@ -11,7 +11,6 @@ fuzz_target!(|data: (u8, Vec<common::Operation>)| {
     let (flush_rate, operations) = data;
     let conf = Config {
         bit_width: 2,
-        use_extensions: true,
         min_data_depth: 1,
     };
     common::run(flush_rate, operations, conf);
