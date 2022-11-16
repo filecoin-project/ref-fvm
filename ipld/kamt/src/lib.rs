@@ -16,18 +16,18 @@
 mod bitfield;
 mod error;
 mod ext;
-pub mod hash;
 mod hash_bits;
+pub mod id;
 mod kamt;
 mod node;
 mod pointer;
 
-use forest_hash_utils::BytesKey;
-use fvm_ipld_encoding::de::{self, DeserializeOwned};
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
-pub use self::kamt::{Kamt, KamtLike};
+pub use self::kamt::Kamt;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
@@ -81,13 +81,19 @@ impl Default for Config {
     }
 }
 
+/// Keys in the tree have a fixed length.
 pub type HashedKey<const N: usize> = [u8; N];
 
-#[derive(Debug, PartialEq)]
-struct KeyValuePair<const N: usize, V>(HashedKey<N>, V);
+/// Convert a key into bytes.
+pub trait AsHashedKey<K, const N: usize> {
+    fn as_hashed_key(key: &K) -> Cow<HashedKey<N>>;
+}
 
-impl<const N: usize, V> KeyValuePair<N, V> {
-    pub fn key(&self) -> &HashedKey<N> {
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct KeyValuePair<K, V>(K, V);
+
+impl<K, V> KeyValuePair<K, V> {
+    pub fn key(&self) -> &K {
         &self.0
     }
 
@@ -96,37 +102,8 @@ impl<const N: usize, V> KeyValuePair<N, V> {
     }
 }
 
-impl<const N: usize, V> KeyValuePair<N, V> {
-    pub fn new(key: HashedKey<N>, value: V) -> Self {
+impl<K, V> KeyValuePair<K, V> {
+    pub fn new(key: K, value: V) -> Self {
         KeyValuePair(key, value)
-    }
-}
-
-impl<const N: usize, V: Serialize> Serialize for KeyValuePair<N, V> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        (BytesKey::from(self.key().as_ref()), self.value()).serialize(serializer)
-    }
-}
-
-impl<'de, const N: usize, V: DeserializeOwned> Deserialize<'de> for KeyValuePair<N, V> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let data: (BytesKey, V) = Deserialize::deserialize(deserializer)?;
-        if data.0.len() != N {
-            Err(de::Error::custom(format!(
-                "Expected hashed key to be {N} long; got {}",
-                data.0.len()
-            )))
-        } else {
-            let mut key = [0u8; N];
-            key.copy_from_slice(&data.0);
-
-            Ok(KeyValuePair(key, data.1))
-        }
     }
 }

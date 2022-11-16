@@ -17,24 +17,24 @@ use super::node::Node;
 use super::{Error, KeyValuePair};
 use crate::bitfield::Bitfield;
 use crate::ext::Extension;
-use crate::{Config, HashedKey};
+use crate::Config;
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
-pub(crate) enum Pointer<const N: usize, V> {
-    Values(Vec<KeyValuePair<N, V>>),
+pub(crate) enum Pointer<K, V, H, const N: usize> {
+    Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
         ext: Option<Extension>,
-        cache: OnceCell<Box<Node<N, V>>>,
+        cache: OnceCell<Box<Node<K, V, H, N>>>,
     },
     Dirty {
-        node: Box<Node<N, V>>,
+        node: Box<Node<K, V, H, N>>,
         ext: Option<Extension>,
     },
 }
 
-impl<const N: usize, V: PartialEq> PartialEq for Pointer<N, V> {
+impl<K: PartialEq, V: PartialEq, H, const N: usize> PartialEq for Pointer<K, V, H, N> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (&Pointer::Values(ref a), &Pointer::Values(ref b)) => a == b,
@@ -66,8 +66,9 @@ impl<const N: usize, V: PartialEq> PartialEq for Pointer<N, V> {
 }
 
 /// Serialize the Pointer like an untagged enum.
-impl<const N: usize, V> Serialize for Pointer<N, V>
+impl<K, V, H, const N: usize> Serialize for Pointer<K, V, H, N>
 where
+    K: Serialize,
     V: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -92,8 +93,9 @@ where
     }
 }
 
-impl<const N: usize, V> TryFrom<Ipld> for Pointer<N, V>
+impl<K, V, H, const N: usize> TryFrom<Ipld> for Pointer<K, V, H, N>
 where
+    K: DeserializeOwned,
     V: DeserializeOwned,
 {
     type Error = String;
@@ -101,7 +103,7 @@ where
     fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
         match ipld {
             ipld_list @ Ipld::List(_) => {
-                let values: Vec<KeyValuePair<N, V>> = from_ipld(ipld_list)?;
+                let values: Vec<KeyValuePair<K, V>> = from_ipld(ipld_list)?;
                 Ok(Self::Values(values))
             }
             Ipld::Link(cid) => Ok(Self::Link {
@@ -128,8 +130,9 @@ where
 }
 
 /// Deserialize the Pointer like an untagged enum.
-impl<'de, const N: usize, V> Deserialize<'de> for Pointer<N, V>
+impl<'de, K, V, H, const N: usize> Deserialize<'de> for Pointer<K, V, H, N>
 where
+    K: DeserializeOwned,
     V: DeserializeOwned,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -140,17 +143,18 @@ where
     }
 }
 
-impl<const N: usize, V> Default for Pointer<N, V> {
+impl<K, V, H, const N: usize> Default for Pointer<K, V, H, N> {
     fn default() -> Self {
         Pointer::Values(Vec::new())
     }
 }
 
-impl<const N: usize, V> Pointer<N, V>
+impl<K, V, H, const N: usize> Pointer<K, V, H, N>
 where
+    K: Serialize + DeserializeOwned + PartialOrd,
     V: Serialize + DeserializeOwned,
 {
-    pub(crate) fn from_key_value(key: HashedKey<N>, value: V) -> Self {
+    pub(crate) fn from_key_value(key: K, value: V) -> Self {
         Pointer::Values(vec![KeyValuePair::new(key, value)])
     }
 
@@ -225,7 +229,7 @@ where
                     }
 
                     // Collect values from child nodes to collapse.
-                    let mut child_vals: Vec<KeyValuePair<N, V>> = n
+                    let mut child_vals: Vec<KeyValuePair<K, V>> = n
                         .pointers
                         .iter_mut()
                         .filter_map(|p| {

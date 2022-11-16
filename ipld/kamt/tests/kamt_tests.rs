@@ -9,15 +9,15 @@ use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
-use fvm_ipld_kamt::hash::{HasherKamt, Identity, KeyHasher};
-use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt, KamtLike};
+use fvm_ipld_kamt::id::Identity;
+use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt};
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use serde::Serialize;
 
-type HKamt<BS, V, K = u32, H = Identity> = HasherKamt<BS, K, V, 32, H>;
+type HKamt<BS, V, K = u32> = Kamt<BS, K, V, Identity, 32>;
 
 /// Help reuse tests with different KAMT configurations.
 #[derive(Default)]
@@ -27,23 +27,22 @@ struct KamtFactory {
 
 impl KamtFactory {
     #[allow(clippy::wrong_self_convention, clippy::new_ret_no_self)]
-    fn new<BS, K, V, H>(&self, store: BS) -> HKamt<BS, V, K, H>
+    fn new<BS, K, V>(&self, store: BS) -> HKamt<BS, V, K>
     where
         BS: Blockstore,
         V: Serialize + DeserializeOwned,
-        H: KeyHasher<K, 32>,
+        K: Serialize + DeserializeOwned,
     {
-        HasherKamt::new(Kamt::new_with_config(store, self.conf.clone()))
+        Kamt::new_with_config(store, self.conf.clone())
     }
 
-    fn load<BS, K, V, H>(&self, cid: &Cid, store: BS) -> Result<HKamt<BS, V, K, H>, Error>
+    fn load<BS, K, V>(&self, cid: &Cid, store: BS) -> Result<HKamt<BS, V, K>, Error>
     where
         BS: Blockstore,
+        K: Serialize + DeserializeOwned,
         V: Serialize + DeserializeOwned,
-        H: KeyHasher<K, 32>,
     {
-        let kamt: Kamt<BS, V, 32> = Kamt::load_with_config(cid, store, self.conf.clone())?;
-        Ok(HasherKamt::new(kamt))
+        Kamt::load_with_config(cid, store, self.conf.clone())
     }
 }
 
@@ -85,9 +84,7 @@ fn test_load(factory: KamtFactory) {
 
     // loading from an empty store does not work
     let empty_store = MemoryBlockstore::default();
-    assert!(factory
-        .load::<_, u32, BytesKey, Identity>(&c2, &empty_store)
-        .is_err());
+    assert!(factory.load::<_, u32, BytesKey>(&c2, &empty_store).is_err());
 
     // storing the kamt should produce the same cid as storing the root
     let c3 = kamt.flush().unwrap();
@@ -133,16 +130,17 @@ fn reload_empty(factory: KamtFactory) {
 fn for_each(factory: KamtFactory) {
     let store = MemoryBlockstore::default();
 
-    let mut kamt: HKamt<_, i32, HashedKey<32>> = factory.new(&store);
+    let mut kamt: HKamt<_, i32, u16> = factory.new(&store);
 
     for i in 0..200 {
-        kamt.set(kstring(i), i).unwrap();
+        kamt.set(i, i as i32).unwrap();
     }
 
     // Iterating through kamt with dirty caches.
     let mut sum = 0;
     let expected_sum = (0 + 199) * 200 / 2;
-    kamt.for_each(|_, v| {
+    kamt.for_each(|k, v| {
+        assert_eq!(*k as i32, *v);
         sum += v;
         Ok(())
     })
@@ -151,7 +149,7 @@ fn for_each(factory: KamtFactory) {
 
     let c = kamt.flush().unwrap();
 
-    let kamt: HKamt<_, i32, HashedKey<32>> = factory.load(&c, &store).unwrap();
+    let kamt: HKamt<_, i32, u16> = factory.load(&c, &store).unwrap();
 
     // Iterating through kamt with no cache.
     let mut sum = 0;

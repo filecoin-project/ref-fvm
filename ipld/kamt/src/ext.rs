@@ -79,7 +79,7 @@ impl Extension {
     pub fn longest_common_prefix<const N: usize>(
         hashed_key: &mut HashBits,
         bit_width: u32,
-        hashes: &[&HashedKey<N>],
+        hashes: &[HashedKey<N>],
     ) -> Result<Self, Error> {
         let mut hashes = hashes
             .iter()
@@ -240,7 +240,7 @@ mod tests {
         // Consume some of the key
         assert_eq!(hb.next(bit_width * 2).unwrap(), 0b00100010);
         // The common prefix should be from here to somewhere inside `key[3]`
-        let ext = Extension::longest_common_prefix(&mut hb, bit_width, &[&key2, &key3]).unwrap();
+        let ext = Extension::longest_common_prefix(&mut hb, bit_width, &[key2, key3]).unwrap();
         // The first 4 bits of `key[3]` match, but we take `bit_width` at a time, and that stops at the 3rd bit.
         assert_eq!(ext.consumed, 2 + 8 + 8 + 3);
         assert_eq!(ext.path.len(), 3);

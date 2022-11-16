@@ -17,23 +17,24 @@ use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, KeyValuePair};
 use crate::ext::Extension;
-use crate::{Config, HashedKey};
+use crate::{AsHashedKey, Config, HashedKey};
 
 /// Node in Kamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
-pub(crate) struct Node<const N: usize, V> {
+pub(crate) struct Node<K, V, H, const N: usize> {
     pub(crate) bitfield: Bitfield,
-    pub(crate) pointers: Vec<Pointer<N, V>>,
+    pub(crate) pointers: Vec<Pointer<K, V, H, N>>,
 }
 
-impl<const N: usize, V: PartialEq> PartialEq for Node<N, V> {
+impl<K: PartialEq, V: PartialEq, H, const N: usize> PartialEq for Node<K, V, H, N> {
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
     }
 }
 
-impl<const N: usize, V> Serialize for Node<N, V>
+impl<K, V, H, const N: usize> Serialize for Node<K, V, H, N>
 where
+    K: Serialize,
     V: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -44,8 +45,9 @@ where
     }
 }
 
-impl<'de, const N: usize, V> Deserialize<'de> for Node<N, V>
+impl<'de, K, V, H, const N: usize> Deserialize<'de> for Node<K, V, H, N>
 where
+    K: DeserializeOwned,
     V: DeserializeOwned,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -57,7 +59,7 @@ where
     }
 }
 
-impl<const N: usize, V> Default for Node<N, V> {
+impl<K, V, H, const N: usize> Default for Node<K, V, H, N> {
     fn default() -> Self {
         Node {
             bitfield: Bitfield::zero(),
@@ -66,13 +68,49 @@ impl<const N: usize, V> Default for Node<N, V> {
     }
 }
 
-impl<const N: usize, V> Node<N, V>
+impl<K, V, H, const N: usize> Node<K, V, H, N>
 where
+    K: Serialize + DeserializeOwned,
+    V: Serialize + DeserializeOwned,
+{
+    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error> {
+        for pointer in &mut self.pointers {
+            if let Pointer::Dirty { node, ext } = pointer {
+                // Flush cached sub node to clear it's cache
+                node.flush(store)?;
+
+                // Put node in blockstore and retrieve Cid
+                let cid = store.put_cbor(node, Code::Blake2b256)?;
+
+                // Can keep the flushed node in link cache
+                let cache = OnceCell::from(std::mem::take(node));
+
+                // Replace cached node with Cid link
+                *pointer = Pointer::Link {
+                    cid,
+                    ext: ext.take(),
+                    cache,
+                };
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pointers.is_empty()
+    }
+}
+
+impl<K, V, H, const N: usize> Node<K, V, H, N>
+where
+    K: Serialize + DeserializeOwned + PartialOrd,
+    H: AsHashedKey<K, N>,
     V: Serialize + DeserializeOwned,
 {
     pub fn set<S: Blockstore>(
         &mut self,
-        key: HashedKey<N>,
+        key: K,
         value: V,
         store: &S,
         conf: &Config,
@@ -82,7 +120,7 @@ where
         V: PartialEq,
     {
         self.modify_value(
-            &mut HashBits::new(&key),
+            &mut HashBits::new(&H::as_hashed_key(&key).into_owned()),
             conf,
             0,
             key,
@@ -93,32 +131,44 @@ where
     }
 
     #[inline]
-    pub fn get<S: Blockstore>(
+    pub fn get<Q, S: Blockstore>(
         &self,
-        key: &HashedKey<N>,
+        key: &Q,
         store: &S,
         conf: &Config,
-    ) -> Result<Option<&V>, Error> {
+    ) -> Result<Option<&V>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
+    {
         self.search(key, store, conf)
     }
 
     #[inline]
-    pub fn remove_entry<S: Blockstore>(
+    pub fn remove_entry<Q, S: Blockstore>(
         &mut self,
-        key: &HashedKey<N>,
+        key: &Q,
         store: &S,
         conf: &Config,
-    ) -> Result<Option<V>, Error> {
-        self.rm_value(&mut HashBits::new(&key), conf, 0, key, store)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.pointers.is_empty()
+    ) -> Result<Option<V>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
+    {
+        self.rm_value(
+            &mut HashBits::new(H::as_hashed_key(key).as_ref()),
+            conf,
+            0,
+            key,
+            store,
+        )
     }
 
     pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
     where
-        F: FnMut(&HashedKey<N>, &V) -> anyhow::Result<()>,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
         S: Blockstore,
     {
         for p in &self.pointers {
@@ -154,22 +204,36 @@ where
     }
 
     /// Search for a key.
-    fn search<S: Blockstore>(
+    fn search<Q, S: Blockstore>(
         &self,
-        key: &HashedKey<N>,
+        key: &Q,
         store: &S,
         conf: &Config,
-    ) -> Result<Option<&V>, Error> {
-        self.get_value(&mut HashBits::new(key), conf, key, store)
+    ) -> Result<Option<&V>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
+    {
+        self.get_value(
+            &mut HashBits::new(H::as_hashed_key(key).as_ref()),
+            conf,
+            key,
+            store,
+        )
     }
 
-    fn get_value<S: Blockstore>(
+    fn get_value<Q, S: Blockstore>(
         &self,
         hash_bits: &mut HashBits,
         conf: &Config,
-        key: &HashedKey<N>,
+        key: &Q,
         store: &S,
-    ) -> Result<Option<&V>, Error> {
+    ) -> Result<Option<&V>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+    {
         let idx = hash_bits.next(conf.bit_width)?;
 
         if !self.bitfield.test_bit(idx) {
@@ -185,7 +249,7 @@ where
                     // Link node is cached
                     cached_node
                 } else {
-                    let node: Box<Node<N, V>> = if let Some(node) = store.get_cbor(cid)? {
+                    let node: Box<Node<K, V, H, N>> = if let Some(node) = store.get_cbor(cid)? {
                         node
                     } else {
                         #[cfg(not(feature = "ignore-dead-links"))]
@@ -202,7 +266,10 @@ where
             }
             Pointer::Dirty { node, ext } => (node, ext),
             Pointer::Values(vals) => {
-                return Ok(vals.iter().find(|kv| key.eq(kv.key())).map(|kv| kv.value()));
+                return Ok(vals
+                    .iter()
+                    .find(|kv| key.eq(kv.key().borrow()))
+                    .map(|kv| kv.value()));
             }
         };
 
@@ -223,7 +290,7 @@ where
         hash_bits: &mut HashBits,
         conf: &Config,
         depth: u32,
-        key: HashedKey<N>,
+        key: K,
         value: V,
         store: &S,
         overwrite: bool,
@@ -239,7 +306,7 @@ where
                 self.insert_child(idx, key, value);
             } else {
                 // Need to insert some empty nodes reserved for links.
-                let mut sub = Node::<N, V>::default();
+                let mut sub = Node::<K, V, H, N>::default();
                 sub.modify_value(hash_bits, conf, depth + 1, key, value, store, overwrite)?;
                 self.insert_child_dirty(idx, Box::new(sub), None);
             }
@@ -338,7 +405,10 @@ where
                 // If the array is full, create a subshard and insert everything
                 if vals.len() >= conf.max_array_width {
                     let kvs = std::mem::take(vals);
-                    let hashes = kvs.iter().map(|kv| kv.key()).collect::<Vec<_>>();
+                    let hashes = kvs
+                        .iter()
+                        .map(|kv| H::as_hashed_key(kv.key()).into_owned())
+                        .collect::<Vec<_>>();
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
                     let ext = Self::find_longest_extension(conf, hash_bits, &hashes)?;
@@ -348,7 +418,7 @@ where
                         .unwrap_or_default();
 
                     let consumed = hash_bits.consumed;
-                    let mut sub = Node::<N, V>::default();
+                    let mut sub = Node::<K, V, H, N>::default();
                     let modified = sub.modify_value(
                         hash_bits,
                         conf,
@@ -359,9 +429,9 @@ where
                         overwrite,
                     )?;
 
-                    for kv in kvs {
+                    for (kv, h) in kvs.into_iter().zip(hashes) {
                         sub.modify_value(
-                            &mut HashBits::new_at_index(&kv.0, consumed),
+                            &mut HashBits::new_at_index(&h, consumed),
                             conf,
                             depth + 1 + skipped,
                             kv.0,
@@ -392,14 +462,18 @@ where
     }
 
     /// Internal method to delete entries.
-    fn rm_value<S: Blockstore>(
+    fn rm_value<Q, S: Blockstore>(
         &mut self,
         hash_bits: &mut HashBits,
         conf: &Config,
         depth: u32,
-        key: &HashedKey<N>,
+        key: &Q,
         store: &S,
-    ) -> Result<Option<V>, Error> {
+    ) -> Result<Option<V>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+    {
         let idx = hash_bits.next(conf.bit_width)?;
 
         // No existing values at this point.
@@ -456,7 +530,7 @@ where
             Pointer::Values(vals) => {
                 // Delete value
                 for (i, p) in vals.iter().enumerate() {
-                    if key.eq(p.key()) {
+                    if key.eq(p.key().borrow()) {
                         let old = if vals.len() == 1 {
                             if let Pointer::Values(new_v) = self.rm_child(cindex, idx) {
                                 new_v.into_iter().next().unwrap()
@@ -475,36 +549,12 @@ where
         }
     }
 
-    pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error> {
-        for pointer in &mut self.pointers {
-            if let Pointer::Dirty { node, ext } = pointer {
-                // Flush cached sub node to clear it's cache
-                node.flush(store)?;
-
-                // Put node in blockstore and retrieve Cid
-                let cid = store.put_cbor(node, Code::Blake2b256)?;
-
-                // Can keep the flushed node in link cache
-                let cache = OnceCell::from(std::mem::take(node));
-
-                // Replace cached node with Cid link
-                *pointer = Pointer::Link {
-                    cid,
-                    ext: ext.take(),
-                    cache,
-                };
-            }
-        }
-
-        Ok(())
-    }
-
-    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<N, V> {
+    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, H, N> {
         self.bitfield.clear_bit(idx);
         self.pointers.remove(i)
     }
 
-    fn insert_child(&mut self, idx: u32, key: HashedKey<N>, value: V) {
+    fn insert_child(&mut self, idx: u32, key: K, value: V) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::from_key_value(key, value))
@@ -515,14 +565,19 @@ where
         idx: u32,
         cid: Cid,
         ext: Option<Extension>,
-        cache: OnceCell<Box<Node<N, V>>>,
+        cache: OnceCell<Box<Node<K, V, H, N>>>,
     ) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Link { cid, ext, cache })
     }
 
-    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<N, V>>, ext: Option<Extension>) {
+    fn insert_child_dirty(
+        &mut self,
+        idx: u32,
+        node: Box<Node<K, V, H, N>>,
+        ext: Option<Extension>,
+    ) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Dirty { node, ext })
@@ -534,11 +589,11 @@ where
         mask.and(&self.bitfield).count_ones()
     }
 
-    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<N, V> {
+    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, H, N> {
         &mut self.pointers[i]
     }
 
-    fn get_child(&self, i: usize) -> &Pointer<N, V> {
+    fn get_child(&self, i: usize) -> &Pointer<K, V, H, N> {
         &self.pointers[i]
     }
 
@@ -549,15 +604,15 @@ where
         conf: &Config,
         hash_bits: &'a mut HashBits,
         part: &PartialMatch,
-        key: HashedKey<N>,
+        key: K,
         value: V,
         insert_pointer: F,
-    ) -> Result<Pointer<N, V>, Error>
+    ) -> Result<Pointer<K, V, H, N>, Error>
     where
-        F: FnOnce(&mut Node<N, V>, u32, Option<Extension>),
+        F: FnOnce(&mut Node<K, V, H, N>, u32, Option<Extension>),
     {
         // Need a new node at the split point.
-        let mut midway = Node::<N, V>::default();
+        let mut midway = Node::<K, V, H, N>::default();
 
         // Point at the original node the link pointed at in the next nibble of the path after the split.
         let (head, idx, tail) = part.split(conf.bit_width)?;
@@ -580,7 +635,7 @@ where
     ///
     /// Returns true if the child pointer is completely empty and can be removed,
     /// which can happen if we artificially inserted nodes during insertion.
-    fn clean(child: &mut Pointer<N, V>, conf: &Config, depth: u32) -> Result<bool, Error> {
+    fn clean(child: &mut Pointer<K, V, H, N>, conf: &Config, depth: u32) -> Result<bool, Error> {
         match child.clean(conf, depth) {
             Ok(()) => Ok(false),
             Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
@@ -593,7 +648,7 @@ where
     fn find_longest_extension(
         conf: &Config,
         hash_bits: &mut HashBits,
-        hashes: &[&HashedKey<N>],
+        hashes: &[HashedKey<N>],
     ) -> Result<Option<Extension>, Error> {
         if !conf.use_extensions {
             Ok(None)
