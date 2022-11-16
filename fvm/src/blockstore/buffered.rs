@@ -42,14 +42,13 @@ where
 {
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
-    /// root Cid.
+    /// root Cid. Calling flush will not reset the write buffer.
     fn flush(&self, root: &Cid) -> Result<()> {
         let mut buffer = Vec::new();
         let mut s = self.write.borrow_mut();
         copy_rec(&s, *root, &mut buffer)?;
 
         self.base.put_many_keyed(buffer)?;
-        *s = Default::default();
 
         Ok(())
     }
