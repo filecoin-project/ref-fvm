@@ -96,10 +96,6 @@ jobs:
         override: true
         components: ${{ matrix.components }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
-    - name: Generating Cargo.lock
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: generate-lockfile
     - name: Installing Cargo llvm-cov
       if: ${{ matrix.covname }}
       uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
@@ -118,7 +114,7 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: ${{ matrix.command }}
-        args: ${{ matrix.args }}
+        args: --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
