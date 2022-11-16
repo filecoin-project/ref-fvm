@@ -29,7 +29,6 @@ use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
-use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -513,19 +512,11 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        let (fault, gas) = self
+        let (fault, _) = self
             .call_manager
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
-
-        if self.network_version() <= NetworkVersion::V15 {
-            self.call_manager.charge_gas(GasCharge::new(
-                "verify_consensus_fault_accesses",
-                Gas::new(gas),
-                Gas::zero(),
-            ))?;
-        }
 
         Ok(fault)
     }
