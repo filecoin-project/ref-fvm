@@ -25,7 +25,7 @@ impl quickcheck::Arbitrary for DelegatedAddress {
         let buffer: [u8; MAX_SUBADDRESS_LEN] = core::array::from_fn(|_| u8::arbitrary(g));
         Self {
             namespace: ActorID::arbitrary(g),
-            length: usize::arbitrary(g),
+            length: buffer.len(),
             buffer,
         }
     }
