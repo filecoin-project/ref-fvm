@@ -17,7 +17,7 @@ use lazy_static::lazy_static;
 use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
-use crate::builtin::{fetch_builtin_code_cid, set_init_actor, set_sys_actor};
+use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -68,17 +68,18 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
         let init_state = init_actor::State::new_test(&blockstore);
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
-        // Deploy init and sys actors
+        // Deploy init, sys, and eam actors
         let sys_state = system_actor::State { builtin_actors };
         set_sys_actor(&mut state_tree, sys_state, sys_code_cid)?;
         set_init_actor(&mut state_tree, init_code_cid, init_state)?;
+        set_eam_actor(&mut state_tree, eam_code_cid)?;
 
         Ok(Tester {
             nv,
@@ -193,6 +194,17 @@ where
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
+        self.instantiate_machine_with_config(externs, |_| ())
+    }
+
+    /// Sets the Machine and the Executor in our Tester structure.
+    ///
+    /// The `configure` function allows the caller to adjust the `NetworkConfiguration` before
+    /// it's used to instantiate the rest of the components.
+    pub fn instantiate_machine_with_config<F>(&mut self, externs: E, configure: F) -> Result<()>
+    where
+        F: FnOnce(&mut NetworkConfig),
+    {
         // Take the state tree and leave None behind.
         let mut state_tree = self.state_tree.take().unwrap();
 
@@ -210,8 +222,12 @@ where
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 
+        // Custom configuration.
+        configure(&mut nc);
+
         let mut mc = nc.for_epoch(0, state_root);
-        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE));
+        mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
+            .enable_tracing();
 
         let machine = DefaultMachine::new(
             &Engine::new_default((&mc.network.clone()).into())?,

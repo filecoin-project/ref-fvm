@@ -2,7 +2,26 @@
 
 Changes to the reference FVM implementation.
 
-##  [Unreleased]
+## [Unreleased]
+
+## 3.0.0-alpha.9 [2022-11-16]
+
+- fix: BufferedBlockstore#flush should not reset the write buffer.
+
+## 3.0.0-alpha.8 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
+## 3.0.0-alpha.7 [2022-11-14]
+
+- MEM-851: Memory expansion gas (#1067)
+- Split `InvokeContext` into two (#1070)
+- Support EAM singleton in manifest (#1005)
+
+## 3.0.0-alpha.6
+
+- update the state-tree version to v5
+- enable instrumentation of sign extension instructions (only relevant to anyone playing around with native actor support).
 
 ## 3.0.0-alpha.5
 

@@ -1,7 +1,6 @@
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::InvocationContext;
+use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SyscallSafe;
-use fvm_shared::version::NetworkVersion;
 
 use super::error::Abort;
 use super::Context;
@@ -24,7 +23,7 @@ pub fn abort(
     use crate::kernel::Context as _;
 
     let code = ExitCode::new(code);
-    if context.kernel.network_version() >= NetworkVersion::V16 && code.is_system_error() {
+    if code.is_system_error() {
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
@@ -48,10 +47,10 @@ pub fn abort(
     Err(Abort::Exit(code, message))
 }
 
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<InvocationContext> {
+pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
     use anyhow::Context as _;
 
-    Ok(InvocationContext {
+    Ok(MessageContext {
         caller: context.kernel.msg_caller(),
         origin: context.kernel.msg_origin(),
         receiver: context.kernel.msg_receiver(),
@@ -62,8 +61,6 @@ pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<Invoc
             .try_into()
             .context("invalid token amount")
             .or_fatal()?,
-        network_curr_epoch: context.kernel.network_epoch(),
-        network_version: context.kernel.network_version() as u32,
         gas_premium: context
             .kernel
             .msg_gas_premium()

@@ -10,12 +10,12 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
-
 pub use backtrace::Backtrace;
 
 mod default;
 
 pub use default::DefaultCallManager;
+use fvm_shared::event::StampedEvent;
 
 use crate::trace::ExecutionTrace;
 
@@ -127,6 +127,12 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Limit memory usage throughout a message execution.
+    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter;
+
+    /// Appends an event to the event accumulator.
+    fn append_event(&mut self, evt: StampedEvent);
 }
 
 /// The result of a method invocation.
@@ -160,4 +166,5 @@ pub struct FinishRet {
     pub gas_used: i64,
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
+    pub events: Vec<StampedEvent>,
 }

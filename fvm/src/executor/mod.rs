@@ -8,6 +8,7 @@ pub use default::DefaultExecutor;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
@@ -88,6 +89,8 @@ pub struct ApplyRet {
     pub failure_info: Option<ApplyFailure>,
     /// Execution trace information, for debugging.
     pub exec_trace: ExecutionTrace,
+    /// Events generated while applying the message.
+    pub events: Vec<StampedEvent>,
 }
 
 impl ApplyRet {
@@ -102,6 +105,7 @@ impl ApplyRet {
                 exit_code: code,
                 return_data: RawBytes::default(),
                 gas_used: 0,
+                events_root: None,
             },
             penalty: miner_penalty,
             miner_tip: TokenAmount::zero(),
@@ -112,6 +116,7 @@ impl ApplyRet {
             gas_burned: 0,
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             exec_trace: vec![],
+            events: vec![],
         }
     }
 }

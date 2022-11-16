@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 
-use fvm_ipld_amt::{Amt, Error, MAX_INDEX};
+use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
@@ -11,6 +11,14 @@ use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::BytesDe;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
+where
+    V: Serialize + DeserializeOwned + PartialEq + Debug,
+    BS: Blockstore,
+{
+    assert_eq!(a.get(i).unwrap().unwrap(), v);
+}
+
+fn assert_v0_get<V, BS>(a: &Amtv0<V, BS>, i: u64, v: &V)
 where
     V: Serialize + DeserializeOwned + PartialEq + Debug,
     BS: Blockstore,
@@ -40,6 +48,30 @@ fn basic_get_set() {
     );
     #[rustfmt::skip]
     assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 2, br: 13, bw: 26});
+}
+
+#[test]
+fn legacy_amtv0_basic_get_set() {
+    let mem = MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
+    let mut a = Amtv0::new(&db);
+
+    a.set(2, tbytes(b"foo")).unwrap();
+    assert_v0_get(&a, 2, &tbytes(b"foo"));
+    assert_eq!(a.count(), 1);
+
+    let c = a.flush().unwrap();
+
+    let new_amt = Amtv0::load(&c, &db).unwrap();
+    assert_v0_get(&new_amt, 2, &tbytes(b"foo"));
+    let c = a.flush().unwrap();
+
+    assert_eq!(
+        c.to_string().as_str(),
+        "bafy2bzaceansvim5z2rzifilsbzsjuoul2adx7iad7x3b4paj3qsexqf6ovxk"
+    );
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 2, br: 12, bw: 24});
 }
 
 #[test]

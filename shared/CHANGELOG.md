@@ -1,6 +1,21 @@
 # Changelog
 
-## 3.0.0-alpha.9 [UNRELEASED]
+## [Unreleased]
+
+- ...
+
+## 3.0.0-alpha.11 [2022-11-15]
+
+- Add support for actor events (FIP-0049).
+
+## 3.0.0-alpha.10 [2022-11-14]
+
+- Split `InvokeContext` into two (#1070)
+- fix: correctly format negative token amounts (#1065)
+
+## 3.0.0-alpha.9 [2022-11-08]
+
+- Add support for state-tree v5.
 
 ## 3.0.0-alpha.8 [2022-10-22]
 

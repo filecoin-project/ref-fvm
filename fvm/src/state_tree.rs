@@ -15,6 +15,8 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::{StateInfo0, StateRoot, StateTreeVersion};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use num_traits::Zero;
+#[cfg(feature = "arb")]
+use quickcheck::Arbitrary;
 
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Context as _, ExecutionError, Result};
@@ -201,13 +203,17 @@ where
 {
     pub fn new(store: S, version: StateTreeVersion) -> Result<Self> {
         let info = match version {
-            StateTreeVersion::V0 | StateTreeVersion::V1 | StateTreeVersion::V2 => {
+            StateTreeVersion::V0
+            | StateTreeVersion::V1
+            | StateTreeVersion::V2
+            | StateTreeVersion::V3
+            | StateTreeVersion::V4 => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
                 )))
             }
-            StateTreeVersion::V3 | StateTreeVersion::V4 => {
+            StateTreeVersion::V5 => {
                 let cid = store
                     .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
                     .context("failed to put state info")
@@ -251,10 +257,16 @@ where
         };
 
         match version {
-            StateTreeVersion::V0 | StateTreeVersion::V1 | StateTreeVersion::V2 => Err(
-                ExecutionError::Fatal(anyhow!("unsupported state tree version: {:?}", version)),
-            ),
-            StateTreeVersion::V3 | StateTreeVersion::V4 => {
+            StateTreeVersion::V0
+            | StateTreeVersion::V1
+            | StateTreeVersion::V2
+            | StateTreeVersion::V3
+            | StateTreeVersion::V4 => Err(ExecutionError::Fatal(anyhow!(
+                "unsupported state tree version: {:?}",
+                version
+            ))),
+
+            StateTreeVersion::V5 => {
                 let hamt = Hamt::load_with_bit_width(&actors, store, HAMT_BIT_WIDTH)
                     .context("failed to load state tree")
                     .or_fatal()?;
@@ -572,6 +584,23 @@ impl ActorState {
     }
 }
 
+#[cfg(feature = "arb")]
+impl Arbitrary for ActorState {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let cid = Cid::new_v1(
+            u64::arbitrary(g),
+            cid::multihash::Multihash::wrap(u64::arbitrary(g), &[u8::arbitrary(g)]).unwrap(),
+        );
+        Self {
+            code: cid,
+            state: cid,
+            sequence: u64::arbitrary(g),
+            balance: TokenAmount::from_atto(u64::arbitrary(g)),
+            address: None,
+        }
+    }
+}
+
 #[cfg(feature = "json")]
 pub mod json {
     use std::str::FromStr;
@@ -689,7 +718,7 @@ mod tests {
         let act_a = ActorState::new(empty_cid(), empty_cid(), Default::default(), 2, None);
         let addr = Address::new_id(1);
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V5).unwrap();
 
         // test address not in cache
         assert_eq!(tree.get_actor(&addr).unwrap(), None);
@@ -706,7 +735,7 @@ mod tests {
     #[test]
     fn delete_actor() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V5).unwrap();
 
         let addr = Address::new_id(3);
         let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1, None);
@@ -719,7 +748,7 @@ mod tests {
     #[test]
     fn get_set_non_id() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V5).unwrap();
         let init_state = init_actor::State::new_test(&store);
 
         let state_cid = tree
@@ -767,7 +796,7 @@ mod tests {
     #[test]
     fn test_transactions() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V5).unwrap();
 
         let addresses = &[
             Address::new_id(101),
@@ -849,7 +878,7 @@ mod tests {
     #[test]
     fn revert_transaction() {
         let store = MemoryBlockstore::default();
-        let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
+        let mut tree = StateTree::new(&store, StateTreeVersion::V5).unwrap();
 
         let addr_str = "f01";
         let addr: Address = addr_str.parse().unwrap();
@@ -879,6 +908,8 @@ mod tests {
             StateTreeVersion::V0,
             StateTreeVersion::V1,
             StateTreeVersion::V2,
+            StateTreeVersion::V3,
+            StateTreeVersion::V4,
         ];
         let store = MemoryBlockstore::default();
         for v in unsupported {

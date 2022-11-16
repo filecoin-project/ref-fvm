@@ -29,7 +29,6 @@ use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
-use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -513,19 +512,11 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        let (fault, gas) = self
+        let (fault, _) = self
             .call_manager
             .externs()
             .verify_consensus_fault(h1, h2, extra)
             .or_illegal_argument()?;
-
-        if self.network_version() <= NetworkVersion::V15 {
-            self.call_manager.charge_gas(GasCharge::new(
-                "verify_consensus_fault_accesses",
-                Gas::new(gas),
-                Gas::zero(),
-            ))?;
-        }
 
         Ok(fault)
     }
@@ -916,6 +907,34 @@ where
                 ENV_ARTIFACT_DIR
             )
         }
+        Ok(())
+    }
+}
+
+impl<C> LimiterOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.call_manager.limiter_mut()
+    }
+}
+
+impl<C> EventOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
+
+        // TODO eventually validate entries
+        //  https://github.com/filecoin-project/ref-fvm/issues/1082
+
+        let evt = StampedEvent::new(self.actor_id, evt);
+        self.call_manager.append_event(evt);
         Ok(())
     }
 }
