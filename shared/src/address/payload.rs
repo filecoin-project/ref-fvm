@@ -91,9 +91,9 @@ pub enum Payload {
 impl quickcheck::Arbitrary for Payload {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let id = Payload::ID(u64::arbitrary(g));
-        let secp = Payload::Secp256k1([u8::arbitrary(g); PAYLOAD_HASH_LEN]);
-        let actor = Payload::Actor([u8::arbitrary(g); PAYLOAD_HASH_LEN]);
-        let bls = Payload::BLS([u8::arbitrary(g); BLS_PUB_LEN]);
+        let secp = Payload::Secp256k1([0; PAYLOAD_HASH_LEN].map(|_| u8::arbitrary(g)));
+        let actor = Payload::Actor([0; PAYLOAD_HASH_LEN].map(|_| u8::arbitrary(g)));
+        let bls = Payload::BLS([0; BLS_PUB_LEN].map(|_| u8::arbitrary(g)));
         let delegated = Payload::Delegated(DelegatedAddress::arbitrary(g));
         let payload_slice = &[id, secp, actor, bls, delegated];
         let payload = g.choose(payload_slice).unwrap();
