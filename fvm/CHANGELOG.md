@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.9 [2022-11-16]
+
+- fix: BufferedBlockstore#flush should not reset the write buffer.
+
 ## 3.0.0-alpha.8 [2022-11-15]
 
 - Add support for actor events (FIP-0049).
