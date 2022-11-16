@@ -20,7 +20,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn curr_epoch() -> ChainEpoch {
-    NETWORK_CONTEXT.network_curr_epoch
+    NETWORK_CONTEXT.epoch
 }
 
 pub fn version() -> NetworkVersion {
@@ -31,11 +31,7 @@ pub fn version() -> NetworkVersion {
 }
 
 pub fn base_fee() -> TokenAmount {
-    unsafe {
-        sys::network::base_fee()
-            .expect("failed to get base fee")
-            .into()
-    }
+    NETWORK_CONTEXT.base_fee.into()
 }
 
 pub fn total_fil_circ_supply() -> TokenAmount {
@@ -44,11 +40,6 @@ pub fn total_fil_circ_supply() -> TokenAmount {
             .expect("failed to get circulating supply")
             .into()
     }
-}
-
-/// Returns the current block time in seconds since the EPOCH.
-pub fn tipset_timestamp() -> u64 {
-    unsafe { sys::network::tipset_timestamp() }.expect("failed to get timestamp")
 }
 
 /// Returns the tipset CID of the specified epoch, if available. Allows querying from now up to

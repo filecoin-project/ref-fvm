@@ -82,12 +82,17 @@ pub mod vm {
 
 pub mod network {
     use crate::clock::ChainEpoch;
+    use crate::sys::TokenAmount;
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
     pub struct NetworkContext {
         /// The current epoch.
-        pub network_curr_epoch: ChainEpoch,
+        pub epoch: ChainEpoch,
+        /// The current time (seconds since the unix epoch).
+        pub timestamp: u64,
+        /// The current base-fee.
+        pub base_fee: TokenAmount,
         /// The network version.
         pub network_version: u32,
     }
