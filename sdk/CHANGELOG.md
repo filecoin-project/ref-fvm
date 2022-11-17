@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.13 [2022-11-17]
+
 - Re-export a tipset_timestamp function.
 - Remove the imports for removed syscalls.
 
