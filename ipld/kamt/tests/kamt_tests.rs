@@ -197,7 +197,7 @@ where
     }
 }
 
-/// Test that insertion order doesn't matter, the resulting HAMT has the same CID.
+/// Test that insertion order doesn't matter, the resulting KAMT has the same CID.
 fn prop_cid_indep_of_insert_order(
     factory: KamtFactory,
     kvs: UniqueKeyValuePairs<u8, i64>,
@@ -210,18 +210,18 @@ fn prop_cid_indep_of_insert_order(
     let mut kvs2 = kvs1.clone();
     kvs2.shuffle(&mut rng);
 
-    let mut hamt1: HKamt<_, _, u8> = factory.new(&store);
-    let mut hamt2: HKamt<_, _, u8> = factory.new(&store);
+    let mut kamt1: HKamt<_, _, u8> = factory.new(&store);
+    let mut kamt2: HKamt<_, _, u8> = factory.new(&store);
 
     for (k, v) in kvs1 {
-        hamt1.set(k, v).unwrap();
+        kamt1.set(k, v).unwrap();
     }
     for (k, v) in kvs2 {
-        hamt2.set(k, v).unwrap();
+        kamt2.set(k, v).unwrap();
     }
 
-    let cid1 = hamt1.flush().unwrap();
-    let cid2 = hamt2.flush().unwrap();
+    let cid1 = kamt1.flush().unwrap();
+    let cid2 = kamt2.flush().unwrap();
 
     cid1 == cid2
 }
@@ -270,7 +270,7 @@ fn prop_cid_ops_reduced<const N: u32>(factory: KamtFactory, ops: LimitedKeyOps<N
         m
     });
 
-    let mut hamt1: HKamt<_, _, u32> = ops.into_iter().fold(factory.new(&store), |mut kamt, op| {
+    let mut kamt1: HKamt<_, _, u32> = ops.into_iter().fold(factory.new(&store), |mut kamt, op| {
         match op {
             Operation::Set((k, v)) => {
                 kamt.set(k.0, v).unwrap();
@@ -282,7 +282,7 @@ fn prop_cid_ops_reduced<const N: u32>(factory: KamtFactory, ops: LimitedKeyOps<N
         kamt
     });
 
-    let mut hamt2: HKamt<_, _, u32> =
+    let mut kamt2: HKamt<_, _, u32> =
         reduced
             .into_iter()
             .fold(factory.new(&store), |mut kamt, (k, v)| {
@@ -290,8 +290,8 @@ fn prop_cid_ops_reduced<const N: u32>(factory: KamtFactory, ops: LimitedKeyOps<N
                 kamt
             });
 
-    let cid1 = hamt1.flush().unwrap();
-    let cid2 = hamt2.flush().unwrap();
+    let cid1 = kamt1.flush().unwrap();
+    let cid2 = kamt2.flush().unwrap();
 
     cid1 == cid2
 }

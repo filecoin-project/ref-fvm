@@ -79,23 +79,12 @@ where
         }
     }
 
-    /// Construct hamt with a bit width
-    pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
-        Self::new_with_config(
-            store,
-            Config {
-                bit_width,
-                ..Default::default()
-            },
-        )
-    }
-
-    /// Lazily instantiate a hamt from this root Cid.
+    /// Lazily instantiate a Kamt from this root Cid.
     pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
         Self::load_with_config(cid, store, Config::default())
     }
 
-    /// Lazily instantiate a hamt from this root Cid with a specified parameters.
+    /// Lazily instantiate a Kamt from this root Cid with a specified parameters.
     pub fn load_with_config(cid: &Cid, store: BS, conf: Config) -> Result<Self, Error> {
         match store.get_cbor(cid)? {
             Some(root) => Ok(Self {
@@ -106,17 +95,6 @@ where
             }),
             None => Err(Error::CidNotFound(cid.to_string())),
         }
-    }
-    /// Lazily instantiate a hamt from this root Cid with a specified bit width.
-    pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
-        Self::load_with_config(
-            cid,
-            store,
-            Config {
-                bit_width,
-                ..Default::default()
-            },
-        )
     }
 
     /// Sets the root based on the Cid of the root node using the Kamt store
@@ -142,7 +120,7 @@ where
         self.store
     }
 
-    /// Flush root and return Cid for hamt
+    /// Flush root and return Cid for Kamt
     pub fn flush(&mut self) -> Result<Cid, Error> {
         if let Some(cid) = self.flushed_cid {
             return Ok(cid);

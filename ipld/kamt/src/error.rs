@@ -6,7 +6,7 @@ use std::error::Error as StdError;
 use fvm_ipld_encoding::Error as EncodingError;
 use thiserror::Error;
 
-/// HAMT Error
+/// KAMT Error
 #[derive(Debug, Error)]
 pub enum Error {
     /// Maximum depth error
@@ -16,7 +16,7 @@ pub enum Error {
     #[error("HashBits does not support retrieving more than 8 bits")]
     InvalidHashBitLen,
     /// This should be treated as a fatal error, must have at least one pointer in node
-    #[error("Invalid HAMT format, node cannot have 0 pointers")]
+    #[error("Invalid KAMT format, node cannot have 0 pointers")]
     ZeroPointers,
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
