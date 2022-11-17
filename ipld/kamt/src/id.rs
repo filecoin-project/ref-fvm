@@ -9,6 +9,7 @@ use crate::{AsHashedKey, HashedKey};
 #[derive(Debug)]
 pub struct Identity;
 
+/// Arrays of identical length can be taken as-is.
 macro_rules! identity_arr {
     ($($n:literal),*) => {
         $(
@@ -21,6 +22,7 @@ macro_rules! identity_arr {
     };
 }
 
+/// Numbers can be fed as binary into a 32 byte array.
 macro_rules! identity_hash {
     ($($t:ty),*) => {
         $(
