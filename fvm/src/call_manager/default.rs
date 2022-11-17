@@ -4,6 +4,7 @@ use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
@@ -51,6 +52,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     invocation_count: u64,
     /// Limits on memory throughout the execution.
     limits: M::Limiter,
+    /// Accumulator for events emitted in this call stack.
+    events: EventsAccumulator,
 }
 
 #[doc(hidden)]
@@ -100,6 +103,7 @@ where
             exec_trace: vec![],
             invocation_count: 0,
             limits,
+            events: Default::default(),
         })))
     }
 
@@ -162,11 +166,20 @@ where
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction();
+        self.events.create_layer();
+
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code().is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
         self.state_tree_mut().end_transaction(revert)?;
+
+        if revert {
+            self.events.discard_last_layer()?;
+        } else {
+            self.events.merge_last_layer()?;
+        }
+
         res
     }
 
@@ -176,6 +189,7 @@ where
             backtrace,
             mut gas_tracker,
             mut exec_trace,
+            events,
             ..
         } = *self.0.take().expect("call manager is poisoned");
 
@@ -187,11 +201,14 @@ where
             exec_trace.extend(gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
         }
 
+        let events = events.finish();
+
         (
             FinishRet {
                 gas_used,
                 backtrace,
                 exec_trace,
+                events,
             },
             machine,
         )
@@ -235,6 +252,10 @@ where
 
     fn invocation_count(&self) -> u64 {
         self.invocation_count
+    }
+
+    fn append_event(&mut self, evt: StampedEvent) {
+        self.events.append_event(evt)
     }
 }
 
@@ -566,5 +587,51 @@ where
         );
         self.call_stack_depth -= 1;
         res
+    }
+}
+
+/// Stores events in layers as they are emitted by actors. As the call stack progresses, when an
+/// actor exits normally, its events should be merged onto the previous layer (merge_last_layer).
+/// If an actor aborts, the last layer should be discarded (discard_last_layer). This will also
+/// throw away any events collected from subcalls (and previously merged, as those subcalls returned
+/// normally).
+#[derive(Default)]
+pub struct EventsAccumulator {
+    events: Vec<StampedEvent>,
+    idxs: Vec<usize>,
+}
+
+impl EventsAccumulator {
+    fn append_event(&mut self, evt: StampedEvent) {
+        self.events.push(evt)
+    }
+
+    fn create_layer(&mut self) {
+        self.idxs.push(self.events.len());
+    }
+
+    fn merge_last_layer(&mut self) -> Result<()> {
+        self.idxs.pop().map(|_| {}).ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when calling merge_last_layer"
+            ))
+        })
+    }
+
+    fn discard_last_layer(&mut self) -> Result<()> {
+        let idx = self.idxs.pop().ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when calling discard_last_layer"
+            ))
+        })?;
+        self.events.truncate(idx);
+        Ok(())
+    }
+
+    fn finish(self) -> Vec<StampedEvent> {
+        // Ideally would assert here, but there's risk of poisoning the Machine.
+        // Cannot return a Result because the call site expects infallibility.
+        // assert!(self.idxs.is_empty());
+        self.events
     }
 }

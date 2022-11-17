@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::Context;
+use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
@@ -15,6 +16,7 @@ use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
@@ -201,6 +203,10 @@ impl Machine for DummyMachine {
     fn new_limiter(&self) -> Self::Limiter {
         DummyLimiter::default()
     }
+
+    fn commit_events(&self, _events: &[StampedEvent]) -> kernel::Result<Option<Cid>> {
+        todo!()
+    }
 }
 
 /// Minimal *pseudo-functional* implementation CallManager
@@ -309,6 +315,7 @@ impl CallManager for DummyCallManager {
                     cause: None,
                 },
                 exec_trace: Vec::new(),
+                events: Vec::new(),
             },
             self.machine,
         )
@@ -353,5 +360,9 @@ impl CallManager for DummyCallManager {
 
     fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
         &mut self.limits
+    }
+
+    fn append_event(&mut self, _evt: StampedEvent) {
+        todo!()
     }
 }

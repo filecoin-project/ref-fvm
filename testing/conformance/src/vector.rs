@@ -253,6 +253,7 @@ mod message_receipt_vec {
                 exit_code: v.exit_code,
                 return_data: RawBytes::new(v.return_value),
                 gas_used: v.gas_used,
+                events_root: None,
             })
             .collect())
     }

@@ -42,14 +42,13 @@ where
 {
     /// Flushes the buffered cache based on the root node.
     /// This will recursively traverse the cache and write all data connected by links to this
-    /// root Cid.
+    /// root Cid. Calling flush will not reset the write buffer.
     fn flush(&self, root: &Cid) -> Result<()> {
         let mut buffer = Vec::new();
-        let mut s = self.write.borrow_mut();
+        let s = self.write.borrow();
         copy_rec(&s, *root, &mut buffer)?;
 
         self.base.put_many_keyed(buffer)?;
-        *s = Default::default();
 
         Ok(())
     }
@@ -290,7 +289,6 @@ mod tests {
         buf_store.flush(&cid).unwrap();
         assert_eq!(buf_store.get_cbor::<u8>(&cid).unwrap(), Some(8));
         assert_eq!(mem.get_cbor::<u8>(&cid).unwrap(), Some(8));
-        assert!(buf_store.write.borrow().get(&cid).is_none());
     }
 
     #[test]
@@ -361,6 +359,5 @@ mod tests {
         assert_eq!(buf_store.get(&unsealed_comm_cid).unwrap(), None);
         assert_eq!(buf_store.get(&sealed_comm_cid).unwrap(), None);
         assert_eq!(mem.get_cbor::<u8>(&unconnected).unwrap(), None);
-        assert_eq!(buf_store.get_cbor::<u8>(&unconnected).unwrap(), None);
     }
 }

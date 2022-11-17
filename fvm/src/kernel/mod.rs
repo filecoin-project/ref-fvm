@@ -22,9 +22,10 @@ mod hash;
 mod blocks;
 pub mod default;
 
-mod error;
+pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
+use fvm_shared::event::{ActorEvent, StampedEvent};
 use multihash::MultihashGeneric;
 use wasmtime::ResourceLimiter;
 
@@ -51,6 +52,7 @@ pub trait Kernel:
     + CircSupplyOps
     + CryptoOps
     + DebugOps
+    + EventOps
     + GasOps
     + MessageOps
     + NetworkOps
@@ -385,4 +387,10 @@ pub trait LimiterOps {
     type Limiter: ResourceLimiter + ExecMemory;
     /// Give access to the limiter of the underlying call manager.
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
+}
+
+/// Eventing APIs.
+pub trait EventOps {
+    /// Records an event emitted throughout execution.
+    fn emit_event(&mut self, evt: ActorEvent) -> Result<()>;
 }

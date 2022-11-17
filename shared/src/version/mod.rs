@@ -32,9 +32,9 @@ pub enum NetworkVersion {
     V9,
     /// trust (specs-actors v3.0.x)
     V10,
-    /// norwegian (specs-actor v3.1.x)
+    /// norwegian (specs-actors v3.1.x)
     V11,
-    /// turbo (specs-actor v4.0.x)
+    /// turbo (specs-actors v4.0.x)
     V12,
     /// HyperDrive
     V13,
@@ -42,11 +42,11 @@ pub enum NetworkVersion {
     V14,
     /// OhSnap v7
     V15,
-    /// Skyr v8
+    /// Skyr (builtin-actors v8)
     V16,
-    /// Candy v9
+    /// Shark (builtin-actors v9)
     V17,
-    /// Hygge v10
+    /// Hygge (builtin-actors v10)
     V18,
 }
 
