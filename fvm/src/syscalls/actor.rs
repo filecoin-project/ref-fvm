@@ -52,12 +52,9 @@ pub fn get_actor_code_cid(
 
 /// Generates a new actor address, and writes it into the supplied output buffer.
 ///
-/// The output buffer must be at least 21 bytes long, which is the length of a
-/// class 2 address (protocol-generated actor address). This will change in the
-/// future when we introduce class 4 addresses to accommodate larger hashes.
-///
-/// TODO(M2): this method will be merged with create_actor.
-pub fn new_actor_address(
+/// The output buffer must be at least 21 bytes long, which is the length of a class 2 address
+/// (protocol-generated actor address).
+pub fn next_actor_address(
     context: Context<'_, impl Kernel>,
     obuf_off: u32, // Address (out)
     obuf_len: u32,
@@ -74,7 +71,7 @@ pub fn new_actor_address(
     }
 
     // Create the address.
-    let addr = context.kernel.new_actor_address()?;
+    let addr = context.kernel.next_actor_address()?;
 
     // And return it.
     let bytes = addr.to_bytes();

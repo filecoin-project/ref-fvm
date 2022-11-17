@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).
+- Change `next_actor_address` to always use the origin address from the message, as specified. For abstract accounts, we _can't_ lookup a key address (they may only have an f0 and f2 address).
+- Move account creation logic to the call manager.
+  - The call manager owns the relevant state.
+  - The call manager will eventually invoke the constructor directly when creating the actor.
+
 ## 3.0.0-alpha.10 [2022-11-17]
 
 - Refactor network/message contexts to reduce the number of syscalls.

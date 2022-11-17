@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).
+
 ## 3.0.0-alpha.13 [2022-11-17]
 
 - Re-export a tipset_timestamp function.

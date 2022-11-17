@@ -75,10 +75,10 @@ pub fn get_actor_code_cid(addr: &Address) -> Option<Cid> {
 }
 
 /// Generates a new actor address for an actor deployed by the calling actor.
-pub fn new_actor_address() -> Address {
+pub fn next_actor_address() -> Address {
     let mut buf = [0u8; MAX_ADDRESS_LEN];
     unsafe {
-        let len = sys::actor::new_actor_address(buf.as_mut_ptr(), MAX_ADDRESS_LEN as u32)
+        let len = sys::actor::next_actor_address(buf.as_mut_ptr(), MAX_ADDRESS_LEN as u32)
             .expect("failed to create a new actor address");
         Address::from_bytes(&buf[..len as usize]).expect("syscall returned invalid address")
     }

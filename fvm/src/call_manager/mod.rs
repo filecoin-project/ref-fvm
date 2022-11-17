@@ -1,3 +1,4 @@
+use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -46,6 +47,7 @@ pub trait CallManager: 'static {
         machine: Self::Machine,
         gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self;
@@ -83,11 +85,23 @@ pub trait CallManager: 'static {
     /// Getter for origin actor.
     fn origin(&self) -> ActorID;
 
+    /// Get the actor address (f2) that will should be assigned to the next actor created.
+    ///
+    /// This method doesn't have any side-effects and will continue to return the same address until
+    /// `create_actor` is called next.
+    fn next_actor_address(&self) -> Address;
+
+    /// Create a new actor with the given code CID, actor ID, and predictable address. This method
+    /// does not register the actor with the init actor. It just creates it in the state-tree.
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()>;
+
     /// Getter for message nonce.
     fn nonce(&self) -> u64;
-
-    /// Gets and increment the call-stack actor creation index.
-    fn next_actor_idx(&mut self) -> u64;
 
     /// Gets the total invocations done on this call stack.
     fn invocation_count(&self) -> u64;

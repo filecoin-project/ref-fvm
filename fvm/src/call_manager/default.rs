@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::address::{Address, Payload};
@@ -38,6 +39,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     /// The ActorID and the address of the original sender of the chain message that initiated
     /// this call stack.
     origin: ActorID,
+    /// The origin address as specified in the message (used to derive new f2 addresses).
+    origin_address: Address,
     /// The nonce of the chain message that initiated this call stack.
     nonce: u64,
     /// Number of actors created in this call stack.
@@ -82,6 +85,7 @@ where
         machine: M,
         gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -96,6 +100,7 @@ where
             machine,
             gas_tracker,
             origin,
+            origin_address,
             nonce,
             num_actors_created: 0,
             call_stack_depth: 0,
@@ -242,20 +247,82 @@ where
         self.nonce
     }
 
-    // Helper for creating actors. This really doesn't belong on this trait.
-
-    fn next_actor_idx(&mut self) -> u64 {
-        let ret = self.num_actors_created;
-        self.num_actors_created += 1;
-        ret
+    fn next_actor_address(&self) -> Address {
+        // Base the next address on the address specified as the message origin. This lets us use,
+        // e.g., an f2 address even if we can't look it up anywhere.
+        //
+        // Of course, if the user decides to send from an f0 address without waiting for finality,
+        // their "stable" address may not be as stable as they'd like. But that's their problem.
+        //
+        // In case you're wondering: but what if someone _else_ is relying on the stability of this
+        // address? They shouldn't be. The sender can always _replace_ a message with a new message,
+        // and completely change how f2 addresses are assigned. Only the message sender can rely on
+        // an f2 address (before finality).
+        let mut b = to_vec(&self.origin_address).expect("failed to serialize address");
+        b.extend_from_slice(&self.nonce.to_be_bytes());
+        b.extend_from_slice(&self.num_actors_created.to_be_bytes());
+        Address::new_actor(&b)
     }
 
-    fn invocation_count(&self) -> u64 {
-        self.invocation_count
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
+        // TODO https://github.com/filecoin-project/builtin-actors/issues/492
+        let singleton = self.machine.builtin_actors().is_singleton_actor(&code_id);
+
+        if singleton {
+            return Err(
+                syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
+            );
+        }
+
+        // Check to make sure the actor doesn't exist, or is an embryo.
+        let actor = match self.machine.state_tree().get_actor_id(actor_id)? {
+            // Replace the embryo
+            Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
+                if act.address.is_none() {
+                    // The FVM made a mistake somewhere.
+                    return Err(ExecutionError::Fatal(anyhow!(
+                        "embryo {actor_id} doesn't have a predictable address"
+                    )));
+                }
+                if act.address != predictable_address {
+                    // The Init actor made a mistake?
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "embryo has a different predictable address"
+                    )
+                    .into());
+                }
+                act.code = code_id;
+                act
+            }
+            // Don't replace anything else.
+            Some(_) => {
+                return Err(syscall_error!(Forbidden; "Actor address already exists").into());
+            }
+            // Create a new actor.
+            None => {
+                self.charge_gas(self.price_list().on_create_actor())?;
+                ActorState::new_empty(code_id, predictable_address)
+            }
+        };
+
+        self.state_tree_mut().set_actor_id(actor_id, actor)?;
+        self.num_actors_created += 1;
+        Ok(())
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
         self.events.append_event(evt)
+    }
+
+    // Helper for creating actors. This really doesn't belong on this trait.
+    fn invocation_count(&self) -> u64 {
+        self.invocation_count
     }
 }
 
@@ -290,7 +357,7 @@ where
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
             let state = ActorState::new_empty(*code_cid, Some(*addr));
-            self.create_actor(addr, state)?
+            self.machine.create_actor(addr, state)?
         };
 
         // Now invoke the constructor; first create the parameters, then
@@ -326,7 +393,7 @@ where
         let code_cid = self.builtin_actors().get_embryo_code();
 
         let state = ActorState::new_empty(*code_cid, Some(*addr));
-        self.create_actor(addr, state)
+        self.machine.create_actor(addr, state)
     }
 
     /// Send without checking the call depth.

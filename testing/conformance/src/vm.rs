@@ -239,10 +239,18 @@ where
         machine: Self::Machine,
         gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
-        TestCallManager(C::new(machine, gas_limit, origin, nonce, gas_premium))
+        TestCallManager(C::new(
+            machine,
+            gas_limit,
+            origin,
+            origin_address,
+            nonce,
+            gas_premium,
+        ))
     }
 
     fn send<K: Kernel<CallManager = Self>>(
@@ -303,8 +311,17 @@ where
         self.0.nonce()
     }
 
-    fn next_actor_idx(&mut self) -> u64 {
-        self.0.next_actor_idx()
+    fn next_actor_address(&self) -> Address {
+        self.0.next_actor_address()
+    }
+
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
+        self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
     fn price_list(&self) -> &fvm::gas::PriceList {
@@ -413,8 +430,8 @@ where
         self.0.get_actor_code_cid(id)
     }
 
-    fn new_actor_address(&mut self) -> Result<Address> {
-        self.0.new_actor_address()
+    fn next_actor_address(&self) -> Result<Address> {
+        self.0.next_actor_address()
     }
 
     fn create_actor(
