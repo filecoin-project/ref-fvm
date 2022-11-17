@@ -58,7 +58,7 @@ fn insert(c: &mut Criterion) {
             let mut a = BKamt::new(&db);
 
             for i in 0..black_box(ITEM_COUNT) {
-                a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)))
+                a.set(black_box(vec![i; 20]), black_box(BenchData::new(i)))
                     .unwrap();
             }
         })
@@ -74,7 +74,7 @@ fn insert_load_flush(c: &mut Criterion) {
 
             for i in 0..black_box(ITEM_COUNT) {
                 let mut a = BKamt::load(&cid, &db).unwrap();
-                a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)))
+                a.set(black_box(vec![i; 20]), black_box(BenchData::new(i)))
                     .unwrap();
                 cid = a.flush().unwrap();
             }
@@ -86,7 +86,7 @@ fn delete(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = BKamt::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
+        a.set(vec![i; 20], BenchData::new(i)).unwrap();
     }
     let cid = a.flush().unwrap();
 
@@ -104,7 +104,7 @@ fn for_each(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut a = BKamt::new(&db);
     for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
+        a.set(vec![i; 20], BenchData::new(i)).unwrap();
     }
     let cid = a.flush().unwrap();
 

@@ -138,7 +138,7 @@ fn for_each(factory: KamtFactory) {
 
     // Iterating through kamt with dirty caches.
     let mut sum = 0;
-    let expected_sum = (0 + 199) * 200 / 2;
+    let expected_sum = 199 * 200 / 2;
     kamt.for_each(|k, v| {
         assert_eq!(*k as i32, *v);
         sum += v;
