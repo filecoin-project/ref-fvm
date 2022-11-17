@@ -5,22 +5,22 @@ use std::rc::Rc;
 use anyhow::Context;
 use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
-use fvm::externs::{Consensus, Externs, Rand};
+use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
-use multihash::Code;
+use fvm_shared::{ActorID, IDENTITY_HASH};
+use multihash::{Code, Multihash};
 use wasmtime::ResourceLimiter;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
@@ -59,6 +59,15 @@ impl Consensus for DummyExterns {
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
         // consensus is always valid for tests :)
         anyhow::Result::Ok((None, 0))
+    }
+}
+
+impl Chain for DummyExterns {
+    fn get_tipset_cid(&self, epoch: fvm_shared::clock::ChainEpoch) -> anyhow::Result<Cid> {
+        Ok(Cid::new_v1(
+            DAG_CBOR,
+            Multihash::wrap(IDENTITY_HASH, &epoch.to_be_bytes()).unwrap(),
+        ))
     }
 }
 
@@ -131,7 +140,7 @@ impl DummyMachine {
         let mut config = NetworkConfig::new(STUB_NETWORK_VER);
 
         // generate context from the new generated root and override actors with empty list
-        let ctx = config.override_actors(actors_cid).for_epoch(0, root);
+        let ctx = config.override_actors(actors_cid).for_epoch(0, 0, root);
 
         Ok(Self {
             ctx,

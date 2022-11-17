@@ -186,54 +186,23 @@ impl NetworkConfig {
         self
     }
 
-    /// Create a [`MachineContext`] for a given `epoch` with the specified `initial_state`.
-    pub fn for_epoch(&self, epoch: ChainEpoch, initial_state: Cid) -> MachineContext {
-        MachineContext {
-            network: self.clone(),
-            network_context: NetworkContext {
-                epoch,
-                // TODO #933
-                timestamp: 0,
-                tipsets: vec![],
-                base_fee: TokenAmount::zero(),
-            },
-            initial_state_root: initial_state,
-            circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
-            tracing: false,
-        }
-    }
-
-    /// Create a ['MachineContext'] for a given network context with the specified `initial_state`
-    pub fn for_network_context(
+    /// Create a ['MachineContext'] for a given epoch, timestamp, and initial state.
+    pub fn for_epoch(
         &self,
-        net_ctx: NetworkContext,
+        epoch: ChainEpoch,
+        timestamp: u64,
         initial_state: Cid,
     ) -> MachineContext {
         MachineContext {
             network: self.clone(),
-            network_context: net_ctx,
+            base_fee: TokenAmount::zero(),
+            epoch,
+            timestamp,
             initial_state_root: initial_state,
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
             tracing: false,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct NetworkContext {
-    /// The network epoch at which the Machine runs.
-    pub epoch: ChainEpoch,
-
-    /// The UNIX timestamp (in seconds) of the current tipset
-    pub timestamp: u64,
-
-    /// The tipset CIDs for the last finality
-    pub tipsets: Vec<Cid>,
-
-    /// The base fee that's in effect when the Machine runs.
-    ///
-    /// Default: 0.
-    pub base_fee: TokenAmount,
 }
 
 /// Per-epoch machine context.
@@ -244,8 +213,20 @@ pub struct MachineContext {
     #[deref_mut]
     pub network: NetworkConfig,
 
-    /// The network context with which the Machine runs.
-    pub network_context: NetworkContext,
+    /// The current epoch
+    ///
+    /// Default: 0
+    pub epoch: ChainEpoch,
+
+    /// The UNIX timestamp (in seconds) of the current tipset
+    ///
+    /// Default: 0
+    pub timestamp: u64,
+
+    /// The base fee that's in effect when the Machine runs.
+    ///
+    /// Default: 0.
+    pub base_fee: TokenAmount,
 
     /// The initial state root on which this block is based.
     pub initial_state_root: Cid,
@@ -265,7 +246,7 @@ pub struct MachineContext {
 impl MachineContext {
     /// Sets [`MachineContext::base_fee`].
     pub fn set_base_fee(&mut self, amt: TokenAmount) -> &mut Self {
-        self.network_context.base_fee = amt;
+        self.base_fee = amt;
         self
     }
 

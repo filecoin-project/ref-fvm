@@ -1,8 +1,10 @@
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
+use cid::Cid;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-pub trait Externs: Rand + Consensus {}
+
+pub trait Externs: Rand + Consensus + Chain {}
 
 /// Consensus related methods.
 pub trait Consensus {
@@ -34,4 +36,10 @@ pub trait Rand {
         round: ChainEpoch,
         entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]>;
+}
+
+/// Chain information provider.
+pub trait Chain {
+    /// Gets the CID for a given tipset.
+    fn get_tipset_cid(&self, epoch: ChainEpoch) -> anyhow::Result<Cid>;
 }

@@ -208,7 +208,7 @@ where
                     msg.to,
                     msg.sequence,
                     msg.method_num,
-                    self.context().network_context.epoch,
+                    self.context().epoch,
                 ));
                 backtrace.set_cause(backtrace::Cause::from_fatal(err));
                 Receipt {
@@ -299,11 +299,11 @@ where
                     return Ok(Err(ApplyRet::prevalidation_fail(
                         ExitCode::SYS_OUT_OF_GAS,
                         format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
-                        &self.context().network_context.base_fee * inclusion_total,
+                        &self.context().base_fee * inclusion_total,
                     )));
                 }
 
-                let miner_penalty_amount = &self.context().network_context.base_fee * msg.gas_limit;
+                let miner_penalty_amount = &self.context().base_fee * msg.gas_limit;
                 (inclusion_cost, miner_penalty_amount)
             }
         };
@@ -419,7 +419,7 @@ where
         } = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
-            &self.context().network_context.base_fee,
+            &self.context().base_fee,
             &msg.gas_fee_cap,
             &msg.gas_premium,
         );

@@ -28,7 +28,7 @@ use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
-use crate::externs::{Consensus, Rand};
+use crate::externs::{Chain, Consensus, Rand};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -40,6 +40,7 @@ lazy_static! {
 const BLAKE2B_256: u64 = 0xb220;
 const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
+const FINALITY: i64 = 900;
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -617,7 +618,7 @@ where
     C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().network_context.epoch
+        self.call_manager.context().epoch
     }
 
     fn network_version(&self) -> NetworkVersion {
@@ -625,26 +626,26 @@ where
     }
 
     fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().network_context.base_fee
+        &self.call_manager.context().base_fee
     }
 
     fn tipset_timestamp(&self) -> u64 {
-        self.call_manager.context().network_context.timestamp
+        self.call_manager.context().timestamp
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        let offset = self.call_manager.context().network_context.epoch - epoch;
+        // TODO: https://github.com/filecoin-project/ref-fvm/issues/1023
+        let offset = self.call_manager.context().epoch - epoch;
         if offset < 0 {
-            return Err(syscall_error!(IllegalArgument; "epoch is in the future").into());
+            Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into())
+        } else if offset >= FINALITY {
+            Err(syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into())
+        } else {
+            self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
         }
-        let tipsets = &self.call_manager.context().network_context.tipsets;
-        if offset >= tipsets.len() as i64 {
-            return Err(syscall_error!(LimitExceeded; "tipset lookback exceeded limit").into());
-        }
-        Ok(tipsets[offset as usize])
     }
 }
 

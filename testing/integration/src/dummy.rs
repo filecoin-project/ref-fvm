@@ -1,4 +1,8 @@
-use fvm::externs::{Consensus, Externs, Rand};
+use cid::Cid;
+use fvm::externs::{Chain, Consensus, Externs, Rand};
+use fvm_ipld_encoding::DAG_CBOR;
+use fvm_shared::IDENTITY_HASH;
+use multihash::Multihash;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 pub struct DummyExterns;
@@ -45,5 +49,14 @@ impl Consensus for DummyExterns {
         _extra: &[u8],
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
         Ok((None, 0))
+    }
+}
+
+impl Chain for DummyExterns {
+    fn get_tipset_cid(&self, epoch: fvm_shared::clock::ChainEpoch) -> anyhow::Result<Cid> {
+        Ok(Cid::new_v1(
+            DAG_CBOR,
+            Multihash::wrap(IDENTITY_HASH, &epoch.to_be_bytes()).unwrap(),
+        ))
     }
 }

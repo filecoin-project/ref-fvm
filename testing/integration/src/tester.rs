@@ -225,7 +225,7 @@ where
         // Custom configuration.
         configure(&mut nc);
 
-        let mut mc = nc.for_epoch(0, state_root);
+        let mut mc = nc.for_epoch(0, 0, state_root);
         mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
             .enable_tracing();
 
