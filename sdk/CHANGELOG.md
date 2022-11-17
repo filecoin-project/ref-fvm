@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.12 [2022-11-17]
+
+- Refactor network/message contexts to reduce the number of syscalls.
+
 ## 3.0.0-alpha.11 [2022-11-15]
 
 - Add support for actor events (FIP-0049).

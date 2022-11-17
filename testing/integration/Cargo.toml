@@ -1,15 +1,15 @@
 [package]
 name = "fvm_integration_tests"
 description = "Filecoin Virtual Machine integration tests framework"
-version = "0.1.0"
+version = "0.1.1-alpha.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "3.0.0-alpha.9", path = "../../fvm", default-features = false }
-fvm_shared = { version = "3.0.0-alpha.11", path = "../../shared" }
+fvm = { version = "3.0.0-alpha.10", path = "../../fvm", default-features = false }
+fvm_shared = { version = "3.0.0-alpha.12", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.6.1", path = "../../ipld/hamt" }
 fvm_ipld_amt = { version = "0.5.0", path = "../../ipld/amt" }
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }

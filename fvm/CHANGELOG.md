@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.10 [2022-11-17]
+
+- Refactor network/message contexts to reduce the number of syscalls.
+
 ## 3.0.0-alpha.9 [2022-11-16]
 
 - fix: BufferedBlockstore#flush should not reset the write buffer.
