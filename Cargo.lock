@@ -2685,7 +2685,7 @@ dependencies = [
 name = "fvm_sdk"
 version = "3.0.0-alpha.11"
 dependencies = [
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_encoding 0.3.0",
  "fvm_shared 3.0.0-alpha.11",
  "lazy_static",
