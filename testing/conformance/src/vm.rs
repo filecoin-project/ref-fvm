@@ -107,7 +107,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let mut nc = NetworkConfig::new(network_version);
         nc.override_actors(builtin_actors);
-        let mut mc = nc.for_epoch(epoch, state_root);
+        let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
         mc.set_base_fee(base_fee);
 
         let engine = engines.get(&mc.network).map_err(|e| anyhow!(e))?;

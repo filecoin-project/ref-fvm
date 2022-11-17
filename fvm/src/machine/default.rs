@@ -73,10 +73,7 @@ where
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
-            context.network_context.epoch,
-            &context.network_context.base_fee,
-            context.network_version,
-            context.initial_state_root
+            context.epoch, &context.base_fee, context.network_version, context.initial_state_root
         );
 
         if !SUPPORTED_VERSIONS.contains(&context.network_version) {
@@ -155,7 +152,7 @@ where
             builtin_actors,
             id: format!(
                 "{}-{}",
-                context.network_context.epoch,
+                context.epoch,
                 cid::multibase::encode(cid::multibase::Base::Base32Lower, randomness)
             ),
         })

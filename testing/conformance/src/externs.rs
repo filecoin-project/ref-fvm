@@ -1,4 +1,4 @@
-use fvm::externs::{Consensus, Externs, Rand};
+use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 
@@ -49,6 +49,12 @@ impl Consensus for TestExterns {
         _h2: &[u8],
         _extra: &[u8],
     ) -> anyhow::Result<(Option<ConsensusFault>, i64)> {
+        todo!()
+    }
+}
+
+impl Chain for TestExterns {
+    fn get_tipset_cid(&self, _epoch: ChainEpoch) -> anyhow::Result<cid::Cid> {
         todo!()
     }
 }
