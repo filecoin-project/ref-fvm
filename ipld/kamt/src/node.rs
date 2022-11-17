@@ -119,8 +119,9 @@ where
     where
         V: PartialEq,
     {
+        let hashed = H::as_hashed_key(&key).into_owned();
         self.modify_value(
-            &mut HashBits::new(&H::as_hashed_key(&key).into_owned()),
+            &mut HashBits::new(&hashed),
             conf,
             0,
             key,
