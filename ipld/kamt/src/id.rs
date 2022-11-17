@@ -9,35 +9,32 @@ use crate::{AsHashedKey, HashedKey};
 #[derive(Debug)]
 pub struct Identity;
 
-impl AsHashedKey<u8, 32> for Identity {
-    fn as_hashed_key(key: &u8) -> Cow<HashedKey<32>> {
-        Cow::Owned(IdentityHasher::hash(key))
-    }
+macro_rules! identity_arr {
+    ($($n:literal),*) => {
+        $(
+            impl AsHashedKey<[u8; $n], $n> for Identity {
+                fn as_hashed_key(key: &[u8; $n]) -> Cow<HashedKey<$n>> {
+                    Cow::Borrowed(key)
+                }
+            }
+        )*
+    };
 }
 
-impl AsHashedKey<u16, 32> for Identity {
-    fn as_hashed_key(key: &u16) -> Cow<HashedKey<32>> {
-        Cow::Owned(IdentityHasher::hash(key))
-    }
+macro_rules! identity_hash {
+    ($($t:ty),*) => {
+        $(
+            impl AsHashedKey<$t, 32> for Identity {
+                fn as_hashed_key(key: &$t) -> Cow<HashedKey<32>> {
+                    Cow::Owned(IdentityHasher::hash(key))
+                }
+            }
+        )*
+    };
 }
 
-impl AsHashedKey<u32, 32> for Identity {
-    fn as_hashed_key(key: &u32) -> Cow<HashedKey<32>> {
-        Cow::Owned(IdentityHasher::hash(key))
-    }
-}
-
-impl AsHashedKey<i32, 32> for Identity {
-    fn as_hashed_key(key: &i32) -> Cow<HashedKey<32>> {
-        Cow::Owned(IdentityHasher::hash(key))
-    }
-}
-
-impl AsHashedKey<[u8; 32], 32> for Identity {
-    fn as_hashed_key(key: &[u8; 32]) -> Cow<HashedKey<32>> {
-        Cow::Borrowed(key)
-    }
-}
+identity_arr!(20, 32, 64);
+identity_hash!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
 
 /// Take the first 32 bytes as is.
 #[derive(Default)]
