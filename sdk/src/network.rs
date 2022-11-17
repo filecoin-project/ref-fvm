@@ -42,6 +42,11 @@ pub fn total_fil_circ_supply() -> TokenAmount {
     }
 }
 
+/// Returns the current block time in seconds since the EPOCH.
+pub fn tipset_timestamp() -> u64 {
+    NETWORK_CONTEXT.timestamp
+}
+
 /// Returns the tipset CID of the specified epoch, if available. Allows querying from now up to
 /// finality (900 epochs).
 pub fn tipset_cid(epoch: ChainEpoch) -> Result<Cid, EpochBoundsError> {
