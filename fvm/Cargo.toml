@@ -55,6 +55,10 @@ features = ["cranelift", "pooling-allocator", "parallel-compilation", "memory-in
 [dependencies.wasmtime-environ]
 version = "1.0.1"
 
+[dependencies.wasmtime-runtime]
+version = "1.0.1"
+default-features = false
+
 [features]
 f4-as-account = ["fvm_shared/f4-as-account"]
 default = ["opencl"]
