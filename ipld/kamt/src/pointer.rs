@@ -19,6 +19,9 @@ use crate::bitfield::Bitfield;
 use crate::ext::Extension;
 use crate::Config;
 
+const TAG_VALUES: &str = "v";
+const TAG_LINK: &str = "l";
+
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
 pub(crate) enum Pointer<K, V, H, const N: usize> {
@@ -65,7 +68,7 @@ impl<K: PartialEq, V: PartialEq, H, const N: usize> PartialEq for Pointer<K, V, 
     }
 }
 
-/// Serialize the Pointer like an untagged enum.
+/// Serialize the Pointer like a tagged enum.
 impl<K, V, H, const N: usize> Serialize for Pointer<K, V, H, N>
 where
     K: Serialize,
@@ -75,21 +78,21 @@ where
     where
         S: Serializer,
     {
+        // Using a `Map` for everything to keep things simple.
+        // Constructing the map manually so we don't have to clone the extension and give it to a struct.
+        let mut map = BTreeMap::new();
         match self {
-            Pointer::Values(vals) => vals.serialize(serializer),
-            Pointer::Link { cid, ext: None, .. } => cid.serialize(serializer),
-            Pointer::Link {
-                cid, ext: Some(e), ..
-            } => {
-                // Using a `Map` and not a tuple so it's easy to distinguish from the case of `Values`.
-                // Constructing the map manually so we don't have to clone the extension and give it to a struct.
-                let mut map = BTreeMap::new();
-                add_to_ipld_map::<S, _>(&mut map, "c", cid)?;
-                add_to_ipld_map::<S, _>(&mut map, "e", e)?;
-                Ipld::Map(map).serialize(serializer)
+            Pointer::Values(vals) => {
+                add_to_ipld_map::<S, _>(&mut map, TAG_VALUES, vals)?;
             }
-            Pointer::Dirty { .. } => Err(ser::Error::custom("Cannot serialize cached values")),
+            Pointer::Link { cid, ext, .. } => {
+                add_to_ipld_map::<S, _>(&mut map, TAG_LINK, &(cid, ext))?;
+            }
+            Pointer::Dirty { .. } => {
+                return Err(ser::Error::custom("Cannot serialize cached values"))
+            }
         }
+        Ipld::Map(map).serialize(serializer)
     }
 }
 
@@ -101,35 +104,30 @@ where
     type Error = String;
 
     fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
-        match ipld {
-            ipld_list @ Ipld::List(_) => {
-                let values: Vec<KeyValuePair<K, V>> = from_ipld(ipld_list)?;
-                Ok(Self::Values(values))
+        if let Ipld::Map(mut map) = ipld {
+            if let Some(values) = from_ipld_map::<Vec<KeyValuePair<K, V>>>(&mut map, TAG_VALUES) {
+                return values.map(Self::Values);
             }
-            Ipld::Link(cid) => Ok(Self::Link {
-                cid,
-                ext: None,
-                cache: Default::default(),
-            }),
-            Ipld::Map(mut map) => {
-                let cid: Cid = from_ipld_map(&mut map, "c")?;
-                let ext: Extension = from_ipld_map(&mut map, "e")?;
 
-                Ok(Self::Link {
+            if let Some(link) = from_ipld_map::<(Cid, Option<Extension>)>(&mut map, TAG_LINK) {
+                return link.map(|(cid, ext)| Self::Link {
                     cid,
-                    ext: Some(ext),
+                    ext,
                     cache: Default::default(),
-                })
+                });
             }
-            other => Err(format!(
-                "Expected `Ipld::List`, `Ipld::Map` and `Ipld::Link`, got {:#?}",
-                other
-            )),
+
+            Err(format!(
+                "Expected pointer tag in map; got {:#?}",
+                map.keys()
+            ))
+        } else {
+            Err(format!("Expected `Ipld::Map`, got {:#?}", ipld))
         }
     }
 }
 
-/// Deserialize the Pointer like an untagged enum.
+/// Deserialize the Pointer like a tagged enum.
 impl<'de, K, V, H, const N: usize> Deserialize<'de> for Pointer<K, V, H, N>
 where
     K: DeserializeOwned,
@@ -266,12 +264,8 @@ fn from_ipld<T: DeserializeOwned>(ipld: Ipld) -> Result<T, String> {
 fn from_ipld_map<T: DeserializeOwned>(
     map: &mut BTreeMap<String, Ipld>,
     key: &str,
-) -> Result<T, String> {
-    let ipld = map
-        .remove(key)
-        .ok_or_else(|| format!("`{key}` not found in map."))?;
-
-    from_ipld(ipld)
+) -> Option<Result<T, String>> {
+    map.remove(key).map(from_ipld)
 }
 
 fn add_to_ipld_map<S: Serializer, T: Serialize>(
