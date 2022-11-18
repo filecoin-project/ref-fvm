@@ -222,6 +222,7 @@ impl Machine for DummyMachine {
 pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
+    pub gas_premium: TokenAmount,
     pub origin: ActorID,
     pub origin_address: Address,
     pub nonce: u64,
@@ -243,12 +244,13 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), TokenAmount::zero()),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 origin_address: Address::new_id(0),
+                gas_premium: TokenAmount::zero(),
             },
             cell_ref,
         )
@@ -268,6 +270,7 @@ impl DummyCallManager {
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 origin_address: Address::new_id(0),
+                gas_premium: TokenAmount::zero(),
             },
             cell_ref,
         )
@@ -291,7 +294,8 @@ impl CallManager for DummyCallManager {
         let limits = machine.new_limiter();
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), gas_premium),
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+            gas_premium,
             origin,
             origin_address,
             nonce,
@@ -358,6 +362,10 @@ impl CallManager for DummyCallManager {
 
     fn origin(&self) -> ActorID {
         self.origin
+    }
+
+    fn gas_premium(&self) -> &TokenAmount {
+        &self.gas_premium
     }
 
     fn nonce(&self) -> u64 {

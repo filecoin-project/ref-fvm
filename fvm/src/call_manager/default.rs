@@ -36,6 +36,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     machine: M,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The gas premium paid by this message.
+    gas_premium: TokenAmount,
     /// The ActorID and the address of the original sender of the chain message that initiated
     /// this call stack.
     origin: ActorID,
@@ -90,7 +92,7 @@ where
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
+        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
 
         if machine.context().tracing {
             gas_tracker.enable_tracing()
@@ -99,6 +101,7 @@ where
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker,
+            gas_premium,
             origin,
             origin_address,
             nonce,
@@ -235,6 +238,10 @@ where
 
     fn gas_tracker_mut(&mut self) -> &mut GasTracker {
         &mut self.gas_tracker
+    }
+
+    fn gas_premium(&self) -> &TokenAmount {
+        &self.gas_premium
     }
 
     // Other accessor methods

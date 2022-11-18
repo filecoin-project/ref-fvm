@@ -14,7 +14,8 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::version::NetworkVersion;
+use fvm_shared::sys::out::network::NetworkContext;
+use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::{ActorID, MethodNum};
 
 mod hash;
@@ -95,17 +96,8 @@ pub trait Kernel:
 
 /// Network-related operations.
 pub trait NetworkOps {
-    /// The current network epoch (constant).
-    fn network_epoch(&self) -> ChainEpoch;
-
-    /// The current network version (constant).
-    fn network_version(&self) -> NetworkVersion;
-
-    /// The current base-fee (constant).
-    fn network_base_fee(&self) -> &TokenAmount;
-
-    /// The current tipset timestamp (seconds since the unix epoch).
-    fn tipset_timestamp(&self) -> u64;
+    /// Network information (epoch, version, etc.).
+    fn network_context(&self) -> Result<NetworkContext>;
 
     /// The CID of the tipset at the specified epoch.
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
@@ -113,26 +105,8 @@ pub trait NetworkOps {
 
 /// Accessors to query attributes of the incoming message.
 pub trait MessageOps {
-    /// The calling actor (constant).
-    fn msg_caller(&self) -> ActorID;
-
-    /// The origin actor
-    fn msg_origin(&self) -> ActorID;
-
-    /// The receiving actor (this actor) (constant).
-    fn msg_receiver(&self) -> ActorID;
-
-    /// The method number used to invoke this actor (constant).
-    fn msg_method_number(&self) -> MethodNum;
-
-    /// The value received from the caller (constant).
-    fn msg_value_received(&self) -> TokenAmount;
-
-    /// The current message gas premium
-    fn msg_gas_premium(&self) -> TokenAmount;
-
-    /// The current message gas limit
-    fn msg_gas_limit(&self) -> u64;
+    /// Message information.
+    fn msg_context(&self) -> Result<MessageContext>;
 }
 
 /// The IPLD subset of the kernel.

@@ -303,6 +303,10 @@ where
         self.0.gas_tracker_mut()
     }
 
+    fn gas_premium(&self) -> &TokenAmount {
+        self.0.gas_premium()
+    }
+
     fn origin(&self) -> ActorID {
         self.0.origin()
     }
@@ -639,32 +643,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn msg_caller(&self) -> ActorID {
-        self.0.msg_caller()
-    }
-
-    fn msg_origin(&self) -> ActorID {
-        self.0.msg_origin()
-    }
-
-    fn msg_receiver(&self) -> ActorID {
-        self.0.msg_receiver()
-    }
-
-    fn msg_method_number(&self) -> MethodNum {
-        self.0.msg_method_number()
-    }
-
-    fn msg_value_received(&self) -> TokenAmount {
-        self.0.msg_value_received()
-    }
-
-    fn msg_gas_premium(&self) -> TokenAmount {
-        self.0.msg_gas_premium()
-    }
-
-    fn msg_gas_limit(&self) -> u64 {
-        self.0.msg_gas_limit()
+    fn msg_context(&self) -> Result<fvm_shared::sys::out::vm::MessageContext> {
+        self.0.msg_context()
     }
 }
 
@@ -674,20 +654,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn network_epoch(&self) -> ChainEpoch {
-        self.0.network_epoch()
-    }
-
-    fn network_version(&self) -> NetworkVersion {
-        self.0.network_version()
-    }
-
-    fn network_base_fee(&self) -> &TokenAmount {
-        self.0.network_base_fee()
-    }
-
-    fn tipset_timestamp(&self) -> u64 {
-        self.0.tipset_timestamp()
+    fn network_context(&self) -> Result<fvm_shared::sys::out::network::NetworkContext> {
+        self.0.network_context()
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
