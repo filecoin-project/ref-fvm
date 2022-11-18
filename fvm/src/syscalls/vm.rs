@@ -48,25 +48,5 @@ pub fn abort(
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
-    use anyhow::Context as _;
-
-    Ok(MessageContext {
-        caller: context.kernel.msg_caller(),
-        origin: context.kernel.msg_origin(),
-        receiver: context.kernel.msg_receiver(),
-        method_number: context.kernel.msg_method_number(),
-        value_received: context
-            .kernel
-            .msg_value_received()
-            .try_into()
-            .context("invalid token amount")
-            .or_fatal()?,
-        gas_premium: context
-            .kernel
-            .msg_gas_premium()
-            .try_into()
-            .context("invalid gas premium")
-            .or_fatal()?,
-        gas_limit: context.kernel.msg_gas_limit(),
-    })
+    context.kernel.msg_context()
 }

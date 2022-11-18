@@ -432,7 +432,6 @@ mod ipld {
 mod gas {
     use fvm::gas::*;
     use fvm::kernel::GasOps;
-    use fvm_shared::econ::TokenAmount;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -440,7 +439,7 @@ mod gas {
     #[test]
     fn test() -> anyhow::Result<()> {
         let avaliable = Gas::new(10);
-        let gas_tracker = GasTracker::new(avaliable, Gas::new(0), TokenAmount::zero());
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
 
         let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -462,7 +461,7 @@ mod gas {
     #[test]
     fn used() -> anyhow::Result<()> {
         let used = Gas::new(123456);
-        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used, TokenAmount::zero());
+        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used);
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -474,7 +473,7 @@ mod gas {
     #[test]
     fn available() -> anyhow::Result<()> {
         let avaliable = Gas::new(123456);
-        let gas_tracker = GasTracker::new(avaliable, Gas::new(0), TokenAmount::zero());
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -487,7 +486,7 @@ mod gas {
     fn charge() -> anyhow::Result<()> {
         let test_gas = Gas::new(123456);
         let neg_test_gas = Gas::new(-123456);
-        let gas_tracker = GasTracker::new(test_gas, Gas::new(0), TokenAmount::zero());
+        let gas_tracker = GasTracker::new(test_gas, Gas::new(0));
 
         let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -521,7 +520,7 @@ mod gas {
         );
 
         // kernel with 0 avaliable gas
-        let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0), TokenAmount::zero());
+        let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0));
         let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
         expect_out_of_gas!(kern.charge_gas("spend more!", test_gas));
 

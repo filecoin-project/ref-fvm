@@ -82,6 +82,9 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the gas tracker.
     fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
+    /// Returns the gas premium paid by the currently executing message.
+    fn gas_premium(&self) -> &TokenAmount;
+
     /// Getter for origin actor.
     fn origin(&self) -> ActorID;
 

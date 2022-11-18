@@ -16,7 +16,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
-use fvm_shared::version::NetworkVersion;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -28,6 +27,7 @@ use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
+use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -304,32 +304,25 @@ impl<C> MessageOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn msg_caller(&self) -> ActorID {
-        self.caller
-    }
-
-    fn msg_origin(&self) -> ActorID {
-        self.call_manager.origin()
-    }
-
-    fn msg_receiver(&self) -> ActorID {
-        self.actor_id
-    }
-
-    fn msg_method_number(&self) -> MethodNum {
-        self.method
-    }
-
-    fn msg_value_received(&self) -> TokenAmount {
-        self.value_received.clone()
-    }
-
-    fn msg_gas_premium(&self) -> TokenAmount {
-        self.call_manager.gas_tracker().gas_premium()
-    }
-
-    fn msg_gas_limit(&self) -> u64 {
-        self.call_manager.gas_tracker().gas_limit().round_down() as u64
+    fn msg_context(&self) -> Result<MessageContext> {
+        // TODO: charge gas.
+        Ok(MessageContext {
+            caller: self.caller,
+            origin: self.call_manager.origin(),
+            receiver: self.actor_id,
+            method_number: self.method,
+            value_received: (&self.value_received)
+                .try_into()
+                .or_fatal()
+                .context("invalid token amount")?,
+            gas_premium: self
+                .call_manager
+                .gas_premium()
+                .try_into()
+                .or_fatal()
+                .context("invalid gas premium")?,
+            gas_limit: self.call_manager.gas_tracker().gas_limit().round_down() as u64,
+        })
     }
 }
 
@@ -616,20 +609,26 @@ impl<C> NetworkOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().epoch
-    }
-
-    fn network_version(&self) -> NetworkVersion {
-        self.call_manager.context().network_version
-    }
-
-    fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().base_fee
-    }
-
-    fn tipset_timestamp(&self) -> u64 {
-        self.call_manager.context().timestamp
+    fn network_context(&self) -> Result<NetworkContext> {
+        // TODO: charge gas.
+        let MachineContext {
+            epoch,
+            timestamp,
+            base_fee,
+            network: NetworkConfig {
+                network_version, ..
+            },
+            ..
+        } = self.call_manager.context();
+        Ok(NetworkContext {
+            epoch: *epoch,
+            network_version: *network_version as u32,
+            timestamp: *timestamp,
+            base_fee: base_fee
+                .try_into()
+                .or_fatal()
+                .context("base-fee exceeds u128 limit")?,
+        })
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {

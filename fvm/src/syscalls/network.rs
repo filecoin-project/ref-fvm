@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use fvm_shared::sys;
-use fvm_shared::sys::out::network::NetworkContext as SyscallNetworkContext;
+use fvm_shared::sys::out::network::NetworkContext;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Kernel, Result};
@@ -15,18 +15,8 @@ pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::T
         .or_fatal()
 }
 
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<SyscallNetworkContext> {
-    Ok(SyscallNetworkContext {
-        epoch: context.kernel.network_epoch(),
-        network_version: context.kernel.network_version() as u32,
-        timestamp: context.kernel.tipset_timestamp(),
-        base_fee: context
-            .kernel
-            .network_base_fee()
-            .try_into()
-            .context("base-fee exceeds u128 limit")
-            .or_fatal()?,
-    })
+pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<NetworkContext> {
+    context.kernel.network_context()
 }
 
 pub fn tipset_cid(
