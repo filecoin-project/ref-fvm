@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.14 [2022-11-18]
+
 - Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).
+- Replace `abort` with a generalized `exit` syscall. This allows actors to return values on abort.
 
 ## 3.0.0-alpha.13 [2022-11-17]
 
