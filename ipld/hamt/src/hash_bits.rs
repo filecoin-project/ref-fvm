@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use crate::{Error, HashedKey};
 
 /// Part of a `HashedKey`.
-pub type HashedKeySlice = [u8];
+type HashedKeySlice = [u8];
 
 /// Helper struct which indexes and allows returning bits from a hashed key
 #[derive(Debug, Clone, Copy)]
