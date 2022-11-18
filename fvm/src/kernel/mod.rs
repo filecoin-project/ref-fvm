@@ -35,9 +35,10 @@ use crate::gas::{Gas, PriceList};
 use crate::machine::limiter::ExecMemory;
 use crate::machine::Machine;
 
-pub enum SendResult {
-    Return(BlockId, BlockStat),
-    Abort(ExitCode),
+pub struct SendResult {
+    pub block_id: BlockId,
+    pub block_stat: BlockStat,
+    pub exit_code: ExitCode,
 }
 
 /// The "kernel" implements the FVM interface as presented to the actors. It:

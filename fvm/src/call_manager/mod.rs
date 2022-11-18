@@ -154,26 +154,18 @@ pub trait CallManager: 'static {
 
 /// The result of a method invocation.
 #[derive(Clone, Debug)]
-pub enum InvocationResult {
-    /// Indicates that the actor successfully returned. The value may be empty.
-    Return(Option<kernel::Block>),
-    /// Indicates that the actor aborted with the given exit code.
-    Failure(ExitCode),
+pub struct InvocationResult {
+    /// The exit code (0 for success).
+    pub exit_code: ExitCode,
+    /// The return value, if any.
+    pub value: Option<kernel::Block>,
 }
 
 impl Default for InvocationResult {
     fn default() -> Self {
-        Self::Return(Default::default())
-    }
-}
-
-impl InvocationResult {
-    /// Get the exit code for the invocation result. [`ExitCode::Ok`] on success, or the exit code
-    /// from the [`Failure`](InvocationResult::Failure) variant otherwise.
-    pub fn exit_code(&self) -> ExitCode {
-        match self {
-            Self::Return(_) => ExitCode::OK,
-            Self::Failure(e) => *e,
+        Self {
+            value: None,
+            exit_code: ExitCode::OK,
         }
     }
 }

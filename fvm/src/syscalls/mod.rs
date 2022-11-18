@@ -157,8 +157,10 @@ use self::error::Abort;
 pub fn bind_syscalls(
     linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
 ) -> anyhow::Result<()> {
-    linker.bind("vm", "abort", vm::abort)?;
+    linker.bind("vm", "exit", vm::exit)?;
     linker.bind("vm", "message_context", vm::message_context)?;
+    // TODO remove this once the bundles in integration test have been upgraded
+    linker.bind("vm", "abort", vm::abort)?;
 
     linker.bind(
         "network",

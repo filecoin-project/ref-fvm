@@ -4,6 +4,7 @@ use fvm_shared::sys::SyscallSafe;
 
 use super::error::Abort;
 use super::Context;
+use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{ClassifyResult, Kernel};
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
@@ -14,9 +15,10 @@ pub enum Never {}
 unsafe impl SyscallSafe for Never {}
 
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
-pub fn abort(
+pub fn exit(
     context: Context<'_, impl Kernel>,
     code: u32,
+    blk: u32,
     message_off: u32,
     message_len: u32,
 ) -> Result<Never, Abort> {
@@ -27,6 +29,7 @@ pub fn abort(
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
+            blk,
         ));
     }
 
@@ -44,7 +47,18 @@ pub fn abort(
         .map_err(|e| Abort::from_error(code, e))?
         .to_owned()
     };
-    Err(Abort::Exit(code, message))
+    Err(Abort::Exit(code, message, blk))
+}
+
+// TODO remove this once the bundles in integration have been updated; right now it is necessary
+//      due to circular dependency
+pub fn abort(
+    context: Context<'_, impl Kernel>,
+    code: u32,
+    message_off: u32,
+    message_len: u32,
+) -> Result<Never, Abort> {
+    exit(context, code, NO_DATA_BLOCK_ID, message_off, message_len)
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
