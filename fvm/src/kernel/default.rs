@@ -366,38 +366,30 @@ where
 
         // Store result and return.
         Ok(match result {
-            InvocationResult::Return(None) => {
-                SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
-            }
-            InvocationResult::Return(Some(blk)) => {
-                let stat = blk.stat();
-                let ret_id = self
+            InvocationResult {
+                exit_code,
+                value: Some(blk),
+            } => {
+                let block_stat = blk.stat();
+                let block_id = self
                     .blocks
                     .put(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
-                SendResult::Return(ret_id, stat)
-            }
-            InvocationResult::Exit(code, None) => {
-                if code.is_success() {
-                    SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
-                } else {
-                    SendResult::Abort(code, NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
+                SendResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
                 }
             }
-            InvocationResult::Exit(code, Some(blk)) => {
-                let stat = blk.stat();
-                let ret_id = self
-                    .blocks
-                    .put(blk)
-                    .or_fatal()
-                    .context("failed to store a valid return value")?;
-                if code.is_success() {
-                    SendResult::Return(ret_id, stat)
-                } else {
-                    SendResult::Abort(code, ret_id, stat)
-                }
-            }
+            InvocationResult {
+                exit_code,
+                value: None,
+            } => SendResult {
+                block_id: NO_DATA_BLOCK_ID,
+                block_stat: BlockStat { codec: 0, size: 0 },
+                exit_code,
+            },
         })
     }
 }

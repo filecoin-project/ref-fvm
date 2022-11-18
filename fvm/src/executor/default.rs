@@ -103,10 +103,12 @@ where
                 let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
 
                 // Charge for including the result (before we end the transaction).
-                if let InvocationResult::Return(value) = &ret {
-                    cm.charge_gas(cm.context().price_list.on_chain_return_value(
-                        value.as_ref().map(|v| v.size() as usize).unwrap_or(0),
-                    ))?;
+                if let Some(value) = &ret.value {
+                    cm.charge_gas(
+                        cm.context()
+                            .price_list
+                            .on_chain_return_value(value.size() as usize),
+                    )?;
                 }
 
                 Ok(ret)
@@ -143,25 +145,13 @@ where
 
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
-            Ok(InvocationResult::Return(return_value)) => {
+            Ok(InvocationResult { exit_code, value }) => {
                 // Convert back into a top-level return "value". We throw away the codec here,
                 // unfortunately.
-                let return_data = return_value
+                let return_data = value
                     .map(|blk| RawBytes::from(blk.data().to_vec()))
                     .unwrap_or_default();
 
-                backtrace.clear();
-                Receipt {
-                    exit_code: ExitCode::OK,
-                    return_data,
-                    gas_used,
-                    events_root,
-                }
-            }
-            Ok(InvocationResult::Exit(exit_code, maybe_data)) => {
-                let return_data = maybe_data
-                    .map(|blk| RawBytes::from(blk.data().to_vec()))
-                    .unwrap_or_default();
                 if exit_code.is_success() {
                     backtrace.clear();
                 }

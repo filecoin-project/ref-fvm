@@ -140,13 +140,13 @@ where
 
         if self.machine.context().tracing {
             self.trace(match &result {
-                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
-                    v.as_ref()
+                Ok(InvocationResult { exit_code, value }) => ExecutionEvent::CallReturn(
+                    *exit_code,
+                    value
+                        .as_ref()
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
                         .unwrap_or_default(),
                 ),
-                Ok(InvocationResult::Exit(code, _)) => ExecutionEvent::CallAbort(*code),
-
                 Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
                     ErrorNumber::Forbidden,
                     "out of gas",
@@ -169,7 +169,7 @@ where
         self.events.create_layer();
 
         let (revert, res) = match f(self) {
-            Ok(v) => (!v.exit_code().is_success(), Ok(v)),
+            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
         self.state_tree_mut().end_transaction(revert)?;
@@ -394,7 +394,7 @@ where
         // Abort early if we have a send.
         if method == METHOD_SEND {
             log::trace!("sent {} -> {}: {}", from, to, &value);
-            return Ok(InvocationResult::Return(Default::default()));
+            return Ok(InvocationResult::default());
         }
 
         // Store the parametrs, and initialize the block registry for the target actor.
@@ -517,7 +517,10 @@ where
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
-                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
+                Ok(ret) => Ok(InvocationResult {
+                    exit_code: ExitCode::OK,
+                    value: ret.cloned(),
+                }),
                 Err(abort) => {
                     if let Some(err) = last_error {
                         cm.backtrace.begin(err);
@@ -535,11 +538,21 @@ where
                                     Ok(blk) => (
                                         code,
                                         message,
-                                        Ok(InvocationResult::Exit(code, Some(blk.clone()))),
+                                        Ok(InvocationResult {
+                                            exit_code: code,
+                                            value: Some(blk.clone()),
+                                        }),
                                     ),
                                 }
                             } else {
-                                (code, message, Ok(InvocationResult::Exit(code, None)))
+                                (
+                                    code,
+                                    message,
+                                    Ok(InvocationResult {
+                                        exit_code: code,
+                                        value: None,
+                                    }),
+                                )
                             }
                         }
                         Abort::OutOfGas => (
@@ -573,7 +586,7 @@ where
                         to,
                         method,
                         from,
-                        val.exit_code()
+                        val.exit_code
                     ),
                     Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
                 }
