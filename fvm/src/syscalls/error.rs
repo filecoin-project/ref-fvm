@@ -46,11 +46,6 @@ impl Abort {
             ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
         }
     }
-
-    /// Convert a generalized exit "jump" into an "abort".
-    pub fn from_exit(code: ExitCode, msg: String, blk: BlockId) -> Self {
-        Abort::Exit(code, msg, blk)
-    }
 }
 
 /// Wraps an execution error in a Trap.
