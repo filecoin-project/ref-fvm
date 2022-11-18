@@ -67,16 +67,15 @@ jobs:
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          # Overrides
-          # skip generating wasm coverage on mac
-          - os: macos-latest 
-            name: integration
-            key: v3
-            command: test
-            args: --package fvm_integration_tests --package "*actor"
         exclude:
           - os: macos-latest
             name: check-clippy
+          - os: macos-latest
+            name: conformance
+          - os: macos-latest
+            name: test
+          - os: macos-latest
+            name: test-fvm
     env:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
