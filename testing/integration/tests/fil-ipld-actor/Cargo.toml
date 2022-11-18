@@ -6,7 +6,7 @@ publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_ipld_encoding = { version = "0.3.0", path = "../../../../ipld/encoding" }
-fvm_sdk = { version = "3.0.0-alpha.13", path = "../../../../sdk" }
+fvm_sdk = { version = "3.0.0-alpha.14", path = "../../../../sdk" }
 fvm_shared = { version = "3.0.0-alpha.12", path = "../../../../shared" }
 
 [target.'cfg(coverage)'.dependencies]
