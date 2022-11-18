@@ -362,9 +362,9 @@ fn backtraces() {
       ;; ipld::open
       (type (;0;) (func (param i32 i32) (result i32)))
       (import "ipld" "open" (func $fvm_sdk::sys::ipld::open::syscall (type 0)))
-      ;; vm::abort
-      (type (;1;) (func (param i32 i32 i32) (result i32)))
-      (import "vm" "abort" (func $fvm_sdk::sys::vm::abort::syscall (type 1)))
+      ;; vm::abort -> vm::exit
+      (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+      (import "vm" "exit" (func $fvm_sdk::sys::vm::exit::syscall (type 1)))
       (memory (export "memory") 1)
       (func (export "invoke") (param $x i32) (result i32)
         (i32.const 123)
@@ -372,7 +372,8 @@ fn backtraces() {
         (call $fvm_sdk::sys::ipld::open::syscall)
         (i32.const 0)
         (i32.const 0)
-        (call $fvm_sdk::sys::vm::abort::syscall)
+        (i32.const 0)
+        (call $fvm_sdk::sys::vm::exit::syscall)
         unreachable
       )
     )
@@ -383,9 +384,9 @@ fn backtraces() {
       ;; ipld::open
       (type (;0;) (func (param i32 i32) (result i32)))
       (import "ipld" "open" (func $fvm_sdk::sys::ipld::open::syscall (type 0)))
-      ;; vm::abort
-      (type (;1;) (func (param i32 i32 i32) (result i32)))
-      (import "vm" "abort" (func $fvm_sdk::sys::vm::abort::syscall (type 1)))
+      ;; vm::abort -> vm::exit
+      (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+      (import "vm" "exit" (func $fvm_sdk::sys::vm::exit::syscall (type 1)))
       (memory (export "memory") 1)
       (func (export "invoke") (param $x i32) (result i32)
         (i32.const 128)
@@ -400,7 +401,8 @@ fn backtraces() {
         (call $fvm_sdk::sys::ipld::open::syscall)
         (i32.const 0)
         (i32.const 0)
-        (call $fvm_sdk::sys::vm::abort::syscall)
+        (i32.const 0)
+        (call $fvm_sdk::sys::vm::exit::syscall)
         unreachable
       )
     )
