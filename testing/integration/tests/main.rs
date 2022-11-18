@@ -20,7 +20,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-use wabt::wat2wasm;
 
 mod bundles;
 use bundles::*;
@@ -267,7 +266,7 @@ fn test_exitcode(wat: &str, code: ExitCode) {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
     // Get wasm bin
-    let wasm_bin = wat2wasm(wat).unwrap();
+    let wasm_bin = wat::parse_str(wat).unwrap();
 
     // Set actor state
     let actor_state = State { count: 0 };
@@ -427,7 +426,10 @@ fn backtraces() {
     let state_cid = tester.set_state(&State { count: 0 }).unwrap();
 
     // Set an actor that aborts.
-    let (wasm_abort, wasm_fatal) = (wat2wasm(WAT_ABORT).unwrap(), wat2wasm(WAT_FAIL).unwrap());
+    let (wasm_abort, wasm_fatal) = (
+        wat::parse_str(WAT_ABORT).unwrap(),
+        wat::parse_str(WAT_FAIL).unwrap(),
+    );
     let (abort_address, fatal_address) = (Address::new_id(10000), Address::new_id(10001));
     tester
         .set_actor_from_bin(&wasm_abort, state_cid, abort_address, TokenAmount::zero())
