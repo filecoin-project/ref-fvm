@@ -158,13 +158,16 @@ where
                     events_root,
                 }
             }
-            Ok(InvocationResult::Failure(exit_code)) => {
+            Ok(InvocationResult::Exit(exit_code, maybe_data)) => {
+                let return_data = maybe_data
+                    .map(|blk| RawBytes::from(blk.data().to_vec()))
+                    .unwrap_or_default();
                 if exit_code.is_success() {
-                    return Err(anyhow!("actor failed with status OK"));
+                    backtrace.clear();
                 }
                 Receipt {
                     exit_code,
-                    return_data: Default::default(),
+                    return_data,
                     gas_used,
                     events_root,
                 }

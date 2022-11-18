@@ -378,7 +378,26 @@ where
                     .context("failed to store a valid return value")?;
                 SendResult::Return(ret_id, stat)
             }
-            InvocationResult::Failure(code) => SendResult::Abort(code),
+            InvocationResult::Exit(code, None) => {
+                if code.is_success() {
+                    SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
+                } else {
+                    SendResult::Abort(code, NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
+                }
+            }
+            InvocationResult::Exit(code, Some(blk)) => {
+                let stat = blk.stat();
+                let ret_id = self
+                    .blocks
+                    .put(blk)
+                    .or_fatal()
+                    .context("failed to store a valid return value")?;
+                if code.is_success() {
+                    SendResult::Return(ret_id, stat)
+                } else {
+                    SendResult::Abort(code, ret_id, stat)
+                }
+            }
         })
     }
 }

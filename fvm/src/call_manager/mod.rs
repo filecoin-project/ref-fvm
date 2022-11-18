@@ -140,8 +140,8 @@ pub trait CallManager: 'static {
 pub enum InvocationResult {
     /// Indicates that the actor successfully returned. The value may be empty.
     Return(Option<kernel::Block>),
-    /// Indicates that the actor aborted with the given exit code.
-    Failure(ExitCode),
+    /// Indicates that the actor aborted with the given exit code and data.
+    Exit(ExitCode, Option<kernel::Block>),
 }
 
 impl Default for InvocationResult {
@@ -156,7 +156,7 @@ impl InvocationResult {
     pub fn exit_code(&self) -> ExitCode {
         match self {
             Self::Return(_) => ExitCode::OK,
-            Self::Failure(e) => *e,
+            Self::Exit(e, _) => *e,
         }
     }
 }

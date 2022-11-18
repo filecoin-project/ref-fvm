@@ -6,13 +6,14 @@ use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
-use crate::kernel::ExecutionError;
+use crate::kernel::{BlockId, ExecutionError};
+use crate::call_manager::{NO_DATA_BLOCK_ID};
 
 /// Represents an actor "abort".
 #[derive(Debug)]
 pub enum Abort {
     /// The actor explicitly aborted with the given exit code (or panicked).
-    Exit(ExitCode, String),
+    Exit(ExitCode, String, BlockId),
     /// The actor ran out of gas.
     OutOfGas,
     /// The system failed with a fatal error.
@@ -30,6 +31,7 @@ impl Abort {
                     "actor aborted with an invalid message: {} (code={:?})",
                     e.0, e.1
                 ),
+                0,
             ),
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(err) => Abort::Fatal(err),
@@ -43,6 +45,11 @@ impl Abort {
             ExecutionError::Fatal(e) => Abort::Fatal(e),
             ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
         }
+    }
+
+    /// Convert a generalized exit "jump" into an "abort".
+    pub fn from_exit(code: ExitCode, msg: String, blk: BlockId) -> Self {
+        Abort::Exit(code, msg, blk)
     }
 }
 
@@ -60,7 +67,7 @@ impl From<Trap> for Abort {
 
         // Actor panic/wasm error.
         if let Some(code) = t.trap_code() {
-            return Abort::Exit(ExitCode::SYS_ILLEGAL_INSTRUCTION, code.to_string());
+            return Abort::Exit(ExitCode::SYS_ILLEGAL_INSTRUCTION, code.to_string(), NO_DATA_BLOCK_ID);
         }
 
         // Try to get a smuggled error back.

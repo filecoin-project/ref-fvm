@@ -145,7 +145,7 @@ where
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
                         .unwrap_or_default(),
                 ),
-                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
+                Ok(InvocationResult::Exit(code, _)) => ExecutionEvent::CallAbort(*code),
 
                 Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
                     ErrorNumber::Forbidden,
@@ -442,14 +442,17 @@ where
                             // This will be handled in validation.
                             InstantiationError::Link(e) => Abort::Fatal(anyhow!(e)),
                             // TODO: We may want a separate OOM exit code? However, normal ooms will usually exit with SYS_ILLEGAL_INSTRUCTION.
-                            InstantiationError::Resource(e) => {
-                                Abort::Exit(ExitCode::SYS_ILLEGAL_INSTRUCTION, e.to_string())
-                            }
+                            InstantiationError::Resource(e) => Abort::Exit(
+                                ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                                e.to_string(),
+                                NO_DATA_BLOCK_ID,
+                            ),
                             // TODO: we probably shouldn't hit this unless we're running code? We
                             // should check if we can "validate away" this case.
                             InstantiationError::Trap(e) => Abort::Exit(
                                 ExitCode::SYS_ILLEGAL_INSTRUCTION,
                                 format!("actor initialization failed: {:?}", e),
+                                0,
                             ),
                             // TODO: Consider using the instance limit instead of an explicit stack depth?
                             InstantiationError::Limit(limit) => Abort::Fatal(anyhow!(
@@ -506,6 +509,7 @@ where
                         Abort::Exit(
                             ExitCode::SYS_MISSING_RETURN,
                             String::from("returned block does not exist"),
+                            NO_DATA_BLOCK_ID,
                         )
                     })?)
                 })
@@ -520,8 +524,23 @@ where
                     }
 
                     let (code, message, res) = match abort {
-                        Abort::Exit(code, message) => {
-                            (code, message, Ok(InvocationResult::Failure(code)))
+                        Abort::Exit(code, message, blk_id) => {
+                            if blk_id > 0 {
+                                match block_registry.get(blk_id) {
+                                    Err(e) => (
+                                        ExitCode::SYS_MISSING_RETURN,
+                                        "error getting exit data block".to_owned(),
+                                        Err(ExecutionError::Fatal(anyhow!(e))),
+                                    ),
+                                    Ok(blk) => (
+                                        code,
+                                        message,
+                                        Ok(InvocationResult::Exit(code, Some(blk.clone()))),
+                                    ),
+                                }
+                            } else {
+                                (code, message, Ok(InvocationResult::Exit(code, None)))
+                            }
                         }
                         Abort::OutOfGas => (
                             ExitCode::SYS_OUT_OF_GAS,

@@ -30,11 +30,11 @@ pub fn send(
                 return_codec: stat.codec,
                 return_size: stat.size,
             },
-            SendResult::Abort(code) => sys::out::send::Send {
+            SendResult::Abort(code, id, stat) => sys::out::send::Send {
                 exit_code: code.value(),
-                return_id: 0,
-                return_codec: 0,
-                return_size: 0,
+                return_id: id,
+                return_codec: stat.codec,
+                return_size: stat.size,
             },
         },
     )

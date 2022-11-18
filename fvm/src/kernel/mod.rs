@@ -36,7 +36,7 @@ use crate::machine::Machine;
 
 pub enum SendResult {
     Return(BlockId, BlockStat),
-    Abort(ExitCode),
+    Abort(ExitCode, BlockId, BlockStat),
 }
 
 /// The "kernel" implements the FVM interface as presented to the actors. It:

@@ -14,11 +14,12 @@ pub enum Never {}
 unsafe impl SyscallSafe for Never {}
 
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
-pub fn abort(
+pub fn exit(
     context: Context<'_, impl Kernel>,
     code: u32,
     message_off: u32,
     message_len: u32,
+    blk: u32,
 ) -> Result<Never, Abort> {
     use crate::kernel::Context as _;
 
@@ -27,6 +28,7 @@ pub fn abort(
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
+            blk,
         ));
     }
 
@@ -44,7 +46,7 @@ pub fn abort(
         .map_err(|e| Abort::from_error(code, e))?
         .to_owned()
     };
-    Err(Abort::Exit(code, message))
+    Err(Abort::Exit(code, message, blk))
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
