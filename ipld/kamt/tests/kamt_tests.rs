@@ -377,7 +377,6 @@ test_kamt_mod!(
     test_extension,
     KamtFactory {
         conf: Config {
-            use_extensions: true,
             bit_width: 1, // Use smaller bit width to induce more overlap in key prefixes
             min_data_depth: 0,
             ..Default::default()
@@ -389,7 +388,6 @@ test_kamt_mod!(
     test_min_data_depth,
     KamtFactory {
         conf: Config {
-            use_extensions: false,
             bit_width: 4,
             min_data_depth: 1,
             ..Default::default()
@@ -398,12 +396,11 @@ test_kamt_mod!(
 );
 
 test_kamt_mod!(
-    test_min_data_depth_with_extensions,
+    test_max_array_width,
     KamtFactory {
         conf: Config {
-            use_extensions: true,
+            max_array_width: 0, // Just to make sure a seemingly silly config like this doesn't cause a problem.
             bit_width: 2,
-            min_data_depth: 1,
             ..Default::default()
         },
     }

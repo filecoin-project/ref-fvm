@@ -643,11 +643,7 @@ where
         hash_bits: &mut HashBits,
         hashes: &[HashedKey<N>],
     ) -> Result<Extension, Error> {
-        if !conf.use_extensions {
-            Ok(Extension::default())
-        } else {
-            Extension::longest_common_prefix(hash_bits, conf.bit_width, hashes)
-        }
+        Extension::longest_common_prefix(hash_bits, conf.bit_width, hashes)
     }
 }
 

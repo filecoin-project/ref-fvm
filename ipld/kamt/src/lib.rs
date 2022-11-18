@@ -40,17 +40,6 @@ pub struct Config {
     /// and consume `bit_width` number of bits from the hashed keys at each level.
     pub bit_width: u32,
 
-    /// Enabling extensions can help when the keys can deliberately have long common prefixes,
-    /// which would result in parts of the tree being very deep. Extensions allow the KAMT to
-    /// eschew storing mostly empty nodes all along the way to the bottom, by skipping levels
-    /// which would only have a single pointer to the next node in the chain.
-    ///
-    /// It is safe to enable this on a KAMT which has been built without extensions,
-    /// but everyone has to agree whether to use them or not for the CIDs to match.
-    ///
-    /// It's also safe to disable it, the code will still handle extensions that already exist.
-    pub use_extensions: bool,
-
     /// The minimum depth at which the KAMT can store key-value pairs in a `Node`.
     ///
     /// Storing values in the nodes means we have to read and write larger chunks of data
@@ -74,7 +63,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
-            use_extensions: false,
             min_data_depth: 0,
             max_array_width: 3,
         }

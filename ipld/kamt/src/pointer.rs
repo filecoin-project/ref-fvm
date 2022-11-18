@@ -175,7 +175,6 @@ where
                     // If all `self` does is Link to `n`, and all `n` does is Link to `sub`, and we're using extensions,
                     // then `self` could Link to `sub` directly. `n` was most likely the result of a split, but one of
                     // the nodes it pointed at had been removed since.
-                    let can_have_splits = conf.use_extensions;
 
                     match &mut n.pointers[0] {
                         Pointer::Values(vals) => {
@@ -189,7 +188,7 @@ where
                             cid,
                             ext: ext2,
                             cache,
-                        } if can_have_splits => {
+                        } => {
                             // Replace `self` with a
                             let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
                             *self = Pointer::Link {
@@ -201,14 +200,13 @@ where
                         Pointer::Dirty {
                             node: sub,
                             ext: ext2,
-                        } if can_have_splits => {
+                        } => {
                             let ext = unsplit_ext(conf, &n.bitfield, ext1, ext2)?;
                             *self = Pointer::Dirty {
                                 node: std::mem::take(sub),
                                 ext,
                             }
                         }
-                        _ => (),
                     }
                     Ok(())
                 }
