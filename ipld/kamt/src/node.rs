@@ -226,7 +226,7 @@ where
 
     fn get_value<Q, S: Blockstore>(
         &self,
-        hash_bits: &mut HashBits,
+        hashed_key: &mut HashBits,
         conf: &Config,
         key: &Q,
         store: &S,
@@ -235,7 +235,7 @@ where
         K: Borrow<Q>,
         Q: PartialEq,
     {
-        let idx = hash_bits.next(conf.bit_width)?;
+        let idx = hashed_key.next(conf.bit_width)?;
 
         if !self.bitfield.test_bit(idx) {
             return Ok(None);
@@ -274,8 +274,8 @@ where
             }
         };
 
-        match match_extension(conf, hash_bits, ext)? {
-            ExtensionMatch::Full { .. } => node.get_value(hash_bits, conf, key, store),
+        match match_extension(conf, hashed_key, ext)? {
+            ExtensionMatch::Full { .. } => node.get_value(hashed_key, conf, key, store),
             ExtensionMatch::Partial { .. } => Ok(None),
         }
     }
@@ -288,7 +288,7 @@ where
     #[allow(clippy::too_many_arguments)]
     fn modify_value<S: Blockstore>(
         &mut self,
-        hash_bits: &mut HashBits,
+        hashed_key: &mut HashBits,
         conf: &Config,
         depth: u32,
         key: K,
@@ -299,7 +299,7 @@ where
     where
         V: PartialEq,
     {
-        let idx = hash_bits.next(conf.bit_width)?;
+        let idx = hashed_key.next(conf.bit_width)?;
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
@@ -308,7 +308,7 @@ where
             } else {
                 // Need to insert some empty nodes reserved for links.
                 let mut sub = Node::<K, V, H, N>::default();
-                sub.modify_value(hash_bits, conf, depth + 1, key, value, store, overwrite)?;
+                sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
                 self.insert_child_dirty(idx, Box::new(sub), Extension::default());
             }
             return Ok((None, true));
@@ -318,7 +318,7 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => match match_extension(conf, hash_bits, ext)? {
+            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
                 ExtensionMatch::Full { skipped } => {
                     cache.get_or_try_init(|| {
                         store
@@ -328,7 +328,7 @@ where
                     let child_node = cache.get_mut().expect("filled line above");
 
                     let (old, modified) = child_node.modify_value(
-                        hash_bits,
+                        hashed_key,
                         conf,
                         depth + 1 + skipped,
                         key,
@@ -347,7 +347,7 @@ where
                 ExtensionMatch::Partial(part) => {
                     *child = Self::split_extension(
                         conf,
-                        hash_bits,
+                        hashed_key,
                         &part,
                         key,
                         value,
@@ -358,9 +358,9 @@ where
                     Ok((None, true))
                 }
             },
-            Pointer::Dirty { node, ext } => match match_extension(conf, hash_bits, ext)? {
+            Pointer::Dirty { node, ext } => match match_extension(conf, hashed_key, ext)? {
                 ExtensionMatch::Full { skipped } => node.modify_value(
-                    hash_bits,
+                    hashed_key,
                     conf,
                     depth + 1 + skipped,
                     key,
@@ -371,7 +371,7 @@ where
                 ExtensionMatch::Partial(part) => {
                     *child = Self::split_extension(
                         conf,
-                        hash_bits,
+                        hashed_key,
                         &part,
                         key,
                         value,
@@ -412,13 +412,13 @@ where
                         .collect::<Vec<_>>();
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
-                    let ext = Self::find_longest_extension(conf, hash_bits, &hashes)?;
+                    let ext = Self::find_longest_extension(conf, hashed_key, &hashes)?;
                     let skipped = ext.consumed() as u32 / conf.bit_width;
 
-                    let consumed = hash_bits.consumed;
+                    let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H, N>::default();
                     let modified = sub.modify_value(
-                        hash_bits,
+                        hashed_key,
                         conf,
                         depth + 1 + skipped,
                         key,
@@ -462,7 +462,7 @@ where
     /// Internal method to delete entries.
     fn rm_value<Q, S: Blockstore>(
         &mut self,
-        hash_bits: &mut HashBits,
+        hashed_key: &mut HashBits,
         conf: &Config,
         depth: u32,
         key: &Q,
@@ -472,7 +472,7 @@ where
         K: Borrow<Q>,
         Q: PartialEq,
     {
-        let idx = hash_bits.next(conf.bit_width)?;
+        let idx = hashed_key.next(conf.bit_width)?;
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
@@ -483,7 +483,7 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            Pointer::Link { cid, cache, ext } => match match_extension(conf, hash_bits, ext)? {
+            Pointer::Link { cid, cache, ext } => match match_extension(conf, hashed_key, ext)? {
                 ExtensionMatch::Full { skipped } => {
                     cache.get_or_try_init(|| {
                         store
@@ -493,7 +493,7 @@ where
                     let child_node = cache.get_mut().expect("filled line above");
 
                     let deleted =
-                        child_node.rm_value(hash_bits, conf, depth + 1 + skipped, key, store)?;
+                        child_node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
                     if deleted.is_some() {
                         *child = Pointer::Dirty {
@@ -510,11 +510,11 @@ where
                 ExtensionMatch::Partial(_) => Ok(None),
             },
             Pointer::Dirty { node, ext } => {
-                match match_extension(conf, hash_bits, ext)? {
+                match match_extension(conf, hashed_key, ext)? {
                     ExtensionMatch::Full { skipped } => {
                         // Delete value and return deleted value
                         let deleted =
-                            node.rm_value(hash_bits, conf, depth + 1 + skipped, key, store)?;
+                            node.rm_value(hashed_key, conf, depth + 1 + skipped, key, store)?;
 
                         if deleted.is_some() && Self::clean(child, conf, depth)? {
                             self.rm_child(cindex, idx);
@@ -595,7 +595,7 @@ where
     /// in turn will have two children: a link to the original extension target, and the new key value pair.
     fn split_extension<'a, F>(
         conf: &Config,
-        hash_bits: &'a mut HashBits,
+        hashed_key: &'a mut HashBits,
         part: &PartialMatch,
         key: K,
         value: V,
@@ -614,7 +614,7 @@ where
         insert_pointer(&mut midway, idx, tail);
 
         // Insert the value at the next nibble of the hash.
-        let idx = hash_bits.next(conf.bit_width)?;
+        let idx = hashed_key.next(conf.bit_width)?;
         midway.insert_child(idx, key, value);
 
         // Replace the link in this node with one pointing at the midway node.
@@ -640,10 +640,10 @@ where
     /// that fell into the same bucket at some existing height.
     fn find_longest_extension(
         conf: &Config,
-        hash_bits: &mut HashBits,
+        hashed_key: &mut HashBits,
         hashes: &[HashedKey<N>],
     ) -> Result<Extension, Error> {
-        Extension::longest_common_prefix(hash_bits, conf.bit_width, hashes)
+        Extension::longest_common_prefix(hashed_key, conf.bit_width, hashes)
     }
 }
 
@@ -652,13 +652,13 @@ where
 /// this will be the number of levels where the extension has to be split.
 fn match_extension<'a, 'b>(
     conf: &Config,
-    hash_bits: &'a mut HashBits,
+    hashed_key: &'a mut HashBits,
     ext: &'b Extension,
 ) -> Result<ExtensionMatch<'b>, Error> {
     if ext.is_empty() {
         Ok(ExtensionMatch::Full { skipped: 0 })
     } else {
-        let matched = ext.longest_match(hash_bits, conf.bit_width)?;
+        let matched = ext.longest_match(hashed_key, conf.bit_width)?;
         let skipped = matched as u32 / conf.bit_width;
 
         if matched == ext.consumed() {
