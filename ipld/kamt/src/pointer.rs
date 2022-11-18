@@ -28,12 +28,12 @@ pub(crate) enum Pointer<K, V, H, const N: usize> {
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
-        ext: Option<Extension>,
+        ext: Extension,
         cache: OnceCell<Box<Node<K, V, H, N>>>,
     },
     Dirty {
         node: Box<Node<K, V, H, N>>,
-        ext: Option<Extension>,
+        ext: Extension,
     },
 }
 
@@ -109,7 +109,7 @@ where
                 return values.map(Self::Values);
             }
 
-            if let Some(link) = from_ipld_map::<(Cid, Option<Extension>)>(&mut map, TAG_LINK) {
+            if let Some(link) = from_ipld_map::<(Cid, Extension)>(&mut map, TAG_LINK) {
                 return link.map(|(cid, ext)| Self::Link {
                     cid,
                     ext,
@@ -283,9 +283,9 @@ fn add_to_ipld_map<S: Serializer, T: Serialize>(
 fn unsplit_ext(
     conf: &Config,
     bf: &Bitfield,
-    parent_ext: &Option<Extension>,
-    child_ext: &Option<Extension>,
-) -> Result<Option<Extension>, Error> {
+    parent_ext: &Extension,
+    child_ext: &Extension,
+) -> Result<Extension, Error> {
     // Figure out which bucket contains the pointer.
     let idx = bf
         .last_one_idx()
@@ -293,5 +293,6 @@ fn unsplit_ext(
 
     let idx = Extension::from_idx(idx, conf.bit_width);
     let ext = Extension::unsplit(parent_ext, &idx, child_ext)?;
-    Ok(Some(ext))
+
+    Ok(ext)
 }

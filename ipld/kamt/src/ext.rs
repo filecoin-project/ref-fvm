@@ -3,18 +3,17 @@
 
 use std::cmp::min;
 
-use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use crate::hash_bits::{mkmask, HashBits};
-use crate::HashedKey;
+use crate::{Error, HashedKey};
 
 /// An optimization for occasions where we don't use key hashing in the KAMT,
 /// which can allow keys having long common prefixes and result in parts of
 /// the tree being very deep, with most but the deepest being empty. The
 /// extension allows a `Pointer::Link` to skip empty levels and point straight
 /// to the next non-empty `Node`.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct Extension {
     /// Number of bits consumed from the path between the `Node` containing the `Link`
     /// and the node the `Link` is pointing to the next `Node`. It might be less than
@@ -119,17 +118,17 @@ impl Extension {
     }
 
     /// Merge two extensions, to undo a prior split.
-    pub fn unsplit(ext1: &Option<Self>, idx: &Self, ext2: &Option<Self>) -> Result<Self, Error> {
+    pub fn unsplit(ext1: &Self, idx: &Self, ext2: &Self) -> Result<Self, Error> {
         let bit_width = idx.consumed as u32;
-        let parts = vec![ext1.as_ref(), Some(idx), ext2.as_ref()]
-            .into_iter()
-            .flatten()
-            .collect();
+        let parts = vec![ext1, idx, ext2].into_iter().filter(|e| !e.is_empty());
         Self::merge(parts, bit_width)
     }
 
     /// Merge multiple extensions into one.
-    fn merge(exts: Vec<&Self>, bit_width: u32) -> Result<Self, Error> {
+    fn merge<'a, I>(exts: I, bit_width: u32) -> Result<Self, Error>
+    where
+        I: Iterator<Item = &'a Self>,
+    {
         let mut builder = ExtensionBuilder::new();
         for ext in exts {
             let mut path = ext.path_bits();
@@ -289,7 +288,7 @@ mod tests {
         assert_eq!(tail.path[0], 0b01101111);
         assert_eq!(tail.path[1], 0b10111000);
 
-        let ext2 = Extension::unsplit(&Some(head), &midx, &Some(tail)).unwrap();
+        let ext2 = Extension::unsplit(&head, &midx, &tail).unwrap();
         assert_eq!(ext, ext2);
     }
 }

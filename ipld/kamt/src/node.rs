@@ -88,7 +88,7 @@ where
                 // Replace cached node with Cid link
                 *pointer = Pointer::Link {
                     cid,
-                    ext: ext.take(),
+                    ext: std::mem::take(ext),
                     cache,
                 };
             }
@@ -309,7 +309,7 @@ where
                 // Need to insert some empty nodes reserved for links.
                 let mut sub = Node::<K, V, H, N>::default();
                 sub.modify_value(hash_bits, conf, depth + 1, key, value, store, overwrite)?;
-                self.insert_child_dirty(idx, Box::new(sub), None);
+                self.insert_child_dirty(idx, Box::new(sub), Extension::default());
             }
             return Ok((None, true));
         }
@@ -339,7 +339,7 @@ where
                     if modified {
                         *child = Pointer::Dirty {
                             node: std::mem::take(child_node),
-                            ext: ext.take(),
+                            ext: std::mem::take(ext),
                         };
                     }
                     Ok((old, modified))
@@ -413,10 +413,7 @@ where
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
                     let ext = Self::find_longest_extension(conf, hash_bits, &hashes)?;
-                    let skipped = ext
-                        .as_ref()
-                        .map(|e| e.consumed() as u32 / conf.bit_width)
-                        .unwrap_or_default();
+                    let skipped = ext.consumed() as u32 / conf.bit_width;
 
                     let consumed = hash_bits.consumed;
                     let mut sub = Node::<K, V, H, N>::default();
@@ -501,7 +498,7 @@ where
                     if deleted.is_some() {
                         *child = Pointer::Dirty {
                             node: std::mem::take(child_node),
-                            ext: ext.take(),
+                            ext: std::mem::take(ext),
                         };
                         if Self::clean(child, conf, depth)? {
                             self.rm_child(cindex, idx);
@@ -565,7 +562,7 @@ where
         &mut self,
         idx: u32,
         cid: Cid,
-        ext: Option<Extension>,
+        ext: Extension,
         cache: OnceCell<Box<Node<K, V, H, N>>>,
     ) {
         let i = self.index_for_bit_pos(idx);
@@ -573,12 +570,7 @@ where
         self.pointers.insert(i, Pointer::Link { cid, ext, cache })
     }
 
-    fn insert_child_dirty(
-        &mut self,
-        idx: u32,
-        node: Box<Node<K, V, H, N>>,
-        ext: Option<Extension>,
-    ) {
+    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H, N>>, ext: Extension) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Dirty { node, ext })
@@ -610,7 +602,7 @@ where
         insert_pointer: F,
     ) -> Result<Pointer<K, V, H, N>, Error>
     where
-        F: FnOnce(&mut Node<K, V, H, N>, u32, Option<Extension>),
+        F: FnOnce(&mut Node<K, V, H, N>, u32, Extension),
     {
         // Need a new node at the split point.
         let mut midway = Node::<K, V, H, N>::default();
@@ -650,16 +642,11 @@ where
         conf: &Config,
         hash_bits: &mut HashBits,
         hashes: &[HashedKey<N>],
-    ) -> Result<Option<Extension>, Error> {
+    ) -> Result<Extension, Error> {
         if !conf.use_extensions {
-            Ok(None)
+            Ok(Extension::default())
         } else {
-            let ext = Extension::longest_common_prefix(hash_bits, conf.bit_width, hashes)?;
-            if ext.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(ext))
-            }
+            Extension::longest_common_prefix(hash_bits, conf.bit_width, hashes)
         }
     }
 }
@@ -670,19 +657,18 @@ where
 fn match_extension<'a, 'b>(
     conf: &Config,
     hash_bits: &'a mut HashBits,
-    ext: &'b Option<Extension>,
+    ext: &'b Extension,
 ) -> Result<ExtensionMatch<'b>, Error> {
-    match ext {
-        None => Ok(ExtensionMatch::Full { skipped: 0 }),
-        Some(ext) => {
-            let matched = ext.longest_match(hash_bits, conf.bit_width)?;
-            let skipped = matched as u32 / conf.bit_width;
+    if ext.is_empty() {
+        Ok(ExtensionMatch::Full { skipped: 0 })
+    } else {
+        let matched = ext.longest_match(hash_bits, conf.bit_width)?;
+        let skipped = matched as u32 / conf.bit_width;
 
-            if matched == ext.consumed() {
-                Ok(ExtensionMatch::Full { skipped })
-            } else {
-                Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
-            }
+        if matched == ext.consumed() {
+            Ok(ExtensionMatch::Full { skipped })
+        } else {
+            Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
         }
     }
 }
@@ -706,16 +692,9 @@ impl<'a> PartialMatch<'a> {
     /// Split the extension into the part before the match (which could be empty)
     /// the next nibble where the link pointing to the tail needs to be inserted
     /// into the new midway node, and the part after (which again could be empty).
-    pub fn split(
-        &self,
-        bit_width: u32,
-    ) -> Result<(Option<Extension>, u32, Option<Extension>), Error> {
+    pub fn split(&self, bit_width: u32) -> Result<(Extension, u32, Extension), Error> {
         let (head, idx, tail) = self.ext.split(self.matched, bit_width)?;
-
-        // Drop an empty head so we don't store it.
-        let head = Some(head).filter(|e| !e.is_empty());
         let idx = idx.path_bits().next(bit_width)?;
-        let tail = Some(tail).filter(|e| !e.is_empty());
 
         Ok((head, idx, tail))
     }
