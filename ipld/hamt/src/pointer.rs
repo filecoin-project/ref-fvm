@@ -63,8 +63,7 @@ where
     fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
         match ipld {
             ipld_list @ Ipld::List(_) => {
-                let values: Vec<KeyValuePair<K, V>> =
-                    Deserialize::deserialize(ipld_list).map_err(|error| error.to_string())?;
+                let values: Vec<KeyValuePair<K, V>> = from_ipld(ipld_list)?;
                 Ok(Self::Values(values))
             }
             Ipld::Link(cid) => Ok(Self::Link {
@@ -169,4 +168,8 @@ where
             _ => unreachable!("clean is only called on dirty pointer"),
         }
     }
+}
+
+fn from_ipld<T: DeserializeOwned>(ipld: Ipld) -> Result<T, String> {
+    Deserialize::deserialize(ipld).map_err(|error| error.to_string())
 }
