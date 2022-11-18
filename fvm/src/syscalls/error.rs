@@ -6,8 +6,8 @@ use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
+use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{BlockId, ExecutionError};
-use crate::call_manager::{NO_DATA_BLOCK_ID};
 
 /// Represents an actor "abort".
 #[derive(Debug)]
@@ -67,7 +67,11 @@ impl From<Trap> for Abort {
 
         // Actor panic/wasm error.
         if let Some(code) = t.trap_code() {
-            return Abort::Exit(ExitCode::SYS_ILLEGAL_INSTRUCTION, code.to_string(), NO_DATA_BLOCK_ID);
+            return Abort::Exit(
+                ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                code.to_string(),
+                NO_DATA_BLOCK_ID,
+            );
         }
 
         // Try to get a smuggled error back.
