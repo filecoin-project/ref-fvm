@@ -527,34 +527,29 @@ where
                     }
 
                     let (code, message, res) = match abort {
-                        Abort::Exit(code, message, blk_id) => {
-                            if blk_id > 0 {
-                                match block_registry.get(blk_id) {
-                                    Err(e) => (
-                                        ExitCode::SYS_MISSING_RETURN,
-                                        "error getting exit data block".to_owned(),
-                                        Err(ExecutionError::Fatal(anyhow!(e))),
-                                    ),
-                                    Ok(blk) => (
-                                        code,
-                                        message,
-                                        Ok(InvocationResult {
-                                            exit_code: code,
-                                            value: Some(blk.clone()),
-                                        }),
-                                    ),
-                                }
-                            } else {
-                                (
-                                    code,
-                                    message,
-                                    Ok(InvocationResult {
-                                        exit_code: code,
-                                        value: None,
-                                    }),
-                                )
-                            }
-                        }
+                        Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
+                            code,
+                            message,
+                            Ok(InvocationResult {
+                                exit_code: code,
+                                value: None,
+                            }),
+                        ),
+                        Abort::Exit(code, message, blk_id) => match block_registry.get(blk_id) {
+                            Err(e) => (
+                                ExitCode::SYS_MISSING_RETURN,
+                                "error getting exit data block".to_owned(),
+                                Err(ExecutionError::Fatal(anyhow!(e))),
+                            ),
+                            Ok(blk) => (
+                                code,
+                                message,
+                                Ok(InvocationResult {
+                                    exit_code: code,
+                                    value: Some(blk.clone()),
+                                }),
+                            ),
+                        },
                         Abort::OutOfGas => (
                             ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
