@@ -223,6 +223,7 @@ pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
     pub origin: ActorID,
+    pub origin_address: Address,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
     limits: DummyLimiter,
@@ -247,6 +248,7 @@ impl DummyCallManager {
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
+                origin_address: Address::new_id(0),
             },
             cell_ref,
         )
@@ -265,6 +267,7 @@ impl DummyCallManager {
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
+                origin_address: Address::new_id(0),
             },
             cell_ref,
         )
@@ -278,6 +281,7 @@ impl CallManager for DummyCallManager {
         machine: Self::Machine,
         _gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -289,6 +293,7 @@ impl CallManager for DummyCallManager {
             machine,
             gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), gas_premium),
             origin,
+            origin_address,
             nonce,
             test_data: rc,
             limits,
@@ -359,7 +364,16 @@ impl CallManager for DummyCallManager {
         self.nonce
     }
 
-    fn next_actor_idx(&mut self) -> u64 {
+    fn next_actor_address(&self) -> Address {
+        todo!()
+    }
+
+    fn create_actor(
+        &mut self,
+        _code_id: Cid,
+        _actor_id: ActorID,
+        _predictable_address: Option<Address>,
+    ) -> kernel::Result<()> {
         todo!()
     }
 

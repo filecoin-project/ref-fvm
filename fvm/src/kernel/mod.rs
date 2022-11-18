@@ -205,7 +205,7 @@ pub trait ActorOps {
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
     /// different actor after messages are re-ordered).
     /// Always an ActorExec address.
-    fn new_actor_address(&mut self) -> Result<Address>;
+    fn next_actor_address(&self) -> Result<Address>;
 
     /// Creates an actor with given `code_cid`, `actor_id`, `predictable_address` (if specified),
     /// and an empty state.

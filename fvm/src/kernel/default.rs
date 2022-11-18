@@ -4,11 +4,10 @@ use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
-use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, to_vec};
+use fvm_ipld_encoding::bytes_32;
 use fvm_shared::address::{Payload, Protocol};
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
@@ -717,28 +716,10 @@ where
             .code)
     }
 
-    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
-    fn new_actor_address(&mut self) -> Result<Address> {
-        // base the address on the predictable address, or the id address if none exists.
-        let oa = self
-            .lookup_address(self.call_manager.origin())
-            .or_fatal()? // actor not found
-            .unwrap_or_else(|| Address::new_id(self.call_manager.origin()));
-
-        let mut b = to_vec(&oa)
-            .or_fatal()
-            .context("could not serialize address in new_actor_address")?;
-        b.write_u64::<BigEndian>(self.call_manager.nonce())
-            .or_fatal()
-            .context("writing nonce into a buffer")?;
-        b.write_u64::<BigEndian>(self.call_manager.next_actor_idx())
-            .or_fatal()
-            .context("writing actor index in buffer")?;
-        let addr = Address::new_actor(&b);
-        Ok(addr)
+    fn next_actor_address(&self) -> Result<Address> {
+        Ok(self.call_manager.next_actor_address())
     }
 
-    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(
         &mut self,
         code_id: Cid,
