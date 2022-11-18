@@ -119,9 +119,7 @@ where
                 _ if depth < conf.min_data_depth => {
                     // We are in the shallows where we don't want key-value pairs, just links,
                     // so as long as they are pointing at non-empty nodes we can keep them.
-                    // The rest of the rules would either move key-value pairs up, or undo a split.
-                    // But if we use extensions and minimum data depth, splits will only happen after
-                    // the minimum data depth as well, and these don't need undoing. So we can skip.
+                    // The rest of the rules would move key-value pairs up.
                     Ok(())
                 }
                 1 => {
