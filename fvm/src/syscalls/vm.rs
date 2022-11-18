@@ -4,6 +4,7 @@ use fvm_shared::sys::SyscallSafe;
 
 use super::error::Abort;
 use super::Context;
+use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{ClassifyResult, Kernel};
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
@@ -47,6 +48,17 @@ pub fn exit(
         .to_owned()
     };
     Err(Abort::Exit(code, message, blk))
+}
+
+// TODO remove this once the bundles in integration have been updated; right now it is necessary
+//      due to circular dependency
+pub fn abort(
+    context: Context<'_, impl Kernel>,
+    code: u32,
+    message_off: u32,
+    message_len: u32,
+) -> Result<Never, Abort> {
+    exit(context, code, NO_DATA_BLOCK_ID, message_off, message_len)
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
