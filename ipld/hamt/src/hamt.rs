@@ -85,7 +85,13 @@ where
 
     /// Construct hamt with a bit width
     pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
-        Self::new_with_config(store, Config { bit_width })
+        Self::new_with_config(
+            store,
+            Config {
+                bit_width,
+                ..Default::default()
+            },
+        )
     }
 
     /// Lazily instantiate a hamt from this root Cid.
@@ -108,7 +114,14 @@ where
     }
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
     pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
-        Self::load_with_config(cid, store, Config { bit_width })
+        Self::load_with_config(
+            cid,
+            store,
+            Config {
+                bit_width,
+                ..Default::default()
+            },
+        )
     }
 
     /// Sets the root based on the Cid of the root node using the Hamt store

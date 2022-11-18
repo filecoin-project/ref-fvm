@@ -46,8 +46,10 @@ impl HamtFactory {
         K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
         V: Serialize + DeserializeOwned,
     {
-        let mut conf = self.conf.clone();
-        conf.bit_width = bit_width;
+        let conf = Config {
+            bit_width,
+            ..self.conf
+        };
         Hamt::new_with_config(store, conf)
     }
 
@@ -71,8 +73,10 @@ impl HamtFactory {
         K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
         V: Serialize + DeserializeOwned,
     {
-        let mut conf = self.conf.clone();
-        conf.bit_width = bit_width;
+        let conf = Config {
+            bit_width,
+            ..self.conf
+        };
         Hamt::load_with_config(cid, store, conf)
     }
 }
@@ -874,6 +878,19 @@ macro_rules! test_hamt_mod {
 test_hamt_mod!(
     test_binary_tree,
     HamtFactory {
-        conf: Config { bit_width: 1 },
+        conf: Config {
+            bit_width: 1,
+            min_data_depth: 0,
+        },
+    }
+);
+
+test_hamt_mod!(
+    test_min_data_depth,
+    HamtFactory {
+        conf: Config {
+            bit_width: 4,
+            min_data_depth: 2,
+        },
     }
 );
