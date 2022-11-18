@@ -17,9 +17,9 @@ unsafe impl SyscallSafe for Never {}
 pub fn exit(
     context: Context<'_, impl Kernel>,
     code: u32,
+    blk: u32,
     message_off: u32,
     message_len: u32,
-    blk: u32,
 ) -> Result<Never, Abort> {
     use crate::kernel::Context as _;
 

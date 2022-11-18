@@ -8,13 +8,21 @@ use crate::sys;
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
 
-/// Abort execution.
+/// Abort execution; exit code must be non zero.
 pub fn abort(code: u32, message: Option<&str>) -> ! {
-    exit(code, message, None)
+    if code == 0 {
+        exit(
+            ExitCode::USR_ASSERTION_FAILED.value(),
+            RawBytes::default(),
+            message,
+        )
+    } else {
+        exit(code, RawBytes::default(), message)
+    }
 }
 
 /// Exit from current message execution, with the specified code and an optional message and data.
-pub fn exit(code: u32, message: Option<&str>, data: Option<RawBytes>) -> ! {
+pub fn exit(code: u32, data: RawBytes, message: Option<&str>) -> ! {
     unsafe {
         let (message, message_len) = if let Some(m) = message {
             (m.as_ptr(), m.len())
@@ -24,17 +32,13 @@ pub fn exit(code: u32, message: Option<&str>, data: Option<RawBytes>) -> ! {
 
         // Ideally we would write this double if as if let Some(bytes) = data && bytes.len() > 0
         // but the compiler doexn't accept it.
-        let blk_id = if let Some(bytes) = data {
-            if bytes.len() > 0 {
-                sys::ipld::block_create(DAG_CBOR, bytes.as_ptr(), bytes.len() as u32).unwrap()
-            } else {
-                NO_DATA_BLOCK_ID
-            }
+        let blk_id = if data.len() > 0 {
+            sys::ipld::block_create(DAG_CBOR, data.as_ptr(), data.len() as u32).unwrap()
         } else {
             NO_DATA_BLOCK_ID
         };
 
-        sys::vm::exit(code, message, message_len as u32, blk_id);
+        sys::vm::exit(code, blk_id, message, message_len as u32);
     }
 }
 
