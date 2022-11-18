@@ -28,9 +28,6 @@ super::fvm_syscalls! {
     /// None. This function doesn't return.
     pub fn exit(code: u32, blk_id: u32, message_off: *const u8, message_len: u32) -> !;
 
-    // TODO remove this once the integration bundles have been upgraded
-    pub fn abort(code: u32,  message_off: *const u8, message_len: u32) -> !;
-
     /// Returns the details about the message causing this invocation.
     ///
     /// # Errors
