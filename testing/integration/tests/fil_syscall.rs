@@ -13,7 +13,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-use wabt::wat2wasm;
 
 mod bundles;
 use bundles::*;
@@ -68,7 +67,7 @@ fn instantiate_tester(
 #[test]
 fn non_existing_syscall() {
     // Get wasm bin
-    let wasm_bin = wat2wasm(WAT_UNKNOWN_SYSCALL).unwrap();
+    let wasm_bin = wat::parse_str(WAT_UNKNOWN_SYSCALL).unwrap();
 
     // Instantiate tester
     let (sender, mut tester, actor_address) = instantiate_tester(&wasm_bin);

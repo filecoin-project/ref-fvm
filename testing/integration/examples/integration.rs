@@ -10,7 +10,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-use wabt::wat2wasm;
 
 const WAT: &str = r#"
 ;; Mock invoke function
@@ -36,7 +35,7 @@ pub fn main() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
     // Get wasm bin
-    let wasm_bin = wat2wasm(WAT).unwrap();
+    let wasm_bin = wat::parse_str(WAT).unwrap();
 
     // Set actor state
     let actor_state = State { empty: true };
