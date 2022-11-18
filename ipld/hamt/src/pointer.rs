@@ -12,7 +12,6 @@ use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
-use crate::Config;
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
@@ -111,18 +110,10 @@ where
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
-    pub(crate) fn clean(&mut self, conf: &Config, depth: u32) -> Result<(), Error> {
+    pub(crate) fn clean(&mut self) -> Result<(), Error> {
         match self {
             Pointer::Dirty(n) => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
-                _ if depth < conf.min_data_depth => {
-                    // We are in the shallows where we don't want key-value pairs, just links,
-                    // so as long as they are pointing at non-empty nodes we can keep them.
-                    // The rest of the rules would either move key-value pairs up, or undo a split.
-                    // But if we use extensions and minimum data depth, splits will only happen after
-                    // the minimum data depth as well, and these don't need undoing. So we can skip.
-                    Ok(())
-                }
                 1 => {
                     // Node has only one pointer, swap with parent node
                     if let Pointer::Values(vals) = &mut n.pointers[0] {

@@ -38,31 +38,12 @@ pub struct Config {
     /// Each node in the tree will have `2^bit_width` number of slots for child nodes,
     /// and consume `bit_width` number of bits from the hashed keys at each level.
     pub bit_width: u32,
-
-    /// The minimum depth at which the HAMT can store key-value pairs in a `Node`.
-    ///
-    /// Storing values in the nodes means we have to read and write larger chunks of data
-    /// whenever we're accessing something (be it a link or values) in any other bucket.
-    /// This is particularly costly in the root node, which is always retrieved as soon
-    /// as the HAMT is instantiated.
-    ///
-    /// This setting allows us to keep the root, and possibly a few more levels, free of
-    /// data, reserved for links. A sufficiently saturated tree will tend to contain only
-    /// links in the first levels anyway, once all the buckets have been filled and pushed
-    /// further down.
-    ///
-    /// A value of 0 means data can be put in the root node, which is the default behaviour.
-    ///
-    /// The setting makes most sense when the size of values outweigh the size of the link
-    /// pointing at them. When storing small, hash-sized values, it might not matter.
-    pub min_data_depth: u32,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
-            min_data_depth: 0,
         }
     }
 }
