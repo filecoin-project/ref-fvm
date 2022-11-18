@@ -24,7 +24,7 @@ pub fn exit(
     use crate::kernel::Context as _;
 
     let code = ExitCode::new(code);
-    if code.is_system_error() {
+    if !code.is_success() && code.is_system_error() {
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
