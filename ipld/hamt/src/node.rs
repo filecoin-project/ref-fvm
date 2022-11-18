@@ -142,7 +142,7 @@ where
     {
         for p in &self.pointers {
             match p {
-                Pointer::Link { cid, cache, .. } => {
+                Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
                         cached_node.for_each(store, f)?
                     } else {
@@ -307,19 +307,22 @@ where
                 // If the array is full, create a subshard and insert everything
                 if vals.len() >= MAX_ARRAY_WIDTH {
                     let kvs = std::mem::take(vals);
-                    let hashes = kvs.iter().map(|kv| H::hash(kv.key())).collect::<Vec<_>>();
+                    let hashed_kvs = kvs.into_iter().map(|KeyValuePair(k, v)| {
+                        let hash = H::hash(&k);
+                        (k, v, hash)
+                    });
 
                     let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H>::default();
                     let modified =
                         sub.modify_value(hashed_key, conf, key, value, store, overwrite)?;
 
-                    for (p, hash) in kvs.into_iter().zip(hashes) {
+                    for (k, v, hash) in hashed_kvs {
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             conf,
-                            p.0,
-                            p.1,
+                            k,
+                            v,
                             store,
                             overwrite,
                         )?;
