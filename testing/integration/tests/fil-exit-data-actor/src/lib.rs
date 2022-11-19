@@ -7,19 +7,20 @@ use fvm_ipld_encoding::RawBytes;
 /// Placeholder invoke for testing
 #[no_mangle]
 #[cfg(target_arch = "wasm32")]
-pub fn invoke(method: u32) -> u32 {
-    invoke_method(method)
+pub fn invoke(blk: u32) -> u32 {
+    invoke_method(blk)
 }
 
 #[allow(dead_code)]
-fn invoke_method(method: u32) -> ! {
-    let code = match method {
+fn invoke_method(_: u32) -> ! {
+    let method = sdk::message::method_number();
+    let exit_code = match method {
         0|1|2 => 0,
         _ => 0x42,
     };
 
     sdk::vm::exit(
-        code,
+        exit_code,
         RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8]),
         None
     )
