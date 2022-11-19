@@ -13,6 +13,10 @@ pub enum Never {}
 
 unsafe impl SyscallSafe for Never {}
 
+/// The maximum message length included in the backtrace. Given 1025 levels, this gives us a total
+/// maximum of around 1MiB for debugging.
+const MAX_MESSAGE_LEN: usize = 1024;
+
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
 pub fn exit(
     context: Context<'_, impl Kernel>,
@@ -34,7 +38,20 @@ pub fn exit(
         "actor aborted".to_owned()
     } else {
         match context.memory.try_slice(message_off, message_len) {
-            Ok(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+            Ok(bytes) => {
+                if bytes.len() > MAX_MESSAGE_LEN {
+                    let prefix = &bytes[..(MAX_MESSAGE_LEN / 2)];
+                    let suffix = &bytes[bytes.len() - (MAX_MESSAGE_LEN / 2)..];
+                    format!(
+                        "{} ... (skipped {} bytes) ... {}",
+                        String::from_utf8_lossy(prefix),
+                        MAX_MESSAGE_LEN - bytes.len(),
+                        String::from_utf8_lossy(suffix)
+                    )
+                } else {
+                    String::from_utf8_lossy(bytes).into_owned()
+                }
+            }
             Err(e) => format!("failed to extract error message: {e}"),
         }
     };
