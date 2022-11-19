@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
@@ -13,6 +14,7 @@ use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -177,6 +179,109 @@ fn syscalls() {
         } else {
             panic!("non-zero exit code {}", res.msg_receipt.exit_code)
         }
+    }
+}
+
+#[test]
+fn exit_data() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = EXIT_DATA_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    {
+        // Send constructor message
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 1,
+            sequence: 0,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert!(res.msg_receipt.exit_code.is_success());
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
+    }
+
+    {
+        // send method 2
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 2,
+            sequence: 1,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert!(res.msg_receipt.exit_code.is_success());
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
+    }
+
+    {
+        // send method 3
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 2,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert_eq!(res.msg_receipt.exit_code.value(), 0x42);
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
     }
 }
 

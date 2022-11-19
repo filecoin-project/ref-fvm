@@ -46,6 +46,7 @@ fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor" }
 fil_syscall_actor = { path = "tests/fil-syscall-actor" }
 fil_address_actor = { path = "tests/fil-address-actor" }
 fil_events_actor = { path = "tests/fil-events-actor" }
+fil_exit_data_actor = { path = "tests/fil-exit-data-actor" }
 
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
