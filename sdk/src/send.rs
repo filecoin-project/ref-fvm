@@ -48,17 +48,16 @@ pub fn send(
 
         // Process the result.
         let exit_code = ExitCode::new(exit_code);
-        let return_data = match exit_code {
-            ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
-                // Allocate a buffer to read the return data.
-                let mut bytes = vec![0; return_size as usize];
+        let return_data = if return_id == NO_DATA_BLOCK_ID {
+            Default::default()
+        } else {
+            // Allocate a buffer to read the return data.
+            let mut bytes = vec![0; return_size as usize];
 
-                // Now read the return data.
-                let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
-                assert_eq!(0, unread);
-                RawBytes::from(bytes)
-            }
-            _ => Default::default(),
+            // Now read the return data.
+            let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+            assert_eq!(0, unread);
+            RawBytes::from(bytes)
         };
 
         Ok(Receipt {
