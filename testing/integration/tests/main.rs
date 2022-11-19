@@ -4,16 +4,17 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
-use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -21,7 +22,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
-use fvm_ipld_encoding::RawBytes;
 
 mod bundles;
 use bundles::*;
@@ -229,7 +229,10 @@ fn exit_data() {
             .unwrap();
 
         assert!(res.msg_receipt.exit_code.is_success());
-        assert_eq!(res.msg_receipt.return_data, RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8]));
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
     }
 
     {
@@ -251,7 +254,10 @@ fn exit_data() {
             .unwrap();
 
         assert!(res.msg_receipt.exit_code.is_success());
-        assert_eq!(res.msg_receipt.return_data, RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8]));
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
     }
 
     {
@@ -272,10 +278,12 @@ fn exit_data() {
             .unwrap();
 
         assert_eq!(res.msg_receipt.exit_code.value(), 0x42);
-        assert_eq!(res.msg_receipt.return_data, RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8]));
+        assert_eq!(
+            res.msg_receipt.return_data,
+            RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8])
+        );
     }
 }
-
 
 #[test]
 fn native_stack_overflow() {
