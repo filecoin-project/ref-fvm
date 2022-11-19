@@ -2389,6 +2389,7 @@ dependencies = [
  "fil_address_actor",
  "fil_builtin_actors_bundle",
  "fil_events_actor",
+ "fil_exit_data_actor",
  "fil_hello_world_actor",
  "fil_integer_overflow_actor",
  "fil_ipld_actor",
