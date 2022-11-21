@@ -860,6 +860,13 @@ impl PriceList {
         self.wasm_rules.memory_expansion_per_byte_cost * grow_memory_bytes as i64
     }
 
+    /// Returns the gas required for initializing tables.
+    pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
+        // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
+        // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
+        self.wasm_rules.memory_expansion_per_byte_cost * (min_table_elements as i32) * 8
+    }
+
     #[inline]
     pub fn on_actor_event(&self, evt: &ActorEvent) -> GasCharge {
         let (mut indexed_entries, mut total_bytes) = (0, 0);
