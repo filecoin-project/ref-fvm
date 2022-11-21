@@ -1,6 +1,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+#[cfg(feature = "arb")]
+use std::array::from_fn;
 use std::convert::TryInto;
 use std::hash::Hash;
 use std::u64;
@@ -22,11 +24,10 @@ pub struct DelegatedAddress {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for DelegatedAddress {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let buffer: [u8; MAX_SUBADDRESS_LEN] = core::array::from_fn(|_| u8::arbitrary(g));
         Self {
             namespace: ActorID::arbitrary(g),
-            length: buffer.len(),
-            buffer,
+            length: usize::arbitrary(g) % (MAX_SUBADDRESS_LEN + 1),
+            buffer: from_fn(|_| u8::arbitrary(g)),
         }
     }
 }
@@ -90,15 +91,13 @@ pub enum Payload {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Payload {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let id = Payload::ID(u64::arbitrary(g));
-        let secp = Payload::Secp256k1([0; PAYLOAD_HASH_LEN].map(|_| u8::arbitrary(g)));
-        let actor = Payload::Actor([0; PAYLOAD_HASH_LEN].map(|_| u8::arbitrary(g)));
-        let bls = Payload::BLS([0; BLS_PUB_LEN].map(|_| u8::arbitrary(g)));
-        let delegated = Payload::Delegated(DelegatedAddress::arbitrary(g));
-        let payload_slice = &[id, secp, actor, bls, delegated];
-        let payload = g.choose(payload_slice).unwrap();
-
-        *payload
+        match u8::arbitrary(g) % 5 {
+            0 => Payload::ID(u64::arbitrary(g)),
+            1 => Payload::Secp256k1(from_fn(|_| u8::arbitrary(g))),
+            2 => Payload::Actor(from_fn(|_| u8::arbitrary(g))),
+            3 => Payload::BLS(from_fn(|_| u8::arbitrary(g))),
+            _ => Payload::Delegated(DelegatedAddress::arbitrary(g)),
+        }
     }
 }
 
