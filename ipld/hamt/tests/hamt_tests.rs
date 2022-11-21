@@ -542,6 +542,44 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     }
 }
 
+#[test]
+fn min_data_depth_reduces_root_size() {
+    let mk_factory = |min_data_depth| HamtFactory {
+        conf: Config {
+            min_data_depth,
+            ..Default::default()
+        },
+    };
+
+    let factory1 = mk_factory(0);
+    let factory2 = mk_factory(1);
+
+    let mem = MemoryBlockstore::default();
+    let mut hamt1 = factory1.new(&mem);
+    let mut hamt2 = factory2.new(&mem);
+
+    for i in 0..100 {
+        hamt1.set(i, vec![1u8; 1000]).unwrap();
+        hamt2.set(i, vec![1u8; 1000]).unwrap();
+    }
+    let c1 = hamt1.flush().unwrap();
+    let c2 = hamt2.flush().unwrap();
+
+    assert!(c1 != c2);
+
+    let bytes_read_during_load = |c, f: &HamtFactory| {
+        let store = TrackingBlockstore::new(&mem);
+        let _: Hamt<_, Vec<u8>, i32> = f.load(c, &store).unwrap();
+        let stats = store.stats.borrow();
+        stats.br
+    };
+
+    let br1 = bytes_read_during_load(&c1, &factory1);
+    let br2 = bytes_read_during_load(&c2, &factory2);
+
+    assert!(br2 < br1);
+}
+
 /// List of key value pairs with unique keys.
 ///
 /// Uniqueness is used so insert order doesn't cause overwrites.
