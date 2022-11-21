@@ -260,7 +260,7 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            if conf.min_data_depth <= depth {
+            if depth >= conf.min_data_depth {
                 self.insert_child(idx, key, value);
             } else {
                 // Need to insert some empty nodes reserved for links.
