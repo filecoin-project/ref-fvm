@@ -109,8 +109,11 @@ impl Signature {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for SignatureType {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        *g.choose(&[SignatureType::Secp256k1, SignatureType::BLS])
-            .unwrap()
+        if bool::arbitrary(g) {
+            SignatureType::Secp256k1
+        } else {
+            SignatureType::BLS
+        }
     }
 }
 
