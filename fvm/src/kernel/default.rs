@@ -839,6 +839,9 @@ where
     }
 
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_balance_of())?;
+
         let balance = self
             .call_manager
             .state_tree()
@@ -850,6 +853,9 @@ where
     }
 
     fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_lookup_address())?;
+
         Ok(self
             .call_manager
             .state_tree()

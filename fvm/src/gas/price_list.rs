@@ -899,12 +899,24 @@ impl PriceList {
         GasCharge::new("OnCurrentBalance", self.state_read_base, Zero::zero())
     }
 
+    /// Returns the gas required for accessing the balance of an actor.
+    #[inline]
+    pub fn on_balance_of(&self) -> GasCharge {
+        GasCharge::new("OnBalanceOf", self.state_read_base, Zero::zero())
+    }
+
     /// Returns the gas required for resolving an actor address.
     ///
     /// Might require lookup in the state tree as well as loading the state of the init actor.
     #[inline]
     pub fn on_resolve_address(&self) -> GasCharge {
         GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for looking up an actor address.
+    #[inline]
+    pub fn on_lookup_address(&self) -> GasCharge {
+        GasCharge::new("OnLookupAddress", self.state_read_base, Zero::zero())
     }
 
     /// Returns the gas required for getting the CID of the code of an actor.
