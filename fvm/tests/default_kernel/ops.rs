@@ -105,7 +105,7 @@ mod ipld {
                 .on_block_create(block.len() as usize)
                 .total();
             assert_eq!(
-                call_manager.gas_tracker.gas_used(),
+                call_manager.gas_tracker.borrow().gas_used(),
                 expected_create_price,
                 "gas use creating a block does not match price list"
             );
@@ -190,7 +190,7 @@ mod ipld {
                 .total();
 
             assert_eq!(
-                call_manager.gas_tracker.gas_used(),
+                call_manager.gas_tracker.borrow().gas_used(),
                 expected_create_price + expected_link_price,
                 "gas use creating and linking a block does not match price list"
             )
@@ -336,7 +336,7 @@ mod ipld {
                 "charge_gas should be called exactly once in block_read"
             );
             assert_eq!(
-                call_manager.gas_tracker.gas_used(),
+                call_manager.gas_tracker.borrow().gas_used(),
                 expected_create_price + expected_read_price,
                 "gas use of creating and reading a block does not match price list"
             )
@@ -402,7 +402,7 @@ mod ipld {
                 "charge_gas should be called exactly once in block_stat"
             );
             assert_eq!(
-                call_manager.gas_tracker.gas_used(),
+                call_manager.gas_tracker.borrow().gas_used(),
                 expected_create_price + expected_stat_price,
                 "gas use of creating and 'stat'ing a block does not match price list"
             )
@@ -441,7 +441,7 @@ mod gas {
         let avaliable = Gas::new(10);
         let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
 
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         assert_eq!(kern.gas_available(), avaliable);
         assert_eq!(kern.gas_used(), Gas::new(0));
@@ -488,7 +488,7 @@ mod gas {
         let neg_test_gas = Gas::new(-123456);
         let gas_tracker = GasTracker::new(test_gas, Gas::new(0));
 
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         // charge exactly as much as avaliable
         kern.charge_gas("test test 123", test_gas)?;
@@ -521,7 +521,7 @@ mod gas {
 
         // kernel with 0 avaliable gas
         let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0));
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
         expect_out_of_gas!(kern.charge_gas("spend more!", test_gas));
 
         Ok(())

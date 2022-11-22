@@ -295,12 +295,18 @@ where
         self.0.machine_mut()
     }
 
-    fn gas_tracker(&self) -> &GasTracker {
-        self.0.gas_tracker()
+    fn gas_tracker<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&GasTracker) -> T,
+    {
+        self.0.gas_tracker(f)
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        self.0.gas_tracker_mut()
+    fn gas_tracker_mut<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut GasTracker) -> T,
+    {
+        self.0.gas_tracker_mut(f)
     }
 
     fn gas_premium(&self) -> &TokenAmount {
@@ -352,7 +358,7 @@ where
         self.0.state_tree_mut()
     }
 
-    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
     }
 

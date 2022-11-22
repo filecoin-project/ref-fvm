@@ -77,10 +77,18 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
-    /// Returns reference to the gas tracker.
-    fn gas_tracker(&self) -> &GasTracker;
-    /// Returns a mutable reference to the gas tracker.
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker;
+    /// Applies a read-only function to the gas tracker and return the result.
+    fn gas_tracker<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&GasTracker) -> T;
+
+    /// Applies a read-write function to a mutable gas tracker, and returns the result.
+    ///
+    /// Gas tracking should use internal mutability so that semantically read-only
+    /// operations in the `Kernel` can apply charge without making everything mutable.
+    fn gas_tracker_mut<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut GasTracker) -> T;
 
     /// Returns the gas premium paid by the currently executing message.
     fn gas_premium(&self) -> &TokenAmount;
@@ -140,9 +148,8 @@ pub trait CallManager: 'static {
     }
 
     /// Charge gas.
-    fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().apply_charge(charge)?;
-        Ok(())
+    fn charge_gas(&self, charge: GasCharge) -> Result<()> {
+        self.gas_tracker_mut(|gt| gt.apply_charge(charge))
     }
 
     /// Limit memory usage throughout a message execution.

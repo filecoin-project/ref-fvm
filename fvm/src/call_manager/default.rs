@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
@@ -35,7 +37,7 @@ pub struct InnerDefaultCallManager<M: Machine> {
     #[deref_mut]
     machine: M,
     /// The gas tracker.
-    gas_tracker: GasTracker,
+    gas_tracker: RefCell<GasTracker>,
     /// The gas premium paid by this message.
     gas_premium: TokenAmount,
     /// The ActorID and the address of the original sender of the chain message that initiated
@@ -100,7 +102,7 @@ where
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
-            gas_tracker,
+            gas_tracker: RefCell::new(gas_tracker),
             gas_premium,
             origin,
             origin_address,
@@ -195,11 +197,13 @@ where
         let InnerDefaultCallManager {
             machine,
             backtrace,
-            mut gas_tracker,
+            gas_tracker,
             mut exec_trace,
             events,
             ..
         } = *self.0.take().expect("call manager is poisoned");
+
+        let mut gas_tracker = gas_tracker.into_inner();
 
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
         let gas_used = gas_tracker.gas_used().max(Gas::zero()).round_up();
@@ -232,12 +236,18 @@ where
         &mut self.machine
     }
 
-    fn gas_tracker(&self) -> &GasTracker {
-        &self.gas_tracker
+    fn gas_tracker<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&GasTracker) -> T,
+    {
+        f(&self.gas_tracker.borrow())
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
+    fn gas_tracker_mut<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut GasTracker) -> T,
+    {
+        f(&mut self.gas_tracker.borrow_mut())
     }
 
     fn gas_premium(&self) -> &TokenAmount {
@@ -342,8 +352,12 @@ where
         // fine.
         let s = &mut **self;
 
-        s.exec_trace
-            .extend(s.gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
+        s.exec_trace.extend(
+            s.gas_tracker
+                .borrow_mut()
+                .drain_trace()
+                .map(ExecutionEvent::GasCharge),
+        );
 
         s.exec_trace.push(trace);
     }
