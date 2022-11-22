@@ -762,7 +762,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.call_manager.state_tree().get_actor(actor_id)? {
+        let (actor, is_new) = match self.call_manager.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act)
                 if self
@@ -786,19 +786,18 @@ where
                     .into());
                 }
                 act.code = code_id;
-                act
+                (act, false)
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => {
-                self.call_manager
-                    .charge_gas(self.call_manager.price_list().on_create_actor())?;
-                ActorState::new_empty(code_id, predictable_address)
-            }
+            None => (ActorState::new_empty(code_id, predictable_address), true),
         };
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_create_actor(is_new))?;
 
         self.call_manager
             .state_tree_mut()

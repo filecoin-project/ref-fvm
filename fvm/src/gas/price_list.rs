@@ -651,12 +651,13 @@ impl PriceList {
 
     /// Returns the gas required for creating an actor.
     #[inline]
-    pub fn on_create_actor(&self) -> GasCharge {
-        GasCharge::new(
-            "OnCreateActor",
-            self.create_actor_compute,
-            self.create_actor_storage * self.storage_gas_multiplier,
-        )
+    pub fn on_create_actor(&self, is_new: bool) -> GasCharge {
+        let storage_gas = if is_new {
+            self.create_actor_storage * self.storage_gas_multiplier
+        } else {
+            Gas::zero()
+        };
+        GasCharge::new("OnCreateActor", self.create_actor_compute, storage_gas)
     }
 
     /// Returns the gas required for deleting an actor.

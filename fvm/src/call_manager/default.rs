@@ -280,7 +280,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.machine.state_tree().get_actor(actor_id)? {
+        let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
                 if act.address.is_none() {
@@ -298,19 +298,16 @@ where
                     .into());
                 }
                 act.code = code_id;
-                act
+                (act, false)
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => {
-                self.charge_gas(self.price_list().on_create_actor())?;
-                ActorState::new_empty(code_id, predictable_address)
-            }
+            None => (ActorState::new_empty(code_id, predictable_address), true),
         };
-
+        self.charge_gas(self.price_list().on_create_actor(is_new))?;
         self.state_tree_mut().set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
         Ok(())
@@ -345,7 +342,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.price_list().on_create_actor())?;
+        self.charge_gas(self.price_list().on_create_actor(true))?;
 
         if addr.is_bls_zero_address() {
             return Err(
@@ -387,7 +384,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.price_list().on_create_actor())?;
+        self.charge_gas(self.price_list().on_create_actor(true))?;
 
         // Create the actor in the state tree, but don't call any constructor.
         let code_cid = self.builtin_actors().get_embryo_code();
