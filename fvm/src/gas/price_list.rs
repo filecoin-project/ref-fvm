@@ -893,6 +893,12 @@ impl PriceList {
         GasCharge::new("OnCurrentBalance", self.state_read_base, Zero::zero())
     }
 
+    /// Returns the gas required for resolving an actor address.
+    #[inline]
+    pub fn on_resolve_address(&self) -> GasCharge {
+        GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
+    }
+
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
         // FIP-0037: The first page is free.
