@@ -155,6 +155,7 @@ lazy_static! {
         event_per_byte_cost: Zero::zero(),
 
         state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -289,6 +290,7 @@ lazy_static! {
         event_per_byte_cost: Zero::zero(),
 
         state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -431,6 +433,7 @@ lazy_static! {
         event_per_byte_cost: Zero::zero(),
 
         state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
 
     };
 }
@@ -584,6 +587,8 @@ pub struct PriceList {
 
     /// Gas cost of looking up an actor in the common state tree.
     pub(crate) state_read_base: Gas,
+    /// Gas cost of storing an updated actor in the common state tree.
+    pub(crate) state_write_base: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -863,6 +868,20 @@ impl PriceList {
         // The cost varies depending on whether the data is cached, and how big the state tree is,
         // but that is independent of the contract in question. Might need periodic repricing.
         GasCharge::new("OnRoot", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for modifying the actor state root.
+    #[inline]
+    pub fn on_set_root(&self) -> GasCharge {
+        // The cost varies depending on whether the data is cached, and how big the state tree is,
+        // but that is independent of the contract in question. Might need periodic repricing.
+        // The modification needs a lookup first, then a deferred write via the snapshots,
+        // which might end up being amortized by having other writes buffered till the end.
+        GasCharge::new(
+            "OnSetRoot",
+            self.state_read_base + self.state_write_base,
+            Zero::zero(),
+        )
     }
 
     /// Returns the gas required for initializing memory.

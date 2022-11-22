@@ -149,6 +149,9 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_set_root())?;
+
         self.mutate_self(|actor_state| {
             actor_state.state = new;
             Ok(())
