@@ -259,7 +259,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         // First, find the end of the _logical_ buffer (taking the offset into account).
         // This must fit into an i32.
 
@@ -292,7 +292,7 @@ where
         Ok((data.len() as i32) - end)
     }
 
-    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
@@ -405,7 +405,7 @@ where
     C: CallManager,
 {
     fn verify_signature(
-        &mut self,
+        &self,
         sig_type: SignatureType,
         signature: &[u8],
         signer: &Address,
@@ -445,7 +445,7 @@ where
     }
 
     fn recover_secp_public_key(
-        &mut self,
+        &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -459,7 +459,7 @@ where
             })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
@@ -474,7 +474,7 @@ where
     }
 
     fn compute_unsealed_sector_cid(
-        &mut self,
+        &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
@@ -490,7 +490,7 @@ where
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
 
@@ -499,7 +499,7 @@ where
         catch_and_log_panic("verifying seal", || verify_seal(vi))
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
@@ -508,7 +508,7 @@ where
     }
 
     fn verify_consensus_fault(
-        &mut self,
+        &self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
@@ -527,7 +527,7 @@ where
         Ok(fault)
     }
 
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
@@ -569,10 +569,7 @@ where
         Ok(out)
     }
 
-    fn verify_aggregate_seals(
-        &mut self,
-        aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<bool> {
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -583,7 +580,7 @@ where
         })
     }
 
-    fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
+    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -607,7 +604,7 @@ where
         self.call_manager.gas_tracker(|gt| gt.gas_available())
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
         self.call_manager
             .gas_tracker_mut(|gt| gt.charge_gas(name, compute))
     }
@@ -664,7 +661,7 @@ where
     C: CallManager,
 {
     fn get_randomness_from_tickets(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -684,7 +681,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
