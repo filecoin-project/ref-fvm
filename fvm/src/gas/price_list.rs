@@ -158,6 +158,7 @@ lazy_static! {
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
         context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -295,6 +296,7 @@ lazy_static! {
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
         context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -440,6 +442,7 @@ lazy_static! {
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
         context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 }
 
@@ -607,6 +610,9 @@ pub struct PriceList {
 
     /// Gas cost of accessing the machine context.
     pub(crate) context_base: Gas,
+
+    /// Gas cost of compiling a Wasm module during install.
+    pub(crate) install_wasm_per_byte_cost: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -964,6 +970,16 @@ impl PriceList {
     #[inline]
     pub fn on_message_context(&self) -> GasCharge {
         GasCharge::new("OnMessageContext", self.context_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the message context.
+    #[cfg(feature = "m2-native")]
+    pub fn on_install_actor(&self, wasm_size: usize) -> GasCharge {
+        GasCharge::new(
+            "OnInstallActor",
+            self.install_wasm_per_byte_cost * (wasm_size as i64),
+            Zero::zero(),
+        )
     }
 
     /// Returns the gas required for initializing memory.

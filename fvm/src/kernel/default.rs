@@ -845,12 +845,17 @@ where
 
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
-        // TODO figure out gas
-        self.call_manager
+        let size = self
+            .call_manager
             .machine()
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
-            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
+            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())?;
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
+
+        Ok(())
     }
 
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
