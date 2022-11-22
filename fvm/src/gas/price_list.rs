@@ -925,6 +925,12 @@ impl PriceList {
         )
     }
 
+    /// Returns the gas required for looking up the CID of a builtin actor by type.
+    #[inline]
+    pub fn on_get_code_cid_for_type(&self) -> GasCharge {
+        GasCharge::new("OnGetCodeCidForType", self.builtin_actor_base, Zero::zero())
+    }
+
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
         // FIP-0037: The first page is free.

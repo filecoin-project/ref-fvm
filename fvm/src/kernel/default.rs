@@ -817,6 +817,9 @@ where
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
         self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_code_cid_for_type())?;
+
+        self.call_manager
             .machine()
             .builtin_actors()
             .code_by_id(typ)
