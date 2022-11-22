@@ -894,9 +894,19 @@ impl PriceList {
     }
 
     /// Returns the gas required for resolving an actor address.
+    ///
+    /// Might require lookup in the state tree as well as loading the state of the init actor.
     #[inline]
     pub fn on_resolve_address(&self) -> GasCharge {
         GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for getting the CID of the code of an actor.
+    ///
+    /// Might require looking up the actor in the state tree.
+    #[inline]
+    pub fn on_get_actor_code_cid(&self) -> GasCharge {
+        GasCharge::new("OnGetActorCodeCid", self.state_read_base, Zero::zero())
     }
 
     /// Returns the gas required for initializing memory.

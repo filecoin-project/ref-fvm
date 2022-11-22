@@ -714,6 +714,9 @@ where
     C: CallManager,
 {
     fn resolve_address(&self, address: &Address) -> Result<ActorID> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_resolve_address())?;
+
         Ok(self
             .call_manager
             .state_tree()
@@ -722,6 +725,9 @@ where
     }
 
     fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_actor_code_cid())?;
+
         Ok(self
             .call_manager
             .state_tree()
