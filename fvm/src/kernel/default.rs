@@ -915,8 +915,9 @@ where
                 log::error!("failed to make directory to store debug artifacts {}", e);
             } else if let Err(e) = std::fs::write(dir.join(name), data) {
                 log::error!("failed to store debug artifact {}", e)
+            } else {
+                log::info!("wrote artifact: {} to {:?}", name, dir);
             }
-            log::info!("wrote artifact: {} to {:?}", name, dir);
         } else {
             log::error!(
                 "store_artifact was ignored, env var {} was not set",
