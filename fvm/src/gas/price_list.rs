@@ -157,6 +157,7 @@ lazy_static! {
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -293,6 +294,7 @@ lazy_static! {
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -437,6 +439,7 @@ lazy_static! {
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
         builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
     };
 }
 
@@ -601,6 +604,9 @@ pub struct PriceList {
 
     /// Gas cost of doing lookups in the builtin actor mappings.
     pub(crate) builtin_actor_base: Gas,
+
+    /// Gas cost of accessing the machine context.
+    pub(crate) context_base: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -946,6 +952,12 @@ impl PriceList {
     #[inline]
     pub fn on_get_code_cid_for_type(&self) -> GasCharge {
         GasCharge::new("OnGetCodeCidForType", self.builtin_actor_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the network context.
+    #[inline]
+    pub fn on_network_context(&self) -> GasCharge {
+        GasCharge::new("OnNetworkContext", self.context_base, Zero::zero())
     }
 
     /// Returns the gas required for initializing memory.

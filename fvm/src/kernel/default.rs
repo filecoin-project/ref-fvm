@@ -638,7 +638,9 @@ where
     C: CallManager,
 {
     fn network_context(&self) -> Result<NetworkContext> {
-        // TODO: charge gas.
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_network_context())?;
+
         let MachineContext {
             epoch,
             timestamp,
