@@ -134,13 +134,18 @@ impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&self) -> Result<Cid> {
+    fn root(&mut self) -> Result<Cid> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_root())?;
+
         // This can fail during normal operations if the actor has been deleted.
-        Ok(self
+        let cid = self
             .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
-            .state)
+            .state;
+
+        Ok(cid)
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {

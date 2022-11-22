@@ -153,6 +153,8 @@ lazy_static! {
         event_per_entry_cost: Zero::zero(),
         event_entry_index_cost: Zero::zero(),
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -285,6 +287,8 @@ lazy_static! {
         event_per_entry_cost: Zero::zero(),
         event_entry_index_cost: Zero::zero(),
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -425,6 +429,9 @@ lazy_static! {
         event_entry_index_cost: Zero::zero(),
         // TODO GAS_PARAM
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
+
     };
 }
 
@@ -574,6 +581,9 @@ pub struct PriceList {
     pub(crate) event_per_entry_cost: Gas,
     pub(crate) event_entry_index_cost: Gas,
     pub(crate) event_per_byte_cost: Gas,
+
+    /// Gas cost of looking up an actor in the common state tree.
+    pub(crate) state_read_base: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -845,6 +855,14 @@ impl PriceList {
     #[inline]
     pub fn on_block_stat(&self) -> GasCharge {
         GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the actor state root.
+    #[inline]
+    pub fn on_root(&self) -> GasCharge {
+        // The cost varies depending on whether the data is cached, and how big the state tree is,
+        // but that is independent of the contract in question. Might need periodic repricing.
+        GasCharge::new("OnRoot", self.state_read_base, Zero::zero())
     }
 
     /// Returns the gas required for initializing memory.

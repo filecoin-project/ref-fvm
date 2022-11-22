@@ -146,7 +146,7 @@ pub trait IpldBlockOps {
 /// Depends on BlockOps to read and write blocks in the state tree.
 pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
-    fn root(&self) -> Result<Cid>;
+    fn root(&mut self) -> Result<Cid>;
 
     /// Update the state-root.
     ///
