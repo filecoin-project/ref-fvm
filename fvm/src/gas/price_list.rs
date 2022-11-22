@@ -156,6 +156,7 @@ lazy_static! {
 
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
+        builtin_actor_base: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -291,6 +292,7 @@ lazy_static! {
 
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
+        builtin_actor_base: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -434,7 +436,7 @@ lazy_static! {
 
         state_read_base: Zero::zero(),
         state_write_base: Zero::zero(),
-
+        builtin_actor_base: Zero::zero(),
     };
 }
 
@@ -596,6 +598,9 @@ pub struct PriceList {
     /// The cost varies depending on how big the state tree is, and how many other writes will be
     /// buffered together by the end of the calls when changes are flushed. Might need periodic repricing.
     pub(crate) state_write_base: Gas,
+
+    /// Gas cost of doing lookups in the builtin actor mappings.
+    pub(crate) builtin_actor_base: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -908,6 +913,16 @@ impl PriceList {
     #[inline]
     pub fn on_get_actor_code_cid(&self) -> GasCharge {
         GasCharge::new("OnGetActorCodeCid", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for looking up the type of a builtin actor by CID.
+    #[inline]
+    pub fn on_get_builtin_actor_type(&self) -> GasCharge {
+        GasCharge::new(
+            "OnGetBuiltinActorType",
+            self.builtin_actor_base,
+            Zero::zero(),
+        )
     }
 
     /// Returns the gas required for initializing memory.

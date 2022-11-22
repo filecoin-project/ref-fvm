@@ -804,11 +804,15 @@ where
             .set_actor(actor_id, actor)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_builtin_actor_type())?;
+
+        Ok(self
+            .call_manager
             .machine()
             .builtin_actors()
-            .id_by_code(code_cid)
+            .id_by_code(code_cid))
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {

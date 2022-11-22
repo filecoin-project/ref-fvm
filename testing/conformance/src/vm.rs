@@ -443,7 +443,7 @@ where
         self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
 
