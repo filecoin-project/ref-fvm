@@ -960,6 +960,12 @@ impl PriceList {
         GasCharge::new("OnNetworkContext", self.context_base, Zero::zero())
     }
 
+    /// Returns the gas required for accessing the message context.
+    #[inline]
+    pub fn on_message_context(&self) -> GasCharge {
+        GasCharge::new("OnMessageContext", self.context_base, Zero::zero())
+    }
+
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
         // FIP-0037: The first page is free.

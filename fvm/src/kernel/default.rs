@@ -316,7 +316,9 @@ where
     C: CallManager,
 {
     fn msg_context(&self) -> Result<MessageContext> {
-        // TODO: charge gas.
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_message_context())?;
+
         Ok(MessageContext {
             caller: self.caller,
             origin: self.call_manager.origin(),
