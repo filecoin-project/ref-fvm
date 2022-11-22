@@ -677,7 +677,7 @@ impl PriceList {
 
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge {
+    pub fn on_verify_signature(&self, sig_type: SignatureType, _data_len: usize) -> GasCharge {
         let val = match sig_type {
             SignatureType::BLS => self.bls_sig_cost,
             SignatureType::Secp256k1 => self.secp256k1_sig_cost,
@@ -697,7 +697,7 @@ impl PriceList {
 
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _: usize) -> GasCharge {
+    pub fn on_hashing(&self, _data_len: usize) -> GasCharge {
         GasCharge::new("OnHashing", self.hashing_base, Zero::zero())
     }
 

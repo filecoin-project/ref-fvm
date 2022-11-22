@@ -420,8 +420,11 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_verify_signature(sig_type, plaintext.len()),
+        )?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = match signer.payload() {
