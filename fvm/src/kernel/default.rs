@@ -544,6 +544,10 @@ where
     }
 
     fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+        for vi in vis {
+            self.call_manager
+                .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
+        }
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
