@@ -158,7 +158,10 @@ where
         })
     }
 
-    fn current_balance(&self) -> Result<TokenAmount> {
+    fn current_balance(&mut self) -> Result<TokenAmount> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_current_balance())?;
+
         // If the actor doesn't exist, it has zero balance.
         Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default())
     }

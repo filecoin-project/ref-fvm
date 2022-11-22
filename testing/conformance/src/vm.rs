@@ -700,7 +700,7 @@ where
         self.0.set_root(root)
     }
 
-    fn current_balance(&self) -> Result<TokenAmount> {
+    fn current_balance(&mut self) -> Result<TokenAmount> {
         self.0.current_balance()
     }
 

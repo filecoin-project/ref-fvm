@@ -586,8 +586,15 @@ pub struct PriceList {
     pub(crate) event_per_byte_cost: Gas,
 
     /// Gas cost of looking up an actor in the common state tree.
+    ///
+    /// The cost varies depending on whether the data is cached, and how big the state tree is,
+    /// but that is independent of the contract in question. Might need periodic repricing.
     pub(crate) state_read_base: Gas,
+
     /// Gas cost of storing an updated actor in the common state tree.
+    ///
+    /// The cost varies depending on how big the state tree is, and how many other writes will be
+    /// buffered together by the end of the calls when changes are flushed. Might need periodic repricing.
     pub(crate) state_write_base: Gas,
 }
 
@@ -865,16 +872,12 @@ impl PriceList {
     /// Returns the gas required for accessing the actor state root.
     #[inline]
     pub fn on_root(&self) -> GasCharge {
-        // The cost varies depending on whether the data is cached, and how big the state tree is,
-        // but that is independent of the contract in question. Might need periodic repricing.
         GasCharge::new("OnRoot", self.state_read_base, Zero::zero())
     }
 
     /// Returns the gas required for modifying the actor state root.
     #[inline]
     pub fn on_set_root(&self) -> GasCharge {
-        // The cost varies depending on whether the data is cached, and how big the state tree is,
-        // but that is independent of the contract in question. Might need periodic repricing.
         // The modification needs a lookup first, then a deferred write via the snapshots,
         // which might end up being amortized by having other writes buffered till the end.
         GasCharge::new(
@@ -882,6 +885,12 @@ impl PriceList {
             self.state_read_base + self.state_write_base,
             Zero::zero(),
         )
+    }
+
+    /// Returns the gas required for accessing the current balance.
+    #[inline]
+    pub fn on_current_balance(&self) -> GasCharge {
+        GasCharge::new("OnCurrentBalance", self.state_read_base, Zero::zero())
     }
 
     /// Returns the gas required for initializing memory.
