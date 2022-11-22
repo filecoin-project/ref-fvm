@@ -146,7 +146,7 @@ pub trait IpldBlockOps {
 /// Depends on BlockOps to read and write blocks in the state tree.
 pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
-    fn root(&mut self) -> Result<Cid>;
+    fn root(&self) -> Result<Cid>;
 
     /// Update the state-root.
     ///
@@ -154,7 +154,7 @@ pub trait SelfOps: IpldBlockOps {
     fn set_root(&mut self, root: Cid) -> Result<()>;
 
     /// The balance of the receiver.
-    fn current_balance(&mut self) -> Result<TokenAmount>;
+    fn current_balance(&self) -> Result<TokenAmount>;
 
     /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
     /// Aborts if the beneficiary does not exist.

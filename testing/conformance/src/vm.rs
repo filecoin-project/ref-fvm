@@ -692,7 +692,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn root(&mut self) -> Result<Cid> {
+    fn root(&self) -> Result<Cid> {
         self.0.root()
     }
 
@@ -700,7 +700,7 @@ where
         self.0.set_root(root)
     }
 
-    fn current_balance(&mut self) -> Result<TokenAmount> {
+    fn current_balance(&self) -> Result<TokenAmount> {
         self.0.current_balance()
     }
 

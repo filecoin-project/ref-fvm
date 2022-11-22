@@ -134,7 +134,7 @@ impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&mut self) -> Result<Cid> {
+    fn root(&self) -> Result<Cid> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_root())?;
 
@@ -158,7 +158,7 @@ where
         })
     }
 
-    fn current_balance(&mut self) -> Result<TokenAmount> {
+    fn current_balance(&self) -> Result<TokenAmount> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_current_balance())?;
 
