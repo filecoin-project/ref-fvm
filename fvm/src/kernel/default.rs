@@ -526,7 +526,11 @@ where
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
+            .charge_gas(self.call_manager.price_list().on_verify_consensus_fault(
+                h1.len(),
+                h2.len(),
+                extra.len(),
+            ))?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.

@@ -787,7 +787,12 @@ impl PriceList {
 
     /// Returns gas required for verifying consensus fault.
     #[inline]
-    pub fn on_verify_consensus_fault(&self) -> GasCharge {
+    pub fn on_verify_consensus_fault(
+        &self,
+        _h1_len: usize,
+        _h2_len: usize,
+        _extra_len: usize,
+    ) -> GasCharge {
         GasCharge::new(
             "OnVerifyConsensusFault",
             self.extern_cost + self.verify_consensus_fault,

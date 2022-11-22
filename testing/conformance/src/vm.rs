@@ -567,11 +567,14 @@ where
     // NOT forwarded
     fn verify_consensus_fault(
         &self,
-        _h1: &[u8],
-        _h2: &[u8],
-        _extra: &[u8],
+        h1: &[u8],
+        h2: &[u8],
+        extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        let charge = self.1.price_list.on_verify_consensus_fault();
+        let charge = self
+            .1
+            .price_list
+            .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
