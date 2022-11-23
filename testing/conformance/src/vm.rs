@@ -299,10 +299,6 @@ where
         self.0.gas_tracker()
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        self.0.gas_tracker_mut()
-    }
-
     fn gas_premium(&self) -> &TokenAmount {
         self.0.gas_premium()
     }
@@ -352,7 +348,7 @@ where
         self.0.state_tree_mut()
     }
 
-    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
     }
 
@@ -487,11 +483,11 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         self.0.block_read(id, offset, buf)
     }
 
-    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
     }
 }
@@ -515,13 +511,13 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.0.hash(code, data)
     }
 
     // forwarded
     fn compute_unsealed_sector_cid(
-        &mut self,
+        &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
@@ -530,7 +526,7 @@ where
 
     // forwarded
     fn verify_signature(
-        &mut self,
+        &self,
         sig_type: SignatureType,
         signature: &[u8],
         signer: &Address,
@@ -542,7 +538,7 @@ where
 
     // forwarded
     fn recover_secp_public_key(
-        &mut self,
+        &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -550,19 +546,19 @@ where
     }
 
     // NOT forwarded
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         Ok(vec![true; vis.len()])
     }
 
     // NOT forwarded
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
-    fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
@@ -570,7 +566,7 @@ where
 
     // NOT forwarded
     fn verify_consensus_fault(
-        &mut self,
+        &self,
         _h1: &[u8],
         _h2: &[u8],
         _extra: &[u8],
@@ -581,14 +577,14 @@ where
     }
 
     // NOT forwarded
-    fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
+    fn verify_aggregate_seals(&self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
-    fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
+    fn verify_replica_update(&self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
@@ -624,7 +620,7 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
         self.0.charge_gas(name, compute)
     }
 
@@ -670,7 +666,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     fn get_randomness_from_tickets(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -680,7 +676,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],

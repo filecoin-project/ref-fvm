@@ -244,7 +244,7 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
@@ -294,7 +294,7 @@ impl CallManager for DummyCallManager {
         let limits = machine.new_limiter();
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
             gas_premium,
             origin,
             origin_address,
@@ -351,13 +351,9 @@ impl CallManager for DummyCallManager {
         &self.borrow().gas_tracker
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
-    }
-
-    fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
+    fn charge_gas(&self, charge: GasCharge) -> kernel::Result<()> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
-        self.gas_tracker_mut().apply_charge(charge)
+        self.gas_tracker().apply_charge(charge)
     }
 
     fn origin(&self) -> ActorID {

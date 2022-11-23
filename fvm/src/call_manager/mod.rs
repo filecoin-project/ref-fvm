@@ -77,10 +77,8 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
-    /// Returns reference to the gas tracker.
+    /// Returns a reference to the gas tracker.
     fn gas_tracker(&self) -> &GasTracker;
-    /// Returns a mutable reference to the gas tracker.
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
     /// Returns the gas premium paid by the currently executing message.
     fn gas_premium(&self) -> &TokenAmount;
@@ -140,8 +138,8 @@ pub trait CallManager: 'static {
     }
 
     /// Charge gas.
-    fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().apply_charge(charge)?;
+    fn charge_gas(&self, charge: GasCharge) -> Result<()> {
+        self.gas_tracker().apply_charge(charge)?;
         Ok(())
     }
 
