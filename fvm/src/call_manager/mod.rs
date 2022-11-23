@@ -66,6 +66,7 @@ pub trait CallManager: 'static {
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 

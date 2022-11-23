@@ -168,10 +168,11 @@ where
 
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction();
-        self.events.create_layer();
+        self.state_tree_mut().begin_transaction(read_only);
+        self.events.create_layer(read_only);
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
@@ -715,32 +716,52 @@ where
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
+    read_only_layers: u32,
 }
 
 impl EventsAccumulator {
-    fn append_event(&mut self, evt: StampedEvent) {
-        self.events.push(evt)
+    fn is_read_only(&self) -> bool {
+        self.read_only_layers > 0
     }
 
-    fn create_layer(&mut self) {
-        self.idxs.push(self.events.len());
+    fn append_event(&mut self, evt: StampedEvent) {
+        if !self.is_read_only() {
+            self.events.push(evt)
+        }
+    }
+
+    fn create_layer(&mut self, read_only: bool) {
+        if read_only || self.is_read_only() {
+            self.read_only_layers += 1;
+        } else {
+            self.idxs.push(self.events.len());
+        }
     }
 
     fn merge_last_layer(&mut self) -> Result<()> {
-        self.idxs.pop().map(|_| {}).ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling merge_last_layer"
-            ))
-        })
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+            Ok(())
+        } else {
+            self.idxs.pop().map(|_| {}).ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling merge_last_layer"
+                ))
+            })
+        }
     }
 
     fn discard_last_layer(&mut self) -> Result<()> {
-        let idx = self.idxs.pop().ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling discard_last_layer"
-            ))
-        })?;
-        self.events.truncate(idx);
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+        } else {
+            let idx = self.idxs.pop().ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling discard_last_layer"
+                ))
+            })?;
+            self.events.truncate(idx);
+        }
         Ok(())
     }
 

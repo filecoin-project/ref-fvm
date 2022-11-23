@@ -147,6 +147,8 @@ pub enum ErrorNumber {
     Forbidden = 11,
     /// The passed buffer is too small.
     BufferTooSmall = 12,
+    /// The actor is executing in a read-only context.
+    ReadOnly = 13,
 }
 
 impl std::fmt::Display for ErrorNumber {
@@ -165,6 +167,7 @@ impl std::fmt::Display for ErrorNumber {
             Serialization => "serialization error",
             Forbidden => "operation forbidden",
             BufferTooSmall => "buffer too small",
+            ReadOnly => "execution context is read-only",
         })
     }
 }

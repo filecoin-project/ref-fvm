@@ -336,6 +336,7 @@ where
         method: MethodNum,
         params_id: BlockId,
         value: &TokenAmount,
+        flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
 
@@ -354,7 +355,9 @@ where
         // Send.
         let result = self
             .call_manager
-            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))?;
+            .with_transaction(flags.read_only(), |cm| {
+                cm.send::<Self>(from, *recipient, method, params, value)
+            })?;
 
         // Store result and return.
         Ok(match result {
