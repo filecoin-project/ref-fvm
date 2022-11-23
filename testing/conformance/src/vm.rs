@@ -299,10 +299,6 @@ where
         self.0.gas_tracker()
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        self.0.gas_tracker_mut()
-    }
-
     fn gas_premium(&self) -> &TokenAmount {
         self.0.gas_premium()
     }
@@ -352,7 +348,7 @@ where
         self.0.state_tree_mut()
     }
 
-    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
     }
 
@@ -624,7 +620,7 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
         self.0.charge_gas(name, compute)
     }
 

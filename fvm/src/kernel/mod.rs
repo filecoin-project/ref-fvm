@@ -239,7 +239,7 @@ pub trait GasOps {
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point.
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()>;
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()>;
 
     /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;

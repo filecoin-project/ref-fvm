@@ -351,13 +351,9 @@ impl CallManager for DummyCallManager {
         &self.borrow().gas_tracker
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
-    }
-
-    fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
+    fn charge_gas(&self, charge: GasCharge) -> kernel::Result<()> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
-        self.gas_tracker_mut().apply_charge(charge)
+        self.gas_tracker().apply_charge(charge)
     }
 
     fn origin(&self) -> ActorID {

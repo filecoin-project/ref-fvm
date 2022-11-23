@@ -92,11 +92,8 @@ where
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
-
-        if machine.context().tracing {
-            gas_tracker.enable_tracing()
-        }
+        let gas_tracker =
+            GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
@@ -195,7 +192,7 @@ where
         let InnerDefaultCallManager {
             machine,
             backtrace,
-            mut gas_tracker,
+            gas_tracker,
             mut exec_trace,
             events,
             ..
@@ -234,10 +231,6 @@ where
 
     fn gas_tracker(&self) -> &GasTracker {
         &self.gas_tracker
-    }
-
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
     }
 
     fn gas_premium(&self) -> &TokenAmount {
