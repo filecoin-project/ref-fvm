@@ -145,22 +145,22 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
 
     for m in &vector.apply_messages {
         let msg = Message::unmarshal_cbor(&m.bytes)?;
-        let actual_actor = actual_st.get_actor(&msg.from)?;
-        let expected_actor = expected_st.get_actor(&msg.from)?;
+        let actual_actor = actual_st.get_actor_by_address(&msg.from)?;
+        let expected_actor = expected_st.get_actor_by_address(&msg.from)?;
         compare_actors(bs, "sender", actual_actor, expected_actor)?;
 
-        let actual_actor = actual_st.get_actor(&msg.to)?;
-        let expected_actor = expected_st.get_actor(&msg.to)?;
+        let actual_actor = actual_st.get_actor_by_address(&msg.to)?;
+        let expected_actor = expected_st.get_actor_by_address(&msg.to)?;
         compare_actors(bs, "receiver", actual_actor, expected_actor)?;
     }
 
     // All system actors
     for id in 0..100 {
-        let expected_actor = match expected_st.get_actor_id(id) {
+        let expected_actor = match expected_st.get_actor(id) {
             Ok(act) => act,
             Err(_) => continue, // we don't expect it anyways.
         };
-        let actual_actor = actual_st.get_actor_id(id)?;
+        let actual_actor = actual_st.get_actor(id)?;
         compare_actors(
             bs,
             format_args!("builtin {}", id),

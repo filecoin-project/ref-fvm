@@ -5,7 +5,7 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use fvm_shared::address::Address;
+use fvm_shared::ActorID;
 use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
@@ -44,7 +44,7 @@ pub fn set_sys_actor(
         address: None,
     };
     state_tree
-        .set_actor(&system_actor::SYSTEM_ACTOR_ADDR, sys_actor_state)
+        .set_actor(system_actor::SYSTEM_ACTOR_ID, sys_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("system actor".to_owned()))
 }
@@ -68,13 +68,13 @@ pub fn set_init_actor(
     };
 
     state_tree
-        .set_actor(&init_actor::INIT_ACTOR_ADDR, init_actor_state)
+        .set_actor(init_actor::INIT_ACTOR_ID, init_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("init actor".to_owned()))
 }
 
 pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: Cid) -> Result<()> {
-    const EAM_ACTOR_ADDR: Address = Address::new_id(10);
+    const EAM_ACTOR_ID: ActorID = 10;
 
     let eam_state_cid = state_tree
         .store()
@@ -90,7 +90,7 @@ pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: 
     };
 
     state_tree
-        .set_actor(&EAM_ACTOR_ADDR, eam_actor_state)
+        .set_actor(EAM_ACTOR_ID, eam_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("eam actor".to_owned()))
 }

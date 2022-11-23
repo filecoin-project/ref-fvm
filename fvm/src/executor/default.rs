@@ -4,7 +4,6 @@ use std::result::Result as StdResult;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::address::Address;
 #[cfg(feature = "f4-as-account")]
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
@@ -19,7 +18,7 @@ use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
-use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
+use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::trace::ExecutionTrace;
 
 /// The default [`Executor`].
@@ -221,9 +220,15 @@ where
         };
 
         match apply_kind {
-            ApplyKind::Explicit => {
-                self.finish_message(msg, receipt, failure_info, gas_cost, exec_trace, events)
-            }
+            ApplyKind::Explicit => self.finish_message(
+                sender_id,
+                msg,
+                receipt,
+                failure_info,
+                gas_cost,
+                exec_trace,
+                events,
+            ),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
                 penalty: TokenAmount::zero(),
@@ -324,7 +329,7 @@ where
 
         let sender = match self
             .state_tree()
-            .get_actor(&Address::new_id(sender_id))
+            .get_actor(sender_id)
             .with_context(|| format!("failed to lookup actor {}", &msg.from))?
         {
             Some(act) => act,
@@ -383,7 +388,7 @@ where
         }
 
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree_mut().mutate_actor_id(sender_id, |act| {
+        self.state_tree_mut().mutate_actor(sender_id, |act| {
             act.deduct_funds(&gas_cost)?;
             act.sequence += 1;
             Ok(())
@@ -392,8 +397,10 @@ where
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn finish_message(
         &mut self,
+        sender_id: ActorID,
         msg: Message,
         receipt: Receipt,
         failure_info: Option<ApplyFailure>,
@@ -418,7 +425,7 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
+        let mut transfer_to_actor = |addr: ActorID, amt: &TokenAmount| -> anyhow::Result<()> {
             if amt.is_negative() {
                 return Err(anyhow!("attempted to transfer negative value into actor"));
             }
@@ -435,14 +442,14 @@ where
             Ok(())
         };
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;
 
-        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(REWARD_ACTOR_ID, &miner_tip)?;
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &over_estimation_burn)?;
 
         // refund unused gas
-        transfer_to_actor(&msg.from, &refund)?;
+        transfer_to_actor(sender_id, &refund)?;
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.

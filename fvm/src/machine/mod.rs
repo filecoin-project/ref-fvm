@@ -32,10 +32,10 @@ use self::limiter::ExecMemory;
 
 mod boxed;
 
-pub const REWARD_ACTOR_ADDR: Address = Address::new_id(2);
+pub const REWARD_ACTOR_ID: ActorID = 2;
 
 /// Distinguished Account actor that is the destination of all burnt funds.
-pub const BURNT_FUNDS_ACTOR_ADDR: Address = Address::new_id(99);
+pub const BURNT_FUNDS_ACTOR_ID: ActorID = 99;
 
 /// The Machine is the top-level object of the FVM.
 ///

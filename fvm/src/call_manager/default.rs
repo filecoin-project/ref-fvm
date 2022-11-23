@@ -280,7 +280,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.machine.state_tree().get_actor_id(actor_id)? {
+        let actor = match self.machine.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
                 if act.address.is_none() {
@@ -311,7 +311,7 @@ where
             }
         };
 
-        self.state_tree_mut().set_actor_id(actor_id, actor)?;
+        self.state_tree_mut().set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
         Ok(())
     }
@@ -419,7 +419,7 @@ where
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da)
-                    if self.state_tree().get_actor_id(da.namespace())?.is_some() =>
+                    if self.state_tree().get_actor(da.namespace())?.is_some() =>
                 {
                     self.create_embryo_actor::<K>(&to)?
                 }
@@ -447,7 +447,7 @@ where
         // Lookup the actor.
         let state = self
             .state_tree()
-            .get_actor_id(to)?
+            .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
