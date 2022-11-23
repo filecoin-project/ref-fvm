@@ -244,7 +244,7 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
@@ -294,7 +294,7 @@ impl CallManager for DummyCallManager {
         let limits = machine.new_limiter();
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0)),
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
             gas_premium,
             origin,
             origin_address,

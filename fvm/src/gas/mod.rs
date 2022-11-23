@@ -248,7 +248,7 @@ mod tests {
     #[test]
     #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
-        let mut t = GasTracker::new(Gas::new(20), Gas::new(10));
+        let t = GasTracker::new(Gas::new(20), Gas::new(10), false);
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(15));
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
