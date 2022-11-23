@@ -106,7 +106,7 @@ where
     fn get_self(&self) -> Result<Option<ActorState>> {
         self.call_manager
             .state_tree()
-            .get_actor_id(self.actor_id)
+            .get_actor(self.actor_id)
             .or_fatal()
             .context("error when finding current actor")
     }
@@ -182,7 +182,7 @@ where
         // Delete the executing actor
         self.call_manager
             .state_tree_mut()
-            .delete_actor_id(self.actor_id)
+            .delete_actor(self.actor_id)
     }
 }
 
@@ -719,7 +719,7 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(id)
+            .get_actor(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
@@ -750,7 +750,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.call_manager.state_tree().get_actor_id(actor_id)? {
+        let actor = match self.call_manager.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act)
                 if self
@@ -790,7 +790,7 @@ where
 
         self.call_manager
             .state_tree_mut()
-            .set_actor_id(actor_id, actor)
+            .set_actor(actor_id, actor)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
@@ -824,7 +824,7 @@ where
         let balance = self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)
+            .get_actor(actor_id)
             .context("cannot find actor")?
             .map(|a| a.balance)
             .unwrap_or_default();
@@ -835,7 +835,7 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)?
+            .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .address)
     }

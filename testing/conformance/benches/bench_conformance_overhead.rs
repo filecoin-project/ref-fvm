@@ -4,10 +4,11 @@ use std::path::Path;
 use std::time::Duration;
 
 use criterion::*;
-use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ADDR};
+use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ID};
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
 use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use num_traits::Zero;
@@ -50,8 +51,8 @@ fn bench_500_simple_state_access(
         .map(|i| ApplyMessage {
             bytes: Message {
                 version: 0,
-                from: BURNT_FUNDS_ACTOR_ADDR,
-                to: BURNT_FUNDS_ACTOR_ADDR,
+                from: Address::new_id(BURNT_FUNDS_ACTOR_ID),
+                to: Address::new_id(BURNT_FUNDS_ACTOR_ID),
                 sequence: i,
                 value: TokenAmount::zero(),
                 method_num: 2,
