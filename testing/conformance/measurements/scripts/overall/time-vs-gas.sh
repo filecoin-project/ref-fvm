@@ -5,11 +5,12 @@ set -e
 # Overall traces file.
 TRACES=$1
 OUT_DIR=$2
+
+mkdir -p $OUT_DIR
+
 DAT_FILE=$OUT_DIR/$(basename $TRACES .jsonline).dat
 PNG_FILE=$OUT_DIR/$(basename $0 .sh).png
 PLT_FILE=$(dirname $0)/$(basename $0 .sh).plt
-
-rm -f $DAT_FILE
 
 cat $TRACES \
   | jq -r "[.elapsed_nanos, .gas_burned] | @tsv" \

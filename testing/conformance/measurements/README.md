@@ -24,3 +24,13 @@ After this the TRACES_DIR directory will contain:
 
 * A `traces.jsonline` file containing one line per successful test message, with each line pointing at detailed traces just for that particular message, and containing the overall gas charge and execution time.
 * A mirror of the structure of the `VECTOR` directory, with each message in the successful test vector having a separate file containing the `GasCharge` records collected during the execution.
+
+
+## Visualization
+
+You can use the `Makefile` to produce charts in the `./out` directory. It assumes the traces are in `../traces`.
+
+```shale
+make prepare
+make visualize
+```
