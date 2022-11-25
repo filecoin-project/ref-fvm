@@ -17,6 +17,7 @@ pub fn send(
     method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
+    gas_limit: Option<u64>,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
     let value: fvm_shared::sys::TokenAmount = value
@@ -44,6 +45,7 @@ pub fn send(
             params_id,
             value.hi,
             value.lo,
+            gas_limit.unwrap_or_default(),
         )?;
 
         // Process the result.

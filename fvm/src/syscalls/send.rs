@@ -3,6 +3,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys;
 
 use super::Context;
+use crate::gas::Gas;
 use crate::kernel::{Result, SendResult};
 use crate::Kernel;
 
@@ -16,16 +17,20 @@ pub fn send(
     params_id: u32,
     value_hi: u64,
     value_lo: u64,
+    gas_limit: u64,
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
+    let gas_limit = (gas_limit > 0).then(|| Gas::new(gas_limit as i64));
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
     let SendResult {
         block_id,
         block_stat,
         exit_code,
-    } = context.kernel.send(&recipient, method, params_id, &value)?;
+    } = context
+        .kernel
+        .send(&recipient, method, params_id, &value, gas_limit)?;
     Ok(sys::out::send::Send {
         exit_code: exit_code.value(),
         return_id: block_id,

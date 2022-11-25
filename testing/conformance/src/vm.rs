@@ -721,8 +721,9 @@ where
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<SendResult> {
-        self.0.send(recipient, method, params, value)
+        self.0.send(recipient, method, params, value, gas_limit)
     }
 }
 

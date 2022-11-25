@@ -213,6 +213,7 @@ pub trait SendOps {
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<SendResult>;
 }
 

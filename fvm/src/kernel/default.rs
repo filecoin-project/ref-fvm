@@ -336,6 +336,7 @@ where
         method: MethodNum,
         params_id: BlockId,
         value: &TokenAmount,
+        _gas_limit: Option<Gas>,
     ) -> Result<SendResult> {
         let from = self.actor_id;
 
