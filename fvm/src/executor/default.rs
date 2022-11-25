@@ -100,7 +100,8 @@ where
 
             let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
+                let ret =
+                    cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
 
                 // Charge for including the result (before we end the transaction).
                 if let Some(value) = &ret.value {

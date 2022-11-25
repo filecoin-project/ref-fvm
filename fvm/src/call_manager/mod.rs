@@ -4,7 +4,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::gas::{GasCharge, GasTracker, PriceList};
+use crate::gas::{Gas, GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
@@ -61,6 +61,7 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: Option<kernel::Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.

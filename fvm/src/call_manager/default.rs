@@ -1,3 +1,5 @@
+use std::mem;
+
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
@@ -123,6 +125,7 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -140,8 +143,9 @@ where
             });
         }
 
-        let result =
-            self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
+        let result = self.with_stack_frame(|s| {
+            s.send_unchecked::<K>(from, to, method, params, value, gas_limit)
+        });
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -404,6 +408,7 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -427,9 +432,34 @@ where
             },
         };
 
-        // Do the actual send.
+        // TODO should we deduct the method invocation gas from the supplied gas_limit?
+        //  Assuming yes -- this happens inside send_resolved.
 
-        self.send_resolved::<K>(from, to, method, params, value)
+        // If a specific gas limit has been requested, create a child GasTracker and use that
+        // one hereon.
+        let prev_gas_tracker = gas_limit
+            .filter(|gas_limit| gas_limit < &self.gas_tracker.gas_available())
+            .map(|gas_limit| {
+                let gas_used = self.gas_tracker.gas_used();
+                let tracing = self.machine.context().tracing;
+                let new = GasTracker::new(gas_limit, gas_used, tracing);
+                mem::replace(&mut self.gas_tracker, new)
+            });
+
+        // Do the actual send.
+        let ret = self.send_resolved::<K>(from, to, method, params, value);
+
+        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
+        if let Some(prev) = prev_gas_tracker {
+            let other = mem::replace(&mut self.gas_tracker, prev);
+            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
+            // would've already raised it, so we ignore it here. We could check and assert that's
+            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
+            // not safe to do so.
+            let _ = self.gas_tracker.absorb(&other);
+        }
+
+        ret
     }
 
     /// Send with resolved addresses.
@@ -674,7 +704,7 @@ where
     where
         F: FnOnce(&mut Self) -> Result<V>,
     {
-        // We check _then_ set because we don't count the top call. This effectivly allows a
+        // We check _then_ set because we don't count the top call. This effectively allows a
         // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
         // likely a bug, this is how NV15 behaves so we mimic that behavior here.
         //
