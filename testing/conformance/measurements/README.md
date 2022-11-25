@@ -13,6 +13,7 @@ cd testing/conformance/
 mkdir traces
 rm -rf traces/*
 TRACE_DIR=traces \
+  PRICE_NETWORK_VERSION=16 \
   TEST_VECTOR_POSTCONDITION_MISSING_ACTION=ignore \
   VECTOR=test-vectors/corpus \
   cargo test --release conformance -- --nocapture
@@ -30,7 +31,6 @@ After this the TRACES_DIR directory will contain:
 
 You can use the `Makefile` to produce charts in the `./out` directory. It assumes the traces are in `../traces`.
 
-```shale
-make prepare
-make visualize
+```shell
+make all
 ```

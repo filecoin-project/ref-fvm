@@ -15,6 +15,12 @@ CHARGES_TIME_VS_GAS_PNG := $(patsubst %, $(CHARGES_DIR)/%.time-vs-gas.png, $(CHA
 OVERALL_DIR := $(OUT_DIR)/overall
 OVERALL_TIME_VS_GAS_PNG := $(OVERALL_DIR)/time-vs-gas.png
 
+
+.PHONY: all
+all:
+	$(MAKE) prepare
+	$(MAKE) visualize
+
 .PHONY: prepare
 prepare: \
 	$(CHARGES_TXT)
