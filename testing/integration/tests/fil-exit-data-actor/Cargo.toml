@@ -1,14 +1,18 @@
 [package]
-name = "fil_address_actor"
+name = "fil_exit_data_actor"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-fvm_ipld_encoding = { version = "0.3.0", path = "../../../../ipld/encoding" }
+[dependencies]
 fvm_sdk = { version = "3.0.0-alpha.14", path = "../../../../sdk" }
 fvm_shared = { version = "3.0.0-alpha.12", path = "../../../../shared" }
-serde = "1.0.145"
+fvm_ipld_encoding = { version = "0.3.0", path = "../../../../ipld/encoding" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fvm_sdk = { version = "3.0.0-alpha.14", path = "../../../../sdk" }
+fvm_shared = { version = "3.0.0-alpha.12", path = "../../../../shared" }
+fvm_ipld_encoding = { version = "0.3.0", path = "../../../../ipld/encoding" }
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"

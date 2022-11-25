@@ -7,6 +7,7 @@ use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
+use fvm_ipld_encoding::serde::Deserialize;
 use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
 
@@ -58,8 +59,6 @@ impl<V: PartialEq, BS: Blockstore, Ver: PartialEq> PartialEq for AmtImpl<V, BS, 
 
 impl<V, BS, Ver> AmtImpl<V, BS, Ver>
 where
-    V: DeserializeOwned + Serialize,
-    BS: Blockstore,
     Ver: AmtVersion,
 {
     /// Constructor for Root AMT node
@@ -79,6 +78,68 @@ where
         self.root.bit_width
     }
 
+    /// Gets the height of the `Amt`.
+    pub fn height(&self) -> u32 {
+        self.root.height
+    }
+
+    /// Gets count of elements added in the `Amt`.
+    pub fn count(&self) -> u64 {
+        self.root.count
+    }
+}
+
+impl<V, BS, Ver> AmtImpl<V, BS, Ver>
+where
+    Ver: AmtVersion,
+    BS: Blockstore,
+    V: Serialize,
+{
+    /// Generates an AMT from an array of serializable objects.
+    ///
+    /// This can be called with an iterator of _references_ to values to avoid copying.
+    pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
+        Self::new_from_iter_with_bit_width(block_store, DEFAULT_BIT_WIDTH, vals)
+    }
+
+    /// Generates an AMT with the requested bitwidth from an array of serializable objects.
+    ///
+    /// This can be called with an iterator of _references_ to values to avoid copying.
+    pub fn new_from_iter_with_bit_width(
+        block_store: BS,
+        bit_width: u32,
+        vals: impl IntoIterator<Item = V>,
+    ) -> Result<Cid, Error> {
+        #[derive(serde::Serialize)]
+        #[serde(transparent)]
+        struct FakeDeserialize<V>(V);
+
+        impl<'de, V> Deserialize<'de> for FakeDeserialize<V> {
+            fn deserialize<D>(_: D) -> Result<Self, D::Error>
+            where
+                D: fvm_ipld_encoding::serde_bytes::Deserializer<'de>,
+            {
+                use serde::de::Error;
+                Err(D::Error::custom(
+                    "can't deserialize when constructing an AMT from an iterator",
+                ))
+            }
+        }
+
+        let mut t = AmtImpl::<_, BS, Ver>::new_with_bit_width(block_store, bit_width);
+
+        t.batch_set(vals.into_iter().map(FakeDeserialize))?;
+
+        t.flush()
+    }
+}
+
+impl<V, BS, Ver> AmtImpl<V, BS, Ver>
+where
+    V: DeserializeOwned + Serialize,
+    BS: Blockstore,
+    Ver: AmtVersion,
+{
     /// Constructs an AMT with a blockstore and a Cid of the root of the AMT
     pub fn load(cid: &Cid, block_store: BS) -> Result<Self, Error> {
         // Load root bytes from database
@@ -92,25 +153,6 @@ where
         }
 
         Ok(Self { root, block_store })
-    }
-
-    /// Gets the height of the `Amt`.
-    pub fn height(&self) -> u32 {
-        self.root.height
-    }
-
-    /// Gets count of elements added in the `Amt`.
-    pub fn count(&self) -> u64 {
-        self.root.count
-    }
-
-    /// Generates an AMT with block store and array of cbor marshallable objects and returns Cid
-    pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
-        let mut t = Self::new(block_store);
-
-        t.batch_set(vals)?;
-
-        t.flush()
     }
 
     /// Get value at index of AMT

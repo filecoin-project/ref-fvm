@@ -4,11 +4,10 @@ use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
-use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, to_vec};
+use fvm_ipld_encoding::bytes_32;
 use fvm_shared::address::{Payload, Protocol};
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
@@ -17,7 +16,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
-use fvm_shared::version::NetworkVersion;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -28,7 +26,8 @@ use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
-use crate::externs::{Consensus, Rand};
+use crate::externs::{Chain, Consensus, Rand};
+use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -40,6 +39,7 @@ lazy_static! {
 const BLAKE2B_256: u64 = 0xb220;
 const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
+const FINALITY: i64 = 900;
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -106,7 +106,7 @@ where
     fn get_self(&self) -> Result<Option<ActorState>> {
         self.call_manager
             .state_tree()
-            .get_actor_id(self.actor_id)
+            .get_actor(self.actor_id)
             .or_fatal()
             .context("error when finding current actor")
     }
@@ -182,7 +182,7 @@ where
         // Delete the executing actor
         self.call_manager
             .state_tree_mut()
-            .delete_actor_id(self.actor_id)
+            .delete_actor(self.actor_id)
     }
 }
 
@@ -259,7 +259,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         // First, find the end of the _logical_ buffer (taking the offset into account).
         // This must fit into an i32.
 
@@ -292,7 +292,7 @@ where
         Ok((data.len() as i32) - end)
     }
 
-    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
@@ -304,32 +304,25 @@ impl<C> MessageOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn msg_caller(&self) -> ActorID {
-        self.caller
-    }
-
-    fn msg_origin(&self) -> ActorID {
-        self.call_manager.origin()
-    }
-
-    fn msg_receiver(&self) -> ActorID {
-        self.actor_id
-    }
-
-    fn msg_method_number(&self) -> MethodNum {
-        self.method
-    }
-
-    fn msg_value_received(&self) -> TokenAmount {
-        self.value_received.clone()
-    }
-
-    fn msg_gas_premium(&self) -> TokenAmount {
-        self.call_manager.gas_tracker().gas_premium()
-    }
-
-    fn msg_gas_limit(&self) -> u64 {
-        self.call_manager.gas_tracker().gas_limit().round_down() as u64
+    fn msg_context(&self) -> Result<MessageContext> {
+        // TODO: charge gas.
+        Ok(MessageContext {
+            caller: self.caller,
+            origin: self.call_manager.origin(),
+            receiver: self.actor_id,
+            method_number: self.method,
+            value_received: (&self.value_received)
+                .try_into()
+                .or_fatal()
+                .context("invalid token amount")?,
+            gas_premium: self
+                .call_manager
+                .gas_premium()
+                .try_into()
+                .or_fatal()
+                .context("invalid gas premium")?,
+            gas_limit: self.call_manager.gas_tracker().gas_limit().round_down() as u64,
+        })
     }
 }
 
@@ -365,19 +358,30 @@ where
 
         // Store result and return.
         Ok(match result {
-            InvocationResult::Return(None) => {
-                SendResult::Return(NO_DATA_BLOCK_ID, BlockStat { codec: 0, size: 0 })
-            }
-            InvocationResult::Return(Some(blk)) => {
-                let stat = blk.stat();
-                let ret_id = self
+            InvocationResult {
+                exit_code,
+                value: Some(blk),
+            } => {
+                let block_stat = blk.stat();
+                let block_id = self
                     .blocks
                     .put(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
-                SendResult::Return(ret_id, stat)
+                SendResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
+                }
             }
-            InvocationResult::Failure(code) => SendResult::Abort(code),
+            InvocationResult {
+                exit_code,
+                value: None,
+            } => SendResult {
+                block_id: NO_DATA_BLOCK_ID,
+                block_stat: BlockStat { codec: 0, size: 0 },
+                exit_code,
+            },
         })
     }
 }
@@ -399,7 +403,7 @@ where
     C: CallManager,
 {
     fn verify_signature(
-        &mut self,
+        &self,
         sig_type: SignatureType,
         signature: &[u8],
         signer: &Address,
@@ -439,7 +443,7 @@ where
     }
 
     fn recover_secp_public_key(
-        &mut self,
+        &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -453,7 +457,7 @@ where
             })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
@@ -468,7 +472,7 @@ where
     }
 
     fn compute_unsealed_sector_cid(
-        &mut self,
+        &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
@@ -484,7 +488,7 @@ where
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
 
@@ -493,7 +497,7 @@ where
         catch_and_log_panic("verifying seal", || verify_seal(vi))
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
@@ -502,7 +506,7 @@ where
     }
 
     fn verify_consensus_fault(
-        &mut self,
+        &self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
@@ -521,7 +525,7 @@ where
         Ok(fault)
     }
 
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
@@ -563,10 +567,7 @@ where
         Ok(out)
     }
 
-    fn verify_aggregate_seals(
-        &mut self,
-        aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<bool> {
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -577,7 +578,7 @@ where
         })
     }
 
-    fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
+    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -601,10 +602,8 @@ where
         self.call_manager.gas_tracker().gas_available()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
-        self.call_manager
-            .gas_tracker_mut()
-            .charge_gas(name, compute)
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
+        self.call_manager.gas_tracker().charge_gas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {
@@ -616,35 +615,41 @@ impl<C> NetworkOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn network_epoch(&self) -> ChainEpoch {
-        self.call_manager.context().network_context.epoch
-    }
-
-    fn network_version(&self) -> NetworkVersion {
-        self.call_manager.context().network_version
-    }
-
-    fn network_base_fee(&self) -> &TokenAmount {
-        &self.call_manager.context().network_context.base_fee
-    }
-
-    fn tipset_timestamp(&self) -> u64 {
-        self.call_manager.context().network_context.timestamp
+    fn network_context(&self) -> Result<NetworkContext> {
+        // TODO: charge gas.
+        let MachineContext {
+            epoch,
+            timestamp,
+            base_fee,
+            network: NetworkConfig {
+                network_version, ..
+            },
+            ..
+        } = self.call_manager.context();
+        Ok(NetworkContext {
+            epoch: *epoch,
+            network_version: *network_version as u32,
+            timestamp: *timestamp,
+            base_fee: base_fee
+                .try_into()
+                .or_fatal()
+                .context("base-fee exceeds u128 limit")?,
+        })
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        let offset = self.call_manager.context().network_context.epoch - epoch;
+        // TODO: https://github.com/filecoin-project/ref-fvm/issues/1023
+        let offset = self.call_manager.context().epoch - epoch;
         if offset < 0 {
-            return Err(syscall_error!(IllegalArgument; "epoch is in the future").into());
+            Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into())
+        } else if offset >= FINALITY {
+            Err(syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into())
+        } else {
+            self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
         }
-        let tipsets = &self.call_manager.context().network_context.tipsets;
-        if offset >= tipsets.len() as i64 {
-            return Err(syscall_error!(LimitExceeded; "tipset lookback exceeded limit").into());
-        }
-        Ok(tipsets[offset as usize])
     }
 }
 
@@ -653,7 +658,7 @@ where
     C: CallManager,
 {
     fn get_randomness_from_tickets(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -673,7 +678,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -709,35 +714,17 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(id)
+            .get_actor(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .code)
     }
 
-    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
-    fn new_actor_address(&mut self) -> Result<Address> {
-        let oa = self
-            .lookup_address(self.call_manager.origin())
-            .or_fatal()? // actor not found
-            .context("origin does not have a predictable address")
-            .or_fatal()?; // actor doesn't have a predictable address.
-
-        let mut b = to_vec(&oa)
-            .or_fatal()
-            .context("could not serialize address in new_actor_address")?;
-        b.write_u64::<BigEndian>(self.call_manager.nonce())
-            .or_fatal()
-            .context("writing nonce into a buffer")?;
-        b.write_u64::<BigEndian>(self.call_manager.next_actor_idx())
-            .or_fatal()
-            .context("writing actor index in buffer")?;
-        let addr = Address::new_actor(&b);
-        Ok(addr)
+    fn next_actor_address(&self) -> Result<Address> {
+        Ok(self.call_manager.next_actor_address())
     }
 
-    // TODO(M2) merge new_actor_address and create_actor into a single syscall.
     fn create_actor(
         &mut self,
         code_id: Cid,
@@ -758,7 +745,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.call_manager.state_tree().get_actor_id(actor_id)? {
+        let actor = match self.call_manager.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act)
                 if self
@@ -798,7 +785,7 @@ where
 
         self.call_manager
             .state_tree_mut()
-            .set_actor_id(actor_id, actor)
+            .set_actor(actor_id, actor)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
@@ -832,7 +819,7 @@ where
         let balance = self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)
+            .get_actor(actor_id)
             .context("cannot find actor")?
             .map(|a| a.balance)
             .unwrap_or_default();
@@ -843,7 +830,7 @@ where
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)?
+            .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .address)
     }

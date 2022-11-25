@@ -4,6 +4,25 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.11 [2022-11-18]
+
+- Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).
+- Change `next_actor_address` to always use the origin address from the message, as specified. For abstract accounts, we _can't_ lookup a key address (they may only have an f0 and f2 address).
+- Move account creation logic to the call manager.
+  - The call manager owns the relevant state.
+  - The call manager will eventually invoke the constructor directly when creating the actor.
+- Change the `abort` syscall to `exit` to allow:
+  - non-local exits.
+  - returning values on aborts.
+- Add a method to the externs to lookup tipset CIDs.
+- Remove the NetworkContext from the FVM builder API because we no longer expect the user to pass us a list of tipset CIDs.
+- Change kernel internals to merge all network/message "context" methods into single methods returning `*Context` structs.
+- Avoid treating out of memory instantiation errors as fatal.
+
+## 3.0.0-alpha.10 [2022-11-17]
+
+- Refactor network/message contexts to reduce the number of syscalls.
+
 ## 3.0.0-alpha.9 [2022-11-16]
 
 - fix: BufferedBlockstore#flush should not reset the write buffer.

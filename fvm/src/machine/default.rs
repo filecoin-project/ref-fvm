@@ -18,7 +18,7 @@ use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 #[cfg(feature = "m2-native")]
 use crate::init_actor::State as InitActorState;
-use crate::kernel::{ClassifyResult, Context as _, Result};
+use crate::kernel::{ClassifyResult, Result};
 use crate::machine::limiter::ExecResourceLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::{ActorState, StateTree};
@@ -73,10 +73,7 @@ where
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
-            context.network_context.epoch,
-            &context.network_context.base_fee,
-            context.network_version,
-            context.initial_state_root
+            context.epoch, &context.base_fee, context.network_version, context.initial_state_root
         );
 
         if !SUPPORTED_VERSIONS.contains(&context.network_version) {
@@ -155,7 +152,7 @@ where
             builtin_actors,
             id: format!(
                 "{}-{}",
-                context.network_context.epoch,
+                context.epoch,
                 cid::multibase::encode(cid::multibase::Base::Base32Lower, randomness)
             ),
         })
@@ -214,15 +211,9 @@ where
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         let state_tree = self.state_tree_mut();
 
-        let addr_id = state_tree
-            .register_new_address(addr)
-            .context("failed to register new address")
-            .or_fatal()?;
+        let addr_id = state_tree.register_new_address(addr)?;
 
-        state_tree
-            .set_actor(&Address::new_id(addr_id), act)
-            .context("failed to set actor")
-            .or_fatal()?;
+        state_tree.set_actor(addr_id, act)?;
         Ok(addr_id)
     }
 
@@ -237,7 +228,7 @@ where
         // that and the case where the _receiving_ actor doesn't exist.
         let mut from_actor = self
             .state_tree
-            .get_actor_id(from)?
+            .get_actor(from)?
             .context("cannot transfer from non-existent sender")
             .or_error(ErrorNumber::InsufficientFunds)?;
 
@@ -252,15 +243,15 @@ where
 
         let mut to_actor = self
             .state_tree
-            .get_actor_id(to)?
+            .get_actor(to)?
             .context("cannot transfer to non-existent receiver")
             .or_error(ErrorNumber::NotFound)?;
 
         from_actor.deduct_funds(value)?;
         to_actor.deposit_funds(value);
 
-        self.state_tree.set_actor_id(from, from_actor)?;
-        self.state_tree.set_actor_id(to, to_actor)?;
+        self.state_tree.set_actor(from, from_actor)?;
+        self.state_tree.set_actor(to, to_actor)?;
 
         log::trace!("transferred {} from {} to {}", value, from, to);
 

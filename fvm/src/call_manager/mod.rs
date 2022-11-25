@@ -1,3 +1,4 @@
+use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -46,6 +47,7 @@ pub trait CallManager: 'static {
         machine: Self::Machine,
         gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self;
@@ -75,19 +77,32 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
-    /// Returns reference to the gas tracker.
+    /// Returns a reference to the gas tracker.
     fn gas_tracker(&self) -> &GasTracker;
-    /// Returns a mutable reference to the gas tracker.
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker;
+
+    /// Returns the gas premium paid by the currently executing message.
+    fn gas_premium(&self) -> &TokenAmount;
 
     /// Getter for origin actor.
     fn origin(&self) -> ActorID;
 
+    /// Get the actor address (f2) that will should be assigned to the next actor created.
+    ///
+    /// This method doesn't have any side-effects and will continue to return the same address until
+    /// `create_actor` is called next.
+    fn next_actor_address(&self) -> Address;
+
+    /// Create a new actor with the given code CID, actor ID, and predictable address. This method
+    /// does not register the actor with the init actor. It just creates it in the state-tree.
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()>;
+
     /// Getter for message nonce.
     fn nonce(&self) -> u64;
-
-    /// Gets and increment the call-stack actor creation index.
-    fn next_actor_idx(&mut self) -> u64;
 
     /// Gets the total invocations done on this call stack.
     fn invocation_count(&self) -> u64;
@@ -123,8 +138,8 @@ pub trait CallManager: 'static {
     }
 
     /// Charge gas.
-    fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().apply_charge(charge)?;
+    fn charge_gas(&self, charge: GasCharge) -> Result<()> {
+        self.gas_tracker().apply_charge(charge)?;
         Ok(())
     }
 
@@ -137,26 +152,18 @@ pub trait CallManager: 'static {
 
 /// The result of a method invocation.
 #[derive(Clone, Debug)]
-pub enum InvocationResult {
-    /// Indicates that the actor successfully returned. The value may be empty.
-    Return(Option<kernel::Block>),
-    /// Indicates that the actor aborted with the given exit code.
-    Failure(ExitCode),
+pub struct InvocationResult {
+    /// The exit code (0 for success).
+    pub exit_code: ExitCode,
+    /// The return value, if any.
+    pub value: Option<kernel::Block>,
 }
 
 impl Default for InvocationResult {
     fn default() -> Self {
-        Self::Return(Default::default())
-    }
-}
-
-impl InvocationResult {
-    /// Get the exit code for the invocation result. [`ExitCode::Ok`] on success, or the exit code
-    /// from the [`Failure`](InvocationResult::Failure) variant otherwise.
-    pub fn exit_code(&self) -> ExitCode {
-        match self {
-            Self::Return(_) => ExitCode::OK,
-            Self::Failure(e) => *e,
+        Self {
+            value: None,
+            exit_code: ExitCode::OK,
         }
     }
 }

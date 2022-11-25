@@ -4,7 +4,7 @@ use fvm_shared::sys::SyscallSafe;
 
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{ClassifyResult, Kernel};
+use crate::kernel::Kernel;
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
@@ -13,60 +13,51 @@ pub enum Never {}
 
 unsafe impl SyscallSafe for Never {}
 
+/// The maximum message length included in the backtrace. Given 1025 levels, this gives us a total
+/// maximum of around 1MiB for debugging.
+const MAX_MESSAGE_LEN: usize = 1024;
+
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
-pub fn abort(
+pub fn exit(
     context: Context<'_, impl Kernel>,
     code: u32,
+    blk: u32,
     message_off: u32,
     message_len: u32,
 ) -> Result<Never, Abort> {
-    use crate::kernel::Context as _;
-
     let code = ExitCode::new(code);
-    if code.is_system_error() {
+    if !code.is_success() && code.is_system_error() {
         return Err(Abort::Exit(
             ExitCode::SYS_ILLEGAL_EXIT_CODE,
             format!("actor aborted with code {}", code),
+            blk,
         ));
     }
 
     let message = if message_len == 0 {
         "actor aborted".to_owned()
     } else {
-        std::str::from_utf8(
-            context
-                .memory
-                .try_slice(message_off, message_len)
-                .map_err(|e| Abort::from_error(code, e))?,
-        )
-        .or_illegal_argument()
-        .context("error message was not utf8")
-        .map_err(|e| Abort::from_error(code, e))?
-        .to_owned()
+        match context.memory.try_slice(message_off, message_len) {
+            Ok(bytes) => {
+                if bytes.len() > MAX_MESSAGE_LEN {
+                    let prefix = &bytes[..(MAX_MESSAGE_LEN / 2)];
+                    let suffix = &bytes[bytes.len() - (MAX_MESSAGE_LEN / 2)..];
+                    format!(
+                        "{} ... (skipped {} bytes) ... {}",
+                        String::from_utf8_lossy(prefix),
+                        MAX_MESSAGE_LEN - bytes.len(),
+                        String::from_utf8_lossy(suffix)
+                    )
+                } else {
+                    String::from_utf8_lossy(bytes).into_owned()
+                }
+            }
+            Err(e) => format!("failed to extract error message: {e}"),
+        }
     };
-    Err(Abort::Exit(code, message))
+    Err(Abort::Exit(code, message, blk))
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
-    use anyhow::Context as _;
-
-    Ok(MessageContext {
-        caller: context.kernel.msg_caller(),
-        origin: context.kernel.msg_origin(),
-        receiver: context.kernel.msg_receiver(),
-        method_number: context.kernel.msg_method_number(),
-        value_received: context
-            .kernel
-            .msg_value_received()
-            .try_into()
-            .context("invalid token amount")
-            .or_fatal()?,
-        gas_premium: context
-            .kernel
-            .msg_gas_premium()
-            .try_into()
-            .context("invalid gas premium")
-            .or_fatal()?,
-        gas_limit: context.kernel.msg_gas_limit(),
-    })
+    context.kernel.msg_context()
 }

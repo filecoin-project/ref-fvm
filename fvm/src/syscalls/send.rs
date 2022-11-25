@@ -1,6 +1,5 @@
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
 
 use super::Context;
@@ -22,20 +21,15 @@ pub fn send(
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    Ok(
-        match context.kernel.send(&recipient, method, params_id, &value)? {
-            SendResult::Return(id, stat) => sys::out::send::Send {
-                exit_code: ExitCode::OK.value(),
-                return_id: id,
-                return_codec: stat.codec,
-                return_size: stat.size,
-            },
-            SendResult::Abort(code) => sys::out::send::Send {
-                exit_code: code.value(),
-                return_id: 0,
-                return_codec: 0,
-                return_size: 0,
-            },
-        },
-    )
+    let SendResult {
+        block_id,
+        block_stat,
+        exit_code,
+    } = context.kernel.send(&recipient, method, params_id, &value)?;
+    Ok(sys::out::send::Send {
+        exit_code: exit_code.value(),
+        return_id: block_id,
+        return_codec: block_stat.codec,
+        return_size: block_stat.size,
+    })
 }

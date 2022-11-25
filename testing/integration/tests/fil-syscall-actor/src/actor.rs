@@ -34,6 +34,8 @@ pub fn invoke(_: u32) -> u32 {
     test_expected_hash();
     test_hash_syscall();
     test_create_actor();
+    test_network_context();
+    test_message_context();
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
@@ -210,4 +212,23 @@ fn test_hash_syscall() {
         .expect("Overlapping buffers should be allowed");
         assert_eq!(&buffer[..written as usize], known_digest.as_slice())
     }
+}
+
+fn test_network_context() {
+    use fvm_shared::econ::TokenAmount;
+    use fvm_shared::version::NetworkVersion;
+    assert_eq!(sdk::network::curr_epoch(), 0);
+    assert_eq!(sdk::network::version(), NetworkVersion::V18);
+    assert_eq!(sdk::network::tipset_timestamp(), 0);
+    assert_eq!(sdk::network::base_fee(), TokenAmount::from_atto(100));
+}
+
+fn test_message_context() {
+    assert_eq!(sdk::message::origin(), 100);
+    assert_eq!(sdk::message::caller(), 100);
+    assert_eq!(sdk::message::receiver(), 10000);
+    assert_eq!(sdk::message::method_number(), 1);
+    assert!(sdk::message::value_received().is_zero());
+    assert_eq!(sdk::message::gas_limit(), 1000000000);
+    assert!(sdk::message::gas_premium().is_zero());
 }

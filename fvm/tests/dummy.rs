@@ -5,22 +5,22 @@ use std::rc::Rc;
 use anyhow::Context;
 use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
-use fvm::externs::{Consensus, Externs, Rand};
+use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
-use multihash::Code;
+use fvm_shared::{ActorID, IDENTITY_HASH};
+use multihash::{Code, Multihash};
 use wasmtime::ResourceLimiter;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
@@ -59,6 +59,15 @@ impl Consensus for DummyExterns {
     ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
         // consensus is always valid for tests :)
         anyhow::Result::Ok((None, 0))
+    }
+}
+
+impl Chain for DummyExterns {
+    fn get_tipset_cid(&self, epoch: fvm_shared::clock::ChainEpoch) -> anyhow::Result<Cid> {
+        Ok(Cid::new_v1(
+            DAG_CBOR,
+            Multihash::wrap(IDENTITY_HASH, &epoch.to_be_bytes()).unwrap(),
+        ))
     }
 }
 
@@ -131,7 +140,7 @@ impl DummyMachine {
         let mut config = NetworkConfig::new(STUB_NETWORK_VER);
 
         // generate context from the new generated root and override actors with empty list
-        let ctx = config.override_actors(actors_cid).for_epoch(0, root);
+        let ctx = config.override_actors(actors_cid).for_epoch(0, 0, root);
 
         Ok(Self {
             ctx,
@@ -213,7 +222,9 @@ impl Machine for DummyMachine {
 pub struct DummyCallManager {
     pub machine: DummyMachine,
     pub gas_tracker: GasTracker,
+    pub gas_premium: TokenAmount,
     pub origin: ActorID,
+    pub origin_address: Address,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
     limits: DummyLimiter,
@@ -233,11 +244,13 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), TokenAmount::zero()),
+                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
+                origin_address: Address::new_id(0),
+                gas_premium: TokenAmount::zero(),
             },
             cell_ref,
         )
@@ -256,6 +269,8 @@ impl DummyCallManager {
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
+                origin_address: Address::new_id(0),
+                gas_premium: TokenAmount::zero(),
             },
             cell_ref,
         )
@@ -269,6 +284,7 @@ impl CallManager for DummyCallManager {
         machine: Self::Machine,
         _gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -278,8 +294,10 @@ impl CallManager for DummyCallManager {
         let limits = machine.new_limiter();
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), gas_premium),
+            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
+            gas_premium,
             origin,
+            origin_address,
             nonce,
             test_data: rc,
             limits,
@@ -333,24 +351,33 @@ impl CallManager for DummyCallManager {
         &self.borrow().gas_tracker
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
-    }
-
-    fn charge_gas(&mut self, charge: GasCharge) -> kernel::Result<()> {
+    fn charge_gas(&self, charge: GasCharge) -> kernel::Result<()> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
-        self.gas_tracker_mut().apply_charge(charge)
+        self.gas_tracker().apply_charge(charge)
     }
 
     fn origin(&self) -> ActorID {
         self.origin
     }
 
+    fn gas_premium(&self) -> &TokenAmount {
+        &self.gas_premium
+    }
+
     fn nonce(&self) -> u64 {
         self.nonce
     }
 
-    fn next_actor_idx(&mut self) -> u64 {
+    fn next_actor_address(&self) -> Address {
+        todo!()
+    }
+
+    fn create_actor(
+        &mut self,
+        _code_id: Cid,
+        _actor_id: ActorID,
+        _predictable_address: Option<Address>,
+    ) -> kernel::Result<()> {
         todo!()
     }
 
