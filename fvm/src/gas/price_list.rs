@@ -972,7 +972,7 @@ impl PriceList {
         GasCharge::new("OnMessageContext", self.context_base, Zero::zero())
     }
 
-    /// Returns the gas required for accessing the message context.
+    /// Returns the gas required for installing an actor.
     #[cfg(feature = "m2-native")]
     pub fn on_install_actor(&self, wasm_size: usize) -> GasCharge {
         GasCharge::new(
