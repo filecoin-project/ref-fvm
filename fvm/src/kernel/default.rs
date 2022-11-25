@@ -302,7 +302,7 @@ where
         if hash_fun != BLAKE2B_256 || hash_len != 32 {
             return Err(syscall_error!(IllegalCid; "cids must be 32-byte blake2b").into());
         }
-
+        let start = GasTimer::start();
         let block = self.blocks.get(id)?;
         let code = multihash::Code::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
@@ -325,7 +325,7 @@ where
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
-        t.stop();
+        t.stop_with(start);
         Ok(k)
     }
 
