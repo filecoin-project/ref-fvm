@@ -437,14 +437,15 @@ where
 
         // If a specific gas limit has been requested, create a child GasTracker and use that
         // one hereon.
-        let prev_gas_tracker = gas_limit
-            .filter(|gas_limit| gas_limit < &self.gas_tracker.gas_available())
-            .map(|gas_limit| {
+        let prev_gas_tracker = match gas_limit {
+            Some(gas_limit) if gas_limit < self.gas_tracker.gas_available() => {
                 let gas_used = self.gas_tracker.gas_used();
                 let tracing = self.machine.context().tracing;
                 let new = GasTracker::new(gas_limit, gas_used, tracing);
-                mem::replace(&mut self.gas_tracker, new)
-            });
+                Some(mem::replace(&mut self.gas_tracker, new))
+            }
+            _ => None,
+        };
 
         // Do the actual send.
         let ret = self.send_resolved::<K>(from, to, method, params, value);
