@@ -24,6 +24,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
     let account = Address::new_secp256k1(&[0u8; SECP_PUB_LEN]).unwrap();
     match method {
         2 => {
+            assert!(!sdk::vm::read_only());
             // Can't create actors when read-only.
             let resp = sdk::send::send_read_only(&account, METHOD_SEND, RawBytes::default());
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
@@ -51,6 +52,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
         }
         3 => {
             // should now be in read-only mode.
+            assert!(sdk::vm::read_only());
 
             // Sending value fails.
             let resp = sdk::send::send(&account, 0, Default::default(), TokenAmount::from_atto(1));
@@ -122,12 +124,16 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert_eq!(err, ActorDeleteError::ReadOnly);
         }
         4 => {
+            assert!(sdk::vm::read_only());
             // read params and return value entirely in read-only mode.
             let input = sdk::ipld::get_block(blk, None).unwrap();
             assert_eq!(input, b"input");
             return sdk::ipld::put_block(0x55, b"output").unwrap();
         }
-        5 => sdk::vm::abort(42, None),
+        5 => {
+            assert!(sdk::vm::read_only());
+            sdk::vm::abort(42, None)
+        }
         _ => panic!("unexpected method"),
     }
     0
