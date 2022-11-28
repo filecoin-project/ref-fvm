@@ -432,20 +432,18 @@ where
             },
         };
 
-        // TODO should we deduct the method invocation gas from the supplied gas_limit?
-        //  Assuming yes -- this happens inside send_resolved.
-
         // If a specific gas limit has been requested, create a child GasTracker and use that
         // one hereon.
-        let prev_gas_tracker = match gas_limit {
-            Some(gas_limit) if gas_limit < self.gas_tracker.gas_available() => {
-                let gas_used = self.gas_tracker.gas_used();
-                let tracing = self.machine.context().tracing;
-                let new = GasTracker::new(gas_limit, gas_used, tracing);
-                Some(mem::replace(&mut self.gas_tracker, new))
-            }
-            _ => None,
-        };
+        //
+        // The effectiveness of the user-supplied gas limit has been checked in the syscall handler.
+        // Here we are confident that the gas limit is below our gas available, and therefore
+        // we must enforce it.
+        let prev_gas_tracker = gas_limit.map(|gas_limit| {
+            let gas_used = self.gas_tracker.gas_used();
+            let tracing = self.machine.context().tracing;
+            let new = GasTracker::new(gas_limit, gas_used, tracing);
+            mem::replace(&mut self.gas_tracker, new)
+        });
 
         // Do the actual send.
         let ret = self.send_resolved::<K>(from, to, method, params, value);
