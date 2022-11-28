@@ -2,8 +2,8 @@ set term png size 1200,800; # Width, Height
 set output fileout;
 set key noautotitle;
 
-# Show two plots in 3 rows, 1 column;
-set multiplot layout 3, 1 ;
+# Show two plots in 2 rows, 1 column;
+set multiplot layout 2, 1 ;
 
 # Scatter plot
 set title charge . ": Time vs Gas";
