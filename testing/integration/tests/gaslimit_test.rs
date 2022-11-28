@@ -140,7 +140,7 @@ fn gaslimit_test() {
         ..message
     };
     let res = executor
-        .execute_message(message.clone(), ApplyKind::Explicit, 100)
+        .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
     assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
     assert_eq!(1, res.events.len());

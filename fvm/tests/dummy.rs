@@ -311,6 +311,7 @@ impl CallManager for DummyCallManager {
         _method: fvm_shared::MethodNum,
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
+        _gas_limit: Option<Gas>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()
