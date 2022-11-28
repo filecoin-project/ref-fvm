@@ -318,6 +318,7 @@ impl CallManager for DummyCallManager {
 
     fn with_transaction(
         &mut self,
+        _read_only: bool,
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))

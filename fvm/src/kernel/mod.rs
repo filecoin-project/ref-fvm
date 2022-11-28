@@ -16,6 +16,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::sys::out::vm::MessageContext;
+use fvm_shared::sys::SendFlags;
 use fvm_shared::{ActorID, MethodNum};
 
 mod hash;
@@ -213,6 +214,7 @@ pub trait SendOps {
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        flags: SendFlags,
     ) -> Result<SendResult>;
 }
 
