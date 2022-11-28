@@ -58,8 +58,7 @@ impl ExitCode {
     /// - The sender's nonce nonce didn't match the message nonce.
     /// - The sender didn't have the funds to cover the message gas.
     pub const SYS_SENDER_STATE_INVALID: ExitCode = ExitCode::new(2);
-    /// Indicates failure to find a method in an actor.
-    pub const SYS_INVALID_METHOD: ExitCode = ExitCode::new(3); // FIXME: reserved
+    //pub const SYS_RESERVED_3 ExitCode = ExitCode::new(3);
     /// Indicates the message receiver trapped (panicked).
     pub const SYS_ILLEGAL_INSTRUCTION: ExitCode = ExitCode::new(4);
     /// Indicates the message receiver doesn't exist and can't be automatically created
