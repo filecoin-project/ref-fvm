@@ -3,6 +3,10 @@ mod fevm;
 
 use clap::Parser;
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_integration_tests::tester::Tester;
+use fvm_integration_tests::dummy::DummyExterns;
+use fvm_shared::state::StateTreeVersion;
+use fvm_shared::version::NetworkVersion;
 use std::fs;
 use hex;
 
@@ -53,7 +57,16 @@ fn main() {
                 exit_with_error(format!("error decoding contract entrypoint: {}", what));
             });
 
-            fevm::run(bundle_cid, &contract, &entrypoint, &params).unwrap_or_else(|what| {
+            let mut tester: Tester<MemoryBlockstore, DummyExterns> = Tester::new(
+                NetworkVersion::V18,  // TODO make this a program argument
+                StateTreeVersion::V5, // TODO infer this from network version
+                bundle_cid,
+                blockstore,
+            ).unwrap_or_else(|what| {
+                exit_with_error(format!("error creating execution framework: {}", what));
+            });
+
+            fevm::run(&mut tester, &contract, &entrypoint, &params).unwrap_or_else(|what| {
                 exit_with_error(format!(" contract execution failed: {}", what));
             });
         }
