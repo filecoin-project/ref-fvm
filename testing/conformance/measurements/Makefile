@@ -83,6 +83,13 @@ $(CHARGES_DIR)/%.time-vs-gas.summed.png: \
 	$(SCRIPTS_DIR)/charges/time-vs-gas.sh $< $(CHARGES_DIR)	time-vs-gas.summed $*
 
 
+# Least Squares regression on the aggregate level.
+$(OUT_DIR)/regression.jsonline: \
+		$(TRACES_SUMMED) \
+		../src/bin/least-squares.rs
+	cd .. && cargo run --bin least-squares -- measurements/$< measurements/$@
+
+
 .PHONY: gnuplot
 gnuplot:
 	@if [ -z "$(shell which gnuplot)" ]; then \

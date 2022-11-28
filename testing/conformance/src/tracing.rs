@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use fvm::executor::ApplyRet;
 use fvm::trace::ExecutionEvent;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Timing and result of a message execution.
 pub type TestTrace = (Duration, ApplyRet);
@@ -33,12 +33,12 @@ pub struct TestMessageTombstone {
 ///
 /// Probably only the compute part of gas can have a relation to time,
 /// but it contains both so we can differentiate and see what happened.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TestGasCharge {
-    name: String,
-    compute_gas: i64,
-    storage_gas: i64,
-    elapsed_nanos: Option<u128>,
+    pub name: String,
+    pub compute_gas: i64,
+    pub storage_gas: i64,
+    pub elapsed_nanos: Option<u128>,
 }
 
 /// Export gas traces as we complete tests, while collecting tombstones.
