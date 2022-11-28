@@ -51,29 +51,29 @@ impl ExitCode {
 
     /// The code indicating successful execution.
     pub const OK: ExitCode = ExitCode::new(0);
-    /// Indicates the message sender doesn't exist.
+    /// The message sender doesn't exist.
     pub const SYS_SENDER_INVALID: ExitCode = ExitCode::new(1);
-    /// Indicates that the message sender was not in a valid state to send this message.
+    /// The message sender was not in a valid state to send this message.
+    ///
     /// Either:
     /// - The sender's nonce nonce didn't match the message nonce.
     /// - The sender didn't have the funds to cover the message gas.
     pub const SYS_SENDER_STATE_INVALID: ExitCode = ExitCode::new(2);
-    /// Indicates failure to find a method in an actor.
-    pub const SYS_INVALID_METHOD: ExitCode = ExitCode::new(3); // FIXME: reserved
-    /// Indicates the message receiver trapped (panicked).
+    //pub const SYS_RESERVED_3 ExitCode = ExitCode::new(3);
+    /// The message receiver trapped (panicked).
     pub const SYS_ILLEGAL_INSTRUCTION: ExitCode = ExitCode::new(4);
-    /// Indicates the message receiver doesn't exist and can't be automatically created
+    /// The message receiver doesn't exist and can't be automatically created
     pub const SYS_INVALID_RECEIVER: ExitCode = ExitCode::new(5);
-    /// Indicates the message sender didn't have the requisite funds.
+    /// The message sender didn't have the requisite funds.
     pub const SYS_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(6);
-    /// Indicates message execution (including subcalls) used more gas than the specified limit.
+    /// Message execution (including subcalls) used more gas than the specified limit.
     pub const SYS_OUT_OF_GAS: ExitCode = ExitCode::new(7);
     // pub const SYS_RESERVED_8: ExitCode = ExitCode::new(8);
-    /// Indicates the message receiver aborted with a reserved exit code.
+    /// The message receiver aborted with a reserved exit code.
     pub const SYS_ILLEGAL_EXIT_CODE: ExitCode = ExitCode::new(9);
-    /// Indicates an internal VM assertion failed.
+    /// An internal VM assertion failed.
     pub const SYS_ASSERTION_FAILED: ExitCode = ExitCode::new(10);
-    /// Indicates the actor returned a block handle that doesn't exist
+    /// The actor returned a block handle that doesn't exist
     pub const SYS_MISSING_RETURN: ExitCode = ExitCode::new(11);
     // pub const SYS_RESERVED_12: ExitCode = ExitCode::new(12);
     // pub const SYS_RESERVED_13: ExitCode = ExitCode::new(13);
@@ -84,24 +84,26 @@ impl ExitCode {
     pub const FIRST_USER_EXIT_CODE: u32 = 16;
 
     // Standard exit codes according to the built-in actors' calling convention.
-    /// Indicates a method parameter is invalid.
+    /// The method parameters are invalid.
     pub const USR_ILLEGAL_ARGUMENT: ExitCode = ExitCode::new(16);
-    /// Indicates a requested resource does not exist.
+    /// The requested resource does not exist.
     pub const USR_NOT_FOUND: ExitCode = ExitCode::new(17);
-    /// Indicates an action is disallowed.
+    /// The requested operation is not forbidden.
     pub const USR_FORBIDDEN: ExitCode = ExitCode::new(18);
-    /// Indicates a balance of funds is insufficient.
+    /// The actor has insufficient funds to perform the requested operation.
     pub const USR_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(19);
-    /// Indicates an actor's internal state is invalid.
+    /// The actor's internal state is invalid.
     pub const USR_ILLEGAL_STATE: ExitCode = ExitCode::new(20);
-    /// Indicates de/serialization failure within actor code.
+    /// There was a de/serialization failure within actor code.
     pub const USR_SERIALIZATION: ExitCode = ExitCode::new(21);
-    /// Indicates the actor cannot handle this message.
+    /// The message cannot be handled (usually indicates an unhandled method number).
     pub const USR_UNHANDLED_MESSAGE: ExitCode = ExitCode::new(22);
-    /// Indicates the actor failed with an unspecified error.
+    /// The actor failed with an unspecified error.
     pub const USR_UNSPECIFIED: ExitCode = ExitCode::new(23);
-    /// Indicates the actor failed a user-level assertion
+    /// The actor failed a user-level assertion.
     pub const USR_ASSERTION_FAILED: ExitCode = ExitCode::new(24);
+    /// The requested operation cannot be performed in "read-only" mode.
+    pub const USR_READ_ONLY: ExitCode = ExitCode::new(25);
     // pub const RESERVED_25: ExitCode = ExitCode::new(25);
     // pub const RESERVED_26: ExitCode = ExitCode::new(26);
     // pub const RESERVED_27: ExitCode = ExitCode::new(27);
@@ -147,8 +149,10 @@ pub enum ErrorNumber {
     Forbidden = 11,
     /// The passed buffer is too small.
     BufferTooSmall = 12,
+    /// The actor is executing in a read-only context.
+    ReadOnly = 13,
     /// The gas limit for a subcall was exceeded.
-    GasLimitExceeded = 13,
+    GasLimitExceeded = 14,
 }
 
 impl std::fmt::Display for ErrorNumber {
@@ -167,6 +171,7 @@ impl std::fmt::Display for ErrorNumber {
             Serialization => "serialization error",
             Forbidden => "operation forbidden",
             BufferTooSmall => "buffer too small",
+            ReadOnly => "execution context is read-only",
             GasLimitExceeded => "subcall gas limit exceeded",
         })
     }

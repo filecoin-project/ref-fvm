@@ -16,6 +16,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
+use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -322,6 +323,11 @@ where
                 .or_fatal()
                 .context("invalid gas premium")?,
             gas_limit: self.call_manager.gas_tracker().gas_limit().round_down() as u64,
+            flags: if self.call_manager.state_tree().is_read_only() {
+                ContextFlags::READ_ONLY
+            } else {
+                ContextFlags::empty()
+            },
         })
     }
 }
@@ -337,6 +343,7 @@ where
         params_id: BlockId,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
 
@@ -353,9 +360,11 @@ where
         }
 
         // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
-        })?;
+        let result = self
+            .call_manager
+            .with_transaction(flags.read_only(), |cm| {
+                cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
+            })?;
 
         // Store result and return.
         Ok(match result {

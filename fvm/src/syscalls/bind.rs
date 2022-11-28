@@ -199,3 +199,4 @@ impl_bind_syscalls!(A B C D);
 impl_bind_syscalls!(A B C D E);
 impl_bind_syscalls!(A B C D E F);
 impl_bind_syscalls!(A B C D E F G);
+impl_bind_syscalls!(A B C D E F G H);

@@ -30,6 +30,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::SendFlags;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
@@ -270,11 +271,12 @@ where
 
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         // This transmute is _safe_ because this type is "repr transparent".
         let inner_ptr = &mut self.0 as *mut C;
-        self.0.with_transaction(|inner: &mut C| unsafe {
+        self.0.with_transaction(read_only, |inner: &mut C| unsafe {
             // Make sure that we've got the right pointer. Otherwise, this cast definitely isn't
             // safe.
             assert_eq!(inner_ptr, inner as *mut C);
@@ -723,8 +725,10 @@ where
         params: BlockId,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        flags: SendFlags,
     ) -> Result<SendResult> {
-        self.0.send(recipient, method, params, value, gas_limit)
+        self.0
+            .send(recipient, method, params, value, gas_limit, flags)
     }
 }
 

@@ -98,7 +98,7 @@ where
                 Some(Block::new(DAG_CBOR, msg.params.bytes()))
             };
 
-            let result = cm.with_transaction(|cm| {
+            let result = cm.with_transaction(false, |cm| {
                 // Invoke the message.
                 let ret =
                     cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;

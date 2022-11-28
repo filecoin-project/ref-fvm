@@ -1,11 +1,12 @@
+use anyhow::Context as _;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber::GasLimitExceeded;
-use fvm_shared::sys;
+use fvm_shared::sys::{self, SendFlags};
 
 use super::Context;
 use crate::gas::Gas;
-use crate::kernel::{ExecutionError, Result, SendResult, SyscallError};
+use crate::kernel::{ClassifyResult, ExecutionError, Result, SendResult, SyscallError};
 use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
@@ -20,6 +21,7 @@ pub fn send(
     value_hi: u64,
     value_lo: u64,
     gas_limit: u64,
+    flags: u64,
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
@@ -30,11 +32,20 @@ pub fn send(
         .then(|| Gas::new(gas_limit as i64))
         .filter(|gas_limit| gas_limit < &context.kernel.gas_available());
 
+    let flags = SendFlags::from_bits(flags)
+        .with_context(|| format!("invalid send flags: {flags}"))
+        .or_illegal_argument()?;
+
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    let mut res = context
-        .kernel
-        .send(&recipient, method, params_id, &value, effective_gas_limit);
+    let mut res = context.kernel.send(
+        &recipient,
+        method,
+        params_id,
+        &value,
+        effective_gas_limit,
+        flags,
+    );
 
     // Lower the out of gas to a syscall error.
     if matches!(res, Err(ExecutionError::OutOfGas) if effective_gas_limit.is_some()) {
