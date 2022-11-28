@@ -7,7 +7,9 @@ edition = "2021"
 # ref-fvm must be checked out as a sibling repo
 # Note: fvm-integration-tests doesn't even have a published crate at this time.
 fvm_integration_tests = { path = "../ref-fvm/testing/integration" }
-fvm_ipld_blockstore = { version = "0.1.1", path = "../ref-fvm/ipld/blockstore" }
+fvm_ipld_blockstore = { path = "../ref-fvm/ipld/blockstore" }
+fvm_shared = { path = "../ref-fvm/shared" }
+fvm = { path = "../ref-fvm/fvm" }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
