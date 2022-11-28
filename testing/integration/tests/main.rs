@@ -458,6 +458,24 @@ fn out_of_stack() {
 }
 
 #[test]
+fn no_memory() {
+    // Make sure we can construct a module with 0 memory pages.
+    test_exitcode(
+        r#"(module
+             (type (;0;) (func (param i32) (result i32)))
+             (func (;0;) (type 0) (param i32) (result i32)
+               i32.const 0
+             )
+             (memory (;0;) 0)
+             (export "invoke" (func 0))
+             (export "memory" (memory 0))
+           )
+           "#,
+        ExitCode::OK,
+    );
+}
+
+#[test]
 fn backtraces() {
     // Note: this test **does not actually assert anything**, but it's useful to
     // let us peep into FVM backtrace generation under different scenarios.
