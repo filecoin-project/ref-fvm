@@ -40,6 +40,14 @@ fn main() {
             exit_with_error(format!("error loading bundle: {}", what));
         }
     };
+    let mut tester: Tester<MemoryBlockstore, DummyExterns> = Tester::new(
+        NetworkVersion::V18,  // TODO make this a program argument
+        StateTreeVersion::V5, // TODO infer this from network version
+        bundle_cid,
+        blockstore,
+    ).unwrap_or_else(|what| {
+        exit_with_error(format!("error creating execution framework: {}", what));
+    });
 
     match args.mode.as_str() {
         "fevm" => {
@@ -55,15 +63,6 @@ fn main() {
             });
             let params = hex::decode(args.params).unwrap_or_else(|what| {
                 exit_with_error(format!("error decoding contract entrypoint: {}", what));
-            });
-
-            let mut tester: Tester<MemoryBlockstore, DummyExterns> = Tester::new(
-                NetworkVersion::V18,  // TODO make this a program argument
-                StateTreeVersion::V5, // TODO infer this from network version
-                bundle_cid,
-                blockstore,
-            ).unwrap_or_else(|what| {
-                exit_with_error(format!("error creating execution framework: {}", what));
             });
 
             fevm::run(&mut tester, &contract, &entrypoint, &params).unwrap_or_else(|what| {
