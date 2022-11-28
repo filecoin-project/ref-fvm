@@ -28,7 +28,7 @@ cat $JSON_FILE \
 gnuplot \
   -e "filein='$DAT_FILE'" \
   -e "fileout='$PNG_FILE'" \
-  -e "charge='$CHARGE'" \
+  -e "charge='$(echo $CHARGE | tr _ - )'" \
   -e "max_elapsed=$ELAPSED_CUTOFF" \
   $PLT_FILE
 
