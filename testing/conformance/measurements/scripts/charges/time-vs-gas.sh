@@ -5,14 +5,16 @@ set -e
 # Merged traces file.
 TRACES=$1
 OUT_DIR=$2
-CHARGE=$3
+TITLE=$3
+CHARGE=$4
 
 mkdir -p $OUT_DIR
 
+PLT_FILE=$(dirname $0)/$(basename $0 .sh).plt
+
 DAT_FILE=$OUT_DIR/${CHARGE}.dat
 JSON_FILE=$OUT_DIR/${CHARGE}.jsonline
-PNG_FILE=$OUT_DIR/${CHARGE}.time-vs-gas.png
-PLT_FILE=$(dirname $0)/$(basename $0 .sh).plt
+PNG_FILE=$OUT_DIR/${CHARGE}.${TITLE}.png
 
 # Ignoring .storage_gas for now.
 cat $TRACES \
