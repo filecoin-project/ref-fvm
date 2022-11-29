@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_sdk = { version = "3.0.0-alpha.14", path = "../../../../sdk" }
 fvm_shared = { version = "3.0.0-alpha.12", path = "../../../../shared" }
