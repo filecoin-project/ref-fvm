@@ -197,7 +197,7 @@ pub trait ActorOps {
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns the actor's "type" (if builitin) or 0 (if not).
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
