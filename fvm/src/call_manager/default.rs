@@ -179,10 +179,9 @@ where
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
                         .unwrap_or_default(),
                 ),
-                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
-                    ErrorNumber::Forbidden,
-                    "out of gas",
-                )),
+                Err(ExecutionError::OutOfGas) => {
+                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, RawBytes::default())
+                }
                 Err(ExecutionError::Fatal(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
