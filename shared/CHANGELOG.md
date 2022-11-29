@@ -4,6 +4,12 @@
 
 - ...
 
+## 3.0.0-alpha.13 [2022-11-29]
+
+- Remove deprecated SYS_INVALID_METHOD exit code
+- Add a read-only mode to Sends
+  - Adds ContextFlags to MessageContext, and a special ReadOnly error 
+
 ## 3.0.0-alpha.12 [2022-11-17]
 
 - Refactor network/message contexts to reduce the number of syscalls.
