@@ -32,7 +32,9 @@ pub fn invoke(params_id: u32) -> u32 {
     // If we're self-calling, send to the origin.
     if Address::new_id(sdk::message::caller()) == self_addr {
         // Check that the observed gas limit is the one set.
-        assert_eq!(params.inner_gas_limit, params.inner_gas_limit);
+        if params.inner_gas_limit > 0 {
+            assert_eq!(sdk::message::gas_limit(), params.inner_gas_limit);
+        }
 
         // This send will never be committed if we exhaust gas.
         sdk::send::send(&params.dest, 0, Default::default(), ten.clone(), None).unwrap();
