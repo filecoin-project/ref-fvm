@@ -80,7 +80,6 @@ pub fn run<B: Blockstore>(
 
     let BytesDe(invoke_result) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
 
-    println!("Contract invocation successfull");
     println!("Result: {}", hex::encode(invoke_result));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
 
