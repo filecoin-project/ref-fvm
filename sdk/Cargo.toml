@@ -11,7 +11,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 crate-type = ["lib"]
 
 [dependencies]
-cid = { version = "0.8.5", default-features = false }
+cid = { version = "0.9.0", default-features = false }
 fvm_shared = { version = "3.0.0-alpha.12", path = "../shared" }
 ## num-traits; disabling default features makes it play nice with no_std.
 num-traits = { version = "0.2.14", default-features = false }
