@@ -579,8 +579,8 @@ impl Arbitrary for ActorState {
             code: cid,
             state: cid,
             sequence: u64::arbitrary(g),
-            balance: TokenAmount::from_atto(u64::arbitrary(g)),
-            address: None,
+            balance: TokenAmount::arbitrary(g),
+            address: Some(Address::arbitrary(g)),
         }
     }
 }
