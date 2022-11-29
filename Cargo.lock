@@ -2767,6 +2767,7 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-traits",
+ "quickcheck",
  "rand",
  "rand_chacha",
  "serde",
@@ -3472,6 +3473,7 @@ dependencies = [
  "autocfg",
  "num-integer",
  "num-traits",
+ "quickcheck",
 ]
 
 [[package]]
