@@ -108,12 +108,11 @@ super::fvm_syscalls! {
     /// | [`IllegalArgument`] | if the type is invalid, or the outupt buffer isn't large enough |
     pub fn get_code_cid_for_type(typ: i32, obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
 
-    /// Generates a new actor address for an actor deployed
-    /// by the calling actor.
+    /// Generates a new actor address for an actor deployed by the calling actor.
     ///
     /// **Privileged:** May only be called by the init actor.
     #[doc(hidden)]
-    pub fn new_actor_address(obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
+    pub fn next_actor_address(obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
 
     /// Creates a new actor in the state-tree with the specified actor ID, recording the specified
     /// "predictable" address in the actor root if non-empty, and returning a new stable address.

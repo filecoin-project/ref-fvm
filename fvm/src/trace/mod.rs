@@ -24,7 +24,6 @@ pub enum ExecutionEvent {
         params: RawBytes,
         value: TokenAmount,
     },
-    CallReturn(RawBytes),
-    CallAbort(ExitCode),
+    CallReturn(ExitCode, RawBytes),
     CallError(SyscallError),
 }

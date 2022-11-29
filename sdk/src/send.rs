@@ -5,7 +5,9 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
+use fvm_shared::sys::SendFlags;
 use fvm_shared::MethodNum;
+use num_traits::Zero;
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
@@ -17,6 +19,27 @@ pub fn send(
     method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
+) -> SyscallResult<Receipt> {
+    send_raw(to, method, params, value, SendFlags::default())
+}
+
+/// Sends a message to another actor in "read-only" mode. Value transfers, state mutations (`sself::set_root`, `sself::self_destruct`), and actor creation (explicit or implicit) will result in `IllegalOpreation` errors. Any events logged will be silently discarded.
+pub fn send_read_only(to: &Address, method: MethodNum, params: RawBytes) -> SyscallResult<Receipt> {
+    send_raw(
+        to,
+        method,
+        params,
+        TokenAmount::zero(),
+        SendFlags::READ_ONLY,
+    )
+}
+
+fn send_raw(
+    to: &Address,
+    method: MethodNum,
+    params: RawBytes,
+    value: TokenAmount,
+    flags: SendFlags,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
     let value: fvm_shared::sys::TokenAmount = value
@@ -44,21 +67,21 @@ pub fn send(
             params_id,
             value.hi,
             value.lo,
+            flags,
         )?;
 
         // Process the result.
         let exit_code = ExitCode::new(exit_code);
-        let return_data = match exit_code {
-            ExitCode::OK if return_id != NO_DATA_BLOCK_ID => {
-                // Allocate a buffer to read the return data.
-                let mut bytes = vec![0; return_size as usize];
+        let return_data = if return_id == NO_DATA_BLOCK_ID {
+            Default::default()
+        } else {
+            // Allocate a buffer to read the return data.
+            let mut bytes = vec![0; return_size as usize];
 
-                // Now read the return data.
-                let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
-                assert_eq!(0, unread);
-                RawBytes::from(bytes)
-            }
-            _ => Default::default(),
+            // Now read the return data.
+            let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+            assert_eq!(0, unread);
+            RawBytes::from(bytes)
         };
 
         Ok(Receipt {

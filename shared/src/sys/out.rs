@@ -57,8 +57,27 @@ pub mod crypto {
 }
 
 pub mod vm {
+    use bitflags::bitflags;
+
     use crate::sys::TokenAmount;
     use crate::{ActorID, MethodNum};
+
+    bitflags! {
+        /// Invocation flags pertaining to the currently executing actor.
+        #[derive(Default)]
+        #[repr(transparent)]
+        pub struct ContextFlags: u64 {
+            /// Invocation is in "read-only" mode. Any balance transfers, sends that would create
+            /// actors, and calls to `sself::set_root` and `sself::self_destruct` will be rejected.
+            const READ_ONLY = 0b00000001;
+        }
+    }
+
+    impl ContextFlags {
+        pub fn read_only(self) -> bool {
+            self.intersects(Self::READ_ONLY)
+        }
+    }
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
@@ -77,17 +96,24 @@ pub mod vm {
         pub gas_premium: TokenAmount,
         /// The current gas limit
         pub gas_limit: u64,
+        /// Flags pertaining to the currently executing actor's invocation context.
+        pub flags: ContextFlags,
     }
 }
 
 pub mod network {
     use crate::clock::ChainEpoch;
+    use crate::sys::TokenAmount;
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
     pub struct NetworkContext {
         /// The current epoch.
-        pub network_curr_epoch: ChainEpoch,
+        pub epoch: ChainEpoch,
+        /// The current time (seconds since the unix epoch).
+        pub timestamp: u64,
+        /// The current base-fee.
+        pub base_fee: TokenAmount,
         /// The network version.
         pub network_version: u32,
     }

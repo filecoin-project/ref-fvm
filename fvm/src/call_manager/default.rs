@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_shared::address::{Address, Payload};
@@ -35,9 +36,13 @@ pub struct InnerDefaultCallManager<M: Machine> {
     machine: M,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The gas premium paid by this message.
+    gas_premium: TokenAmount,
     /// The ActorID and the address of the original sender of the chain message that initiated
     /// this call stack.
     origin: ActorID,
+    /// The origin address as specified in the message (used to derive new f2 addresses).
+    origin_address: Address,
     /// The nonce of the chain message that initiated this call stack.
     nonce: u64,
     /// Number of actors created in this call stack.
@@ -82,20 +87,20 @@ where
         machine: M,
         gas_limit: i64,
         origin: ActorID,
+        origin_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero(), gas_premium);
-
-        if machine.context().tracing {
-            gas_tracker.enable_tracing()
-        }
+        let gas_tracker =
+            GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
             gas_tracker,
+            gas_premium,
             origin,
+            origin_address,
             nonce,
             num_actors_created: 0,
             call_stack_depth: 0,
@@ -140,13 +145,13 @@ where
 
         if self.machine.context().tracing {
             self.trace(match &result {
-                Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
-                    v.as_ref()
+                Ok(InvocationResult { exit_code, value }) => ExecutionEvent::CallReturn(
+                    *exit_code,
+                    value
+                        .as_ref()
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
                         .unwrap_or_default(),
                 ),
-                Ok(InvocationResult::Failure(code)) => ExecutionEvent::CallAbort(*code),
-
                 Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
                     ErrorNumber::Forbidden,
                     "out of gas",
@@ -163,13 +168,14 @@ where
 
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction();
-        self.events.create_layer();
+        self.state_tree_mut().begin_transaction(read_only);
+        self.events.create_layer(read_only);
 
         let (revert, res) = match f(self) {
-            Ok(v) => (!v.exit_code().is_success(), Ok(v)),
+            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
         self.state_tree_mut().end_transaction(revert)?;
@@ -187,7 +193,7 @@ where
         let InnerDefaultCallManager {
             machine,
             backtrace,
-            mut gas_tracker,
+            gas_tracker,
             mut exec_trace,
             events,
             ..
@@ -228,8 +234,8 @@ where
         &self.gas_tracker
     }
 
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
+    fn gas_premium(&self) -> &TokenAmount {
+        &self.gas_premium
     }
 
     // Other accessor methods
@@ -242,20 +248,82 @@ where
         self.nonce
     }
 
-    // Helper for creating actors. This really doesn't belong on this trait.
-
-    fn next_actor_idx(&mut self) -> u64 {
-        let ret = self.num_actors_created;
-        self.num_actors_created += 1;
-        ret
+    fn next_actor_address(&self) -> Address {
+        // Base the next address on the address specified as the message origin. This lets us use,
+        // e.g., an f2 address even if we can't look it up anywhere.
+        //
+        // Of course, if the user decides to send from an f0 address without waiting for finality,
+        // their "stable" address may not be as stable as they'd like. But that's their problem.
+        //
+        // In case you're wondering: but what if someone _else_ is relying on the stability of this
+        // address? They shouldn't be. The sender can always _replace_ a message with a new message,
+        // and completely change how f2 addresses are assigned. Only the message sender can rely on
+        // an f2 address (before finality).
+        let mut b = to_vec(&self.origin_address).expect("failed to serialize address");
+        b.extend_from_slice(&self.nonce.to_be_bytes());
+        b.extend_from_slice(&self.num_actors_created.to_be_bytes());
+        Address::new_actor(&b)
     }
 
-    fn invocation_count(&self) -> u64 {
-        self.invocation_count
+    fn create_actor(
+        &mut self,
+        code_id: Cid,
+        actor_id: ActorID,
+        predictable_address: Option<Address>,
+    ) -> Result<()> {
+        // TODO https://github.com/filecoin-project/builtin-actors/issues/492
+        let singleton = self.machine.builtin_actors().is_singleton_actor(&code_id);
+
+        if singleton {
+            return Err(
+                syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
+            );
+        }
+
+        // Check to make sure the actor doesn't exist, or is an embryo.
+        let actor = match self.machine.state_tree().get_actor(actor_id)? {
+            // Replace the embryo
+            Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
+                if act.address.is_none() {
+                    // The FVM made a mistake somewhere.
+                    return Err(ExecutionError::Fatal(anyhow!(
+                        "embryo {actor_id} doesn't have a predictable address"
+                    )));
+                }
+                if act.address != predictable_address {
+                    // The Init actor made a mistake?
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "embryo has a different predictable address"
+                    )
+                    .into());
+                }
+                act.code = code_id;
+                act
+            }
+            // Don't replace anything else.
+            Some(_) => {
+                return Err(syscall_error!(Forbidden; "Actor address already exists").into());
+            }
+            // Create a new actor.
+            None => {
+                self.charge_gas(self.price_list().on_create_actor())?;
+                ActorState::new_empty(code_id, predictable_address)
+            }
+        };
+
+        self.state_tree_mut().set_actor(actor_id, actor)?;
+        self.num_actors_created += 1;
+        Ok(())
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
         self.events.append_event(evt)
+    }
+
+    // Helper for creating actors. This really doesn't belong on this trait.
+    fn invocation_count(&self) -> u64 {
+        self.invocation_count
     }
 }
 
@@ -290,7 +358,7 @@ where
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
             let state = ActorState::new_empty(*code_cid, Some(*addr));
-            self.create_actor(addr, state)?
+            self.machine.create_actor(addr, state)?
         };
 
         // Now invoke the constructor; first create the parameters, then
@@ -326,7 +394,7 @@ where
         let code_cid = self.builtin_actors().get_embryo_code();
 
         let state = ActorState::new_empty(*code_cid, Some(*addr));
-        self.create_actor(addr, state)
+        self.machine.create_actor(addr, state)
     }
 
     /// Send without checking the call depth.
@@ -352,7 +420,7 @@ where
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da)
-                    if self.state_tree().get_actor_id(da.namespace())?.is_some() =>
+                    if self.state_tree().get_actor(da.namespace())?.is_some() =>
                 {
                     self.create_embryo_actor::<K>(&to)?
                 }
@@ -380,7 +448,7 @@ where
         // Lookup the actor.
         let state = self
             .state_tree()
-            .get_actor_id(to)?
+            .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
@@ -394,7 +462,7 @@ where
         // Abort early if we have a send.
         if method == METHOD_SEND {
             log::trace!("sent {} -> {}: {}", from, to, &value);
-            return Ok(InvocationResult::Return(Default::default()));
+            return Ok(InvocationResult::default());
         }
 
         // Store the parametrs, and initialize the block registry for the target actor.
@@ -432,11 +500,36 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<BlockId, Abort> = (|| {
+                use wasmtime_runtime::InstantiationError;
                 // Instantiate the module.
                 let instance = engine
                     .get_instance(&mut store, &state.code)
                     .and_then(|i| i.context("actor code not found"))
-                    .map_err(Abort::Fatal)?;
+                    .map_err(|e| match e.downcast::<InstantiationError>() {
+                        Ok(e) => match e {
+                            // This will be handled in validation.
+                            InstantiationError::Link(e) => Abort::Fatal(anyhow!(e)),
+                            // TODO: We may want a separate OOM exit code? However, normal ooms will usually exit with SYS_ILLEGAL_INSTRUCTION.
+                            InstantiationError::Resource(e) => Abort::Exit(
+                                ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                                e.to_string(),
+                                NO_DATA_BLOCK_ID,
+                            ),
+                            // TODO: we probably shouldn't hit this unless we're running code? We
+                            // should check if we can "validate away" this case.
+                            InstantiationError::Trap(e) => Abort::Exit(
+                                ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                                format!("actor initialization failed: {:?}", e),
+                                0,
+                            ),
+                            // TODO: Consider using the instance limit instead of an explicit stack depth?
+                            InstantiationError::Limit(limit) => Abort::Fatal(anyhow!(
+                                "did not expect to hit wasmtime instance limit: {}",
+                                limit
+                            )),
+                        },
+                        Err(e) => Abort::Fatal(e),
+                    })?;
 
                 // Resolve and store a reference to the exported memory.
                 let memory = instance
@@ -484,6 +577,7 @@ where
                         Abort::Exit(
                             ExitCode::SYS_MISSING_RETURN,
                             String::from("returned block does not exist"),
+                            NO_DATA_BLOCK_ID,
                         )
                     })?)
                 })
@@ -491,16 +585,39 @@ where
 
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
-                Ok(ret) => Ok(InvocationResult::Return(ret.cloned())),
+                Ok(ret) => Ok(InvocationResult {
+                    exit_code: ExitCode::OK,
+                    value: ret.cloned(),
+                }),
                 Err(abort) => {
                     if let Some(err) = last_error {
                         cm.backtrace.begin(err);
                     }
 
                     let (code, message, res) = match abort {
-                        Abort::Exit(code, message) => {
-                            (code, message, Ok(InvocationResult::Failure(code)))
-                        }
+                        Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
+                            code,
+                            message,
+                            Ok(InvocationResult {
+                                exit_code: code,
+                                value: None,
+                            }),
+                        ),
+                        Abort::Exit(code, message, blk_id) => match block_registry.get(blk_id) {
+                            Err(e) => (
+                                ExitCode::SYS_MISSING_RETURN,
+                                "error getting exit data block".to_owned(),
+                                Err(ExecutionError::Fatal(anyhow!(e))),
+                            ),
+                            Ok(blk) => (
+                                code,
+                                message,
+                                Ok(InvocationResult {
+                                    exit_code: code,
+                                    value: Some(blk.clone()),
+                                }),
+                            ),
+                        },
                         Abort::OutOfGas => (
                             ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
@@ -532,7 +649,7 @@ where
                         to,
                         method,
                         from,
-                        val.exit_code()
+                        val.exit_code
                     ),
                     Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
                 }
@@ -599,32 +716,52 @@ where
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
+    read_only_layers: u32,
 }
 
 impl EventsAccumulator {
-    fn append_event(&mut self, evt: StampedEvent) {
-        self.events.push(evt)
+    fn is_read_only(&self) -> bool {
+        self.read_only_layers > 0
     }
 
-    fn create_layer(&mut self) {
-        self.idxs.push(self.events.len());
+    fn append_event(&mut self, evt: StampedEvent) {
+        if !self.is_read_only() {
+            self.events.push(evt)
+        }
+    }
+
+    fn create_layer(&mut self, read_only: bool) {
+        if read_only || self.is_read_only() {
+            self.read_only_layers += 1;
+        } else {
+            self.idxs.push(self.events.len());
+        }
     }
 
     fn merge_last_layer(&mut self) -> Result<()> {
-        self.idxs.pop().map(|_| {}).ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling merge_last_layer"
-            ))
-        })
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+            Ok(())
+        } else {
+            self.idxs.pop().map(|_| {}).ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling merge_last_layer"
+                ))
+            })
+        }
     }
 
     fn discard_last_layer(&mut self) -> Result<()> {
-        let idx = self.idxs.pop().ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling discard_last_layer"
-            ))
-        })?;
-        self.events.truncate(idx);
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+        } else {
+            let idx = self.idxs.pop().ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling discard_last_layer"
+                ))
+            })?;
+            self.events.truncate(idx);
+        }
         Ok(())
     }
 
