@@ -27,9 +27,12 @@ pub fn send(
 
     // Only pass on the gas limit, and subsequently lower errors, if the caller requested a gas
     // limit below their gas available.
-    let effective_gas_limit = (gas_limit > 0)
-        .then(|| Gas::new(gas_limit as i64))
-        .filter(|gas_limit| gas_limit < &context.kernel.gas_available());
+    let effective_gas_limit = if gas_limit > 0 {
+        // Treat > maxint as "no limit".
+        gas_limit.try_into().ok().map(Gas::new)
+    } else {
+        None
+    };
 
     let flags = SendFlags::from_bits(flags)
         .with_context(|| format!("invalid send flags: {flags}"))

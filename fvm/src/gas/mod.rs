@@ -212,6 +212,13 @@ impl GasTracker {
         self.charge_gas_inner(other.gas_used())
     }
 
+    /// Make a "child" gas-tracker with a new limit, if and only if the new limit is less than the
+    /// available gas.
+    pub fn new_child(&self, new_limit: Gas) -> Option<GasTracker> {
+        (self.gas_available() > new_limit)
+            .then(|| GasTracker::new(new_limit, Gas::zero(), self.trace.is_some()))
+    }
+
     /// Getter for the maximum gas usable by this message.
     pub fn gas_limit(&self) -> Gas {
         self.gas_limit
