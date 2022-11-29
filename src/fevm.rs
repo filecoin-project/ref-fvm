@@ -13,7 +13,9 @@ pub fn run<B: Blockstore>(
     params: &[u8],
 ) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(DummyExterns, |cfg| cfg.actor_debugging = false)
+        .unwrap();
 
     // create actor
     let create_params = Create2Params {
