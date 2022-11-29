@@ -143,9 +143,32 @@ where
             });
         }
 
-        let result = self.with_stack_frame(|s| {
-            s.send_unchecked::<K>(from, to, method, params, value, gas_limit)
-        });
+        // If a specific gas limit has been requested, create a child GasTracker and use that
+        // one hereon.
+        let prev_gas_tracker = gas_limit
+            .and_then(|limit| self.gas_tracker.new_child(limit))
+            .map(|new| mem::replace(&mut self.gas_tracker, new));
+
+        let mut result =
+            self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
+
+        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
+        if let Some(prev) = prev_gas_tracker {
+            let other = mem::replace(&mut self.gas_tracker, prev);
+            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
+            // would've already raised it, so we ignore it here. We could check and assert that's
+            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
+            // not safe to do so.
+            let _ = self.gas_tracker.absorb(&other);
+
+            // If we were limiting gas, convert the execution error to an exit.
+            if matches!(result, Err(ExecutionError::OutOfGas)) {
+                result = Ok(InvocationResult {
+                    exit_code: ExitCode::SYS_OUT_OF_GAS,
+                    value: None,
+                })
+            }
+        }
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -409,7 +432,6 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
-        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -433,32 +455,7 @@ where
             },
         };
 
-        // If a specific gas limit has been requested, create a child GasTracker and use that
-        // one hereon.
-        let prev_gas_tracker = gas_limit
-            .and_then(|limit| self.gas_tracker.new_child(limit))
-            .map(|new| mem::replace(&mut self.gas_tracker, new));
-
-        let mut ret = self.send_resolved::<K>(from, to, method, params, value);
-
-        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
-        if let Some(prev) = prev_gas_tracker {
-            let other = mem::replace(&mut self.gas_tracker, prev);
-            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
-            // would've already raised it, so we ignore it here. We could check and assert that's
-            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
-            // not safe to do so.
-            let _ = self.gas_tracker.absorb(&other);
-
-            // If we were limiting gas, convert the execution error to an exit.
-            if matches!(ret, Err(ExecutionError::OutOfGas)) {
-                ret = Ok(InvocationResult {
-                    exit_code: ExitCode::SYS_OUT_OF_GAS,
-                    value: None,
-                })
-            }
-        }
-        ret
+        self.send_resolved::<K>(from, to, method, params, value)
     }
 
     /// Send with resolved addresses.
