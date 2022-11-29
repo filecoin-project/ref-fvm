@@ -1,12 +1,17 @@
 use anyhow::anyhow;
-use fvm_integration_tests::tester::{Tester, Account};
-use fvm_integration_tests::dummy::DummyExterns;
-use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{Cbor, RawBytes, BytesSer, BytesDe, strict_bytes, to_vec, tuple::*};
-use fvm_shared::{ActorID, METHOD_CONSTRUCTOR, message::Message, address::Address};
 use fvm::executor::{ApplyKind, Executor};
+use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::tester::{Account, Tester};
+use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{strict_bytes, to_vec, tuple::*, BytesDe, BytesSer, Cbor, RawBytes};
+use fvm_shared::{address::Address, message::Message, ActorID, METHOD_CONSTRUCTOR};
 
-pub fn run<B: Blockstore>(tester: &mut Tester<B, DummyExterns>, contract: &[u8], entrypoint: &[u8], params: &[u8]) -> anyhow::Result<()> {
+pub fn run<B: Blockstore>(
+    tester: &mut Tester<B, DummyExterns>,
+    contract: &[u8],
+    entrypoint: &[u8],
+    params: &[u8],
+) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
     tester.instantiate_machine(DummyExterns).unwrap();
 
@@ -34,7 +39,10 @@ pub fn run<B: Blockstore>(tester: &mut Tester<B, DummyExterns>, contract: &[u8],
         .unwrap();
 
     if create_res.msg_receipt.exit_code.value() != 0 {
-        return Err(anyhow!("actor creation failed: {}", create_res.msg_receipt.exit_code))
+        return Err(anyhow!(
+            "actor creation failed: {}",
+            create_res.msg_receipt.exit_code
+        ));
     }
 
     let create_return: CreateReturn = create_res.msg_receipt.return_data.deserialize().unwrap();
@@ -62,7 +70,10 @@ pub fn run<B: Blockstore>(tester: &mut Tester<B, DummyExterns>, contract: &[u8],
         .unwrap();
 
     if invoke_res.msg_receipt.exit_code.value() != 0 {
-        return Err(anyhow!("contract invocation failed: {}", create_res.msg_receipt.exit_code))
+        return Err(anyhow!(
+            "contract invocation failed: {}",
+            create_res.msg_receipt.exit_code
+        ));
     }
 
     let BytesDe(invoke_result) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
@@ -96,7 +107,6 @@ pub enum EVMMethod {
     InvokeContractReadOnly = 5,
     InvokeContractDelegate = 6,
 }
-
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EthAddress(#[serde(with = "strict_bytes")] pub [u8; 20]);

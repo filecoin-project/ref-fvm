@@ -2,13 +2,13 @@ mod bundle;
 mod fevm;
 
 use clap::Parser;
-use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_integration_tests::tester::Tester;
 use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::tester::Tester;
+use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use std::fs;
 use hex;
+use std::fs;
 
 /// Run a contract invocation for benchmarking purposes
 #[derive(Parser, Debug)]
@@ -45,7 +45,8 @@ fn main() {
         StateTreeVersion::V5, // TODO infer this from network version
         bundle_cid,
         blockstore,
-    ).unwrap_or_else(|what| {
+    )
+    .unwrap_or_else(|what| {
         exit_with_error(format!("error creating execution framework: {}", what));
     });
 
