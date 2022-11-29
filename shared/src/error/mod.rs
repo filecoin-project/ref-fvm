@@ -151,8 +151,6 @@ pub enum ErrorNumber {
     BufferTooSmall = 12,
     /// The actor is executing in a read-only context.
     ReadOnly = 13,
-    /// The gas limit for a subcall was exceeded.
-    GasLimitExceeded = 14,
 }
 
 impl std::fmt::Display for ErrorNumber {
@@ -172,7 +170,6 @@ impl std::fmt::Display for ErrorNumber {
             Forbidden => "operation forbidden",
             BufferTooSmall => "buffer too small",
             ReadOnly => "execution context is read-only",
-            GasLimitExceeded => "subcall gas limit exceeded",
         })
     }
 }

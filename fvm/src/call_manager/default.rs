@@ -447,7 +447,7 @@ where
         });
 
         // Do the actual send.
-        let ret = self.send_resolved::<K>(from, to, method, params, value);
+        let mut ret = self.send_resolved::<K>(from, to, method, params, value);
 
         // Restore the original gas tracker and absorb the child's gas usage and traces into it.
         if let Some(prev) = prev_gas_tracker {
@@ -457,6 +457,14 @@ where
             // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
             // not safe to do so.
             let _ = self.gas_tracker.absorb(&other);
+
+            // If we were limiting gas, convert the execution error to an exit.
+            if matches!(ret, Err(ExecutionError::OutOfGas)) {
+                ret = Ok(InvocationResult {
+                    exit_code: ExitCode::SYS_OUT_OF_GAS,
+                    value: None,
+                })
+            }
         }
 
         ret

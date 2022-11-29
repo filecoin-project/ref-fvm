@@ -2,6 +2,7 @@ use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 use serde_tuple::*;
 
@@ -72,16 +73,20 @@ pub fn invoke(params_id: u32) -> u32 {
     let ret = sdk::send::send(&self_addr, 2, data.into(), Zero::zero(), gas_limit);
 
     match ret {
-        Ok(_) if params.expect_err => {
-            panic!("expected to fail with error number == GasLimitExceeded");
-        }
-        Err(num) if params.expect_err => {
-            assert_eq!(num, fvm_shared::error::ErrorNumber::GasLimitExceeded);
+        Ok(res) => {
+            if params.expect_err {
+                assert_eq!(
+                    res.exit_code,
+                    ExitCode::SYS_OUT_OF_GAS,
+                    "expected to fail SYS_OUT_OF_GAS"
+                );
+            } else {
+                assert!(res.exit_code.is_success(), "did not expect a failure");
+            }
         }
         Err(_) => {
             panic!("did not expect an error");
         }
-        Ok(_) => {}
     };
     0
 }
