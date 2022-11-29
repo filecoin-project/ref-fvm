@@ -611,10 +611,6 @@ where
                     value: ret.cloned(),
                 }),
                 Err(abort) => {
-                    if let Some(err) = last_error {
-                        cm.backtrace.begin(err);
-                    }
-
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
                             code,
@@ -651,12 +647,18 @@ where
                         ),
                     };
 
-                    cm.backtrace.push_frame(Frame {
-                        source: to,
-                        method,
-                        message,
-                        code,
-                    });
+                    if !code.is_success() {
+                        if let Some(err) = last_error {
+                            cm.backtrace.begin(err);
+                        }
+
+                        cm.backtrace.push_frame(Frame {
+                            source: to,
+                            method,
+                            message,
+                            code,
+                        });
+                    }
 
                     res
                 }
