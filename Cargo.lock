@@ -1885,6 +1885,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_gaslimit_actor"
+version = "0.1.0"
+dependencies = [
+ "fvm_ipld_encoding 0.3.0",
+ "fvm_sdk 3.0.0-alpha.14",
+ "fvm_shared 3.0.0-alpha.12",
+ "log",
+ "serde",
+ "serde_tuple",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
@@ -2401,6 +2414,7 @@ dependencies = [
  "fil_builtin_actors_bundle",
  "fil_events_actor",
  "fil_exit_data_actor",
+ "fil_gaslimit_actor",
  "fil_hello_world_actor",
  "fil_integer_overflow_actor",
  "fil_ipld_actor",

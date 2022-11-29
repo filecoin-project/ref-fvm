@@ -261,11 +261,12 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
         self.0
-            .send::<TestKernel<K>>(from, to, method, params, value)
+            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit)
     }
 
     fn with_transaction(
@@ -723,9 +724,11 @@ where
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<SendResult> {
-        self.0.send(recipient, method, params, value, flags)
+        self.0
+            .send(recipient, method, params, value, gas_limit, flags)
     }
 }
 

@@ -26,7 +26,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
         2 => {
             assert!(!sdk::vm::read_only());
             // Can't create actors when read-only.
-            let resp = sdk::send::send_read_only(&account, METHOD_SEND, RawBytes::default());
+            let resp = sdk::send::send_read_only(&account, METHOD_SEND, RawBytes::default(), None);
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // But can still create them when not read-only.
@@ -35,6 +35,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 METHOD_SEND,
                 Default::default(),
                 Default::default(),
+                None,
             )
             .unwrap()
             .exit_code
@@ -45,6 +46,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 &Address::new_id(sdk::message::receiver()),
                 3,
                 Default::default(),
+                None,
             )
             .unwrap()
             .exit_code
@@ -55,12 +57,18 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert!(sdk::vm::read_only());
 
             // Sending value fails.
-            let resp = sdk::send::send(&account, 0, Default::default(), TokenAmount::from_atto(1));
+            let resp = sdk::send::send(
+                &account,
+                0,
+                Default::default(),
+                TokenAmount::from_atto(1),
+                None,
+            );
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // Sending nothing succeeds.
             assert!(
-                sdk::send::send(&account, 0, Default::default(), Default::default())
+                sdk::send::send(&account, 0, Default::default(), Default::default(), None)
                     .unwrap()
                     .exit_code
                     .is_success()
@@ -85,6 +93,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 4,
                 RawBytes::new("input".into()),
                 Default::default(),
+                None,
             )
             .unwrap();
             assert!(output.exit_code.is_success());
@@ -96,6 +105,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 5,
                 RawBytes::default(),
                 Default::default(),
+                None,
             )
             .unwrap();
             assert_eq!(output.exit_code.value(), 42);
@@ -105,6 +115,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 &Address::new_id(sdk::message::receiver()),
                 4,
                 RawBytes::new("input".into()),
+                None,
             )
             .unwrap();
             assert!(output.exit_code.is_success());

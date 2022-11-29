@@ -214,6 +214,7 @@ pub trait SendOps {
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<SendResult>;
 }

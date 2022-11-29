@@ -19,17 +19,24 @@ pub fn send(
     method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
+    gas_limit: Option<u64>,
 ) -> SyscallResult<Receipt> {
-    send_raw(to, method, params, value, SendFlags::default())
+    send_raw(to, method, params, value, gas_limit, SendFlags::default())
 }
 
 /// Sends a message to another actor in "read-only" mode. Value transfers, state mutations (`sself::set_root`, `sself::self_destruct`), and actor creation (explicit or implicit) will result in `IllegalOpreation` errors. Any events logged will be silently discarded.
-pub fn send_read_only(to: &Address, method: MethodNum, params: RawBytes) -> SyscallResult<Receipt> {
+pub fn send_read_only(
+    to: &Address,
+    method: MethodNum,
+    params: RawBytes,
+    gas_limit: Option<u64>,
+) -> SyscallResult<Receipt> {
     send_raw(
         to,
         method,
         params,
         TokenAmount::zero(),
+        gas_limit,
         SendFlags::READ_ONLY,
     )
 }
@@ -39,6 +46,7 @@ fn send_raw(
     method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
+    gas_limit: Option<u64>,
     flags: SendFlags,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
@@ -67,6 +75,7 @@ fn send_raw(
             params_id,
             value.hi,
             value.lo,
+            gas_limit.unwrap_or_default(),
             flags,
         )?;
 

@@ -342,6 +342,7 @@ where
         method: MethodNum,
         params_id: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
@@ -362,7 +363,7 @@ where
         let result = self
             .call_manager
             .with_transaction(flags.read_only(), |cm| {
-                cm.send::<Self>(from, *recipient, method, params, value)
+                cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
             })?;
 
         // Store result and return.
