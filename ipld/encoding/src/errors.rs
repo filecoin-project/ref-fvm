@@ -57,14 +57,19 @@ impl From<Error> for io::Error {
 /// This is used with the encoding errors, to detail the encoding protocol or any other
 /// information about how the data was encoded or decoded
 #[derive(Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum CodecProtocol {
+    Unsupported,
     Cbor,
+    Raw,
 }
 
 impl fmt::Display for CodecProtocol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
+            CodecProtocol::Unsupported => write!(f, "Unsupported"),
             CodecProtocol::Cbor => write!(f, "Cbor"),
+            CodecProtocol::Raw => write!(f, "Raw"),
         }
     }
 }

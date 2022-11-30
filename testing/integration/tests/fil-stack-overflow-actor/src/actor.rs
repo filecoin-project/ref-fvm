@@ -60,7 +60,7 @@ pub fn do_send(m: u64) -> u32 {
     let r = sdk::send::send(
         &Address::new_id(10000),
         m + 1,
-        Vec::new().into(),
+        None,
         TokenAmount::zero(),
         None,
         Default::default(),

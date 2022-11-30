@@ -11,8 +11,6 @@ use serde::{Deserialize, Serialize};
 use super::errors::Error;
 use crate::{de, from_slice, ser, strict_bytes, to_vec};
 
-pub const DAG_CBOR: u64 = 0x71;
-
 /// Cbor utility functions for serializable objects
 pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes

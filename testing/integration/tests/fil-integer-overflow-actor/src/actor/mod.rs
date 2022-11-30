@@ -77,8 +77,8 @@ pub fn invoke(params_pointer: u32) -> u32 {
     let ret: Option<RawBytes> = match fvm_sdk::message::method_number() {
         // Set initial value
         1 => {
-            let params = params_raw(params_pointer).unwrap().1;
-            let x: i64 = RawBytes::new(params).deserialize().unwrap();
+            let params = params_raw(params_pointer).unwrap().unwrap();
+            let x: i64 = params.deserialize().unwrap();
 
             let mut state = State::load();
             state.value = x;

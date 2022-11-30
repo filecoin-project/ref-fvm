@@ -26,9 +26,9 @@ pub fn invoke(params_id: u32) -> u32 {
 
     // Gas limit to use is supplied as a param.
     let params: Params = {
-        let (codec, data) = sdk::message::params_raw(params_id).unwrap();
-        assert_eq!(codec, fvm_ipld_encoding::DAG_CBOR);
-        fvm_ipld_encoding::from_slice(&data).unwrap()
+        let msg_params = sdk::message::params_raw(params_id).unwrap().unwrap();
+        assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+        fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap()
     };
 
     // If we're self-calling, send to the origin.
@@ -89,11 +89,11 @@ pub fn invoke(params_id: u32) -> u32 {
     };
 
     // send to self with the supplied gas_limit, propagating params.
-    let (_, data) = sdk::message::params_raw(params_id).unwrap();
+    let msg_params = sdk::message::params_raw(params_id).unwrap();
     let ret = sdk::send::send(
         &self_addr,
         2,
-        data.into(),
+        msg_params,
         Zero::zero(),
         gas_limit,
         Default::default(),

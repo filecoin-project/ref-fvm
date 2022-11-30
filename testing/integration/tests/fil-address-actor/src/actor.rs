@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_ipld_encoding::RawBytes;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::bigint::Zero;
@@ -11,14 +10,14 @@ use sdk::sys::ErrorNumber;
 pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 
-    // Check our address.
-    let (codec, data) = sdk::message::params_raw(params).unwrap();
-    assert_eq!(codec, fvm_ipld_encoding::DAG_CBOR);
-
     match sdk::message::method_number() {
         // on construction, make sure the address matches the expected one.`
         1 => {
-            let expected_address: Option<Address> = fvm_ipld_encoding::from_slice(&data).unwrap();
+            // Check our address.
+            let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            let expected_address: Option<Address> =
+                fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();
             let actual_address = sdk::actor::lookup_delegated_address(sdk::message::receiver());
             assert_eq!(expected_address, actual_address, "addresses did not match");
         }
@@ -26,17 +25,12 @@ pub fn invoke(params: u32) -> u32 {
         2 => {
             // Create an account.
             let addr = Address::new_secp256k1(&[0; SECP_PUB_LEN]).unwrap();
-            assert!(sdk::send::send(
-                &addr,
-                0,
-                RawBytes::default(),
-                Zero::zero(),
-                None,
-                Default::default()
-            )
-            .unwrap()
-            .exit_code
-            .is_success());
+            assert!(
+                sdk::send::send(&addr, 0, None, Zero::zero(), None, Default::default())
+                    .unwrap()
+                    .exit_code
+                    .is_success()
+            );
 
             // Resolve the ID address of the account.
             let id = sdk::actor::resolve_address(&addr).expect("failed to find new account");
@@ -51,17 +45,12 @@ pub fn invoke(params: u32) -> u32 {
             // Create an embryo.
             let addr =
                 Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
-            assert!(sdk::send::send(
-                &addr,
-                0,
-                RawBytes::default(),
-                Zero::zero(),
-                None,
-                Default::default()
-            )
-            .unwrap()
-            .exit_code
-            .is_success());
+            assert!(
+                sdk::send::send(&addr, 0, None, Zero::zero(), None, Default::default())
+                    .unwrap()
+                    .exit_code
+                    .is_success()
+            );
 
             // Resolve the ID address of the embryo.
             let id = sdk::actor::resolve_address(&addr).expect("failed to find new embryo");
@@ -78,14 +67,7 @@ pub fn invoke(params: u32) -> u32 {
                 Address::new_delegated(999, b"foobar").expect("failed to construct f4 address");
             assert_eq!(
                 Err(ErrorNumber::NotFound),
-                sdk::send::send(
-                    &addr,
-                    0,
-                    RawBytes::default(),
-                    Zero::zero(),
-                    None,
-                    Default::default()
-                ),
+                sdk::send::send(&addr, 0, None, Zero::zero(), None, Default::default()),
                 "expected send to unassignable f4 address to fail"
             );
         }
