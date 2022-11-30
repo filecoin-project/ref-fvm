@@ -864,9 +864,7 @@ impl PriceList {
     pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
         // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
         // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
-        self.wasm_rules.memory_expansion_per_byte_cost
-            * (min_table_elements as i32)
-            * (core::mem::size_of::<*const ()>() as i32)
+        self.wasm_rules.memory_expansion_per_byte_cost * (min_table_elements as i32) * 8
     }
 
     #[inline]
