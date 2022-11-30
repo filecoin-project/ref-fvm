@@ -311,13 +311,7 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester
-        .instantiate_machine_with_config(DummyExterns, |nc| {
-            // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
-            nc.max_exec_memory_bytes = 4 * (1 << 30);
-            nc.max_inst_memory_bytes = 4 * (1 << 30);
-        })
-        .unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
 
     let exec_test =
         |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
@@ -454,6 +448,24 @@ fn out_of_stack() {
                (local.get 0)
                (call 1)))"#,
         ExitCode::SYS_ILLEGAL_INSTRUCTION,
+    );
+}
+
+#[test]
+fn no_memory() {
+    // Make sure we can construct a module with 0 memory pages.
+    test_exitcode(
+        r#"(module
+             (type (;0;) (func (param i32) (result i32)))
+             (func (;0;) (type 0) (param i32) (result i32)
+               i32.const 0
+             )
+             (memory (;0;) 0)
+             (export "invoke" (func 0))
+             (export "memory" (memory 0))
+           )
+           "#,
+        ExitCode::OK,
     );
 }
 

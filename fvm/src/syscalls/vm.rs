@@ -45,7 +45,7 @@ pub fn exit(
                     format!(
                         "{} ... (skipped {} bytes) ... {}",
                         String::from_utf8_lossy(prefix),
-                        MAX_MESSAGE_LEN - bytes.len(),
+                        bytes.len() - MAX_MESSAGE_LEN,
                         String::from_utf8_lossy(suffix)
                     )
                 } else {

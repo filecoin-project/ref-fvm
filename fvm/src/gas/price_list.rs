@@ -153,6 +153,12 @@ lazy_static! {
         event_per_entry_cost: Zero::zero(),
         event_entry_index_cost: Zero::zero(),
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
+        builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 
     static ref SKYR_PRICES: PriceList = PriceList {
@@ -285,6 +291,12 @@ lazy_static! {
         event_per_entry_cost: Zero::zero(),
         event_entry_index_cost: Zero::zero(),
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
+        builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 
     static ref HYGGE_PRICES: PriceList = PriceList {
@@ -425,6 +437,12 @@ lazy_static! {
         event_entry_index_cost: Zero::zero(),
         // TODO GAS_PARAM
         event_per_byte_cost: Zero::zero(),
+
+        state_read_base: Zero::zero(),
+        state_write_base: Zero::zero(),
+        builtin_actor_base: Zero::zero(),
+        context_base: Zero::zero(),
+        install_wasm_per_byte_cost: Zero::zero(),
     };
 }
 
@@ -574,6 +592,27 @@ pub struct PriceList {
     pub(crate) event_per_entry_cost: Gas,
     pub(crate) event_entry_index_cost: Gas,
     pub(crate) event_per_byte_cost: Gas,
+
+    /// Gas cost of looking up an actor in the common state tree.
+    ///
+    /// The cost varies depending on whether the data is cached, and how big the state tree is,
+    /// but that is independent of the contract in question. Might need periodic repricing.
+    pub(crate) state_read_base: Gas,
+
+    /// Gas cost of storing an updated actor in the common state tree.
+    ///
+    /// The cost varies depending on how big the state tree is, and how many other writes will be
+    /// buffered together by the end of the calls when changes are flushed. Might need periodic repricing.
+    pub(crate) state_write_base: Gas,
+
+    /// Gas cost of doing lookups in the builtin actor mappings.
+    pub(crate) builtin_actor_base: Gas,
+
+    /// Gas cost of accessing the machine context.
+    pub(crate) context_base: Gas,
+
+    /// Gas cost of compiling a Wasm module during install.
+    pub(crate) install_wasm_per_byte_cost: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -629,12 +668,13 @@ impl PriceList {
 
     /// Returns the gas required for creating an actor.
     #[inline]
-    pub fn on_create_actor(&self) -> GasCharge {
-        GasCharge::new(
-            "OnCreateActor",
-            self.create_actor_compute,
-            self.create_actor_storage * self.storage_gas_multiplier,
-        )
+    pub fn on_create_actor(&self, is_new: bool) -> GasCharge {
+        let storage_gas = if is_new {
+            self.create_actor_storage * self.storage_gas_multiplier
+        } else {
+            Gas::zero()
+        };
+        GasCharge::new("OnCreateActor", self.create_actor_compute, storage_gas)
     }
 
     /// Returns the gas required for deleting an actor.
@@ -649,7 +689,7 @@ impl PriceList {
 
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType) -> GasCharge {
+    pub fn on_verify_signature(&self, sig_type: SignatureType, _data_len: usize) -> GasCharge {
         let val = match sig_type {
             SignatureType::BLS => self.bls_sig_cost,
             SignatureType::Secp256k1 => self.secp256k1_sig_cost,
@@ -669,7 +709,7 @@ impl PriceList {
 
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _: usize) -> GasCharge {
+    pub fn on_hashing(&self, _data_len: usize) -> GasCharge {
         GasCharge::new("OnHashing", self.hashing_base, Zero::zero())
     }
 
@@ -759,7 +799,12 @@ impl PriceList {
 
     /// Returns gas required for verifying consensus fault.
     #[inline]
-    pub fn on_verify_consensus_fault(&self) -> GasCharge {
+    pub fn on_verify_consensus_fault(
+        &self,
+        _h1_len: usize,
+        _h2_len: usize,
+        _extra_len: usize,
+    ) -> GasCharge {
         GasCharge::new(
             "OnVerifyConsensusFault",
             self.extern_cost + self.verify_consensus_fault,
@@ -847,12 +892,99 @@ impl PriceList {
         GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
     }
 
+    /// Returns the gas required for accessing the actor state root.
+    #[inline]
+    pub fn on_root(&self) -> GasCharge {
+        GasCharge::new("OnRoot", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for modifying the actor state root.
+    #[inline]
+    pub fn on_set_root(&self) -> GasCharge {
+        // The modification needs a lookup first, then a deferred write via the snapshots,
+        // which might end up being amortized by having other writes buffered till the end.
+        GasCharge::new(
+            "OnSetRoot",
+            self.state_read_base + self.state_write_base,
+            Zero::zero(),
+        )
+    }
+
+    /// Returns the gas required for accessing the current balance.
+    #[inline]
+    pub fn on_current_balance(&self) -> GasCharge {
+        GasCharge::new("OnCurrentBalance", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the balance of an actor.
+    #[inline]
+    pub fn on_balance_of(&self) -> GasCharge {
+        GasCharge::new("OnBalanceOf", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for resolving an actor address.
+    ///
+    /// Might require lookup in the state tree as well as loading the state of the init actor.
+    #[inline]
+    pub fn on_resolve_address(&self) -> GasCharge {
+        GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for looking up an actor address.
+    #[inline]
+    pub fn on_lookup_address(&self) -> GasCharge {
+        GasCharge::new("OnLookupAddress", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for getting the CID of the code of an actor.
+    ///
+    /// Might require looking up the actor in the state tree.
+    #[inline]
+    pub fn on_get_actor_code_cid(&self) -> GasCharge {
+        GasCharge::new("OnGetActorCodeCid", self.state_read_base, Zero::zero())
+    }
+
+    /// Returns the gas required for looking up the type of a builtin actor by CID.
+    #[inline]
+    pub fn on_get_builtin_actor_type(&self) -> GasCharge {
+        GasCharge::new(
+            "OnGetBuiltinActorType",
+            self.builtin_actor_base,
+            Zero::zero(),
+        )
+    }
+
+    /// Returns the gas required for looking up the CID of a builtin actor by type.
+    #[inline]
+    pub fn on_get_code_cid_for_type(&self) -> GasCharge {
+        GasCharge::new("OnGetCodeCidForType", self.builtin_actor_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the network context.
+    #[inline]
+    pub fn on_network_context(&self) -> GasCharge {
+        GasCharge::new("OnNetworkContext", self.context_base, Zero::zero())
+    }
+
+    /// Returns the gas required for accessing the message context.
+    #[inline]
+    pub fn on_message_context(&self) -> GasCharge {
+        GasCharge::new("OnMessageContext", self.context_base, Zero::zero())
+    }
+
+    /// Returns the gas required for installing an actor.
+    #[cfg(feature = "m2-native")]
+    pub fn on_install_actor(&self, wasm_size: usize) -> GasCharge {
+        GasCharge::new(
+            "OnInstallActor",
+            self.install_wasm_per_byte_cost * (wasm_size as i64),
+            Zero::zero(),
+        )
+    }
+
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
-        // FIP-0037: The first page is free.
-        let free_memory_bytes = wasmtime_environ::WASM_PAGE_SIZE as usize;
-        let charge_memory_bytes = (min_memory_bytes - free_memory_bytes).max(0) as i64;
-        self.wasm_rules.memory_expansion_per_byte_cost * charge_memory_bytes
+        self.wasm_rules.memory_expansion_per_byte_cost * (min_memory_bytes as i64)
     }
 
     /// Returns the gas required for growing memory.

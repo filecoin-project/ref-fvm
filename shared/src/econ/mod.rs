@@ -106,6 +106,13 @@ impl fmt::Debug for TokenAmount {
     }
 }
 
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for TokenAmount {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        TokenAmount::from_atto(BigInt::arbitrary(g))
+    }
+}
+
 /// Displays a token amount as a decimal in human units.
 /// To avoid any confusion over whether the value is in human-scale or indivisible units,
 /// the display always includes a decimal point.

@@ -36,7 +36,13 @@ pub struct StateTree<S> {
 
 /// Collection of state snapshots
 struct StateSnapshots {
+    /// Current layers. On success, we merge the top layer into the next layer. On abort, we discard
+    /// the top layer.
     layers: Vec<StateSnapLayer>,
+    /// Number of read-only layers stacked on top of the "layers". When this number is > 0:
+    /// 1. Modifications are rejected.
+    /// 2. Creating/discarding a layer simply adds/subtracts from this number
+    read_only_layers: u32,
 }
 
 /// State snap shot layer
@@ -58,14 +64,24 @@ impl StateSnapshots {
     fn new() -> Self {
         Self {
             layers: vec![StateSnapLayer::default()],
+            read_only_layers: 0,
         }
     }
 
-    fn add_layer(&mut self) {
-        self.layers.push(StateSnapLayer::default())
+    fn add_layer(&mut self, read_only: bool) {
+        if read_only || self.is_read_only() {
+            self.read_only_layers += 1;
+        } else {
+            self.layers.push(StateSnapLayer::default())
+        }
     }
 
     fn drop_layer(&mut self) -> Result<()> {
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+            return Ok(());
+        }
+
         self.layers
             .pop()
             .with_context(|| {
@@ -80,6 +96,11 @@ impl StateSnapshots {
     }
 
     fn merge_last_layer(&mut self) -> Result<()> {
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+            return Ok(());
+        }
+
         self.layers
             .get(&self.layers.len() - 2)
             .with_context(|| {
@@ -119,6 +140,26 @@ impl StateSnapshots {
         self.drop_layer()
     }
 
+    fn top_layer(&self) -> Result<&StateSnapLayer> {
+        self.layers
+            .last()
+            .context("state snapshots empty")
+            .or_fatal()
+    }
+
+    #[inline(always)]
+    fn is_read_only(&self) -> bool {
+        self.read_only_layers > 0
+    }
+
+    fn assert_writable(&self) -> Result<()> {
+        if self.is_read_only() {
+            Err(syscall_error!(ReadOnly; "cannot mutate state while in read-only mode").into())
+        } else {
+            Ok(())
+        }
+    }
+
     fn resolve_address(&self, addr: &Address) -> Option<ActorID> {
         if let &Payload::ID(id) = addr.payload() {
             return Some(id);
@@ -133,19 +174,10 @@ impl StateSnapshots {
     }
 
     fn cache_resolve_address(&self, addr: Address, id: ActorID) -> Result<()> {
-        self.layers
-            .last()
-            .with_context(|| {
-                format!(
-                    "caching address failed to index snapshot layer at index: {}",
-                    &self.layers.len() - 1
-                )
-            })
-            .or_fatal()?
+        self.top_layer()?
             .resolve_cache
             .borrow_mut()
             .insert(addr, id);
-
         Ok(())
     }
 
@@ -164,15 +196,9 @@ impl StateSnapshots {
     }
 
     fn set_actor(&self, id: ActorID, actor: ActorState) -> Result<()> {
-        self.layers
-            .last()
-            .with_context(|| {
-                format!(
-                    "set actor failed to index snapshot layer at index: {}",
-                    &self.layers.len() - 1
-                )
-            })
-            .or_fatal()?
+        self.assert_writable()?;
+
+        self.top_layer()?
             .actors
             .borrow_mut()
             .insert(id, Some(actor));
@@ -180,18 +206,9 @@ impl StateSnapshots {
     }
 
     fn delete_actor(&self, id: ActorID) -> Result<()> {
-        self.layers
-            .last()
-            .with_context(|| {
-                format!(
-                    "delete actor failed to index snapshot layer at index: {}",
-                    &self.layers.len() - 1
-                )
-            })
-            .or_fatal()?
-            .actors
-            .borrow_mut()
-            .insert(id, None);
+        self.assert_writable()?;
+
+        self.top_layer()?.actors.borrow_mut().insert(id, None);
 
         Ok(())
     }
@@ -409,8 +426,8 @@ where
     }
 
     /// Begin a new state transaction. Transactions stack.
-    pub fn begin_transaction(&mut self) {
-        self.snaps.add_layer();
+    pub fn begin_transaction(&mut self, read_only: bool) {
+        self.snaps.add_layer(read_only);
     }
 
     /// End a transaction, reverting if requested.
@@ -481,6 +498,10 @@ where
             f(addr, v)
         })?;
         Ok(())
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.snaps.is_read_only()
     }
 }
 
@@ -728,7 +749,7 @@ mod tests {
             None,
         );
 
-        tree.begin_transaction();
+        tree.begin_transaction(false);
         tree.set_actor(INIT_ACTOR_ID, act_s).unwrap();
 
         // Test mutate function
@@ -763,7 +784,7 @@ mod tests {
 
         let addresses: &[ActorID] = &[101, 102, 103];
 
-        tree.begin_transaction();
+        tree.begin_transaction(false);
         tree.set_actor(
             addresses[0],
             ActorState::new(
@@ -841,7 +862,7 @@ mod tests {
 
         let actor_id: ActorID = 1;
 
-        tree.begin_transaction();
+        tree.begin_transaction(false);
         tree.set_actor(
             actor_id,
             ActorState::new(

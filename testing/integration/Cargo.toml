@@ -8,8 +8,8 @@ authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "3.0.0-alpha.11", path = "../../fvm", default-features = false }
-fvm_shared = { version = "3.0.0-alpha.12", path = "../../shared" }
+fvm = { version = "3.0.0-alpha.12", path = "../../fvm", default-features = false }
+fvm_shared = { version = "3.0.0-alpha.13", path = "../../shared" }
 fvm_ipld_hamt = { version = "0.6.1", path = "../../ipld/hamt" }
 fvm_ipld_amt = { version = "0.5.0", path = "../../ipld/amt" }
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
@@ -47,6 +47,8 @@ fil_syscall_actor = { path = "tests/fil-syscall-actor" }
 fil_address_actor = { path = "tests/fil-address-actor" }
 fil_events_actor = { path = "tests/fil-events-actor" }
 fil_exit_data_actor = { path = "tests/fil-exit-data-actor" }
+fil_gaslimit_actor = { path = "tests/fil-gaslimit-actor" }
+fil_readonly_actor = { path = "tests/fil-readonly-actor" }
 
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 

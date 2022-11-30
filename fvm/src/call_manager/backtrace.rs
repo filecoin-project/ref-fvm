@@ -63,7 +63,7 @@ impl Backtrace {
 
     /// Push a "frame" (actor exit) onto the backtrace.
     ///
-    /// This should be called every time an actor exits.
+    /// This should be called every time an actor exits with an error.
     pub fn push_frame(&mut self, frame: Frame) {
         self.frames.push(frame)
     }

@@ -230,6 +230,15 @@ impl fmt::Display for Address {
     }
 }
 
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for Address {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            payload: Payload::arbitrary(g),
+        }
+    }
+}
+
 pub(self) fn parse_address(addr: &str) -> Result<(Address, Network), Error> {
     if addr.len() > MAX_ADDRRESS_TEXT_LEN || addr.len() < 3 {
         return Err(Error::InvalidLength);

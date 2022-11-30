@@ -4,6 +4,22 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.12 [2022-11-29]
+- Fix: make sure exit never fails, even on an invalid message
+- Limit the size of backtrace messages to 1k
+- Add interior mutability to the gas tracker
+- Refactor: Use ActorIDs for internal methods instead of Addresses
+  - The caller now has to handle any resolution errors, and can choose how to do so
+  - Avoid marking failures in some state-tree modification functions as "fatal errors".
+- Add a read-only mode to Sends
+  - Adds the concept of "read-only" layers to both the event accumulator and the state tree.
+- Raise the maximum memory limit from 512MiB to 2GiB
+- Fix: charge for the first page of gas
+- Send syscall: add an optional gas limit
+  -If specified, this limit will restrict the Send, not the message's remaining gas limit
+- Charge gas for more syscalls
+  - See [#1139](https://github.com/filecoin-project/ref-fvm/pull/1139) for the complete list
+
 ## 3.0.0-alpha.11 [2022-11-18]
 
 - Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).

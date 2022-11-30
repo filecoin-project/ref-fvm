@@ -112,7 +112,7 @@ pub fn get_builtin_actor_type(
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
     let cid = context.memory.read_cid(code_cid_off)?;
-    Ok(context.kernel.get_builtin_actor_type(&cid) as i32)
+    Ok(context.kernel.get_builtin_actor_type(&cid)? as i32)
 }
 
 pub fn get_code_cid_for_type(
