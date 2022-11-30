@@ -5,6 +5,8 @@ mod bytes;
 mod cbor;
 mod cbor_store;
 mod errors;
+pub mod ipld_block;
+mod raw;
 mod vec;
 use std::io;
 
@@ -16,6 +18,9 @@ pub use self::cbor::*;
 pub use self::cbor_store::CborStore;
 pub use self::errors::*;
 pub use self::vec::*;
+
+pub const DAG_CBOR: u64 = 0x71;
+pub const IPLD_RAW: u64 = 0x55;
 
 // TODO: these really don't work all that well in a shared context like this as anyone importing
 // them also need to _explicitly_ import the serde_tuple & serde_repr crates. These are _macros_,
