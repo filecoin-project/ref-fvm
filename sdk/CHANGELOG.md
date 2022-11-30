@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.15 [2022-11-29]
+
+- Send: handle non-zero exit return values 
+  - Returned values are read even if the Send had a non-zero exit code
+- Send syscall: add an optional gas limit
+- Add a read-only mode to Sends
+  - Adds "flags" to the Send syscall, more such flags can be added later as needed.
+
 ## 3.0.0-alpha.14 [2022-11-18]
 
 - Replace `new_actor_address` with `next_actor_address`. `next_actor_address` has no side effects (until the actor is actually created).
