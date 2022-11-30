@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains types exchanged at the syscall layer between actors
 //! (usually through the SDK) and the FVM.
 

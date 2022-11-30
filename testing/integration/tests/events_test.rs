@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 use bundles::*;
 use fil_events_actor::WASM_BINARY as EVENTS_BINARY;
