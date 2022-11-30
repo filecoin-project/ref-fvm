@@ -49,12 +49,6 @@ pub fn value_received() -> TokenAmount {
         .expect("invalid bigint")
 }
 
-/// Returns the execution gas limit
-#[inline(always)]
-pub fn gas_limit() -> u64 {
-    MESSAGE_CONTEXT.gas_limit
-}
-
 /// Returns the execution gas premium
 pub fn gas_premium() -> TokenAmount {
     MESSAGE_CONTEXT
