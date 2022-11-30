@@ -27,7 +27,7 @@ for file in $(git grep --cached -Il '' -- '*.rs'); do
 done
 
 # Look for changes that don't have the new copyright holder.
-for file in $(git diff --name-only master -- '*.rs'); do
+for file in $(git diff --diff-filter=M --name-only master -- '*.rs'); do
   header=$(head -$LINES "$file")
 	if ! echo "$header" | grep -q -P "$PAT_PL"; then
 		echo "$file was missing Protocol Labs"
