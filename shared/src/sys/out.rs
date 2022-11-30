@@ -94,8 +94,6 @@ pub mod vm {
         pub value_received: TokenAmount,
         /// The current gas premium
         pub gas_premium: TokenAmount,
-        /// The current gas limit
-        pub gas_limit: u64,
         /// Flags pertaining to the currently executing actor's invocation context.
         pub flags: ContextFlags,
     }
