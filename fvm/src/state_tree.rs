@@ -580,7 +580,7 @@ impl Arbitrary for ActorState {
             state: cid,
             sequence: u64::arbitrary(g),
             balance: TokenAmount::arbitrary(g),
-            address: Some(Address::arbitrary(g)),
+            address: Option::arbitrary(g),
         }
     }
 }
