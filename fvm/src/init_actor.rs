@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains the types and functions to process the init actor's state.
 //! It does not contain the logic of the init actor: that lives on-chain as a WASM actor.
 //!

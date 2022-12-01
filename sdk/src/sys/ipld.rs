@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for manipulating IPLD state.
 
 /// The ID of the "unit" block (or void for C programmers).

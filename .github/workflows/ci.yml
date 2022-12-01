@@ -27,6 +27,9 @@ jobs:
       with:
         command: fmt
         args: -- --check
+    - name: Check license headers
+      run: make license
+
   cargo:
     needs: [rustfmt]
     runs-on: ${{ matrix.os }}
@@ -131,7 +134,7 @@ jobs:
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
         command: cache
-        args: --autoclean  
+        args: --autoclean
     - name: Getting Cargo Cache Size
       if: ${{ matrix.push }}
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
