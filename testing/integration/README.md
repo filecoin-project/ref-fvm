@@ -20,10 +20,26 @@ The following flow has been defined as a default usage:
 at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
 
-TODO: (hack to get coverage reports from actors + integration tests) 
+TODO: (hack to get coverage reports from actors + integration tests)
 ```bash
 cargo build -p "*actor"
 export SKIP_WASM_BUILD=true
 export FVM_STORE_ARTIFACT_DIR=../../target/llvm-cov-target/
 cargo llvm-cov -p fvm_integration_tests --lcov
+```
+
+## Gas Calibration
+
+The `./tests/fil_gas_calibration.rs` test doesn't actually test anything specific; rather, it calls `./tests/fil-gas-calibration-actor`
+with various parameters to exercise certain syscalls, while collecting gas metrics, which are exported at the end. We can use these
+metrics to calibrate gas prices, if the collection happens in a standardized environment.
+
+This is different than the kind of metrics available to collect under the `conformance` tests in that we also capture the inputs,
+so that we can estimate prices based on different input size for example, if that is our hypotheses. The `conformance` tests are
+more about backtesting the gas model using the available test vectors, whereas here we are driving the data collection.
+
+To run the tests:
+
+```shell
+cargo test --test fil_gas_calibration
 ```
