@@ -39,7 +39,15 @@ pub fn invoke(params_id: u32) -> u32 {
         }
 
         // This send will never be committed if we exhaust gas.
-        sdk::send::send(&params.dest, 0, Default::default(), ten.clone(), None).unwrap();
+        sdk::send::send(
+            &params.dest,
+            0,
+            Default::default(),
+            ten.clone(),
+            None,
+            Default::default(),
+        )
+        .unwrap();
 
         // This event is also discarded if we exhaust gas.
         let single_entry_evt = {
@@ -64,7 +72,15 @@ pub fn invoke(params_id: u32) -> u32 {
     }
 
     // Send 10 to origin. This send is always persisted.
-    sdk::send::send(&params.dest, 0, Default::default(), fifty.clone(), None).unwrap();
+    sdk::send::send(
+        &params.dest,
+        0,
+        Default::default(),
+        fifty.clone(),
+        None,
+        Default::default(),
+    )
+    .unwrap();
 
     let gas_limit = if params.inner_gas_limit == 0 {
         None
@@ -74,7 +90,14 @@ pub fn invoke(params_id: u32) -> u32 {
 
     // send to self with the supplied gas_limit, propagating params.
     let (_, data) = sdk::message::params_raw(params_id).unwrap();
-    let ret = sdk::send::send(&self_addr, 2, data.into(), Zero::zero(), gas_limit);
+    let ret = sdk::send::send(
+        &self_addr,
+        2,
+        data.into(),
+        Zero::zero(),
+        gas_limit,
+        Default::default(),
+    );
 
     match ret {
         Ok(res) => {

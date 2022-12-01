@@ -10,6 +10,7 @@ use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{Entry, Flags};
+use fvm_shared::sys::SendFlags;
 use fvm_shared::METHOD_SEND;
 use sdk::error::{ActorDeleteError, StateUpdateError};
 use sdk::sys::ErrorNumber;
@@ -28,7 +29,14 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
         2 => {
             assert!(!sdk::vm::read_only());
             // Can't create actors when read-only.
-            let resp = sdk::send::send_read_only(&account, METHOD_SEND, RawBytes::default(), None);
+            let resp = sdk::send::send(
+                &account,
+                METHOD_SEND,
+                RawBytes::default(),
+                TokenAmount::default(),
+                None,
+                SendFlags::READ_ONLY,
+            );
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // But can still create them when not read-only.
@@ -38,17 +46,20 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 Default::default(),
                 Default::default(),
                 None,
+                Default::default(),
             )
             .unwrap()
             .exit_code
             .is_success());
 
             // Now recurse.
-            assert!(sdk::send::send_read_only(
+            assert!(sdk::send::send(
                 &Address::new_id(sdk::message::receiver()),
                 3,
                 Default::default(),
+                Default::default(),
                 None,
+                SendFlags::READ_ONLY,
             )
             .unwrap()
             .exit_code
@@ -65,16 +76,22 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 Default::default(),
                 TokenAmount::from_atto(1),
                 None,
+                Default::default(),
             );
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // Sending nothing succeeds.
-            assert!(
-                sdk::send::send(&account, 0, Default::default(), Default::default(), None)
-                    .unwrap()
-                    .exit_code
-                    .is_success()
-            );
+            assert!(sdk::send::send(
+                &account,
+                0,
+                Default::default(),
+                Default::default(),
+                None,
+                Default::default()
+            )
+            .unwrap()
+            .exit_code
+            .is_success());
 
             // Writing should succeed.
             let cid = sdk::ipld::put(0xb220, 32, 0x55, b"foo").unwrap();
@@ -96,6 +113,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 RawBytes::new("input".into()),
                 Default::default(),
                 None,
+                Default::default(),
             )
             .unwrap();
             assert!(output.exit_code.is_success());
@@ -108,16 +126,19 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 RawBytes::default(),
                 Default::default(),
                 None,
+                Default::default(),
             )
             .unwrap();
             assert_eq!(output.exit_code.value(), 42);
 
             // Should be able to recursivly send in read-only mode.
-            let output = sdk::send::send_read_only(
+            let output = sdk::send::send(
                 &Address::new_id(sdk::message::receiver()),
                 4,
                 RawBytes::new("input".into()),
+                Default::default(),
                 None,
+                SendFlags::READ_ONLY,
             )
             .unwrap();
             assert!(output.exit_code.is_success());

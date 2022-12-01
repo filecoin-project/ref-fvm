@@ -9,7 +9,6 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
 use fvm_shared::sys::SendFlags;
 use fvm_shared::MethodNum;
-use num_traits::Zero;
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
@@ -17,33 +16,6 @@ use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 // TODO: Drop the use of receipts here as we don't return the gas used. Alternatively, we _could_
 // return gas used?
 pub fn send(
-    to: &Address,
-    method: MethodNum,
-    params: RawBytes,
-    value: TokenAmount,
-    gas_limit: Option<u64>,
-) -> SyscallResult<Receipt> {
-    send_raw(to, method, params, value, gas_limit, SendFlags::default())
-}
-
-/// Sends a message to another actor in "read-only" mode. Value transfers, state mutations (`sself::set_root`, `sself::self_destruct`), and actor creation (explicit or implicit) will result in `IllegalOpreation` errors. Any events logged will be silently discarded.
-pub fn send_read_only(
-    to: &Address,
-    method: MethodNum,
-    params: RawBytes,
-    gas_limit: Option<u64>,
-) -> SyscallResult<Receipt> {
-    send_raw(
-        to,
-        method,
-        params,
-        TokenAmount::zero(),
-        gas_limit,
-        SendFlags::READ_ONLY,
-    )
-}
-
-fn send_raw(
     to: &Address,
     method: MethodNum,
     params: RawBytes,
