@@ -1,0 +1,24 @@
+[package]
+name = "fvm-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# ref-fvm must be checked out as a sibling repo
+# Note: fvm-integration-tests doesn't even have a published crate at this time.
+fvm_integration_tests = { path = "../ref-fvm/testing/integration" }
+fvm_ipld_blockstore = { path = "../ref-fvm/ipld/blockstore" }
+fvm_ipld_encoding = { path = "../ref-fvm/ipld/encoding" }
+fvm_shared = { path = "../ref-fvm/shared" }
+fvm = { path = "../ref-fvm/fvm" }
+
+anyhow = "1.0.47"
+cid = { version = "0.8.5", default-features = false }
+clap = { version = "4.0.27", features = ["derive"] }
+hex = "0.4.3"
+serde = { version = "1.0.148", features = ["derive"] }
+
+[patch.crates-io]
+# temporary solution to funty@1.2.0 being yanked, we should propose bitvec upgrade to upstream filecoin crates
+# tracking issue: https://github.com/bitvecto-rs/funty/issues/7
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
