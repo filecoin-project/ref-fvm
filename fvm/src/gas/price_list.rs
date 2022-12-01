@@ -591,7 +591,7 @@ impl PriceList {
             "OnChainMessage",
             self.on_chain_message_compute_base,
             (self.on_chain_message_storage_base
-                + self.on_chain_message_storage_per_byte * msg_size as i64)
+                + self.on_chain_message_storage_per_byte * msg_size)
                 * self.storage_gas_multiplier,
         )
     }
@@ -602,7 +602,7 @@ impl PriceList {
         GasCharge::new(
             "OnChainReturnValue",
             Zero::zero(),
-            self.on_chain_return_value_per_byte * data_size as i64 * self.storage_gas_multiplier,
+            self.on_chain_return_value_per_byte * data_size * self.storage_gas_multiplier,
         )
     }
 
@@ -752,7 +752,7 @@ impl PriceList {
                 .expect("512MiB lookup must exist in price table")
         });
 
-        let gas_used = cost.flat + cost.scale * info.challenged_sectors.len() as i64;
+        let gas_used = cost.flat + cost.scale * info.challenged_sectors.len();
 
         GasCharge::new("OnVerifyPost", gas_used, Zero::zero())
     }
@@ -775,7 +775,7 @@ impl PriceList {
             "OnGetRandomness",
             self.extern_cost
                 + self.get_randomness_base
-                + (self.get_randomness_per_byte * entropy_size as i64),
+                + (self.get_randomness_per_byte * entropy_size),
             Zero::zero(),
         )
     }
@@ -793,11 +793,10 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
-        let size = data_size as i64;
         GasCharge::new(
             "OnBlockOpenPerByte",
-            (self.block_open_memret_per_byte_cost * size)
-                + (self.block_memcpy_per_byte_cost * size),
+            (self.block_open_memret_per_byte_cost * data_size)
+                + (self.block_memcpy_per_byte_cost * data_size),
             Zero::zero(),
         )
     }
@@ -807,7 +806,7 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + (self.block_memcpy_per_byte_cost * data_size as i64),
+            self.block_read_base + (self.block_memcpy_per_byte_cost * data_size),
             Zero::zero(),
         )
     }
@@ -815,9 +814,8 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
-        let size = data_size as i64;
-        let mem_costs = (self.block_create_memret_per_byte_cost * size)
-            + (self.block_memcpy_per_byte_cost * size);
+        let mem_costs = (self.block_create_memret_per_byte_cost * data_size)
+            + (self.block_memcpy_per_byte_cost * data_size);
         GasCharge::new(
             "OnBlockCreate",
             self.block_create_base + mem_costs,
@@ -828,8 +826,7 @@ impl PriceList {
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, data_size: usize) -> GasCharge {
-        let size = data_size as i64;
-        let memcpy = self.block_memcpy_per_byte_cost * size;
+        let memcpy = self.block_memcpy_per_byte_cost * data_size;
         GasCharge::new(
             "OnBlockLink",
             // twice the memcpy cost:
@@ -837,7 +834,7 @@ impl PriceList {
             // - one from the FVM BufferedBlockstore to the Node's Blockstore
             //   when the machine finishes.
             self.block_link_base + (memcpy * 2),
-            self.block_link_storage_per_byte_cost * self.storage_gas_multiplier * size,
+            self.block_link_storage_per_byte_cost * self.storage_gas_multiplier * data_size,
         )
     }
 
@@ -851,20 +848,20 @@ impl PriceList {
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
         // FIP-0037: The first page is free.
         let free_memory_bytes = wasmtime_environ::WASM_PAGE_SIZE as usize;
-        let charge_memory_bytes = (min_memory_bytes - free_memory_bytes).max(0) as i64;
+        let charge_memory_bytes = (min_memory_bytes - free_memory_bytes).max(0);
         self.wasm_rules.memory_expansion_per_byte_cost * charge_memory_bytes
     }
 
     /// Returns the gas required for growing memory.
     pub fn grow_memory_gas(&self, grow_memory_bytes: usize) -> Gas {
-        self.wasm_rules.memory_expansion_per_byte_cost * grow_memory_bytes as i64
+        self.wasm_rules.memory_expansion_per_byte_cost * grow_memory_bytes
     }
 
     /// Returns the gas required for initializing tables.
     pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
         // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
         // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
-        self.wasm_rules.memory_expansion_per_byte_cost * (min_table_elements as i32) * 8
+        self.wasm_rules.memory_expansion_per_byte_cost * min_table_elements * 8
     }
 
     #[inline]
@@ -881,9 +878,9 @@ impl PriceList {
 
         GasCharge::new(
             "OnActorEvent",
-            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len() as i64),
-            (self.event_entry_index_cost * indexed_entries as i64)
-                + (self.event_per_byte_cost * total_bytes as i64),
+            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len()),
+            (self.event_entry_index_cost * indexed_entries)
+                + (self.event_per_byte_cost * total_bytes),
         )
     }
 }
