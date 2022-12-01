@@ -99,8 +99,15 @@ pub fn invoke(params: u32) -> u32 {
 
             if counter > 0 {
                 let params = fvm_ipld_encoding::to_vec(&counter).expect("failed to serialize");
-                sdk::send::send(&our_addr, EMIT_SUBCALLS, params.into(), Zero::zero(), None)
-                    .unwrap();
+                sdk::send::send(
+                    &our_addr,
+                    EMIT_SUBCALLS,
+                    params.into(),
+                    Zero::zero(),
+                    None,
+                    Default::default(),
+                )
+                .unwrap();
             }
         }
         EMIT_SUBCALLS_REVERT => {
@@ -129,6 +136,7 @@ pub fn invoke(params: u32) -> u32 {
                     params.into(),
                     Zero::zero(),
                     None,
+                    Default::default(),
                 )
                 .ok();
             }
