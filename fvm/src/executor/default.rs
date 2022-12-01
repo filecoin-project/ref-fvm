@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::ops::{Deref, DerefMut};
 use std::result::Result as StdResult;
 
@@ -11,7 +13,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::ActorID;
+use fvm_shared::{ActorID, IPLD_RAW, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
@@ -92,11 +94,25 @@ where
                 return (Err(e), cm.finish().1);
             }
 
-            let params = if msg.params.is_empty() {
-                None
-            } else {
-                Some(Block::new(DAG_CBOR, msg.params.bytes()))
-            };
+            let params = (!msg.params.is_empty()).then(|| {
+                Block::new(
+                    if msg.method_num == METHOD_SEND {
+                        // Method zero params are "arbitrary bytes", so we'll just count them as
+                        // raw.
+                        //
+                        // This won't actually affect anything (because no code will see these
+                        // parameters), but it's more correct and makes me happier.
+                        //
+                        // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
+                        IPLD_RAW
+                    } else {
+                        // TODO: This should probably be CBOR
+                        // See #987.
+                        DAG_CBOR
+                    },
+                    msg.params.bytes(),
+                )
+            });
 
             let result = cm.with_transaction(false, |cm| {
                 // Invoke the message.

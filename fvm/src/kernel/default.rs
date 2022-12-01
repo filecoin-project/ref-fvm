@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
@@ -335,7 +337,6 @@ where
                 .try_into()
                 .or_fatal()
                 .context("invalid gas premium")?,
-            gas_limit: self.call_manager.gas_tracker().gas_limit().round_down() as u64,
             flags: if self.call_manager.state_tree().is_read_only() {
                 ContextFlags::READ_ONLY
             } else {

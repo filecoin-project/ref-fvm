@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains the minimal logic for the FVM to handle account actor
 //! auto-creation (on first transfer).
 //!

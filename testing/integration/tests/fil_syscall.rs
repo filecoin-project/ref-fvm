@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use fil_malformed_syscall_actor::WASM_BINARY as MALFORMED_ACTOR_BINARY;
 use fvm::call_manager::backtrace::Cause;
 use fvm::executor::{ApplyFailure, ApplyKind, Executor};
