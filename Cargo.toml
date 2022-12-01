@@ -13,7 +13,7 @@ fvm_shared = { path = "../ref-fvm/shared" }
 fvm = { path = "../ref-fvm/fvm" }
 
 anyhow = "1.0.47"
-cid = { version = "0.8.5", default-features = false }
+cid = { version = "0.9.0", default-features = false }
 clap = { version = "4.0.27", features = ["derive"] }
 hex = "0.4.3"
 serde = { version = "1.0.148", features = ["derive"] }
