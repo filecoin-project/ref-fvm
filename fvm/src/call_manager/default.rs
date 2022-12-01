@@ -1,3 +1,7 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
+use std::mem;
+
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
@@ -92,11 +96,8 @@ where
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
-        let mut gas_tracker = GasTracker::new(Gas::new(gas_limit), Gas::zero());
-
-        if machine.context().tracing {
-            gas_tracker.enable_tracing()
-        }
+        let gas_tracker =
+            GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             machine,
@@ -126,6 +127,7 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -143,8 +145,32 @@ where
             });
         }
 
-        let result =
+        // If a specific gas limit has been requested, create a child GasTracker and use that
+        // one hereon.
+        let prev_gas_tracker = gas_limit
+            .and_then(|limit| self.gas_tracker.new_child(limit))
+            .map(|new| mem::replace(&mut self.gas_tracker, new));
+
+        let mut result =
             self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
+
+        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
+        if let Some(prev) = prev_gas_tracker {
+            let other = mem::replace(&mut self.gas_tracker, prev);
+            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
+            // would've already raised it, so we ignore it here. We could check and assert that's
+            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
+            // not safe to do so.
+            let _ = self.gas_tracker.absorb(&other);
+
+            // If we were limiting gas, convert the execution error to an exit.
+            if matches!(result, Err(ExecutionError::OutOfGas)) {
+                result = Ok(InvocationResult {
+                    exit_code: ExitCode::SYS_OUT_OF_GAS,
+                    value: None,
+                })
+            }
+        }
 
         if self.machine.context().tracing {
             self.trace(match &result {
@@ -155,10 +181,9 @@ where
                         .map(|blk| RawBytes::from(blk.data().to_vec()))
                         .unwrap_or_default(),
                 ),
-                Err(ExecutionError::OutOfGas) => ExecutionEvent::CallError(SyscallError::new(
-                    ErrorNumber::Forbidden,
-                    "out of gas",
-                )),
+                Err(ExecutionError::OutOfGas) => {
+                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, RawBytes::default())
+                }
                 Err(ExecutionError::Fatal(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
@@ -171,10 +196,11 @@ where
 
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction();
-        self.events.create_layer();
+        self.state_tree_mut().begin_transaction(read_only);
+        self.events.create_layer(read_only);
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
@@ -195,7 +221,7 @@ where
         let InnerDefaultCallManager {
             machine,
             backtrace,
-            mut gas_tracker,
+            gas_tracker,
             mut exec_trace,
             events,
             ..
@@ -234,10 +260,6 @@ where
 
     fn gas_tracker(&self) -> &GasTracker {
         &self.gas_tracker
-    }
-
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        &mut self.gas_tracker
     }
 
     fn gas_premium(&self) -> &TokenAmount {
@@ -287,7 +309,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.machine.state_tree().get_actor_id(actor_id)? {
+        let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
                 if act.address.is_none() {
@@ -305,20 +327,17 @@ where
                     .into());
                 }
                 act.code = code_id;
-                act
+                (act, false)
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => {
-                self.charge_gas(self.price_list().on_create_actor())?;
-                ActorState::new_empty(code_id, predictable_address)
-            }
+            None => (ActorState::new_empty(code_id, predictable_address), true),
         };
-
-        self.state_tree_mut().set_actor_id(actor_id, actor)?;
+        self.charge_gas(self.price_list().on_create_actor(is_new))?;
+        self.state_tree_mut().set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
         Ok(())
     }
@@ -352,7 +371,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.price_list().on_create_actor())?;
+        self.charge_gas(self.price_list().on_create_actor(true))?;
 
         if addr.is_bls_zero_address() {
             return Err(
@@ -394,7 +413,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.price_list().on_create_actor())?;
+        self.charge_gas(self.price_list().on_create_actor(true))?;
 
         // Create the actor in the state tree, but don't call any constructor.
         let code_cid = self.builtin_actors().get_embryo_code();
@@ -426,15 +445,13 @@ where
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da)
-                    if self.state_tree().get_actor_id(da.namespace())?.is_some() =>
+                    if self.state_tree().get_actor(da.namespace())?.is_some() =>
                 {
                     self.create_embryo_actor::<K>(&to)?
                 }
                 _ => return Err(syscall_error!(NotFound; "actor does not exist: {}", to).into()),
             },
         };
-
-        // Do the actual send.
 
         self.send_resolved::<K>(from, to, method, params, value)
     }
@@ -454,7 +471,7 @@ where
         // Lookup the actor.
         let state = self
             .state_tree()
-            .get_actor_id(to)?
+            .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
@@ -596,10 +613,6 @@ where
                     value: ret.cloned(),
                 }),
                 Err(abort) => {
-                    if let Some(err) = last_error {
-                        cm.backtrace.begin(err);
-                    }
-
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
                             code,
@@ -636,12 +649,18 @@ where
                         ),
                     };
 
-                    cm.backtrace.push_frame(Frame {
-                        source: to,
-                        method,
-                        message,
-                        code,
-                    });
+                    if !code.is_success() {
+                        if let Some(err) = last_error {
+                            cm.backtrace.begin(err);
+                        }
+
+                        cm.backtrace.push_frame(Frame {
+                            source: to,
+                            method,
+                            message,
+                            code,
+                        });
+                    }
 
                     res
                 }
@@ -681,7 +700,7 @@ where
     where
         F: FnOnce(&mut Self) -> Result<V>,
     {
-        // We check _then_ set because we don't count the top call. This effectivly allows a
+        // We check _then_ set because we don't count the top call. This effectively allows a
         // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
         // likely a bug, this is how NV15 behaves so we mimic that behavior here.
         //
@@ -722,32 +741,52 @@ where
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
+    read_only_layers: u32,
 }
 
 impl EventsAccumulator {
-    fn append_event(&mut self, evt: StampedEvent) {
-        self.events.push(evt)
+    fn is_read_only(&self) -> bool {
+        self.read_only_layers > 0
     }
 
-    fn create_layer(&mut self) {
-        self.idxs.push(self.events.len());
+    fn append_event(&mut self, evt: StampedEvent) {
+        if !self.is_read_only() {
+            self.events.push(evt)
+        }
+    }
+
+    fn create_layer(&mut self, read_only: bool) {
+        if read_only || self.is_read_only() {
+            self.read_only_layers += 1;
+        } else {
+            self.idxs.push(self.events.len());
+        }
     }
 
     fn merge_last_layer(&mut self) -> Result<()> {
-        self.idxs.pop().map(|_| {}).ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling merge_last_layer"
-            ))
-        })
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+            Ok(())
+        } else {
+            self.idxs.pop().map(|_| {}).ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling merge_last_layer"
+                ))
+            })
+        }
     }
 
     fn discard_last_layer(&mut self) -> Result<()> {
-        let idx = self.idxs.pop().ok_or_else(|| {
-            ExecutionError::Fatal(anyhow!(
-                "no index in the event accumulator when calling discard_last_layer"
-            ))
-        })?;
-        self.events.truncate(idx);
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
+        } else {
+            let idx = self.idxs.pop().ok_or_else(|| {
+                ExecutionError::Fatal(anyhow!(
+                    "no index in the event accumulator when calling discard_last_layer"
+                ))
+            })?;
+            self.events.truncate(idx);
+        }
         Ok(())
     }
 

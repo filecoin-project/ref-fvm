@@ -1,6 +1,8 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::cell::{Cell, RefCell};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
@@ -179,55 +181,70 @@ impl Mul<usize> for Gas {
 
 pub struct GasTracker {
     gas_limit: Gas,
-    gas_used: Gas,
-    trace: Option<Vec<GasCharge>>,
+    gas_used: Cell<Gas>,
+    trace: Option<RefCell<Vec<GasCharge>>>,
 }
 
 impl GasTracker {
     /// Gas limit and gas used are provided in protocol units (i.e. full units).
     /// They are converted to milligas for internal canonical accounting.
-    pub fn new(gas_limit: Gas, gas_used: Gas) -> Self {
+    pub fn new(gas_limit: Gas, gas_used: Gas, enable_tracing: bool) -> Self {
         Self {
             gas_limit,
-            gas_used,
-            trace: None,
+            gas_used: Cell::new(gas_used),
+            trace: enable_tracing.then_some(Default::default()),
         }
     }
 
-    pub fn enable_tracing(&mut self) {
-        self.trace = Some(vec![]);
-    }
-
-    fn charge_gas_inner(&mut self, name: &str, to_use: Gas) -> Result<()> {
-        log::trace!("charging gas: {} {}", name, to_use);
+    fn charge_gas_inner(&self, to_use: Gas) -> Result<()> {
         // The gas type uses saturating math.
-        self.gas_used += to_use;
-        if self.gas_used > self.gas_limit {
+        let gas_used = self.gas_used.get() + to_use;
+        if gas_used > self.gas_limit {
             log::trace!("gas limit reached");
-            self.gas_used = self.gas_limit;
+            self.gas_used.set(self.gas_limit);
             Err(ExecutionError::OutOfGas)
         } else {
+            self.gas_used.set(gas_used);
             Ok(())
         }
     }
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<()> {
-        let res = self.charge_gas_inner(name, to_use);
-        if let Some(trace) = &mut self.trace {
-            trace.push(GasCharge::new(name.to_owned(), to_use, Gas::zero()))
+    pub fn charge_gas(&self, name: &str, to_use: Gas) -> Result<()> {
+        log::trace!("charging gas: {} {}", name, to_use);
+        if let Some(trace) = &self.trace {
+            trace
+                .borrow_mut()
+                .push(GasCharge::new(name.to_owned(), to_use, Gas::zero()))
         }
-        res
+        self.charge_gas_inner(to_use)
     }
 
     /// Applies the specified gas charge, where quantities are supplied in milligas.
-    pub fn apply_charge(&mut self, charge: GasCharge) -> Result<()> {
-        let res = self.charge_gas_inner(&charge.name, charge.total());
-        if let Some(trace) = &mut self.trace {
-            trace.push(charge);
+    pub fn apply_charge(&self, charge: GasCharge) -> Result<()> {
+        let to_use = charge.total();
+        log::trace!("charging gas: {} {}", &charge.name, to_use);
+        if let Some(trace) = &self.trace {
+            trace.borrow_mut().push(charge);
         }
-        res
+        self.charge_gas_inner(to_use)
+    }
+
+    /// Absorbs another GasTracker (usually a nested one) into this one, charging for gas
+    /// used and appending all traces.
+    pub fn absorb(&self, other: &GasTracker) -> Result<()> {
+        if let Some(trace) = &self.trace {
+            trace.borrow_mut().extend(other.drain_trace());
+        }
+        self.charge_gas_inner(other.gas_used())
+    }
+
+    /// Make a "child" gas-tracker with a new limit, if and only if the new limit is less than the
+    /// available gas.
+    pub fn new_child(&self, new_limit: Gas) -> Option<GasTracker> {
+        (self.gas_available() > new_limit)
+            .then(|| GasTracker::new(new_limit, Gas::zero(), self.trace.is_some()))
     }
 
     /// Getter for the maximum gas usable by this message.
@@ -237,18 +254,18 @@ impl GasTracker {
 
     /// Getter for gas used.
     pub fn gas_used(&self) -> Gas {
-        self.gas_used
+        self.gas_used.get()
     }
 
     /// Getter for gas available.
     pub fn gas_available(&self) -> Gas {
-        self.gas_limit - self.gas_used
+        self.gas_limit - self.gas_used.get()
     }
 
-    pub fn drain_trace(&mut self) -> impl Iterator<Item = GasCharge> + '_ {
+    pub fn drain_trace(&self) -> impl Iterator<Item = GasCharge> + '_ {
         self.trace
-            .as_mut()
-            .map(|d| d.drain(0..))
+            .as_ref()
+            .map(|v| v.take().into_iter())
             .into_iter()
             .flatten()
     }
@@ -275,7 +292,7 @@ mod tests {
     #[test]
     #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
-        let mut t = GasTracker::new(Gas::new(20), Gas::new(10));
+        let t = GasTracker::new(Gas::new(20), Gas::new(10), false);
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(15));
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;

@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::TryInto;
 
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -5,7 +7,9 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::receipt::Receipt;
+use fvm_shared::sys::SendFlags;
 use fvm_shared::MethodNum;
+use num_traits::Zero;
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
@@ -17,6 +21,35 @@ pub fn send(
     method: MethodNum,
     params: RawBytes,
     value: TokenAmount,
+    gas_limit: Option<u64>,
+) -> SyscallResult<Receipt> {
+    send_raw(to, method, params, value, gas_limit, SendFlags::default())
+}
+
+/// Sends a message to another actor in "read-only" mode. Value transfers, state mutations (`sself::set_root`, `sself::self_destruct`), and actor creation (explicit or implicit) will result in `IllegalOpreation` errors. Any events logged will be silently discarded.
+pub fn send_read_only(
+    to: &Address,
+    method: MethodNum,
+    params: RawBytes,
+    gas_limit: Option<u64>,
+) -> SyscallResult<Receipt> {
+    send_raw(
+        to,
+        method,
+        params,
+        TokenAmount::zero(),
+        gas_limit,
+        SendFlags::READ_ONLY,
+    )
+}
+
+fn send_raw(
+    to: &Address,
+    method: MethodNum,
+    params: RawBytes,
+    value: TokenAmount,
+    gas_limit: Option<u64>,
+    flags: SendFlags,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
     let value: fvm_shared::sys::TokenAmount = value
@@ -44,6 +77,8 @@ pub fn send(
             params_id,
             value.hi,
             value.lo,
+            gas_limit.unwrap_or_default(),
+            flags,
         )?;
 
         // Process the result.

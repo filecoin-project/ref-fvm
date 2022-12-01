@@ -1,6 +1,9 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+#[cfg(feature = "arb")]
+use std::array::from_fn;
 use std::convert::TryInto;
 use std::hash::Hash;
 use std::u64;
@@ -17,6 +20,17 @@ pub struct DelegatedAddress {
     namespace: ActorID,
     length: usize,
     buffer: [u8; MAX_SUBADDRESS_LEN],
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for DelegatedAddress {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            namespace: ActorID::arbitrary(g),
+            length: usize::arbitrary(g) % (MAX_SUBADDRESS_LEN + 1),
+            buffer: from_fn(|_| u8::arbitrary(g)),
+        }
+    }
 }
 
 #[cfg(feature = "arb")]
@@ -73,6 +87,19 @@ pub enum Payload {
     BLS([u8; BLS_PUB_LEN]),
     /// f4: Delegated address, a namespace with an arbitrary subaddress.
     Delegated(DelegatedAddress),
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for Payload {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        match u8::arbitrary(g) % 5 {
+            0 => Payload::ID(u64::arbitrary(g)),
+            1 => Payload::Secp256k1(from_fn(|_| u8::arbitrary(g))),
+            2 => Payload::Actor(from_fn(|_| u8::arbitrary(g))),
+            3 => Payload::BLS(from_fn(|_| u8::arbitrary(g))),
+            _ => Payload::Delegated(DelegatedAddress::arbitrary(g)),
+        }
+    }
 }
 
 impl Payload {

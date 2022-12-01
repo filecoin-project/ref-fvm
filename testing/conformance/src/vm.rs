@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
@@ -30,6 +32,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::SendFlags;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
@@ -260,20 +263,22 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
         self.0
-            .send::<TestKernel<K>>(from, to, method, params, value)
+            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit)
     }
 
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         // This transmute is _safe_ because this type is "repr transparent".
         let inner_ptr = &mut self.0 as *mut C;
-        self.0.with_transaction(|inner: &mut C| unsafe {
+        self.0.with_transaction(read_only, |inner: &mut C| unsafe {
             // Make sure that we've got the right pointer. Otherwise, this cast definitely isn't
             // safe.
             assert_eq!(inner_ptr, inner as *mut C);
@@ -297,10 +302,6 @@ where
 
     fn gas_tracker(&self) -> &GasTracker {
         self.0.gas_tracker()
-    }
-
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker {
-        self.0.gas_tracker_mut()
     }
 
     fn gas_premium(&self) -> &TokenAmount {
@@ -352,7 +353,7 @@ where
         self.0.state_tree_mut()
     }
 
-    fn charge_gas(&mut self, charge: fvm::gas::GasCharge) -> Result<()> {
+    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<()> {
         self.0.charge_gas(charge)
     }
 
@@ -447,7 +448,7 @@ where
         self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
 
@@ -487,11 +488,11 @@ where
         self.0.block_link(id, hash_fun, hash_len)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         self.0.block_read(id, offset, buf)
     }
 
-    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.0.block_stat(id)
     }
 }
@@ -515,13 +516,13 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.0.hash(code, data)
     }
 
     // forwarded
     fn compute_unsealed_sector_cid(
-        &mut self,
+        &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
@@ -530,7 +531,7 @@ where
 
     // forwarded
     fn verify_signature(
-        &mut self,
+        &self,
         sig_type: SignatureType,
         signature: &[u8],
         signer: &Address,
@@ -542,7 +543,7 @@ where
 
     // forwarded
     fn recover_secp_public_key(
-        &mut self,
+        &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -550,19 +551,19 @@ where
     }
 
     // NOT forwarded
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         Ok(vec![true; vis.len()])
     }
 
     // NOT forwarded
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
-    fn verify_post(&mut self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
@@ -570,25 +571,28 @@ where
 
     // NOT forwarded
     fn verify_consensus_fault(
-        &mut self,
-        _h1: &[u8],
-        _h2: &[u8],
-        _extra: &[u8],
+        &self,
+        h1: &[u8],
+        h2: &[u8],
+        extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        let charge = self.1.price_list.on_verify_consensus_fault();
+        let charge = self
+            .1
+            .price_list
+            .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
 
     // NOT forwarded
-    fn verify_aggregate_seals(&mut self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
+    fn verify_aggregate_seals(&self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
-    fn verify_replica_update(&mut self, rep: &ReplicaUpdateInfo) -> Result<bool> {
+    fn verify_replica_update(&self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
@@ -624,7 +628,7 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
         self.0.charge_gas(name, compute)
     }
 
@@ -670,7 +674,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     fn get_randomness_from_tickets(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -680,7 +684,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -725,8 +729,11 @@ where
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
     ) -> Result<SendResult> {
-        self.0.send(recipient, method, params, value)
+        self.0
+            .send(recipient, method, params, value, gas_limit, flags)
     }
 }
 

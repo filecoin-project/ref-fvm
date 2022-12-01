@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use super::*;
 
 mod ipld {
@@ -439,9 +441,9 @@ mod gas {
     #[test]
     fn test() -> anyhow::Result<()> {
         let avaliable = Gas::new(10);
-        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0), false);
 
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         assert_eq!(kern.gas_available(), avaliable);
         assert_eq!(kern.gas_used(), Gas::new(0));
@@ -461,7 +463,7 @@ mod gas {
     #[test]
     fn used() -> anyhow::Result<()> {
         let used = Gas::new(123456);
-        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used);
+        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used, false);
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -473,7 +475,7 @@ mod gas {
     #[test]
     fn available() -> anyhow::Result<()> {
         let avaliable = Gas::new(123456);
-        let gas_tracker = GasTracker::new(avaliable, Gas::new(0));
+        let gas_tracker = GasTracker::new(avaliable, Gas::new(0), false);
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -486,9 +488,9 @@ mod gas {
     fn charge() -> anyhow::Result<()> {
         let test_gas = Gas::new(123456);
         let neg_test_gas = Gas::new(-123456);
-        let gas_tracker = GasTracker::new(test_gas, Gas::new(0));
+        let gas_tracker = GasTracker::new(test_gas, Gas::new(0), false);
 
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         // charge exactly as much as avaliable
         kern.charge_gas("test test 123", test_gas)?;
@@ -520,8 +522,8 @@ mod gas {
         );
 
         // kernel with 0 avaliable gas
-        let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0));
-        let (mut kern, _) = build_inspecting_gas_test(gas_tracker)?;
+        let gas_tracker = GasTracker::new(Gas::new(0), Gas::new(0), false);
+        let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
         expect_out_of_gas!(kern.charge_gas("spend more!", test_gas));
 
         Ok(())

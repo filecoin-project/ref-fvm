@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::mem;
 
 use fvm_shared::error::ErrorNumber;
@@ -199,3 +201,4 @@ impl_bind_syscalls!(A B C D);
 impl_bind_syscalls!(A B C D E);
 impl_bind_syscalls!(A B C D E F);
 impl_bind_syscalls!(A B C D E F G);
+impl_bind_syscalls!(A B C D E F G H);

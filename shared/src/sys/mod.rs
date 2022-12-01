@@ -1,6 +1,9 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains types exchanged at the syscall layer between actors
 //! (usually through the SDK) and the FVM.
 
+use bitflags::bitflags;
 use num_bigint::TryFromBigIntError;
 
 pub mod out;
@@ -43,6 +46,24 @@ impl<'a> TryFrom<&'a crate::econ::TokenAmount> for TokenAmount {
             hi: (v >> u64::BITS) as u64,
             lo: v as u64,
         })
+    }
+}
+
+bitflags! {
+    /// Flags passed to the send syscall.
+    #[derive(Default)]
+    #[repr(transparent)]
+    // note: this is 64 bits because I don't want to hate my past self, not because we need them
+    // right now. It doesn't really cost anything anyways.
+    pub struct SendFlags: u64 {
+        /// Send in "read-only" mode.
+        const READ_ONLY = 0b00000001;
+    }
+}
+
+impl SendFlags {
+    pub fn read_only(self) -> bool {
+        self.intersects(Self::READ_ONLY)
     }
 }
 

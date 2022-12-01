@@ -1,3 +1,4 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
@@ -91,5 +92,23 @@ impl<'de> Deserialize<'de> for Message {
             gas_fee_cap,
             gas_premium,
         })
+    }
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for Message {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            to: Address::arbitrary(g),
+            from: Address::arbitrary(g),
+            version: i64::arbitrary(g),
+            sequence: u64::arbitrary(g),
+            value: TokenAmount::arbitrary(g),
+            method_num: u64::arbitrary(g),
+            params: fvm_ipld_encoding::RawBytes::new(Vec::arbitrary(g)),
+            gas_limit: i64::arbitrary(g),
+            gas_fee_cap: TokenAmount::arbitrary(g),
+            gas_premium: TokenAmount::arbitrary(g),
+        }
     }
 }

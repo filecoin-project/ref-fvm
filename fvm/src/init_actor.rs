@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains the types and functions to process the init actor's state.
 //! It does not contain the logic of the init actor: that lives on-chain as a WASM actor.
 //!
@@ -24,7 +26,7 @@ use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
 use crate::state_tree::{ActorState, StateTree};
 
-pub const INIT_ACTOR_ADDR: Address = Address::new_id(1);
+pub const INIT_ACTOR_ID: ActorID = 1;
 
 use crate::kernel::{ClassifyResult, Result};
 
@@ -71,7 +73,7 @@ impl State {
         B: Blockstore,
     {
         let init_act = state_tree
-            .get_actor(&INIT_ACTOR_ADDR)?
+            .get_actor(INIT_ACTOR_ID)?
             .context("init actor address could not be resolved")
             .or_fatal()?;
 
@@ -123,8 +125,13 @@ impl State {
         }
 
         let map = Hamt::<B, _>::load_with_bit_width(&self.address_map, store, HAMT_BIT_WIDTH)
+            .context("failed to load init actor address map")
             .or_fatal()?;
 
-        Ok(map.get(&addr.to_bytes()).or_fatal()?.copied())
+        Ok(map
+            .get(&addr.to_bytes())
+            .context("failed to read init actor address map")
+            .or_fatal()?
+            .copied())
     }
 }

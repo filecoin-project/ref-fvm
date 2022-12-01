@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::fmt::Display;
 
 use fvm_shared::address::Address;
@@ -63,7 +65,7 @@ impl Backtrace {
 
     /// Push a "frame" (actor exit) onto the backtrace.
     ///
-    /// This should be called every time an actor exits.
+    /// This should be called every time an actor exits with an error.
     pub fn push_frame(&mut self, frame: Frame) {
         self.frames.push(frame)
     }

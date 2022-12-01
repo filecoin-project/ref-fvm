@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
@@ -16,6 +18,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
+use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -106,7 +109,7 @@ where
     fn get_self(&self) -> Result<Option<ActorState>> {
         self.call_manager
             .state_tree()
-            .get_actor_id(self.actor_id)
+            .get_actor(self.actor_id)
             .or_fatal()
             .context("error when finding current actor")
     }
@@ -135,15 +138,23 @@ where
     C: CallManager,
 {
     fn root(&self) -> Result<Cid> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_root())?;
+
         // This can fail during normal operations if the actor has been deleted.
-        Ok(self
+        let cid = self
             .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
-            .state)
+            .state;
+
+        Ok(cid)
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_set_root())?;
+
         self.mutate_self(|actor_state| {
             actor_state.state = new;
             Ok(())
@@ -151,6 +162,9 @@ where
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_current_balance())?;
+
         // If the actor doesn't exist, it has zero balance.
         Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default())
     }
@@ -182,7 +196,7 @@ where
         // Delete the executing actor
         self.call_manager
             .state_tree_mut()
-            .delete_actor_id(self.actor_id)
+            .delete_actor(self.actor_id)
     }
 }
 
@@ -259,7 +273,7 @@ where
         Ok(k)
     }
 
-    fn block_read(&mut self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
+    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
         // First, find the end of the _logical_ buffer (taking the offset into account).
         // This must fit into an i32.
 
@@ -292,7 +306,7 @@ where
         Ok((data.len() as i32) - end)
     }
 
-    fn block_stat(&mut self, id: BlockId) -> Result<BlockStat> {
+    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_stat())?;
 
@@ -305,7 +319,9 @@ where
     C: CallManager,
 {
     fn msg_context(&self) -> Result<MessageContext> {
-        // TODO: charge gas.
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_message_context())?;
+
         Ok(MessageContext {
             caller: self.caller,
             origin: self.call_manager.origin(),
@@ -321,7 +337,11 @@ where
                 .try_into()
                 .or_fatal()
                 .context("invalid gas premium")?,
-            gas_limit: self.call_manager.gas_tracker().gas_limit().round_down() as u64,
+            flags: if self.call_manager.state_tree().is_read_only() {
+                ContextFlags::READ_ONLY
+            } else {
+                ContextFlags::empty()
+            },
         })
     }
 }
@@ -336,6 +356,8 @@ where
         method: MethodNum,
         params_id: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
 
@@ -354,7 +376,9 @@ where
         // Send.
         let result = self
             .call_manager
-            .with_transaction(|cm| cm.send::<Self>(from, *recipient, method, params, value))?;
+            .with_transaction(flags.read_only(), |cm| {
+                cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
+            })?;
 
         // Store result and return.
         Ok(match result {
@@ -403,14 +427,17 @@ where
     C: CallManager,
 {
     fn verify_signature(
-        &mut self,
+        &self,
         sig_type: SignatureType,
         signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
-        self.call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_signature(sig_type))?;
+        self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_verify_signature(sig_type, plaintext.len()),
+        )?;
 
         // Resolve to key address before verifying signature.
         let signing_addr = match signer.payload() {
@@ -443,7 +470,7 @@ where
     }
 
     fn recover_secp_public_key(
-        &mut self,
+        &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -457,7 +484,7 @@ where
             })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
@@ -472,7 +499,7 @@ where
     }
 
     fn compute_unsealed_sector_cid(
-        &mut self,
+        &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
     ) -> Result<Cid> {
@@ -488,7 +515,7 @@ where
     }
 
     /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&mut self, vi: &SealVerifyInfo) -> Result<bool> {
+    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
 
@@ -497,7 +524,7 @@ where
         catch_and_log_panic("verifying seal", || verify_seal(vi))
     }
 
-    fn verify_post(&mut self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
@@ -506,13 +533,17 @@ where
     }
 
     fn verify_consensus_fault(
-        &mut self,
+        &self,
         h1: &[u8],
         h2: &[u8],
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_consensus_fault())?;
+            .charge_gas(self.call_manager.price_list().on_verify_consensus_fault(
+                h1.len(),
+                h2.len(),
+                extra.len(),
+            ))?;
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
@@ -525,7 +556,11 @@ where
         Ok(fault)
     }
 
-    fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
+        for vi in vis {
+            self.call_manager
+                .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
+        }
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
         log::debug!("batch verify seals start");
@@ -567,10 +602,7 @@ where
         Ok(out)
     }
 
-    fn verify_aggregate_seals(
-        &mut self,
-        aggregate: &AggregateSealVerifyProofAndInfos,
-    ) -> Result<bool> {
+    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -581,7 +613,7 @@ where
         })
     }
 
-    fn verify_replica_update(&mut self, replica: &ReplicaUpdateInfo) -> Result<bool> {
+    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool> {
         self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -605,10 +637,8 @@ where
         self.call_manager.gas_tracker().gas_available()
     }
 
-    fn charge_gas(&mut self, name: &str, compute: Gas) -> Result<()> {
-        self.call_manager
-            .gas_tracker_mut()
-            .charge_gas(name, compute)
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
+        self.call_manager.gas_tracker().charge_gas(name, compute)
     }
 
     fn price_list(&self) -> &PriceList {
@@ -621,7 +651,9 @@ where
     C: CallManager,
 {
     fn network_context(&self) -> Result<NetworkContext> {
-        // TODO: charge gas.
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_network_context())?;
+
         let MachineContext {
             epoch,
             timestamp,
@@ -663,7 +695,7 @@ where
     C: CallManager,
 {
     fn get_randomness_from_tickets(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -683,7 +715,7 @@ where
     }
 
     fn get_randomness_from_beacon(
-        &mut self,
+        &self,
         personalization: i64,
         rand_epoch: ChainEpoch,
         entropy: &[u8],
@@ -708,6 +740,9 @@ where
     C: CallManager,
 {
     fn resolve_address(&self, address: &Address) -> Result<ActorID> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_resolve_address())?;
+
         Ok(self
             .call_manager
             .state_tree()
@@ -716,10 +751,13 @@ where
     }
 
     fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_actor_code_cid())?;
+
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(id)
+            .get_actor(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
@@ -750,7 +788,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
-        let actor = match self.call_manager.state_tree().get_actor_id(actor_id)? {
+        let (actor, is_new) = match self.call_manager.state_tree().get_actor(actor_id)? {
             // Replace the embryo
             Some(mut act)
                 if self
@@ -774,33 +812,39 @@ where
                     .into());
                 }
                 act.code = code_id;
-                act
+                (act, false)
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => {
-                self.call_manager
-                    .charge_gas(self.call_manager.price_list().on_create_actor())?;
-                ActorState::new_empty(code_id, predictable_address)
-            }
+            None => (ActorState::new_empty(code_id, predictable_address), true),
         };
 
         self.call_manager
+            .charge_gas(self.call_manager.price_list().on_create_actor(is_new))?;
+
+        self.call_manager
             .state_tree_mut()
-            .set_actor_id(actor_id, actor)
+            .set_actor(actor_id, actor)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_builtin_actor_type())?;
+
+        Ok(self
+            .call_manager
             .machine()
             .builtin_actors()
-            .id_by_code(code_cid)
+            .id_by_code(code_cid))
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_get_code_cid_for_type())?;
+
         self.call_manager
             .machine()
             .builtin_actors()
@@ -812,19 +856,27 @@ where
 
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
-        // TODO figure out gas
-        self.call_manager
+        let size = self
+            .call_manager
             .machine()
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
-            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())
+            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())?;
+
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
+
+        Ok(())
     }
 
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_balance_of())?;
+
         let balance = self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)
+            .get_actor(actor_id)
             .context("cannot find actor")?
             .map(|a| a.balance)
             .unwrap_or_default();
@@ -832,10 +884,13 @@ where
     }
 
     fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_lookup_address())?;
+
         Ok(self
             .call_manager
             .state_tree()
-            .get_actor_id(actor_id)?
+            .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .address)
     }
@@ -891,8 +946,9 @@ where
                 log::error!("failed to make directory to store debug artifacts {}", e);
             } else if let Err(e) = std::fs::write(dir.join(name), data) {
                 log::error!("failed to store debug artifact {}", e)
+            } else {
+                log::info!("wrote artifact: {} to {:?}", name, dir);
             }
-            log::info!("wrote artifact: {} to {:?}", name, dir);
         } else {
             log::error!(
                 "store_artifact was ignored, env var {} was not set",

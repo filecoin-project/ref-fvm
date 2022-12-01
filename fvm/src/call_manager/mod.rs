@@ -1,10 +1,12 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::gas::{GasCharge, GasTracker, PriceList};
+use crate::gas::{Gas, GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
@@ -61,11 +63,13 @@ pub trait CallManager: 'static {
         method: MethodNum,
         params: Option<kernel::Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
         &mut self,
+        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
@@ -77,10 +81,8 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
-    /// Returns reference to the gas tracker.
+    /// Returns a reference to the gas tracker.
     fn gas_tracker(&self) -> &GasTracker;
-    /// Returns a mutable reference to the gas tracker.
-    fn gas_tracker_mut(&mut self) -> &mut GasTracker;
 
     /// Returns the gas premium paid by the currently executing message.
     fn gas_premium(&self) -> &TokenAmount;
@@ -140,8 +142,8 @@ pub trait CallManager: 'static {
     }
 
     /// Charge gas.
-    fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().apply_charge(charge)?;
+    fn charge_gas(&self, charge: GasCharge) -> Result<()> {
+        self.gas_tracker().apply_charge(charge)?;
         Ok(())
     }
 

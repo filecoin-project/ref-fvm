@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
@@ -129,7 +131,7 @@ where
         };
 
         state_tree
-            .set_actor(&Address::new_id(id), actor_state)
+            .set_actor(id, actor_state)
             .map_err(anyhow::Error::from)
     }
 
@@ -156,13 +158,15 @@ where
         balance: TokenAmount,
     ) -> Result<Cid> {
         // Register actor address (unless it's an ID address)
-        if actor_address.id().is_err() {
-            self.state_tree
+        let actor_id = match actor_address.id() {
+            Ok(id) => id,
+            Err(_) => self
+                .state_tree
                 .as_mut()
                 .unwrap()
                 .register_new_address(&actor_address)
-                .unwrap();
-        }
+                .unwrap(),
+        };
 
         // Put the WASM code into the blockstore.
         let code_cid = put_wasm_code(self.state_tree.as_mut().unwrap().store(), wasm_bin)?;
@@ -186,7 +190,7 @@ where
         self.state_tree
             .as_mut()
             .unwrap()
-            .set_actor(&actor_address, actor_state)
+            .set_actor(actor_id, actor_state)
             .map_err(anyhow::Error::from)?;
 
         Ok(code_cid)
@@ -218,7 +222,6 @@ where
         let blockstore = state_tree.into_store();
 
         let mut nc = NetworkConfig::new(self.nv);
-        nc.actor_debugging = true;
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 
@@ -287,7 +290,7 @@ where
         };
 
         state_tree
-            .set_actor(&Address::new_id(assigned_addr), actor_state)
+            .set_actor(assigned_addr, actor_state)
             .map_err(anyhow::Error::from)?;
         Ok((assigned_addr, pub_key_addr))
     }

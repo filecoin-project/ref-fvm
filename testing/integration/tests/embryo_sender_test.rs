@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 
 #[cfg(feature = "f4-as-account")]
@@ -64,7 +66,7 @@ fn embryo_as_sender() {
         .as_ref()
         .unwrap()
         .state_tree()
-        .get_actor(&receiver)
+        .get_actor_by_address(&receiver)
         .expect("couldn't find receiver actor")
         .expect("actor state didn't exist")
         .balance;
@@ -79,7 +81,7 @@ fn embryo_as_sender() {
         .as_ref()
         .unwrap()
         .state_tree()
-        .get_actor(&sender)
+        .get_actor_by_address(&sender)
         .expect("couldn't find receiver actor")
         .expect("actor state didn't exist")
         .balance;

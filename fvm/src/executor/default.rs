@@ -1,10 +1,11 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::ops::{Deref, DerefMut};
 use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
-use fvm_shared::address::Address;
 #[cfg(feature = "f4-as-account")]
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
@@ -12,14 +13,14 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::ActorID;
+use fvm_shared::{ActorID, IPLD_RAW, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
-use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ADDR, REWARD_ACTOR_ADDR};
+use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::trace::ExecutionTrace;
 
 /// The default [`Executor`].
@@ -93,15 +94,30 @@ where
                 return (Err(e), cm.finish().1);
             }
 
-            let params = if msg.params.is_empty() {
-                None
-            } else {
-                Some(Block::new(DAG_CBOR, msg.params.bytes()))
-            };
+            let params = (!msg.params.is_empty()).then(|| {
+                Block::new(
+                    if msg.method_num == METHOD_SEND {
+                        // Method zero params are "arbitrary bytes", so we'll just count them as
+                        // raw.
+                        //
+                        // This won't actually affect anything (because no code will see these
+                        // parameters), but it's more correct and makes me happier.
+                        //
+                        // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
+                        IPLD_RAW
+                    } else {
+                        // TODO: This should probably be CBOR
+                        // See #987.
+                        DAG_CBOR
+                    },
+                    msg.params.bytes(),
+                )
+            });
 
-            let result = cm.with_transaction(|cm| {
+            let result = cm.with_transaction(false, |cm| {
                 // Invoke the message.
-                let ret = cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value)?;
+                let ret =
+                    cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
 
                 // Charge for including the result (before we end the transaction).
                 if let Some(value) = &ret.value {
@@ -221,9 +237,15 @@ where
         };
 
         match apply_kind {
-            ApplyKind::Explicit => {
-                self.finish_message(msg, receipt, failure_info, gas_cost, exec_trace, events)
-            }
+            ApplyKind::Explicit => self.finish_message(
+                sender_id,
+                msg,
+                receipt,
+                failure_info,
+                gas_cost,
+                exec_trace,
+                events,
+            ),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
                 penalty: TokenAmount::zero(),
@@ -324,7 +346,7 @@ where
 
         let sender = match self
             .state_tree()
-            .get_actor(&Address::new_id(sender_id))
+            .get_actor(sender_id)
             .with_context(|| format!("failed to lookup actor {}", &msg.from))?
         {
             Some(act) => act,
@@ -383,7 +405,7 @@ where
         }
 
         // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree_mut().mutate_actor_id(sender_id, |act| {
+        self.state_tree_mut().mutate_actor(sender_id, |act| {
             act.deduct_funds(&gas_cost)?;
             act.sequence += 1;
             Ok(())
@@ -392,8 +414,10 @@ where
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn finish_message(
         &mut self,
+        sender_id: ActorID,
         msg: Message,
         receipt: Receipt,
         failure_info: Option<ApplyFailure>,
@@ -418,7 +442,7 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: &Address, amt: &TokenAmount| -> anyhow::Result<()> {
+        let mut transfer_to_actor = |addr: ActorID, amt: &TokenAmount| -> anyhow::Result<()> {
             if amt.is_negative() {
                 return Err(anyhow!("attempted to transfer negative value into actor"));
             }
@@ -435,14 +459,14 @@ where
             Ok(())
         };
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &base_fee_burn)?;
+        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;
 
-        transfer_to_actor(&REWARD_ACTOR_ADDR, &miner_tip)?;
+        transfer_to_actor(REWARD_ACTOR_ID, &miner_tip)?;
 
-        transfer_to_actor(&BURNT_FUNDS_ACTOR_ADDR, &over_estimation_burn)?;
+        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &over_estimation_burn)?;
 
         // refund unused gas
-        transfer_to_actor(&msg.from, &refund)?;
+        transfer_to_actor(sender_id, &refund)?;
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.

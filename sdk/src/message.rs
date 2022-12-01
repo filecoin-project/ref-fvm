@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::TryInto;
 
 use fvm_ipld_encoding::DAG_CBOR;
@@ -47,12 +49,6 @@ pub fn value_received() -> TokenAmount {
         .value_received
         .try_into()
         .expect("invalid bigint")
-}
-
-/// Returns the execution gas limit
-#[inline(always)]
-pub fn gas_limit() -> u64 {
-    MESSAGE_CONTEXT.gas_limit
 }
 
 /// Returns the execution gas premium

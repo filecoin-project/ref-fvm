@@ -1,19 +1,21 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
 
-use crate::error::{ActorDeleteError, NoStateError};
+use crate::error::{ActorDeleteError, StateReadError, StateUpdateError};
 use crate::sys;
 
 /// Get the IPLD root CID. Fails if the actor doesn't have state (before the first call to
 /// `set_root` and after actor deletion).
-pub fn root() -> Result<Cid, NoStateError> {
+pub fn root() -> Result<Cid, StateReadError> {
     let mut buf = [0u8; MAX_CID_LEN];
     unsafe {
         let len = sys::sself::root(buf.as_mut_ptr(), buf.len() as u32).map_err(|e| match e {
-            ErrorNumber::IllegalOperation => NoStateError,
+            ErrorNumber::IllegalOperation => StateReadError,
             e => panic!("unexpected error from `self::root` syscall: {}", e),
         })? as usize;
 
@@ -27,14 +29,15 @@ pub fn root() -> Result<Cid, NoStateError> {
 ///
 /// - The new root is not in the actor's "reachable" set.
 /// - Fails if the actor has been deleted.
-pub fn set_root(cid: &Cid) -> Result<(), NoStateError> {
+pub fn set_root(cid: &Cid) -> Result<(), StateUpdateError> {
     let mut buf = [0u8; MAX_CID_LEN];
     cid.write_bytes(&mut buf[..])
         .expect("CID encoding should not fail");
 
     unsafe {
         sys::sself::set_root(buf.as_ptr()).map_err(|e| match e {
-            ErrorNumber::IllegalOperation => NoStateError,
+            ErrorNumber::IllegalOperation => StateUpdateError::ActorDeleted,
+            ErrorNumber::ReadOnly => StateUpdateError::ReadOnly,
             e => panic!("unexpected error from `self::set_root` syscall: {}", e),
         })
     }
@@ -59,6 +62,7 @@ pub fn self_destruct(beneficiary: &Address) -> Result<(), ActorDeleteError> {
     unsafe {
         sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32).map_err(|e| match e {
             ErrorNumber::Forbidden => ActorDeleteError::BeneficiaryIsSelf,
+            ErrorNumber::ReadOnly => ActorDeleteError::ReadOnly,
             ErrorNumber::NotFound => ActorDeleteError::BeneficiaryDoesNotExist,
             _ => panic!("unexpected error from `self::self_destruct` syscall: {}", e),
         })

@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module defines the low-level syscall API.
 //!
 //! # Wasm Syscall ABI
@@ -101,6 +103,7 @@ macro_rules! fvm_syscalls {
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<()>; $($rest:tt)*) => {
         $(#[$attrs])*
         #[allow(clippy::missing_safety_doc)]
+        #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> Result<(), $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
@@ -125,6 +128,7 @@ macro_rules! fvm_syscalls {
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<$ret:ty>; $($rest:tt)*) => {
         $(#[$attrs])*
         #[allow(clippy::missing_safety_doc)]
+        #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
             extern "C" {
@@ -151,6 +155,7 @@ macro_rules! fvm_syscalls {
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> !; $($rest:tt)*) => {
         $(#[$attrs])*
         #[allow(clippy::missing_safety_doc)]
+        #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> ! {
             #[link(wasm_import_module = $module)]
             extern "C" {

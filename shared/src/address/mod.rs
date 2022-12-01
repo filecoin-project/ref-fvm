@@ -1,3 +1,4 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
@@ -226,6 +227,15 @@ impl fmt::Display for Address {
                     addr.subaddress(),
                 )
             }
+        }
+    }
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for Address {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            payload: Payload::arbitrary(g),
         }
     }
 }

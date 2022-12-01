@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::ptr;
 
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
@@ -7,6 +9,16 @@ use crate::sys;
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
+
+/// Returns true if the invocation context is read-only. In read-only mode:
+///
+/// - State-tree updates `sself::set_root` are forbidden.
+/// - Actor creation is forbidden.
+/// - Value transfers are forbidden.
+/// - Events are discarded.
+pub fn read_only() -> bool {
+    super::message::MESSAGE_CONTEXT.flags.read_only()
+}
 
 /// Abort execution; exit code must be non zero.
 pub fn abort(code: u32, message: Option<&str>) -> ! {

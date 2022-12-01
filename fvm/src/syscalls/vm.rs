@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SyscallSafe;
@@ -45,7 +47,7 @@ pub fn exit(
                     format!(
                         "{} ... (skipped {} bytes) ... {}",
                         String::from_utf8_lossy(prefix),
-                        MAX_MESSAGE_LEN - bytes.len(),
+                        bytes.len() - MAX_MESSAGE_LEN,
                         String::from_utf8_lossy(suffix)
                     )
                 } else {
