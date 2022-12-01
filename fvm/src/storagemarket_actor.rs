@@ -91,6 +91,15 @@ impl State {
             .flush()
             .unwrap();
 
+        let empty_proposals_array =
+            Amt::<(), &B>::new_with_bit_width(store, 5)
+                .flush()
+                .unwrap();
+
+        let empty_states_array = Amt::<(), &B>::new_with_bit_width(store, 6)
+                .flush()
+                .unwrap();
+
         State {
             proposals: empty_proposals_array,
             states: empty_states_array,
