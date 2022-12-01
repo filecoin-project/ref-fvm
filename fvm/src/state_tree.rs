@@ -572,13 +572,9 @@ impl ActorState {
 #[cfg(feature = "arb")]
 impl Arbitrary for ActorState {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let cid = Cid::new_v1(
-            u64::arbitrary(g),
-            cid::multihash::Multihash::wrap(u64::arbitrary(g), &[u8::arbitrary(g)]).unwrap(),
-        );
         Self {
-            code: cid,
-            state: cid,
+            code: Cid::arbitrary(g),
+            state: Cid::arbitrary(g),
             sequence: u64::arbitrary(g),
             balance: TokenAmount::arbitrary(g),
             address: Option::arbitrary(g),
