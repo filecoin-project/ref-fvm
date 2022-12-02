@@ -1,15 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-	"fvm",
-	"sdk",
-	"shared",
-	"testing/conformance",
-	"testing/integration",
-	"testing/calibration",
-	"ipld/*",
-	"testing/integration/tests/*-actor",
-	"testing/calibration/contract/*-actor"
+    "fvm",
+    "sdk",
+    "shared",
+    "testing/conformance",
+    "testing/integration",
+    "testing/calibration",
+    "ipld/*",
+    "testing/integration/tests/*-actor",
+    "testing/calibration/contract/*-actor"
 ]
 
 [profile.actor]
