@@ -30,18 +30,18 @@ cargo llvm-cov -p fvm_integration_tests --lcov
 
 ## Gas Calibration
 
-The `./tests/fil_gas_calibration.rs` test doesn't actually test anything specific; rather, it calls `./tests/fil-gas-calibration-actor`
-with various parameters to exercise certain syscalls, while collecting gas metrics, which are exported at the end. We can use these
-metrics to calibrate gas prices, if the collection happens in a standardized environment.
+The `./tests/fil_gas_calibration.rs` test doesn't test any specific rule; rather, it calls `./tests/fil-gas-calibration-actor`
+with various parameters to exercise certain syscalls, while collecting gas metrics, on which it runs regressions to test if
+the gas models we chose have a reasonable quality as estimators of execution time.
 
-This is different than the kind of metrics available to collect under the `conformance` tests in that we also capture the inputs,
+The way this is different than the metrics we collect under `conformance` tests in that we also capture the inputs,
 so that we can estimate prices based on different input size for example, if that is our hypotheses. The `conformance` tests are
 more about backtesting the gas model using the available test vectors, whereas here we are driving the data collection.
 
-The metric collection only runs if the `TRACE_DIR` env var is present, so we don't waste time if not interested, like on CI.
+The traces and the regression results can be exported if the `OUTPUT_DIR` env var is specified.
 
-To run the collection:
+For example:
 
 ```shell
-TRACE_DIR=./measurements/traces cargo test --test fil_gas_calibration
+OUTPUT_DIR=./measurements/out cargo test --test fil_gas_calibration
 ```
