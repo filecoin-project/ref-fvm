@@ -38,8 +38,10 @@ This is different than the kind of metrics available to collect under the `confo
 so that we can estimate prices based on different input size for example, if that is our hypotheses. The `conformance` tests are
 more about backtesting the gas model using the available test vectors, whereas here we are driving the data collection.
 
-To run the tests:
+The metric collection only runs if the `TRACE_DIR` env var is present, so we don't waste time if not interested, like on CI.
+
+To run the collection:
 
 ```shell
-cargo test --test fil_gas_calibration
+TRACE_DIR=./measurements/traces cargo test --test fil_gas_calibration
 ```
