@@ -12,15 +12,16 @@ use serde::{Deserialize, Serialize};
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 #[derive(FromPrimitive)]
+#[repr(u64)]
 pub enum Method {
     Hashing = 1,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct HashingParams {
-    hasher: u64,
-    iterations: usize,
-    size: usize,
+    pub hasher: u64,
+    pub iterations: usize,
+    pub size: usize,
 }
 
 impl HashingParams {
