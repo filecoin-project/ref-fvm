@@ -30,6 +30,11 @@ fn main() {
 
     let iterations = 100;
 
+    // According to the charts there is always an outlier with 10x runtime,
+    // which can throw off the model. Maybe it's while some things are warming up.
+    // Seems to be present at each call, so once per size. I'll just throw these away.
+    let keep = (iterations as f32 * 0.95) as usize;
+
     let mut te = instantiate_tester();
     let mut obs = Vec::new();
     let mut sequence = 0;
@@ -69,14 +74,23 @@ fn main() {
             }
             assert_eq!(ret.msg_receipt.exit_code, ExitCode::OK);
 
-            obs.extend(ret.exec_trace.iter().filter_map(|t| match t {
-                ExecutionEvent::GasCharge(charge) if charge.name == "OnHashing" => Some(Obs {
-                    label: label.clone(),
-                    elapsed_nanos: charge.elapsed.get().unwrap().as_nanos(),
-                    variables: vec![*size],
-                }),
-                _ => None,
-            }));
+            let mut iter_obs: Vec<_> = ret
+                .exec_trace
+                .iter()
+                .filter_map(|t| match t {
+                    ExecutionEvent::GasCharge(charge) if charge.name == "OnHashing" => Some(Obs {
+                        label: label.clone(),
+                        elapsed_nanos: charge.elapsed.get().unwrap().as_nanos(),
+                        variables: vec![*size],
+                    }),
+                    _ => None,
+                })
+                .collect();
+
+            // Eliminate outliers.
+            iter_obs.sort_by_key(|obs| obs.elapsed_nanos);
+
+            obs.extend(iter_obs.into_iter().take(keep));
         }
     }
 
