@@ -26,7 +26,9 @@ fn main() {
     );
     sizes.push(1_000_000);
 
-    let iterations = 10;
+    //let sizes: Vec<usize> = (0..=100).map(|i| i * 10000).collect();
+
+    let iterations = 100;
 
     let mut te = instantiate_tester();
     let mut obs = Vec::new();
