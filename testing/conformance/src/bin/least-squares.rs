@@ -54,7 +54,7 @@ struct Obs {
 #[derive(Serialize)]
 struct RegressionResult {
     name: String,
-    intersect: f64,
+    intercept: f64,
     slope: f64,
     r_squared: f64,
 }
@@ -152,7 +152,7 @@ fn least_squares(name: String, charges: Vec<Obs>) -> RegressionResult {
 
     RegressionResult {
         name,
-        intersect: b,
+        intercept: b,
         slope: m,
         r_squared,
     }
