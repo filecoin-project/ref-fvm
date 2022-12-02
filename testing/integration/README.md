@@ -27,21 +27,3 @@ export SKIP_WASM_BUILD=true
 export FVM_STORE_ARTIFACT_DIR=../../target/llvm-cov-target/
 cargo llvm-cov -p fvm_integration_tests --lcov
 ```
-
-## Gas Calibration
-
-The `./tests/fil_gas_calibration.rs` test doesn't test any specific rule; rather, it calls `./tests/fil-gas-calibration-actor`
-with various parameters to exercise certain syscalls, while collecting gas metrics, on which it runs regressions to test if
-the gas models we chose have a reasonable quality as estimators of execution time.
-
-The way this is different than the metrics we collect under `conformance` tests in that we also capture the inputs,
-so that we can estimate prices based on different input size for example, if that is our hypotheses. The `conformance` tests are
-more about backtesting the gas model using the available test vectors, whereas here we are driving the data collection.
-
-The traces and the regression results can be exported if the `OUTPUT_DIR` env var is specified.
-
-For example:
-
-```shell
-OUTPUT_DIR=./measurements/out cargo test --test fil_gas_calibration
-```

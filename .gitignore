@@ -4,6 +4,6 @@ Cargo.lock
 *.wasm
 !testing/integration/tests/assets/*
 testing/conformance/traces
-testing/integration/measurements/out
+testing/calibration/measurements/out
 .idea/
 lcov.info
