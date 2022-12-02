@@ -19,6 +19,30 @@ The calibration uses the machinery from the integration tests, but it's kept sep
 
 Note that the `--release` flag has a huge impact on runtimes and therefore the model paramters, in the order of 100x.
 
+Alternatively all the scenarios and exports can be executed the followign way:
+
+```shell
+make run
+```
+
+After this the regression results can be found in `./measurements/out/regressions`.
+
+## Visualization
+
+The exported observations can be visualized as scatter plots:
+
+```shell
+make visualize
+```
+
+The results are going to be in `./measurements/out/charts`.
+
+Extraction and visualization can be run together:
+
+```shell
+make all
+```
+
 ## Notes
 
 ### Negative intercepts
