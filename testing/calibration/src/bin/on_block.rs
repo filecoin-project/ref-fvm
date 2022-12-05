@@ -20,10 +20,9 @@ fn main() {
     sizes.push(1_000_000);
 
     let iterations = 100;
-
+    let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
     let mut te = instantiate_tester();
     let mut sequence = 0;
-    let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
 
     for size in sizes.iter() {
         let params = OnBlockParams {
@@ -80,7 +79,7 @@ fn main() {
         for (name, mut obs) in iter_obs {
             if !obs.is_empty() {
                 // According to the charts, there are odd outliers.
-                obs = eliminate_outliers(obs, 0.01, Eliminate::Top);
+                obs = eliminate_outliers(obs, 0.02, Eliminate::Top);
 
                 all_obs.entry(name).or_default().extend(obs);
             }

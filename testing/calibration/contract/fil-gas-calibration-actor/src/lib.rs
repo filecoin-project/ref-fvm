@@ -88,14 +88,27 @@ fn on_hashing(p: OnHashingParams) -> Result<()> {
 
 fn on_block(p: OnBlockParams) -> Result<()> {
     let mut data = random_bytes(p.size, (p.iterations * p.size) as u64);
+    let mut cids = Vec::new();
+
     for i in 0..p.iterations {
         random_mutations(&mut data, (p.iterations * p.size + i) as u64, 10usize);
 
         let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, data.as_slice())?;
-        let back = fvm_sdk::ipld::get(&cid)?;
 
-        assert_eq!(data, back);
+        // First just put it to the side, because if we read it back now, then strangely the times of puts go down by 10x in the beginning
+        // and only in later go up to where they are when they are the only thing we do. The distribution takes the shape of a sloping V.
+        cids.push(cid);
+
+        // TODO: Why does including the following line affect the runtime of the put in the next iteration?
+        // let back = fvm_sdk::ipld::get(&cid)?;
+        //assert_eq!(data, back);
     }
+
+    // Read the data back so we have stats about that too.
+    for i in 0..p.iterations {
+        let _ = fvm_sdk::ipld::get(&cids[i])?;
+    }
+
     Ok(())
 }
 
