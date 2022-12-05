@@ -861,7 +861,7 @@ where
             .machine()
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
-            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code").into())?;
+            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code"))?;
 
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
