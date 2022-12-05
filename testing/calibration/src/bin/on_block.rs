@@ -9,6 +9,7 @@ use fvm_gas_calibration::*;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
+use rand::{thread_rng, Rng};
 
 fn main() {
     let mut sizes: Vec<usize> = vec![0];
@@ -21,13 +22,23 @@ fn main() {
 
     let iterations = 100;
     let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
+
+    // NOTE: For actually modeling the effect of IO, we shouldn't be using the memory blockstore.
+    // But at the same time when the contracts are executed the changes are buffered in memory,
+    // not everything actually gets written to the disk.
     let mut te = instantiate_tester();
     let mut sequence = 0;
+
+    let mut rng = thread_rng();
+
+    // NOTE: The order of sizes (doing them ascending, descending, or shuffled),
+    // and whether we reuse the same tester or make a new one for each, does make a difference.
 
     for size in sizes.iter() {
         let params = OnBlockParams {
             size: *size,
             iterations,
+            seed: rng.gen(),
         };
 
         let raw_params = RawBytes::serialize(&params).unwrap();

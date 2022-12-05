@@ -26,12 +26,14 @@ pub struct OnHashingParams {
     pub hasher: u64,
     pub iterations: usize,
     pub size: usize,
+    pub seed: u64,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct OnBlockParams {
     pub iterations: usize,
     pub size: usize,
+    pub seed: u64,
 }
 
 impl OnHashingParams {
@@ -78,20 +80,20 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
 
 fn on_hashing(p: OnHashingParams) -> Result<()> {
     let h = p.hasher().ok_or(anyhow!("unknown hasher"))?;
-    let mut data = random_bytes(p.size, (p.iterations * p.size) as u64);
+    let mut data = random_bytes(p.size, p.seed);
     for i in 0..p.iterations {
-        random_mutations(&mut data, (p.iterations * p.size + i) as u64, 10usize);
+        random_mutations(&mut data, p.seed + i as u64, 10usize);
         fvm_sdk::crypto::hash(h, &data);
     }
     Ok(())
 }
 
 fn on_block(p: OnBlockParams) -> Result<()> {
-    let mut data = random_bytes(p.size, (p.iterations * p.size) as u64);
+    let mut data = random_bytes(p.size, p.seed);
     let mut cids = Vec::new();
 
     for i in 0..p.iterations {
-        random_mutations(&mut data, (p.iterations * p.size + i) as u64, 10usize);
+        random_mutations(&mut data, p.seed + i as u64, 10usize);
 
         let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, data.as_slice())?;
 

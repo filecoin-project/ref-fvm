@@ -8,6 +8,7 @@ use fvm_ipld_encoding::RawBytes;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
+use rand::{thread_rng, Rng};
 
 fn main() {
     let hashers = vec![
@@ -33,6 +34,7 @@ fn main() {
     let mut te = instantiate_tester();
     let mut obs = Vec::new();
     let mut sequence = 0;
+    let mut rng = thread_rng();
 
     for hasher in hashers.iter() {
         let label = format!("{hasher:?}");
@@ -41,6 +43,7 @@ fn main() {
                 hasher: *hasher as u64,
                 size: *size,
                 iterations,
+                seed: rng.gen(),
             };
 
             let raw_params = RawBytes::serialize(&params).unwrap();
