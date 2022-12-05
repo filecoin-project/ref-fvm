@@ -1,0 +1,48 @@
+## iterations of the loop
+%push(1000)
+
+## initial values
+push1 0x01
+push1 0x01
+
+loop:
+jumpdest
+
+## ... iter | fibo_1 | fibo_2
+dup1
+## ... iter | fibo_1 | fibo_2 | fibo_2
+swap2
+## ... iter | fibo_2 | fibo_2 | fibo_1
+add
+
+## ... iter | fibo_2 | fibo_3
+push1 0x01
+## ... iter | fibo_2 | fibo_3 | 1
+dup4
+## ... iter | fibo_2 | fibo_3 | 1 | iter
+sub
+## ... iter | fibo_2 | fibo_3 | iter - 1
+dup1
+## ... iter | fibo_2 | fibo_3 | iter - 1 | iter - 1
+swap4
+## ... iter-1 | fibo_2 | fibo_3 | iter - 1 | iter
+pop
+## ... iter-1 | fibo_2 | fibo_3 | iter - 1
+
+## iter -1 == 0 -> jump done
+iszero
+%push(done)
+jumpi
+
+%push(loop)
+jump
+
+# return the final value
+done:
+jumpdest
+
+push1 0x00
+mstore
+push1 0x20
+push1 0x00
+return
