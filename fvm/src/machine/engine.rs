@@ -109,8 +109,8 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     });
 
     // wasmtime default: true
-    // Included here to make sure the memory-init-cow feature is enabled.
-    c.memory_init_cow(true);
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    c.memory_init_cow(false);
 
     // wasmtime default: 4GB
     c.static_memory_maximum_size(instance_memory_maximum_size);
