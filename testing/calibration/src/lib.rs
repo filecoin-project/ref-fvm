@@ -179,3 +179,21 @@ pub fn least_squares(label: String, obs: &[Obs], var_idx: usize) -> RegressionRe
         r_squared,
     }
 }
+
+/// Drop a certain fraction of the observations with the highest time as outliers.
+pub fn eliminate_outliers(mut obs: Vec<Obs>, drop: f32, eliminate: Eliminate) -> Vec<Obs> {
+    obs.sort_by_key(|obs| obs.elapsed_nanos);
+    let size = obs.len();
+    let drop = (size as f32 * drop) as usize;
+    match eliminate {
+        Eliminate::Top => obs.into_iter().take(size - drop).collect(),
+        Eliminate::Bottom => obs.into_iter().skip(drop).collect(),
+        Eliminate::Both => obs.into_iter().skip(drop).take(size - 2 * drop).collect(),
+    }
+}
+
+pub enum Eliminate {
+    Top,
+    Bottom,
+    Both,
+}

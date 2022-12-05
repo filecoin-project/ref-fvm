@@ -20,11 +20,10 @@ fn main() {
     sizes.push(1_000_000);
 
     let iterations = 100;
-    //let keep = (iterations as f32 * 0.95) as usize;
 
     let mut te = instantiate_tester();
     let mut sequence = 0;
-    let mut obs: HashMap<String, Vec<Obs>> = Default::default();
+    let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
 
     for size in sizes.iter() {
         let params = OnBlockParams {
@@ -58,24 +57,37 @@ fn main() {
         }
         assert_eq!(ret.msg_receipt.exit_code, ExitCode::OK);
 
+        let mut iter_obs: HashMap<String, Vec<Obs>> = Default::default();
+
         for event in ret.exec_trace {
             if let ExecutionEvent::GasCharge(charge) = event {
-                // OnBlockStat is only called once per call to read the params. It's not what we're measuring.
-                if charge.name.starts_with("OnBlock") && charge.name != "OnBlockStat" {
+                if charge.name.starts_with("OnBlock") {
                     if let Some(t) = charge.elapsed.get() {
-                        let o = Obs {
+                        let ob = Obs {
                             label: "n/a".into(),
                             elapsed_nanos: t.as_nanos(),
                             variables: vec![*size],
                         };
-                        obs.entry(charge.name.into()).or_default().push(o);
+                        iter_obs.entry(charge.name.into()).or_default().push(ob);
                     }
                 }
             }
         }
+        // The first OnBlockRead is for reading the parameters. From OnBlockStat that's the only record.
+        iter_obs.get_mut("OnBlockRead").unwrap().remove(0);
+        iter_obs.get_mut("OnBlockStat").unwrap().remove(0);
+
+        for (name, mut obs) in iter_obs {
+            if !obs.is_empty() {
+                // According to the charts, there are odd outliers.
+                obs = eliminate_outliers(obs, 0.01, Eliminate::Top);
+
+                all_obs.entry(name).or_default().extend(obs);
+            }
+        }
     }
 
-    for (name, obs) in obs {
+    for (name, obs) in all_obs {
         let regs = vec![least_squares("".into(), &obs, 0)];
         export(&name, &obs, &regs).unwrap();
     }
