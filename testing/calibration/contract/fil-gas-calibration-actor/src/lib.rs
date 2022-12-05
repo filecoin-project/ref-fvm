@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use fvm_ipld_encoding::RawBytes;
+use cid::multihash::Code;
+use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::crypto::hash::SupportedHashes;
@@ -14,17 +15,26 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[derive(FromPrimitive)]
 #[repr(u64)]
 pub enum Method {
-    Hashing = 1,
+    /// Hash random data to measure `OnHashing`.
+    OnHashing = 1,
+    /// Put and get random data to measure `OnBlock*`.
+    OnBlock,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct HashingParams {
+pub struct OnHashingParams {
     pub hasher: u64,
     pub iterations: usize,
     pub size: usize,
 }
 
-impl HashingParams {
+#[derive(Serialize, Deserialize)]
+pub struct OnBlockParams {
+    pub iterations: usize,
+    pub size: usize,
+}
+
+impl OnHashingParams {
     pub fn hasher(&self) -> Option<SupportedHashes> {
         match self.hasher {
             h if h == SupportedHashes::Sha2_256 as u64 => Some(SupportedHashes::Sha2_256),
@@ -61,16 +71,30 @@ pub fn invoke(params_ptr: u32) -> u32 {
 
 fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
     match method {
-        Method::Hashing => on_hashing(read_params::<HashingParams>(params_ptr)?),
+        Method::OnHashing => on_hashing(read_params::<OnHashingParams>(params_ptr)?),
+        Method::OnBlock => on_block(read_params::<OnBlockParams>(params_ptr)?),
     }
 }
 
-fn on_hashing(p: HashingParams) -> Result<()> {
+fn on_hashing(p: OnHashingParams) -> Result<()> {
     let h = p.hasher().ok_or(anyhow!("unknown hasher"))?;
     let mut data = random_bytes(p.size, (p.iterations * p.size) as u64);
     for i in 0..p.iterations {
         random_mutations(&mut data, (p.iterations * p.size + i) as u64, 10usize);
         fvm_sdk::crypto::hash(h, &data);
+    }
+    Ok(())
+}
+
+fn on_block(p: OnBlockParams) -> Result<()> {
+    let mut data = random_bytes(p.size, (p.iterations * p.size) as u64);
+    for i in 0..p.iterations {
+        random_mutations(&mut data, (p.iterations * p.size + i) as u64, 10usize);
+
+        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, data.as_slice())?;
+        let back = fvm_sdk::ipld::get(&cid)?;
+
+        assert_eq!(data, back);
     }
     Ok(())
 }

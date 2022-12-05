@@ -1,6 +1,6 @@
 #![feature(slice_group_by)]
 
-use fil_gas_calibration_actor::{HashingParams, Method};
+use fil_gas_calibration_actor::{Method, OnHashingParams};
 use fvm::executor::{ApplyKind, Executor};
 use fvm::trace::ExecutionEvent;
 use fvm_gas_calibration::*;
@@ -42,7 +42,7 @@ fn main() {
     for hasher in hashers.iter() {
         let label = format!("{hasher:?}");
         for size in sizes.iter() {
-            let params = HashingParams {
+            let params = OnHashingParams {
                 hasher: *hasher as u64,
                 size: *size,
                 iterations,
@@ -55,7 +55,7 @@ fn main() {
                 to: te.actor_address,
                 sequence,
                 gas_limit: ENOUGH_GAS.as_milligas(),
-                method_num: Method::Hashing as u64,
+                method_num: Method::OnHashing as u64,
                 params: raw_params,
                 ..Message::default()
             };
