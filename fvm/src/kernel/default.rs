@@ -667,7 +667,7 @@ where
             ..
         } = self.call_manager.context();
         Ok(NetworkContext {
-            chain_id: chain_id.chain_id(),
+            chain_id: (*chain_id).into(),
             epoch: *epoch,
             network_version: *network_version as u32,
             timestamp: *timestamp,

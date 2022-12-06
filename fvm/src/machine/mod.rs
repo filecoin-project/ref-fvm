@@ -47,13 +47,17 @@ impl ChainID {
     pub const WALLABY: Self = Self(31415);
     pub const CALIBRATION: Self = Self(314159);
     pub const CATERPILLER_BUTTERFLY: Self = Self(3141592);
+}
 
-    pub fn chain_id(&self) -> u64 {
-        self.0
+impl From<u64> for ChainID {
+    fn from(src: u64) -> Self {
+        Self(src)
     }
+}
 
-    pub fn new(chain_id: u64) -> Self {
-        Self(chain_id)
+impl From<ChainID> for u64 {
+    fn from(src: ChainID) -> Self {
+        src.0
     }
 }
 
