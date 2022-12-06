@@ -21,6 +21,10 @@ lazy_static::lazy_static! {
     };
 }
 
+pub fn chain_id() -> u64 {
+    NETWORK_CONTEXT.chain_id
+}
+
 pub fn curr_epoch() -> ChainEpoch {
     NETWORK_CONTEXT.epoch
 }
