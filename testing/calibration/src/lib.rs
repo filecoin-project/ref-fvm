@@ -1,14 +1,18 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm::gas::Gas;
 use fvm_integration_tests::bundle;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ExitCode;
+use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use lazy_static::lazy_static;
@@ -17,6 +21,8 @@ use serde::Serialize;
 
 pub const WASM_COMPILED_PATH: &str =
     "../../target/debug/wbuild/fil_gas_calibration_actor/fil_gas_calibration_actor.compact.wasm";
+
+pub const ENOUGH_GAS: Gas = Gas::new(1_000_000_000);
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -27,9 +33,43 @@ pub struct TestEnv {
     pub tester: Tester<MemoryBlockstore, DummyExterns>,
     pub sender: Account,
     pub actor_address: Address,
+    pub actor_sequence: u64,
 }
 
-pub const ENOUGH_GAS: Gas = Gas::new(1_000_000_000);
+impl TestEnv {
+    /// Call a method with some parameters and return the results.
+    ///
+    /// Panics if the message hasn't executed successfully.
+    pub fn execute_or_die<P: Serialize>(&mut self, method_num: u64, params: &P) -> ApplyRet {
+        let raw_params = RawBytes::serialize(params).unwrap();
+        let message = Message {
+            from: self.sender.1,
+            to: self.actor_address,
+            sequence: self.actor_sequence,
+            gas_limit: ENOUGH_GAS.as_milligas(),
+            method_num,
+            params: raw_params,
+            ..Message::default()
+        };
+
+        self.actor_sequence += 1;
+
+        let ret = self
+            .tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        if let Some(failure) = ret.failure_info {
+            panic!("message execution failed: {failure}");
+        }
+        assert_eq!(ret.msg_receipt.exit_code, ExitCode::OK);
+
+        ret
+    }
+}
 
 lazy_static! {
     /// The maximum parallelism when processing test vectors.
@@ -101,6 +141,7 @@ pub fn instantiate_tester() -> TestEnv {
         tester,
         sender: sender[0],
         actor_address,
+        actor_sequence: 0,
     }
 }
 

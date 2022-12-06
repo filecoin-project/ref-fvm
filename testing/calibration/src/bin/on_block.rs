@@ -3,12 +3,9 @@
 use std::collections::HashMap;
 
 use fil_gas_calibration_actor::{Method, OnBlockParams};
-use fvm::executor::{ApplyKind, Executor};
 use fvm::trace::ExecutionEvent;
 use fvm_gas_calibration::*;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::error::ExitCode;
-use fvm_shared::message::Message;
 use rand::{thread_rng, Rng};
 
 fn main() {
@@ -27,7 +24,6 @@ fn main() {
     // But at the same time when the contracts are executed the changes are buffered in memory,
     // not everything actually gets written to the disk.
     let mut te = instantiate_tester();
-    let mut sequence = 0;
 
     let mut rng = thread_rng();
 
@@ -41,26 +37,7 @@ fn main() {
             seed: rng.gen(),
         };
 
-        let raw_params = RawBytes::serialize(&params).unwrap();
-
-        let message = Message {
-            from: te.sender.1,
-            to: te.actor_address,
-            sequence,
-            gas_limit: ENOUGH_GAS.as_milligas(),
-            method_num: Method::OnBlock as u64,
-            params: raw_params,
-            ..Message::default()
-        };
-        sequence += 1;
-
-        let ret = te
-            .tester
-            .executor
-            .as_mut()
-            .unwrap()
-            .execute_message(message, ApplyKind::Explicit, 100)
-            .unwrap();
+        let ret = te.execute_or_die(Method::OnBlock as u64, &params);
 
         if let Some(failure) = ret.failure_info {
             panic!("message execution failed: {failure}");
