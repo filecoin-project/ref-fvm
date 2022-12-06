@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
@@ -261,11 +263,12 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
         self.0
-            .send::<TestKernel<K>>(from, to, method, params, value)
+            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit)
     }
 
     fn with_transaction(
@@ -445,7 +448,7 @@ where
         self.0.create_actor(code_id, actor_id, predictable_address)
     }
 
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32 {
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
 
@@ -569,11 +572,14 @@ where
     // NOT forwarded
     fn verify_consensus_fault(
         &self,
-        _h1: &[u8],
-        _h2: &[u8],
-        _extra: &[u8],
+        h1: &[u8],
+        h2: &[u8],
+        extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
-        let charge = self.1.price_list.on_verify_consensus_fault();
+        let charge = self
+            .1
+            .price_list
+            .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
         self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
@@ -723,9 +729,11 @@ where
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<SendResult> {
-        self.0.send(recipient, method, params, value, flags)
+        self.0
+            .send(recipient, method, params, value, gas_limit, flags)
     }
 }
 

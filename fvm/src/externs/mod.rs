@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains the logic to invoke the node by traversing Boundary A.
 
 use cid::Cid;

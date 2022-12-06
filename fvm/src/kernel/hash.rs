@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use multihash::derive::Multihash;
 use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
 

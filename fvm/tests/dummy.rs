@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -311,6 +313,7 @@ impl CallManager for DummyCallManager {
         _method: fvm_shared::MethodNum,
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
+        _gas_limit: Option<Gas>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()

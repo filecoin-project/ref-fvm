@@ -1,3 +1,4 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
@@ -103,6 +104,27 @@ impl Signature {
     /// Returns [SignatureType] for the signature.
     pub fn signature_type(&self) -> SignatureType {
         self.sig_type
+    }
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for SignatureType {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        if bool::arbitrary(g) {
+            SignatureType::Secp256k1
+        } else {
+            SignatureType::BLS
+        }
+    }
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for Signature {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            bytes: Vec::arbitrary(g),
+            sig_type: SignatureType::arbitrary(g),
+        }
     }
 }
 

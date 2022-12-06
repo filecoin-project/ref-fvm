@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use actors_v10_runtime::runtime::builtins::Type;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
@@ -229,6 +231,5 @@ fn test_message_context() {
     assert_eq!(sdk::message::receiver(), 10000);
     assert_eq!(sdk::message::method_number(), 1);
     assert!(sdk::message::value_received().is_zero());
-    assert_eq!(sdk::message::gas_limit(), 1000000000);
     assert!(sdk::message::gas_premium().is_zero());
 }

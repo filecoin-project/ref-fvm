@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::Cbor;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
@@ -97,7 +99,15 @@ pub fn invoke(params: u32) -> u32 {
 
             if counter > 0 {
                 let params = fvm_ipld_encoding::to_vec(&counter).expect("failed to serialize");
-                sdk::send::send(&our_addr, EMIT_SUBCALLS, params.into(), Zero::zero()).unwrap();
+                sdk::send::send(
+                    &our_addr,
+                    EMIT_SUBCALLS,
+                    params.into(),
+                    Zero::zero(),
+                    None,
+                    Default::default(),
+                )
+                .unwrap();
             }
         }
         EMIT_SUBCALLS_REVERT => {
@@ -120,9 +130,15 @@ pub fn invoke(params: u32) -> u32 {
                 // the error here, we just ignore it and move on. That's part of the test scenario
                 // (want to verify that the FVM correctly discards only events under a failing
                 // callee, no more and no less)
-                let _ =
-                    sdk::send::send(&our_addr, EMIT_SUBCALLS_REVERT, params.into(), Zero::zero())
-                        .ok();
+                let _ = sdk::send::send(
+                    &our_addr,
+                    EMIT_SUBCALLS_REVERT,
+                    params.into(),
+                    Zero::zero(),
+                    None,
+                    Default::default(),
+                )
+                .ok();
             }
 
             // The 6th call will abort after performing its send. The caller won't rethrow, so we

@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::RawBytes;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
@@ -24,10 +26,17 @@ pub fn invoke(params: u32) -> u32 {
         2 => {
             // Create an account.
             let addr = Address::new_secp256k1(&[0; SECP_PUB_LEN]).unwrap();
-            assert!(sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero())
-                .unwrap()
-                .exit_code
-                .is_success());
+            assert!(sdk::send::send(
+                &addr,
+                0,
+                RawBytes::default(),
+                Zero::zero(),
+                None,
+                Default::default()
+            )
+            .unwrap()
+            .exit_code
+            .is_success());
 
             // Resolve the ID address of the account.
             let id = sdk::actor::resolve_address(&addr).expect("failed to find new account");
@@ -42,10 +51,17 @@ pub fn invoke(params: u32) -> u32 {
             // Create an embryo.
             let addr =
                 Address::new_delegated(0, b"foobar").expect("failed to construct f4 address");
-            assert!(sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero())
-                .unwrap()
-                .exit_code
-                .is_success());
+            assert!(sdk::send::send(
+                &addr,
+                0,
+                RawBytes::default(),
+                Zero::zero(),
+                None,
+                Default::default()
+            )
+            .unwrap()
+            .exit_code
+            .is_success());
 
             // Resolve the ID address of the embryo.
             let id = sdk::actor::resolve_address(&addr).expect("failed to find new embryo");
@@ -62,7 +78,14 @@ pub fn invoke(params: u32) -> u32 {
                 Address::new_delegated(999, b"foobar").expect("failed to construct f4 address");
             assert_eq!(
                 Err(ErrorNumber::NotFound),
-                sdk::send::send(&addr, 0, RawBytes::default(), Zero::zero()),
+                sdk::send::send(
+                    &addr,
+                    0,
+                    RawBytes::default(),
+                    Zero::zero(),
+                    None,
+                    Default::default()
+                ),
                 "expected send to unassignable f4 address to fail"
             );
         }

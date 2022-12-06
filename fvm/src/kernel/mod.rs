@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
 use cid::Cid;
 use fvm_shared::address::Address;
@@ -197,7 +199,7 @@ pub trait ActorOps {
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns the actor's "type" (if builitin) or 0 (if not).
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> u32;
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
 
     /// Returns the CodeCID for the supplied built-in actor type.
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
@@ -214,6 +216,7 @@ pub trait SendOps {
         method: u64,
         params: BlockId,
         value: &TokenAmount,
+        gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<SendResult>;
 }

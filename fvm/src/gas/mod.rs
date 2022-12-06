@@ -1,3 +1,4 @@
+// Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
@@ -168,8 +169,7 @@ impl GasTracker {
         }
     }
 
-    fn charge_gas_inner(&self, name: &str, to_use: Gas) -> Result<()> {
-        log::trace!("charging gas: {} {}", name, to_use);
+    fn charge_gas_inner(&self, to_use: Gas) -> Result<()> {
         // The gas type uses saturating math.
         let gas_used = self.gas_used.get() + to_use;
         if gas_used > self.gas_limit {
@@ -185,22 +185,39 @@ impl GasTracker {
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
     pub fn charge_gas(&self, name: &str, to_use: Gas) -> Result<()> {
-        let res = self.charge_gas_inner(name, to_use);
+        log::trace!("charging gas: {} {}", name, to_use);
         if let Some(trace) = &self.trace {
             trace
                 .borrow_mut()
                 .push(GasCharge::new(name.to_owned(), to_use, Gas::zero()))
         }
-        res
+        self.charge_gas_inner(to_use)
     }
 
     /// Applies the specified gas charge, where quantities are supplied in milligas.
     pub fn apply_charge(&self, charge: GasCharge) -> Result<()> {
-        let res = self.charge_gas_inner(&charge.name, charge.total());
+        let to_use = charge.total();
+        log::trace!("charging gas: {} {}", &charge.name, to_use);
         if let Some(trace) = &self.trace {
             trace.borrow_mut().push(charge);
         }
-        res
+        self.charge_gas_inner(to_use)
+    }
+
+    /// Absorbs another GasTracker (usually a nested one) into this one, charging for gas
+    /// used and appending all traces.
+    pub fn absorb(&self, other: &GasTracker) -> Result<()> {
+        if let Some(trace) = &self.trace {
+            trace.borrow_mut().extend(other.drain_trace());
+        }
+        self.charge_gas_inner(other.gas_used())
+    }
+
+    /// Make a "child" gas-tracker with a new limit, if and only if the new limit is less than the
+    /// available gas.
+    pub fn new_child(&self, new_limit: Gas) -> Option<GasTracker> {
+        (self.gas_available() > new_limit)
+            .then(|| GasTracker::new(new_limit, Gas::zero(), self.trace.is_some()))
     }
 
     /// Getter for the maximum gas usable by this message.

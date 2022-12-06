@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::Sum;
@@ -103,6 +105,13 @@ impl Default for TokenAmount {
 impl fmt::Debug for TokenAmount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TokenAmount({})", self)
+    }
+}
+
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for TokenAmount {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        TokenAmount::from_atto(BigInt::arbitrary(g))
     }
 }
 

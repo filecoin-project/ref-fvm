@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains syscall output data carrier structs, shared between
 //! the FVM SDK and the FVM itself, wrapping multi-value returns.
 //!
@@ -94,8 +96,6 @@ pub mod vm {
         pub value_received: TokenAmount,
         /// The current gas premium
         pub gas_premium: TokenAmount,
-        /// The current gas limit
-        pub gas_limit: u64,
         /// Flags pertaining to the currently executing actor's invocation context.
         pub flags: ContextFlags,
     }

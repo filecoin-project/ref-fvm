@@ -1,9 +1,12 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::Context as _;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys::{self, SendFlags};
 
 use super::Context;
+use crate::gas::Gas;
 use crate::kernel::{ClassifyResult, Result, SendResult};
 use crate::Kernel;
 
@@ -24,23 +27,41 @@ pub fn send(
     params_id: u32,
     value_hi: u64,
     value_lo: u64,
+    gas_limit: u64,
     flags: u64,
 ) -> Result<sys::out::send::Send> {
     unsafe { set_syscall_probe("syscall.send.send") };
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
+
+    // Only pass on the gas limit, and subsequently lower errors, if the caller requested a gas
+    // limit below their gas available.
+    let effective_gas_limit = if gas_limit > 0 {
+        // Treat > maxint as "no limit".
+        gas_limit.try_into().ok().map(Gas::new)
+    } else {
+        None
+    };
+
     let flags = SendFlags::from_bits(flags)
         .with_context(|| format!("invalid send flags: {flags}"))
         .or_illegal_argument()?;
+
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
     let SendResult {
         block_id,
         block_stat,
         exit_code,
-    } = context
-        .kernel
-        .send(&recipient, method, params_id, &value, flags)?;
+    } = context.kernel.send(
+        &recipient,
+        method,
+        params_id,
+        &value,
+        effective_gas_limit,
+        flags,
+    )?;
+
     Ok(sys::out::send::Send {
         exit_code: exit_code.value(),
         return_id: block_id,

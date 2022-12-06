@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
@@ -220,7 +222,6 @@ where
         let blockstore = state_tree.into_store();
 
         let mut nc = NetworkConfig::new(self.nv);
-        nc.actor_debugging = true;
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 

@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for sending messages to other actors.
 
 #[doc(inline)]
@@ -23,6 +25,7 @@ super::fvm_syscalls! {
     /// - `params` is the IPLD block handle of the method parameters.
     /// - `value_hi` are the "high" bits of the token value to send (little-endian) in attoFIL.
     /// - `value_lo` are the "high" bits of the token value to send (little-endian) in attoFIL.
+    /// - `gas_limit` is the gas this send is allowed to use. Zero means "all available gas".
     /// - `send_flags` are additional send flags.
     ///
     /// **NOTE**: This syscall will transfer `(value_hi << 64) | (value_lo)` attoFIL to the
@@ -49,6 +52,7 @@ super::fvm_syscalls! {
         params: u32,
         value_hi: u64,
         value_lo: u64,
+        gas_limit: u64,
         flags: SendFlags,
     ) -> Result<Send>;
 }

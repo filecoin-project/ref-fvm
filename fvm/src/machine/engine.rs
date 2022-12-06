@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
@@ -117,8 +119,8 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     });
 
     // wasmtime default: true
-    // Included here to make sure the memory-init-cow feature is enabled.
-    c.memory_init_cow(true);
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    c.memory_init_cow(false);
 
     // wasmtime default: 4GB
     c.static_memory_maximum_size(instance_memory_maximum_size);
@@ -191,6 +193,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     Ok(c)
 }
 
+#[derive(Clone)]
+struct ModuleRecord {
+    module: Module,
+    /// Byte size of the original Wasm.
+    size: usize,
+}
+
 struct EngineInner {
     engine: wasmtime::Engine,
 
@@ -202,7 +211,7 @@ struct EngineInner {
     dummy_gas_global: Global,
     dummy_memory: Memory,
 
-    module_cache: Mutex<HashMap<Cid, Module>>,
+    module_cache: Mutex<HashMap<Cid, ModuleRecord>>,
     instance_cache: Mutex<HashMap<TypeId, Box<dyn Any + Send>>>,
     config: EngineConfig,
 
@@ -256,20 +265,22 @@ impl Engine {
     /// Loads an actor's Wasm code from the blockstore by CID, and prepares
     /// it for execution by instantiating and caching the Wasm module. This
     /// method errors if the code CID is not found in the store.
+    ///
+    /// Return the original byte code size.
     pub fn prepare_actor_code<BS: Blockstore>(
         &self,
         code_cid: &Cid,
         blockstore: BS,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<usize> {
         let code_cid = self.with_redirect(code_cid);
-        if self
+        if let Some(item) = self
             .0
             .module_cache
             .lock()
             .expect("module_cache poisoned")
-            .contains_key(code_cid)
+            .get(code_cid)
         {
-            return Ok(());
+            return Ok(item.size);
         }
         let wasm = blockstore.get(code_cid)?.ok_or_else(|| {
             anyhow!(
@@ -278,27 +289,29 @@ impl Engine {
             )
         })?;
         // compile and cache instantiated WASM module
-        self.prepare_wasm_bytecode(code_cid, &wasm)?;
-        Ok(())
+        self.prepare_wasm_bytecode(code_cid, &wasm)
     }
 
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
     /// the supplied CIDs. Only uncached entries are actually fetched and
     /// instantiated. Blockstore failures and entry inexistence shortcircuit
     /// make this method return an Err immediately.
-    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<()>
+    ///
+    /// Returns the total original byte size of the modules
+    pub fn preload<'a, BS, I>(&self, blockstore: BS, cids: I) -> anyhow::Result<usize>
     where
         BS: Blockstore,
         I: IntoIterator<Item = &'a Cid>,
     {
+        let mut total_size = 0usize;
         for cid in cids {
             log::trace!("preloading code CID {cid}");
-            self.prepare_actor_code(cid, &blockstore).with_context(|| {
+            let size = self.prepare_actor_code(cid, &blockstore).with_context(|| {
                 anyhow!("could not prepare actor with code CID {}", &cid.to_string())
             })?;
+            total_size += size;
         }
-
-        Ok(())
+        Ok(total_size)
     }
 
     fn with_redirect<'a>(&'a self, k: &'a Cid) -> &'a Cid {
@@ -379,10 +392,16 @@ impl Engine {
         let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match cache.get(k) {
-            Some(module) => module.clone(),
+            Some(m) => m.module.clone(),
             None => {
                 let module = Module::deserialize(&self.0.engine, compiled)?;
-                cache.insert(*k, module.clone());
+                cache.insert(
+                    *k,
+                    ModuleRecord {
+                        module: module.clone(),
+                        size: compiled.len(),
+                    },
+                );
                 module
             }
         };
@@ -403,11 +422,11 @@ impl Engine {
             .expect("module_cache poisoned")
             .entry(*k)
         {
-            Occupied(v) => Ok(Some(v.get().clone())),
+            Occupied(v) => Ok(Some(v.get().module.clone())),
             Vacant(v) => blockstore
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
-                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?.0).clone()))
+                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?).module.clone()))
                 .transpose(),
         }
     }
@@ -458,7 +477,7 @@ impl Engine {
         };
 
         match module_cache.entry(*k) {
-            Occupied(v) => instantiate(store, v.get()),
+            Occupied(v) => instantiate(store, &v.get().module),
             Vacant(v) => match store
                 .data()
                 .kernel
@@ -467,7 +486,7 @@ impl Engine {
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
             {
-                Some(raw_wasm) => instantiate(store, v.insert(self.load_raw(&raw_wasm)?.0)),
+                Some(raw_wasm) => instantiate(store, &v.insert(self.load_raw(&raw_wasm)?).module),
                 None => Ok(None),
             },
         }
