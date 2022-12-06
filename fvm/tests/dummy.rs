@@ -10,7 +10,7 @@ use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::limiter::ExecMemory;
-use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
+use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig, ChainID};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -139,7 +139,7 @@ impl DummyMachine {
         // construct state tree from empty root state
         let state_tree = StateTree::new_from_root(bs, &root)?;
 
-        let mut config = NetworkConfig::new(STUB_NETWORK_VER);
+        let mut config = NetworkConfig::new(STUB_NETWORK_VER, ChainID::ZERO);
 
         // generate context from the new generated root and override actors with empty list
         let ctx = config.override_actors(actors_cid).for_epoch(0, 0, root);

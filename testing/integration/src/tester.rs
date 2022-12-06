@@ -5,7 +5,7 @@ use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
-use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
+use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig, ChainID};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
@@ -221,7 +221,7 @@ where
         // Consume the state tree and take the blockstore.
         let blockstore = state_tree.into_store();
 
-        let mut nc = NetworkConfig::new(self.nv);
+        let mut nc = NetworkConfig::new(self.nv, ChainID::ZERO);
         nc.override_actors(self.builtin_actors);
         nc.enable_actor_debugging();
 

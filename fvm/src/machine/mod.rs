@@ -39,6 +39,20 @@ pub const REWARD_ACTOR_ID: ActorID = 2;
 /// Distinguished Account actor that is the destination of all burnt funds.
 pub const BURNT_FUNDS_ACTOR_ID: ActorID = 99;
 
+#[derive(Clone, Copy, Debug)]
+pub struct ChainID(u64);
+
+impl ChainID {
+    pub const ZERO: Self = Self(0);
+    pub const WALLABY: Self = Self(31415);
+    pub const CALIBRATION: Self = Self(314159);
+    pub const CATERPILLER_BUTTERFLY: Self = Self(3141592);
+
+    pub fn chain_id(&self) -> u64 {
+        self.0
+    }
+} 
+
 /// The Machine is the top-level object of the FVM.
 ///
 /// The Machine operates at a concrete network version and epoch, over an
@@ -113,6 +127,9 @@ pub struct NetworkConfig {
     /// The network version at epoch
     pub network_version: NetworkVersion,
 
+    /// The Chain ID of the network.
+    pub chain_id: ChainID,
+
     /// The maximum call depth.
     ///
     /// DEFAULT: 1024
@@ -154,8 +171,9 @@ pub struct NetworkConfig {
 
 impl NetworkConfig {
     /// Create a new network config for the given network version.
-    pub fn new(network_version: NetworkVersion) -> Self {
+    pub fn new(network_version: NetworkVersion, chain_id: ChainID) -> Self {
         NetworkConfig {
+            chain_id,
             network_version,
             max_call_depth: 1024,
             max_wasm_stack: 2048,

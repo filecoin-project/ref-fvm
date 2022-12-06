@@ -659,11 +659,13 @@ where
             timestamp,
             base_fee,
             network: NetworkConfig {
-                network_version, ..
+                network_version,
+                chain_id, ..
             },
             ..
         } = self.call_manager.context();
         Ok(NetworkContext {
+            chain_id: chain_id.chain_id(),
             epoch: *epoch,
             network_version: *network_version as u32,
             timestamp: *timestamp,

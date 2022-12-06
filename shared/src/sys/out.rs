@@ -116,5 +116,7 @@ pub mod network {
         pub base_fee: TokenAmount,
         /// The network version.
         pub network_version: u32,
+        /// The Chain ID of the network.
+        pub chain_id: u64,
     }
 }
