@@ -40,6 +40,7 @@ pub fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_signature") };
     let sig_type = SignatureType::from_u32(sig_type)
         .with_context(|| format!("unknown signature type {}", sig_type))
@@ -59,6 +60,7 @@ pub fn recover_secp_public_key(
     hash_off: u32,
     sig_off: u32,
 ) -> Result<[u8; SECP_PUB_LEN]> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.recover_secp_public_key") };
     let hash_bytes = context
         .memory
@@ -87,6 +89,7 @@ pub fn hash(
     digest_off: u32, // output
     digest_len: u32,
 ) -> Result<u32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.hash") };
     // Check the digest bounds first so we don't do any work if they're incorrect.
     context.memory.check_bounds(digest_off, digest_len)?;
@@ -117,6 +120,7 @@ pub fn compute_unsealed_sector_cid(
     cid_len: u32,
 ) -> Result<u32> {
     // Check/read all arguments.
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.compute_unsealed_sector_cid") };
     let typ = RegisteredSealProof::from(proof_type);
     if let RegisteredSealProof::Invalid(invalid) = typ {
@@ -144,6 +148,7 @@ pub fn verify_seal(
     info_off: u32, // SealVerifyInfo
     info_len: u32,
 ) -> Result<i32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_seal") };
     let info = context
         .memory
@@ -164,6 +169,7 @@ pub fn verify_post(
     info_off: u32, // WindowPoStVerifyInfo,
     info_len: u32,
 ) -> Result<i32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_post") };
     let info = context
         .memory
@@ -193,6 +199,7 @@ pub fn verify_consensus_fault(
     extra_off: u32,
     extra_len: u32,
 ) -> Result<sys::out::crypto::VerifyConsensusFault> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_consensus_fault") };
     let h1 = context.memory.try_slice(h1_off, h1_len)?;
     let h2 = context.memory.try_slice(h2_off, h2_len)?;
@@ -228,6 +235,7 @@ pub fn verify_aggregate_seals(
     agg_off: u32, // AggregateSealVerifyProofAndInfos
     agg_len: u32,
 ) -> Result<i32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_aggregate_seals") };
     let info = context
         .memory
@@ -246,6 +254,7 @@ pub fn verify_replica_update(
     rep_off: u32, // ReplicaUpdateInfo
     rep_len: u32,
 ) -> Result<i32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.verify_replica_update") };
     let info = context
         .memory
@@ -266,6 +275,7 @@ pub fn batch_verify_seals(
     batch_len: u32,
     result_off: u32,
 ) -> Result<()> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.crypto.batch_verify_seals") };
     // Check and decode params.
     let batch = context

@@ -31,6 +31,7 @@ pub fn exit(
     message_off: u32,
     message_len: u32,
 ) -> Result<Never, Abort> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.vm.exit") };
     let code = ExitCode::new(code);
     if !code.is_success() && code.is_system_error() {
@@ -66,6 +67,7 @@ pub fn exit(
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.vm.message_context") };
     context.kernel.msg_context()
 }

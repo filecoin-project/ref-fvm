@@ -16,6 +16,7 @@ extern "Rust" {
 
 /// Returns the network circ supply split as two u64 ordered in little endian.
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.network.total_fil_circ_supply") };
     context
         .kernel
@@ -26,6 +27,7 @@ pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::T
 }
 
 pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<NetworkContext> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.network.context") };
     context.kernel.network_context()
 }
@@ -36,6 +38,7 @@ pub fn tipset_cid(
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<u32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.network.tipset_cid") };
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;

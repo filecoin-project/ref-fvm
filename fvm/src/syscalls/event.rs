@@ -17,6 +17,7 @@ pub fn emit_event(
     event_off: u32, // ActorEvent
     event_len: u32,
 ) -> Result<()> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.event.emit_event") };
     let evt: ActorEvent = context.memory.read_cbor(event_off, event_len)?;
     context.kernel.emit_event(evt)

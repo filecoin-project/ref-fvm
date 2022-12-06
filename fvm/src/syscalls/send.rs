@@ -30,6 +30,7 @@ pub fn send(
     gas_limit: u64,
     flags: u64,
 ) -> Result<sys::out::send::Send> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.send.send") };
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);

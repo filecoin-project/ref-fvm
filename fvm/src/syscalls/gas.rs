@@ -19,6 +19,7 @@ pub fn charge_gas(
     name_len: u32,
     compute: i64,
 ) -> Result<()> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.gas.charge_gas") };
     let name =
         str::from_utf8(context.memory.try_slice(name_off, name_len)?).or_illegal_argument()?;

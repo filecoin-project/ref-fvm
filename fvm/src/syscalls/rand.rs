@@ -23,6 +23,7 @@ pub fn get_chain_randomness(
     entropy_off: u32,
     entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.rand.get_chain_randomness") };
     let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
     context
@@ -41,6 +42,7 @@ pub fn get_beacon_randomness(
     entropy_off: u32,
     entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.rand.get_beacon_randomness") };
     let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
     context

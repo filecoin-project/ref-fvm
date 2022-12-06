@@ -18,6 +18,7 @@ extern "Rust" {
 /// buffer is smaller, no value will have been written. The caller must retry
 /// with a larger buffer.
 pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> Result<u32> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.self.root") };
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
@@ -27,6 +28,7 @@ pub fn root(context: Context<'_, impl Kernel>, obuf_off: u32, obuf_len: u32) -> 
 }
 
 pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.self.set_root") };
     let cid = context.memory.read_cid(cid_off)?;
     context.kernel.set_root(cid)?;
@@ -34,6 +36,7 @@ pub fn set_root(context: Context<'_, impl Kernel>, cid_off: u32) -> Result<()> {
 }
 
 pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.self.current_balance") };
     let balance = context.kernel.current_balance()?;
     balance
@@ -47,6 +50,7 @@ pub fn self_destruct(
     addr_off: u32,
     addr_len: u32,
 ) -> Result<()> {
+    #[cfg(feature = "instrument-syscalls")]
     unsafe { set_syscall_probe("syscall.self.self_destruct") };
     let addr = context.memory.read_address(addr_off, addr_len)?;
     context.kernel.self_destruct(&addr)?;
