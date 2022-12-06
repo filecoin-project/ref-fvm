@@ -62,7 +62,7 @@ mod test {
 
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Chain, Consensus, Externs, Rand};
-    use crate::machine::{DefaultMachine, Engine, Manifest, NetworkConfig, ChainID};
+    use crate::machine::{ChainID, DefaultMachine, Engine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
     use crate::{executor, DefaultKernel};
 

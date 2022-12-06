@@ -12,7 +12,7 @@ use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{
-    DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig, ChainID,
+    ChainID, DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;

@@ -51,7 +51,7 @@ impl ChainID {
     pub fn chain_id(&self) -> u64 {
         self.0
     }
-} 
+}
 
 /// The Machine is the top-level object of the FVM.
 ///

@@ -10,7 +10,7 @@ use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::limiter::ExecMemory;
-use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig, ChainID};
+use fvm::machine::{ChainID, Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};

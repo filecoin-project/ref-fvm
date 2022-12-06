@@ -5,7 +5,7 @@ use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
-use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig, ChainID};
+use fvm::machine::{ChainID, DefaultMachine, Engine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
