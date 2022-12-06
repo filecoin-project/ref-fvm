@@ -15,7 +15,6 @@ extern "Rust" {
 /// Returns the network circ supply split as two u64 ordered in little endian.
 pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
     unsafe { set_syscall_probe("syscall.network.total_fil_circ_supply") };
-    panic!("Reached !")
     context
         .kernel
         .total_fil_circ_supply()?
