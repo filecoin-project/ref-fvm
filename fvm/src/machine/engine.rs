@@ -194,10 +194,10 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 }
 
 #[derive(Clone)]
-struct ModuleRecord {
-    module: Module,
+pub struct ModuleRecord {
+    pub module: Module,
     /// Byte size of the original Wasm.
-    size: usize,
+    pub size: usize,
 }
 
 struct EngineInner {
@@ -289,7 +289,7 @@ impl Engine {
             )
         })?;
         // compile and cache instantiated WASM module
-        self.prepare_wasm_bytecode(code_cid, &wasm)
+        Ok(self.prepare_wasm_bytecode(code_cid, &wasm)?.0.size)
     }
 
     /// Instantiates and caches the Wasm modules for the bytecodes addressed by
@@ -322,7 +322,7 @@ impl Engine {
     }
 
     /// Loads some Wasm code into the engine and prepares it for execution.
-    pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<(Module, Vec<u8>)> {
+    pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<(ModuleRecord, Vec<u8>)> {
         let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let (module, bin) = match cache.get(k) {
@@ -336,7 +336,7 @@ impl Engine {
         Ok((module, bin))
     }
 
-    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<(Module, Vec<u8>)> {
+    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<(ModuleRecord, Vec<u8>)> {
         // First make sure that non-instrumented wasm is valid
         Module::validate(&self.0.engine, raw_wasm)
             .map_err(anyhow::Error::msg)
@@ -380,7 +380,10 @@ impl Engine {
         let machine_code_len = module.serialize()?.len();
         unsafe { set_machine_code_size(machine_code_len) }
 
-        Ok((module, wasm))
+        Ok((ModuleRecord{
+            module,
+            size: raw_wasm.len()
+        }, wasm))
     }
 
     /// Load compiled wasm code into the engine.
@@ -426,7 +429,7 @@ impl Engine {
             Vacant(v) => blockstore
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
-                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?).module.clone()))
+                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?.0).module.clone()))
                 .transpose(),
         }
     }
@@ -486,7 +489,7 @@ impl Engine {
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
             {
-                Some(raw_wasm) => instantiate(store, &v.insert(self.load_raw(&raw_wasm)?).module),
+                Some(raw_wasm) => instantiate(store, &v.insert(self.load_raw(&raw_wasm)?.0).module),
                 None => Ok(None),
             },
         }

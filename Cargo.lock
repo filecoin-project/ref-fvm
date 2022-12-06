@@ -2295,6 +2295,7 @@ dependencies = [
  "blake2b_simd",
  "byteorder",
  "cid 0.9.0",
+ "cpu-time",
  "derive-getters",
  "derive_builder",
  "derive_more",
