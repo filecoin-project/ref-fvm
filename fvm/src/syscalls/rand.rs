@@ -4,6 +4,12 @@ use super::Context;
 use crate::kernel::Result;
 use crate::Kernel;
 
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
 /// Gets 32 bytes of randomness from the ticket chain.
 /// The supplied output buffer must have at least 32 bytes of capacity.
 /// If this syscall succeeds, exactly 32 bytes will be written starting at the
@@ -15,6 +21,7 @@ pub fn get_chain_randomness(
     entropy_off: u32,
     entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+    unsafe { set_syscall_probe("syscall.rand.get_chain_randomness") };
     let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
     context
         .kernel
@@ -32,6 +39,7 @@ pub fn get_beacon_randomness(
     entropy_off: u32,
     entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
+    unsafe { set_syscall_probe("syscall.rand.get_beacon_randomness") };
     let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
     context
         .kernel

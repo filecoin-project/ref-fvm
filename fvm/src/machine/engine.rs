@@ -22,6 +22,16 @@ use crate::machine::NetworkConfig;
 use crate::syscalls::{bind_syscalls, charge_for_init, InvocationData};
 use crate::Kernel;
 
+use cpu_time::ProcessTime;
+// Injected during build
+extern "Rust" {
+
+    fn set_compilation_time(time: u128) -> ();
+  
+    fn set_instrumentation_time(time: u128) -> ();
+
+    fn set_machine_code_size(size: usize) -> ();
+}
 /// A caching wasmtime engine.
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
@@ -299,21 +309,21 @@ impl Engine {
     }
 
     /// Loads some Wasm code into the engine and prepares it for execution.
-    pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
+    pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<(Module, Vec<u8>)> {
         let k = self.with_redirect(k);
         let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
-        let module = match cache.get(k) {
-            Some(module) => module.clone(),
+        let (module, bin) = match cache.get(k) {
+            Some(module) => (module.clone(), vec![]),
             None => {
-                let module = self.load_raw(wasm)?;
+                let (module, bin) = self.load_raw(wasm)?;
                 cache.insert(*k, module.clone());
-                module
+                (module, bin)
             }
         };
-        Ok(module)
+        Ok((module, bin))
     }
 
-    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<Module> {
+    fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<(Module, Vec<u8>)> {
         // First make sure that non-instrumented wasm is valid
         Module::validate(&self.0.engine, raw_wasm)
             .map_err(anyhow::Error::msg)
@@ -327,7 +337,7 @@ impl Engine {
         use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
 
         let m = deserialize_buffer(raw_wasm)?;
-
+        let now = ProcessTime::now();
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
@@ -347,11 +357,17 @@ impl Engine {
 
         // Work around #602. Remove this once paritytech/parity-wasm#331 is merged and bubbled.
         fix_wasm_sections(&mut m);
+        unsafe { set_instrumentation_time(now.elapsed().as_nanos()) };
 
         let wasm = m.to_bytes()?;
+        let now = ProcessTime::now();
         let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+        unsafe { set_compilation_time(now.elapsed().as_nanos()) };
 
-        Ok(module)
+        let machine_code_len = module.serialize()?.len();
+        unsafe { set_machine_code_size(machine_code_len) }
+
+        Ok((module, wasm))
     }
 
     /// Load compiled wasm code into the engine.
@@ -391,7 +407,7 @@ impl Engine {
             Vacant(v) => blockstore
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
-                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?).clone()))
+                .map(|raw_wasm| Ok(v.insert(self.load_raw(&raw_wasm)?.0).clone()))
                 .transpose(),
         }
     }
@@ -451,7 +467,7 @@ impl Engine {
                 .get(k)
                 .context("failed to lookup wasm module in blockstore")?
             {
-                Some(raw_wasm) => instantiate(store, v.insert(self.load_raw(&raw_wasm)?)),
+                Some(raw_wasm) => instantiate(store, v.insert(self.load_raw(&raw_wasm)?.0)),
                 None => Ok(None),
             },
         }

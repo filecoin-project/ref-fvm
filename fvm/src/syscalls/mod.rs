@@ -28,6 +28,9 @@ mod vm;
 
 pub(self) use context::Context;
 
+extern "Rust" {
+    fn set_gas_spent(gas: i64) -> ();
+}
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
     /// The kernel on which this actor is being executed.
@@ -97,6 +100,9 @@ pub fn charge_for_exec<K: Kernel>(
 
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());
 
+    unsafe {
+        set_gas_spent(exec_gas.as_milligas())
+    }
     data.kernel
         .charge_gas("wasm_exec", exec_gas)
         .map_err(Abort::from_error_as_fatal)?;

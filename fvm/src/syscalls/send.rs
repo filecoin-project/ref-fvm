@@ -7,6 +7,12 @@ use super::Context;
 use crate::kernel::{ClassifyResult, Result, SendResult};
 use crate::Kernel;
 
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.
 #[allow(clippy::too_many_arguments)]
@@ -20,6 +26,7 @@ pub fn send(
     value_lo: u64,
     flags: u64,
 ) -> Result<sys::out::send::Send> {
+    unsafe { set_syscall_probe("syscall.send.send") };
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
     let flags = SendFlags::from_bits(flags)

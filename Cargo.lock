@@ -837,6 +837,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpu-time"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9e393a7668fe1fad3075085b86c781883000b4ede868f43627b34a87c8b7ded"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2286,6 +2296,7 @@ dependencies = [
  "blake2b_simd",
  "byteorder",
  "cid",
+ "cpu-time",
  "derive-getters",
  "derive_builder",
  "derive_more",

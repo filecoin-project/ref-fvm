@@ -2,7 +2,14 @@ use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
 use crate::Kernel;
 
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
 pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
+    unsafe { set_syscall_probe("syscall.debug.log") };
     // No-op if disabled.
     if !context.kernel.debug_enabled() {
         return Ok(());
@@ -15,6 +22,7 @@ pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Res
 }
 
 pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
+    unsafe { set_syscall_probe("syscall.debug.enabled") };
     Ok(if context.kernel.debug_enabled() {
         0
     } else {
@@ -29,6 +37,7 @@ pub fn store_artifact(
     data_off: u32,
     data_len: u32,
 ) -> Result<()> {
+    unsafe { set_syscall_probe("syscall.debug.store_artifact") };
     // No-op if disabled.
     if !context.kernel.debug_enabled() {
         return Ok(());

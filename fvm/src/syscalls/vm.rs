@@ -5,7 +5,11 @@ use fvm_shared::sys::SyscallSafe;
 use super::error::Abort;
 use super::Context;
 use crate::kernel::Kernel;
-
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
 #[derive(Copy, Clone)]
@@ -25,6 +29,7 @@ pub fn exit(
     message_off: u32,
     message_len: u32,
 ) -> Result<Never, Abort> {
+    unsafe { set_syscall_probe("syscall.vm.exit") };
     let code = ExitCode::new(code);
     if !code.is_success() && code.is_system_error() {
         return Err(Abort::Exit(
@@ -59,5 +64,6 @@ pub fn exit(
 }
 
 pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
+    unsafe { set_syscall_probe("syscall.vm.message_context") };
     context.kernel.msg_context()
 }

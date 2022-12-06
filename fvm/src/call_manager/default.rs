@@ -27,6 +27,15 @@ use crate::{account_actor, syscall_error};
 #[repr(transparent)]
 pub struct DefaultCallManager<M: Machine>(Option<Box<InnerDefaultCallManager<M>>>);
 
+use cpu_time::ProcessTime;
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_execution_time(time: u128) -> ();
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
+
 #[doc(hidden)]
 #[derive(Deref, DerefMut)]
 pub struct InnerDefaultCallManager<M: Machine> {
@@ -540,6 +549,7 @@ where
                 store.data_mut().memory = memory;
 
                 // Lookup the invoke method.
+                // TODO, here is where we need to measure time
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
                     // All actors will have an invoke method.
@@ -549,12 +559,16 @@ where
                 update_gas_available(&mut store)?;
 
                 // Invoke it.
+                unsafe { set_syscall_probe("invoke") };
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id,))
+                    let start = ProcessTime::now();
+                    let r = invoke.call(&mut store, (params_id,));
+                    unsafe { set_execution_time(start.elapsed().as_nanos()) };
+                    r
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
-
-                // Charge for any remaining uncharged execution gas, returning an error if we run out.
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
                 charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already
@@ -583,6 +597,7 @@ where
                 })
             });
 
+            log::trace!("called {} -> {}::{}", from, to, method);
             // Process the result, updating the backtrace if necessary.
             let ret = match result {
                 Ok(ret) => Ok(InvocationResult {
@@ -651,6 +666,7 @@ where
                         from,
                         val.exit_code
                     ),
+                    // Send to the profiling info
                     Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
                 }
             }

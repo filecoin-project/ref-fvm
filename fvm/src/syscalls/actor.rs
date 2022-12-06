@@ -5,11 +5,18 @@ use super::Context;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
 pub fn resolve_address(
     context: Context<'_, impl Kernel>,
     addr_off: u32, // Address
     addr_len: u32,
 ) -> Result<u64> {
+    unsafe { set_syscall_probe("syscall.actor.resolve_address") };
     let addr = context.memory.read_address(addr_off, addr_len)?;
     let actor_id = context.kernel.resolve_address(&addr)?;
     Ok(actor_id)
@@ -21,6 +28,7 @@ pub fn lookup_address(
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.actor.lookup_address") };
     let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
     match context.kernel.lookup_address(actor_id)? {
         Some(address) => {
@@ -42,6 +50,7 @@ pub fn get_actor_code_cid(
     obuf_off: u32, // Cid
     obuf_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.actor.get_actor_code_cid") };
     // We always check arguments _first_, before we do anything else.
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
@@ -59,6 +68,7 @@ pub fn next_actor_address(
     obuf_off: u32, // Address (out)
     obuf_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.actor.next_actor_address") };
     // Check bounds first.
     let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
 
@@ -95,6 +105,7 @@ pub fn create_actor(
     predictable_addr_off: u32,
     predictable_addr_len: u32,
 ) -> Result<()> {
+    unsafe { set_syscall_probe("syscall.actor.create_actor") };
     let typ = context.memory.read_cid(typ_off)?;
     let addr = (predictable_addr_len > 0)
         .then(|| {
@@ -111,6 +122,7 @@ pub fn get_builtin_actor_type(
     context: Context<'_, impl Kernel>,
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
+    unsafe { set_syscall_probe("syscall.actor.get_builtin_actor_type") };
     let cid = context.memory.read_cid(code_cid_off)?;
     Ok(context.kernel.get_builtin_actor_type(&cid) as i32)
 }
@@ -121,6 +133,7 @@ pub fn get_code_cid_for_type(
     obuf_off: u32, // Cid
     obuf_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.actor.get_code_cid_for_type") };
     context.memory.check_bounds(obuf_off, obuf_len)?;
 
     let k = context.kernel.get_code_cid_for_type(typ as u32)?;
@@ -132,11 +145,13 @@ pub fn install_actor(
     context: Context<'_, impl Kernel>,
     typ_off: u32, // Cid
 ) -> Result<()> {
+    unsafe { set_syscall_probe("syscall.actor.install_actor") };
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
 }
 
 pub fn balance_of(context: Context<'_, impl Kernel>, actor_id: u64) -> Result<sys::TokenAmount> {
+    unsafe { set_syscall_probe("syscall.actor.balance_of") };
     let balance = context.kernel.balance_of(actor_id)?;
     balance
         .try_into()

@@ -849,6 +849,7 @@ impl PriceList {
 
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
+        // FIP-0037: The first page is free.
         self.wasm_rules.memory_expansion_per_byte_cost * (min_memory_bytes as i64)
     }
 

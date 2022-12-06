@@ -4,7 +4,14 @@ use super::Context;
 use crate::kernel::Result;
 use crate::Kernel;
 
+// Injected during build
+#[no_mangle]
+extern "Rust" {
+    fn set_syscall_probe(probe: &'static str) -> ();
+}
+
 pub fn block_open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
+    unsafe { set_syscall_probe("syscall.ipld.block_open") };
     let cid = context.memory.read_cid(cid)?;
     let (id, stat) = context.kernel.block_open(&cid)?;
     Ok(sys::out::ipld::IpldOpen {
@@ -20,6 +27,7 @@ pub fn block_create(
     data_off: u32,
     data_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.ipld.block_create") };
     let data = context.memory.try_slice(data_off, data_len)?;
     context.kernel.block_create(codec, data)
 }
@@ -32,6 +40,7 @@ pub fn block_link(
     cid_off: u32,
     cid_len: u32,
 ) -> Result<u32> {
+    unsafe { set_syscall_probe("syscall.ipld.block_link") };
     // Check arguments first.
     context.memory.check_bounds(cid_off, cid_len)?;
 
@@ -49,11 +58,13 @@ pub fn block_read(
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<i32> {
+    unsafe { set_syscall_probe("syscall.ipld.block_read") };
     let data = context.memory.try_slice_mut(obuf_off, obuf_len)?;
     context.kernel.block_read(id, offset, data)
 }
 
 pub fn block_stat(context: Context<'_, impl Kernel>, id: u32) -> Result<sys::out::ipld::IpldStat> {
+    unsafe { set_syscall_probe("syscall.ipld.block_stat") };
     context
         .kernel
         .block_stat(id)
