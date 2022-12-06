@@ -12,7 +12,7 @@ use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{
-    ChainID, DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
+    DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
@@ -108,7 +108,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .get(&network_version)
             .ok_or_else(|| anyhow!("no builtin actors index for NV {network_version}"))?;
 
-        let mut nc = NetworkConfig::new(network_version, ChainID::ZERO);
+        let mut nc = NetworkConfig::new(network_version);
         nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
         mc.set_base_fee(base_fee);
