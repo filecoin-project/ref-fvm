@@ -286,9 +286,7 @@ fn unsplit_ext(
     child_ext: &Extension,
 ) -> Result<Extension, Error> {
     // Figure out which bucket contains the pointer.
-    let idx = bf
-        .last_one_idx()
-        .expect("There is supposed to be exactly one pointer") as u8;
+    let idx = bf.last_one_idx().ok_or(Error::ZeroPointers)? as u8;
 
     let idx = Extension::from_idx(idx, conf.bit_width);
     let ext = Extension::unsplit(parent_ext, &idx, child_ext)?;
