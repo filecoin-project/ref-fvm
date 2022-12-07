@@ -1,0 +1,28 @@
+[package]
+name = "ipld_kamt-fuzz"
+version = "0.0.0"
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.1", features = ["derive"] }
+ahash = "0.7.6"
+
+fvm_ipld_kamt = { path = ".." }
+fvm_ipld_blockstore = { path = "../../blockstore" }
+
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "simple"
+path = "fuzz_targets/simple.rs"
+test = false
+doc = false
