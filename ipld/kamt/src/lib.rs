@@ -2,37 +2,38 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-//! HAMT crate for use as rust IPLD data structure
+//! KAMT crate for use as rust IPLD data structure, which stands for "fixed size Keyed AMT" and is basically a copy of the HAMT with some extra features
+//! that were deemed to be too complex to add there.
+//!
+//! The original purpose of the features that gave birth to the KAMT was to optimize the HAMT for the EVM/Solidity storage layout,
+//! which uses hashing+offset for keys to co-locate array items in a contiguous address space. While the HAMT allowed the hashing
+//! strategy to work this way, it resulted in very deep parts of the tree where only the leaves contained key-value pairs. The
+//! main feature of this data structure then is to skip the empty levels and point straight to the next data bearing node.
+//!
+//! The other difference is that to emphasize this the KAMT doesn't do any hashing on its own, it works with fixed size byte arrays as keys.
 //!
 //! [Data structure reference](https://github.com/ipld/specs/blob/51fab05b4fe4930d3d851d50cc1e5f1a02092deb/data-structures/hashmap.md)
-//!
-//! Implementation based off the work @dignifiedquire started [here](https://github.com/dignifiedquire/rust-hamt-ipld). This implementation matched the rust HashMap interface very closely, but came at the cost of saving excess values to the database and requiring unsafe code to update the cache from the underlying store as well as discarding any errors that came in any operations. The function signatures that exist are based on this, but refactored to match the spec more closely and match the necessary implementation.
-//!
-//! The Hamt is a data structure that mimmics a HashMap which has the features of being sharded, persisted, and indexable by a Cid. The Hamt supports a variable bit width to adjust the amount of possible pointers that can exist at each height of the tree. Hamt can be modified at any point, but the underlying values are only persisted to the store when the [flush](struct.Hamt.html#method.flush) is called.
 
 mod bitfield;
 mod error;
-mod hamt;
-mod hash;
-mod hash_algorithm;
+mod ext;
 mod hash_bits;
+pub mod id;
+mod kamt;
 mod node;
 mod pointer;
 
-pub use forest_hash_utils::{BytesKey, Hash};
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
-pub use self::hamt::Hamt;
-pub use self::hash::*;
-pub use self::hash_algorithm::*;
-
-const MAX_ARRAY_WIDTH: usize = 3;
+pub use self::kamt::Kamt;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
 
-/// Configuration options for a HAMT instance.
+/// Configuration options for a KAMT instance.
 #[derive(Debug, Clone)]
 pub struct Config {
     /// The `bit_width` drives how wide and high the tree is going to be.
@@ -40,12 +41,12 @@ pub struct Config {
     /// and consume `bit_width` number of bits from the hashed keys at each level.
     pub bit_width: u32,
 
-    /// The minimum depth at which the HAMT can store key-value pairs in a `Node`.
+    /// The minimum depth at which the KAMT can store key-value pairs in a `Node`.
     ///
     /// Storing values in the nodes means we have to read and write larger chunks of data
     /// whenever we're accessing something (be it a link or values) in any other bucket.
     /// This is particularly costly in the root node, which is always retrieved as soon
-    /// as the HAMT is instantiated.
+    /// as the KAMT is instantiated.
     ///
     /// This setting allows us to keep the root, and possibly a few more levels, free of
     /// data, reserved for links. A sufficiently saturated tree will tend to contain only
@@ -53,10 +54,10 @@ pub struct Config {
     /// further down.
     ///
     /// A value of 0 means data can be put in the root node, which is the default behaviour.
-    ///
-    /// The setting makes most sense when the size of values outweigh the size of the link
-    /// pointing at them. When storing small, hash-sized values, it might not matter.
     pub min_data_depth: u32,
+
+    /// Maximum number of key-value pairs in a bucket before it's pushed down.
+    pub max_array_width: usize,
 }
 
 impl Default for Config {
@@ -64,19 +65,27 @@ impl Default for Config {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
             min_data_depth: 0,
+            max_array_width: 3,
         }
     }
 }
 
-type HashedKey = [u8; 32];
+/// Keys in the tree have a fixed length.
+pub type HashedKey<const N: usize> = [u8; N];
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+/// Convert a key into bytes.
+pub trait AsHashedKey<K, const N: usize> {
+    fn as_hashed_key(key: &K) -> Cow<HashedKey<N>>;
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct KeyValuePair<K, V>(K, V);
 
 impl<K, V> KeyValuePair<K, V> {
     pub fn key(&self) -> &K {
         &self.0
     }
+
     pub fn value(&self) -> &V {
         &self.1
     }

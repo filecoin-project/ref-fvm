@@ -114,6 +114,8 @@ pub mod network {
         pub timestamp: u64,
         /// The current base-fee.
         pub base_fee: TokenAmount,
+        /// The Chain ID of the network.
+        pub chain_id: u64,
         /// The network version.
         pub network_version: u32,
     }

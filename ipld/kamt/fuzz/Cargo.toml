@@ -1,5 +1,5 @@
 [package]
-name = "ipld_amt_fuzz"
+name = "ipld_kamt-fuzz"
 version = "0.0.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
@@ -12,18 +12,17 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1.1", features = ["derive"] }
 ahash = "0.7.6"
-itertools = "0.10.3"
 
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "arb", "std"] }
-fvm_ipld_amt = { path = ".."}
+fvm_ipld_kamt = { path = ".." }
 fvm_ipld_blockstore = { path = "../../blockstore" }
+
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
 [[bin]]
-name = "equivalence"
-path = "fuzz_targets/equivalence.rs"
+name = "simple"
+path = "fuzz_targets/simple.rs"
 test = false
 doc = false

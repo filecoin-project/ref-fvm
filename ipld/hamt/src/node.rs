@@ -95,6 +95,7 @@ where
         self.modify_value(
             &mut HashBits::new(&hash),
             conf,
+            0,
             key,
             value,
             store,
@@ -129,7 +130,7 @@ where
         S: Blockstore,
     {
         let hash = H::hash(k);
-        self.rm_value(&mut HashBits::new(&hash), conf, k, store)
+        self.rm_value(&mut HashBits::new(&hash), conf, 0, k, store)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -246,6 +247,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
+        depth: u32,
         key: K,
         value: V,
         store: &S,
@@ -258,7 +260,14 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            self.insert_child(idx, key, value);
+            if depth >= conf.min_data_depth {
+                self.insert_child(idx, key, value);
+            } else {
+                // Need to insert some empty nodes reserved for links.
+                let mut sub = Node::<K, V, H>::default();
+                sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
+                self.insert_child_dirty(idx, Box::new(sub));
+            }
             return Ok((None, true));
         }
 
@@ -274,15 +283,22 @@ where
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
 
-                let (old, modified) =
-                    child_node.modify_value(hashed_key, conf, key, value, store, overwrite)?;
+                let (old, modified) = child_node.modify_value(
+                    hashed_key,
+                    conf,
+                    depth + 1,
+                    key,
+                    value,
+                    store,
+                    overwrite,
+                )?;
                 if modified {
                     *child = Pointer::Dirty(std::mem::take(child_node));
                 }
                 Ok((old, modified))
             }
             Pointer::Dirty(node) => {
-                node.modify_value(hashed_key, conf, key, value, store, overwrite)
+                node.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)
             }
             Pointer::Values(vals) => {
                 // Update, if the key already exists.
@@ -315,13 +331,21 @@ where
 
                     let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H>::default();
-                    let modified =
-                        sub.modify_value(hashed_key, conf, key, value, store, overwrite)?;
+                    let modified = sub.modify_value(
+                        hashed_key,
+                        conf,
+                        depth + 1,
+                        key,
+                        value,
+                        store,
+                        overwrite,
+                    )?;
 
                     for (k, v, hash) in hashed_kvs {
                         sub.modify_value(
                             &mut HashBits::new_at_index(&hash, consumed),
                             conf,
+                            depth + 1,
                             k,
                             v,
                             store,
@@ -351,6 +375,7 @@ where
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
+        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<(K, V)>, Error>
@@ -377,23 +402,23 @@ where
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
 
-                let deleted = child_node.rm_value(hashed_key, conf, key, store)?;
+                let deleted = child_node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
                 if deleted.is_some() {
                     *child = Pointer::Dirty(std::mem::take(child_node));
-                    // Clean to retrieve canonical form
-                    child.clean()?;
+                    if Self::clean(child, conf, depth)? {
+                        self.rm_child(cindex, idx);
+                    }
                 }
 
                 Ok(deleted)
             }
             Pointer::Dirty(node) => {
                 // Delete value and return deleted value
-                let deleted = node.rm_value(hashed_key, conf, key, store)?;
+                let deleted = node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
-                if deleted.is_some() {
-                    // Clean to ensure canonical form
-                    child.clean()?;
+                if deleted.is_some() && Self::clean(child, conf, depth)? {
+                    self.rm_child(cindex, idx);
                 }
 
                 Ok(deleted)
@@ -451,6 +476,12 @@ where
         self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
+    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H>>) {
+        let i = self.index_for_bit_pos(idx);
+        self.bitfield.set_bit(idx);
+        self.pointers.insert(i, Pointer::Dirty(node))
+    }
+
     fn index_for_bit_pos(&self, bp: u32) -> usize {
         let mask = Bitfield::zero().set_bits_le(bp);
         assert_eq!(mask.count_ones(), bp as usize);
@@ -463,5 +494,17 @@ where
 
     fn get_child(&self, i: usize) -> &Pointer<K, V, H> {
         &self.pointers[i]
+    }
+
+    /// Clean after delete to retrieve canonical form.
+    ///
+    /// Returns true if the child pointer is completely empty and can be removed,
+    /// which can happen if we artificially inserted nodes during insertion.
+    fn clean(child: &mut Pointer<K, V, H>, conf: &Config, depth: u32) -> Result<bool, Error> {
+        match child.clean(conf, depth) {
+            Ok(()) => Ok(false),
+            Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
+            Err(err) => Err(err),
+        }
     }
 }

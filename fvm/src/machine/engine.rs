@@ -365,6 +365,10 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
+        // * NOTE: Currently cannot instrument and charge for `table.grow` because the instruction
+        //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
+        //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
+        //   parity-wasm module parser, so the contract cannot grow the tables.
         let mut m = inject(m, self.0.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 

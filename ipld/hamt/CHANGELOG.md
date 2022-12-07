@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- ...
+- Add `min_data_depth` option to reserve the top levels of the HAMT for links, free of key-value pairs.
 
 ## 0.6.1 [2022-11-14]
 

@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Borrow;
-use std::marker::PhantomData;
 
 use cid::Cid;
-use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use multihash::Code;
@@ -14,39 +12,38 @@ use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
 use crate::node::Node;
-use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
+use crate::{AsHashedKey, Config, Error};
 
-/// Implementation of the HAMT data structure for IPLD.
+/// Implementation of the KAMT data structure for IPLD.
 ///
 /// # Examples
 ///
 /// ```
-/// use fvm_ipld_hamt::Hamt;
+/// use fvm_ipld_kamt::Kamt;
+/// use fvm_ipld_kamt::id::Identity;
 ///
 /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
 ///
-/// let mut map: Hamt<_, _, usize> = Hamt::new(store);
+/// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
 /// map.set(1, "a".to_string()).unwrap();
 /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
-/// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
-/// assert_eq!(map.get::<_>(&1).unwrap(), None);
+/// assert_eq!(map.delete(&1).unwrap(), Some("a".to_string()));
+/// assert_eq!(map.get(&1).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
 #[derive(Debug)]
-pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
-    root: Node<K, V, H>,
+pub struct Kamt<BS, K, V, H, const N: usize = 32> {
+    root: Node<K, V, H, N>,
     store: BS,
     conf: Config,
-    hash: PhantomData<H>,
     /// Remember the last flushed CID until it changes.
     flushed_cid: Option<Cid>,
 }
 
-impl<BS, V, K, H> Serialize for Hamt<BS, V, K, H>
+impl<BS, K, V, H, const N: usize> Serialize for Kamt<BS, K, V, H, N>
 where
     K: Serialize,
     V: Serialize,
-    H: HashAlgorithm,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -56,18 +53,19 @@ where
     }
 }
 
-impl<K: PartialEq, V: PartialEq, S: Blockstore, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
+impl<V: PartialEq, K: PartialEq, H, BS: Blockstore, const N: usize> PartialEq
+    for Kamt<BS, K, V, H, N>
+{
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<BS, V, K, H> Hamt<BS, V, K, H>
+impl<BS, K, V, H, const N: usize> Kamt<BS, K, V, H, N>
 where
-    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
+    K: Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
     BS: Blockstore,
-    H: HashAlgorithm,
 {
     pub fn new(store: BS) -> Self {
         Self::new_with_config(store, Config::default())
@@ -78,53 +76,29 @@ where
             root: Node::default(),
             store,
             conf,
-            hash: Default::default(),
             flushed_cid: None,
         }
     }
 
-    /// Construct hamt with a bit width
-    pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
-        Self::new_with_config(
-            store,
-            Config {
-                bit_width,
-                ..Default::default()
-            },
-        )
-    }
-
-    /// Lazily instantiate a hamt from this root Cid.
+    /// Lazily instantiate a Kamt from this root Cid.
     pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
         Self::load_with_config(cid, store, Config::default())
     }
 
-    /// Lazily instantiate a hamt from this root Cid with a specified parameters.
+    /// Lazily instantiate a Kamt from this root Cid with a specified parameters.
     pub fn load_with_config(cid: &Cid, store: BS, conf: Config) -> Result<Self, Error> {
         match store.get_cbor(cid)? {
             Some(root) => Ok(Self {
                 root,
                 store,
                 conf,
-                hash: Default::default(),
                 flushed_cid: Some(*cid),
             }),
             None => Err(Error::CidNotFound(cid.to_string())),
         }
     }
-    /// Lazily instantiate a hamt from this root Cid with a specified bit width.
-    pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
-        Self::load_with_config(
-            cid,
-            store,
-            Config {
-                bit_width,
-                ..Default::default()
-            },
-        )
-    }
 
-    /// Sets the root based on the Cid of the root node using the Hamt store
+    /// Sets the root based on the Cid of the root node using the Kamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
         match self.store.get_cbor(cid)? {
             Some(root) => {
@@ -137,27 +111,56 @@ where
         Ok(())
     }
 
-    /// Returns a reference to the underlying store of the Hamt.
+    /// Returns a reference to the underlying store of the Kamt.
     pub fn store(&self) -> &BS {
         &self.store
     }
 
-    /// Inserts a key-value pair into the HAMT.
+    /// Consumes this KAMT and returns the Blockstore it owns.
+    pub fn into_store(self) -> BS {
+        self.store
+    }
+
+    /// Flush root and return Cid for Kamt
+    pub fn flush(&mut self) -> Result<Cid, Error> {
+        if let Some(cid) = self.flushed_cid {
+            return Ok(cid);
+        }
+        self.root.flush(self.store.borrow())?;
+        let cid = self.store.put_cbor(&self.root, Code::Blake2b256)?;
+        self.flushed_cid = Some(cid);
+        Ok(cid)
+    }
+
+    /// Returns true if the KAMT has no entries
+    pub fn is_empty(&self) -> bool {
+        self.root.is_empty()
+    }
+}
+
+impl<BS, K, V, H, const N: usize> Kamt<BS, K, V, H, N>
+where
+    K: Serialize + DeserializeOwned + PartialOrd,
+    H: AsHashedKey<K, N>,
+    V: Serialize + DeserializeOwned,
+    BS: Blockstore,
+{
+    /// Inserts a key-value pair into the KAMT.
     ///
-    /// If the HAMT did not have this key present, `None` is returned.
+    /// If the KAMT did not have this key present, `None` is returned.
     ///
-    /// If the HAMT did have this key present, the value is updated, and the old
+    /// If the KAMT did have this key present, the value is updated, and the old
     /// value is returned. The key is not updated, though;
     ///
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
-    /// use std::rc::Rc;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// map.set(37, "a".to_string()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     ///
@@ -179,21 +182,21 @@ where
         Ok(old)
     }
 
-    /// Inserts a key-value pair into the HAMT only if that key does not already exist.
+    /// Inserts a key-value pair into the KAMT only if that key does not already exist.
     ///
-    /// If the HAMT did not have this key present, `true` is returned and the key/value is added.
+    /// If the KAMT did not have this key present, `true` is returned and the key/value is added.
     ///
-    /// If the HAMT did have this key present, this function will return false
+    /// If the KAMT did have this key present, this function will return false
     ///
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
-    /// use std::rc::Rc;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// let a = map.set_if_absent(37, "a".to_string()).unwrap();
     /// assert_eq!(map.is_empty(), false);
     /// assert_eq!(a, true);
@@ -230,22 +233,23 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
-    /// use std::rc::Rc;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// map.set(1, "a".to_string()).unwrap();
     /// assert_eq!(map.get(&1).unwrap(), Some(&"a".to_string()));
     /// assert_eq!(map.get(&2).unwrap(), None);
     /// ```
     #[inline]
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, Error>
+    pub fn get<Q>(&self, k: &Q) -> Result<Option<&V>, Error>
     where
-        K: Borrow<Q>,
-        Q: Hash + Eq,
         V: DeserializeOwned,
+        K: Borrow<Q>,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
     {
         match self.root.get(k, self.store.borrow(), &self.conf)? {
             Some(v) => Ok(Some(v)),
@@ -253,7 +257,7 @@ where
         }
     }
 
-    /// Returns `true` if a value exists for the given key in the HAMT.
+    /// Returns `true` if a value exists for the given key in the KAMT.
     ///
     /// The key may be any borrowed form of the map's key type, but
     /// `Hash` and `Eq` on the borrowed form *must* match those for
@@ -262,49 +266,51 @@ where
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
-    /// use std::rc::Rc;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// map.set(1, "a".to_string()).unwrap();
     /// assert_eq!(map.contains_key(&1).unwrap(), true);
     /// assert_eq!(map.contains_key(&2).unwrap(), false);
     /// ```
     #[inline]
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, Error>
+    pub fn contains_key<Q>(&self, k: &Q) -> Result<bool, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
     {
         Ok(self.root.get(k, self.store.borrow(), &self.conf)?.is_some())
     }
 
-    /// Removes a key from the HAMT, returning the value at the key if the key
-    /// was previously in the HAMT.
+    /// Removes a key from the KAMT, returning the value at the key if the key
+    /// was previously in the KAMT.
     ///
-    /// The key may be any borrowed form of the HAMT's key type, but
+    /// The key may be any borrowed form of the KAMT's key type, but
     /// `Hash` and `Eq` on the borrowed form *must* match those for
     /// the key type.
     ///
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
-    /// use std::rc::Rc;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(Rc::new(store));
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// map.set(1, "a".to_string()).unwrap();
-    /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
+    /// assert_eq!(map.delete(&1).unwrap(), Some("a".to_string()));
     /// assert_eq!(map.delete(&1).unwrap(), None);
     /// ```
-    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error>
+    pub fn delete<Q>(&mut self, k: &Q) -> Result<Option<V>, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
     {
         let deleted = self.root.remove_entry(k, self.store.borrow(), &self.conf)?;
 
@@ -315,34 +321,19 @@ where
         Ok(deleted)
     }
 
-    /// Flush root and return Cid for hamt
-    pub fn flush(&mut self) -> Result<Cid, Error> {
-        if let Some(cid) = self.flushed_cid {
-            return Ok(cid);
-        }
-        self.root.flush(self.store.borrow())?;
-        let cid = self.store.put_cbor(&self.root, Code::Blake2b256)?;
-        self.flushed_cid = Some(cid);
-        Ok(cid)
-    }
-
-    /// Returns true if the HAMT has no entries
-    pub fn is_empty(&self) -> bool {
-        self.root.is_empty()
-    }
-
-    /// Iterates over each KV in the Hamt and runs a function on the values.
+    /// Iterates over each KV in the Kamt and runs a function on the values.
     ///
     /// This function will constrain all values to be of the same type
-    ///
+    ///blah
     /// # Examples
     ///
     /// ```
-    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
     ///
     /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
     ///
-    /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
     /// map.set(1, 1).unwrap();
     /// map.set(4, 2).unwrap();
     ///
@@ -360,10 +351,5 @@ where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
-    }
-
-    /// Consumes this HAMT and returns the Blockstore it owns.
-    pub fn into_store(self) -> BS {
-        self.store
     }
 }
