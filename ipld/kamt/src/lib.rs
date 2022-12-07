@@ -35,6 +35,7 @@ const DEFAULT_BIT_WIDTH: u32 = 8;
 
 /// Configuration options for a KAMT instance.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Config {
     /// The `bit_width` drives how wide and high the tree is going to be.
     /// Each node in the tree will have `2^bit_width` number of slots for child nodes,
