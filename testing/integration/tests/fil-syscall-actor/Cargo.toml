@@ -10,7 +10,7 @@ fvm_sdk = { version = "3.0.0-alpha.15", path = "../../../../sdk" }
 fvm_shared = { version = "3.0.0-alpha.13", path = "../../../../shared" }
 minicov = {version = "0.2", optional = true}
 actors_v10_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
-multihash = "0.17.0"
+multihash = "0.16.3"
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"

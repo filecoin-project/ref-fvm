@@ -22,8 +22,8 @@ num-traits = "0.2"
 derive_builder = "0.11.2"
 ahash = "0.8"
 num-derive = "0.3.3"
-cid = { version = "0.9.0", default-features = false }
-multihash = { version = "0.17.0", default-features = false }
+cid = { version = "0.8.5", default-features = false }
+multihash = { version = "0.16.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
@@ -47,7 +47,7 @@ walkdir = "2.3"
 regex = { version = "1.0" }
 ittapi-rs = { version = "0.3.0", optional = true }
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
-libipld-core = { version = "0.15.0", features = ["serde-codec"] }
+libipld-core = { version = "0.14.0", features = ["serde-codec"] }
 
 [dependencies.fvm]
 version = "3.0.0-alpha.12"
