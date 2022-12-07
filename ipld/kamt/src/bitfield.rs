@@ -88,13 +88,14 @@ impl Bitfield {
     }
 
     pub fn last_one_idx(&self) -> Option<usize> {
-        [192, 128, 64, 0]
-            .iter()
-            .enumerate()
-            .find_map(|(i, offset)| match self.0[3 - i] {
-                0 => None,
-                n => Some((n as f64).log2().floor() as usize + offset),
-            })
+        let mut idx = self.0.len() as u32 * u64::BITS;
+        for v in self.0.iter().rev().map(|&v| v.leading_zeros()) {
+            idx -= v;
+            if v < u64::BITS {
+                return Some((idx - 1) as usize);
+            }
+        }
+        None
     }
 
     pub fn and(self, other: &Self) -> Self {
