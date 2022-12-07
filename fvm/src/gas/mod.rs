@@ -152,6 +152,33 @@ impl Mul<i32> for Gas {
     }
 }
 
+impl Mul<u64> for Gas {
+    type Output = Gas;
+
+    #[inline]
+    fn mul(self, rhs: u64) -> Self::Output {
+        Self(self.0.saturating_mul(rhs.try_into().unwrap_or(i64::MAX)))
+    }
+}
+
+impl Mul<u32> for Gas {
+    type Output = Gas;
+
+    #[inline]
+    fn mul(self, rhs: u32) -> Self::Output {
+        Self(self.0.saturating_mul(rhs.into()))
+    }
+}
+
+impl Mul<usize> for Gas {
+    type Output = Gas;
+
+    #[inline]
+    fn mul(self, rhs: usize) -> Self::Output {
+        Self(self.0.saturating_mul(rhs.try_into().unwrap_or(i64::MAX)))
+    }
+}
+
 pub struct GasTracker {
     gas_limit: Gas,
     gas_used: Cell<Gas>,

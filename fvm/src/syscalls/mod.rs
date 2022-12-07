@@ -113,7 +113,7 @@ pub fn charge_for_exec<K: Kernel>(
     Ok(())
 }
 
-/// Charge for the initial memory before a Wasm module is instantiated.
+/// Charge for the initial memory and tables before a Wasm module is instantiated.
 ///
 /// The Wasm instrumentation machinery via [fvm_wasm_instrument::gas_metering::MemoryGrowCost]
 /// only charges for growing the memory _beyond_ the initial amount. It's up to us to make sure
@@ -124,15 +124,20 @@ pub fn charge_for_init<K: Kernel>(
 ) -> crate::kernel::Result<()> {
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
-    let kernel = &mut ctx.data_mut().kernel;
-    let memory_gas = kernel.price_list().init_memory_gas(min_memory_bytes);
+    let mut data = ctx.data_mut();
+    let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
 
     if !memory_gas.is_zero() {
-        kernel.charge_gas("wasm_memory_init", memory_gas)?;
+        data.kernel.charge_gas("wasm_memory_init", memory_gas)?;
     }
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
-    ctx.data_mut().last_memory_bytes += min_memory_bytes;
+    data.last_memory_bytes += min_memory_bytes;
+
+    if let Some(min_table_elements) = min_table_elements(module) {
+        let table_gas = data.kernel.price_list().init_table_gas(min_table_elements);
+        data.kernel.charge_gas("wasm_table_init", table_gas)?;
+    }
 
     Ok(())
 }
@@ -148,6 +153,19 @@ fn min_memory_bytes(module: &Module) -> crate::kernel::Result<usize> {
         Ok(min_memory_bytes as usize)
     } else {
         Err(ExecutionError::Fatal(anyhow!("actor has no memory export")))
+    }
+}
+
+/// Get the minimum number of table elements a module will use.
+///
+/// This relies on a few assumptions:
+///     * That we use the default value for `InstanceLimits::tables` and only allow 1 table.
+///     * That `Linker::command` will only allow them to be exported with the name "table".
+fn min_table_elements(module: &Module) -> Option<u32> {
+    if let Some(ExternType::Table(t)) = module.get_export("table") {
+        Some(t.minimum())
+    } else {
+        None
     }
 }
 
