@@ -3,7 +3,9 @@ use cid::multihash::Code;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
+use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
+use fvm_shared::crypto::signature::{Signature, SignatureType, BLS_SIG_LEN, SECP_SIG_LEN};
 use fvm_shared::error::ExitCode;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -12,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+/// Just doing a few mutations in an array to make the hashes different.
+const MUTATION_COUNT: usize = 10;
+
 #[derive(FromPrimitive)]
 #[repr(u64)]
 pub enum Method {
@@ -19,6 +24,8 @@ pub enum Method {
     OnHashing = 1,
     /// Put and get random data to measure `OnBlock*`.
     OnBlock,
+    /// Try (and fail) to verify random data (fake signatures) with a public key.
+    OnVerifySignature,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,6 +40,14 @@ pub struct OnHashingParams {
 pub struct OnBlockParams {
     pub iterations: usize,
     pub size: usize,
+    pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnVerifySignatureParams {
+    pub iterations: usize,
+    pub size: usize,
+    pub signer: Address,
     pub seed: u64,
 }
 
@@ -75,6 +90,9 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
     match method {
         Method::OnHashing => on_hashing(read_params::<OnHashingParams>(params_ptr)?),
         Method::OnBlock => on_block(read_params::<OnBlockParams>(params_ptr)?),
+        Method::OnVerifySignature => {
+            on_verify_signature(read_params::<OnVerifySignatureParams>(params_ptr)?)
+        }
     }
 }
 
@@ -82,7 +100,7 @@ fn on_hashing(p: OnHashingParams) -> Result<()> {
     let h = p.hasher().ok_or(anyhow!("unknown hasher"))?;
     let mut data = random_bytes(p.size, p.seed);
     for i in 0..p.iterations {
-        random_mutations(&mut data, p.seed + i as u64, 10usize);
+        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
         fvm_sdk::crypto::hash(h, &data);
     }
     Ok(())
@@ -93,7 +111,7 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     let mut cids = Vec::new();
 
     for i in 0..p.iterations {
-        random_mutations(&mut data, p.seed + i as u64, 10usize);
+        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
 
         let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, data.as_slice())?;
 
@@ -109,6 +127,37 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     // Read the data back so we have stats about that too.
     for i in 0..p.iterations {
         let _ = fvm_sdk::ipld::get(&cids[i])?;
+    }
+
+    Ok(())
+}
+
+fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
+    let sig_type = match p.signer.protocol() {
+        Protocol::BLS => SignatureType::BLS,
+        Protocol::Secp256k1 => SignatureType::Secp256k1,
+        other => return Err(anyhow!("unexpected protocol: {other}")),
+    };
+
+    let sig_size = match sig_type {
+        SignatureType::BLS => BLS_SIG_LEN,
+        SignatureType::Secp256k1 => SECP_SIG_LEN,
+    };
+
+    let mut data = random_bytes(p.size, p.seed);
+    let mut sig = Signature {
+        sig_type,
+        bytes: random_bytes(sig_size, p.seed),
+    };
+
+    for i in 0..p.iterations {
+        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
+        random_mutations(&mut sig.bytes, p.seed + i as u64, MUTATION_COUNT);
+
+        let is_valid = fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
+
+        // Just a sanity check. From a runtime perspective it shouldn't matter if it's a valid signature.
+        assert_eq!(false, is_valid)
     }
 
     Ok(())

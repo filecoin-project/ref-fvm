@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm::gas::Gas;
+use fvm::trace::ExecutionEvent;
 use fvm_integration_tests::bundle;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
@@ -222,6 +223,21 @@ pub fn least_squares(label: String, obs: &[Obs], var_idx: usize) -> RegressionRe
     }
 }
 
+pub fn collect_obs(ret: ApplyRet, name: &str, label: &str, size: usize) -> Vec<Obs> {
+    ret.exec_trace
+        .iter()
+        .filter_map(|t| match t {
+            ExecutionEvent::GasCharge(charge) if charge.name == name => Some(Obs {
+                label: label.to_owned(),
+                elapsed_nanos: charge.elapsed.get().unwrap().as_nanos(),
+                variables: vec![size],
+                compute_gas: charge.compute_gas.as_milligas(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Drop a certain fraction of the observations with the highest time as outliers.
 pub fn eliminate_outliers(mut obs: Vec<Obs>, drop: f32, eliminate: Eliminate) -> Vec<Obs> {
     obs.sort_by_key(|obs| obs.elapsed_nanos);
@@ -238,4 +254,15 @@ pub enum Eliminate {
     Top,
     Bottom,
     Both,
+}
+
+pub fn common_sizes() -> Vec<usize> {
+    let mut sizes: Vec<usize> = vec![0];
+    sizes.extend(
+        [10, 100, 1_000, 10_000, 100_000]
+            .into_iter()
+            .flat_map(|i| (1..10).map(move |m| m * i)),
+    );
+    sizes.push(1_000_000);
+    sizes
 }

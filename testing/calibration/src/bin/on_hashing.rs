@@ -1,10 +1,12 @@
 #![feature(slice_group_by)]
 
 use fil_gas_calibration_actor::{Method, OnHashingParams};
-use fvm::trace::ExecutionEvent;
 use fvm_gas_calibration::*;
 use fvm_shared::crypto::hash::SupportedHashes;
 use rand::{thread_rng, Rng};
+
+const CHARGE_NAME: &str = "OnHashing";
+const METHOD: Method = Method::OnHashing;
 
 fn main() {
     let hashers = vec![
@@ -15,16 +17,7 @@ fn main() {
         SupportedHashes::Ripemd160,
     ];
 
-    let mut sizes: Vec<usize> = vec![0];
-    sizes.extend(
-        [10, 100, 1_000, 10_000, 100_000]
-            .into_iter()
-            .flat_map(|i| (1..10).map(move |m| m * i)),
-    );
-    sizes.push(1_000_000);
-
-    //let sizes: Vec<usize> = (0..=100).map(|i| i * 10000).collect();
-
+    let sizes = common_sizes();
     let iterations = 100;
 
     let mut te = instantiate_tester();
@@ -41,21 +34,9 @@ fn main() {
                 seed: rng.gen(),
             };
 
-            let ret = te.execute_or_die(Method::OnHashing as u64, &params);
+            let ret = te.execute_or_die(METHOD as u64, &params);
 
-            let mut iter_obs: Vec<_> = ret
-                .exec_trace
-                .iter()
-                .filter_map(|t| match t {
-                    ExecutionEvent::GasCharge(charge) if charge.name == "OnHashing" => Some(Obs {
-                        label: label.clone(),
-                        elapsed_nanos: charge.elapsed.get().unwrap().as_nanos(),
-                        variables: vec![*size],
-                        compute_gas: charge.compute_gas.as_milligas(),
-                    }),
-                    _ => None,
-                })
-                .collect();
+            let mut iter_obs = collect_obs(ret, CHARGE_NAME, &label, *size);
 
             // According to the charts there is always an outlier with 10x runtime,
             // which can throw off the model. Maybe it's while some things are warming up.
@@ -71,5 +52,5 @@ fn main() {
         .map(|g| least_squares(g[0].label.to_owned(), g, 0))
         .collect::<Vec<_>>();
 
-    export("OnHashing", &obs, &regs).unwrap();
+    export(CHARGE_NAME, &obs, &regs).unwrap();
 }

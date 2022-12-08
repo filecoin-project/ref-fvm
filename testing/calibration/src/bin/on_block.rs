@@ -9,15 +9,9 @@ use fvm_shared::error::ExitCode;
 use rand::{thread_rng, Rng};
 
 fn main() {
-    let mut sizes: Vec<usize> = vec![0];
-    sizes.extend(
-        [10, 100, 1_000, 10_000, 100_000]
-            .into_iter()
-            .flat_map(|i| (1..10).map(move |m| m * i)),
-    );
-    sizes.push(1_000_000);
-
+    let sizes = common_sizes();
     let iterations = 100;
+
     let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
 
     // NOTE: For actually modeling the effect of IO, we shouldn't be using the memory blockstore.
