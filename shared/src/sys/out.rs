@@ -98,6 +98,8 @@ pub mod vm {
         pub gas_premium: TokenAmount,
         /// Flags pertaining to the currently executing actor's invocation context.
         pub flags: ContextFlags,
+        /// The nonce from the explicit message.
+        pub nonce: u64,
     }
 }
 

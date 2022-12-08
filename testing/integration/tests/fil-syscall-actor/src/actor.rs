@@ -226,6 +226,7 @@ fn test_network_context() {
 }
 
 fn test_message_context() {
+    assert_eq!(sdk::message::nonce(), 100);
     assert_eq!(sdk::message::origin(), 100);
     assert_eq!(sdk::message::caller(), 100);
     assert_eq!(sdk::message::receiver(), 10000);

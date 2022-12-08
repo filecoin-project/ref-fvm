@@ -18,6 +18,12 @@ lazy_static::lazy_static! {
     };
 }
 
+/// Returns the nonce from the (explicit) message.
+#[inline(always)]
+pub fn nonce() -> u64 {
+    MESSAGE_CONTEXT.nonce
+}
+
 /// Returns the ID address of the caller.
 #[inline(always)]
 pub fn caller() -> ActorID {
