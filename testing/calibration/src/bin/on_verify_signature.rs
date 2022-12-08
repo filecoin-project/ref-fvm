@@ -5,7 +5,7 @@ use fil_gas_calibration_actor::{Method, OnVerifySignatureParams};
 use fvm_gas_calibration::*;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::SignatureType;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, RngCore};
 
 const CHARGE_NAME: &str = "OnVerifySignature";
 const METHOD: Method = Method::OnVerifySignature;
@@ -20,19 +20,45 @@ fn main() {
     let mut obs = Vec::new();
     let mut rng = thread_rng();
 
+    // Just some random data over which we can generate an example signature.
+    // Having a valid BLS signature is important otherwise verification is
+    // an instant rejection without hasing the input data.
+    let mut data = vec![0u8; 100];
+    rng.fill_bytes(&mut data);
+
     for sig_type in sig_types.iter() {
         let label = format!("{sig_type:?}");
 
-        let signer = match sig_type {
+        let (signer, signature) = match sig_type {
             SignatureType::Secp256k1 => {
                 let sk = libsecp256k1::SecretKey::random(&mut rng);
                 let pk = libsecp256k1::PublicKey::from_secret_key(&sk);
-                Address::new_secp256k1(&pk.serialize()).unwrap()
+                let addr = Address::new_secp256k1(&pk.serialize()).unwrap();
+
+                let hash: [u8; 32] = blake2b_simd::Params::new()
+                    .hash_length(32)
+                    .to_state()
+                    .update(&data)
+                    .finalize()
+                    .as_bytes()
+                    .try_into()
+                    .unwrap();
+
+                let (sig, recovery_id) =
+                    libsecp256k1::sign(&libsecp256k1::Message::parse(&hash), &sk);
+
+                let mut signature = vec![0u8; 65];
+                signature[..64].copy_from_slice(&sig.serialize());
+                signature[64] = recovery_id.serialize();
+
+                (addr, signature)
             }
             SignatureType::BLS => {
                 let sk = bls_signatures::PrivateKey::generate(&mut rng);
                 let pk = sk.public_key();
-                Address::new_bls(&pk.as_bytes()).unwrap()
+                let addr = Address::new_bls(&pk.as_bytes()).unwrap();
+                let sig = sk.sign(&data).as_bytes();
+                (addr, sig)
             }
         };
 
@@ -41,6 +67,7 @@ fn main() {
                 iterations,
                 size: *size,
                 signer,
+                signature: signature.clone(),
                 seed: rng.gen(),
             };
 

@@ -5,7 +5,7 @@ use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::{Signature, SignatureType, BLS_SIG_LEN, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{Signature, SignatureType};
 use fvm_shared::error::ExitCode;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -24,7 +24,7 @@ pub enum Method {
     OnHashing = 1,
     /// Put and get random data to measure `OnBlock*`.
     OnBlock,
-    /// Try (and fail) to verify random data (fake signatures) with a public key.
+    /// Try (and fail) to verify random data with a public key and signature.
     OnVerifySignature,
 }
 
@@ -48,6 +48,11 @@ pub struct OnVerifySignatureParams {
     pub iterations: usize,
     pub size: usize,
     pub signer: Address,
+    /// A _valid_ signature over *something*, corresponding to the signature scheme
+    /// of the address. A completely random sequence of bytes for signature would be
+    /// immediately rejected by BLS, although not by Secp256k1. And we cannot generate
+    /// valid signatures inside the contract because the libs we use don't compile to Wasm.
+    pub signature: Vec<u8>,
     pub seed: u64,
 }
 
@@ -138,26 +143,16 @@ fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
         Protocol::Secp256k1 => SignatureType::Secp256k1,
         other => return Err(anyhow!("unexpected protocol: {other}")),
     };
-
-    let sig_size = match sig_type {
-        SignatureType::BLS => BLS_SIG_LEN,
-        SignatureType::Secp256k1 => SECP_SIG_LEN,
+    let sig = Signature {
+        sig_type,
+        bytes: p.signature,
     };
 
     let mut data = random_bytes(p.size, p.seed);
-    let mut sig = Signature {
-        sig_type,
-        bytes: random_bytes(sig_size, p.seed),
-    };
 
     for i in 0..p.iterations {
         random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
-        random_mutations(&mut sig.bytes, p.seed + i as u64, MUTATION_COUNT);
-
-        let is_valid = fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
-
-        // Just a sanity check. From a runtime perspective it shouldn't matter if it's a valid signature.
-        assert_eq!(false, is_valid)
+        fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
     }
 
     Ok(())
