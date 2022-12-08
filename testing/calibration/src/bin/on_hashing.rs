@@ -60,7 +60,7 @@ fn main() {
             // According to the charts there is always an outlier with 10x runtime,
             // which can throw off the model. Maybe it's while some things are warming up.
             // Seems to be present at each call, so once per size. I'll just throw these away.
-            iter_obs = eliminate_outliers(iter_obs, 0.01, Eliminate::Top);
+            iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
 
             obs.extend(iter_obs);
         }
