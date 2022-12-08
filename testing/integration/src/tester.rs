@@ -110,15 +110,18 @@ where
     }
 
     pub fn set_account_sequence(&mut self, id: ActorID, new_sequence: u64) -> anyhow::Result<()> {
-        let state_tree = self.state_tree.as_mut().ok_or_else(|| anyhow!("Expected state tree in set_account_sequence."))?;
+        let state_tree = self
+            .state_tree
+            .as_mut()
+            .ok_or_else(|| anyhow!("Expected state tree in set_account_sequence."))?;
 
-        let mut state = state_tree.get_actor(id)?.ok_or_else(|| anyhow!("Can't set sequence of account that doesn't exist."))?;
+        let mut state = state_tree
+            .get_actor(id)?
+            .ok_or_else(|| anyhow!("Can't set sequence of account that doesn't exist."))?;
 
         state.sequence = new_sequence;
 
-        state_tree
-            .set_actor(id, state)
-            .map_err(anyhow::Error::from)
+        state_tree.set_actor(id, state).map_err(anyhow::Error::from)
     }
 
     pub fn create_embryo(&mut self, address: &Address, init_balance: TokenAmount) -> Result<()> {
