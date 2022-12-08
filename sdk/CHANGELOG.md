@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.17 [2022-12-08]
+
+- In send, change 0 gas to mean 0 gas (not unlimited).
+
 ## 3.0.0-alpha.16 [2022-12-07]
 
 - Remove GasLimit from the message context.
