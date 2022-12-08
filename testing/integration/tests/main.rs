@@ -143,6 +143,7 @@ fn syscalls() {
     .unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
+    tester.set_account_sequence(sender[0].0, 100).unwrap();
 
     let wasm_bin = SYSCALL_BINARY.unwrap();
 
@@ -166,6 +167,7 @@ fn syscalls() {
         to: actor_address,
         gas_limit: 1000000000,
         method_num: 1,
+        sequence: 100, // sequence == nonce
         ..Message::default()
     };
 

@@ -342,6 +342,7 @@ where
             } else {
                 ContextFlags::empty()
             },
+            nonce: self.call_manager.nonce(),
         })
     }
 }

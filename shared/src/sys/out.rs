@@ -86,6 +86,8 @@ pub mod vm {
     pub struct MessageContext {
         /// The current call's origin actor ID.
         pub origin: ActorID,
+        /// The nonce from the explicit message.
+        pub nonce: u64,
         /// The caller's actor ID.
         pub caller: ActorID,
         /// The receiver's actor ID (i.e. ourselves).
