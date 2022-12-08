@@ -54,6 +54,7 @@ fn main() {
                             label: "n/a".into(),
                             elapsed_nanos: t.as_nanos(),
                             variables: vec![*size],
+                            compute_gas: charge.compute_gas.as_milligas(),
                         };
                         iter_obs.entry(charge.name.into()).or_default().push(ob);
                     }

@@ -51,6 +51,7 @@ fn main() {
                         label: label.clone(),
                         elapsed_nanos: charge.elapsed.get().unwrap().as_nanos(),
                         variables: vec![*size],
+                        compute_gas: charge.compute_gas.as_milligas(),
                     }),
                     _ => None,
                 })

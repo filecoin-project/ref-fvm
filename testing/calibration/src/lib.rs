@@ -87,6 +87,7 @@ pub struct Obs {
     pub label: String,
     pub elapsed_nanos: u128,
     pub variables: Vec<usize>,
+    pub compute_gas: i64,
 }
 
 #[derive(Serialize)]

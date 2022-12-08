@@ -16,7 +16,7 @@ SERIES=$(cat $JSON_FILE | jq -r ".label" | sort | uniq)
 
 for SERIE in $SERIES; do
   cat $JSON_FILE \
-    | jq -r "select(.label == \"${SERIE}\") | [.variables[0], .elapsed_nanos] | @tsv" \
+    | jq -r "select(.label == \"${SERIE}\") | [.variables[0], .elapsed_nanos, .compute_gas] | @tsv" \
     >> $DAT_FILE
   # Series separator for gnuplot
   echo $'\n' >> $DAT_FILE
