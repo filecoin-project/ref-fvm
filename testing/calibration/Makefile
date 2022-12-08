@@ -4,7 +4,7 @@ OUT_DIR     := ./measurements/out
 OBS_DIR  := $(OUT_DIR)/observations
 OBS_FIND := find $(OBS_DIR) -type f \( -name "*.jsonline" \)
 OBS_JSON := $(shell $(OBS_FIND))
-OBS_PNG  := $(patsubst $(OUT_DIR)/observations/%.jsonline, $(OUT_DIR)/charts/%.png, $(OBS_JSON))
+OBS_PNG  := $(patsubst $(OUT_DIR)/observations/%.jsonline, $(OUT_DIR)/charts/charges/%.png, $(OBS_JSON))
 
 RUN_BINS := $(patsubst src/bin/%.rs, run/%, $(shell find src/bin -type f))
 
@@ -27,7 +27,7 @@ visualize: \
 	$(OBS_PNG)
 
 
-$(OUT_DIR)/charts/%.png: \
+$(OUT_DIR)/charts/charges/%.png: \
 		$(OUT_DIR)/observations/%.jsonline \
 		$(SCRIPTS_DIR)/observations.sh \
 		$(SCRIPTS_DIR)/observations.plt \
