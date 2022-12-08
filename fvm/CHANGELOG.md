@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.14 [2022-12-08]
+
+- In send, change 0 gas to mean 0 gas (not unlimited).
+
 ## 3.0.0-alpha.13 [2022-12-07]
 
 - FIX: Only push backtrace frames on _error_.
