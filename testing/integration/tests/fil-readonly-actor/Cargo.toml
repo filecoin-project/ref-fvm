@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 fvm_sdk = { version = "3.0.0-alpha.16", path = "../../../../sdk" }
-fvm_shared = { version = "3.0.0-alpha.13", path = "../../../../shared" }
+fvm_shared = { version = "3.0.0-alpha.14", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.3.0", path = "../../../../ipld/encoding" }
 cid = { version = "0.8.5", default-features = false }
 
