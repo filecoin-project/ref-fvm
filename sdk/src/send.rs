@@ -49,7 +49,7 @@ pub fn send(
             params_id,
             value.hi,
             value.lo,
-            gas_limit.unwrap_or_default(),
+            gas_limit.unwrap_or(u64::MAX),
             flags,
         )?;
 
