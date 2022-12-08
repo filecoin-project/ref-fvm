@@ -35,7 +35,6 @@ mod storagemarket_actor;
 #[cfg(not(feature = "testing"))]
 mod storagepower_actor;
 
-
 #[cfg(feature = "testing")]
 pub mod account_actor;
 #[cfg(feature = "testing")]
@@ -46,7 +45,6 @@ pub mod system_actor;
 pub mod storagemarket_actor;
 #[cfg(feature = "testing")]
 pub mod storagepower_actor;
-
 
 mod eam_actor;
 pub mod trace;
