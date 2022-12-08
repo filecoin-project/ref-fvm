@@ -4,6 +4,12 @@
 
 - ...
 
+## 3.0.0-alpha.14 [2022-12-07]
+
+- Remove GasLimit from the message context.
+- Add the message nonce to the message context
+- Add the chain ID to the network context.
+
 ## 3.0.0-alpha.13 [2022-11-29]
 
 - Remove deprecated SYS_INVALID_METHOD exit code

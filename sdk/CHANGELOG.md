@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.16 [2022-12-07]
+
+- Remove GasLimit from the message context.
+- Add the message nonce to the message context
+- Add the chain ID to the network context.
+- Unify the send functions into a single function.
+
 ## 3.0.0-alpha.15 [2022-11-29]
 
 - Send: handle non-zero exit return values 
