@@ -24,8 +24,8 @@ run/%:
 
 .PHONY: visualize
 visualize: \
-	$(OBS_PNG)
-
+	$(OBS_PNG) \
+	$(OUT_DIR)/charts/overall.png
 
 $(OUT_DIR)/charts/charges/%.png: \
 		$(OUT_DIR)/observations/%.jsonline \
@@ -34,6 +34,12 @@ $(OUT_DIR)/charts/charges/%.png: \
 		| jq gnuplot
 	$(SCRIPTS_DIR)/observations.sh $< $@
 
+$(OUT_DIR)/charts/overall.png: \
+		$(OBS_JSON) \
+		$(SCRIPTS_DIR)/overall.sh \
+		$(SCRIPTS_DIR)/overall.plt \
+		| jq gnuplot
+	$(SCRIPTS_DIR)/overall.sh $(OBS_DIR) $@
 
 .PHONY: gnuplot
 gnuplot:
