@@ -12,6 +12,7 @@ use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
+use fvm::machine::ChainID;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -159,7 +160,11 @@ fn syscalls() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(DummyExterns, |c| {
+            c.chain_id = ChainID::from(1);
+        })
+        .unwrap();
 
     // Send message
     let message = Message {
