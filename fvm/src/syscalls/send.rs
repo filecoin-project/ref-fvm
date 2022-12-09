@@ -35,14 +35,8 @@ pub fn send(
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
 
-    // Only pass on the gas limit, and subsequently lower errors, if the caller requested a gas
-    // limit below their gas available.
-    let effective_gas_limit = if gas_limit > 0 {
-        // Treat > maxint as "no limit".
-        gas_limit.try_into().ok().map(Gas::new)
-    } else {
-        None
-    };
+    // If that gas limit exceeds i64, treat it as infinity. u64::MAX is used to indicate "all gas".
+    let gas_limit = gas_limit.try_into().ok().map(Gas::new);
 
     let flags = SendFlags::from_bits(flags)
         .with_context(|| format!("invalid send flags: {flags}"))
@@ -54,14 +48,9 @@ pub fn send(
         block_id,
         block_stat,
         exit_code,
-    } = context.kernel.send(
-        &recipient,
-        method,
-        params_id,
-        &value,
-        effective_gas_limit,
-        flags,
-    )?;
+    } = context
+        .kernel
+        .send(&recipient, method, params_id, &value, gas_limit, flags)?;
 
     Ok(sys::out::send::Send {
         exit_code: exit_code.value(),

@@ -219,6 +219,7 @@ fn test_hash_syscall() {
 fn test_network_context() {
     use fvm_shared::econ::TokenAmount;
     use fvm_shared::version::NetworkVersion;
+    assert_eq!(sdk::network::chain_id(), 1); // hehe we are ETH now
     assert_eq!(sdk::network::curr_epoch(), 0);
     assert_eq!(sdk::network::version(), NetworkVersion::V18);
     assert_eq!(sdk::network::tipset_timestamp(), 0);
@@ -226,6 +227,7 @@ fn test_network_context() {
 }
 
 fn test_message_context() {
+    assert_eq!(sdk::message::nonce(), 100);
     assert_eq!(sdk::message::origin(), 100);
     assert_eq!(sdk::message::caller(), 100);
     assert_eq!(sdk::message::receiver(), 10000);

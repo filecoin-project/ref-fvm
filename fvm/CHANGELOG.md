@@ -4,6 +4,18 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.14 [2022-12-08]
+
+- In send, change 0 gas to mean 0 gas (not unlimited).
+
+## 3.0.0-alpha.13 [2022-12-07]
+
+- FIX: Only push backtrace frames on _error_.
+- Remove the gas limit from the context.
+- Disable `memory_init_cow` in wasmtime. This will use a bit more memory, but will be predictable.
+- Add the chain ID to the network context (defaults to 0).
+- Add the nonce to the message context.
+
 ## 3.0.0-alpha.12 [2022-11-29]
 - Fix: make sure exit never fails, even on an invalid message
 - Limit the size of backtrace messages to 1k
