@@ -141,22 +141,34 @@ pub fn charge_for_exec<K: Kernel>(
 pub fn charge_for_init<K: Kernel>(
     ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
     module: &Module,
-) -> crate::kernel::Result<()> {
+) -> crate::kernel::Result<GasTimer> {
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
     let data = ctx.data_mut();
     let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
 
-    if !memory_gas.is_zero() {
-        let t = data.kernel.charge_gas("wasm_memory_init", memory_gas)?;
-        t.stop_with(data.last_charge_time);
-    }
-
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
     data.last_memory_bytes += min_memory_bytes;
-    data.last_charge_time = GasTimer::start();
 
-    Ok(())
+    data.kernel.charge_gas("wasm_memory_init", memory_gas)
+}
+
+/// Record the time it took to initialize a module.
+///
+/// This is
+pub fn record_init_time<K: Kernel>(
+    ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
+    timer: GasTimer,
+) {
+    let mut ctx = ctx.as_context_mut();
+    let data = ctx.data_mut();
+
+    // The last charge time at this point should be when the invocation started.
+    timer.stop_with(data.last_charge_time);
+
+    // Adjust the time so the next `charge_for_exec` doesn't include what we have
+    // already charged for.
+    data.last_charge_time = GasTimer::start();
 }
 
 /// Get the minimum amount of memory required by a module.
