@@ -18,6 +18,7 @@ use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
+use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
@@ -30,21 +31,23 @@ use crate::trace::ExecutionTrace;
 /// Message execution might run out of stack and crash (the entire process) if it doesn't have at
 /// least 64MiB of stack space. If you can't guarantee 64MiB of stack space, wrap this executor in
 /// a [`ThreadedExecutor`][super::ThreadedExecutor].
-// If the inner value is `None` it means the machine got poisoned and is unusable.
-#[repr(transparent)]
-pub struct DefaultExecutor<K: Kernel>(Option<<K::CallManager as CallManager>::Machine>);
+pub struct DefaultExecutor<K: Kernel> {
+    engine_pool: EnginePool,
+    // If the inner value is `None` it means the machine got poisoned and is unusable.
+    machine: Option<<K::CallManager as CallManager>::Machine>,
+}
 
 impl<K: Kernel> Deref for DefaultExecutor<K> {
     type Target = <K::CallManager as CallManager>::Machine;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().expect("machine poisoned")
+        self.machine.as_ref().expect("machine poisoned")
     }
 }
 
 impl<K: Kernel> DerefMut for DefaultExecutor<K> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0.as_mut().expect("machine poisoned")
+        &mut *self.machine.as_mut().expect("machine poisoned")
     }
 }
 
@@ -77,11 +80,16 @@ where
             events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
         }
 
+        // Acquire an engine from the pool. This may block if there are concurrently executing
+        // messages inside other executors sharing the same pool.
+        let engine = self.engine_pool.acquire();
+
         // Apply the message.
         let ret = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
             let mut cm = K::CallManager::new(
                 machine,
+                engine,
                 msg.gas_limit,
                 sender_id,
                 msg.from,
@@ -274,14 +282,32 @@ where
     K: Kernel,
 {
     /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
-    pub fn new(m: <K::CallManager as CallManager>::Machine) -> Self {
-        Self(Some(m))
+    pub fn new(
+        engine_pool: EnginePool,
+        machine: <K::CallManager as CallManager>::Machine,
+    ) -> anyhow::Result<Self> {
+        // Skip preloading all builtin actors when testing.
+        #[cfg(not(any(test, feature = "testing")))]
+        {
+            // Preload any uncached modules.
+            // This interface works for now because we know all actor CIDs
+            // ahead of time, but with user-supplied code, we won't have that
+            // guarantee.
+            engine_pool.acquire().preload(
+                machine.blockstore(),
+                machine.builtin_actors().builtin_actor_codes(),
+            )?;
+        }
+        Ok(Self {
+            engine_pool,
+            machine: Some(machine),
+        })
     }
 
     /// Consume consumes the executor and returns the Machine. If the Machine had
     /// been poisoned during execution, the Option will be None.
     pub fn into_machine(self) -> Option<<K::CallManager as CallManager>::Machine> {
-        self.0
+        self.machine
     }
 
     // TODO: The return type here is very strange because we have three cases:
@@ -494,7 +520,7 @@ where
         ) -> (T, <K::CallManager as CallManager>::Machine),
     {
         replace_with::replace_with_and_return(
-            &mut self.0,
+            &mut self.machine,
             || None,
             |m| {
                 let (ret, machine) = f(m.unwrap());

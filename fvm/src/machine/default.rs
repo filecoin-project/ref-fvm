@@ -15,7 +15,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
 
-use super::{Engine, Machine, MachineContext};
+use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 #[cfg(feature = "m2-native")]
@@ -32,9 +32,6 @@ pub const EVENTS_AMT_BITWIDTH: u32 = 5;
 pub struct DefaultMachine<B, E> {
     /// The initial execution context for this epoch.
     context: MachineContext,
-    /// The WASM engine is created on construction of the DefaultMachine, and
-    /// is dropped when the DefaultMachine is dropped.
-    engine: Engine,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin client.
     externs: E,
@@ -59,17 +56,11 @@ where
     ///
     /// # Arguments
     ///
-    /// * `engine`: The global wasm [`Engine`] (engine, pooled resources, caches).
     /// * `context`: Machine execution [context][`MachineContext`] (system params, epoch, network
     ///    version, etc.).
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
-    pub fn new(
-        engine: &Engine,
-        context: &MachineContext,
-        blockstore: B,
-        externs: E,
-    ) -> anyhow::Result<Self> {
+    pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V18..=NetworkVersion::V18;
 
@@ -119,36 +110,11 @@ where
         let builtin_actors =
             Manifest::load(state_tree.store(), &builtin_actors_cid, manifest_version)?;
 
-        // Preload any uncached modules.
-        // This interface works for now because we know all actor CIDs
-        // ahead of time, but with user-supplied code, we won't have that
-        // guarantee.
-        // Skip preloading all builtin actors when testing. This results in JIT
-        // bytecode to machine code compilation, and leads to faster tests.
-        #[cfg(not(any(test, feature = "testing")))]
-        engine.preload(state_tree.store(), builtin_actors.builtin_actor_codes())?;
-
-        #[cfg(feature = "m2-native")]
-        {
-            // preload user actors that have been installed
-            // TODO This must be revisited when implementing the actively managed cache.
-            // Doesn't need the m2-native feature guard because there's no possiblity
-            // for user code to install new actors if that feature is disabled anyway
-            // (so this would be a no-op). We could add the guard as an optimization, though.
-            let (init_state, _) = InitActorState::load(&state_tree)?;
-            let installed_actors: Vec<Cid> = state_tree
-                .store()
-                .get_cbor(&init_state.installed_actors)?
-                .context("failed to load installed actor list")?;
-            engine.preload(state_tree.store(), &installed_actors)?;
-        }
-
         // 16 bytes is random _enough_
         let randomness: [u8; 16] = rand::random();
 
         Ok(DefaultMachine {
             context: context.clone(),
-            engine: engine.clone(),
             externs,
             state_tree,
             builtin_actors,
@@ -169,10 +135,6 @@ where
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
     type Limiter = ExecResourceLimiter;
-
-    fn engine(&self) -> &Engine {
-        &self.engine
-    }
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.state_tree.store()

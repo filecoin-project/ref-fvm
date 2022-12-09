@@ -23,12 +23,8 @@ pub use default::DefaultMachine;
 pub mod limiter;
 mod manifest;
 
-pub use manifest::Manifest;
-
-mod engine;
-
-pub use engine::{Engine, EngineConfig, MultiEngine};
 use fvm_shared::event::StampedEvent;
+pub use manifest::Manifest;
 
 use self::limiter::ExecMemory;
 
@@ -76,10 +72,6 @@ pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
     type Limiter: ResourceLimiter + ExecMemory;
-
-    /// Returns the underlying WASM engine. Cloning it will simply create a new handle with a
-    /// static lifetime.
-    fn engine(&self) -> &Engine;
 
     /// Returns a reference to the machine's blockstore.
     fn blockstore(&self) -> &Self::Blockstore;

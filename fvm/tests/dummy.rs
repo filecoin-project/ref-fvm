@@ -7,10 +7,11 @@ use std::rc::Rc;
 use anyhow::Context;
 use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
+use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::limiter::ExecMemory;
-use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
+use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -108,7 +109,6 @@ impl ExecMemory for DummyLimiter {
 
 /// Minimal *pseudo-functional* implementation of `Machine` for tests
 pub struct DummyMachine {
-    pub engine: Engine,
     pub state_tree: StateTree<MemoryBlockstore>,
     pub ctx: MachineContext,
     pub builtin_actors: Manifest,
@@ -146,7 +146,6 @@ impl DummyMachine {
 
         Ok(Self {
             ctx,
-            engine: Engine::new_default((&config).into())?,
             state_tree,
             builtin_actors: manifest,
         })
@@ -157,10 +156,6 @@ impl Machine for DummyMachine {
     type Blockstore = MemoryBlockstore;
     type Externs = DummyExterns;
     type Limiter = DummyLimiter;
-
-    fn engine(&self) -> &Engine {
-        &self.engine
-    }
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.state_tree.store()
@@ -284,6 +279,7 @@ impl CallManager for DummyCallManager {
 
     fn new(
         machine: Self::Machine,
+        _engine: Engine,
         _gas_limit: i64,
         origin: ActorID,
         origin_address: Address,

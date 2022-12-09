@@ -6,7 +6,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::StampedEvent;
 use fvm_shared::ActorID;
 
-use super::{Engine, Machine, MachineContext, Manifest};
+use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
 use crate::state_tree::{ActorState, StateTree};
 
@@ -16,11 +16,6 @@ impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
     type Limiter = M::Limiter;
-
-    #[inline(always)]
-    fn engine(&self) -> &Engine {
-        (**self).engine()
-    }
 
     #[inline(always)]
     fn blockstore(&self) -> &Self::Blockstore {

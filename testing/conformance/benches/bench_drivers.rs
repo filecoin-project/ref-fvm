@@ -3,8 +3,9 @@
 extern crate criterion;
 
 use criterion::*;
+use fvm::engine::MultiEngine;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
-use fvm::machine::MultiEngine;
+use fvm::machine::Machine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{MessageVector, Variant};
 use fvm_conformance_tests::vm::{TestKernel, TestMachine};
@@ -47,10 +48,20 @@ pub fn bench_vector_variant(
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
                 // NOTE next few lines don't impact the benchmarks.
-                let machine =
-                    TestMachine::new_for_vector(vector, variant, bs, engines, None).unwrap();
+                let machine = TestMachine::new_for_vector(vector, variant, bs, None).unwrap();
+                let engine = engines.get(&machine.context().network).unwrap();
+                // Preload the actors. We don't usually preload actors when testing, so we're going
+                // to do this explicitly.
+                engine
+                    .acquire()
+                    .preload(
+                        machine.blockstore(),
+                        machine.builtin_actors().builtin_actor_codes(),
+                    )
+                    .unwrap();
                 // can assume this works because it passed a test before this ran
-                let exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
+                let exec: DefaultExecutor<TestKernel> =
+                    DefaultExecutor::new(engine, machine).unwrap();
                 (messages_with_lengths.clone(), exec)
             },
             |(messages, exec)| apply_messages(criterion::black_box(messages), exec),
