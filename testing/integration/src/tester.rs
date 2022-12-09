@@ -3,9 +3,10 @@
 use anyhow::{anyhow, Context, Result};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
+use fvm::engine::EnginePool;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
-use fvm::machine::{DefaultMachine, Engine, Machine, NetworkConfig};
+use fvm::machine::{DefaultMachine, Machine, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
@@ -247,20 +248,14 @@ where
         mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
             .enable_tracing();
 
-        let machine = DefaultMachine::new(
-            &Engine::new_default((&mc.network.clone()).into())?,
-            &mc,
-            blockstore,
-            externs,
-        )?;
+        let engine = EnginePool::new_default((&mc.network.clone()).into())?;
+        engine.acquire().preload(&blockstore, &self.code_cids)?;
+        let machine = DefaultMachine::new(&mc, blockstore, externs)?;
 
         let executor =
             DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>::new(
-                machine,
-            );
-        executor
-            .engine()
-            .preload(executor.blockstore(), &self.code_cids)?;
+                engine, machine,
+            )?;
 
         self.executor = Some(executor);
 

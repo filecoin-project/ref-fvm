@@ -5,9 +5,10 @@ use std::fmt;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fmt::Display;
+use fvm::engine::MultiEngine;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
 use fvm::kernel::Context;
-use fvm::machine::{Machine, MultiEngine};
+use fvm::machine::Machine;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::{Cbor, CborStore};
@@ -199,8 +200,20 @@ pub fn run_variant(
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, engines, stats)?;
-    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
+    let machine = TestMachine::new_for_vector(v, variant, bs, stats)?;
+    let engine = engines
+        .get(&machine.context().network)
+        .map_err(|e| anyhow!(e))?;
+    // Preload the actors. We don't usually preload actors when testing, so we're going to do
+    // this explicitly.
+    engine
+        .acquire()
+        .preload(
+            machine.blockstore(),
+            machine.builtin_actors().builtin_actor_codes(),
+        )
+        .unwrap();
+    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(engine, machine)?;
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {

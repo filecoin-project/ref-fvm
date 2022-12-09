@@ -8,12 +8,11 @@ use anyhow::anyhow;
 use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
+use fvm::engine::Engine;
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::ExecMemory;
-use fvm::machine::{
-    DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
-};
+use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -84,7 +83,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
-        engines: &MultiEngine,
         stats: TestStatsRef,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
@@ -113,18 +111,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
         mc.set_base_fee(base_fee);
 
-        let engine = engines.get(&mc.network).map_err(|e| anyhow!(e))?;
-
-        let machine = DefaultMachine::new(&engine, &mc, blockstore, externs).unwrap();
-
-        // Preload the actors. We don't usually preload actors when testing, so we're going to do
-        // this explicitly.
-        engine
-            .preload(
-                machine.blockstore(),
-                machine.builtin_actors().builtin_actor_codes(),
-            )
-            .unwrap();
+        let machine = DefaultMachine::new(&mc, blockstore, externs).unwrap();
 
         let price_list = machine.context().price_list.clone();
 
@@ -164,10 +151,6 @@ where
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
     type Limiter = TestLimiter<M::Limiter>;
-
-    fn engine(&self) -> &Engine {
-        self.machine.engine()
-    }
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.machine.blockstore()
@@ -240,6 +223,7 @@ where
 
     fn new(
         machine: Self::Machine,
+        engine: Engine,
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
@@ -248,6 +232,7 @@ where
     ) -> Self {
         TestCallManager(C::new(
             machine,
+            engine,
             gas_limit,
             origin,
             origin_address,

@@ -6,6 +6,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
+use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
@@ -47,6 +48,7 @@ pub trait CallManager: 'static {
     /// Construct a new call manager.
     fn new(
         machine: Self::Machine,
+        engine: Engine,
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,

@@ -6,7 +6,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use criterion::*;
-use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ID};
+use fvm::engine::MultiEngine;
+use fvm::machine::BURNT_FUNDS_ACTOR_ID;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
 use fvm_ipld_encoding::{Cbor, RawBytes};
