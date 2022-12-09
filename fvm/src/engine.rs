@@ -10,7 +10,6 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
-use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
@@ -392,17 +391,13 @@ impl Engine {
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info
 
-        use fvm_wasm_instrument::gas_metering::inject;
-        use fvm_wasm_instrument::inject_stack_limiter;
-        use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
-
-        let m = deserialize_buffer(raw_wasm)?;
+        use fvm_wasm_instrument::{gas_metering, stack_limiter};
 
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let m =
-            inject_stack_limiter(m, self.0.config.max_wasm_stack).map_err(anyhow::Error::msg)?;
+        let raw_wasm = stack_limiter::inject(raw_wasm, self.0.config.max_wasm_stack)
+            .map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -416,14 +411,10 @@ impl Engine {
         //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
         //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
         //   parity-wasm module parser, so the contract cannot grow the tables.
-        let mut m = inject(m, self.0.config.wasm_prices, "gas")
+        let raw_wasm = gas_metering::inject(&raw_wasm, self.0.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
-        // Work around #602. Remove this once paritytech/parity-wasm#331 is merged and bubbled.
-        fix_wasm_sections(&mut m);
-
-        let wasm = m.to_bytes()?;
-        let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
+        let module = Module::from_binary(&self.0.engine, &raw_wasm)?;
 
         Ok(ModuleRecord {
             module,
@@ -562,20 +553,5 @@ impl Engine {
         store.limiter(|id| id.kernel.limiter_mut());
 
         store
-    }
-}
-
-// Workaround for https://github.com/filecoin-project/ref-fvm/issues/602
-//
-// This removes the out-of-order data count section, if it exists, and re-inserts it (with the
-// correct data-count).
-fn fix_wasm_sections(module: &mut elements::Module) {
-    module
-        .sections_mut()
-        .retain(|sec| !matches!(sec, elements::Section::DataCount(_)));
-    if let Some(data_count) = module.data_section().map(|data| data.entries().len()) {
-        module
-            .insert_section(elements::Section::DataCount(data_count as u32))
-            .expect("section wasn't deleted");
     }
 }

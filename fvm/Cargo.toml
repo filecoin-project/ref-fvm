@@ -37,7 +37,7 @@ num_cpus = "1.13.0"
 log = "0.4.14"
 byteorder = "1.4.3"
 blake2b_simd = "1.0.0"
-fvm-wasm-instrument = { version = "0.2.0", features = ["bulk", "sign_ext"] }
+fvm-wasm-instrument = "0.4.0"
 yastl = "0.1.2"
 arbitrary = { version = "1.1.0", optional = true, features = ["derive"] }
 rand = "0.8.5"
