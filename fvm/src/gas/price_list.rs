@@ -1093,6 +1093,16 @@ impl Rules for WasmGasPrices {
             | Operator::Return
             | Operator::Else
             | Operator::End => Ok(InstructionCost::Fixed(0)),
+            // Make casts and constants free.
+            Operator::I64ExtendI32U // only unsigned is free.
+            | Operator::I32WrapI64 // truncates
+            | Operator::I32ReinterpretF32 // casts
+            | Operator::I64ReinterpretF64 // casts
+            | Operator::V128Const { .. }
+            | Operator::I32Const { .. }
+            | Operator::I64Const { .. }
+            | Operator::F32Const { .. }
+            | Operator::F64Const { .. } => Ok(InstructionCost::Fixed(0)),
             // Memory related instructions...
             Operator::TableInit { .. } | Operator::TableCopy { .. } => linear_cost(
                 self.exec_instruction_cost + self.memory_copy_base_cost,
@@ -1120,6 +1130,17 @@ impl Rules for WasmGasPrices {
                 self.memory_copy_per_byte_cost,
                 1,
             ),
+            // Reject some basic known-unsupported instructions.
+            | Operator::RefNull { .. }
+            | Operator::RefFunc { .. }
+            | Operator::RefIsNull { .. }
+            | Operator::Try { .. }
+            | Operator::Catch { .. }
+            | Operator::Throw { .. }
+            | Operator::Delegate { .. }
+            | Operator::ReturnCall { .. }
+            | Operator::ReturnCallIndirect { .. }
+            | Operator::Rethrow { .. } => Err(anyhow::anyhow!("unsupported operation")),
             // Everything else...
             _ => Ok(InstructionCost::Fixed(
                 self.exec_instruction_cost.as_milligas() as u64,
