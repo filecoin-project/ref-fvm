@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
-use std::num::NonZeroU64;
 
+use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{ActorEvent, Flags};
@@ -15,8 +15,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
-use fvm_wasm_instrument::gas_metering::{MemoryGrowCost, Rules};
-use fvm_wasm_instrument::parity_wasm::elements::Instruction;
+use fvm_wasm_instrument::gas_metering::{InstructionCost, Operator, Rules};
 use lazy_static::lazy_static;
 use num_traits::Zero;
 
@@ -1029,9 +1028,9 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 }
 
 impl Rules for WasmGasPrices {
-    fn instruction_cost(&self, instruction: &Instruction) -> Option<u64> {
+    fn instruction_cost(&self, instruction: &Operator) -> anyhow::Result<InstructionCost> {
         if self.exec_instruction_cost.is_zero() {
-            return Some(0);
+            return Ok(InstructionCost::Fixed(0));
         }
 
         // Rules valid for nv16. We will need to be generic over Rules (massive
@@ -1040,28 +1039,41 @@ impl Rules for WasmGasPrices {
         // forward.
         match instruction {
             // FIP-0032: nop, drop, block, loop, unreachable, return, else, end are priced 0.
-            Instruction::Nop
-            | Instruction::Drop
-            | Instruction::Block(_)
-            | Instruction::Loop(_)
-            | Instruction::Unreachable
-            | Instruction::Return
-            | Instruction::Else
-            | Instruction::End => Some(0),
-            _ => Some(self.exec_instruction_cost.as_milligas() as u64),
+            Operator::Nop
+            | Operator::Drop
+            | Operator::Block { .. }
+            | Operator::Loop { .. }
+            | Operator::Unreachable
+            | Operator::Return
+            | Operator::Else
+            | Operator::End => Ok(InstructionCost::Fixed(0)),
+            Operator::MemoryGrow { .. } => Ok({
+                // Saturating. If there's an overflow, we'll catch it later.
+                let gas_per_page =
+                    self.memory_expansion_per_byte_cost * wasmtime_environ::WASM_PAGE_SIZE;
+
+                let expansion_cost: u32 = gas_per_page
+                    .as_milligas()
+                    .try_into()
+                    .context("memory expansion cost exceeds u32")?;
+                match expansion_cost
+                    .try_into().ok() // zero or not zero.
+                {
+                    Some(cost) => InstructionCost::Linear(self.exec_instruction_cost.as_milligas() as u64, cost),
+                    None => InstructionCost::Fixed(self.exec_instruction_cost.as_milligas() as u64),
+                }
+            }),
+            _ => Ok(InstructionCost::Fixed(
+                self.exec_instruction_cost.as_milligas() as u64,
+            )),
         }
     }
 
-    fn memory_grow_cost(&self) -> MemoryGrowCost {
-        if self.memory_expansion_per_byte_cost.is_zero() {
-            MemoryGrowCost::Free
-        } else {
-            let milligas_per_page = self.memory_expansion_per_byte_cost.as_milligas() as u64
-                * wasmtime_environ::WASM_PAGE_SIZE as u64;
+    fn gas_charge_cost(&self) -> u64 {
+        0
+    }
 
-            MemoryGrowCost::Linear(
-                NonZeroU64::new(milligas_per_page).expect("Price should be positive."),
-            )
-        }
+    fn linear_calc_cost(&self) -> u64 {
+        0
     }
 }
