@@ -11,6 +11,7 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
+use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
@@ -265,4 +266,22 @@ pub fn common_sizes() -> Vec<usize> {
     );
     sizes.push(1_000_000);
     sizes
+}
+
+pub fn secp_sign(sk: &libsecp256k1::SecretKey, data: &[u8]) -> [u8; SECP_SIG_LEN] {
+    let hash: [u8; 32] = blake2b_simd::Params::new()
+        .hash_length(32)
+        .to_state()
+        .update(data)
+        .finalize()
+        .as_bytes()
+        .try_into()
+        .unwrap();
+
+    let (sig, recovery_id) = libsecp256k1::sign(&libsecp256k1::Message::parse(&hash), sk);
+
+    let mut signature = [0u8; SECP_SIG_LEN];
+    signature[..64].copy_from_slice(&sig.serialize());
+    signature[64] = recovery_id.serialize();
+    signature
 }

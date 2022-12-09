@@ -34,24 +34,8 @@ fn main() {
                 let sk = libsecp256k1::SecretKey::random(&mut rng);
                 let pk = libsecp256k1::PublicKey::from_secret_key(&sk);
                 let addr = Address::new_secp256k1(&pk.serialize()).unwrap();
-
-                let hash: [u8; 32] = blake2b_simd::Params::new()
-                    .hash_length(32)
-                    .to_state()
-                    .update(&data)
-                    .finalize()
-                    .as_bytes()
-                    .try_into()
-                    .unwrap();
-
-                let (sig, recovery_id) =
-                    libsecp256k1::sign(&libsecp256k1::Message::parse(&hash), &sk);
-
-                let mut signature = vec![0u8; 65];
-                signature[..64].copy_from_slice(&sig.serialize());
-                signature[64] = recovery_id.serialize();
-
-                (addr, signature)
+                let sig = secp_sign(&sk, &data).into();
+                (addr, sig)
             }
             SignatureType::BLS => {
                 let sk = bls_signatures::PrivateKey::generate(&mut rng);
@@ -73,8 +57,8 @@ fn main() {
 
             let ret = te.execute_or_die(METHOD as u64, &params);
 
-            let mut iter_obs = collect_obs(ret, CHARGE_NAME, &label, *size);
-            iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
+            let iter_obs = collect_obs(ret, CHARGE_NAME, &label, *size);
+            let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
 
             obs.extend(iter_obs);
         }

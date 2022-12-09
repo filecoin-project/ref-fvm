@@ -5,7 +5,7 @@ use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::{Signature, SignatureType};
+use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
 use fvm_shared::error::ExitCode;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -26,6 +26,8 @@ pub enum Method {
     OnBlock,
     /// Try (and fail) to verify random data with a public key and signature.
     OnVerifySignature,
+    /// Try (and fail) to recovery a public key from a signature, using random data.
+    OnRecoverSecpPublicKey,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,6 +54,17 @@ pub struct OnVerifySignatureParams {
     /// of the address. A completely random sequence of bytes for signature would be
     /// immediately rejected by BLS, although not by Secp256k1. And we cannot generate
     /// valid signatures inside the contract because the libs we use don't compile to Wasm.
+    pub signature: Vec<u8>,
+    pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnRecoverSecpPublicKeyParams {
+    pub iterations: usize,
+    /// Size doesn't play a role with the SDK call because it works on hashes,
+    /// but in theory it could, if the API asked for plain text. Let's pass
+    /// it in just to show on the charts that the time doesn't depend on the input size.
+    pub size: usize,
     pub signature: Vec<u8>,
     pub seed: u64,
 }
@@ -93,12 +106,19 @@ pub fn invoke(params_ptr: u32) -> u32 {
 
 fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
     match method {
-        Method::OnHashing => on_hashing(read_params::<OnHashingParams>(params_ptr)?),
-        Method::OnBlock => on_block(read_params::<OnBlockParams>(params_ptr)?),
-        Method::OnVerifySignature => {
-            on_verify_signature(read_params::<OnVerifySignatureParams>(params_ptr)?)
-        }
+        Method::OnHashing => dispatch_to(on_hashing, params_ptr),
+        Method::OnBlock => dispatch_to(on_block, params_ptr),
+        Method::OnVerifySignature => dispatch_to(on_verify_signature, params_ptr),
+        Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
     }
+}
+
+fn dispatch_to<F, P>(f: F, params_ptr: u32) -> Result<()>
+where
+    F: FnOnce(P) -> Result<()>,
+    P: DeserializeOwned,
+{
+    f(read_params::<P>(params_ptr)?)
 }
 
 fn on_hashing(p: OnHashingParams) -> Result<()> {
@@ -153,6 +173,22 @@ fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
     for i in 0..p.iterations {
         random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
         fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
+    }
+
+    Ok(())
+}
+
+fn on_recover_secp_public_key(p: OnRecoverSecpPublicKeyParams) -> Result<()> {
+    let mut data = random_bytes(p.size, p.seed);
+    let sig: [u8; SECP_SIG_LEN] = p
+        .signature
+        .try_into()
+        .map_err(|_| anyhow!("unexpected signature length"))?;
+
+    for i in 0..p.iterations {
+        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
+        let hash = fvm_sdk::crypto::hash_blake2b(&data);
+        fvm_sdk::crypto::recover_secp_public_key(&hash, &sig)?;
     }
 
     Ok(())

@@ -12,10 +12,10 @@ The traces and the regression results are exported to `./measurements/out`, but 
 For example:
 
 ```shell
-cargo run --release --bin hashing
+cargo run --release --bin on_hashing
 ```
 
-The calibration uses the machinery from the integration tests, but it's kept separate from them because to get good results we might want to run them for a long time, and on standardized environment. The reason different model targets are in separate bins so we can select which one we want to run.
+The calibration uses the machinery from the integration tests, but it's kept separate from them because to get good results we might want to run them for a long time, and on standardized environment. The reason different model targets are in separate binaries is so we can select which one we want to run.
 
 Note that the `--release` flag has a huge impact on runtimes and therefore the model paramters, in the order of 100x.
 
