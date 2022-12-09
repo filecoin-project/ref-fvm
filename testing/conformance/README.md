@@ -3,6 +3,14 @@
 This directory contains tooling to run test vectors against the FVM in the form
 of tests and benchmarks.
 
+## Link `test-vectors`
+
+The instructions below assume that the https://github.com/filecoin-project/fvm-test-vectors repo is checked out as a sibling directory next to `ref-fvm`, and then in the `conformance` directory we have created the following symlink:
+
+```shell
+ln -s ../../../fvm-test-vectors test-vectors
+```
+
 ## Instructions
 
 - To run all tests, just run `cargo test`.
@@ -58,3 +66,7 @@ perf inject --jit --input perf.data --output perf.jit.data
 ```shell
 perf report --input perf.jit.data --hierarchy
 ```
+
+## Visualize traces
+
+The conformance tests support exporting traces for visualization. See under [measurements](./measurements/README.md).
