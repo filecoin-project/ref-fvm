@@ -293,8 +293,8 @@ lazy_static! {
             exec_instruction_cost: Gas::new(4),
             memory_fill_per_byte_cost: Zero::zero(),
             memory_copy_per_byte_cost: Zero::zero(),
-            memory_fill_base_cost: Gas::new(4),
-            memory_copy_base_cost: Gas::new(4),
+            memory_fill_base_cost: Gas::zero(),
+            memory_copy_base_cost: Gas::zero(),
         },
 
         event_emit_base_cost: Zero::zero(),
@@ -439,9 +439,9 @@ lazy_static! {
             // TODO GAS_PARAM
             memory_copy_per_byte_cost: Zero::zero(),
             // TODO GAS_PARAM
-            memory_fill_base_cost: Gas::new(4), // matches one instruction for now
+            memory_fill_base_cost: Gas::zero(),
             // TODO GAS_PARAM
-            memory_copy_base_cost: Gas::new(4), // matches one instruction for now
+            memory_copy_base_cost: Gas::zero(),
         },
 
         // END (Copied from SKYR_PRICES)
@@ -1095,28 +1095,28 @@ impl Rules for WasmGasPrices {
             | Operator::End => Ok(InstructionCost::Fixed(0)),
             // Memory related instructions...
             Operator::TableInit { .. } | Operator::TableCopy { .. } => linear_cost(
-                self.memory_copy_base_cost,
+                self.exec_instruction_cost + self.memory_copy_base_cost,
                 self.memory_copy_per_byte_cost,
                 TABLE_ELEMENT_SIZE,
             ),
             Operator::TableFill { .. } | Operator::TableGrow { .. } => linear_cost(
-                self.memory_fill_base_cost,
+                self.exec_instruction_cost + self.memory_fill_base_cost,
                 self.memory_fill_per_byte_cost,
                 TABLE_ELEMENT_SIZE,
             ),
             Operator::MemoryGrow { .. } => linear_cost(
-                self.memory_fill_base_cost,
+                self.exec_instruction_cost + self.memory_fill_base_cost,
                 self.memory_fill_per_byte_cost,
                 // This is the odd-one out because it operates on entire pages.
                 wasmtime_environ::WASM_PAGE_SIZE,
             ),
             Operator::MemoryFill { .. } => linear_cost(
-                self.memory_fill_base_cost,
+                self.exec_instruction_cost + self.memory_fill_base_cost,
                 self.memory_fill_per_byte_cost,
                 1,
             ),
             Operator::MemoryInit { .. } | Operator::MemoryCopy { .. } => linear_cost(
-                self.memory_copy_base_cost,
+                self.exec_instruction_cost + self.memory_copy_base_cost,
                 self.memory_copy_per_byte_cost,
                 1,
             ),
