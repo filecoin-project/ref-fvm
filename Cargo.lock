@@ -1530,19 +1530,7 @@ dependencies = [
 name = "fil_actor_bundler"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d0550a13a20decf920aeeb630a648b13174af5acf6b513895996ff1cd09393d"
-dependencies = [
- "anyhow",
- "async-std",
- "cid 0.8.6",
- "clap",
- "futures",
- "fvm_ipld_blockstore",
- "fvm_ipld_car 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fvm_ipld_encoding 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde",
- "serde_ipld_dagcbor",
- "serde_json",
+checksum = "6d0550a13a20decf920aeeb630a648b13174af5acf6b513r
 ]
 
 [[package]]
@@ -2876,33 +2864,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f4c82720bd5a315560cb724b4806e371fede40a203955ca17690b5b668a1db5"
 dependencies = [
  "anyhow",
- "bitflags",
- "blake2b_simd",
- "byteorder",
- "cid 0.8.6",
- "data-encoding",
- "data-encoding-macro",
- "fvm_ipld_blockstore",
- "fvm_ipld_encoding 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static",
- "log",
- "multihash 0.16.3",
- "num-bigint",
- "num-derive",
- "num-integer",
- "num-traits",
- "serde",
- "serde_repr",
- "serde_tuple",
- "thiserror",
- "unsigned-varint",
-]
-
-[[package]]
-name = "fvm_shared"
-version = "3.0.0-alpha.15"
-dependencies = [
- "anyhow",
  "arbitrary",
  "bitflags",
  "blake2b_simd",
@@ -2911,9 +2872,8 @@ dependencies = [
  "cid 0.8.6",
  "data-encoding",
  "data-encoding-macro",
- "filecoin-proofs-api",
  "fvm_ipld_blockstore",
- "fvm_ipld_encoding 0.3.0",
+ "fvm_ipld_encoding 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static",
  "libsecp256k1",
  "log",
@@ -2930,6 +2890,34 @@ dependencies = [
  "serde_repr",
  "serde_tuple",
  "sha3",
+ "thiserror",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "fvm_shared"
+version = "3.0.0-alpha.15"
+dependencies = [
+ "anyhow",
+ "bitflags",
+ "blake2b_simd",
+ "byteorder",
+ "cid 0.8.6",
+ "data-encoding",
+ "data-encoding-macro",
+ "filecoin-proofs-api",
+ "fvm_ipld_blockstore",
+ "fvm_ipld_encoding 0.3.0",
+ "lazy_static",
+ "log",
+ "multihash 0.16.3",
+ "num-bigint",
+ "num-derive",
+ "num-integer",
+ "num-traits",
+ "serde",
+ "serde_repr",
+ "serde_tuple",
  "thiserror",
  "unsigned-varint",
 ]
