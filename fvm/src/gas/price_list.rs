@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
-use std::num::NonZeroU64;
 
+use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{ActorEvent, Flags};
@@ -15,13 +15,16 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, METHOD_SEND};
-use fvm_wasm_instrument::gas_metering::{MemoryGrowCost, Rules};
-use fvm_wasm_instrument::parity_wasm::elements::Instruction;
+use fvm_wasm_instrument::gas_metering::{InstructionCost, Operator, Rules};
 use lazy_static::lazy_static;
 use num_traits::Zero;
 
 use super::GasCharge;
 use crate::gas::Gas;
+
+// Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
+// https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
+const TABLE_ELEMENT_SIZE: u32 = 8;
 
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
@@ -147,7 +150,10 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Zero::zero(),
-            memory_expansion_per_byte_cost: Zero::zero(),
+            memory_fill_per_byte_cost: Zero::zero(),
+            memory_copy_per_byte_cost: Zero::zero(),
+            memory_fill_base_cost: Zero::zero(),
+            memory_copy_base_cost: Zero::zero(),
         },
 
         event_emit_base_cost: Zero::zero(),
@@ -285,7 +291,10 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
-            memory_expansion_per_byte_cost: Zero::zero(),
+            memory_fill_per_byte_cost: Zero::zero(),
+            memory_copy_per_byte_cost: Zero::zero(),
+            memory_fill_base_cost: Gas::zero(),
+            memory_copy_base_cost: Gas::zero(),
         },
 
         event_emit_base_cost: Zero::zero(),
@@ -425,7 +434,14 @@ lazy_static! {
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
-            memory_expansion_per_byte_cost: Zero::zero(),
+            // TODO GAS_PARAM
+            memory_fill_per_byte_cost: Zero::zero(),
+            // TODO GAS_PARAM
+            memory_copy_per_byte_cost: Zero::zero(),
+            // TODO GAS_PARAM
+            memory_fill_base_cost: Gas::zero(),
+            // TODO GAS_PARAM
+            memory_copy_base_cost: Gas::zero(),
         },
 
         // END (Copied from SKYR_PRICES)
@@ -619,8 +635,14 @@ pub struct PriceList {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WasmGasPrices {
     pub(crate) exec_instruction_cost: Gas,
-    /// Gas cost for every byte made writeable in Wasm memory.
-    pub(crate) memory_expansion_per_byte_cost: Gas,
+    /// Gas cost for any memory fill instruction (one time charge).
+    pub(crate) memory_fill_base_cost: Gas,
+    /// Gas cost for every byte "filled" in Wasm memory.
+    pub(crate) memory_fill_per_byte_cost: Gas,
+    /// Gas cost for any memory copy instruction (one time charge).
+    pub(crate) memory_copy_base_cost: Gas,
+    /// Gas cost for every byte copied in Wasm memory.
+    pub(crate) memory_copy_per_byte_cost: Gas,
 }
 
 impl PriceList {
@@ -982,19 +1004,20 @@ impl PriceList {
 
     /// Returns the gas required for initializing memory.
     pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
-        self.wasm_rules.memory_expansion_per_byte_cost * min_memory_bytes
+        self.wasm_rules.memory_fill_base_cost
+            + self.wasm_rules.memory_fill_per_byte_cost * min_memory_bytes
     }
 
     /// Returns the gas required for growing memory.
     pub fn grow_memory_gas(&self, grow_memory_bytes: usize) -> Gas {
-        self.wasm_rules.memory_expansion_per_byte_cost * grow_memory_bytes
+        self.wasm_rules.memory_fill_base_cost
+            + self.wasm_rules.memory_fill_per_byte_cost * grow_memory_bytes
     }
 
     /// Returns the gas required for initializing tables.
     pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
-        // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
-        // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
-        self.wasm_rules.memory_expansion_per_byte_cost * min_table_elements * 8
+        self.wasm_rules.memory_fill_base_cost
+            + self.wasm_rules.memory_fill_per_byte_cost * min_table_elements * TABLE_ELEMENT_SIZE
     }
 
     #[inline]
@@ -1029,9 +1052,31 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
 }
 
 impl Rules for WasmGasPrices {
-    fn instruction_cost(&self, instruction: &Instruction) -> Option<u64> {
+    fn instruction_cost(&self, instruction: &Operator) -> anyhow::Result<InstructionCost> {
         if self.exec_instruction_cost.is_zero() {
-            return Some(0);
+            return Ok(InstructionCost::Fixed(0));
+        }
+
+        fn linear_cost(
+            base: Gas,
+            linear: Gas,
+            unit_multiplier: u32,
+        ) -> anyhow::Result<InstructionCost> {
+            let base = base
+                .as_milligas()
+                .try_into()
+                .context("base gas exceeds u32")?;
+            let gas_per_unit = linear * unit_multiplier;
+            let expansion_cost: u32 = gas_per_unit
+                .as_milligas()
+                .try_into()
+                .context("linear gas exceeds u32")?;
+            match expansion_cost
+                .try_into().ok() // zero or not zero.
+            {
+                Some(expansion_cost) => Ok(InstructionCost::Linear(base, expansion_cost)),
+                None => Ok(InstructionCost::Fixed(base)),
+            }
         }
 
         // Rules valid for nv16. We will need to be generic over Rules (massive
@@ -1040,28 +1085,53 @@ impl Rules for WasmGasPrices {
         // forward.
         match instruction {
             // FIP-0032: nop, drop, block, loop, unreachable, return, else, end are priced 0.
-            Instruction::Nop
-            | Instruction::Drop
-            | Instruction::Block(_)
-            | Instruction::Loop(_)
-            | Instruction::Unreachable
-            | Instruction::Return
-            | Instruction::Else
-            | Instruction::End => Some(0),
-            _ => Some(self.exec_instruction_cost.as_milligas() as u64),
+            Operator::Nop
+            | Operator::Drop
+            | Operator::Block { .. }
+            | Operator::Loop { .. }
+            | Operator::Unreachable
+            | Operator::Return
+            | Operator::Else
+            | Operator::End => Ok(InstructionCost::Fixed(0)),
+            // Memory related instructions...
+            Operator::TableInit { .. } | Operator::TableCopy { .. } => linear_cost(
+                self.exec_instruction_cost + self.memory_copy_base_cost,
+                self.memory_copy_per_byte_cost,
+                TABLE_ELEMENT_SIZE,
+            ),
+            Operator::TableFill { .. } | Operator::TableGrow { .. } => linear_cost(
+                self.exec_instruction_cost + self.memory_fill_base_cost,
+                self.memory_fill_per_byte_cost,
+                TABLE_ELEMENT_SIZE,
+            ),
+            Operator::MemoryGrow { .. } => linear_cost(
+                self.exec_instruction_cost + self.memory_fill_base_cost,
+                self.memory_fill_per_byte_cost,
+                // This is the odd-one out because it operates on entire pages.
+                wasmtime_environ::WASM_PAGE_SIZE,
+            ),
+            Operator::MemoryFill { .. } => linear_cost(
+                self.exec_instruction_cost + self.memory_fill_base_cost,
+                self.memory_fill_per_byte_cost,
+                1,
+            ),
+            Operator::MemoryInit { .. } | Operator::MemoryCopy { .. } => linear_cost(
+                self.exec_instruction_cost + self.memory_copy_base_cost,
+                self.memory_copy_per_byte_cost,
+                1,
+            ),
+            // Everything else...
+            _ => Ok(InstructionCost::Fixed(
+                self.exec_instruction_cost.as_milligas() as u64,
+            )),
         }
     }
 
-    fn memory_grow_cost(&self) -> MemoryGrowCost {
-        if self.memory_expansion_per_byte_cost.is_zero() {
-            MemoryGrowCost::Free
-        } else {
-            let milligas_per_page = self.memory_expansion_per_byte_cost.as_milligas() as u64
-                * wasmtime_environ::WASM_PAGE_SIZE as u64;
+    fn gas_charge_cost(&self) -> u64 {
+        0
+    }
 
-            MemoryGrowCost::Linear(
-                NonZeroU64::new(milligas_per_page).expect("Price should be positive."),
-            )
-        }
+    fn linear_calc_cost(&self) -> u64 {
+        0
     }
 }

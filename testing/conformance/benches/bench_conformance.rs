@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use colored::Colorize;
 use criterion::*;
-use fvm::machine::MultiEngine;
+use fvm::engine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::MessageVector;

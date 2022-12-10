@@ -4,23 +4,21 @@ use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
-use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
     Module, Mutability, PoolingAllocationStrategy, Val, ValType,
 };
 
-use super::limiter::ExecMemory;
-use super::Machine;
 use crate::gas::WasmGasPrices;
-use crate::machine::NetworkConfig;
+use crate::machine::limiter::ExecMemory;
+use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::{bind_syscalls, charge_for_init, InvocationData};
 use crate::Kernel;
 
@@ -29,18 +27,18 @@ use cpu_time::ProcessTime;
 extern "Rust" {
 
     fn set_compilation_time(time: u128) -> ();
-  
-    fn set_instrumentation_time(time: u128) -> ();
+
+    fn set_stack_limiter_time(time: u128) -> ();
+
+    fn set_gas_metering_injection_time(time: u128) -> ();
 
     fn set_machine_code_size(size: usize) -> ();
 }
-/// A caching wasmtime engine.
-#[derive(Clone)]
-pub struct Engine(Arc<EngineInner>);
-
 /// Container managing engines with different consensus-affecting configurations.
-#[derive(Clone)]
-pub struct MultiEngine(Arc<Mutex<HashMap<EngineConfig, Engine>>>);
+pub struct MultiEngine {
+    engines: Mutex<HashMap<EngineConfig, EnginePool>>,
+    concurrency: u32,
+}
 
 /// The proper way of getting this struct is to convert from `NetworkConfig`
 #[derive(Clone, Eq, PartialEq, Hash)]
@@ -48,6 +46,7 @@ pub struct EngineConfig {
     pub max_call_depth: u32,
     pub max_wasm_stack: u32,
     pub max_inst_memory_bytes: u64,
+    pub concurrency: u32,
     pub wasm_prices: &'static WasmGasPrices,
     pub actor_redirect: Vec<(Cid, Cid)>,
 }
@@ -60,40 +59,48 @@ impl From<&NetworkConfig> for EngineConfig {
             max_inst_memory_bytes: nc.max_inst_memory_bytes,
             wasm_prices: &nc.price_list.wasm_rules,
             actor_redirect: nc.actor_redirect.clone(),
+            concurrency: 1,
         }
     }
 }
 
 impl MultiEngine {
-    pub fn new() -> MultiEngine {
-        MultiEngine(Arc::new(Mutex::new(HashMap::new())))
+    pub fn new(concurrency: u32) -> MultiEngine {
+        if concurrency == 0 {
+            panic!("concurrency must be positive");
+        }
+        MultiEngine {
+            engines: Mutex::new(HashMap::new()),
+            concurrency,
+        }
     }
 
-    pub fn get(&self, nc: &NetworkConfig) -> anyhow::Result<Engine> {
+    pub fn get(&self, nc: &NetworkConfig) -> anyhow::Result<EnginePool> {
         let mut engines = self
-            .0
+            .engines
             .lock()
             .map_err(|_| anyhow::Error::msg("multiengine lock is poisoned"))?;
 
-        let ec: EngineConfig = nc.into();
+        let mut ec: EngineConfig = nc.into();
+        ec.concurrency = self.concurrency;
 
-        let engine = match engines.entry(ec.clone()) {
+        let pool = match engines.entry(ec.clone()) {
             Occupied(entry) => entry.into_mut(),
-            Vacant(entry) => entry.insert(Engine::new_default(ec)?),
+            Vacant(entry) => entry.insert(EnginePool::new_default(ec)?),
         };
 
-        Ok(engine.clone())
+        Ok(pool.clone())
     }
 }
 
 impl Default for MultiEngine {
     fn default() -> Self {
-        Self::new()
+        Self::new(1)
     }
 }
 
 fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
-    let instance_count = 1 + ec.max_call_depth;
+    let instance_count = (1 + ec.max_call_depth) * ec.concurrency;
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
     if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
@@ -201,6 +208,9 @@ pub struct ModuleRecord {
 }
 
 struct EngineInner {
+    limit: Mutex<u32>,
+    condv: Condvar,
+
     engine: wasmtime::Engine,
 
     /// These two fields are used used in the store constructor to avoid resolve a chicken & egg
@@ -218,17 +228,40 @@ struct EngineInner {
     actor_redirect: HashMap<Cid, Cid>,
 }
 
-impl Deref for Engine {
-    type Target = wasmtime::Engine;
+/// EnginePool represents a limited pool of engines.
+#[derive(Clone)]
+pub struct EnginePool(Arc<EngineInner>);
 
-    fn deref(&self) -> &Self::Target {
-        &self.0.engine
+impl EnginePool {
+    /// Acquire an [`Engine`]. This method will block until an [`Engine`] is available, and will
+    /// release the engine on drop.
+    pub fn acquire(&self) -> Engine {
+        *self
+            .0
+            .condv
+            .wait_while(self.0.limit.lock().unwrap(), |limit| *limit == 0)
+            .unwrap() -= 1;
+        Engine(self.0.clone())
     }
-}
 
-impl Engine {
+    /// Try to acquire an [`Engine`]. Returns `None` if the call would block, or if the lock is
+    /// poisoned.
+    ///
+    /// The [`Engine`] is released on drop.
+    pub fn try_acquire(&self) -> Option<Engine> {
+        self.0
+            .limit
+            .try_lock()
+            .ok()
+            .filter(|limit| **limit > 0)
+            .map(|mut limit| {
+                *limit -= 1;
+                Engine(self.0.clone())
+            })
+    }
+
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
-        Engine::new(&wasmtime_config(&ec)?, ec)
+        EnginePool::new(&wasmtime_config(&ec)?, ec)
     }
 
     /// Create a new Engine from a wasmtime config.
@@ -245,7 +278,9 @@ impl Engine {
 
         let actor_redirect = ec.actor_redirect.iter().cloned().collect();
 
-        Ok(Engine(Arc::new(EngineInner {
+        Ok(EnginePool(Arc::new(EngineInner {
+            limit: Mutex::new(ec.concurrency),
+            condv: Condvar::new(),
             engine,
             dummy_memory,
             dummy_gas_global: dummy_gg,
@@ -259,6 +294,28 @@ impl Engine {
 
 struct Cache<K> {
     linker: wasmtime::Linker<InvocationData<K>>,
+}
+
+/// An `Engine` represents a single, caching wasm engine. It should not be shared between concurrent
+/// call stacks.
+///
+/// The `Engine` will be returned to the [`EnginePool`] on drop.
+pub struct Engine(Arc<EngineInner>);
+
+impl Deref for Engine {
+    type Target = wasmtime::Engine;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.engine
+    }
+}
+
+impl Drop for Engine {
+    fn drop(&mut self) {
+        let mut limit = self.0.limit.lock().unwrap();
+        *limit += 1;
+        self.0.condv.notify_one();
+    }
 }
 
 impl Engine {
@@ -345,17 +402,15 @@ impl Engine {
         // Note: when adding debug mode support (with recorded syscall replay) don't instrument to
         // avoid breaking debug info
 
-        use fvm_wasm_instrument::gas_metering::inject;
-        use fvm_wasm_instrument::inject_stack_limiter;
-        use fvm_wasm_instrument::parity_wasm::deserialize_buffer;
+        use fvm_wasm_instrument::{gas_metering, stack_limiter};
 
-        let m = deserialize_buffer(raw_wasm)?;
-        let now = ProcessTime::now();
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let m =
-            inject_stack_limiter(m, self.0.config.max_wasm_stack).map_err(anyhow::Error::msg)?;
+        let now = ProcessTime::now();
+        let raw_wasm = stack_limiter::inject(raw_wasm, self.0.config.max_wasm_stack)
+            .map_err(anyhow::Error::msg)?;
+        unsafe { set_stack_limiter_time(now.elapsed().as_nanos()) }
 
         // inject gas metering based on a price list. This function will
         // * add a new mutable i64 global import, gas.gas_counter
@@ -369,17 +424,14 @@ impl Engine {
         //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
         //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
         //   parity-wasm module parser, so the contract cannot grow the tables.
-        let mut m = inject(m, self.0.config.wasm_prices, "gas")
-            .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
-
-        // Work around #602. Remove this once paritytech/parity-wasm#331 is merged and bubbled.
-        fix_wasm_sections(&mut m);
-        unsafe { set_instrumentation_time(now.elapsed().as_nanos()) };
-
-        let wasm = m.to_bytes()?;
         let now = ProcessTime::now();
-        let module = Module::from_binary(&self.0.engine, wasm.as_slice())?;
-        unsafe { set_compilation_time(now.elapsed().as_nanos()) };
+        let raw_wasm = gas_metering::inject(&raw_wasm, self.0.config.wasm_prices, "gas")
+            .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
+        unsafe { set_gas_metering_injection_time(now.elapsed().as_nanos()) }
+
+        let now = ProcessTime::now();
+        let module = Module::from_binary(&self.0.engine, &raw_wasm)?;
+        unsafe { set_compilation_time(now.elapsed().as_nanos())}
 
         let machine_code_len = module.serialize()?.len();
         unsafe { set_machine_code_size(machine_code_len) }
@@ -521,20 +573,5 @@ impl Engine {
         store.limiter(|id| id.kernel.limiter_mut());
 
         store
-    }
-}
-
-// Workaround for https://github.com/filecoin-project/ref-fvm/issues/602
-//
-// This removes the out-of-order data count section, if it exists, and re-inserts it (with the
-// correct data-count).
-fn fix_wasm_sections(module: &mut elements::Module) {
-    module
-        .sections_mut()
-        .retain(|sec| !matches!(sec, elements::Section::DataCount(_)));
-    if let Some(data_count) = module.data_section().map(|data| data.entries().len()) {
-        module
-            .insert_section(elements::Section::DataCount(data_count as u32))
-            .expect("section wasn't deleted");
     }
 }

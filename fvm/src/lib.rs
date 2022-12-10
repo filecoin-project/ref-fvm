@@ -12,6 +12,7 @@ pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
 
 pub mod call_manager;
+pub mod engine;
 pub mod executor;
 pub mod externs;
 pub mod kernel;
@@ -61,8 +62,9 @@ mod test {
     use multihash::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;
+    use crate::engine::EnginePool;
     use crate::externs::{Chain, Consensus, Externs, Rand};
-    use crate::machine::{DefaultMachine, Engine, Manifest, NetworkConfig};
+    use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
     use crate::{executor, DefaultKernel};
 
@@ -133,15 +135,11 @@ mod test {
             .override_actors(actors_cid)
             .for_epoch(0, 0, root);
 
-        let machine = DefaultMachine::new(
-            &Engine::new_default((&mc.network).into()).unwrap(),
-            &mc,
-            bs,
-            DummyExterns,
-        )
-        .unwrap();
-        let _ = executor::DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(Box::new(
-            machine,
-        ));
+        let machine = DefaultMachine::new(&mc, bs, DummyExterns).unwrap();
+        let engine = EnginePool::new_default((&mc.network).into()).unwrap();
+        let _ = executor::DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(
+            engine,
+            Box::new(machine),
+        );
     }
 }

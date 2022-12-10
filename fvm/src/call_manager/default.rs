@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::mem;
+use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
@@ -17,10 +18,11 @@ use num_traits::Zero;
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
+use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
 use crate::machine::limiter::ExecMemory;
-use crate::machine::{Engine, Machine};
+use crate::machine::Machine;
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
@@ -47,6 +49,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     #[deref]
     #[deref_mut]
     machine: M,
+    /// The engine with which to execute the message.
+    engine: Rc<Engine>,
     /// The gas tracker.
     gas_tracker: GasTracker,
     /// The gas premium paid by this message.
@@ -98,6 +102,7 @@ where
 
     fn new(
         machine: M,
+        engine: Engine,
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
@@ -109,6 +114,7 @@ where
             GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
+            engine: Rc::new(engine),
             machine,
             gas_tracker,
             gas_premium,
@@ -508,15 +514,11 @@ where
         // Increment invocation count
         self.invocation_count += 1;
 
-        // This is a cheap operation as it doesn't actually clone the struct,
-        // it returns a referenced copy.
-        let engine: Engine = self.engine().clone();
-
         // Ensure that actor's code is loaded and cached in the engine.
         // NOTE: this does not cover the EVM smart contract actor, which is a built-in actor, is
         // listed the manifest, and therefore preloaded during system initialization.
         #[cfg(feature = "m2-native")]
-        self.engine()
+        self.engine
             .prepare_actor_code(&state.code, self.blockstore())
             .map_err(
                 |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
@@ -524,6 +526,8 @@ where
 
         log::trace!("calling {} -> {}::{}", from, to, method);
         self.map_mut(|cm| {
+            let engine = cm.engine.clone(); // reference the RC.
+
             // Make the kernel.
             let kernel = K::new(cm, block_registry, from, to, method, value.clone());
 
