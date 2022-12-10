@@ -439,7 +439,7 @@ impl Engine {
         Ok((ModuleRecord{
             module,
             size: raw_wasm.len()
-        }, wasm))
+        }, raw_wasm))
     }
 
     /// Load compiled wasm code into the engine.
