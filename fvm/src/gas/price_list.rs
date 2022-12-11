@@ -1156,11 +1156,11 @@ impl Rules for WasmGasPrices {
 
             Br       => fixed(self.jump_unconditional),
             BrIf, If => fixed(self.jump_conditional),
-            BrTable  => fixed(self.jump_indirect),
+            BrTable  => fixed(self.jump_indirect + self.memory_access_cost),
 
             // TODO M2.2: Charge to jump back, and charge for arguments.
             Call          => fixed(self.jump_unconditional + self.call),
-            CallIndirect  => fixed(self.jump_indirect + self.call),
+            CallIndirect  => fixed(self.jump_indirect + self.memory_access_cost + self.call),
 
             /**********************/
             /*  Stack & Registers */
