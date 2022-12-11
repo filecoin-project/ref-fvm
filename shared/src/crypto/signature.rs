@@ -162,7 +162,6 @@ pub mod ops {
     use crate::address::{Address, Payload, Protocol};
     use crate::crypto::signature::Signature;
 
-    #[cfg(feature = "f4-as-account")]
     const EAM_ACTOR_ID: u64 = 10;
 
     /// Returns `String` error if a bls signature is invalid.

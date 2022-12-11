@@ -385,22 +385,26 @@ where
             }
         };
 
-        // If sender is not an account actor, the message is invalid.
-        let sender_is_account = self.builtin_actors().is_account_actor(&sender.code);
+        // Sender is valid if it is:
+        // - an account actor
+        // - an EOA actor
+        // - an embryo actor with nonce 0 that has an f4 address in the EAM's namespace
 
-        // Unless we have the f4-as-account hack enabled, and the sender is an embryo created by the EAM.
-        #[cfg(feature = "f4-as-account")]
-        let sender_is_account = sender_is_account
-            || sender
+        let mut sender_is_valid = self.builtin_actors().is_account_actor(&sender.code)
+            || self.builtin_actors().is_eoa_actor(&sender.code);
+        || {
+            // if we're in this case, the call manager will transform the sender into an EOA actor
+            self.builtin_actors().is_embryo_actor(&sender.code) && sender.sequence.is_zero() && sender
                 .address
+                // TODO: Set 10 as a constant somewhere
                 .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == 10 /* eam */))
-                .unwrap_or_default()
-                && self.builtin_actors().is_embryo_actor(&sender.code);
+                .unwrap_or(false)
+        };
 
-        if !sender_is_account {
+        if !sender_is_valid {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_INVALID,
-                "Send not from account actor",
+                "Send not from valid sender",
                 miner_penalty_amount,
             )));
         };

@@ -13,8 +13,6 @@ use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
 
-pub const SYSTEM_ACTOR_ID: u64 = 0;
-
 /// State specifies the key address for the actor.
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct State {
