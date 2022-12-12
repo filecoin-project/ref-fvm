@@ -2,9 +2,10 @@
 
 Changes to the FVM's shared encoding utilities.
 
-## [Unreleased]
+## 0.2.3 [2022-12-12]
 
 Publicly use `serde` to expose it when developing actors.
+Add new `IpldBlock` type that supports both `DAG_CBOR` and `IPLD_RAW` codecs
 
 ## 0.2.2 [2022-06-13]
 

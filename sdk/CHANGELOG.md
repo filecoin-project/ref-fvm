@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 [2022-12-12]
+
+Refactor: `send` and `message` use `Option<IpldBlock>` for params
+
 ## 2.0.0 [2022-10-12]
 
 No change.
