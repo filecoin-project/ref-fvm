@@ -3,7 +3,21 @@ use std::time::{Duration, Instant};
 
 use once_cell::sync::OnceCell;
 
-use super::GasCharge;
+/// Shared reference between the duration and the timer.
+type DurationCell = Arc<OnceCell<Duration>>;
+
+/// Data structure to encapsulate the optional duration which is set by the `GasTimer`.
+///
+/// This is normally created with an empty inner, because at the point of creation
+/// we don't know if tracing is on or not. It will be filled in later by `GasTimer`.
+#[derive(Default, Debug, Clone)]
+pub struct GasDuration(Option<DurationCell>);
+
+impl GasDuration {
+    pub fn get(&self) -> Option<&Duration> {
+        self.0.as_ref().and_then(|d| d.get())
+    }
+}
 
 /// Type alias so that we can disable this with a compiler flag.
 pub type GasInstant = Instant;
@@ -17,7 +31,7 @@ pub struct GasTimer(Option<GasTimerInner>);
 #[derive(Debug)]
 struct GasTimerInner {
     start: GasInstant,
-    elapsed: Arc<OnceCell<Duration>>,
+    elapsed: DurationCell,
 }
 
 impl GasTimer {
@@ -35,15 +49,23 @@ impl GasTimer {
     }
 
     /// Create a new timer that will update the elapsed time of a charge when it's finished.
-    pub fn new(charge: &GasCharge) -> Self {
-        assert!(
-            charge.elapsed.get().is_none(),
-            "GasCharge::elapsed already set!"
-        );
+    ///
+    /// As a side effect it will establish the cell in the `GasDuration`, if it has been empty so far.
+    pub fn new(duration: &mut GasDuration) -> Self {
+        assert!(duration.get().is_none(), "GasCharge::elapsed already set!");
+
+        let cell = match &duration.0 {
+            Some(cell) => cell.clone(),
+            None => {
+                let cell = DurationCell::default();
+                duration.0 = Some(cell.clone());
+                cell
+            }
+        };
 
         Self(Some(GasTimerInner {
             start: Self::start(),
-            elapsed: charge.elapsed.clone(),
+            elapsed: cell,
         }))
     }
 

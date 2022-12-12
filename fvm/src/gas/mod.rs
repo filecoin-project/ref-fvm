@@ -191,8 +191,8 @@ impl GasTracker {
     pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<GasTimer> {
         let res = self.charge_gas_inner(name, to_use);
         if let Some(trace) = &mut self.trace {
-            let charge = GasCharge::new(name.to_owned(), to_use, Gas::zero());
-            let timer = GasTimer::new(&charge);
+            let mut charge = GasCharge::new(name.to_owned(), to_use, Gas::zero());
+            let timer = GasTimer::new(&mut charge.elapsed);
             trace.push(charge);
             res.map(|_| timer)
         } else {
@@ -201,10 +201,10 @@ impl GasTracker {
     }
 
     /// Applies the specified gas charge, where quantities are supplied in milligas.
-    pub fn apply_charge(&mut self, charge: GasCharge) -> Result<GasTimer> {
+    pub fn apply_charge(&mut self, mut charge: GasCharge) -> Result<GasTimer> {
         let res = self.charge_gas_inner(&charge.name, charge.total());
         if let Some(trace) = &mut self.trace {
-            let timer = GasTimer::new(&charge);
+            let timer = GasTimer::new(&mut charge.elapsed);
             trace.push(charge);
             res.map(|_| timer)
         } else {
