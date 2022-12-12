@@ -155,7 +155,8 @@ pub fn charge_for_init<K: Kernel>(
 
 /// Record the time it took to initialize a module.
 ///
-/// This is
+/// In practice this includes all the time elapsed since the `InvocationData` was created,
+/// ie. this is the first time we'll use the `last_charge_time`.
 pub fn record_init_time<K: Kernel>(
     ctx: &mut impl AsContextMut<Data = InvocationData<K>>,
     timer: GasTimer,
