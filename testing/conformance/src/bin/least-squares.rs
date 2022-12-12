@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Lines, Write};
