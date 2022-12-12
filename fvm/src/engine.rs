@@ -19,7 +19,7 @@ use wasmtime::{
 use crate::gas::{GasTimer, WasmGasPrices};
 use crate::machine::limiter::ExecMemory;
 use crate::machine::{Machine, NetworkConfig};
-use crate::syscalls::{bind_syscalls, charge_for_init, InvocationData};
+use crate::syscalls::{bind_syscalls, charge_for_init, record_init_time, InvocationData};
 use crate::Kernel;
 
 /// Container managing engines with different consensus-affecting configurations.
@@ -508,9 +508,15 @@ impl Engine {
             // pay for the minimum memory requirements. The module instrumentation in `inject` only
             // adds code to charge for _growing_ the memory, but not for the amount made accessible
             // initially. The limits are checked by wasmtime during instantiation, though.
-            charge_for_init(store, module)?;
+            let t = charge_for_init(store, module)?;
 
-            let inst = cache.linker.instantiate(store, module)?;
+            let inst = cache.linker.instantiate(&mut *store, module)?;
+
+            // Record the time it took for the linker to instantiate the module.
+            // This should also include everything that happens above in this method.
+            // Note that this does _not_ contain the time it took the load the Wasm file,
+            // which could have been cached already.
+            record_init_time(store, t);
 
             Ok(Some(inst))
         };

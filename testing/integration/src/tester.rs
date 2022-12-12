@@ -6,7 +6,7 @@ use fvm::call_manager::DefaultCallManager;
 use fvm::engine::EnginePool;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
-use fvm::machine::{DefaultMachine, Machine, NetworkConfig};
+use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
@@ -214,16 +214,23 @@ where
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
-        self.instantiate_machine_with_config(externs, |_| ())
+        self.instantiate_machine_with_config(externs, |_| (), |_| ())
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
     ///
-    /// The `configure` function allows the caller to adjust the `NetworkConfiguration` before
-    /// it's used to instantiate the rest of the components.
-    pub fn instantiate_machine_with_config<F>(&mut self, externs: E, configure: F) -> Result<()>
+    /// The `configure_nc` and `configure_mc` functions allows the caller to adjust the
+    /// `NetworkConfiguration` and `MachineContext` before they are used to instantiate
+    /// the rest of the components.
+    pub fn instantiate_machine_with_config<F, G>(
+        &mut self,
+        externs: E,
+        configure_nc: F,
+        configure_mc: G,
+    ) -> Result<()>
     where
         F: FnOnce(&mut NetworkConfig),
+        G: FnOnce(&mut MachineContext),
     {
         // Take the state tree and leave None behind.
         let mut state_tree = self.state_tree.take().unwrap();
@@ -242,14 +249,18 @@ where
         nc.enable_actor_debugging();
 
         // Custom configuration.
-        configure(&mut nc);
+        configure_nc(&mut nc);
 
         let mut mc = nc.for_epoch(0, 0, state_root);
         mc.set_base_fee(TokenAmount::from_atto(DEFAULT_BASE_FEE))
             .enable_tracing();
 
+        // Custom configuration.
+        configure_mc(&mut mc);
+
         let engine = EnginePool::new_default((&mc.network.clone()).into())?;
         engine.acquire().preload(&blockstore, &self.code_cids)?;
+
         let machine = DefaultMachine::new(&mc, blockstore, externs)?;
 
         let executor =
