@@ -4,10 +4,11 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
+use cid::{multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use super::errors::Error;
-use crate::{de, from_slice, ser, to_vec};
+use crate::{de, from_slice, ser, to_vec, DAG_CBOR};
 
 /// Cbor utility functions for serializable objects
 pub trait Cbor: ser::Serialize + de::DeserializeOwned {
@@ -19,6 +20,21 @@ pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Unmarshals cbor encoded bytes to object
     fn unmarshal_cbor(bz: &[u8]) -> Result<Self, Error> {
         from_slice(bz)
+    }
+
+    /// Returns the content identifier of the raw block of data
+    /// Default is Blake2b256 hash
+    fn cid(&self) -> Result<Cid, Error> {
+        use multihash::MultihashDigest;
+        const DIGEST_SIZE: u32 = 32; // TODO get from the multihash?
+        let data = &self.marshal_cbor()?;
+        let hash = multihash::Code::Blake2b256.digest(data);
+        debug_assert_eq!(
+            u32::from(hash.size()),
+            DIGEST_SIZE,
+            "expected 32byte digest"
+        );
+        Ok(Cid::new_v1(DAG_CBOR, hash))
     }
 }
 
