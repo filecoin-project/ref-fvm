@@ -124,7 +124,7 @@ where
 }
 
 fn on_hashing(p: OnHashingParams) -> Result<()> {
-    let h = p.hasher().ok_or(anyhow!("unknown hasher"))?;
+    let h = p.hasher().ok_or_else(|| anyhow!("unknown hasher"))?;
     let mut data = random_bytes(p.size, p.seed);
     for i in 0..p.iterations {
         random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
@@ -152,8 +152,8 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     }
 
     // Read the data back so we have stats about that too.
-    for i in 0..p.iterations {
-        let _ = fvm_sdk::ipld::get(&cids[i])?;
+    for k in cids.iter().take(p.iterations) {
+        let _ = fvm_sdk::ipld::get(k)?;
     }
 
     Ok(())
