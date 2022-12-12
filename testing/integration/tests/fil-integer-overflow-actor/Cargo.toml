@@ -5,9 +5,9 @@ edition = "2021"
 publish = false
 
 [dependencies]
-fvm_sdk = { version = "2.0.0", path = "../../../../sdk" }
+fvm_sdk = { version = "2.1.0", path = "../../../../sdk" }
 fvm_shared = { version = "2.0.0", path = "../../../../shared" }
-fvm_ipld_encoding = { version = "0.2.2", path = "../../../../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.2.3", path = "../../../../ipld/encoding" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../../../ipld/blockstore" }
 
 anyhow = "1.0.57"
