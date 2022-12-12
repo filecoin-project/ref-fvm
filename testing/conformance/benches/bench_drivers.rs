@@ -48,7 +48,8 @@ pub fn bench_vector_variant(
                 let vector = &(*vector).clone();
                 let bs = bs.clone();
                 // NOTE next few lines don't impact the benchmarks.
-                let machine = TestMachine::new_for_vector(vector, variant, bs, None).unwrap();
+                let machine =
+                    TestMachine::new_for_vector(vector, variant, bs, None, false, None).unwrap();
                 let engine = engines.get(&machine.context().network).unwrap();
                 // Preload the actors. We don't usually preload actors when testing, so we're going
                 // to do this explicitly.
@@ -106,14 +107,14 @@ pub fn bench_vector_file(
         // if we broke the test, it's not a valid optimization :P
         let testresult = match check_strength {
             CheckStrength::FullTest => {
-                run_variant(bs.clone(), vector, variant, engines, true, None).map_err(|e| {
-                    anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
-                })?
+                run_variant(bs.clone(), vector, variant, engines, true, None, None).map_err(
+                    |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
+                )?
             }
             CheckStrength::OnlyCheckSuccess => {
-                run_variant(bs.clone(), vector, variant, engines, false, None).map_err(|e| {
-                    anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
-                })?
+                run_variant(bs.clone(), vector, variant, engines, false, None, None).map_err(
+                    |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
+                )?
             }
             CheckStrength::NoChecks => VariantResult::Ok {
                 id: variant.id.clone(),

@@ -377,7 +377,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        self.charge_gas(self.price_list().on_create_actor(true))?;
+        let t = self.charge_gas(self.price_list().on_create_actor(true))?;
 
         if addr.is_bls_zero_address() {
             return Err(
@@ -403,6 +403,9 @@ where
             );
             syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
         })?;
+
+        // The cost of sending the message is measured independently.
+        t.stop();
 
         self.send_resolved::<K>(
             account_actor::SYSTEM_ACTOR_ID,
@@ -481,7 +484,7 @@ where
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         // Charge the method gas. Not sure why this comes second, but it does.
-        self.charge_gas(self.price_list().on_method_invocation(value, method))?;
+        let _ = self.charge_gas(self.price_list().on_method_invocation(value, method))?;
 
         // Transfer, if necessary.
         if !value.is_zero() {

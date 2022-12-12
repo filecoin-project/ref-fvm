@@ -2316,6 +2316,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "num_cpus",
+ "once_cell",
  "pretty_assertions",
  "quickcheck",
  "rand",

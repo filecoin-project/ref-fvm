@@ -129,7 +129,7 @@ where
 
                 // Charge for including the result (before we end the transaction).
                 if let Some(value) = &ret.value {
-                    cm.charge_gas(
+                    let _ = cm.charge_gas(
                         cm.context()
                             .price_list
                             .on_chain_return_value(value.size() as usize),

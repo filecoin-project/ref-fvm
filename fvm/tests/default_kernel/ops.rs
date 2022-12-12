@@ -448,12 +448,12 @@ mod gas {
         assert_eq!(kern.gas_available(), avaliable);
         assert_eq!(kern.gas_used(), Gas::new(0));
 
-        kern.charge_gas("charge 6 gas", Gas::new(6))?;
+        let _ = kern.charge_gas("charge 6 gas", Gas::new(6))?;
 
         assert_eq!(kern.gas_available(), Gas::new(4));
         assert_eq!(kern.gas_used(), Gas::new(6));
 
-        kern.charge_gas("refund 6 gas", Gas::new(-6))?;
+        let _ = kern.charge_gas("refund 6 gas", Gas::new(-6))?;
 
         assert_eq!(kern.gas_available(), avaliable);
         assert_eq!(kern.gas_used(), Gas::new(0));
@@ -493,7 +493,7 @@ mod gas {
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         // charge exactly as much as avaliable
-        kern.charge_gas("test test 123", test_gas)?;
+        let _ = kern.charge_gas("test test 123", test_gas)?;
         assert_eq!(kern.gas_used(), test_gas);
 
         // charge over by 1
@@ -506,9 +506,9 @@ mod gas {
         );
 
         // charge negative (refund) gas
-        kern.charge_gas("refund~", neg_test_gas)?;
+        let _ = kern.charge_gas("refund~", neg_test_gas)?;
         assert_eq!(kern.gas_used(), Gas::new(0));
-        kern.charge_gas("free gas!", neg_test_gas)?;
+        let _ = kern.charge_gas("free gas!", neg_test_gas)?;
 
         assert_eq!(
             kern.gas_used(),

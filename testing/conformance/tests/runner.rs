@@ -18,6 +18,7 @@ use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use fvm::machine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
+use fvm_conformance_tests::tracing::{TestTraceExporter, TestTraceExporterRef};
 use fvm_conformance_tests::vector::{MessageVector, Selector};
 use fvm_conformance_tests::vm::{TestStatsGlobal, TestStatsRef};
 use itertools::Itertools;
@@ -53,7 +54,7 @@ lazy_static! {
 
 lazy_static! {
     /// By default a post-condition error is fatal and stops all testing. We can use this env var to relax that
-    /// and let the test carry on (optionally with a warning); there's a correctness check agains the post condition anyway.
+    /// and let the test carry on (optionally with a warning); there's a correctness check against the post condition anyway.
     static ref TEST_VECTOR_POSTCONDITION_MISSING_ACTION: ErrorAction = std::env::var_os("TEST_VECTOR_POSTCONDITION_MISSING_ACTION")
         .map(|s| {
             let s = s.to_str().unwrap();
@@ -71,11 +72,17 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let path = Path::new(path.as_str()).to_path_buf();
     let stats = TestStatsGlobal::new_ref();
 
+    // Optionally create a component to export gas charge traces.
+    let tracer = std::env::var("TRACE_DIR")
+        .ok()
+        .map(|path| TestTraceExporter::new(Path::new(path.as_str()).to_path_buf()));
+
     let vector_results = if path.is_file() {
         let stats = stats.clone();
+        let tracer = tracer.clone();
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines, stats)
+                let res = run_vector(path.clone(), engines, stats, tracer)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -90,9 +97,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .map(|e| {
                     let engines = engines.clone();
                     let stats = stats.clone();
+                    let tracer = tracer.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engines, stats)
+                        let res = run_vector(path.clone(), engines, stats, tracer)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -170,6 +178,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         );
     }
 
+    if let Some(ref tracer) = tracer {
+        tracer.export_tombstones()?;
+    }
+
     if failed > 0 {
         Err(anyhow!("some vectors failed"))
     } else {
@@ -183,6 +195,7 @@ async fn run_vector(
     path: PathBuf,
     engines: MultiEngine,
     stats: TestStatsRef,
+    tracer: TestTraceExporterRef,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -264,9 +277,11 @@ async fn run_vector(
                         let v = v.clone();
                         let bs = bs.clone();
                         let engines = engines.clone();
-                        let name =
-                            format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
+                        let path = path.clone();
+                        let variant_id = v.preconditions.variants[i].id.clone();
+                        let name = format!("{} | {}", path.display(), variant_id);
                         let stats = stats.clone();
+                        let tracer = tracer.clone();
                         futures::future::Either::Right(
                             task::Builder::new()
                                 .name(name.clone())
@@ -278,6 +293,7 @@ async fn run_vector(
                                         &engines,
                                         true,
                                         stats,
+                                        tracer.map(|t| t.export_fun(path, variant_id)),
                                     )
                                     .with_context(|| format!("failed to run {name}"))
                                 })

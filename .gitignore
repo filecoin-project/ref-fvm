@@ -2,5 +2,6 @@ target
 *.wat
 *.wasm
 !testing/integration/tests/assets/*
+testing/conformance/traces
 .idea/
 lcov.info

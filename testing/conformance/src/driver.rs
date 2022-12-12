@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::fmt;
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -16,11 +17,13 @@ use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::version::NetworkVersion;
 use lazy_static::lazy_static;
 use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
 
+use crate::tracing::TestTraceFun;
 use crate::vector::{MessageVector, Variant};
 use crate::vm::{TestKernel, TestMachine, TestStatsRef};
 
@@ -34,6 +37,15 @@ lazy_static! {
         // USR_ILLEGAL_ARGUMENT instead of USR_NOT_FOUND. Not sure why; disabled so other errors can be seen in CI.
         ".*/specs_actors_v7/TestWrongPartitionIndexFailure/b4e5b1bb610305fc8cf81bfb859c76b9acdacb109a591354e7a6b43bb8e7b61f.*",
     ].into_iter().map(|re| Regex::new(re).unwrap()).collect();
+}
+
+lazy_static! {
+    /// Override prices with a different network version.
+    static ref PRICE_NETWORK_VERSION: Option<NetworkVersion> = std::env::var("PRICE_NETWORK_VERSION").ok()
+        .map(|nv| {
+            let nv = nv.parse::<u32>().expect("PRICE_NETWORK_VERSION should be a number");
+            NetworkVersion::try_from(nv).expect("unknown price network version")
+        });
 }
 
 /// Checks if the file is a runnable vector.
@@ -194,16 +206,30 @@ pub fn run_variant(
     v: &MessageVector,
     variant: &Variant,
     engines: &MultiEngine,
-    check_correctness: bool,
+    mut check_correctness: bool,
     stats: TestStatsRef,
+    trace: Option<TestTraceFun>,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
+    // We can't expect gas as the final state to match if we apply a price override.
+    if PRICE_NETWORK_VERSION.is_some() {
+        check_correctness = false;
+    }
+
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, stats)?;
+    let machine = TestMachine::new_for_vector(
+        v,
+        variant,
+        bs,
+        stats,
+        trace.is_some(),
+        *PRICE_NETWORK_VERSION,
+    )?;
     let engine = engines
         .get(&machine.context().network)
         .map_err(|e| anyhow!(e))?;
+
     // Preload the actors. We don't usually preload actors when testing, so we're going to do
     // this explicitly.
     engine
@@ -213,7 +239,9 @@ pub fn run_variant(
             machine.builtin_actors().builtin_actor_codes(),
         )
         .unwrap();
+
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(engine, machine)?;
+    let mut rets = Vec::new();
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
@@ -226,6 +254,7 @@ pub fn run_variant(
             raw_length += SECP_SIG_LEN + 4;
         }
 
+        let start = Instant::now();
         let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
@@ -238,6 +267,8 @@ pub fn run_variant(
                 return Ok(VariantResult::Failed { id, reason: err });
             }
         }
+
+        rets.push((start.elapsed(), ret));
     }
 
     // Flush the machine, obtain the blockstore, and compare the
@@ -270,6 +301,13 @@ pub fn run_variant(
                 reason: err.context("comparing state roots failed"),
             });
         }
+    }
+
+    // Exporting now when all checks have passed, so we don't have any results for (partial) Failures
+    // where the overall gas expenditure might contain punishments for error, rather than fair charge for exec.
+    // NOTE: This was the intention, but correctness checks had to be disabled to get some gas for Wasm.
+    if let Some(f) = trace {
+        f(rets)?;
     }
 
     Ok(VariantResult::Ok { id })
