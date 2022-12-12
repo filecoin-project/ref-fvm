@@ -27,7 +27,7 @@ use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
-use crate::{account_actor, syscall_error, system_actor};
+use crate::{syscall_error, system_actor};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
@@ -424,34 +424,6 @@ where
         Ok(id)
     }
 
-    fn transform_into_eoa<K>(&mut self, addr: ActorID, actor: ActorState) -> Result<()>
-    where
-        K: Kernel<CallManager = Self>,
-    {
-        self.charge_gas(self.price_list().on_create_actor(false))?;
-
-        // Transform the actor code CID into the EOA code CID.
-        let eoa_code_cid = self.builtin_actors().get_eoa_code();
-        self.state_tree_mut().set_actor(
-            addr,
-            ActorState {
-                code: eoa_code_cid,
-                ..actor
-            },
-        )?;
-
-        // Now invoke the constructor.
-        self.send_resolved::<K>(
-            system_actor::SYSTEM_ACTOR_ID,
-            addr,
-            fvm_shared::METHOD_CONSTRUCTOR,
-            None,
-            &TokenAmount::zero(),
-        )?;
-
-        Ok(())
-    }
-
     fn create_embryo_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
@@ -477,14 +449,6 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        let from_actor = self.state_tree().get_actor(from)?.ok_or_else(Err(
-            syscall_error!(NotFound; "sender does not exist: {}", to).into(),
-        ))?;
-
-        if self.builtin_actors().is_embryo_actor(from_actor.code) {
-            self.transform_into_eoa(from, from_actor)?;
-        }
-
         // Get the receiver; this will resolve the address.
         let to = match self.state_tree().lookup_id(&to)? {
             Some(addr) => addr,

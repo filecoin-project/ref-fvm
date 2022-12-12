@@ -213,7 +213,7 @@ impl Manifest {
         &self.embryo_code
     }
 
-    /// Returns the code CID for the EOA actor.
+    /// Returns the code CID for the Ethereum EOA actor.
     pub fn get_eoa_code(&self) -> &Cid {
         &self.eoa_code
     }
