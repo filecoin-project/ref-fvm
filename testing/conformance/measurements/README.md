@@ -32,5 +32,6 @@ After this the TRACES_DIR directory will contain:
 You can use the `Makefile` to produce charts in the `./out` directory. It assumes the traces are in `../traces`.
 
 ```shell
+cd testing/conformance/measurements
 make all
 ```

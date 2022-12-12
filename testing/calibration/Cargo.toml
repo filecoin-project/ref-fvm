@@ -1,10 +1,10 @@
 [package]
-name = "fvm_integration_tests"
-description = "Filecoin Virtual Machine integration tests framework"
-version = "2.0.0-alpha.2"
+name = "fvm_gas_calibration"
+description = "Filecoin Virtual Machine gas calibration"
+version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
+authors = ["Protocol Labs", "Filecoin Core Devs"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
@@ -15,6 +15,10 @@ fvm_ipld_amt = { version = "0.4.2", path = "../../ipld/amt" }
 fvm_ipld_car = { version = "0.5.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.2.2", path = "../../ipld/encoding" }
+fvm_integration_tests = { path = "../integration" }
+
+actors-v9 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors" }
+fil_gas_calibration_actor = { path = "contract/fil-gas-calibration-actor" }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
@@ -26,27 +30,18 @@ libsecp256k1 = "0.7.0"
 rand = "0.8.5"
 rand_chacha = "0.3"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_tuple = "0.5"
 serde_repr = "0.1"
 thiserror = "1.0.30"
+bls-signatures = { version = "0.13" }
+blake2b_simd = "1.0.0"
+
 
 [dependencies.wasmtime]
 version = "2.0.1"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
-
-[dev-dependencies]
-wabt = "0.10.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-fil_hello_world_actor = { path = 'tests/fil-hello-world-actor' }
-fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor' }
-fil_ipld_actor = { path = 'tests/fil-ipld-actor' }
-fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor" }
-fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor" }
-fil_syscall_actor = { path = "tests/fil-syscall-actor" }
-
-actors-v9 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors" }
 
 [features]
 default = ["fvm/testing", "fvm_shared/testing"]

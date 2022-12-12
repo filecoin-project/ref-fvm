@@ -20,7 +20,7 @@ The following flow has been defined as a default usage:
 at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
 
-TODO: (hack to get coverage reports from actors + integration tests) 
+TODO: (hack to get coverage reports from actors + integration tests)
 ```bash
 cargo build -p "*actor"
 export SKIP_WASM_BUILD=true

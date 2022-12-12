@@ -22,6 +22,7 @@ OVERALL_TVG_PNG := $(OVERALL_DIR)/time-vs-gas.png
 all:
 	$(MAKE) prepare
 	$(MAKE) visualize
+	$(MAKE) regression
 
 .PHONY: prepare
 prepare: \
@@ -32,6 +33,10 @@ visualize: \
 	$(OVERALL_TVG_PNG) \
 	$(CHARGES_TVG_PNG) \
 	$(CHARGES_TVG_SUMMED_PNG) \
+
+.PHONY: regression
+regression: $(OUT_DIR)/regression.jsonline
+
 
 # Concatenate all traces as-is
 $(TRACES_MERGED): $(TRACES_JSON)
