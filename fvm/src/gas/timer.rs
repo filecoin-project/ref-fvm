@@ -1,6 +1,7 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
+use minstant::Instant;
 use once_cell::sync::OnceCell;
 
 /// Shared reference between the duration and the timer.

@@ -69,6 +69,11 @@ test = false
 bench = false
 required-features = ["vtune"]
 
+[[bin]]
+name = "least-squares"
+test = false
+bench = false
+
 [[bench]]
 name = "bench_conformance"
 harness = false
