@@ -17,6 +17,18 @@ struct Args {
     #[arg(short, long, default_value = "fevm")]
     mode: String,
 
+    /// Emit debug logs
+    #[arg(short, long, default_value = "false")]
+    debug: bool,
+
+    /// Emit detailed gas tracing information
+    #[arg(short, long, default_value = "false")]
+    trace: bool,
+
+    /// Emit user generated logs
+    #[arg(short, long, default_value = "false")]
+    events: bool,
+
     /// Builtin actors bundle to use.
     #[arg(short, long)]
     bundle: String,
@@ -31,8 +43,19 @@ struct Args {
     params: String,
 }
 
+pub struct Options {
+    pub debug: bool,
+    pub trace: bool,
+    pub events: bool,
+}
+
 fn main() {
     let args = Args::parse();
+    let options = Options {
+        debug: args.debug,
+        trace: args.trace,
+        events: args.events,
+    };
     let mut blockstore = MemoryBlockstore::default();
     let bundle_cid = match bundle::import_bundle(&mut blockstore, args.bundle.as_str()) {
         Ok(cid) => cid,
@@ -66,7 +89,7 @@ fn main() {
                 exit_with_error(format!("error decoding contract entrypoint: {}", what));
             });
 
-            fevm::run(&mut tester, &contract, &entrypoint, &params).unwrap_or_else(|what| {
+            fevm::run(&mut tester, &options, &contract, &entrypoint, &params).unwrap_or_else(|what| {
                 exit_with_error(format!(" contract execution failed: {}", what));
             });
         }

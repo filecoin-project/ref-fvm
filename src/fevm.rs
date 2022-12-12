@@ -6,15 +6,18 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{strict_bytes, to_vec, tuple::*, BytesDe, BytesSer, Cbor, RawBytes};
 use fvm_shared::{address::Address, message::Message, ActorID, METHOD_CONSTRUCTOR};
 
+use crate::Options;
+
 pub fn run<B: Blockstore>(
     tester: &mut Tester<B, DummyExterns>,
+    options: &Options,
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
 ) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
     tester
-        .instantiate_machine_with_config(DummyExterns, |cfg| cfg.actor_debugging = false)
+        .instantiate_machine_with_config(DummyExterns, |cfg| {cfg.actor_debugging = options.debug})
         .unwrap();
 
     // create actor
@@ -82,6 +85,20 @@ pub fn run<B: Blockstore>(
 
     println!("Result: {}", hex::encode(invoke_result));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
+
+    if options.trace {
+        println!("Execution trace:");
+        for tr in invoke_res.exec_trace {
+            println!("{:?}", tr)
+        }
+    }
+
+    if options.events {
+        println!("Execution events:");
+        for evt in invoke_res.events {
+            println!("{:?}", evt)
+        }
+    }
 
     Ok(())
 }
