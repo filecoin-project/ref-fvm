@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 
-#[cfg(feature = "f4-as-account")]
 #[test]
 fn embryo_as_sender() {
     use bundles::*;

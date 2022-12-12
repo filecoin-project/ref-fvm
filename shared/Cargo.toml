@@ -48,7 +48,6 @@ multihash = { version = "0.16.3", default-features = false, features = ["multiha
 
 [features]
 default = []
-f4-as-account = ["sha3"]
 crypto = ["libsecp256k1", "blst", "proofs"]
 proofs = ["filecoin-proofs-api"]
 secp256k1 = ["libsecp256k1"]

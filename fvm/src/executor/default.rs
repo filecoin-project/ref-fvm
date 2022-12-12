@@ -24,6 +24,7 @@ use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::state_tree::ActorState;
 use crate::system_actor::SYSTEM_ACTOR_ID;
 use crate::trace::ExecutionTrace;
+use crate::EMPTY_ARR_CID;
 
 /// The default [`Executor`].
 ///
@@ -141,6 +142,8 @@ where
                             sender_id,
                             ActorState {
                                 code: eoa_code_cid,
+                                // We zero out the state so that the constructor can create the new state object
+                                state: *EMPTY_ARR_CID,
                                 ..sender_state
                             },
                         )?;
@@ -158,7 +161,10 @@ where
                         // If we _failed_ to deploy the EOA actor, we abort early.
                         // If we succeeded, proceed to the actual invocation.
                         if !ret.exit_code.is_success() {
-                            return Ok(ret);
+                            return Ok(InvocationResult {
+                                exit_code: ExitCode::SYS_SENDER_INVALID,
+                                value: None,
+                            });
                         }
                     }
                 }

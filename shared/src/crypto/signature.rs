@@ -159,10 +159,8 @@ pub mod ops {
     };
 
     use super::{Error, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
-    use crate::address::{Address, Payload, Protocol};
+    use crate::address::{Address, Protocol};
     use crate::crypto::signature::Signature;
-
-    const EAM_ACTOR_ID: u64 = 10;
 
     /// Returns `String` error if a bls signature is invalid.
     pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
@@ -198,16 +196,11 @@ pub mod ops {
         data: &[u8],
         addr: &Address,
     ) -> Result<(), String> {
-        match addr.payload() {
-            Payload::Secp256k1(_) => {}
-            #[cfg(feature = "f4-as-account")]
-            Payload::Delegated(addr) if addr.namespace() == EAM_ACTOR_ID => {}
-            _ => {
-                return Err(format!(
-                    "cannot validate a secp256k1 signature against a {} address",
-                    addr.protocol()
-                ))
-            }
+        if addr.protocol() != Protocol::Secp256k1 {
+            return Err(format!(
+                "cannot validate a secp256k1 signature against a {} address",
+                addr.protocol()
+            ));
         }
 
         if signature.len() != SECP_SIG_LEN {
@@ -223,18 +216,12 @@ pub mod ops {
             .to_state()
             .update(data)
             .finalize();
-        let hash = hash.as_bytes().try_into().expect("fixed array size");
 
         // Ecrecover with hash and signature
         let mut sig = [0u8; SECP_SIG_LEN];
         sig[..].copy_from_slice(signature);
-        let rec_addr = match addr.protocol() {
-            Protocol::Secp256k1 => ecrecover(hash, &sig),
-            #[cfg(feature = "f4-as-account")]
-            Protocol::Delegated => ecrecover_fevm(hash, &sig),
-            _ => unreachable!(),
-        }
-        .map_err(|e| e.to_string())?;
+        let rec_addr = ecrecover(hash.as_bytes().try_into().expect("fixed array size"), &sig)
+            .map_err(|e| e.to_string())?;
 
         // check address against recovered address
         if &rec_addr == addr {
@@ -299,21 +286,6 @@ pub mod ops {
         let key = recover_secp_public_key(hash, signature)?;
         let ret = key.serialize();
         let addr = Address::new_secp256k1(&ret)?;
-        Ok(addr)
-    }
-
-    #[cfg(feature = "f4-as-account")]
-    pub fn ecrecover_fevm(
-        hash: &[u8; 32],
-        signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<Address, Error> {
-        use sha3::Digest;
-        let pubkey = recover_secp_public_key(hash, signature)?.serialize();
-        let mut hasher = sha3::Keccak256::default();
-        hasher.update(&pubkey[1..]);
-        let digest = hasher.finalize();
-
-        let addr = Address::new_delegated(EAM_ACTOR_ID, &digest[12..])?;
         Ok(addr)
     }
 

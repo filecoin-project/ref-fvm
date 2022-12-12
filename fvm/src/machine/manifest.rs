@@ -70,6 +70,7 @@ impl Manifest {
         ("system", id_cid(b"fil/test/system")),
         ("init", id_cid(b"fil/test/init")),
         ("eam", id_cid(b"fil/test/eam")),
+        ("eoa", id_cid(b"fil/test/eam")),
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
         ("embryo", id_cid(b"fil/test/embryo")),
