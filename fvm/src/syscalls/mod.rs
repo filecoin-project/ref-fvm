@@ -157,12 +157,13 @@ pub fn charge_for_init<K: Kernel>(
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
     data.last_memory_bytes += min_memory_bytes;
-    data.last_charge_time = GasTimer::start();
 
     if let Some(min_table_elements) = min_table_elements(module) {
         let table_gas = data.kernel.price_list().init_table_gas(min_table_elements);
-        data.kernel.charge_gas("wasm_table_init", table_gas)?;
+        let t = data.kernel.charge_gas("wasm_table_init", table_gas)?;
+        t.stop_with(data.last_charge_time);
     }
+    data.last_charge_time = GasTimer::start();
 
     Ok(())
 }

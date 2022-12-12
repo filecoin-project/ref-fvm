@@ -23,6 +23,7 @@ use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::ParallelDrainRange;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -139,12 +140,13 @@ where
     C: CallManager,
 {
     fn root(&self) -> Result<Cid> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_root())?;
 
         // This can fail during normal operations if the actor has been deleted.
-        let cid = self
-            .get_self()?
+        let cid = t
+            .record(self.get_self())?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
@@ -153,21 +155,23 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_set_root())?;
 
-        self.mutate_self(|actor_state| {
+        t.record(self.mutate_self(|actor_state| {
             actor_state.state = new;
             Ok(())
-        })
+        }))
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_current_balance())?;
 
         // If the actor doesn't exist, it has zero balance.
-        Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default())
+        t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
@@ -332,10 +336,11 @@ where
     C: CallManager,
 {
     fn msg_context(&self) -> Result<MessageContext> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_message_context())?;
 
-        Ok(MessageContext {
+        let ctx = MessageContext {
             caller: self.caller,
             origin: self.call_manager.origin(),
             receiver: self.actor_id,
@@ -356,7 +361,9 @@ where
                 ContextFlags::empty()
             },
             nonce: self.call_manager.nonce(),
-        })
+        };
+        t.stop();
+        Ok(ctx)
     }
 }
 
@@ -581,19 +588,22 @@ where
     }
 
     fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
-        for vi in vis {
-            self.call_manager
-                .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
-        }
         // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
         // Lotus charges "virtual" gas here for tracing only.
+        let mut items = Vec::new();
+        for vi in vis {
+            let t = self
+                .call_manager
+                .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
+            items.push((vi, t));
+        }
         log::debug!("batch verify seals start");
-        let out = vis
-            .par_iter()
+        let out = items.par_drain(..)
             .with_min_len(vis.len() / *NUM_CPUS)
-            .map(|seal| {
+            .map(|(seal, timer)| {
+                let start = GasTimer::start();
                 let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));
-                match verify_seal_result {
+                let ok = match verify_seal_result {
                     Ok(res) => {
                         match res {
                             Ok(correct) => {
@@ -619,7 +629,9 @@ where
                         log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
                         false
                     }
-                }
+                };
+                timer.stop_with(start);
+                ok
             })
             .collect();
         log::debug!("batch verify seals end");
@@ -675,7 +687,8 @@ where
     C: CallManager,
 {
     fn network_context(&self) -> Result<NetworkContext> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_network_context())?;
 
         let MachineContext {
@@ -690,7 +703,8 @@ where
                 },
             ..
         } = self.call_manager.context();
-        Ok(NetworkContext {
+
+        let ctx = NetworkContext {
             chain_id: (*chain_id).into(),
             epoch: *epoch,
             network_version: *network_version as u32,
@@ -699,7 +713,10 @@ where
                 .try_into()
                 .or_fatal()
                 .context("base-fee exceeds u128 limit")?,
-        })
+        };
+
+        t.stop();
+        Ok(ctx)
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
@@ -772,28 +789,30 @@ where
     C: CallManager,
 {
     fn resolve_address(&self, address: &Address) -> Result<ActorID> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_resolve_address())?;
 
-        Ok(self
+        t.record(Ok(self
             .call_manager
             .state_tree()
             .lookup_id(address)?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?)
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?))
     }
 
     fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_get_actor_code_cid())?;
 
-        Ok(self
+        t.record(Ok(self
             .call_manager
             .state_tree()
             .get_actor(id)
             .context("failed to lookup actor to get code CID")
             .or_fatal()?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .code)
+            .code))
     }
 
     fn next_actor_address(&self) -> Result<Address> {
@@ -866,67 +885,82 @@ where
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_get_builtin_actor_type())?;
 
-        Ok(self
+        let id = self
             .call_manager
             .machine()
             .builtin_actors()
-            .id_by_code(code_cid))
+            .id_by_code(code_cid);
+
+        t.stop();
+        Ok(id)
     }
 
     fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_get_code_cid_for_type())?;
 
-        self.call_manager
-            .machine()
-            .builtin_actors()
-            .code_by_id(typ)
-            .cloned()
-            .context("tried to resolve CID of unrecognized actor type")
-            .or_illegal_argument()
+        t.record(
+            self.call_manager
+                .machine()
+                .builtin_actors()
+                .code_by_id(typ)
+                .cloned()
+                .context("tried to resolve CID of unrecognized actor type")
+                .or_illegal_argument(),
+        )
     }
 
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
+        let start = GasTimer::start();
         let size = self
             .call_manager
             .engine
             .preload(self.call_manager.blockstore(), &[code_id])
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code"))?;
 
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
+        t.stop_with(start);
 
         Ok(())
     }
 
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_balance_of())?;
 
-        let balance = self
-            .call_manager
-            .state_tree()
-            .get_actor(actor_id)
-            .context("cannot find actor")?
+        let balance = t
+            .record(
+                self.call_manager
+                    .state_tree()
+                    .get_actor(actor_id)
+                    .context("cannot find actor"),
+            )?
             .map(|a| a.balance)
             .unwrap_or_default();
+
         Ok(balance)
     }
 
     fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_lookup_address())?;
 
-        Ok(self
-            .call_manager
-            .state_tree()
-            .get_actor(actor_id)?
+        let address = t
+            .record(self.call_manager.state_tree().get_actor(actor_id))?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .address)
+            .address;
+
+        Ok(address)
     }
 }
 
@@ -1009,7 +1043,8 @@ where
     C: CallManager,
 {
     fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
 
         // TODO eventually validate entries
@@ -1017,6 +1052,7 @@ where
 
         let evt = StampedEvent::new(self.actor_id, evt);
         self.call_manager.append_event(evt);
+        t.stop();
         Ok(())
     }
 }
