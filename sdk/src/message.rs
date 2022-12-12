@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 
-use fvm_ipld_encoding::DAG_CBOR;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::sys::{BlockId, Codec};
+use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::vm::INVOCATION_CONTEXT;
@@ -35,13 +35,16 @@ pub fn value_received() -> TokenAmount {
         .expect("invalid bigint")
 }
 
-/// Returns the message codec and parameters.
-pub fn params_raw(id: BlockId) -> SyscallResult<(Codec, Vec<u8>)> {
+/// Returns the message parameters as an Option<IpldBlock>.
+pub fn params_raw(id: BlockId) -> SyscallResult<Option<IpldBlock>> {
     if id == NO_DATA_BLOCK_ID {
-        return Ok((DAG_CBOR, Vec::default())); // DAG_CBOR is a lie, but we have no nil codec.
+        return Ok(None);
     }
     unsafe {
         let fvm_shared::sys::out::ipld::IpldStat { codec, size } = sys::ipld::block_stat(id)?;
-        Ok((codec, crate::ipld::get_block(id, Some(size))?))
+        Ok(Some(IpldBlock {
+            codec,
+            data: crate::ipld::get_block(id, Some(size))?,
+        }))
     }
 }

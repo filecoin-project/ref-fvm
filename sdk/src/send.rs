@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::ipld_block::IpldBlock;
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -15,7 +16,7 @@ use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 pub fn send(
     to: &Address,
     method: MethodNum,
-    params: RawBytes,
+    params: Option<IpldBlock>,
     value: TokenAmount,
 ) -> SyscallResult<Receipt> {
     let recipient = to.to_bytes();
@@ -25,10 +26,9 @@ pub fn send(
     unsafe {
         // Insert parameters as a block. Nil parameters is represented as the
         // NO_DATA_BLOCK_ID block ID in the FFI interface.
-        let params_id = if params.len() > 0 {
-            sys::ipld::block_create(DAG_CBOR, params.as_ptr(), params.len() as u32)?
-        } else {
-            NO_DATA_BLOCK_ID
+        let params_id = match params {
+            Some(p) => sys::ipld::block_create(p.codec, p.data.as_ptr(), p.data.len() as u32)?,
+            None => NO_DATA_BLOCK_ID,
         };
 
         // Perform the syscall to send the message.
