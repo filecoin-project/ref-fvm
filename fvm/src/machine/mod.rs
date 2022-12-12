@@ -19,6 +19,7 @@ use crate::state_tree::{ActorState, StateTree};
 mod default;
 
 pub use default::DefaultMachine;
+use fvm_shared::chainid::ChainID;
 
 pub mod limiter;
 mod manifest;
@@ -34,28 +35,6 @@ pub const REWARD_ACTOR_ID: ActorID = 2;
 
 /// Distinguished Account actor that is the destination of all burnt funds.
 pub const BURNT_FUNDS_ACTOR_ID: ActorID = 99;
-
-#[derive(Clone, Copy, Debug)]
-pub struct ChainID(u64);
-
-impl ChainID {
-    pub const ZERO: Self = Self(0);
-    pub const WALLABY: Self = Self(31415);
-    pub const CALIBRATION: Self = Self(314159);
-    pub const CATERPILLER_BUTTERFLY: Self = Self(3141592);
-}
-
-impl From<u64> for ChainID {
-    fn from(src: u64) -> Self {
-        Self(src)
-    }
-}
-
-impl From<ChainID> for u64 {
-    fn from(src: ChainID) -> Self {
-        src.0
-    }
-}
 
 /// The Machine is the top-level object of the FVM.
 ///
@@ -175,7 +154,7 @@ impl NetworkConfig {
     /// Create a new network config for the given network version.
     pub fn new(network_version: NetworkVersion) -> Self {
         NetworkConfig {
-            chain_id: ChainID::ZERO,
+            chain_id: ChainID::from(0u64),
             network_version,
             max_call_depth: 1024,
             max_wasm_stack: 2048,

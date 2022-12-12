@@ -3,6 +3,7 @@
 use std::convert::TryInto;
 
 use cid::Cid;
+use fvm_shared::chainid::ChainID;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -21,8 +22,8 @@ lazy_static::lazy_static! {
     };
 }
 
-pub fn chain_id() -> u64 {
-    NETWORK_CONTEXT.chain_id
+pub fn chain_id() -> ChainID {
+    NETWORK_CONTEXT.chain_id.into()
 }
 
 pub fn curr_epoch() -> ChainEpoch {

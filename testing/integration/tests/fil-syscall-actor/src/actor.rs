@@ -3,6 +3,7 @@
 use actors_v10_runtime::runtime::builtins::Type;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
+use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::error::ExitCode;
 use multihash::derive::Multihash;
@@ -219,7 +220,7 @@ fn test_hash_syscall() {
 fn test_network_context() {
     use fvm_shared::econ::TokenAmount;
     use fvm_shared::version::NetworkVersion;
-    assert_eq!(sdk::network::chain_id(), 1); // hehe we are ETH now
+    assert_eq!(sdk::network::chain_id(), ChainID::from(1)); // hehe we are ETH now
     assert_eq!(sdk::network::curr_epoch(), 0);
     assert_eq!(sdk::network::version(), NetworkVersion::V18);
     assert_eq!(sdk::network::tipset_timestamp(), 0);
