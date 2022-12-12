@@ -3,7 +3,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
-use crate::gas::{GasCharge, GasTracker, PriceList};
+use crate::gas::{GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
@@ -116,9 +116,8 @@ pub trait CallManager: 'static {
     }
 
     /// Charge gas.
-    fn charge_gas(&mut self, charge: GasCharge) -> Result<()> {
-        self.gas_tracker_mut().apply_charge(charge)?;
-        Ok(())
+    fn charge_gas(&mut self, charge: GasCharge) -> Result<GasTimer> {
+        self.gas_tracker_mut().apply_charge(charge)
     }
 
     /// Limit memory usage throughout a message execution.

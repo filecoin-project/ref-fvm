@@ -5,7 +5,7 @@ use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
 use crate::call_manager::backtrace;
-use crate::gas::Gas;
+use crate::gas::{Gas, GasInstant, GasTimer};
 use crate::kernel::ExecutionError;
 use crate::machine::limiter::ExecMemory;
 use crate::Kernel;
@@ -37,6 +37,8 @@ pub struct InvocationData<K> {
     pub last_error: Option<backtrace::Cause>,
 
     /// The global containing remaining available gas.
+    ///
+    /// The counter is injected by [fvm_wasm_instrument::gas_metering::inject] called by `Engine::load_raw`.
     pub avail_gas_global: Global,
 
     /// The last-set milligas limit. When `charge_for_exec` is called, we charge for the
@@ -47,10 +49,15 @@ pub struct InvocationData<K> {
     /// The total size of the memory used by the execution the last time we charged gas for it.
     pub last_memory_bytes: usize,
 
+    /// Last time we charged for gas; it can be used to correlate gas with time.
+    pub last_charge_time: GasInstant,
+
     /// The invocation's imported "memory".
     pub memory: Memory,
 }
 
+/// Updates the global available gas in the Wasm module after a syscall, to account for any
+/// gas consumption that happened on the host side.
 pub fn update_gas_available(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
@@ -63,6 +70,10 @@ pub fn update_gas_available(
         .map_err(|e| Abort::Fatal(anyhow!("failed to set available gas global: {}", e)))?;
 
     ctx.data_mut().last_milligas_available = avail_milligas;
+
+    // Also adjust the instant we use in `charge_for_exec` to measure wasm execution time.
+    ctx.data_mut().last_charge_time = GasTimer::start();
+
     Ok(())
 }
 
@@ -96,16 +107,28 @@ pub fn charge_for_exec<K: Kernel>(
 
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());
 
-    data.kernel
+    let t = data
+        .kernel
         .charge_gas("wasm_exec", exec_gas)
         .map_err(Abort::from_error_as_fatal)?;
 
+    // It should be okay to record time associated with Wasm execution because `charge_for_exec` is called
+    // before syscalls `impl_bind_syscalls`, so the syscall timings are going to be interleaved, rather than
+    // nested inside it. But we also have to make sure to reset the timer after each syscall, when Wasm resumes,
+    // which happens in `update_gas_available`.
+    t.stop_with(data.last_charge_time);
+    data.last_charge_time = GasTimer::start();
+    data.last_memory_bytes = memory_bytes;
+
     if !memory_gas.is_zero() {
-        data.kernel
+        // Only recording time for the execution, not for the memory part, which is unknown.
+        // But we could perform stomething like a multi-variate linear regression to see if the amount of
+        // memory explains any of the exectuion time.
+        let _ = data
+            .kernel
             .charge_gas("wasm_memory_grow", memory_gas)
             .map_err(Abort::from_error_as_fatal)?;
     }
-    data.last_memory_bytes = memory_bytes;
 
     Ok(())
 }
@@ -121,15 +144,17 @@ pub fn charge_for_init<K: Kernel>(
 ) -> crate::kernel::Result<()> {
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
-    let kernel = &mut ctx.data_mut().kernel;
-    let memory_gas = kernel.price_list().init_memory_gas(min_memory_bytes);
+    let data = ctx.data_mut();
+    let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
 
     if !memory_gas.is_zero() {
-        kernel.charge_gas("wasm_memory_init", memory_gas)?;
+        let t = data.kernel.charge_gas("wasm_memory_init", memory_gas)?;
+        t.stop_with(data.last_charge_time);
     }
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
-    ctx.data_mut().last_memory_bytes += min_memory_bytes;
+    data.last_memory_bytes += min_memory_bytes;
+    data.last_charge_time = GasTimer::start();
 
     Ok(())
 }

@@ -9,11 +9,13 @@ use num_traits::Zero;
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
 pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
+pub use self::timer::{GasInstant, GasTimer};
 use crate::kernel::{ExecutionError, Result};
 
 mod charge;
 mod outputs;
 mod price_list;
+mod timer;
 
 pub const MILLIGAS_PRECISION: i64 = 1000;
 
@@ -186,21 +188,28 @@ impl GasTracker {
 
     /// Safely consumes gas and returns an out of gas error if there is not sufficient
     /// enough gas remaining for charge.
-    pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<()> {
+    pub fn charge_gas(&mut self, name: &str, to_use: Gas) -> Result<GasTimer> {
         let res = self.charge_gas_inner(name, to_use);
         if let Some(trace) = &mut self.trace {
-            trace.push(GasCharge::new(name.to_owned(), to_use, Gas::zero()))
+            let mut charge = GasCharge::new(name.to_owned(), to_use, Gas::zero());
+            let timer = GasTimer::new(&mut charge.elapsed);
+            trace.push(charge);
+            res.map(|_| timer)
+        } else {
+            res.map(|_| GasTimer::empty())
         }
-        res
     }
 
     /// Applies the specified gas charge, where quantities are supplied in milligas.
-    pub fn apply_charge(&mut self, charge: GasCharge) -> Result<()> {
+    pub fn apply_charge(&mut self, mut charge: GasCharge) -> Result<GasTimer> {
         let res = self.charge_gas_inner(&charge.name, charge.total());
         if let Some(trace) = &mut self.trace {
+            let timer = GasTimer::new(&mut charge.elapsed);
             trace.push(charge);
+            res.map(|_| timer)
+        } else {
+            res.map(|_| GasTimer::empty())
         }
-        res
     }
 
     /// Getter for the maximum gas usable by this message.
@@ -249,9 +258,9 @@ mod tests {
     #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
         let mut t = GasTracker::new(Gas::new(20), Gas::new(10));
-        t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
+        let _ = t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(15));
-        t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
+        let _ = t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(20));
         assert!(t
             .apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))

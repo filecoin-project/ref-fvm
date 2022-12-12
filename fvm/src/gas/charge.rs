@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 
+use super::timer::GasDuration;
 use super::Gas;
 
 /// Single gas charge in the VM. Contains information about what gas was for, as well
@@ -14,6 +15,8 @@ pub struct GasCharge {
     pub compute_gas: Gas,
     /// Storage costs
     pub storage_gas: Gas,
+    /// Execution time related to this charge, if traced and successfully measured.
+    pub elapsed: GasDuration,
 }
 
 impl GasCharge {
@@ -23,6 +26,7 @@ impl GasCharge {
             name,
             compute_gas,
             storage_gas,
+            elapsed: GasDuration::default(),
         }
     }
 
