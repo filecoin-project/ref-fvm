@@ -94,13 +94,17 @@ where
             embryo_code_cid,
         })
     }
-
-    /// Creates new accounts in the testing context
+    /// Creates new accounts in the testing context with seed 0
     /// Inserts the specified number of accounts in the state tree, all with 1000 FIL，returning their IDs and Addresses.
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
+       self.create_accounts_seed(0)
+    }
+    /// Creates new accounts in the testing context with a custom seed
+    /// Inserts the specified number of accounts in the state tree, all with 1000 FIL，returning their IDs and Addresses.
+    pub fn create_accounts_seed<const N: usize>(&mut self, seed: u32) -> Result<[Account; N]> {
         use rand::SeedableRng;
 
-        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
+        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8 + seed as u64);
 
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
