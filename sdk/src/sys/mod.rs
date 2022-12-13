@@ -58,7 +58,6 @@ pub use fvm_shared::sys::TokenAmount;
 
 pub mod actor;
 pub mod crypto;
-#[cfg(feature = "debug")]
 pub mod debug;
 pub mod event;
 pub mod gas;
