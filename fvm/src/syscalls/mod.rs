@@ -102,12 +102,12 @@ pub fn charge_for_exec<K: Kernel>(
 
     exec_gas = (exec_gas - memory_gas).max(Gas::zero());
 
-    data.kernel
-        .charge_gas("wasm_exec", exec_gas)
-        .map_err(Abort::from_error_as_fatal)?;
     unsafe {
         set_gas_spent(exec_gas.as_milligas())
     }
+    data.kernel
+        .charge_gas("wasm_exec", exec_gas)
+        .map_err(Abort::from_error_as_fatal)?;
 
     if !memory_gas.is_zero() {
         data.kernel
