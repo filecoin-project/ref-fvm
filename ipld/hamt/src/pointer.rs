@@ -12,7 +12,7 @@ use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::Config;
 
 /// Pointer to index values or a link to another child node.
@@ -133,7 +133,7 @@ where
                     }
                     Ok(())
                 }
-                2..=MAX_ARRAY_WIDTH => {
+                i if 2 <= i && i <= conf.max_array_width => {
                     // If more child values than max width, nothing to change.
                     let mut children_len = 0;
                     for c in n.pointers.iter() {
@@ -143,7 +143,7 @@ where
                             return Ok(());
                         }
                     }
-                    if children_len > MAX_ARRAY_WIDTH {
+                    if children_len > conf.max_array_width {
                         return Ok(());
                     }
 
