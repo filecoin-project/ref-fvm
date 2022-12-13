@@ -48,7 +48,7 @@ fn basic_get_set() {
         "bafy2bzacedv5uu5za6oqtnozjvju5lhbgaybayzhw4txiojw7hd47ktgbv5wc"
     );
     #[rustfmt::skip]
-    assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 2, br: 13, bw: 26});
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 1, br: 13, bw: 13});
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn legacy_amtv0_basic_get_set() {
         "bafy2bzaceansvim5z2rzifilsbzsjuoul2adx7iad7x3b4paj3qsexqf6ovxk"
     );
     #[rustfmt::skip]
-    assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 2, br: 12, bw: 24});
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1, w: 1, br: 12, bw: 12});
 }
 
 #[test]
