@@ -17,6 +17,7 @@ use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
+use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
@@ -361,6 +362,7 @@ where
     //  2. Short-circuit: Return ApplyRet).
     //  3. Fail: Return an error).
     //  We could use custom types, but that would be even more annoying.
+    #[allow(clippy::type_complexity)]
     fn preflight_message(
         &mut self,
         msg: &Message,
@@ -440,8 +442,7 @@ where
             || self.builtin_actors().is_eoa_actor(&sender_state.code) ||
             (self.builtin_actors().is_embryo_actor(&sender_state.code) && sender_state
                 .address
-                // TODO: Set 10 as a constant somewhere
-                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == 10 /* eam */))
+                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID))
                 .unwrap_or(false));
 
         if !sender_is_valid {
