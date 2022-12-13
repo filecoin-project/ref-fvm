@@ -863,7 +863,7 @@ where
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
         let size = self
             .call_manager
-            .engine
+            .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
             .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code"))?;
 
