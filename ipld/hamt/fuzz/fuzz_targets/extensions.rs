@@ -12,7 +12,7 @@ fuzz_target!(|data: (u8, u32, u32, u32, Vec<common::Operation>)| {
     let conf = Config {
         bit_width: 1 + bit_width % 8,
         min_data_depth: min_data_depth % 3,
-        max_array_width: max_array_width % 4, // Starting from 0 just to make sure it doesn't cause an issue.
+        max_array_width: (max_array_width % 4) as usize, // Starting from 0 just to make sure it doesn't cause an issue.
     };
     common::run(flush_rate, operations, conf);
 });
