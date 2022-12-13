@@ -6,20 +6,26 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Cursor, Read, Seek, Write};
 use std::path::Path;
-use std::time::Instant;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
-use lazy_static::lazy_static;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED};
+use lazy_static::lazy_static;
 
-lazy_static!{
+lazy_static! {
     static ref STAT_FILE: Mutex<File> = {
-        Mutex::new(File::options().append(true).create(true).open(Path::new("blockstore_stats.log")).unwrap())
+        Mutex::new(
+            File::options()
+                .append(true)
+                .create(true)
+                .open(Path::new("blockstore_stats.log"))
+                .unwrap(),
+        )
     };
 }
 
@@ -36,7 +42,6 @@ where
     BS: Blockstore,
 {
     pub fn new(base: BS) -> Self {
-
         Self {
             base,
             write: Default::default(),
@@ -63,7 +68,7 @@ where
 
         let break_start = Instant::now();
         let count = buffer.len();
-        let size : u64= buffer.iter().map( |(_, b)| b.len() as u64).sum();
+        let size: u64 = buffer.iter().map(|(_, b)| b.len() as u64).sum();
         let break_duration = break_start.elapsed();
 
         self.base.put_many_keyed(buffer)?;
@@ -248,7 +253,6 @@ fn copy_rec<'a>(
 
     // Finally, push the block. We do this _last_ so that we always include write before parents.
     buffer.push((root, block));
-
 
     Ok(())
 }
