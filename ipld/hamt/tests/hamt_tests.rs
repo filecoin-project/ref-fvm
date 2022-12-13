@@ -542,18 +542,9 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     }
 }
 
-#[test]
-fn min_data_depth_reduces_root_size() {
-    let mk_factory = |min_data_depth| HamtFactory {
-        conf: Config {
-            min_data_depth,
-            ..Default::default()
-        },
-    };
-
-    let factory1 = mk_factory(0);
-    let factory2 = mk_factory(1);
-
+/// Test that a HAMT produced by `factory1` has a larger root size than one produced by `factory2`
+/// after inserting the same data into both versions.
+fn test_reduced_root_size(factory1: HamtFactory, factory2: HamtFactory) {
     let mem = MemoryBlockstore::default();
     let mut hamt1 = factory1.new(&mem);
     let mut hamt2 = factory2.new(&mem);
@@ -578,6 +569,36 @@ fn min_data_depth_reduces_root_size() {
     let br2 = bytes_read_during_load(&c2, &factory2);
 
     assert!(br2 < br1);
+}
+
+#[test]
+fn min_data_depth_reduces_root_size() {
+    let mk_factory = |min_data_depth| HamtFactory {
+        conf: Config {
+            min_data_depth,
+            ..Default::default()
+        },
+    };
+
+    let factory1 = mk_factory(0);
+    let factory2 = mk_factory(1);
+
+    test_reduced_root_size(factory1, factory2);
+}
+
+#[test]
+fn max_array_width_reduces_root_size() {
+    let mk_factory = |max_array_width| HamtFactory {
+        conf: Config {
+            max_array_width,
+            ..Default::default()
+        },
+    };
+
+    let factory1 = mk_factory(3);
+    let factory2 = mk_factory(1);
+
+    test_reduced_root_size(factory1, factory2);
 }
 
 /// List of key value pairs with unique keys.
