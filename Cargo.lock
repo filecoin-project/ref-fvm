@@ -476,24 +476,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bls-signatures"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fcead733e20b9afbf3784a3f33cc6d728e0f11a593a35bd6c5c4503db19e06e"
-dependencies = [
- "bls12_381",
- "ff",
- "group",
- "hkdf",
- "pairing",
- "rand_core",
- "rayon",
- "sha2 0.9.9",
- "subtle",
- "thiserror",
-]
-
-[[package]]
 name = "bls12_381"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2831,7 +2813,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake2b_simd",
- "bls-signatures 0.13.0",
+ "bls-signatures",
  "cid 0.8.6",
  "fil_builtin_actors_bundle 10.0.0-alpha.1 (git+https://github.com/filecoin-project/builtin-actors)",
  "fil_gas_calibration_actor",
@@ -3271,7 +3253,7 @@ dependencies = [
  "arbitrary",
  "bitflags",
  "blake2b_simd",
- "bls-signatures 0.12.0",
+ "bls-signatures",
  "byteorder",
  "cid 0.8.6",
  "data-encoding",
