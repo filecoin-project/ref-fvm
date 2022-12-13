@@ -42,7 +42,9 @@ jobs:
           - name: build
             key: v3
             push: true
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             command: build
+            args: --no-default-features
           - name: check-clippy
             key: v3
             command: clippy
