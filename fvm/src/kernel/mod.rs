@@ -34,7 +34,7 @@ use multihash::MultihashGeneric;
 use wasmtime::ResourceLimiter;
 
 use crate::call_manager::CallManager;
-use crate::gas::{Gas, PriceList};
+use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::ExecMemory;
 use crate::machine::Machine;
 
@@ -244,7 +244,7 @@ pub trait GasOps {
 
     /// ChargeGas charges specified amount of `gas` for execution.
     /// `name` provides information about gas charging point.
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()>;
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer>;
 
     /// Returns the currently active gas price list.
     fn price_list(&self) -> &PriceList;

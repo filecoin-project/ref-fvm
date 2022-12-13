@@ -9,7 +9,7 @@ use cid::Cid;
 use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
-use fvm::gas::{Gas, GasTracker, PriceList};
+use fvm::gas::{price_list_by_network_version, Gas, GasTimer, GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
@@ -84,6 +84,8 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         variant: &Variant,
         blockstore: MemoryBlockstore,
         stats: TestStatsRef,
+        tracing: bool,
+        price_network_version: Option<NetworkVersion>,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
@@ -109,7 +111,12 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let mut nc = NetworkConfig::new(network_version);
         nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
+        // Allow overriding prices to some other network version.
+        if let Some(nv) = price_network_version {
+            nc.price_list = price_list_by_network_version(nv);
+        }
         mc.set_base_fee(base_fee);
+        mc.tracing = tracing;
 
         let machine = DefaultMachine::new(&mc, blockstore, externs).unwrap();
 
@@ -342,7 +349,7 @@ where
         self.0.state_tree_mut()
     }
 
-    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<()> {
+    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<GasTimer> {
         self.0.charge_gas(charge)
     }
 
@@ -547,14 +554,14 @@ where
     // NOT forwarded
     fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_seal(vi);
-        self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_post(&self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_post(vi);
-        self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
@@ -569,21 +576,21 @@ where
             .1
             .price_list
             .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
-        self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
 
     // NOT forwarded
     fn verify_aggregate_seals(&self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
         let charge = self.1.price_list.on_verify_aggregate_seals(agg);
-        self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&self, rep: &ReplicaUpdateInfo) -> Result<bool> {
         let charge = self.1.price_list.on_verify_replica_update(rep);
-        self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 }
@@ -617,7 +624,7 @@ where
         self.0.gas_used()
     }
 
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<()> {
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
         self.0.charge_gas(name, compute)
     }
 

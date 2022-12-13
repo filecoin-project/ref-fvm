@@ -161,9 +161,13 @@ fn syscalls() {
 
     // Instantiate machine
     tester
-        .instantiate_machine_with_config(DummyExterns, |c| {
-            c.chain_id = ChainID::from(1);
-        })
+        .instantiate_machine_with_config(
+            DummyExterns,
+            |nc| {
+                nc.chain_id = ChainID::from(1);
+            },
+            |_| {},
+        )
         .unwrap();
 
     // Send message
@@ -320,7 +324,17 @@ fn native_stack_overflow() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine_with_config(
+            DummyExterns,
+            |nc| {
+                // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
+                nc.max_exec_memory_bytes = 4 * (1 << 30);
+                nc.max_inst_memory_bytes = 4 * (1 << 30);
+            },
+            |_| (),
+        )
+        .unwrap();
 
     let exec_test =
         |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,

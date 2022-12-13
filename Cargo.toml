@@ -6,8 +6,10 @@ members = [
     "shared",
     "testing/conformance",
     "testing/integration",
+    "testing/calibration",
     "ipld/*",
-    "testing/integration/tests/*-actor"
+    "testing/integration/tests/*-actor",
+    "testing/calibration/contract/*-actor"
 ]
 
 [profile.actor]

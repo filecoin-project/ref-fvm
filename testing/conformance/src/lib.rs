@@ -6,6 +6,7 @@ pub mod cidjson;
 pub mod driver;
 pub mod externs;
 pub mod rand;
+pub mod tracing;
 pub mod vector;
 pub mod vm;
 

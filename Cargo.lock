@@ -1882,6 +1882,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_gas_calibration_actor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cid 0.8.6",
+ "fvm_ipld_encoding 0.3.0",
+ "fvm_sdk 3.0.0-alpha.17",
+ "fvm_shared 3.0.0-alpha.14",
+ "num-derive",
+ "num-traits",
+ "serde",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
@@ -2312,10 +2327,12 @@ dependencies = [
  "fvm_shared 3.0.0-alpha.14",
  "lazy_static",
  "log",
+ "minstant",
  "multihash 0.16.3",
  "num-derive",
  "num-traits",
  "num_cpus",
+ "once_cell",
  "pretty_assertions",
  "quickcheck",
  "rand",
@@ -2408,6 +2425,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "fvm_gas_calibration"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake2b_simd",
+ "bls-signatures",
+ "cid 0.8.6",
+ "fil_builtin_actors_bundle",
+ "fil_gas_calibration_actor",
+ "futures",
+ "fvm",
+ "fvm_integration_tests",
+ "fvm_ipld_blockstore 0.1.1",
+ "fvm_ipld_car 0.6.0",
+ "fvm_ipld_encoding 0.3.0",
+ "fvm_shared 3.0.0-alpha.14",
+ "lazy_static",
+ "libsecp256k1",
+ "multihash 0.16.3",
+ "num-traits",
+ "rand",
+ "rand_chacha",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "serde_tuple",
+ "thiserror",
+ "wasmtime",
+]
+
+[[package]]
 name = "fvm_integration_tests"
 version = "0.1.1-alpha.1"
 dependencies = [
@@ -2440,6 +2488,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "serde",
+ "serde_json",
  "serde_repr",
  "serde_tuple",
  "thiserror",
@@ -2885,7 +2934,7 @@ checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
 ]
 
 [[package]]
@@ -3457,6 +3506,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b275950c28b37e794e8c55d88aeb5e139d0ce23fdbbeda68f8d7174abdf9e8fa"
 dependencies = [
  "adler",
+]
+
+[[package]]
+name = "minstant"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5dcfca9a0725105ac948b84cfeb69c3942814c696326743797215413f854b9"
+dependencies = [
+ "ctor",
+ "libc",
+ "wasi 0.7.0",
 ]
 
 [[package]]
@@ -4901,6 +4961,12 @@ dependencies = [
  "winapi",
  "winapi-util",
 ]
+
+[[package]]
+name = "wasi"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b89c3ce4ce14bdc6fb6beaf9ec7928ca331de5df7e5ea278375642a2f478570d"
 
 [[package]]
 name = "wasi"

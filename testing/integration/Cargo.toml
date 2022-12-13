@@ -38,6 +38,7 @@ features = ["cranelift", "parallel-compilation"]
 [dev-dependencies]
 wat = "1.0.51"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor' }
 fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor' }
 fil_ipld_actor = { path = 'tests/fil-ipld-actor' }

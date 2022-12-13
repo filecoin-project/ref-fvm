@@ -1,0 +1,12 @@
+{"name":"OnBlockCreate","intersect":-26278232.41288907,"slope":8411.636921157187,"r_squared":0.542530865219476}
+{"name":"OnBlockLink","intersect":2990069003.0795126,"slope":1263.5951039649958,"r_squared":0.024395421811449602}
+{"name":"OnBlockOpenPerByte","intersect":-61944791.949856065,"slope":4028.0925794987947,"r_squared":0.5670116832046983}
+{"name":"OnBlockRead","intersect":2878186.9489921895,"slope":182.87005745946124,"r_squared":0.08940009958976847}
+{"name":"OnBlockStat","intersect":0.0,"slope":0.0,"r_squared":null}
+{"name":"OnComputeUnsealedSectorCid","intersect":-1187909107.1380246,"slope":223920.65544110537,"r_squared":0.9782927669758872}
+{"name":"OnCreateActor","intersect":-8656200718.136515,"slope":65285.68572039967,"r_squared":0.7803627073237722}
+{"name":"OnGetRandomness","intersect":57533015.04872439,"slope":15859.850483202792,"r_squared":0.8164299345142512}
+{"name":"OnHashing","intersect":31355000.0,"slope":0.0,"r_squared":null}
+{"name":"OnVerifySignature","intersect":-5898572110.92534,"slope":5644.481912413442,"r_squared":0.9959725993255565}
+{"name":"wasm_exec","intersect":-7484172642.769513,"slope":3729.2423365751797,"r_squared":0.8853044726277718}
+{"name":"wasm_memory_init","intersect":0.0,"slope":0.0,"r_squared":null}

@@ -9,7 +9,7 @@ use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
-use fvm::gas::{Gas, GasCharge, GasTracker};
+use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::ExecMemory;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
@@ -355,7 +355,7 @@ impl CallManager for DummyCallManager {
         &self.borrow().gas_tracker
     }
 
-    fn charge_gas(&self, charge: GasCharge) -> kernel::Result<()> {
+    fn charge_gas(&self, charge: GasCharge) -> kernel::Result<GasTimer> {
         self.test_data.borrow_mut().charge_gas_calls += 1;
         self.gas_tracker().apply_charge(charge)
     }
