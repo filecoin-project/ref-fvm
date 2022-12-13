@@ -347,6 +347,10 @@ impl CallManager for DummyCallManager {
         &mut self.machine
     }
 
+    fn engine(&self) -> &Engine {
+        todo!()
+    }
+
     fn gas_tracker(&self) -> &GasTracker {
         &self.borrow().gas_tracker
     }

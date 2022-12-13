@@ -264,6 +264,10 @@ where
         &mut self.machine
     }
 
+    fn engine(&self) -> &Engine {
+        &self.engine
+    }
+
     fn gas_tracker(&self) -> &GasTracker {
         &self.gas_tracker
     }
