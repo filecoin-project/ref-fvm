@@ -285,6 +285,10 @@ where
         self.0.machine_mut()
     }
 
+    fn engine(&self) -> &Engine {
+        self.0.engine()
+    }
+
     fn gas_tracker(&self) -> &GasTracker {
         self.0.gas_tracker()
     }
