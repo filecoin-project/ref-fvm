@@ -348,7 +348,7 @@ impl CallManager for DummyCallManager {
     }
 
     fn engine(&self) -> &Engine {
-        &self.engine
+        todo!()
     }
 
     fn gas_tracker(&self) -> &GasTracker {
