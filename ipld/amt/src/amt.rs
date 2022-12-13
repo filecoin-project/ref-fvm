@@ -25,6 +25,8 @@ use crate::{
 pub struct AmtImpl<V, BS, Ver> {
     root: RootImpl<V, Ver>,
     block_store: BS,
+    /// Remember the last flushed CID until it changes.
+    flushed_cid: Option<Cid>,
 }
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
@@ -72,6 +74,7 @@ where
         Self {
             root: RootImpl::new_with_bit_width(bit_width),
             block_store,
+            flushed_cid: None,
         }
     }
 
@@ -153,7 +156,11 @@ where
             return Err(Error::MaxHeight(root.height, MAX_HEIGHT));
         }
 
-        Ok(Self { root, block_store })
+        Ok(Self {
+            root,
+            block_store,
+            flushed_cid: Some(*cid),
+        })
     }
 
     /// Get value at index of AMT
@@ -209,6 +216,9 @@ where
             self.root.count += 1;
         }
 
+        // There's no equality constraint on `V` so we could check if the content changed.
+        self.flushed_cid = None;
+
         Ok(())
     }
 
@@ -243,6 +253,7 @@ where
             return Ok(None);
         }
 
+        self.flushed_cid = None;
         self.root.count -= 1;
 
         if self.root.node.is_empty() {
@@ -311,8 +322,13 @@ where
 
     /// flush root and return Cid used as key in block store
     pub fn flush(&mut self) -> Result<Cid, Error> {
+        if let Some(cid) = self.flushed_cid {
+            return Ok(cid);
+        }
         self.root.node.flush(&self.block_store)?;
-        Ok(self.block_store.put_cbor(&self.root, Code::Blake2b256)?)
+        let cid = self.block_store.put_cbor(&self.root, Code::Blake2b256)?;
+        self.flushed_cid = Some(cid);
+        Ok(cid)
     }
 
     /// Iterates over each value in the Amt and runs a function on the values.
@@ -391,16 +407,19 @@ where
     {
         #[cfg(not(feature = "go-interop"))]
         {
-            self.root
-                .node
-                .for_each_while_mut(
-                    &self.block_store,
-                    self.height(),
-                    self.bit_width(),
-                    0,
-                    &mut f,
-                )
-                .map(|_| ())
+            let (_, did_mutate) = self.root.node.for_each_while_mut(
+                &self.block_store,
+                self.height(),
+                self.bit_width(),
+                0,
+                &mut f,
+            )?;
+
+            if did_mutate {
+                self.flushed_cid = None;
+            }
+
+            Ok(())
         }
 
         // TODO remove requirement for this when/if changed in go-implementation
