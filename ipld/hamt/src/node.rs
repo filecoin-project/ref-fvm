@@ -16,7 +16,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{Error, Hash, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::Config;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
@@ -322,7 +322,7 @@ where
                 }
 
                 // If the array is full, create a subshard and insert everything
-                if vals.len() >= MAX_ARRAY_WIDTH {
+                if vals.len() >= conf.max_array_width {
                     let kvs = std::mem::take(vals);
                     let hashed_kvs = kvs.into_iter().map(|KeyValuePair(k, v)| {
                         let hash = H::hash(&k);

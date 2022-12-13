@@ -27,8 +27,6 @@ pub use self::hamt::Hamt;
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
 
-const MAX_ARRAY_WIDTH: usize = 3;
-
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
 
@@ -57,6 +55,9 @@ pub struct Config {
     /// The setting makes most sense when the size of values outweigh the size of the link
     /// pointing at them. When storing small, hash-sized values, it might not matter.
     pub min_data_depth: u32,
+
+    /// Maximum number of key-value pairs in a bucket before it's pushed down.
+    pub max_array_width: usize,
 }
 
 impl Default for Config {
@@ -64,6 +65,7 @@ impl Default for Config {
         Self {
             bit_width: DEFAULT_BIT_WIDTH,
             min_data_depth: 0,
+            max_array_width: 3,
         }
     }
 }

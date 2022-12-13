@@ -919,6 +919,7 @@ test_hamt_mod!(
         conf: Config {
             bit_width: 1,
             min_data_depth: 0,
+            max_array_width: 3
         },
     }
 );
@@ -929,6 +930,7 @@ test_hamt_mod!(
         conf: Config {
             bit_width: 4,
             min_data_depth: 2,
+            max_array_width: 1
         },
     }
 );
