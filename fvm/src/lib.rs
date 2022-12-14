@@ -38,6 +38,7 @@ pub mod init_actor;
 #[cfg(feature = "testing")]
 pub mod system_actor;
 
+mod eam_actor;
 pub mod trace;
 
 use cid::multihash::{Code, MultihashDigest};

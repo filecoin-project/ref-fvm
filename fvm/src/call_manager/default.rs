@@ -27,7 +27,7 @@ use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
-use crate::{account_actor, syscall_error};
+use crate::{syscall_error, system_actor};
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
@@ -414,7 +414,7 @@ where
         t.stop();
 
         self.send_resolved::<K>(
-            account_actor::SYSTEM_ACTOR_ID,
+            system_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
             Some(Block::new(DAG_CBOR, params)),

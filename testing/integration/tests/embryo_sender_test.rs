@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 
-#[cfg(feature = "f4-as-account")]
 #[test]
 fn embryo_as_sender() {
     use bundles::*;
@@ -42,8 +41,8 @@ fn embryo_as_sender() {
     let executor = tester.executor.as_mut().unwrap();
 
     let message = Message {
-        from: sender.clone(),
-        to: receiver.clone(),
+        from: sender,
+        to: receiver,
         gas_limit: 1000000000,
         method_num: METHOD_SEND,
         sequence: 0,

@@ -6,23 +6,26 @@ use std::result::Result as StdResult;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
-#[cfg(feature = "f4-as-account")]
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::{ActorID, IPLD_RAW, METHOD_SEND};
+use fvm_shared::{ActorID, IPLD_RAW, METHOD_CONSTRUCTOR, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
+use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
+use crate::state_tree::ActorState;
+use crate::system_actor::SYSTEM_ACTOR_ID;
 use crate::trace::ExecutionTrace;
+use crate::EMPTY_ARR_CID;
 
 /// The default [`Executor`].
 ///
@@ -65,7 +68,7 @@ where
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
-        let (sender_id, gas_cost, inclusion_cost) =
+        let (sender_id, sender_st, gas_cost, inclusion_cost) =
             match self.preflight_message(&msg, apply_kind, raw_length)? {
                 Ok(res) => res,
                 Err(apply_ret) => return Ok(apply_ret),
@@ -123,6 +126,52 @@ where
             });
 
             let result = cm.with_transaction(false, |cm| {
+                let pl = cm.context().price_list;
+
+                if let Some(sender_state) = sender_st {
+                    if cm
+                        .machine()
+                        .builtin_actors()
+                        .is_embryo_actor(&sender_state.code)
+                    {
+                        // We need to deploy the Ethereum Account actor
+                        let _ = cm.charge_gas(pl.on_create_actor(false))?;
+
+                        // Transform the actor code CID into the Ethereum Account code CID.
+                        let ethaccount_code_cid =
+                            *cm.machine().builtin_actors().get_ethaccount_code();
+                        cm.state_tree_mut().set_actor(
+                            sender_id,
+                            ActorState {
+                                code: ethaccount_code_cid,
+                                // We zero out the state as that is the state for EthAccounts
+                                // This _should_ be a no-op since the embryo already has an EMPTY_ARR_CID state
+                                state: *EMPTY_ARR_CID,
+                                ..sender_state
+                            },
+                        )?;
+
+                        // Now actually invoke the constructor
+                        let ret = cm.send::<K>(
+                            SYSTEM_ACTOR_ID,
+                            msg.from,
+                            METHOD_CONSTRUCTOR,
+                            None,
+                            &TokenAmount::zero(),
+                            None,
+                        )?;
+
+                        // If we _failed_ to deploy the EthAccount actor, we abort early.
+                        // If we succeeded, proceed to the actual invocation.
+                        if !ret.exit_code.is_success() {
+                            return Ok(InvocationResult {
+                                exit_code: ExitCode::SYS_SENDER_INVALID,
+                                value: None,
+                            });
+                        }
+                    }
+                }
+
                 // Invoke the message.
                 let ret =
                     cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
@@ -311,16 +360,17 @@ where
     }
 
     // TODO: The return type here is very strange because we have three cases:
-    //  1. Continue (return actor ID & gas).
-    //  2. Short-circuit (return ApplyRet).
-    //  3. Fail (return an error).
+    //  1. Continue: Return sender ID, the sender ActorState (Explicit Applys only), & gas).
+    //  2. Short-circuit: Return ApplyRet).
+    //  3. Fail: Return an error).
     //  We could use custom types, but that would be even more annoying.
+    #[allow(clippy::type_complexity)]
     fn preflight_message(
         &mut self,
         msg: &Message,
         apply_kind: ApplyKind,
         raw_length: usize,
-    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, Option<ActorState>, TokenAmount, GasCharge), ApplyRet>> {
         msg.check().or_fatal()?;
 
         // TODO We don't like having price lists _inside_ the FVM, but passing
@@ -367,10 +417,10 @@ where
         };
 
         if apply_kind == ApplyKind::Implicit {
-            return Ok(Ok((sender_id, TokenAmount::zero(), inclusion_cost)));
+            return Ok(Ok((sender_id, None, TokenAmount::zero(), inclusion_cost)));
         }
 
-        let sender = match self
+        let sender_state = match self
             .state_tree()
             .get_actor(sender_id)
             .with_context(|| format!("failed to lookup actor {}", &msg.from))?
@@ -385,33 +435,33 @@ where
             }
         };
 
-        // If sender is not an account actor, the message is invalid.
-        let sender_is_account = self.builtin_actors().is_account_actor(&sender.code);
+        // Sender is valid if it is:
+        // - an account actor
+        // - an Ethereum Externally Owned Address
+        // - an embryo actor that has an f4 address in the EAM's namespace
 
-        // Unless we have the f4-as-account hack enabled, and the sender is an embryo created by the EAM.
-        #[cfg(feature = "f4-as-account")]
-        let sender_is_account = sender_is_account
-            || sender
+        let sender_is_valid = self.builtin_actors().is_account_actor(&sender_state.code)
+            || self.builtin_actors().is_ethaccount_actor(&sender_state.code) ||
+            (self.builtin_actors().is_embryo_actor(&sender_state.code) && sender_state
                 .address
-                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == 10 /* eam */))
-                .unwrap_or_default()
-                && self.builtin_actors().is_embryo_actor(&sender.code);
+                .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID))
+                .unwrap_or(false));
 
-        if !sender_is_account {
+        if !sender_is_valid {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_INVALID,
-                "Send not from account actor",
+                "Send not from valid sender",
                 miner_penalty_amount,
             )));
         };
 
         // Check sequence is correct
-        if msg.sequence != sender.sequence {
+        if msg.sequence != sender_state.sequence {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_STATE_INVALID,
                 format!(
                     "Actor sequence invalid: {} != {}",
-                    msg.sequence, sender.sequence
+                    msg.sequence, sender_state.sequence
                 ),
                 miner_penalty_amount,
             )));
@@ -419,12 +469,12 @@ where
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
-        if sender.balance < gas_cost {
+        if sender_state.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_STATE_INVALID,
                 format!(
                     "Actor balance less than needed: {} < {}",
-                    sender.balance, gas_cost
+                    sender_state.balance, gas_cost
                 ),
                 miner_penalty_amount,
             )));
@@ -437,7 +487,12 @@ where
             Ok(())
         })?;
 
-        Ok(Ok((sender_id, gas_cost, inclusion_cost)))
+        Ok(Ok((
+            sender_id,
+            Some(sender_state),
+            gas_cost,
+            inclusion_cost,
+        )))
     }
 
     #[allow(clippy::too_many_arguments)]
