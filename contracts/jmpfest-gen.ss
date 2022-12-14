@@ -21,6 +21,10 @@
 (def (generate-random)
   (let* ((labels (make-labels))
          (targets (shuffle labels)))
+    ;; verify that nothing jumps to itself
+    (for ((lbl labels) (tgt targets))
+      (when (equal? lbl tgt)
+        (error "oh shit, self-jump; try again")))
     (with-output-to-file "jmpfest_random_body.eas" (cut generate labels targets))))
 
 (def num-labels 1500)
