@@ -8,6 +8,7 @@ OBS_PNG  := $(patsubst $(OUT_DIR)/observations/%.jsonline, $(OUT_DIR)/charts/cha
 
 RUN_BINS := $(patsubst src/bin/%.rs, run/%, $(shell find src/bin -type f))
 
+GAS_MILLIS_PER_NS := 10000
 
 .PHONY: all
 all:
@@ -40,6 +41,24 @@ $(OUT_DIR)/charts/overall.png: \
 		$(SCRIPTS_DIR)/overall.plt \
 		| jq gnuplot
 	$(SCRIPTS_DIR)/overall.sh $(OBS_DIR) $@
+
+
+# This is just a convenience tool to convert regression output into milligas prices.
+# One should always look at the charts and the regressions to decide which one looks
+# reasonable, and where can for example the base cost be ignored.
+# Alternatively there could be more sophisticated statistics software used that
+# calculates the P-value of the intercept and the slope separately.
+.PHONY: proposals
+proposals:
+	@for FILE in measurements/out/regressions/*.jsonline ; do \
+		cat $$FILE | jq -c "{ \
+			name: \"$$(basename $$FILE .jsonline)\", \
+			label: .label, \
+			base_cost: (.intercept * $(GAS_MILLIS_PER_NS) | floor), \
+			variable_cost: (.slope * $(GAS_MILLIS_PER_NS) | floor) \
+		}" ; \
+	done
+
 
 .PHONY: gnuplot
 gnuplot:
