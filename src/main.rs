@@ -89,9 +89,11 @@ fn main() {
                 exit_with_error(format!("error decoding contract entrypoint: {}", what));
             });
 
-            fevm::run(&mut tester, &options, &contract, &entrypoint, &params).unwrap_or_else(|what| {
-                exit_with_error(format!(" contract execution failed: {}", what));
-            });
+            fevm::run(&mut tester, &options, &contract, &entrypoint, &params).unwrap_or_else(
+                |what| {
+                    exit_with_error(format!(" contract execution failed: {}", what));
+                },
+            );
         }
 
         "wasm" => {
