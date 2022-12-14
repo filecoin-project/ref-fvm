@@ -1,0 +1,72 @@
+## initialize memory slots linearly
+## 10M slots = 320MB
+%push(10000000)
+
+## initial slot
+%push(0)
+
+init_loop:
+jumpdest
+
+# ... 10M | slot
+
+dup2
+dup2
+eq
+%push(init_fini)
+jumpi
+
+# loop iteration: store next slot to current slot
+dup1    # ... 10M | slot | slot
+%push(1)
+add     # ... 10M | slot | slot+1
+dup1    # ... 10M | slot | slot+1 | slot+1
+swap2   # ... 10M | slot+1 | slot+1 | slot
+mstore  # ... 10M | slot+1
+
+%push(init_loop)
+jump
+
+# finish: last slot must point to first
+init_fini:
+jumpdest
+
+%push(0)
+swap1
+mstore
+
+# Unfortunately we need to have this copied verbatim, eas generates a bad jump if we include this
+# from a separate file.... sigh
+
+# 10M mloads
+%push(10000000)
+
+# initial slot
+%push(0)
+
+loop:
+jumpdest
+
+# load the current slot to follow
+mload   # ... iters | next-slot
+
+# check the iteration count
+swap1   # ... next-slot | iters
+%push(1)
+swap1   # ... next-slot | 1 | iters
+sub     # ... next-slot | iters-1
+dup1    # ... next-slot | iters-1 | iters-1
+iszero
+%push(done)
+jumpi
+
+# loop
+swap1   # ... iters-1 | next-slot
+%push(loop)
+jump
+
+done:
+jumpdest
+%push(0)
+%push(0)
+return
