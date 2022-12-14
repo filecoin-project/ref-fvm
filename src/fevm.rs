@@ -20,7 +20,7 @@ pub fn run<B: Blockstore>(
         .instantiate_machine_with_config(
             DummyExterns,
             |cfg| cfg.actor_debugging = options.debug,
-            |_| {},
+            |mc| mc.tracing = options.trace,
         )
         .unwrap();
 
