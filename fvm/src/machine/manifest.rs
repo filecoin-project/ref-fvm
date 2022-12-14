@@ -23,7 +23,7 @@ const INIT_ACTOR_NAME: &str = "init";
 const SYSTEM_ACTOR_NAME: &str = "system";
 const EMBRYO_ACTOR_NAME: &str = "embryo";
 const EAM_ACTOR_NAME: &str = "eam";
-const EOA_ACTOR_NAME: &str = "eoa";
+const ETHACCOUNT_ACTOR_NAME: &str = "ethaccount";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -32,7 +32,7 @@ pub struct Manifest {
     system_code: Cid,
     init_code: Cid,
     eam_code: Cid,
-    eoa_code: Cid,
+    ethaccount_code: Cid,
     singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
@@ -70,7 +70,7 @@ impl Manifest {
         ("system", id_cid(b"fil/test/system")),
         ("init", id_cid(b"fil/test/init")),
         ("eam", id_cid(b"fil/test/eam")),
-        ("eoa", id_cid(b"fil/test/eam")),
+        ("ethaccount", id_cid(b"fil/test/ethaccount")),
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
         ("embryo", id_cid(b"fil/test/embryo")),
@@ -138,9 +138,9 @@ impl Manifest {
             .get(EAM_ACTOR_NAME)
             .context("manifest missing eam actor")?;
 
-        let eoa_code = *by_name
-            .get(EOA_ACTOR_NAME)
-            .context("manifest missing eoa actor")?;
+        let ethaccount_code = *by_name
+            .get(ETHACCOUNT_ACTOR_NAME)
+            .context("manifest missing ethaccount actor")?;
 
         Ok(Self {
             account_code,
@@ -148,7 +148,7 @@ impl Manifest {
             init_code,
             embryo_code,
             eam_code,
-            eoa_code,
+            ethaccount_code,
             singletons,
             by_id,
             by_code,
@@ -175,9 +175,9 @@ impl Manifest {
         &self.embryo_code == cid
     }
 
-    /// Returns true id the passed code CID is the EOA actor.
-    pub fn is_eoa_actor(&self, cid: &Cid) -> bool {
-        &self.eoa_code == cid
+    /// Returns true id the passed code CID is the EthAccount actor.
+    pub fn is_ethaccount_actor(&self, cid: &Cid) -> bool {
+        &self.ethaccount_code == cid
     }
 
     /// Returns true id the passed code is a singleton actor.
@@ -214,8 +214,8 @@ impl Manifest {
         &self.embryo_code
     }
 
-    /// Returns the code CID for the Ethereum EOA actor.
-    pub fn get_eoa_code(&self) -> &Cid {
-        &self.eoa_code
+    /// Returns the code CID for the Ethereum Account actor.
+    pub fn get_ethaccount_code(&self) -> &Cid {
+        &self.ethaccount_code
     }
 }
