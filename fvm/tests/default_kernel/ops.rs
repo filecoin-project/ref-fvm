@@ -5,7 +5,7 @@ use super::*;
 mod ipld {
 
     use cid::Cid;
-    use fvm::kernel::IpldBlockOps;
+    use fvm::kernel::{IpldBlockOps, SupportedHashes};
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::DAG_CBOR;
@@ -188,7 +188,10 @@ mod ipld {
                 .machine
                 .context()
                 .price_list
-                .on_block_link(expected_block.size() as usize)
+                .on_block_link(
+                    SupportedHashes::try_from(cid.hash().code()).unwrap(),
+                    expected_block.size() as usize,
+                )
                 .total();
 
             assert_eq!(

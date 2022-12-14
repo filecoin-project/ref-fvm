@@ -12,21 +12,29 @@ use super::Gas;
 #[derive(Clone, Debug)]
 pub struct GasCharge {
     pub name: Cow<'static, str>,
-    /// Compute costs
+    /// Gas charged for immediate computation.
     pub compute_gas: Gas,
-    /// Storage costs
-    pub storage_gas: Gas,
+
+    /// Other gas including:
+    ///
+    /// 1. Storage gas.
+    /// 2. Memory retention.
+    /// 3. Deferred computation (e.g., flushing blocks.)
+    ///
+    /// This is split into a separate field to facilitate benchmarking.
+    pub other_gas: Gas,
+
     /// Execution time related to this charge, if traced and successfully measured.
     pub elapsed: GasDuration,
 }
 
 impl GasCharge {
-    pub fn new(name: impl Into<Cow<'static, str>>, compute_gas: Gas, storage_gas: Gas) -> Self {
+    pub fn new(name: impl Into<Cow<'static, str>>, compute_gas: Gas, other_gas: Gas) -> Self {
         let name = name.into();
         Self {
             name,
             compute_gas,
-            storage_gas,
+            other_gas,
             elapsed: GasDuration::default(),
         }
     }
@@ -34,6 +42,6 @@ impl GasCharge {
     /// Calculates total gas charge (in milligas) by summing compute and
     /// storage gas associated with this charge.
     pub fn total(&self) -> Gas {
-        self.compute_gas + self.storage_gas
+        self.compute_gas + self.other_gas
     }
 }

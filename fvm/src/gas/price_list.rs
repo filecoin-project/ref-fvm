@@ -64,374 +64,70 @@ macro_rules! total_enum_map {
     };
 }
 
-/// Help create scaling costs in the format of `m*x+b` (conventional from the linear regression variables).
-macro_rules! scaling_mg {
-    ($m:literal * x + $b:literal) => {
-        ScalingCost::new(Gas::from_milligas($b), Gas::from_milligas($m))
-    };
-}
-
 lazy_static! {
-    static ref OH_SNAP_PRICES: PriceList = PriceList {
-        storage_gas_multiplier: 1300,
-
-        on_chain_message_compute_base: Gas::new(38863),
-        on_chain_message_storage_base: Gas::new(36),
-        on_chain_message_storage_per_byte: Gas::new(1),
-
-        on_chain_return_value_per_byte: Gas::new(1),
-
-        send_base: Gas::new(29233),
-        send_transfer_funds: Gas::new(27500),
-        send_transfer_only_premium: Gas::new(159672),
-        send_invoke_method: Gas::new(-5377),
-
-        create_actor_compute: Gas::new(1108454),
-        create_actor_storage: Gas::new(36 + 40),
-        delete_actor: Gas::new(-(36 + 40)),
-
-        sig_cost: total_enum_map!{
-            SignatureType {
-                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
-                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
-            }
-        },
-
-        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
-
-        hashing_cost: {
-            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
-            total_enum_map! {
-                SupportedHashes {
-                    Sha2_256   => flat,
-                    Blake2b256 => flat,
-                    Blake2b512 => flat,
-                    Keccak256  => flat,
-                    Ripemd160  => flat,
-                }
-            }
-        },
-
-        compute_unsealed_sector_cid_base: Gas::new(98647),
-        verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
-
-        verify_aggregate_seal_base: Zero::zero(),
-        verify_aggregate_seal_per: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                Gas::new(449900)
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                Gas::new(359272)
-            )
-        ].iter().copied().collect(),
-        verify_aggregate_seal_steps: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: Gas::new(103994170)},
-                        Step{start: 7, cost: Gas::new(112356810)},
-                        Step{start: 13, cost: Gas::new(122912610)},
-                        Step{start: 26, cost: Gas::new(137559930)},
-                        Step{start: 52, cost: Gas::new(162039100)},
-                        Step{start: 103, cost: Gas::new(210960780)},
-                        Step{start: 205, cost: Gas::new(318351180)},
-                        Step{start: 410, cost: Gas::new(528274980)},
-                    ]
-                )
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: Gas::new(102581240)},
-                        Step{start: 7, cost: Gas::new(110803030)},
-                        Step{start: 13, cost: Gas::new(120803700)},
-                        Step{start: 26, cost: Gas::new(134642130)},
-                        Step{start: 52, cost: Gas::new(157357890)},
-                        Step{start: 103, cost: Gas::new(203017690)},
-                        Step{start: 205, cost: Gas::new(304253590)},
-                        Step{start: 410, cost: Gas::new(509880640)},
-                    ]
-                )
-            )
-        ].iter()
-        .cloned()
-        .collect(),
-
-        verify_consensus_fault: Gas::new(495422),
-        verify_replica_update: Gas::new(36316136),
-        verify_post_lookup: [
-            (
-                RegisteredPoStProof::StackedDRGWindow512MiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow32GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow64GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-        ]
-        .iter()
-        .copied()
-        .collect(),
-
-        get_randomness_base: Zero::zero(),
-        get_randomness_per_byte: Zero::zero(),
-
-        block_memcpy_per_byte_cost: Zero::zero(),
-        block_open_memret_per_byte_cost: Zero::zero(),
-        block_create_memret_per_byte_cost: Zero::zero(),
-
-        blockstore_read_per_byte_cost: Zero::zero(),
-        blockstore_write_per_byte_cost: Zero::zero(),
-
-        block_open_base: Gas::new(114617),
-        block_create_base: Zero::zero(),
-
-        block_link_base: Gas::new(353640),
-        block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_read_base: Zero::zero(),
-        block_stat_base: Zero::zero(),
-
-        syscall_cost: Zero::zero(),
-        extern_cost: Zero::zero(),
-
-        wasm_rules: WasmGasPrices{
-            exec_instruction_cost: Zero::zero(),
-            memory_fill_per_byte_cost: Zero::zero(),
-            memory_copy_per_byte_cost: Zero::zero(),
-            memory_fill_base_cost: Zero::zero(),
-            memory_copy_base_cost: Zero::zero(),
-        },
-
-        event_emit_base_cost: Zero::zero(),
-        event_per_entry_cost: Zero::zero(),
-        event_entry_index_cost: Zero::zero(),
-        event_per_byte_cost: Zero::zero(),
-
-        state_read_base: Zero::zero(),
-        state_write_base: Zero::zero(),
-        builtin_actor_base: Zero::zero(),
-        context_base: Zero::zero(),
-        install_wasm_per_byte_cost: Zero::zero(),
-    };
-
-    static ref SKYR_PRICES: PriceList = PriceList {
-        storage_gas_multiplier: 1300,
-
-        on_chain_message_compute_base: Gas::new(38863),
-        on_chain_message_storage_base: Gas::new(36),
-        on_chain_message_storage_per_byte: Gas::new(1),
-
-        on_chain_return_value_per_byte: Gas::new(1),
-
-        send_base: Gas::new(29233),
-        send_transfer_funds: Gas::new(27500),
-        send_transfer_only_premium: Gas::new(159672),
-        send_invoke_method: Gas::new(-5377),
-
-        create_actor_compute: Gas::new(1108454),
-        create_actor_storage: Gas::new(36 + 40),
-        delete_actor: Gas::new(-(36 + 40)),
-
-        sig_cost: total_enum_map!{
-            SignatureType {
-                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
-                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
-            }
-        },
-        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
-
-        hashing_cost: {
-            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
-            total_enum_map! {
-                SupportedHashes {
-                    Sha2_256   => flat,
-                    Blake2b256 => flat,
-                    Blake2b512 => flat,
-                    Keccak256  => flat,
-                    Ripemd160  => flat,
-                }
-            }
-        },
-
-        compute_unsealed_sector_cid_base: Gas::new(98647),
-        verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
-
-        verify_aggregate_seal_base: Zero::zero(),
-        verify_aggregate_seal_per: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                Gas::new(449900)
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                Gas::new(359272)
-            )
-        ].iter().copied().collect(),
-        verify_aggregate_seal_steps: [
-            (
-                RegisteredSealProof::StackedDRG32GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: Gas::new(103994170)},
-                        Step{start: 7, cost: Gas::new(112356810)},
-                        Step{start: 13, cost: Gas::new(122912610)},
-                        Step{start: 26, cost: Gas::new(137559930)},
-                        Step{start: 52, cost: Gas::new(162039100)},
-                        Step{start: 103, cost: Gas::new(210960780)},
-                        Step{start: 205, cost: Gas::new(318351180)},
-                        Step{start: 410, cost: Gas::new(528274980)},
-                    ]
-                )
-            ),
-            (
-                RegisteredSealProof::StackedDRG64GiBV1P1,
-                StepCost (
-                    vec![
-                        Step{start: 4, cost: Gas::new(102581240)},
-                        Step{start: 7, cost: Gas::new(110803030)},
-                        Step{start: 13, cost: Gas::new(120803700)},
-                        Step{start: 26, cost: Gas::new(134642130)},
-                        Step{start: 52, cost: Gas::new(157357890)},
-                        Step{start: 103, cost: Gas::new(203017690)},
-                        Step{start: 205, cost: Gas::new(304253590)},
-                        Step{start: 410, cost: Gas::new(509880640)},
-                    ]
-                )
-            )
-        ].iter()
-        .cloned()
-        .collect(),
-
-        verify_consensus_fault: Gas::new(495422),
-        verify_replica_update: Gas::new(36316136),
-        verify_post_lookup: [
-            (
-                RegisteredPoStProof::StackedDRGWindow512MiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow32GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow64GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-        ]
-        .iter()
-        .copied()
-        .collect(),
-
-        get_randomness_base: Zero::zero(),
-        get_randomness_per_byte: Zero::zero(),
-
-        block_memcpy_per_byte_cost: Gas::from_milligas(500),
-        block_open_memret_per_byte_cost: Gas::new(10),
-        block_create_memret_per_byte_cost: Gas::new(10),
-
-        blockstore_read_per_byte_cost: Zero::zero(),
-        blockstore_write_per_byte_cost: Zero::zero(),
-
-        block_open_base: Gas::new(114617),
-        block_create_base: Zero::zero(),
-
-        block_link_base: Gas::new(353640),
-        block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_read_base: Zero::zero(),
-        block_stat_base: Zero::zero(),
-
-        syscall_cost: Gas::new(14000),
-        extern_cost: Gas::new(21000),
-
-        wasm_rules: WasmGasPrices{
-            exec_instruction_cost: Gas::new(4),
-            memory_fill_per_byte_cost: Zero::zero(),
-            memory_copy_per_byte_cost: Zero::zero(),
-            memory_fill_base_cost: Gas::zero(),
-            memory_copy_base_cost: Gas::zero(),
-        },
-
-        event_emit_base_cost: Zero::zero(),
-        event_per_entry_cost: Zero::zero(),
-        event_entry_index_cost: Zero::zero(),
-        event_per_byte_cost: Zero::zero(),
-
-        state_read_base: Zero::zero(),
-        state_write_base: Zero::zero(),
-        builtin_actor_base: Zero::zero(),
-        context_base: Zero::zero(),
-        install_wasm_per_byte_cost: Zero::zero(),
-    };
-
     static ref HYGGE_PRICES: PriceList = PriceList {
-        // START (Copied from SKYR_PRICES)
+        on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
+        on_chain_message_storage: ScalingCost {
+            flat: Gas::new(36),
+            scale: Gas::new(1300),
+        },
 
-        storage_gas_multiplier: 1300,
+        on_chain_return_compute: ScalingCost::zero(),
+        on_chain_return_storage: ScalingCost {
+            flat: Zero::zero(),
+            scale: Gas::new(1300),
+        },
 
-        on_chain_message_compute_base: Gas::new(38863),
-        on_chain_message_storage_base: Gas::new(36),
-        on_chain_message_storage_per_byte: Gas::new(1),
-
-        on_chain_return_value_per_byte: Gas::new(1),
-
+        // TODO(#1332)
         send_base: Gas::new(29233),
         send_transfer_funds: Gas::new(27500),
         send_transfer_only_premium: Gas::new(159672),
         send_invoke_method: Gas::new(-5377),
 
         create_actor_compute: Gas::new(1108454),
-        create_actor_storage: Gas::new(36 + 40),
-        delete_actor: Gas::new(-(36 + 40)),
+        create_actor_storage: Gas::new((36 + 40) * 1300),
+        delete_actor: Gas::new(-(36 + 40)*1300),
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 =>  scaling_mg!(11400 * x +  2639001000),
-                BLS       =>  scaling_mg!(35500 * x + 18719325000),
+                Secp256k1 => ScalingCost {
+                    flat: Gas::new(1637292),
+                    scale: Gas::new(10),
+                },
+                BLS =>  ScalingCost{
+                    flat: Gas::new(16598605),
+                    scale: Gas::new(26),
+                },
             }
         },
-        secp256k1_recover_cost: Gas::new(2643945),
-
+        secp256k1_recover_cost: Gas::new(1637292),
         hashing_cost: total_enum_map! {
             SupportedHashes {
-                Sha2_256   => scaling_mg!(64500 * x + 0),
-                Blake2b256 => scaling_mg!(11500 * x + 0),
-                Blake2b512 => scaling_mg!(11500 * x + 0),
-                Keccak256  => scaling_mg!(48500 * x + 0),
-                Ripemd160  => scaling_mg!(43900 * x + 0)
+                Sha2_256 => ScalingCost {
+                    flat: Gas::zero(),
+                    scale: Gas::new(7)
+                },
+                Blake2b256 => ScalingCost {
+                    flat: Gas::zero(),
+                    scale: Gas::new(10)
+                },
+                Blake2b512 => ScalingCost {
+                    flat: Gas::zero(),
+                    scale: Gas::new(10)
+                },
+                Keccak256 => ScalingCost {
+                    flat: Gas::zero(),
+                    scale: Gas::new(33)
+                },
+                Ripemd160 => ScalingCost {
+                    flat: Gas::zero(),
+                    scale: Gas::new(35)
+                }
             }
         },
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
-        verify_aggregate_seal_base: Zero::zero(),
         verify_aggregate_seal_per: [
             (
                 RegisteredSealProof::StackedDRG32GiBV1P1,
@@ -506,28 +202,52 @@ lazy_static! {
         .copied()
         .collect(),
 
-        get_randomness_base: Zero::zero(),
-        get_randomness_per_byte: Zero::zero(),
+        // TODO(#1277): Implement this first before benchmarking.
+        // TODO(#1264): do look at lookback here, but don't bother with the amount of entropy (see the line above).
+        get_randomness: Gas::zero(),
 
-        block_memcpy_per_byte_cost: Gas::from_milligas(800),
-        block_create_memret_per_byte_cost: Gas::from_milligas(6400),
-        block_open_memret_per_byte_cost: Gas::zero(),
+        block_allocate: ScalingCost {
+            flat: Gas::zero(),
+            scale: Gas::new(2),
+        },
 
-        // TODO: Scale up with the disk cost.
-        blockstore_read_per_byte_cost: Gas::from_milligas(6500),
-        blockstore_write_per_byte_cost: Gas::from_milligas(6500),
+        block_memcpy: ScalingCost {
+            flat: Gas::zero(),
+            scale: Gas::from_milligas(400),
+        },
 
-        block_open_base: Gas::zero(),
-        block_create_base: Zero::zero(),
+        block_memory_retention: ScalingCost {
+            flat: Gas::zero(),
+            scale: Gas::new(8),
+        },
 
-        block_link_base: Gas::zero(),
-        block_link_storage_per_byte_cost: Gas::new(1),
+        // TODO(#1264)
+        block_open: ScalingCost::fixed(Gas::new(114617)),
 
-        block_read_base: Zero::zero(),
-        block_stat_base: Zero::zero(),
+        block_storage: ScalingCost {
+            flat: Gas::new(353640),
+            scale: Gas::new(1300),
+        },
 
+        // NOTE(#1264): you can discount this cost when benchmarking, I think?
         syscall_cost: Gas::new(14000),
         extern_cost: Gas::new(21000),
+
+        // TODO(#1264) (Consider subtracting from the block storage flat fee).
+        block_flush: ScalingCost::zero(),
+
+        // TODO(#1279)
+        state_read_base: Zero::zero(),
+        // TODO(#1279)
+        state_write_base: Zero::zero(),
+        // TODO(#1279)
+        builtin_actor_manifest_lookup: Zero::zero(),
+        // TODO(#1279)
+        network_context: Zero::zero(),
+        // TODO(#1279)
+        message_context: Zero::zero(),
+
+        install_wasm_per_byte_cost: Zero::zero(),
 
         wasm_rules: WasmGasPrices{
             exec_instruction_cost: Gas::new(4),
@@ -541,42 +261,50 @@ lazy_static! {
             memory_copy_base_cost: Gas::zero(),
         },
 
-        // END (Copied from SKYR_PRICES)
+        // NOTE: we currently "flush" events, but we need to stop doing that except when asked.
+        // For now, just charge for the basic costs.
+        // Also: Let's get all the other costs first, then we can work on these.
 
-        // TODO GAS_PARAM
+        // TODO(#1279)
         event_emit_base_cost: Zero::zero(),
-        // TODO GAS_PARAM
+        // TODO(#1279)
         event_per_entry_cost: Zero::zero(),
-        // TODO GAS_PARAM
+        // TODO(#1279)
         event_entry_index_cost: Zero::zero(),
-        // TODO GAS_PARAM
+        // TODO(#1279)
         event_per_byte_cost: Zero::zero(),
-
-        state_read_base: Zero::zero(),
-        state_write_base: Zero::zero(),
-        builtin_actor_base: Zero::zero(),
-        context_base: Zero::zero(),
-        install_wasm_per_byte_cost: Zero::zero(),
     };
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct ScalingCost {
-    flat: Gas,
-    scale: Gas,
+    pub flat: Gas,
+    pub scale: Gas,
 }
 
 impl ScalingCost {
-    pub fn new(flat: Gas, scale: Gas) -> Self {
-        Self { flat, scale }
-    }
-
-    /// Apply the formula on a scalable value.
+    /// Computes the scaled cost for the given value, or saturates.
     pub fn apply<V>(&self, value: V) -> Gas
     where
         Gas: Mul<V, Output = Gas>,
     {
         self.flat + self.scale * value
+    }
+
+    /// Create a new "fixed" cost. Useful when some network versions scale the cost and others don't.
+    pub fn fixed(g: Gas) -> Self {
+        Self {
+            flat: g,
+            scale: Gas::zero(),
+        }
+    }
+
+    /// Create a "zero" scaling cost.
+    pub fn zero() -> Self {
+        Self {
+            flat: Gas::zero(),
+            scale: Gas::zero(),
+        }
     }
 }
 
@@ -610,23 +338,20 @@ impl StepCost {
 /// All costs are in milligas.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PriceList {
-    /// Storage gas charge multiplier
-    pub(crate) storage_gas_multiplier: i64,
-
     /// Gas cost charged to the originator of an on-chain message (regardless of
     /// whether it succeeds or fails in application) is given by:
     ///   OnChainMessageBase + len(serialized message)*OnChainMessagePerByte
     /// Together, these account for the cost of message propagation and validation,
     /// up to but excluding any actual processing by the VM.
     /// This is the cost a block producer burns when including an invalid message.
-    pub(crate) on_chain_message_compute_base: Gas,
-    pub(crate) on_chain_message_storage_base: Gas,
-    pub(crate) on_chain_message_storage_per_byte: Gas,
+    pub(crate) on_chain_message_compute: ScalingCost,
+    pub(crate) on_chain_message_storage: ScalingCost,
 
     /// Gas cost charged to the originator of a non-nil return value produced
     /// by an on-chain message is given by:
     ///   len(return value)*OnChainReturnValuePerByte
-    pub(crate) on_chain_return_value_per_byte: Gas,
+    pub(crate) on_chain_return_compute: ScalingCost,
+    pub(crate) on_chain_return_storage: ScalingCost,
 
     /// Gas cost for any message send execution(including the top-level one
     /// initiated by an on-chain message).
@@ -669,8 +394,6 @@ pub struct PriceList {
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
-    #[allow(unused)]
-    pub(crate) verify_aggregate_seal_base: Gas,
     pub(crate) verify_aggregate_seal_per: HashMap<RegisteredSealProof, Gas>,
     pub(crate) verify_aggregate_seal_steps: HashMap<RegisteredSealProof, StepCost>,
 
@@ -679,49 +402,28 @@ pub struct PriceList {
     pub(crate) verify_replica_update: Gas,
 
     /// Gas cost for fetching randomness.
-    pub(crate) get_randomness_base: Gas,
-    /// Gas cost per every byte of randomness fetched.
-    pub(crate) get_randomness_per_byte: Gas,
+    pub(crate) get_randomness: Gas,
 
-    /// Gas cost per every block byte memcopied across boundaries.
-    pub(crate) block_memcpy_per_byte_cost: Gas,
+    /// Gas cost per byte copied.
+    pub(crate) block_memcpy: ScalingCost,
 
-    /// Gas cost for every byte retained in FVM space when opening a block.
+    /// Gas cost per byte allocated (computation cost).
+    pub(crate) block_allocate: ScalingCost,
+
+    /// Gas cost for every block retained in memory (read and/or written) to ensure we can't retain
+    /// more than 1GiB of memory while executing a block.
     ///
-    /// This kicks in when `Block::new` is used on _owned_ data.
-    pub(crate) block_open_memret_per_byte_cost: Gas,
-
-    /// Gas cost for every byte retained in FVM space when opening a block.
-    ///
-    /// This kicks in when `Block::new` is used on a _reference_ to data,
-    /// a byte slice, which requires the data to be copied.
-    pub(crate) block_create_memret_per_byte_cost: Gas,
-
-    /// Gas cost per every block byte read from the block store.
-    /// Ideally this assumes the bytes are read from disk and not the cache.
-    pub(crate) blockstore_read_per_byte_cost: Gas,
-
-    /// Gas cost per every block byte written to the block store.
-    /// Ideally this includes the deferred cost of eventually flushing the data to disk:
-    /// - copy from the block registry to the FVM BufferedBlockstore
-    /// - copy from the FVM BufferedBlockstore to the Node's Blockstore
-    pub(crate) blockstore_write_per_byte_cost: Gas,
+    /// This is applied along with `block_allocate` but kept separate so we can benchmark properly.
+    pub(crate) block_memory_retention: ScalingCost,
 
     /// Gas cost for opening a block.
-    pub(crate) block_open_base: Gas,
+    pub(crate) block_open: ScalingCost,
 
-    /// Gas cost for creating a block.
-    pub(crate) block_create_base: Gas,
+    /// Gas cost for storing a block.
+    pub(crate) block_storage: ScalingCost,
 
-    /// Gas cost for linking a block.
-    pub(crate) block_link_base: Gas,
-    /// Multiplier for storage gas per byte.
-    pub(crate) block_link_storage_per_byte_cost: Gas,
-
-    /// Gas cost for reading a block into actor space.
-    pub(crate) block_read_base: Gas,
-    /// Gas cost for statting a block.
-    pub(crate) block_stat_base: Gas,
+    /// Gas cost to cover the expected cost of flushing.
+    pub(crate) block_flush: ScalingCost,
 
     /// General gas cost for performing a syscall, accounting for the overhead thereof.
     pub(crate) syscall_cost: Gas,
@@ -750,10 +452,12 @@ pub struct PriceList {
     pub(crate) state_write_base: Gas,
 
     /// Gas cost of doing lookups in the builtin actor mappings.
-    pub(crate) builtin_actor_base: Gas,
+    pub(crate) builtin_actor_manifest_lookup: Gas,
 
-    /// Gas cost of accessing the machine context.
-    pub(crate) context_base: Gas,
+    /// Gas cost of accessing the network context.
+    pub(crate) network_context: Gas,
+    /// Gas cost of accessing the message context.
+    pub(crate) message_context: Gas,
 
     /// Gas cost of compiling a Wasm module during install.
     pub(crate) install_wasm_per_byte_cost: Gas,
@@ -778,10 +482,8 @@ impl PriceList {
     pub fn on_chain_message(&self, msg_size: usize) -> GasCharge {
         GasCharge::new(
             "OnChainMessage",
-            self.on_chain_message_compute_base,
-            (self.on_chain_message_storage_base
-                + self.on_chain_message_storage_per_byte * msg_size)
-                * self.storage_gas_multiplier,
+            self.on_chain_message_compute.apply(msg_size),
+            self.on_chain_message_storage.apply(msg_size),
         )
     }
 
@@ -790,8 +492,8 @@ impl PriceList {
     pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnChainReturnValue",
-            Zero::zero(),
-            self.on_chain_return_value_per_byte * data_size * self.storage_gas_multiplier,
+            self.on_chain_return_compute.apply(data_size),
+            self.on_chain_return_storage.apply(data_size),
         )
     }
 
@@ -820,7 +522,7 @@ impl PriceList {
     #[inline]
     pub fn on_create_actor(&self, is_new: bool) -> GasCharge {
         let storage_gas = if is_new {
-            self.create_actor_storage * self.storage_gas_multiplier
+            self.create_actor_storage
         } else {
             Gas::zero()
         };
@@ -830,11 +532,7 @@ impl PriceList {
     /// Returns the gas required for deleting an actor.
     #[inline]
     pub fn on_delete_actor(&self) -> GasCharge {
-        GasCharge::new(
-            "OnDeleteActor",
-            Zero::zero(),
-            self.delete_actor * self.storage_gas_multiplier,
-        )
+        GasCharge::new("OnDeleteActor", Zero::zero(), self.delete_actor)
     }
 
     /// Returns gas required for signature verification.
@@ -966,11 +664,20 @@ impl PriceList {
     /// numebr of bytes of entropy.
     #[inline]
     pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge {
+        const RAND_INITIAL_HASH: u64 =
+            // domain separation tag, u64
+            8 +
+            // vrf digest
+            32 +
+            // round
+            8;
+
         GasCharge::new(
             "OnGetRandomness",
             self.extern_cost
-                + self.get_randomness_base
-                + (self.get_randomness_per_byte * entropy_size),
+                + self.get_randomness // TODO(m2.2): consider different values for
+                + self
+                .hashing_cost[&SupportedHashes::Blake2b256].apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
             Zero::zero(),
         )
     }
@@ -980,7 +687,7 @@ impl PriceList {
     pub fn on_block_open_base(&self) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenBase",
-            self.extern_cost + self.block_open_base,
+            self.extern_cost + self.block_open.flat,
             Zero::zero(),
         )
     }
@@ -990,8 +697,10 @@ impl PriceList {
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenPerByte",
-            (self.blockstore_read_per_byte_cost + self.block_open_memret_per_byte_cost) * data_size,
-            Zero::zero(),
+            self.block_allocate.apply(data_size)
+                + (self.block_open.scale * data_size)
+                + self.block_memcpy.apply(data_size),
+            self.block_memory_retention.apply(data_size),
         )
     }
 
@@ -1000,7 +709,7 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + self.block_memcpy_per_byte_cost * data_size,
+            self.block_memcpy.apply(data_size),
             Zero::zero(),
         )
     }
@@ -1010,30 +719,34 @@ impl PriceList {
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base + self.block_create_memret_per_byte_cost * data_size,
-            Zero::zero(),
+            self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size),
+            self.block_memory_retention.apply(data_size),
         )
     }
 
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
-    pub fn on_block_link(&self, data_size: usize) -> GasCharge {
-        // cost of computing the CID
-        let hashing = self.hashing_cost[&SupportedHashes::Blake2b256].apply(data_size);
-        // copy from the block registry to the FVM BufferedBlockstore
-        // copy from the FVM BufferedBlockstore to the Node's Blockstore
-        let copying = self.blockstore_write_per_byte_cost * data_size;
-        GasCharge::new(
-            "OnBlockLink",
-            self.block_link_base + hashing + copying,
-            self.block_link_storage_per_byte_cost * self.storage_gas_multiplier * data_size,
-        )
+    pub fn on_block_link(&self, hash_code: SupportedHashes, data_size: usize) -> GasCharge {
+        // First we compute the expected cost of allocating & copying the block. We'll end up
+        // charging it twice.
+        let memcpy = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
+
+        // Then the cost of actually hashing the new block.
+        let hashing = self.hashing_cost[&hash_code].apply(data_size);
+
+        // Then the expected cost of flushing (client side).
+        let flushing = self.block_flush.apply(data_size);
+
+        // Then the cost of actually storing the block.
+        let storage = self.block_storage.apply(data_size);
+
+        GasCharge::new("OnBlockLink", memcpy + hashing, storage + memcpy + flushing)
     }
 
     /// Returns the gas required for storing an object.
     #[inline]
     pub fn on_block_stat(&self) -> GasCharge {
-        GasCharge::new("OnBlockStat", self.block_stat_base, Zero::zero())
+        GasCharge::new("OnBlockStat", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for accessing the actor state root.
@@ -1093,7 +806,7 @@ impl PriceList {
     pub fn on_get_builtin_actor_type(&self) -> GasCharge {
         GasCharge::new(
             "OnGetBuiltinActorType",
-            self.builtin_actor_base,
+            self.builtin_actor_manifest_lookup,
             Zero::zero(),
         )
     }
@@ -1101,19 +814,23 @@ impl PriceList {
     /// Returns the gas required for looking up the CID of a builtin actor by type.
     #[inline]
     pub fn on_get_code_cid_for_type(&self) -> GasCharge {
-        GasCharge::new("OnGetCodeCidForType", self.builtin_actor_base, Zero::zero())
+        GasCharge::new(
+            "OnGetCodeCidForType",
+            self.builtin_actor_manifest_lookup,
+            Zero::zero(),
+        )
     }
 
     /// Returns the gas required for accessing the network context.
     #[inline]
     pub fn on_network_context(&self) -> GasCharge {
-        GasCharge::new("OnNetworkContext", self.context_base, Zero::zero())
+        GasCharge::new("OnNetworkContext", self.network_context, Zero::zero())
     }
 
     /// Returns the gas required for accessing the message context.
     #[inline]
     pub fn on_message_context(&self) -> GasCharge {
-        GasCharge::new("OnMessageContext", self.context_base, Zero::zero())
+        GasCharge::new("OnMessageContext", self.message_context, Zero::zero())
     }
 
     /// Returns the gas required for installing an actor.
@@ -1168,8 +885,6 @@ impl PriceList {
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V15 => &OH_SNAP_PRICES,
-        NetworkVersion::V16 | NetworkVersion::V17 => &SKYR_PRICES,
         NetworkVersion::V18 => &HYGGE_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }

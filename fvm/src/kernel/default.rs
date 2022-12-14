@@ -262,13 +262,13 @@ where
         }
         let start = GasTimer::start();
         let block = self.blocks.get(id)?;
-        let code = multihash::Code::try_from(hash_fun)
+        let code = SupportedHashes::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_link(block.size() as usize),
+                .on_block_link(code, block.size() as usize),
         )?;
 
         let hash = code.digest(block.data());
