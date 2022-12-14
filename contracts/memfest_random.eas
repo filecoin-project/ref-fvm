@@ -1,4 +1,4 @@
-## this is a simple contract that computes the 1000th non trivial fibo (ie ignoring the first two 1s)
+## this is a simple contract that thrashes memory, random variant
 
 # contract code
 %push(body_end - body_begin)
