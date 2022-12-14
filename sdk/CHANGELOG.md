@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.18 [2022-12-14]
+
+- Refactor: ChainID was moved from FVM to shared
+
 ## 3.0.0-alpha.17 [2022-12-08]
 
 - In send, change 0 gas to mean 0 gas (not unlimited).

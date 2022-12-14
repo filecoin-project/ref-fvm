@@ -5,8 +5,8 @@ edition = "2021"
 publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-fvm_sdk = { version = "3.0.0-alpha.17", path = "../../../../sdk" }
-fvm_shared = { version = "3.0.0-alpha.14", path = "../../../../shared" }
+fvm_sdk = { version = "3.0.0-alpha.18", path = "../../../../sdk" }
+fvm_shared = { version = "3.0.0-alpha.15", path = "../../../../shared" }
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"

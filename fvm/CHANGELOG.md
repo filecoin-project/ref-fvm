@@ -4,6 +4,25 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.15 [2022-12-14]
+
+- Refactor: Extract the `Engine` from the `Machine` and make it a pool
+  - The `Engine` is replaced by an "Engine Pool", with `concurrency * call_depth` instances
+  - The Engine Pool lives in the `Executor`
+  - The `Engine` itself lives in the `CallManager`
+- Update instrumentation logic
+- Add charging logic for all memory copy and init operations
+- Refactor: Move `ChainID` out of FVM (and into shared)
+- Compile with `m2-native`
+- Fix: Missing `Engine` getter 
+- Feat: Gas timing stats and visualization
+  - Adds gas timing tracing to conformance tests 
+  - Adds a gas calibration contract to run specific instructions
+- Feat: Implement Ethereum Account Abstraction
+  - Remove the f4-as-account feature/hack entirely
+  - The executor checks if sender is an embryo actor
+  - If so, and the delegated address is in the f410 namespace, an Ethereum Account is deployed there
+
 ## 3.0.0-alpha.14 [2022-12-08]
 
 - In send, change 0 gas to mean 0 gas (not unlimited).
