@@ -331,7 +331,7 @@ lazy_static! {
 
         bls_sig_cost: Gas::new(16598605),
         secp256k1_sig_cost: Gas::new(1637292),
-        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
+        secp256k1_recover_cost: Gas::new(2643945),
 
         hashing_base: Gas::new(31355),
         compute_unsealed_sector_cid_base: Gas::new(98647),
