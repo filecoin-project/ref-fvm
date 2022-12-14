@@ -4,6 +4,12 @@
 
 - ...
 
+## 3.0.0-alpha.15 [2022-12-14]
+
+- Refactor: ChainID was moved from FVM to shared
+- Implement Ethereum Account abstraction
+  - Removes the f4-as-accont feature, and support for Delegated signature validations
+
 ## 3.0.0-alpha.14 [2022-12-07]
 
 - Remove GasLimit from the message context.
