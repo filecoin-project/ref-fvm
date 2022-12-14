@@ -17,7 +17,11 @@ pub fn run<B: Blockstore>(
 ) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
     tester
-        .instantiate_machine_with_config(DummyExterns, |cfg| {cfg.actor_debugging = options.debug})
+        .instantiate_machine_with_config(
+            DummyExterns,
+            |cfg| cfg.actor_debugging = options.debug,
+            |_| {},
+        )
         .unwrap();
 
     // create actor
