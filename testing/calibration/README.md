@@ -25,7 +25,7 @@ Alternatively all the scenarios and exports can be executed the followign way:
 make run
 ```
 
-After this the regression results can be found in `./measurements/out/regressions`.
+After this the regression results can be found in `./measurements/out/regressions`. The suggested prices can be printed with the `make proposals` command, but always check the charts to see which one to adopt.
 
 ## Visualization
 
@@ -42,6 +42,24 @@ Extraction and visualization can be run together:
 ```shell
 make all
 ```
+
+### Sanity checks
+
+The charts in `./measurements/out/charts/charges` dispaly the relationship between input size and time on a scatter plot,
+which forms the basis for the linear regressions. It's worth checking whether there are any outliers that could skew the models.
+
+The charts also contain a line (as opposed to points) which show the actual gas charge at the various input sizes.
+The values have been divided by the expected gas-per-nanosecond cost, so the slope of the line can be directly compared
+against the slope of the scatter plot of time, giving us an idea of how good the current price model is.
+
+It's also worth taking a look at the [overall.png](./measurements/out/charts/overall.png) chart, which contains the actual gas charge
+of the different syscalls at the same measured times we spent doing them. If the prices are good, we should see each syscall have very
+similar slopes - the more time we spend on them, the more gas they should cost, with nothing being relatively cheaper or more expensive
+than the others.
+
+One exemption of this rule are the syscalls which take deferred disk IO into account. Here the solution could be to estimate how much longer
+it will take to write something to disk at the end, and just multiply the time by that number before exporting the results, creating a
+virtual time for the sake of modelling prices.
 
 ## Notes
 
