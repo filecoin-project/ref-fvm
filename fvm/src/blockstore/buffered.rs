@@ -275,7 +275,7 @@ where
                 f,
                 "{}, N/A, {took}, 1, {}",
                 if buf { "read_buffer" } else { "read_disk" },
-                res.map_or(0, |r| r.len())
+                res.as_ref().map_or(0, |r| r.len())
             )
             .unwrap();
         }
