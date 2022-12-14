@@ -17,7 +17,11 @@ pub fn run<B: Blockstore>(
 ) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
     tester
-        .instantiate_machine_with_config(DummyExterns, |cfg| {cfg.actor_debugging = options.debug})
+        .instantiate_machine_with_config(
+            DummyExterns,
+            |cfg| cfg.actor_debugging = options.debug,
+            |mc| mc.tracing = options.trace,
+        )
         .unwrap();
 
     // create actor
@@ -60,7 +64,7 @@ pub fn run<B: Blockstore>(
         from: accounts[0].1,
         to: Address::new_id(create_return.actor_id),
         sequence: 1,
-        gas_limit: 10_000_000_000,
+        gas_limit: i64::MAX,
         method_num: EVMMethod::InvokeContract as u64,
         params: RawBytes::serialize(BytesSer(&input_data)).unwrap(),
         ..Message::default()
@@ -74,10 +78,11 @@ pub fn run<B: Blockstore>(
         .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)
         .unwrap();
 
-    if invoke_res.msg_receipt.exit_code.value() != 0 {
+    if !invoke_res.msg_receipt.exit_code.is_success() {
         return Err(anyhow!(
-            "contract invocation failed: {}",
-            create_res.msg_receipt.exit_code
+            "contract invocation failed: {} -- {:?}",
+            invoke_res.msg_receipt.exit_code,
+            invoke_res.failure_info,
         ));
     }
 
