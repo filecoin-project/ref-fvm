@@ -76,7 +76,7 @@ where
         let took = (start.elapsed() - break_duration).as_secs_f64();
         {
             let mut f = STAT_FILE.lock().unwrap();
-            writeln!(f, "{root}, {took}, {count}, {size}").unwrap();
+            writeln!(f, "batch_write, {root}, {took}, {count}, {size}").unwrap();
         }
         *s = Default::default();
 
@@ -262,11 +262,24 @@ where
     BS: Blockstore,
 {
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
-        Ok(if let Some(data) = self.write.borrow().get(cid) {
-            Some(data.clone())
+        let start = Instant::now();
+        let (res, buf) = if let Some(data) = self.write.borrow().get(cid) {
+            (Some(data.clone()), true)
         } else {
-            self.base.get(cid)?
-        })
+            (self.base.get(cid)?, false)
+        };
+        {
+            let took = start.elapsed().as_secs_f64();
+            let mut f = STAT_FILE.lock().unwrap();
+            writeln!(
+                f,
+                "{}, N/A, {took}, 1, {}",
+                if buf { "read_buffer" } else { "read_disk" },
+                res.map_or(0, |r| r.len())
+            )
+            .unwrap();
+        }
+        Ok(res)
     }
 
     fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {
