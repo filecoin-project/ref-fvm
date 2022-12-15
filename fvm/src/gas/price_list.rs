@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
+use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
@@ -83,8 +84,8 @@ lazy_static! {
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 => Gas::new(1637292),
-                BLS       => Gas::new(16598605)
+                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
+                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
             }
         },
 
@@ -229,8 +230,8 @@ lazy_static! {
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 => Gas::new(1637292),
-                BLS       => Gas::new(16598605)
+                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
+                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
             }
         },
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
@@ -376,8 +377,8 @@ lazy_static! {
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 => Gas::new(1637292),
-                BLS       => Gas::new(16598605)
+                Secp256k1 => ScalingCost::new(Gas::new(2904469), Gas::new(11)),
+                BLS       => ScalingCost::new(Gas::new(18897169), Gas::new(38))
             }
         },
         secp256k1_recover_cost: Gas::new(2643945),
@@ -518,6 +519,20 @@ pub(crate) struct ScalingCost {
     scale: Gas,
 }
 
+impl ScalingCost {
+    pub fn new(flat: Gas, scale: Gas) -> Self {
+        Self { flat, scale }
+    }
+
+    /// Apply the formula on a scalable value.
+    pub fn apply<V>(&self, value: V) -> Gas
+    where
+        Gas: Mul<V, Output = Gas>,
+    {
+        self.flat + self.scale * value
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StepCost(Vec<Step>);
 
@@ -598,7 +613,7 @@ pub struct PriceList {
     pub(crate) delete_actor: Gas,
 
     /// Gas cost for verifying a cryptographic signature.
-    pub(crate) sig_cost: HashMap<SignatureType, Gas>,
+    pub(crate) sig_cost: HashMap<SignatureType, ScalingCost>,
 
     /// Gas cost for recovering secp256k1 signer public key
     pub(crate) secp256k1_recover_cost: Gas,
@@ -760,9 +775,10 @@ impl PriceList {
 
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType, _data_len: usize) -> GasCharge {
-        let val = self.sig_cost[&sig_type];
-        GasCharge::new("OnVerifySignature", val, Zero::zero())
+    pub fn on_verify_signature(&self, sig_type: SignatureType, data_len: usize) -> GasCharge {
+        let cost = self.sig_cost[&sig_type];
+        let gas = cost.apply(data_len);
+        GasCharge::new("OnVerifySignature", gas, Zero::zero())
     }
 
     /// Returns gas required for recovering signer pubkey from signature
@@ -860,7 +876,7 @@ impl PriceList {
                 .expect("512MiB lookup must exist in price table")
         });
 
-        let gas_used = cost.flat + cost.scale * info.challenged_sectors.len();
+        let gas_used = cost.apply(info.challenged_sectors.len());
 
         GasCharge::new("OnVerifyPost", gas_used, Zero::zero())
     }
