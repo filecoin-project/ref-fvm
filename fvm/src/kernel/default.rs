@@ -823,63 +823,8 @@ where
         actor_id: ActorID,
         predictable_address: Option<Address>,
     ) -> Result<()> {
-        // TODO https://github.com/filecoin-project/builtin-actors/issues/492
-        let singleton = self
-            .call_manager
-            .machine()
-            .builtin_actors()
-            .is_singleton_actor(&code_id);
-
-        if singleton {
-            return Err(
-                syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
-            );
-        }
-
-        // Check to make sure the actor doesn't exist, or is an embryo.
-        let (actor, is_new) = match self.call_manager.state_tree().get_actor(actor_id)? {
-            // Replace the embryo
-            Some(mut act)
-                if self
-                    .call_manager
-                    .machine()
-                    .builtin_actors()
-                    .is_embryo_actor(&act.code) =>
-            {
-                if act.address.is_none() {
-                    // The FVM made a mistake somewhere.
-                    return Err(ExecutionError::Fatal(anyhow!(
-                        "embryo {actor_id} doesn't have a predictable address"
-                    )));
-                }
-                if act.address != predictable_address {
-                    // The Init actor made a mistake?
-                    return Err(syscall_error!(
-                        Forbidden,
-                        "embryo has a different predictable address"
-                    )
-                    .into());
-                }
-                act.code = code_id;
-                (act, false)
-            }
-            // Don't replace anything else.
-            Some(_) => {
-                return Err(syscall_error!(Forbidden; "Actor address already exists").into());
-            }
-            // Create a new actor.
-            None => (ActorState::new_empty(code_id, predictable_address), true),
-        };
-
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_create_actor(is_new))?;
-
-        t.record(
-            self.call_manager
-                .state_tree_mut()
-                .set_actor(actor_id, actor),
-        )
+        self.call_manager
+            .create_actor(code_id, actor_id, predictable_address)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
