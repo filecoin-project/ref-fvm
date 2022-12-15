@@ -64,6 +64,13 @@ macro_rules! total_enum_map {
     };
 }
 
+/// Help create scaling costs in the format of `m*x+b` (conventional from the linear regression variables).
+macro_rules! scaling_mg {
+    ($m:literal * x + $b:literal) => {
+        ScalingCost::new(Gas::from_milligas($b), Gas::from_milligas($m))
+    };
+}
+
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
         storage_gas_multiplier: 1300,
@@ -406,19 +413,19 @@ lazy_static! {
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 => ScalingCost::new(Gas::new(2904469), Gas::from_milligas(11400)),
-                BLS       => ScalingCost::new(Gas::new(18897169), Gas::from_milligas(35500))
+                Secp256k1 =>  scaling_mg!(11400 * x +  2639001000),
+                BLS       =>  scaling_mg!(35500 * x + 18719325000),
             }
         },
         secp256k1_recover_cost: Gas::new(2643945),
 
         hashing_cost: total_enum_map! {
             SupportedHashes {
-                Sha2_256   => ScalingCost::new(Gas::zero(), Gas::from_milligas(64500)),
-                Blake2b256 => ScalingCost::new(Gas::zero(), Gas::from_milligas(11500)),
-                Blake2b512 => ScalingCost::new(Gas::zero(), Gas::from_milligas(11500)),
-                Keccak256  => ScalingCost::new(Gas::zero(), Gas::from_milligas(48500)),
-                Ripemd160  => ScalingCost::new(Gas::zero(), Gas::from_milligas(43900))
+                Sha2_256   => scaling_mg!(64500 * x + 0),
+                Blake2b256 => scaling_mg!(11500 * x + 0),
+                Blake2b512 => scaling_mg!(11500 * x + 0),
+                Keccak256  => scaling_mg!(48500 * x + 0),
+                Ripemd160  => scaling_mg!(43900 * x + 0)
             }
         },
         compute_unsealed_sector_cid_base: Gas::new(98647),
