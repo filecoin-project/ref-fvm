@@ -186,16 +186,17 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_memcpy_per_byte_cost: Zero::zero(),
+        block_mem_read_per_byte_cost: Zero::zero(),
+        block_mem_write_per_byte_cost: Zero::zero(),
+
+        blockstore_read_per_byte_cost: Zero::zero(),
+        blockstore_write_per_byte_cost: Zero::zero(),
 
         block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Zero::zero(),
+        block_create_base: Zero::zero(),
 
         block_link_base: Gas::new(353640),
         block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Zero::zero(),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -343,16 +344,17 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_memcpy_per_byte_cost: Gas::from_milligas(500),
+        block_mem_read_per_byte_cost: Gas::from_milligas(500),
+        block_mem_write_per_byte_cost: Gas::new(10),
+
+        blockstore_read_per_byte_cost: Zero::zero(),
+        blockstore_write_per_byte_cost: Zero::zero(),
 
         block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Gas::new(10),
+        block_create_base: Zero::zero(),
 
         block_link_base: Gas::new(353640),
         block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Gas::new(10),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -498,16 +500,18 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_memcpy_per_byte_cost: Gas::from_milligas(500),
+        block_mem_read_per_byte_cost: Gas::from_milligas(830),
+        block_mem_write_per_byte_cost: Gas::new(6),
 
-        block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Gas::new(10),
+        // TODO: Scale up with the disk cost.
+        blockstore_read_per_byte_cost: Gas::new(6),
+        blockstore_write_per_byte_cost: Gas::new(8),
 
-        block_link_base: Gas::new(353640),
-        block_link_storage_per_byte_cost: Gas::new(1),
-
+        block_open_base: Gas::zero(),
         block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Gas::new(10),
+
+        block_link_base: Gas::zero(),
+        block_link_storage_per_byte_cost: Gas::new(1),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -669,23 +673,38 @@ pub struct PriceList {
     /// Gas cost per every byte of randomness fetched.
     pub(crate) get_randomness_per_byte: Gas,
 
-    /// Gas cost per every block byte memcopied across boundaries.
-    pub(crate) block_memcpy_per_byte_cost: Gas,
+    /// Gas cost per every block copied from the memory of the FVM.
+    ///
+    /// Reading from the `Block` in the `BlockRegistry` is cheap.
+    pub(crate) block_mem_read_per_byte_cost: Gas,
+
+    /// Gas cost for every byte copied to the memory of the FVM.
+    ///
+    /// This kicks in when we create a `Block::new` from a reference
+    /// to some byte slice. When it's created from an owned vector,
+    /// it is cheaper because it doesn't copy.
+    pub(crate) block_mem_write_per_byte_cost: Gas,
+
+    /// Gas cost per every block byte read from the block store.
+    /// Ideally this assumes the bytes are read from disk and not the cache.
+    pub(crate) blockstore_read_per_byte_cost: Gas,
+
+    /// Gas cost per every block byte written to the block store.
+    /// Ideally this includes the deferred cost of eventually flushing the data to disk:
+    /// - copy from the block registry to the FVM BufferedBlockstore
+    /// - copy from the FVM BufferedBlockstore to the Node's Blockstore
+    pub(crate) blockstore_write_per_byte_cost: Gas,
 
     /// Gas cost for opening a block.
     pub(crate) block_open_base: Gas,
-    /// Gas cost for every byte retained in FVM space when opening a block.
-    pub(crate) block_open_memret_per_byte_cost: Gas,
+
+    /// Gas cost for creating a block.
+    pub(crate) block_create_base: Gas,
 
     /// Gas cost for linking a block.
     pub(crate) block_link_base: Gas,
     /// Multiplier for storage gas per byte.
     pub(crate) block_link_storage_per_byte_cost: Gas,
-
-    /// Gas cost for creating a block.
-    pub(crate) block_create_base: Gas,
-    /// Gas cost for every byte retained in FVM space when writing a block.
-    pub(crate) block_create_memret_per_byte_cost: Gas,
 
     /// Gas cost for reading a block into actor space.
     pub(crate) block_read_base: Gas,
@@ -957,10 +976,11 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
+        // This one doesn't need `block_mem_write_per_byte_cost` because
+        // the data is not copied across boundaries like with `on_block_create`.
         GasCharge::new(
             "OnBlockOpenPerByte",
-            (self.block_open_memret_per_byte_cost * data_size)
-                + (self.block_memcpy_per_byte_cost * data_size),
+            (self.blockstore_read_per_byte_cost) * data_size,
             Zero::zero(),
         )
     }
@@ -970,7 +990,7 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + (self.block_memcpy_per_byte_cost * data_size),
+            self.block_read_base + self.block_mem_read_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
@@ -978,11 +998,9 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
-        let mem_costs = (self.block_create_memret_per_byte_cost * data_size)
-            + (self.block_memcpy_per_byte_cost * data_size);
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base + mem_costs,
+            self.block_create_base + self.block_mem_write_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
@@ -990,14 +1008,14 @@ impl PriceList {
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, data_size: usize) -> GasCharge {
-        let memcpy = self.block_memcpy_per_byte_cost * data_size;
+        // cost of computing the CID
+        let hashing = self.hashing_cost[&SupportedHashes::Blake2b256].apply(data_size);
+        // copy from the block registry to the FVM BufferedBlockstore
+        // copy from the FVM BufferedBlockstore to the Node's Blockstore
+        let copying = self.blockstore_write_per_byte_cost * data_size;
         GasCharge::new(
             "OnBlockLink",
-            // twice the memcpy cost:
-            // - one from the block registry to the FVM BufferedBlockstore
-            // - one from the FVM BufferedBlockstore to the Node's Blockstore
-            //   when the machine finishes.
-            self.block_link_base + (memcpy * 2),
+            self.block_link_base + hashing + copying,
             self.block_link_storage_per_byte_cost * self.storage_gas_multiplier * data_size,
         )
     }
