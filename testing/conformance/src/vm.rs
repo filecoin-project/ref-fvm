@@ -320,9 +320,9 @@ where
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
-        predictable_address: Option<Address>,
+        delegated_address: Option<Address>,
     ) -> Result<()> {
-        self.0.create_actor(code_id, actor_id, predictable_address)
+        self.0.create_actor(code_id, actor_id, delegated_address)
     }
 
     fn price_list(&self) -> &fvm::gas::PriceList {
@@ -439,9 +439,9 @@ where
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
-        predictable_address: Option<Address>,
+        delegated_address: Option<Address>,
     ) -> Result<()> {
-        self.0.create_actor(code_id, actor_id, predictable_address)
+        self.0.create_actor(code_id, actor_id, delegated_address)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
@@ -461,8 +461,8 @@ where
         todo!()
     }
 
-    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
-        self.0.lookup_address(actor_id)
+    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        self.0.lookup_delegated_address(actor_id)
     }
 }
 

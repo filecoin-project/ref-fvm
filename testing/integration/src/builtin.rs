@@ -43,7 +43,7 @@ pub fn set_sys_actor(
         state: sys_state_cid,
         sequence: 0,
         balance: Default::default(),
-        address: None,
+        delegated_address: None,
     };
     state_tree
         .set_actor(system_actor::SYSTEM_ACTOR_ID, sys_actor_state)
@@ -66,7 +66,7 @@ pub fn set_init_actor(
         state: init_state_cid,
         sequence: 0,
         balance: Default::default(),
-        address: None,
+        delegated_address: None,
     };
 
     state_tree
@@ -88,7 +88,7 @@ pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: 
         state: eam_state_cid,
         sequence: 0,
         balance: Default::default(),
-        address: None,
+        delegated_address: None,
     };
 
     state_tree

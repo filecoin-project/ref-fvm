@@ -443,7 +443,7 @@ where
         let sender_is_valid = self.builtin_actors().is_account_actor(&sender_state.code)
             || self.builtin_actors().is_ethaccount_actor(&sender_state.code) ||
             (self.builtin_actors().is_embryo_actor(&sender_state.code) && sender_state
-                .address
+                .delegated_address
                 .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID))
                 .unwrap_or(false));
 

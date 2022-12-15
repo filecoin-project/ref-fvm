@@ -380,7 +380,7 @@ impl CallManager for DummyCallManager {
         &mut self,
         _code_id: Cid,
         _actor_id: ActorID,
-        _predictable_address: Option<Address>,
+        _delegated_address: Option<Address>,
     ) -> kernel::Result<()> {
         todo!()
     }

@@ -173,8 +173,8 @@ pub trait ActorOps {
     /// If the argument is an ID address it is returned directly.
     fn resolve_address(&self, address: &Address) -> Result<ActorID>;
 
-    /// Looks-up the "predictable" address of the specified actor, if any.
-    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
+    /// Looks up the "delegated" (f4) address of the specified actor, if any.
+    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
 
     /// Look up the code CID of an actor.
     fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
@@ -185,13 +185,13 @@ pub trait ActorOps {
     /// Always an ActorExec address.
     fn next_actor_address(&self) -> Result<Address>;
 
-    /// Creates an actor with given `code_cid`, `actor_id`, `predictable_address` (if specified),
+    /// Creates an actor with given `code_cid`, `actor_id`, `delegated_address` (if specified),
     /// and an empty state.
     fn create_actor(
         &mut self,
         code_cid: Cid,
         actor_id: ActorID,
-        predictable_address: Option<Address>,
+        delegated_address: Option<Address>,
     ) -> Result<()>;
 
     /// Installs actor code pointed by cid

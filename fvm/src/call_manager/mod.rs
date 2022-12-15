@@ -101,13 +101,13 @@ pub trait CallManager: 'static {
     /// `create_actor` is called next.
     fn next_actor_address(&self) -> Address;
 
-    /// Create a new actor with the given code CID, actor ID, and predictable address. This method
+    /// Create a new actor with the given code CID, actor ID, and delegated address. This method
     /// does not register the actor with the init actor. It just creates it in the state-tree.
     fn create_actor(
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
-        predictable_address: Option<Address>,
+        delegated_address: Option<Address>,
     ) -> Result<()>;
 
     /// Getter for message nonce.

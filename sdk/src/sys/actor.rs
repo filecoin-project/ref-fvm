@@ -26,7 +26,7 @@ super::fvm_syscalls! {
         addr_len: u32,
     ) -> Result<u64>;
 
-    /// Looks up the "predictable" address of the target actor.
+    /// Looks up the "delegated" (f4) address of the target actor (if any).
     ///
     /// # Arguments
     ///
@@ -36,7 +36,7 @@ super::fvm_syscalls! {
     /// # Returns
     ///
     /// The length of the address written to the output buffer, or 0 if the target actor has no
-    /// predictable address.
+    /// delegated (f4) address.
     ///
     /// # Errors
     ///
@@ -45,7 +45,7 @@ super::fvm_syscalls! {
     /// | [`NotFound`]        | if the target actor does not exist                               |
     /// | [`BufferTooSmall`]  | if the output buffer isn't large enough to fit the address       |
     /// | [`IllegalArgument`] | if the output buffer isn't valid, in memory, etc.                |
-    pub fn lookup_address(
+    pub fn lookup_delegated_address(
         actor_id: u64,
         addr_buf_off: *mut u8,
         addr_buf_len: u32,
@@ -117,15 +117,15 @@ super::fvm_syscalls! {
     pub fn next_actor_address(obuf_off: *mut u8, obuf_len: u32) -> Result<u32>;
 
     /// Creates a new actor in the state-tree with the specified actor ID, recording the specified
-    /// "predictable" address in the actor root if non-empty, and returning a new stable address.
+    /// "delegated" address in the actor root if non-empty, and returning a new stable address.
     ///
     /// **Privileged:** May only be called by the init actor.
     #[doc(hidden)]
     pub fn create_actor(
         actor_id: u64,
         typ_off: *const u8,
-        predictable_addr_off: *const u8,
-        predictable_addr_len: u32,
+        delegated_addr_off: *const u8,
+        delegated_addr_len: u32,
     ) -> Result<()>;
 
     /// Installs and ensures actor code is valid and loaded.

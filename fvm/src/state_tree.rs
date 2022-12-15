@@ -517,10 +517,10 @@ pub struct ActorState {
     pub sequence: u64,
     /// Tokens available to the actor.
     pub balance: TokenAmount,
-    /// The actor's "predictable" address, if assigned.
+    /// The actor's "delegated" address, if assigned.
     ///
     /// This field is set on actor creation and never modified.
-    pub address: Option<Address>,
+    pub delegated_address: Option<Address>,
 }
 
 impl ActorState {
@@ -537,18 +537,18 @@ impl ActorState {
             state,
             sequence,
             balance,
-            address,
+            delegated_address: address,
         }
     }
 
     /// Construct a new empty actor with the specified code.
-    pub fn new_empty(code: Cid, address: Option<Address>) -> Self {
+    pub fn new_empty(code: Cid, delegated_address: Option<Address>) -> Self {
         ActorState {
             code,
             state: *EMPTY_ARR_CID,
             sequence: 0,
             balance: TokenAmount::zero(),
-            address,
+            delegated_address,
         }
     }
 
@@ -767,7 +767,7 @@ mod tests {
                 state: state_cid,
                 balance: Default::default(),
                 sequence: 2,
-                address: None
+                delegated_address: None
             })
         );
 
