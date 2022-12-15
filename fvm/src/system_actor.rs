@@ -4,7 +4,7 @@ use anyhow::Context;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::{Deserialize_tuple, Serialize_tuple};
-use fvm_ipld_encoding::{Cbor, CborStore};
+use fvm_ipld_encoding::CborStore;
 use fvm_shared::ActorID;
 
 use crate::kernel::{ClassifyResult, Result};
@@ -17,7 +17,6 @@ pub struct State {
     // builtin actor registry: Vec<(String, Cid)>
     pub builtin_actors: Cid,
 }
-impl Cbor for State {}
 
 impl State {
     pub fn load<B>(state_tree: &StateTree<B>) -> Result<(Self, ActorState)>

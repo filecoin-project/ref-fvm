@@ -19,7 +19,7 @@ use anyhow::Context;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{Cbor, CborStore};
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
@@ -38,8 +38,6 @@ pub struct State {
     #[cfg(feature = "m2-native")]
     pub installed_actors: Cid,
 }
-
-impl Cbor for State {}
 
 impl State {
     // ideally we would just #[cfg(test)] this, but it is used by non test-gated code in

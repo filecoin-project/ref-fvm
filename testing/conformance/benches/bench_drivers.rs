@@ -10,7 +10,7 @@ use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{MessageVector, Variant};
 use fvm_conformance_tests::vm::{TestKernel, TestMachine};
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::from_slice;
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
@@ -126,7 +126,7 @@ pub fn bench_vector_file(
                 .apply_messages
                 .iter()
                 .map(|m| {
-                    let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
+                    let unmarshalled: Message = from_slice(&m.bytes).unwrap();
                     let mut raw_length = m.bytes.len();
                     if unmarshalled.from.protocol() == Protocol::Secp256k1 {
                         // 65 bytes signature + 1 byte type + 3 bytes for field info.

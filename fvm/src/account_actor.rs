@@ -10,7 +10,6 @@
 //! details.
 
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
 
 /// State specifies the key address for the actor.
@@ -18,5 +17,3 @@ use fvm_shared::address::Address;
 pub struct State {
     pub address: Address,
 }
-
-impl Cbor for State {}

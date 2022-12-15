@@ -11,7 +11,7 @@ use conformance_tests::vm::{TestKernel, TestMachine};
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm::machine::{Engine, EngineConfig};
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::from_slice;
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
@@ -68,7 +68,7 @@ pub fn run_variant_for_perf(
 
     // Apply all messages in the vector.
     for m in v.apply_messages.iter() {
-        let msg = Message::unmarshal_cbor(&m.bytes).unwrap();
+        let msg: Message = from_slice(&m.bytes).unwrap();
 
         // Execute the message.
         let mut raw_length = m.bytes.len();

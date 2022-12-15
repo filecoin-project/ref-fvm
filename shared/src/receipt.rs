@@ -4,7 +4,7 @@
 
 use cid::Cid;
 use fvm_ipld_encoding::tuple::{Deserialize_tuple, Serialize_tuple};
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::RawBytes;
 
 use crate::error::ExitCode;
 
@@ -19,5 +19,3 @@ pub struct Receipt {
     /// CBOR NULL value on the wire).
     pub events_root: Option<Cid>, // Amt<Event>
 }
-
-impl Cbor for Receipt {}

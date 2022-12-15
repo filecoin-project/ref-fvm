@@ -12,7 +12,7 @@ use fvm::kernel::Context;
 use fvm::machine::Machine;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::{Cbor, CborStore};
+use fvm_ipld_encoding::{from_slice, CborStore};
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
@@ -159,7 +159,7 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
     // might exist in the state-tree (it's usually incomplete).
 
     for m in &vector.apply_messages {
-        let msg = Message::unmarshal_cbor(&m.bytes)?;
+        let msg: Message = from_slice(&m.bytes)?;
         let actual_actor = actual_st.get_actor_by_address(&msg.from)?;
         let expected_actor = expected_st.get_actor_by_address(&msg.from)?;
         compare_actors(bs, "sender", actual_actor, expected_actor)?;
@@ -245,7 +245,7 @@ pub fn run_variant(
 
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
-        let msg = Message::unmarshal_cbor(&m.bytes)?;
+        let msg: Message = from_slice(&m.bytes)?;
 
         // Execute the message.
         let mut raw_length = m.bytes.len();

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
 
 use crate::bigint::{bigint_ser, BigInt, Integer};
 use crate::clock::ChainEpoch;
@@ -38,8 +37,6 @@ impl FilterEstimate {
         (&self.velocity * delta_t) + position
     }
 }
-
-impl Cbor for FilterEstimate {}
 
 pub struct AlphaBetaFilter<'a, 'b, 'f> {
     alpha: &'a BigInt,

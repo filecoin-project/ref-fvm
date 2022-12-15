@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::error;
 
 use fvm_ipld_encoding::repr::*;
-use fvm_ipld_encoding::{de, ser, strict_bytes, Cbor, Error as EncodingError};
+use fvm_ipld_encoding::{de, ser, strict_bytes, Error as EncodingError};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use thiserror::Error;
@@ -41,8 +41,6 @@ pub struct Signature {
     pub sig_type: SignatureType,
     pub bytes: Vec<u8>,
 }
-
-impl Cbor for Signature {}
 
 impl ser::Serialize for Signature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

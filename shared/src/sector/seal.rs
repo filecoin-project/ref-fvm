@@ -4,8 +4,8 @@
 
 use cid::Cid;
 use clock::ChainEpoch;
+use fvm_ipld_encoding::strict_bytes;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{strict_bytes, Cbor};
 
 use crate::randomness::Randomness;
 use crate::sector::{
@@ -32,9 +32,6 @@ pub struct SealVerifyInfo {
     pub sealed_cid: Cid,   // Commr
     pub unsealed_cid: Cid, // Commd
 }
-
-// For syscall marshalling.
-impl Cbor for SealVerifyInfo {}
 
 /// SealVerifyParams is the structure of information that must be sent with
 /// a message to commit a sector. Most of this information is not needed in the
@@ -73,9 +70,6 @@ pub struct AggregateSealVerifyProofAndInfos {
     pub infos: Vec<AggregateSealVerifyInfo>,
 }
 
-// For syscall marshalling.
-impl Cbor for AggregateSealVerifyProofAndInfos {}
-
 /// Information needed to verify a replica update
 #[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct ReplicaUpdateInfo {
@@ -85,6 +79,3 @@ pub struct ReplicaUpdateInfo {
     pub new_unsealed_cid: Cid,
     pub proof: Vec<u8>,
 }
-
-// For syscall marshalling.
-impl Cbor for ReplicaUpdateInfo {}
