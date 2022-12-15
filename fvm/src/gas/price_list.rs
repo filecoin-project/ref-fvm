@@ -22,6 +22,7 @@ use num_traits::Zero;
 
 use super::GasCharge;
 use crate::gas::Gas;
+use crate::kernel::SupportedHashes;
 
 // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
@@ -52,7 +53,7 @@ const TABLE_ELEMENT_SIZE: u32 = 8;
 /// ```
 #[macro_export]
 macro_rules! total_enum_map {
-    ($en:ident { $($item:ident => $value:expr),+ }) => {
+    ($en:ident { $($item:ident => $value:expr),+ $(,)? }) => {
         [$($en::$item),+].into_iter().map(|m| {
             // This will not compile if a case is missing.
             let v = match m {
@@ -91,7 +92,19 @@ lazy_static! {
 
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: {
+            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
+            total_enum_map! {
+                SupportedHashes {
+                    Sha2_256   => flat,
+                    Blake2b256 => flat,
+                    Blake2b512 => flat,
+                    Keccak256  => flat,
+                    Ripemd160  => flat,
+                }
+            }
+        },
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -236,7 +249,19 @@ lazy_static! {
         },
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: {
+            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
+            total_enum_map! {
+                SupportedHashes {
+                    Sha2_256   => flat,
+                    Blake2b256 => flat,
+                    Blake2b512 => flat,
+                    Keccak256  => flat,
+                    Ripemd160  => flat,
+                }
+            }
+        },
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -383,7 +408,15 @@ lazy_static! {
         },
         secp256k1_recover_cost: Gas::new(2643945),
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: total_enum_map! {
+            SupportedHashes {
+                Sha2_256   => ScalingCost::new(Gas::zero(), Gas::new(61)),
+                Blake2b256 => ScalingCost::new(Gas::zero(), Gas::new(11)),
+                Blake2b512 => ScalingCost::new(Gas::zero(), Gas::new(11)),
+                Keccak256  => ScalingCost::new(Gas::zero(), Gas::new(47)),
+                Ripemd160  => ScalingCost::new(Gas::zero(), Gas::new(43))
+            }
+        },
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -618,7 +651,7 @@ pub struct PriceList {
     /// Gas cost for recovering secp256k1 signer public key
     pub(crate) secp256k1_recover_cost: Gas,
 
-    pub(crate) hashing_base: Gas,
+    pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -793,8 +826,10 @@ impl PriceList {
 
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _data_len: usize) -> GasCharge {
-        GasCharge::new("OnHashing", self.hashing_base, Zero::zero())
+    pub fn on_hashing(&self, hasher: SupportedHashes, data_len: usize) -> GasCharge {
+        let cost = self.hashing_cost[&hasher];
+        let gas = cost.apply(data_len);
+        GasCharge::new("OnHashing", gas, Zero::zero())
     }
 
     /// Returns gas required for computing unsealed sector Cid.
