@@ -186,8 +186,9 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_mem_read_per_byte_cost: Zero::zero(),
-        block_mem_write_per_byte_cost: Zero::zero(),
+        block_memcpy_per_byte_cost: Zero::zero(),
+        block_open_memret_per_byte_cost: Zero::zero(),
+        block_create_memret_per_byte_cost: Zero::zero(),
 
         blockstore_read_per_byte_cost: Zero::zero(),
         blockstore_write_per_byte_cost: Zero::zero(),
@@ -344,8 +345,9 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_mem_read_per_byte_cost: Gas::from_milligas(500),
-        block_mem_write_per_byte_cost: Gas::new(10),
+        block_memcpy_per_byte_cost: Gas::from_milligas(500),
+        block_open_memret_per_byte_cost: Gas::new(10),
+        block_create_memret_per_byte_cost: Gas::new(10),
 
         blockstore_read_per_byte_cost: Zero::zero(),
         blockstore_write_per_byte_cost: Zero::zero(),
@@ -404,19 +406,19 @@ lazy_static! {
 
         sig_cost: total_enum_map!{
             SignatureType {
-                Secp256k1 => ScalingCost::new(Gas::new(2904469), Gas::new(11)),
-                BLS       => ScalingCost::new(Gas::new(18897169), Gas::new(38))
+                Secp256k1 => ScalingCost::new(Gas::new(2904469), Gas::from_milligas(11400)),
+                BLS       => ScalingCost::new(Gas::new(18897169), Gas::from_milligas(35500))
             }
         },
         secp256k1_recover_cost: Gas::new(2643945),
 
         hashing_cost: total_enum_map! {
             SupportedHashes {
-                Sha2_256   => ScalingCost::new(Gas::zero(), Gas::new(61)),
-                Blake2b256 => ScalingCost::new(Gas::zero(), Gas::new(11)),
-                Blake2b512 => ScalingCost::new(Gas::zero(), Gas::new(11)),
-                Keccak256  => ScalingCost::new(Gas::zero(), Gas::new(47)),
-                Ripemd160  => ScalingCost::new(Gas::zero(), Gas::new(43))
+                Sha2_256   => ScalingCost::new(Gas::zero(), Gas::from_milligas(64500)),
+                Blake2b256 => ScalingCost::new(Gas::zero(), Gas::from_milligas(11500)),
+                Blake2b512 => ScalingCost::new(Gas::zero(), Gas::from_milligas(11500)),
+                Keccak256  => ScalingCost::new(Gas::zero(), Gas::from_milligas(48500)),
+                Ripemd160  => ScalingCost::new(Gas::zero(), Gas::from_milligas(43900))
             }
         },
         compute_unsealed_sector_cid_base: Gas::new(98647),
@@ -500,12 +502,13 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_mem_read_per_byte_cost: Gas::from_milligas(830),
-        block_mem_write_per_byte_cost: Gas::new(6),
+        block_memcpy_per_byte_cost: Gas::from_milligas(800),
+        block_create_memret_per_byte_cost: Gas::from_milligas(6400),
+        block_open_memret_per_byte_cost: Gas::zero(),
 
         // TODO: Scale up with the disk cost.
-        blockstore_read_per_byte_cost: Gas::new(6),
-        blockstore_write_per_byte_cost: Gas::new(8),
+        blockstore_read_per_byte_cost: Gas::from_milligas(6500),
+        blockstore_write_per_byte_cost: Gas::from_milligas(6500),
 
         block_open_base: Gas::zero(),
         block_create_base: Zero::zero(),
@@ -673,17 +676,19 @@ pub struct PriceList {
     /// Gas cost per every byte of randomness fetched.
     pub(crate) get_randomness_per_byte: Gas,
 
-    /// Gas cost per every block copied from the memory of the FVM.
-    ///
-    /// Reading from the `Block` in the `BlockRegistry` is cheap.
-    pub(crate) block_mem_read_per_byte_cost: Gas,
+    /// Gas cost per every block byte memcopied across boundaries.
+    pub(crate) block_memcpy_per_byte_cost: Gas,
 
-    /// Gas cost for every byte copied to the memory of the FVM.
+    /// Gas cost for every byte retained in FVM space when opening a block.
     ///
-    /// This kicks in when we create a `Block::new` from a reference
-    /// to some byte slice. When it's created from an owned vector,
-    /// it is cheaper because it doesn't copy.
-    pub(crate) block_mem_write_per_byte_cost: Gas,
+    /// This kicks in when `Block::new` is used on _owned_ data.
+    pub(crate) block_open_memret_per_byte_cost: Gas,
+
+    /// Gas cost for every byte retained in FVM space when opening a block.
+    ///
+    /// This kicks in when `Block::new` is used on a _reference_ to data,
+    /// a byte slice, which requires the data to be copied.
+    pub(crate) block_create_memret_per_byte_cost: Gas,
 
     /// Gas cost per every block byte read from the block store.
     /// Ideally this assumes the bytes are read from disk and not the cache.
@@ -976,11 +981,9 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
-        // This one doesn't need `block_mem_write_per_byte_cost` because
-        // the data is not copied across boundaries like with `on_block_create`.
         GasCharge::new(
             "OnBlockOpenPerByte",
-            (self.blockstore_read_per_byte_cost) * data_size,
+            (self.blockstore_read_per_byte_cost + self.block_open_memret_per_byte_cost) * data_size,
             Zero::zero(),
         )
     }
@@ -990,7 +993,7 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + self.block_mem_read_per_byte_cost * data_size,
+            self.block_read_base + self.block_memcpy_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
@@ -1000,7 +1003,7 @@ impl PriceList {
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base + self.block_mem_write_per_byte_cost * data_size,
+            self.block_create_base + self.block_create_memret_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
