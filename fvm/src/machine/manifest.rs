@@ -1,22 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-
-const SINGLETON_ACTOR_NAMES: &[&str] = &[
-    "system",
-    "init",
-    "eam",
-    "reward",
-    "cron",
-    "storagepower",
-    "storagemarket",
-    "verifiedregistry",
-];
 
 const ACCOUNT_ACTOR_NAME: &str = "account";
 const INIT_ACTOR_NAME: &str = "init";
@@ -33,7 +22,6 @@ pub struct Manifest {
     init_code: Cid,
     eam_code: Cid,
     ethaccount_code: Cid,
-    singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
     by_code: HashMap<Cid, u32>,
@@ -112,12 +100,6 @@ impl Manifest {
             by_name.insert(name, code_cid);
         }
 
-        let singletons = SINGLETON_ACTOR_NAMES
-            .iter()
-            .flat_map(|&k| by_name.get(k))
-            .copied()
-            .collect();
-
         let account_code = *by_name
             .get(ACCOUNT_ACTOR_NAME)
             .context("manifest missing account actor")?;
@@ -149,7 +131,6 @@ impl Manifest {
             embryo_code,
             eam_code,
             ethaccount_code,
-            singletons,
             by_id,
             by_code,
         })
@@ -178,11 +159,6 @@ impl Manifest {
     /// Returns true id the passed code CID is the EthAccount actor.
     pub fn is_ethaccount_actor(&self, cid: &Cid) -> bool {
         &self.ethaccount_code == cid
-    }
-
-    /// Returns true id the passed code is a singleton actor.
-    pub fn is_singleton_actor(&self, cid: &Cid) -> bool {
-        self.singletons.contains(cid)
     }
 
     pub fn builtin_actor_codes(&self) -> impl Iterator<Item = &Cid> {
