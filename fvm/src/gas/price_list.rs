@@ -26,6 +26,42 @@ use crate::gas::Gas;
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
 const TABLE_ELEMENT_SIZE: u32 = 8;
 
+/// Create a mapping from enum items to values in a way that guarantees at compile
+/// time that we did not miss any member, in any of the prices, even if the enum
+/// gets a new member later.
+///
+/// # Example
+///
+/// ```
+/// use fvm::total_enum_map;
+/// use std::collections::HashMap;
+///
+/// #[derive(Hash, Eq, PartialEq)]
+/// enum Foo {
+///     Bar,
+///     Baz,
+/// }
+///
+/// let foo_cost: HashMap<Foo, u8> = total_enum_map! {
+///     Foo {
+///         Bar => 10,
+///         Baz => 20
+///     }
+/// };
+/// ```
+#[macro_export]
+macro_rules! total_enum_map {
+    ($en:ident { $($item:ident => $value:expr),+ }) => {
+        [$($en::$item),+].into_iter().map(|m| {
+            // This will not compile if a case is missing.
+            let v = match m {
+                $($en::$item => $value),+
+            };
+            (m, v)
+        }).collect()
+    };
+}
+
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
         storage_gas_multiplier: 1300,
@@ -45,8 +81,13 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 => Gas::new(1637292),
+                BLS       => Gas::new(16598605)
+            }
+        },
+
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
         hashing_base: Gas::new(31355),
@@ -186,8 +227,12 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 => Gas::new(1637292),
+                BLS       => Gas::new(16598605)
+            }
+        },
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
         hashing_base: Gas::new(31355),
@@ -329,8 +374,12 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 => Gas::new(1637292),
+                BLS       => Gas::new(16598605)
+            }
+        },
         secp256k1_recover_cost: Gas::new(2643945),
 
         hashing_base: Gas::new(31355),
@@ -548,10 +597,9 @@ pub struct PriceList {
     /// Note: this partially refunds the create cost to incentivise the deletion of the actors.
     pub(crate) delete_actor: Gas,
 
-    /// Gas cost for verifying bls signature
-    pub(crate) bls_sig_cost: Gas,
-    /// Gas cost for verifying secp256k1 signature
-    pub(crate) secp256k1_sig_cost: Gas,
+    /// Gas cost for verifying a cryptographic signature.
+    pub(crate) sig_cost: HashMap<SignatureType, Gas>,
+
     /// Gas cost for recovering secp256k1 signer public key
     pub(crate) secp256k1_recover_cost: Gas,
 
@@ -713,10 +761,7 @@ impl PriceList {
     /// Returns gas required for signature verification.
     #[inline]
     pub fn on_verify_signature(&self, sig_type: SignatureType, _data_len: usize) -> GasCharge {
-        let val = match sig_type {
-            SignatureType::BLS => self.bls_sig_cost,
-            SignatureType::Secp256k1 => self.secp256k1_sig_cost,
-        };
+        let val = self.sig_cost[&sig_type];
         GasCharge::new("OnVerifySignature", val, Zero::zero())
     }
 
