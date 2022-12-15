@@ -16,6 +16,7 @@ const SINGLETON_ACTOR_NAMES: &[&str] = &[
     "storagepower",
     "storagemarket",
     "verifiedregistry",
+    "datacap",
 ];
 
 const ACCOUNT_ACTOR_NAME: &str = "account";
@@ -27,6 +28,7 @@ const ETHACCOUNT_ACTOR_NAME: &str = "ethaccount";
 const STORAGE_MARKET_ACTOR_NAME: &str = "storagemarket";
 const STORAGE_POWER_ACTOR_NAME: &str = "storagepower";
 const VERIFIED_REGISTRY_ACTOR_NAME: &str = "verifiedregistry";
+const DATA_CAP_ACTOR_NAME: &str = "datacap";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -39,6 +41,7 @@ pub struct Manifest {
     storagemarket_code: Cid,
     storagepower_code: Cid,
     verifiedregistry_code: Cid,
+    datacap_code: Cid,
     singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
@@ -82,6 +85,7 @@ impl Manifest {
         ("embryo", id_cid(b"fil/test/embryo")),
         ("storagemarket", id_cid(b"fil/test/storagemarket")),
         ("storagepower", id_cid(b"fil/test/storagepower")),
+        ("datacap", id_cid(b"fil/test/datacap")),
         ("verifiedregistry", id_cid(b"fil/test/verifiedregistry")),
     ];
 
@@ -163,6 +167,10 @@ impl Manifest {
             .get(VERIFIED_REGISTRY_ACTOR_NAME)
             .context("manifest missing verifiedregistry actor")?;
 
+        let datacap_code = *by_name
+            .get(DATA_CAP_ACTOR_NAME)
+            .context("manifest missing datacap actor")?;
+
         Ok(Self {
             account_code,
             system_code,
@@ -173,6 +181,7 @@ impl Manifest {
             storagemarket_code,
             storagepower_code,
             verifiedregistry_code,
+            datacap_code,
             singletons,
             by_id,
             by_code,
@@ -217,7 +226,12 @@ impl Manifest {
     /// Returns true id the passed code CID is the verifiedregistry actor.
     pub fn is_verifiedregistry_actor(&self, cid: &Cid) -> bool {
         &self.verifiedregistry_code == cid
-    }    
+    }
+
+    /// Returns true id the passed code CID is the datacap actor.
+    pub fn is_datacap_actor(&self, cid: &Cid) -> bool {
+        &self.datacap_code == cid
+    }
 
     /// Returns true id the passed code is a singleton actor.
     pub fn is_singleton_actor(&self, cid: &Cid) -> bool {
@@ -271,5 +285,10 @@ impl Manifest {
     /// Returns the code CID for the verifiedregistry actor.
     pub fn get_verifiedregistry_code(&self) -> &Cid {
         &self.verifiedregistry_code
+    }
+
+    /// Returns the code CID for the datacap actor.
+    pub fn get_datacap_code(&self) -> &Cid {
+        &self.datacap_code
     }
 }

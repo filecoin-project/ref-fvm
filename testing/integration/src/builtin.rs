@@ -12,13 +12,14 @@ use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
 use crate::verifiedregistry_actor;
+use crate::datacap_actor;
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
     blockstore: &impl Blockstore,
     builtin_actors: &Cid,
     ver: u32,
-) -> Result<(Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid)> {
+) -> Result<(Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid)> {
     let manifest = Manifest::load(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
     Ok((
         *manifest.get_system_code(),
@@ -28,7 +29,8 @@ pub fn fetch_builtin_code_cid(
         *manifest.get_eam_code(),
         *manifest.get_storagemarket_code(),
         *manifest.get_storagepower_code(),
-        *manifest.get_verifiedregistry_code()
+        *manifest.get_verifiedregistry_code(),
+        *manifest.get_datacap_code(),
     ))
 }
 
@@ -165,4 +167,26 @@ pub fn set_verifiedregistry_actor(state_tree: &mut StateTree<impl Blockstore>, v
         .set_actor(VERIFIED_REGISTRY_ACTOR, verifiedregistry_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("verifiedregistry actor".to_owned()))
+}
+
+pub fn set_datacap_actor(state_tree: &mut StateTree<impl Blockstore>, datacap_code_cid: Cid, datacap_state: datacap_actor::State,) -> Result<()> {
+    const DATA_CAP_ACTOR : ActorID = 7;
+
+    let datacap_state_cid = state_tree
+        .store()
+        .put_cbor(&datacap_state, Code::Blake2b256)
+        .context(FailedToSetState("datacap actor".to_owned()))?;
+
+    let datacap_actor_state = ActorState {
+        code: datacap_code_cid,
+        state: datacap_state_cid,
+        sequence: 0,
+        balance: Default::default(),
+        address: None,
+    };
+
+    state_tree
+        .set_actor(DATA_CAP_ACTOR, datacap_actor_state)
+        .map_err(anyhow::Error::from)
+        .context(FailedToSetActor("datacap actor".to_owned()))
 }

@@ -2499,6 +2499,7 @@ dependencies = [
  "fil_readonly_actor",
  "fil_stack_overflow_actor",
  "fil_syscall_actor",
+ "frc46_token",
  "futures",
  "fvm",
  "fvm_ipld_amt 0.5.0",

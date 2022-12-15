@@ -21,7 +21,8 @@ use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
 use crate::verifiedregistry_actor;
-use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor, set_storagemarket_actor, set_storagepower_actor, set_verifiedregistry_actor};
+use crate::datacap_actor;
+use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor, set_storagemarket_actor, set_storagepower_actor, set_verifiedregistry_actor, set_datacap_actor};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -72,7 +73,7 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid, market_code_cid, power_code_cid, verifreg_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid, market_code_cid, power_code_cid, verifreg_code_cid, datacap_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
@@ -80,6 +81,7 @@ where
         let storagemarket_state = storagemarket_actor::State::new_test(&blockstore);
         let storagepower_state = storagepower_actor::State::new_test(&blockstore);
         let verifreg_state = verifiedregistry_actor::State::new_test(&blockstore, Address::new_id(199));
+        let datacap_state = datacap_actor::State::new_test(&blockstore, Address::new_id(200));
         let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
 
         // Deploy init, sys, and eam actors
@@ -91,6 +93,7 @@ where
         set_storagemarket_actor(&mut state_tree, market_code_cid, storagemarket_state)?;
         set_storagepower_actor(&mut state_tree, power_code_cid, storagepower_state)?;
         set_verifiedregistry_actor(&mut state_tree, verifreg_code_cid, verifreg_state)?;
+        set_datacap_actor(&mut state_tree, datacap_code_cid, datacap_state)?;
 
         Ok(Tester {
             nv,
