@@ -44,6 +44,7 @@ rand = "0.8.5"
 quickcheck = { version = "1", optional = true }
 once_cell = "1.5"
 minstant = "0.1.2"
+libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

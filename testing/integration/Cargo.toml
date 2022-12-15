@@ -30,6 +30,8 @@ serde_tuple = "0.5"
 serde_repr = "0.1"
 thiserror = "1.0.30"
 
+fil_actors_runtime = { git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+
 [dependencies.wasmtime]
 version = "1.0.2"
 default-features = false

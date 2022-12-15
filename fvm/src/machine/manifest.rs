@@ -24,6 +24,9 @@ const SYSTEM_ACTOR_NAME: &str = "system";
 const EMBRYO_ACTOR_NAME: &str = "embryo";
 const EAM_ACTOR_NAME: &str = "eam";
 const ETHACCOUNT_ACTOR_NAME: &str = "ethaccount";
+const STORAGE_MARKET_ACTOR_NAME: &str = "storagemarket";
+const STORAGE_POWER_ACTOR_NAME: &str = "storagepower";
+const VERIFIED_REGISTRY_ACTOR_NAME: &str = "verifiedregistry";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -33,6 +36,9 @@ pub struct Manifest {
     init_code: Cid,
     eam_code: Cid,
     ethaccount_code: Cid,
+    storagemarket_code: Cid,
+    storagepower_code: Cid,
+    verifiedregistry_code: Cid,
     singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
@@ -74,6 +80,9 @@ impl Manifest {
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
         ("embryo", id_cid(b"fil/test/embryo")),
+        ("storagemarket", id_cid(b"fil/test/storagemarket")),
+        ("storagepower", id_cid(b"fil/test/storagepower")),
+        ("verifiedregistry", id_cid(b"fil/test/verifiedregistry")),
     ];
 
     #[cfg(any(feature = "testing", test))]
@@ -142,6 +151,18 @@ impl Manifest {
             .get(ETHACCOUNT_ACTOR_NAME)
             .context("manifest missing ethaccount actor")?;
 
+        let storagemarket_code = *by_name
+            .get(STORAGE_MARKET_ACTOR_NAME)
+            .context("manifest missing storagemarket actor")?;
+
+        let storagepower_code = *by_name
+            .get(STORAGE_POWER_ACTOR_NAME)
+            .context("manifest missing storagepower actor")?;
+
+        let verifiedregistry_code = *by_name
+            .get(VERIFIED_REGISTRY_ACTOR_NAME)
+            .context("manifest missing verifiedregistry actor")?;
+
         Ok(Self {
             account_code,
             system_code,
@@ -149,6 +170,9 @@ impl Manifest {
             embryo_code,
             eam_code,
             ethaccount_code,
+            storagemarket_code,
+            storagepower_code,
+            verifiedregistry_code,
             singletons,
             by_id,
             by_code,
@@ -179,6 +203,21 @@ impl Manifest {
     pub fn is_ethaccount_actor(&self, cid: &Cid) -> bool {
         &self.ethaccount_code == cid
     }
+
+    /// Returns true id the passed code CID is the storagemarket actor.
+    pub fn is_storagemarket_actor(&self, cid: &Cid) -> bool {
+        &self.storagemarket_code == cid
+    }
+
+    /// Returns true id the passed code CID is the storagepower actor.
+    pub fn is_storagepower_actor(&self, cid: &Cid) -> bool {
+        &self.storagepower_code == cid
+    }
+
+    /// Returns true id the passed code CID is the verifiedregistry actor.
+    pub fn is_verifiedregistry_actor(&self, cid: &Cid) -> bool {
+        &self.verifiedregistry_code == cid
+    }    
 
     /// Returns true id the passed code is a singleton actor.
     pub fn is_singleton_actor(&self, cid: &Cid) -> bool {
@@ -217,5 +256,20 @@ impl Manifest {
     /// Returns the code CID for the Ethereum Account actor.
     pub fn get_ethaccount_code(&self) -> &Cid {
         &self.ethaccount_code
+    }
+
+    /// Returns the code CID for the storagemarket actor.
+    pub fn get_storagemarket_code(&self) -> &Cid {
+        &self.storagemarket_code
+    }
+
+    /// Returns the code CID for the storagemarket actor.
+    pub fn get_storagepower_code(&self) -> &Cid {
+        &self.storagepower_code
+    }
+
+    /// Returns the code CID for the verifiedregistry actor.
+    pub fn get_verifiedregistry_code(&self) -> &Cid {
+        &self.verifiedregistry_code
     }
 }
