@@ -13,6 +13,12 @@ const SYSTEM_ACTOR_NAME: &str = "system";
 const PLACEHOLDER_ACTOR_NAME: &str = "placeholder";
 const EAM_ACTOR_NAME: &str = "eam";
 const ETHACCOUNT_ACTOR_NAME: &str = "ethaccount";
+const STORAGE_MARKET_ACTOR_NAME: &str = "storagemarket";
+const STORAGE_POWER_ACTOR_NAME: &str = "storagepower";
+const VERIFIED_REGISTRY_ACTOR_NAME: &str = "verifiedregistry";
+const DATA_CAP_ACTOR_NAME: &str = "datacap";
+const REWARD_ACTOR_NAME: &str = "reward";
+
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -22,6 +28,11 @@ pub struct Manifest {
     init_code: Cid,
     eam_code: Cid,
     ethaccount_code: Cid,
+    storagemarket_code: Cid,
+    storagepower_code: Cid,
+    verifiedregistry_code: Cid,
+    datacap_code: Cid,
+    reward_code: Cid,
 
     by_id: HashMap<u32, Cid>,
     by_code: HashMap<Cid, u32>,
@@ -62,6 +73,11 @@ impl Manifest {
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
         ("placeholder", id_cid(b"fil/test/placeholder")),
+        ("storagemarket", id_cid(b"fil/test/storagemarket")),
+        ("storagepower", id_cid(b"fil/test/storagepower")),
+        ("datacap", id_cid(b"fil/test/datacap")),
+        ("verifiedregistry", id_cid(b"fil/test/verifiedregistry")),
+        ("reward", id_cid(b"fil/test/reward")),
     ];
 
     #[cfg(any(feature = "testing", test))]
@@ -124,6 +140,26 @@ impl Manifest {
             .get(ETHACCOUNT_ACTOR_NAME)
             .context("manifest missing ethaccount actor")?;
 
+        let storagemarket_code = *by_name
+            .get(STORAGE_MARKET_ACTOR_NAME)
+            .context("manifest missing storagemarket actor")?;
+
+        let storagepower_code = *by_name
+            .get(STORAGE_POWER_ACTOR_NAME)
+            .context("manifest missing storagepower actor")?;
+
+        let verifiedregistry_code = *by_name
+            .get(VERIFIED_REGISTRY_ACTOR_NAME)
+            .context("manifest missing verifiedregistry actor")?;
+
+        let datacap_code = *by_name
+            .get(DATA_CAP_ACTOR_NAME)
+            .context("manifest missing datacap actor")?;
+
+        let reward_code = *by_name
+            .get(REWARD_ACTOR_NAME)
+            .context("manifest missing reward actor")?;
+
         Ok(Self {
             account_code,
             system_code,
@@ -131,6 +167,11 @@ impl Manifest {
             placeholder_code,
             eam_code,
             ethaccount_code,
+            storagemarket_code,
+            storagepower_code,
+            verifiedregistry_code,
+            datacap_code,
+            reward_code,
             by_id,
             by_code,
         })
@@ -159,6 +200,31 @@ impl Manifest {
     /// Returns true id the passed code CID is the EthAccount actor.
     pub fn is_ethaccount_actor(&self, cid: &Cid) -> bool {
         &self.ethaccount_code == cid
+    }
+
+    /// Returns true id the passed code CID is the storagemarket actor.
+    pub fn is_storagemarket_actor(&self, cid: &Cid) -> bool {
+        &self.storagemarket_code == cid
+    }
+
+    /// Returns true id the passed code CID is the storagepower actor.
+    pub fn is_storagepower_actor(&self, cid: &Cid) -> bool {
+        &self.storagepower_code == cid
+    }
+
+    /// Returns true id the passed code CID is the verifiedregistry actor.
+    pub fn is_verifiedregistry_actor(&self, cid: &Cid) -> bool {
+        &self.verifiedregistry_code == cid
+    }
+
+    /// Returns true id the passed code CID is the datacap actor.
+    pub fn is_datacap_actor(&self, cid: &Cid) -> bool {
+        &self.datacap_code == cid
+    }
+
+    /// Returns true id the passed code CID is the reward actor.
+    pub fn is_reward_actor(&self, cid: &Cid) -> bool {
+        &self.reward_code == cid
     }
 
     pub fn builtin_actor_codes(&self) -> impl Iterator<Item = &Cid> {
@@ -193,5 +259,30 @@ impl Manifest {
     /// Returns the code CID for the Ethereum Account actor.
     pub fn get_ethaccount_code(&self) -> &Cid {
         &self.ethaccount_code
+    }
+
+    /// Returns the code CID for the storagemarket actor.
+    pub fn get_storagemarket_code(&self) -> &Cid {
+        &self.storagemarket_code
+    }
+
+    /// Returns the code CID for the storagemarket actor.
+    pub fn get_storagepower_code(&self) -> &Cid {
+        &self.storagepower_code
+    }
+
+    /// Returns the code CID for the verifiedregistry actor.
+    pub fn get_verifiedregistry_code(&self) -> &Cid {
+        &self.verifiedregistry_code
+    }
+
+    /// Returns the code CID for the datacap actor.
+    pub fn get_datacap_code(&self) -> &Cid {
+        &self.datacap_code
+    }
+    
+    /// Returns the code CID for the reward actor.
+    pub fn get_reward_code(&self) -> &Cid {
+        &self.reward_code
     }
 }

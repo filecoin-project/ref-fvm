@@ -5,3 +5,6 @@ pub mod bundle;
 pub mod dummy;
 pub mod error;
 pub mod tester;
+pub mod verifiedregistry_actor;
+pub mod datacap_actor;
+pub mod reward_actor;

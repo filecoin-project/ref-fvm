@@ -19,3 +19,6 @@ overflow-checks = true
 lto = true
 opt-level = "z"
 #strip = true
+
+[patch.crates-io]
+fvm_ipld_blockstore = { version = "0.1.1", path = "./ipld/blockstore" }
