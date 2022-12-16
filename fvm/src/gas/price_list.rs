@@ -950,7 +950,7 @@ impl PriceList {
         GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
     }
 
-    /// Returns the gas required for looking up an actor address.
+    /// Returns the gas required for looking up an actor's delegated address.
     #[inline]
     pub fn on_lookup_delegated_address(&self) -> GasCharge {
         GasCharge::new("OnLookupAddress", self.state_read_base, Zero::zero())
