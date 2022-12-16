@@ -55,8 +55,8 @@ fn test_create_actor() {
     sdk::actor::create_actor(1001, &acct_cid, Some(acct_addr)).unwrap();
 
     // Check addresses
-    assert_eq!(None, sdk::actor::lookup_address(1000));
-    assert_eq!(Some(acct_addr), sdk::actor::lookup_address(1001));
+    assert_eq!(None, sdk::actor::lookup_delegated_address(1000));
+    assert_eq!(Some(acct_addr), sdk::actor::lookup_delegated_address(1001));
 
     // Check code
     assert_eq!(

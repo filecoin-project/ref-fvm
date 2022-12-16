@@ -17,14 +17,14 @@ pub fn resolve_address(
     Ok(actor_id)
 }
 
-pub fn lookup_address(
+pub fn lookup_delegated_address(
     context: Context<'_, impl Kernel>,
     actor_id: ActorID,
     obuf_off: u32,
     obuf_len: u32,
 ) -> Result<u32> {
     let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
-    match context.kernel.lookup_address(actor_id)? {
+    match context.kernel.lookup_delegated_address(actor_id)? {
         Some(address) => {
             let address = address.to_bytes();
             obuf.get_mut(..address.len())
@@ -94,15 +94,15 @@ pub fn create_actor(
     context: Context<'_, impl Kernel>,
     actor_id: u64, // ID
     typ_off: u32,  // Cid
-    predictable_addr_off: u32,
-    predictable_addr_len: u32,
+    delegated_addr_off: u32,
+    delegated_addr_len: u32,
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
-    let addr = (predictable_addr_len > 0)
+    let addr = (delegated_addr_len > 0)
         .then(|| {
             context
                 .memory
-                .read_address(predictable_addr_off, predictable_addr_len)
+                .read_address(delegated_addr_off, delegated_addr_len)
         })
         .transpose()?;
 

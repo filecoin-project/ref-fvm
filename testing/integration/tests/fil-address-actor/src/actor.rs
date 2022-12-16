@@ -19,7 +19,7 @@ pub fn invoke(params: u32) -> u32 {
         // on construction, make sure the address matches the expected one.`
         1 => {
             let expected_address: Option<Address> = fvm_ipld_encoding::from_slice(&data).unwrap();
-            let actual_address = sdk::actor::lookup_address(sdk::message::receiver());
+            let actual_address = sdk::actor::lookup_delegated_address(sdk::message::receiver());
             assert_eq!(expected_address, actual_address, "addresses did not match");
         }
         // send to an f1, then resolve.
@@ -41,10 +41,10 @@ pub fn invoke(params: u32) -> u32 {
             // Resolve the ID address of the account.
             let id = sdk::actor::resolve_address(&addr).expect("failed to find new account");
 
-            // Lookup the f1 of the account.
-            let new_addr =
-                sdk::actor::lookup_address(id).expect("failed to lookup account address");
-            assert_eq!(addr, new_addr, "addresses don't match");
+            assert!(
+                sdk::actor::lookup_delegated_address(id).is_none(),
+                "did not expect a delegated address to be assigned"
+            );
         }
         // send to an f4, then resolve.
         3 => {
@@ -68,7 +68,7 @@ pub fn invoke(params: u32) -> u32 {
 
             // Lookup the address of the account.
             let new_addr =
-                sdk::actor::lookup_address(id).expect("failed to lookup account address");
+                sdk::actor::lookup_delegated_address(id).expect("failed to lookup account address");
             assert_eq!(addr, new_addr, "addresses don't match");
         }
         // send to an f4 of an unassigned ID address, then resolve.
@@ -89,11 +89,11 @@ pub fn invoke(params: u32) -> u32 {
                 "expected send to unassignable f4 address to fail"
             );
         }
-        // check the system actor's predictable address (should not exist).
+        // check the system actor's delegated address (should not exist).
         5 => {
             assert!(
-                sdk::actor::lookup_address(0).is_none(),
-                "system actor shouldn't have a 'predictable' address"
+                sdk::actor::lookup_delegated_address(0).is_none(),
+                "system actor shouldn't have a 'delegated' address"
             );
         }
         _ => sdk::vm::abort(

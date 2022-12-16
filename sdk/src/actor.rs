@@ -30,12 +30,16 @@ pub fn resolve_address(addr: &Address) -> Option<ActorID> {
     }
 }
 
-/// Looks up the f1, f3, or f4 address of the specified actor. Returns `None` if the actor doesn't
-/// exist or it doesn't have an f1, f3, or f4 address.
-pub fn lookup_address(addr: ActorID) -> Option<Address> {
+/// Looks up the delegated (f4) address of the specified actor. Returns `None` if the actor doesn't
+/// exist or it doesn't have f4 address.
+pub fn lookup_delegated_address(addr: ActorID) -> Option<Address> {
     let mut out_buffer = [0u8; MAX_ADDRESS_LEN];
     unsafe {
-        match sys::actor::lookup_address(addr, out_buffer.as_mut_ptr(), out_buffer.len() as u32) {
+        match sys::actor::lookup_delegated_address(
+            addr,
+            out_buffer.as_mut_ptr(),
+            out_buffer.len() as u32,
+        ) {
             Ok(0) => None,
             Ok(length) => match Address::from_bytes(&out_buffer[..length as usize]) {
                 Ok(addr) => Some(addr),
@@ -47,7 +51,7 @@ pub fn lookup_address(addr: ActorID) -> Option<Address> {
                 // https://github.com/filecoin-project/builtin-actors/issues/738
                 Err(e) => {
                     error!(
-                        "unexpected address from 'lookup_address' with protocol {}: {}",
+                        "unexpected address from 'lookup_delegated_address' with protocol {}: {}",
                         out_buffer[0], e
                     );
                     None
@@ -90,11 +94,11 @@ pub fn next_actor_address() -> Address {
 pub fn create_actor(
     actor_id: ActorID,
     code_cid: &Cid,
-    predictable_address: Option<Address>,
+    delegated_address: Option<Address>,
 ) -> SyscallResult<()> {
     unsafe {
         let cid = code_cid.to_bytes();
-        let addr_bytes = predictable_address.map(|addr| addr.to_bytes());
+        let addr_bytes = delegated_address.map(|addr| addr.to_bytes());
         let (addr_off, addr_len) = addr_bytes
             .as_deref()
             .map(|v| (v.as_ptr(), v.len()))

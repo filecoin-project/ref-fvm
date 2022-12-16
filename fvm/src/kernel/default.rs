@@ -10,7 +10,7 @@ use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::bytes_32;
-use fvm_shared::address::{Payload, Protocol};
+use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
@@ -466,14 +466,55 @@ where
             Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
             // Resolve and re-check.
             Payload::ID(id) => {
-                let addr = self
-                    .lookup_address(*id)?
-                    .context("address not found")
+                // TODO(#1228): remove this logic
+                let act = self
+                    .call_manager
+                    .machine()
+                    .state_tree()
+                    .get_actor(*id)?
+                    .context("state tree doesn't contain actor")
                     .or_error(ErrorNumber::NotFound)?;
-                if !matches!(addr.protocol(), Protocol::Secp256k1 | Protocol::BLS) {
-                    return Err(syscall_error!(NotFound; "address protocol not supported").into());
+
+                let is_account = self
+                    .call_manager
+                    .machine()
+                    .builtin_actors()
+                    .is_account_actor(&act.code);
+
+                if !is_account {
+                    // TODO: this is wrong. Maybe some InvalidActor type?
+                    // The argument is syntactically correct, but semantically wrong.
+                    return Err(
+                        syscall_error!(IllegalArgument; "target actor is not an account").into(),
+                    );
                 }
-                addr
+
+                let _ = self
+                    .call_manager
+                    .charge_gas(self.call_manager.price_list().on_block_open_base())?;
+
+                let state_block = self
+                    .call_manager
+                    .state_tree()
+                    .store()
+                    .get(&act.state)
+                    .context("failed to look up state")
+                    .or_fatal()?
+                    .context("account actor state not found")
+                    .or_fatal()?;
+
+                let _ = self.call_manager.charge_gas(
+                    self.call_manager
+                        .price_list()
+                        .on_block_open_per_byte(state_block.len()),
+                )?;
+
+                let state: crate::account_actor::State =
+                    fvm_ipld_encoding::from_slice(&state_block)
+                        .context("failed to decode actor state as an account")
+                        .or_fatal()?; // because we've checked and this should be an account.
+
+                state.address
             }
             // Not a key address.
             _ => {
@@ -821,10 +862,10 @@ where
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
-        predictable_address: Option<Address>,
+        delegated_address: Option<Address>,
     ) -> Result<()> {
         self.call_manager
-            .create_actor(code_id, actor_id, predictable_address)
+            .create_actor(code_id, actor_id, delegated_address)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
@@ -893,15 +934,15 @@ where
         Ok(balance)
     }
 
-    fn lookup_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_lookup_address())?;
+            .charge_gas(self.call_manager.price_list().on_lookup_delegated_address())?;
 
         let address = t
             .record(self.call_manager.state_tree().get_actor(actor_id))?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .address;
+            .delegated_address;
 
         Ok(address)
     }
