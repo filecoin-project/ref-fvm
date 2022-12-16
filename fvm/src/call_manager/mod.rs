@@ -83,7 +83,7 @@ pub trait CallManager: 'static {
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
-    //REturns a reference to the engine
+    /// Returns a reference to the engine
     fn engine(&self) -> &Engine;
 
     /// Returns a reference to the gas tracker.
