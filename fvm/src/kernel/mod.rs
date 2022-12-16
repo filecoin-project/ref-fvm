@@ -30,6 +30,7 @@ pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use fvm_shared::event::{ActorEvent, StampedEvent};
+pub use hash::SupportedHashes;
 use multihash::MultihashGeneric;
 use wasmtime::ResourceLimiter;
 

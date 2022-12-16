@@ -548,10 +548,6 @@ where
     }
 
     fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
-
         let hasher = SupportedHashes::try_from(code).map_err(|e| {
             if let multihash::Error::UnsupportedCode(code) = e {
                 syscall_error!(IllegalArgument; "unsupported hash code {}", code)
@@ -559,6 +555,13 @@ where
                 syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
             }
         })?;
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_hashing(hasher, data.len()),
+        )?;
+
         t.record(Ok(hasher.digest(data)))
     }
 

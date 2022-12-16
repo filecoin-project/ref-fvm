@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::HashMap;
+use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
@@ -21,10 +22,54 @@ use num_traits::Zero;
 
 use super::GasCharge;
 use crate::gas::Gas;
+use crate::kernel::SupportedHashes;
 
 // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
 const TABLE_ELEMENT_SIZE: u32 = 8;
+
+/// Create a mapping from enum items to values in a way that guarantees at compile
+/// time that we did not miss any member, in any of the prices, even if the enum
+/// gets a new member later.
+///
+/// # Example
+///
+/// ```
+/// use fvm::total_enum_map;
+/// use std::collections::HashMap;
+///
+/// #[derive(Hash, Eq, PartialEq)]
+/// enum Foo {
+///     Bar,
+///     Baz,
+/// }
+///
+/// let foo_cost: HashMap<Foo, u8> = total_enum_map! {
+///     Foo {
+///         Bar => 10,
+///         Baz => 20
+///     }
+/// };
+/// ```
+#[macro_export]
+macro_rules! total_enum_map {
+    ($en:ident { $($item:ident => $value:expr),+ $(,)? }) => {
+        [$($en::$item),+].into_iter().map(|m| {
+            // This will not compile if a case is missing.
+            let v = match m {
+                $($en::$item => $value),+
+            };
+            (m, v)
+        }).collect()
+    };
+}
+
+/// Help create scaling costs in the format of `m*x+b` (conventional from the linear regression variables).
+macro_rules! scaling_mg {
+    ($m:literal * x + $b:literal) => {
+        ScalingCost::new(Gas::from_milligas($b), Gas::from_milligas($m))
+    };
+}
 
 lazy_static! {
     static ref OH_SNAP_PRICES: PriceList = PriceList {
@@ -45,11 +90,28 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
+                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
+            }
+        },
+
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: {
+            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
+            total_enum_map! {
+                SupportedHashes {
+                    Sha2_256   => flat,
+                    Blake2b256 => flat,
+                    Blake2b512 => flat,
+                    Keccak256  => flat,
+                    Ripemd160  => flat,
+                }
+            }
+        },
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -132,15 +194,17 @@ lazy_static! {
         get_randomness_per_byte: Zero::zero(),
 
         block_memcpy_per_byte_cost: Zero::zero(),
+        block_open_memret_per_byte_cost: Zero::zero(),
+        block_create_memret_per_byte_cost: Zero::zero(),
+
+        blockstore_read_per_byte_cost: Zero::zero(),
+        blockstore_write_per_byte_cost: Zero::zero(),
 
         block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Zero::zero(),
+        block_create_base: Zero::zero(),
 
         block_link_base: Gas::new(353640),
         block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Zero::zero(),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -186,11 +250,27 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 => ScalingCost::new(Gas::new(1637292), Gas::zero()),
+                BLS       => ScalingCost::new(Gas::new(16598605), Gas::zero())
+            }
+        },
         secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: {
+            let flat = ScalingCost::new(Gas::new(31355), Gas::zero());
+            total_enum_map! {
+                SupportedHashes {
+                    Sha2_256   => flat,
+                    Blake2b256 => flat,
+                    Blake2b512 => flat,
+                    Keccak256  => flat,
+                    Ripemd160  => flat,
+                }
+            }
+        },
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -273,15 +353,17 @@ lazy_static! {
         get_randomness_per_byte: Zero::zero(),
 
         block_memcpy_per_byte_cost: Gas::from_milligas(500),
+        block_open_memret_per_byte_cost: Gas::new(10),
+        block_create_memret_per_byte_cost: Gas::new(10),
+
+        blockstore_read_per_byte_cost: Zero::zero(),
+        blockstore_write_per_byte_cost: Zero::zero(),
 
         block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Gas::new(10),
+        block_create_base: Zero::zero(),
 
         block_link_base: Gas::new(353640),
         block_link_storage_per_byte_cost: Gas::new(1),
-
-        block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Gas::new(10),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -329,11 +411,23 @@ lazy_static! {
         create_actor_storage: Gas::new(36 + 40),
         delete_actor: Gas::new(-(36 + 40)),
 
-        bls_sig_cost: Gas::new(16598605),
-        secp256k1_sig_cost: Gas::new(1637292),
-        secp256k1_recover_cost: Gas::new(1637292), // TODO measure & revisit this value
+        sig_cost: total_enum_map!{
+            SignatureType {
+                Secp256k1 =>  scaling_mg!(11400 * x +  2639001000),
+                BLS       =>  scaling_mg!(35500 * x + 18719325000),
+            }
+        },
+        secp256k1_recover_cost: Gas::new(2643945),
 
-        hashing_base: Gas::new(31355),
+        hashing_cost: total_enum_map! {
+            SupportedHashes {
+                Sha2_256   => scaling_mg!(64500 * x + 0),
+                Blake2b256 => scaling_mg!(11500 * x + 0),
+                Blake2b512 => scaling_mg!(11500 * x + 0),
+                Keccak256  => scaling_mg!(48500 * x + 0),
+                Ripemd160  => scaling_mg!(43900 * x + 0)
+            }
+        },
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -415,16 +509,19 @@ lazy_static! {
         get_randomness_base: Zero::zero(),
         get_randomness_per_byte: Zero::zero(),
 
-        block_memcpy_per_byte_cost: Gas::from_milligas(500),
+        block_memcpy_per_byte_cost: Gas::from_milligas(800),
+        block_create_memret_per_byte_cost: Gas::from_milligas(6400),
+        block_open_memret_per_byte_cost: Gas::zero(),
 
-        block_open_base: Gas::new(114617),
-        block_open_memret_per_byte_cost: Gas::new(10),
+        // TODO: Scale up with the disk cost.
+        blockstore_read_per_byte_cost: Gas::from_milligas(6500),
+        blockstore_write_per_byte_cost: Gas::from_milligas(6500),
 
-        block_link_base: Gas::new(353640),
-        block_link_storage_per_byte_cost: Gas::new(1),
-
+        block_open_base: Gas::zero(),
         block_create_base: Zero::zero(),
-        block_create_memret_per_byte_cost: Gas::new(10),
+
+        block_link_base: Gas::zero(),
+        block_link_storage_per_byte_cost: Gas::new(1),
 
         block_read_base: Zero::zero(),
         block_stat_base: Zero::zero(),
@@ -467,6 +564,20 @@ lazy_static! {
 pub(crate) struct ScalingCost {
     flat: Gas,
     scale: Gas,
+}
+
+impl ScalingCost {
+    pub fn new(flat: Gas, scale: Gas) -> Self {
+        Self { flat, scale }
+    }
+
+    /// Apply the formula on a scalable value.
+    pub fn apply<V>(&self, value: V) -> Gas
+    where
+        Gas: Mul<V, Output = Gas>,
+    {
+        self.flat + self.scale * value
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -548,14 +659,13 @@ pub struct PriceList {
     /// Note: this partially refunds the create cost to incentivise the deletion of the actors.
     pub(crate) delete_actor: Gas,
 
-    /// Gas cost for verifying bls signature
-    pub(crate) bls_sig_cost: Gas,
-    /// Gas cost for verifying secp256k1 signature
-    pub(crate) secp256k1_sig_cost: Gas,
+    /// Gas cost for verifying a cryptographic signature.
+    pub(crate) sig_cost: HashMap<SignatureType, ScalingCost>,
+
     /// Gas cost for recovering secp256k1 signer public key
     pub(crate) secp256k1_recover_cost: Gas,
 
-    pub(crate) hashing_base: Gas,
+    pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -576,20 +686,37 @@ pub struct PriceList {
     /// Gas cost per every block byte memcopied across boundaries.
     pub(crate) block_memcpy_per_byte_cost: Gas,
 
+    /// Gas cost for every byte retained in FVM space when opening a block.
+    ///
+    /// This kicks in when `Block::new` is used on _owned_ data.
+    pub(crate) block_open_memret_per_byte_cost: Gas,
+
+    /// Gas cost for every byte retained in FVM space when opening a block.
+    ///
+    /// This kicks in when `Block::new` is used on a _reference_ to data,
+    /// a byte slice, which requires the data to be copied.
+    pub(crate) block_create_memret_per_byte_cost: Gas,
+
+    /// Gas cost per every block byte read from the block store.
+    /// Ideally this assumes the bytes are read from disk and not the cache.
+    pub(crate) blockstore_read_per_byte_cost: Gas,
+
+    /// Gas cost per every block byte written to the block store.
+    /// Ideally this includes the deferred cost of eventually flushing the data to disk:
+    /// - copy from the block registry to the FVM BufferedBlockstore
+    /// - copy from the FVM BufferedBlockstore to the Node's Blockstore
+    pub(crate) blockstore_write_per_byte_cost: Gas,
+
     /// Gas cost for opening a block.
     pub(crate) block_open_base: Gas,
-    /// Gas cost for every byte retained in FVM space when opening a block.
-    pub(crate) block_open_memret_per_byte_cost: Gas,
+
+    /// Gas cost for creating a block.
+    pub(crate) block_create_base: Gas,
 
     /// Gas cost for linking a block.
     pub(crate) block_link_base: Gas,
     /// Multiplier for storage gas per byte.
     pub(crate) block_link_storage_per_byte_cost: Gas,
-
-    /// Gas cost for creating a block.
-    pub(crate) block_create_base: Gas,
-    /// Gas cost for every byte retained in FVM space when writing a block.
-    pub(crate) block_create_memret_per_byte_cost: Gas,
 
     /// Gas cost for reading a block into actor space.
     pub(crate) block_read_base: Gas,
@@ -712,12 +839,10 @@ impl PriceList {
 
     /// Returns gas required for signature verification.
     #[inline]
-    pub fn on_verify_signature(&self, sig_type: SignatureType, _data_len: usize) -> GasCharge {
-        let val = match sig_type {
-            SignatureType::BLS => self.bls_sig_cost,
-            SignatureType::Secp256k1 => self.secp256k1_sig_cost,
-        };
-        GasCharge::new("OnVerifySignature", val, Zero::zero())
+    pub fn on_verify_signature(&self, sig_type: SignatureType, data_len: usize) -> GasCharge {
+        let cost = self.sig_cost[&sig_type];
+        let gas = cost.apply(data_len);
+        GasCharge::new("OnVerifySignature", gas, Zero::zero())
     }
 
     /// Returns gas required for recovering signer pubkey from signature
@@ -732,8 +857,10 @@ impl PriceList {
 
     /// Returns gas required for hashing data.
     #[inline]
-    pub fn on_hashing(&self, _data_len: usize) -> GasCharge {
-        GasCharge::new("OnHashing", self.hashing_base, Zero::zero())
+    pub fn on_hashing(&self, hasher: SupportedHashes, data_len: usize) -> GasCharge {
+        let cost = self.hashing_cost[&hasher];
+        let gas = cost.apply(data_len);
+        GasCharge::new("OnHashing", gas, Zero::zero())
     }
 
     /// Returns gas required for computing unsealed sector Cid.
@@ -815,7 +942,7 @@ impl PriceList {
                 .expect("512MiB lookup must exist in price table")
         });
 
-        let gas_used = cost.flat + cost.scale * info.challenged_sectors.len();
+        let gas_used = cost.apply(info.challenged_sectors.len());
 
         GasCharge::new("OnVerifyPost", gas_used, Zero::zero())
     }
@@ -863,8 +990,7 @@ impl PriceList {
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenPerByte",
-            (self.block_open_memret_per_byte_cost * data_size)
-                + (self.block_memcpy_per_byte_cost * data_size),
+            (self.blockstore_read_per_byte_cost + self.block_open_memret_per_byte_cost) * data_size,
             Zero::zero(),
         )
     }
@@ -874,7 +1000,7 @@ impl PriceList {
     pub fn on_block_read(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockRead",
-            self.block_read_base + (self.block_memcpy_per_byte_cost * data_size),
+            self.block_read_base + self.block_memcpy_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
@@ -882,11 +1008,9 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
-        let mem_costs = (self.block_create_memret_per_byte_cost * data_size)
-            + (self.block_memcpy_per_byte_cost * data_size);
         GasCharge::new(
             "OnBlockCreate",
-            self.block_create_base + mem_costs,
+            self.block_create_base + self.block_create_memret_per_byte_cost * data_size,
             Zero::zero(),
         )
     }
@@ -894,14 +1018,14 @@ impl PriceList {
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, data_size: usize) -> GasCharge {
-        let memcpy = self.block_memcpy_per_byte_cost * data_size;
+        // cost of computing the CID
+        let hashing = self.hashing_cost[&SupportedHashes::Blake2b256].apply(data_size);
+        // copy from the block registry to the FVM BufferedBlockstore
+        // copy from the FVM BufferedBlockstore to the Node's Blockstore
+        let copying = self.blockstore_write_per_byte_cost * data_size;
         GasCharge::new(
             "OnBlockLink",
-            // twice the memcpy cost:
-            // - one from the block registry to the FVM BufferedBlockstore
-            // - one from the FVM BufferedBlockstore to the Node's Blockstore
-            //   when the machine finishes.
-            self.block_link_base + (memcpy * 2),
+            self.block_link_base + hashing + copying,
             self.block_link_storage_per_byte_cost * self.storage_gas_multiplier * data_size,
         )
     }
