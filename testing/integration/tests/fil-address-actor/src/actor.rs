@@ -46,11 +46,11 @@ pub fn invoke(params: u32) -> u32 {
                 "did not expect a delegated address to be assigned"
             );
         }
-        // send to an f4, then resolve.
+        // send to an f4 in the EAM's namespace, then resolve.
         3 => {
             // Create an embryo.
             let addr =
-                Address::new_delegated(0, b"foobar").expect("failed to construct f4 address");
+                Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
             assert!(sdk::send::send(
                 &addr,
                 0,

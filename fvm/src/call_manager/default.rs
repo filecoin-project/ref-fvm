@@ -18,6 +18,7 @@ use num_traits::Zero;
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
+use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTimer, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
@@ -451,12 +452,13 @@ where
                 }
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
-                Payload::Delegated(da)
-                    if self.state_tree().get_actor(da.namespace())?.is_some() =>
-                {
+                Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
                     self.create_embryo_actor::<K>(&to)?
                 }
-                _ => return Err(syscall_error!(NotFound; "actor does not exist: {}", to).into()),
+                _ => return Err(
+                    syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
+                        .into(),
+                ),
             },
         };
 
