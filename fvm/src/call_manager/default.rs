@@ -310,14 +310,6 @@ where
         predictable_address: Option<Address>,
     ) -> Result<()> {
         let start = GasTimer::start();
-        // TODO https://github.com/filecoin-project/builtin-actors/issues/492
-        let singleton = self.machine.builtin_actors().is_singleton_actor(&code_id);
-
-        if singleton {
-            return Err(
-                syscall_error!(Forbidden; "can only have one instance of singleton actors").into(),
-            );
-        }
 
         // Check to make sure the actor doesn't exist, or is an embryo.
         let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
