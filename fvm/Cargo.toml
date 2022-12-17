@@ -23,7 +23,7 @@ fvm_shared = { version = "3.0.0-alpha.15", path = "../shared", features = ["cryp
 fvm_ipld_hamt = { version = "0.6.1", path = "../ipld/hamt" }
 fvm_ipld_amt = { version = "0.5.0", path = "../ipld/amt" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.3.1", path = "../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.3.2", path = "../ipld/encoding" }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
