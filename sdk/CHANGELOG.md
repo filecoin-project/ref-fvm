@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.19 [2022-12-17]
+
+- feat: only store delegated addresses in the state-tree
+  - Renames `lookup_address` to `lookup_delegated_address`, and only returns f4 addresses
+
 ## 3.0.0-alpha.18 [2022-12-14]
 
 - Refactor: ChainID was moved from FVM to shared

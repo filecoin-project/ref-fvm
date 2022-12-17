@@ -4,6 +4,18 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.16 [2022-12-17]
+
+- fix: remove duplicate "create_actor" method
+- chore: remove "singleton" check
+  - The singletons now generally assert that they've been created by the "system" actor.
+- feat: only store delegated addresses in the state-tree
+  - Restore the logic for resolving key addresses when verifying signatures.
+  - Mass rename of predictable -> delegated.
+  - No longer store f1/f3 in the delegated_address field of an ActorState.
+- CallManager: Restrict embryo creation to the EAM's namespace
+- feat: Gas: Reprice syscalls for which we have models
+
 ## 3.0.0-alpha.15 [2022-12-14]
 
 - Refactor: Extract the `Engine` from the `Machine` and make it a pool
