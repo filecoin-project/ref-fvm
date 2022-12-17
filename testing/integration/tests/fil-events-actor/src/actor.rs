@@ -102,7 +102,7 @@ pub fn invoke(params: u32) -> u32 {
                 sdk::send::send(
                     &our_addr,
                     EMIT_SUBCALLS,
-                    Some(IpldBlock::serialize_cbor(&counter).unwrap()),
+                    IpldBlock::serialize_cbor(&counter).unwrap(),
                     Zero::zero(),
                     None,
                     Default::default(),
@@ -133,7 +133,7 @@ pub fn invoke(params: u32) -> u32 {
                 let _ = sdk::send::send(
                     &our_addr,
                     EMIT_SUBCALLS_REVERT,
-                    Some(IpldBlock::serialize_cbor(&counter).unwrap()),
+                    IpldBlock::serialize_cbor(&counter).unwrap(),
                     Zero::zero(),
                     None,
                     Default::default(),
