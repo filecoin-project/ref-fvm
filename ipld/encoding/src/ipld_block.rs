@@ -44,8 +44,8 @@ impl IpldBlock {
         };
         Ok(IpldBlock { codec, data })
     }
-    pub fn serialize_cbor<T: serde::Serialize + ?Sized>(value: &T) -> Result<Self, Error> {
-        IpldBlock::serialize(DAG_CBOR, value)
+    pub fn serialize_cbor<T: serde::Serialize + ?Sized>(value: &T) -> Result<Option<Self>, Error> {
+        Ok(Some(IpldBlock::serialize(DAG_CBOR, value)?))
     }
 }
 
