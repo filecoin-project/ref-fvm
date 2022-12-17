@@ -1850,7 +1850,7 @@ dependencies = [
 name = "fil_address_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "serde",
@@ -1888,7 +1888,7 @@ dependencies = [
 name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "serde",
@@ -1900,7 +1900,7 @@ dependencies = [
 name = "fil_exit_data_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "substrate-wasm-builder",
@@ -1912,7 +1912,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cid 0.8.6",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "num-derive",
@@ -1925,7 +1925,7 @@ dependencies = [
 name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "log",
@@ -1950,7 +1950,7 @@ dependencies = [
  "anyhow",
  "cid 0.8.6",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "serde",
@@ -1962,7 +1962,7 @@ dependencies = [
 name = "fil_ipld_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "minicov",
@@ -1983,7 +1983,7 @@ name = "fil_readonly_actor"
 version = "0.1.0"
 dependencies = [
  "cid 0.8.6",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "substrate-wasm-builder",
@@ -2003,7 +2003,7 @@ name = "fil_syscall_actor"
 version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "minicov",
@@ -2347,7 +2347,7 @@ dependencies = [
  "fvm-wasm-instrument",
  "fvm_ipld_amt 0.5.0",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_ipld_hamt 0.6.1",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
@@ -2425,7 +2425,7 @@ dependencies = [
  "fvm_ipld_amt 0.5.0",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_ipld_hamt 0.6.1",
  "fvm_shared 3.0.0-alpha.15",
  "itertools 0.10.5",
@@ -2464,7 +2464,7 @@ dependencies = [
  "fvm_integration_tests",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
  "libsecp256k1",
@@ -2503,7 +2503,7 @@ dependencies = [
  "fvm_ipld_amt 0.5.0",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_ipld_hamt 0.6.1",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
@@ -2546,7 +2546,7 @@ dependencies = [
  "cid 0.8.6",
  "criterion",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "itertools 0.10.5",
  "once_cell",
  "serde",
@@ -2575,7 +2575,7 @@ version = "0.5.4"
 dependencies = [
  "arbitrary",
  "criterion",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "gperftools",
  "rand",
  "rand_xorshift",
@@ -2625,7 +2625,7 @@ dependencies = [
  "cid 0.8.6",
  "futures",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "integer-encoding",
  "serde",
  "thiserror",
@@ -2683,7 +2683,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_encoding"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "cid 0.8.6",
@@ -2728,7 +2728,7 @@ dependencies = [
  "criterion",
  "forest_hash_utils",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "hex",
  "libipld-core 0.14.0",
  "multihash 0.16.3",
@@ -2772,7 +2772,7 @@ dependencies = [
  "criterion",
  "forest_hash_utils",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "hex",
  "libipld-core 0.15.0",
  "multihash 0.16.3",
@@ -2841,7 +2841,7 @@ name = "fvm_sdk"
 version = "3.0.0-alpha.19"
 dependencies = [
  "cid 0.8.6",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
  "log",
@@ -2893,7 +2893,7 @@ dependencies = [
  "data-encoding-macro",
  "filecoin-proofs-api",
  "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.1",
+ "fvm_ipld_encoding 0.3.2",
  "lazy_static",
  "libsecp256k1",
  "log",
