@@ -5,6 +5,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
@@ -32,7 +33,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             let resp = sdk::send::send(
                 &account,
                 METHOD_SEND,
-                RawBytes::default(),
+                None,
                 TokenAmount::default(),
                 None,
                 SendFlags::READ_ONLY,
@@ -87,7 +88,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 Default::default(),
                 Default::default(),
                 None,
-                Default::default()
+                Default::default(),
             )
             .unwrap()
             .exit_code
@@ -110,7 +111,10 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             let output = sdk::send::send(
                 &Address::new_id(sdk::message::receiver()),
                 4,
-                RawBytes::new("input".into()),
+                Some(IpldBlock {
+                    codec: DAG_CBOR,
+                    data: "input".into(),
+                }),
                 Default::default(),
                 None,
                 Default::default(),
@@ -123,7 +127,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             let output = sdk::send::send(
                 &Address::new_id(sdk::message::receiver()),
                 5,
-                RawBytes::default(),
+                None,
                 Default::default(),
                 None,
                 Default::default(),
@@ -135,7 +139,10 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             let output = sdk::send::send(
                 &Address::new_id(sdk::message::receiver()),
                 4,
-                RawBytes::new("input".into()),
+                Some(IpldBlock {
+                    codec: DAG_CBOR,
+                    data: "input".into(),
+                }),
                 Default::default(),
                 None,
                 SendFlags::READ_ONLY,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
 use cid::multihash::Code;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::DAG_CBOR;
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
@@ -225,7 +225,7 @@ fn lcg8(seed: u64) -> impl Iterator<Item = u8> {
 }
 
 fn read_params<T: DeserializeOwned>(params_ptr: u32) -> Result<T> {
-    let params = params_raw(params_ptr)?.1;
-    let value = RawBytes::new(params).deserialize()?;
+    let params = params_raw(params_ptr).unwrap().unwrap();
+    let value = params.deserialize()?;
     Ok(value)
 }
