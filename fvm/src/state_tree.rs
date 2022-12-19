@@ -34,7 +34,10 @@ pub struct StateTree<S> {
 
     /// State snapshots.
     snaps: StateSnapshots,
-    /// Read-cache (always check the snapshots first)
+    /// Read-cache for the backing blockstore. This DOES NOT contain
+    /// mutations in progress (contained in the snapshots). Always check
+    /// snapshots first, then the read cache, then fall back to the backing
+    /// blockstore.
     read_cache: RefCell<HashMap<ActorID, Option<ActorState>>>,
 }
 
