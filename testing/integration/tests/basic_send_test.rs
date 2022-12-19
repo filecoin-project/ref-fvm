@@ -15,7 +15,6 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::METHOD_SEND;
-use num_traits::Zero;
 
 #[test]
 fn basic_send() {
@@ -54,8 +53,6 @@ fn basic_send() {
                     pl.on_create_actor(true),
                     pl.on_actor_lookup(),
                     pl.on_actor_update(),
-                    // Invoke it (nop).
-                    pl.on_method_invocation(&TokenAmount::zero(), METHOD_SEND),
                 ],
             },
             // Poke it. Don't charge for an update because we don't transfer value.
@@ -65,9 +62,7 @@ fn basic_send() {
                 trace: vec![
                     // No explicit charges for updating/looking this up.
                     pl.on_chain_message(100),
-                    // Invoke it (nop).
-                    pl.on_method_invocation(&TokenAmount::zero(), METHOD_SEND),
-                    // No charges to update the target actor because we're not transferring value.
+                    // No charges because we're not transferring value or executing code.
                 ],
             },
             // Transfer value, update the target actor.
@@ -77,8 +72,8 @@ fn basic_send() {
                 trace: vec![
                     // No explicit charges for updating/looking this up.
                     pl.on_chain_message(100),
-                    // Invoke it (nop).
-                    pl.on_method_invocation(&TokenAmount::from_atto(1), METHOD_SEND),
+                    // Transfer
+                    pl.on_value_transfer(),
                     // Charge to update the target actor due to the value transfer.
                     pl.on_actor_update(),
                 ],
@@ -90,8 +85,8 @@ fn basic_send() {
                 trace: vec![
                     // No explicit charges for updating/looking this up.
                     pl.on_chain_message(100),
-                    // Invoke it (nop).
-                    pl.on_method_invocation(&TokenAmount::from_atto(1), METHOD_SEND),
+                    // Transfer
+                    pl.on_value_transfer(),
                 ],
             },
         ]
