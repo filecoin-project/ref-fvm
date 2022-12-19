@@ -39,7 +39,7 @@ pub struct TestMessageTombstone {
 pub struct TestGasCharge {
     pub name: String,
     pub compute_gas: i64,
-    pub storage_gas: i64,
+    pub other_gas: i64,
     pub elapsed_nanos: Option<u128>,
 }
 
@@ -102,7 +102,7 @@ impl TestTraceExporter {
                             Some(TestGasCharge {
                                 name: charge.name.into(),
                                 compute_gas: charge.compute_gas.as_milligas(),
-                                storage_gas: charge.storage_gas.as_milligas(),
+                                other_gas: charge.other_gas.as_milligas(),
                                 elapsed_nanos,
                             })
                         }
