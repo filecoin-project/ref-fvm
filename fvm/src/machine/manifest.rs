@@ -29,6 +29,8 @@ const STORAGE_MARKET_ACTOR_NAME: &str = "storagemarket";
 const STORAGE_POWER_ACTOR_NAME: &str = "storagepower";
 const VERIFIED_REGISTRY_ACTOR_NAME: &str = "verifiedregistry";
 const DATA_CAP_ACTOR_NAME: &str = "datacap";
+const REWARD_ACTOR_NAME: &str = "reward";
+
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
@@ -42,6 +44,7 @@ pub struct Manifest {
     storagepower_code: Cid,
     verifiedregistry_code: Cid,
     datacap_code: Cid,
+    reward_code: Cid,
     singletons: HashSet<Cid>,
 
     by_id: HashMap<u32, Cid>,
@@ -87,6 +90,7 @@ impl Manifest {
         ("storagepower", id_cid(b"fil/test/storagepower")),
         ("datacap", id_cid(b"fil/test/datacap")),
         ("verifiedregistry", id_cid(b"fil/test/verifiedregistry")),
+        ("reward", id_cid(b"fil/test/reward")),
     ];
 
     #[cfg(any(feature = "testing", test))]
@@ -171,6 +175,10 @@ impl Manifest {
             .get(DATA_CAP_ACTOR_NAME)
             .context("manifest missing datacap actor")?;
 
+        let reward_code = *by_name
+            .get(REWARD_ACTOR_NAME)
+            .context("manifest missing reward actor")?;
+
         Ok(Self {
             account_code,
             system_code,
@@ -182,6 +190,7 @@ impl Manifest {
             storagepower_code,
             verifiedregistry_code,
             datacap_code,
+            reward_code,
             singletons,
             by_id,
             by_code,
@@ -232,6 +241,11 @@ impl Manifest {
     pub fn is_datacap_actor(&self, cid: &Cid) -> bool {
         &self.datacap_code == cid
     }
+
+    /// Returns true id the passed code CID is the reward actor.
+    pub fn is_reward_actor(&self, cid: &Cid) -> bool {
+        &self.reward_code == cid
+    } 
 
     /// Returns true id the passed code is a singleton actor.
     pub fn is_singleton_actor(&self, cid: &Cid) -> bool {
@@ -290,5 +304,10 @@ impl Manifest {
     /// Returns the code CID for the datacap actor.
     pub fn get_datacap_code(&self) -> &Cid {
         &self.datacap_code
+    }
+    
+    /// Returns the code CID for the reward actor.
+    pub fn get_reward_code(&self) -> &Cid {
+        &self.reward_code
     }
 }

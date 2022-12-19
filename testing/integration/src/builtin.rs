@@ -13,6 +13,7 @@ use multihash::Code;
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
 use crate::verifiedregistry_actor;
 use crate::datacap_actor;
+use crate::reward_actor;
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
@@ -31,6 +32,7 @@ pub fn fetch_builtin_code_cid(
         *manifest.get_storagepower_code(),
         *manifest.get_verifiedregistry_code(),
         *manifest.get_datacap_code(),
+        *manifest.get_reward_code()
     ))
 }
 
@@ -186,7 +188,29 @@ pub fn set_datacap_actor(state_tree: &mut StateTree<impl Blockstore>, datacap_co
     };
 
     state_tree
-        .set_actor(DATA_CAP_ACTOR, datacap_actor_state)
+        .set_actor(DATA_CAP_ACTOR, reward_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("datacap actor".to_owned()))
+}
+
+pub fn set_reward_actor(state_tree: &mut StateTree<impl Blockstore>, reward_code_cid: Cid, reward_state: reward_actor::State,) -> Result<()> {
+    const REWARD_ACTOR_ID: ActorID = 2;
+
+    let reward_state_cid = state_tree
+        .store()
+        .put_cbor(&reward_state, Code::Blake2b256)
+        .context(FailedToSetState("reward actor".to_owned()))?;
+
+    let reward_actor_state = ActorState {
+        code: reward_code_cid,
+        state: reward_state_cid,
+        sequence: 0,
+        balance: Default::default(),
+        address: None,
+    };
+
+    state_tree
+        .set_actor(REWARD_ACTOR_ID, datacap_actor_state)
+        .map_err(anyhow::Error::from)
+        .context(FailedToSetActor("reward actor".to_owned()))
 }
