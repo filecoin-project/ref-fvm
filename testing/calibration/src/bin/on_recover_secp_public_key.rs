@@ -35,7 +35,7 @@ fn main() {
 
         let ret = te.execute_or_die(METHOD as u64, &params);
 
-        let iter_obs = collect_obs(ret, CHARGE_NAME, "n/a", *size);
+        let iter_obs = collect_obs(&ret, CHARGE_NAME, "n/a", *size);
         //let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
 
         obs.extend(iter_obs);

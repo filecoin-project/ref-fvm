@@ -7,7 +7,6 @@ use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -15,7 +14,6 @@ use fvm_shared::sector::{
     SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{MethodNum, METHOD_SEND};
 use fvm_wasm_instrument::gas_metering::{InstructionCost, Operator, Rules};
 use lazy_static::lazy_static;
 use num_traits::Zero;
@@ -78,11 +76,8 @@ lazy_static! {
             scale: Gas::new(1300),
         },
 
-        // TODO(#1332)
-        send_base: Gas::new(29233),
-        send_transfer_funds: Gas::new(27500),
-        send_transfer_only_premium: Gas::new(159672),
-        send_invoke_method: Gas::new(-5377),
+        send_transfer_funds: Gas::new(6000),
+        send_invoke_method: Gas::new(75000),
 
         create_actor_compute: Gas::new(1108454),
         create_actor_storage: Gas::new((36 + 40) * 1300),
@@ -369,25 +364,9 @@ pub struct PriceList {
     pub(crate) on_chain_return_compute: ScalingCost,
     pub(crate) on_chain_return_storage: ScalingCost,
 
-    /// Gas cost for any message send execution(including the top-level one
-    /// initiated by an on-chain message).
-    /// This accounts for the cost of loading sender and receiver actors and
-    /// (for top-level messages) incrementing the sender's sequence number.
-    /// Load and store of actor sub-state is charged separately.
-    pub(crate) send_base: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if a message send
-    /// is accompanied by any nonzero currency amount.
-    /// Accounts for writing receiver's new balance (the sender's state is
-    /// already accounted for).
+    // TODO
     pub(crate) send_transfer_funds: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if message only transfers funds.
-    pub(crate) send_transfer_only_premium: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if a message invokes
-    /// a method on the receiver.
-    /// Accounts for the cost of loading receiver code and method dispatch.
+    // TODO
     pub(crate) send_invoke_method: Gas,
 
     /// Gas cost for creating a new actor (via InitActor's Exec method).
@@ -527,18 +506,14 @@ impl PriceList {
 
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(&self, value: &TokenAmount, method_num: MethodNum) -> GasCharge {
-        let mut ret = self.send_base;
-        if value != &TokenAmount::zero() {
-            ret += self.send_transfer_funds;
-            if method_num == METHOD_SEND {
-                ret += self.send_transfer_only_premium;
-            }
-        }
-        if method_num != METHOD_SEND {
-            ret += self.send_invoke_method;
-        }
-        GasCharge::new("OnMethodInvocation", ret, Zero::zero())
+    pub fn on_value_transfer(&self) -> GasCharge {
+        GasCharge::new("OnValueTransfer", self.send_transfer_funds, Zero::zero())
+    }
+
+    /// Returns the gas required when invoking a method.
+    #[inline]
+    pub fn on_method_invocation(&self) -> GasCharge {
+        GasCharge::new("OnMethodInvocation", self.send_invoke_method, Zero::zero())
     }
 
     /// Returns the gas cost to be applied on a syscall.

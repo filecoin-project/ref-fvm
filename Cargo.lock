@@ -2495,6 +2495,7 @@ dependencies = [
  "serde_tuple",
  "thiserror",
  "wasmtime",
+ "wat",
 ]
 
 [[package]]

@@ -8,7 +8,9 @@ use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::sys::SendFlags;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::de::DeserializeOwned;
@@ -18,6 +20,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// Just doing a few mutations in an array to make the hashes different.
 const MUTATION_COUNT: usize = 10;
+const NOP_ACTOR_ADDRESS: Address = Address::new_id(10001);
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -30,6 +33,8 @@ pub enum Method {
     OnVerifySignature,
     /// Try (and fail) to recovery a public key from a signature, using random data.
     OnRecoverSecpPublicKey,
+    /// Measure sends
+    OnSend,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,6 +74,13 @@ pub struct OnRecoverSecpPublicKeyParams {
     pub size: usize,
     pub signature: Vec<u8>,
     pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnSendParams {
+    pub iterations: usize,
+    pub value_transfer: bool,
+    pub invoke: bool,
 }
 
 impl OnHashingParams {
@@ -112,6 +124,7 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
         Method::OnBlock => dispatch_to(on_block, params_ptr),
         Method::OnVerifySignature => dispatch_to(on_verify_signature, params_ptr),
         Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
+        Method::OnSend => dispatch_to(on_send, params_ptr),
     }
 }
 
@@ -193,6 +206,28 @@ fn on_recover_secp_public_key(p: OnRecoverSecpPublicKeyParams) -> Result<()> {
         fvm_sdk::crypto::recover_secp_public_key(&hash, &sig)?;
     }
 
+    Ok(())
+}
+
+fn on_send(p: OnSendParams) -> Result<()> {
+    let value = if p.value_transfer {
+        TokenAmount::from_atto(1)
+    } else {
+        TokenAmount::default()
+    };
+    let method = if p.invoke { 1 } else { 0 };
+
+    for _i in 0..p.iterations {
+        fvm_sdk::send::send(
+            &NOP_ACTOR_ADDRESS,
+            method,
+            RawBytes::default(),
+            value.clone(),
+            None,
+            SendFlags::default(),
+        )
+        .unwrap();
+    }
     Ok(())
 }
 
