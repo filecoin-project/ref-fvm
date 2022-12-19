@@ -68,7 +68,7 @@ where
         raw_length: usize,
     ) -> anyhow::Result<ApplyRet> {
         // Validate if the message was correct, charge for it, and extract some preliminary data.
-        let (sender_id, sender_st, gas_cost, inclusion_cost) =
+        let (sender_id, gas_cost, inclusion_cost) =
             match self.preflight_message(&msg, apply_kind, raw_length)? {
                 Ok(res) => res,
                 Err(apply_ret) => return Ok(apply_ret),
@@ -127,48 +127,54 @@ where
 
             let result = cm.with_transaction(false, |cm| {
                 let pl = cm.context().price_list;
+                let sender_st =
+                    cm.machine()
+                        .state_tree()
+                        .get_actor(sender_id)?
+                        .ok_or_else(|| {
+                            ExecutionError::Fatal({
+                                anyhow!("prevalidation should have confirmed sender exists")
+                            })
+                        })?;
 
-                if let Some(sender_state) = sender_st {
-                    if cm
-                        .machine()
-                        .builtin_actors()
-                        .is_embryo_actor(&sender_state.code)
-                    {
-                        // We need to deploy the Ethereum Account actor
-                        let _ = cm.charge_gas(pl.on_create_actor(false))?;
+                if cm
+                    .machine()
+                    .builtin_actors()
+                    .is_embryo_actor(&sender_st.code)
+                {
+                    // We need to deploy the Ethereum Account actor
+                    let _ = cm.charge_gas(pl.on_create_actor(false))?;
 
-                        // Transform the actor code CID into the Ethereum Account code CID.
-                        let ethaccount_code_cid =
-                            *cm.machine().builtin_actors().get_ethaccount_code();
-                        cm.state_tree_mut().set_actor(
-                            sender_id,
-                            ActorState {
-                                code: ethaccount_code_cid,
-                                // We zero out the state as that is the state for EthAccounts
-                                // This _should_ be a no-op since the embryo already has an EMPTY_ARR_CID state
-                                state: *EMPTY_ARR_CID,
-                                ..sender_state
-                            },
-                        )?;
+                    // Transform the actor code CID into the Ethereum Account code CID.
+                    let ethaccount_code_cid = *cm.machine().builtin_actors().get_ethaccount_code();
+                    cm.state_tree_mut().set_actor(
+                        sender_id,
+                        ActorState {
+                            code: ethaccount_code_cid,
+                            // We zero out the state as that is the state for EthAccounts
+                            // This _should_ be a no-op since the embryo already has an EMPTY_ARR_CID state
+                            state: *EMPTY_ARR_CID,
+                            ..sender_st
+                        },
+                    )?;
 
-                        // Now actually invoke the constructor
-                        let ret = cm.send::<K>(
-                            SYSTEM_ACTOR_ID,
-                            msg.from,
-                            METHOD_CONSTRUCTOR,
-                            None,
-                            &TokenAmount::zero(),
-                            None,
-                        )?;
+                    // Now actually invoke the constructor
+                    let ret = cm.send::<K>(
+                        SYSTEM_ACTOR_ID,
+                        msg.from,
+                        METHOD_CONSTRUCTOR,
+                        None,
+                        &TokenAmount::zero(),
+                        None,
+                    )?;
 
-                        // If we _failed_ to deploy the EthAccount actor, we abort early.
-                        // If we succeeded, proceed to the actual invocation.
-                        if !ret.exit_code.is_success() {
-                            return Ok(InvocationResult {
-                                exit_code: ExitCode::SYS_SENDER_INVALID,
-                                value: None,
-                            });
-                        }
+                    // If we _failed_ to deploy the EthAccount actor, we abort early.
+                    // If we succeeded, proceed to the actual invocation.
+                    if !ret.exit_code.is_success() {
+                        return Ok(InvocationResult {
+                            exit_code: ExitCode::SYS_SENDER_INVALID,
+                            value: None,
+                        });
                     }
                 }
 
@@ -360,17 +366,16 @@ where
     }
 
     // TODO: The return type here is very strange because we have three cases:
-    //  1. Continue: Return sender ID, the sender ActorState (Explicit Applys only), & gas).
+    //  1. Continue: Return sender ID, & gas).
     //  2. Short-circuit: Return ApplyRet).
     //  3. Fail: Return an error).
     //  We could use custom types, but that would be even more annoying.
-    #[allow(clippy::type_complexity)]
     fn preflight_message(
         &mut self,
         msg: &Message,
         apply_kind: ApplyKind,
         raw_length: usize,
-    ) -> Result<StdResult<(ActorID, Option<ActorState>, TokenAmount, GasCharge), ApplyRet>> {
+    ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
         msg.check().or_fatal()?;
 
         // TODO We don't like having price lists _inside_ the FVM, but passing
@@ -417,7 +422,7 @@ where
         };
 
         if apply_kind == ApplyKind::Implicit {
-            return Ok(Ok((sender_id, None, TokenAmount::zero(), inclusion_cost)));
+            return Ok(Ok((sender_id, TokenAmount::zero(), inclusion_cost)));
         }
 
         let sender_state = match self
@@ -487,12 +492,7 @@ where
             Ok(())
         })?;
 
-        Ok(Ok((
-            sender_id,
-            Some(sender_state),
-            gas_cost,
-            inclusion_cost,
-        )))
+        Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
 
     #[allow(clippy::too_many_arguments)]
