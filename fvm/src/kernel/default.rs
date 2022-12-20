@@ -466,7 +466,7 @@ where
             Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
             // Not a key address.
             _ => {
-                return Err(syscall_error!(NotFound; "address protocol {} not supported", signer.protocol()).into());
+                return Err(syscall_error!(IllegalArgument; "address protocol {} not supported", signer.protocol()).into());
             }
         };
 
