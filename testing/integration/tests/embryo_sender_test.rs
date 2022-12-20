@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 
-// #[test] TODO re-enable once we have a new actor bundle.
-#[allow(unused)]
+#[test]
 fn embryo_as_sender() {
     use bundles::*;
     use fvm::executor::{ApplyKind, Executor};
