@@ -4,6 +4,40 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.17 [2022-12-19]
+
+- feat: split the state-tree's "read" and "write" caches
+- fix: use correct sender state for account abstraction
+- refactor: update the gas schedule:
+  - Remove the old gas schedules.
+  - Use ScalingCost everywhere to make things simpler.
+  - Try to clearly split up operations in a way that should be easier to measure.
+  - Rename the "storage gas" field on gas charges to "other gas", and move all charges that aren't charging for immediate computation. This makes benchmarking easier. Includes:
+    - Deferred operations (e.g., flush).
+    - Memory retention
+    - Storage
+  - Signature Validation:
+    - Secp256k1 signature verification has gained a new 10gas/byte cost to reflect the cost of hashing (blake2b).
+    - BLS signature verification has gained a new 26gas/byte cost to reflect the cost of hashing.
+  - Hashing no longer has a flat cost (was 31355) but has the following costs (per algorithm):
+    - sha256: 7gas/byte
+    - blake2b: 10gas/byte
+    - keccak256: 33gas/byte
+    - ripemd160: 35gas/byte
+  - Memory:
+    - Memory copy costs have been reduced from 0.5gas/byte to 0.4gas/byte.
+    - The "memory retention" cost of 10gas/byte has been split into a 2gas/byte memory _allocation_ cost, and an 8gas/byte memory retention cost.
+  - Storage:
+    - Block storage costs have increased by 13.8gas/byte (from 1300gas/byte to 1313.8gas/byte, or 1%):
+      - PLUS 2 * 2 = 4 gas for an expected 2 allocations (one on write, one on flush).
+      - PLUS 10gas/byte for hashing.
+      - MINUS 0.1 * 2 gas/byte for the reduction in memcpy costs.
+  - Randomness now charges for hashing:
+    - 1400 for the "extern" call. 
+    - 10gas/byte of entropy plus 480 gas for hashing the randomness itself.
+- Explicit gas charges for different instruction types
+- feat: charge 0.4gas/byte for memory copy and initialization
+
 ## 3.0.0-alpha.16 [2022-12-17]
 
 - fix: remove duplicate "create_actor" method
