@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use bitflags::bitflags;
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::RawBytes;
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
 
@@ -17,8 +17,6 @@ pub struct StampedEvent {
     event: ActorEvent,
 }
 
-impl Cbor for StampedEvent {}
-
 impl StampedEvent {
     pub fn new(emitter: ActorID, event: ActorEvent) -> Self {
         Self { emitter, event }
@@ -31,8 +29,6 @@ impl StampedEvent {
 pub struct ActorEvent {
     pub entries: Vec<Entry>,
 }
-
-impl Cbor for ActorEvent {}
 
 impl From<Vec<Entry>> for ActorEvent {
     fn from(entries: Vec<Entry>) -> Self {
@@ -61,8 +57,6 @@ pub struct Entry {
     /// Any DAG-CBOR encodeable type.
     pub value: RawBytes,
 }
-
-impl Cbor for Entry {}
 
 // TODO write macro
 // event!({

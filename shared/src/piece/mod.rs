@@ -2,8 +2,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_ipld_encoding::Cbor;
-
 #[cfg(feature = "proofs")]
 pub mod zero;
 
@@ -71,8 +69,6 @@ pub struct PieceInfo {
     /// Content identifier for piece.
     pub cid: Cid,
 }
-
-impl Cbor for PieceInfo {}
 
 #[cfg(feature = "proofs")]
 use std::convert::TryFrom;

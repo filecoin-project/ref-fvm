@@ -12,6 +12,7 @@ use super::errors::Error;
 use crate::{de, from_slice, ser, strict_bytes, to_vec};
 
 /// Cbor utility functions for serializable objects
+#[deprecated(note = "use to_vec or from_slice directly")]
 pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     /// Marshalls cbor encodable object into cbor bytes
     fn marshal_cbor(&self) -> Result<Vec<u8>, Error> {
@@ -24,7 +25,9 @@ pub trait Cbor: ser::Serialize + de::DeserializeOwned {
     }
 }
 
+#[allow(deprecated)]
 impl<T> Cbor for Vec<T> where T: Cbor {}
+#[allow(deprecated)]
 impl<T> Cbor for Option<T> where T: Cbor {}
 
 /// Raw serialized cbor bytes.
@@ -54,6 +57,7 @@ impl From<RawBytes> for Rc<[u8]> {
     }
 }
 
+#[allow(deprecated)]
 impl Cbor for RawBytes {}
 
 impl Deref for RawBytes {

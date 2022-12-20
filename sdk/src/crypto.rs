@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
-use fvm_ipld_encoding::{to_vec, Cbor};
+use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
@@ -132,17 +132,13 @@ pub fn compute_unsealed_sector_cid(
 
 /// Verifies a sector seal proof.
 pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
-    let info = info
-        .marshal_cbor()
-        .expect("failed to marshal seal verification input");
+    let info = to_vec(info).expect("failed to marshal seal verification input");
     unsafe { sys::crypto::verify_seal(info.as_ptr(), info.len() as u32).map(status_code_to_bool) }
 }
 
 /// Verifies a window proof of spacetime.
 pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
-    let info = info
-        .marshal_cbor()
-        .expect("failed to marshal PoSt verification input");
+    let info = to_vec(info).expect("failed to marshal PoSt verification input");
     unsafe { sys::crypto::verify_post(info.as_ptr(), info.len() as u32).map(status_code_to_bool) }
 }
 
@@ -188,9 +184,7 @@ pub fn verify_consensus_fault(
 }
 
 pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> SyscallResult<bool> {
-    let info = info
-        .marshal_cbor()
-        .expect("failed to marshal aggregate seal verification input");
+    let info = to_vec(info).expect("failed to marshal aggregate seal verification input");
     unsafe {
         sys::crypto::verify_aggregate_seals(info.as_ptr(), info.len() as u32)
             .map(status_code_to_bool)
@@ -198,9 +192,7 @@ pub fn verify_aggregate_seals(info: &AggregateSealVerifyProofAndInfos) -> Syscal
 }
 
 pub fn verify_replica_update(info: &ReplicaUpdateInfo) -> SyscallResult<bool> {
-    let info = info
-        .marshal_cbor()
-        .expect("failed to marshal replica update verification input");
+    let info = to_vec(info).expect("failed to marshal replica update verification input");
     unsafe {
         sys::crypto::verify_replica_update(info.as_ptr(), info.len() as u32)
             .map(status_code_to_bool)

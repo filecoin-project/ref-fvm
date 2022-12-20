@@ -5,7 +5,7 @@
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::RawBytes;
 
 use crate::address::Address;
 use crate::econ::TokenAmount;
@@ -26,8 +26,6 @@ pub struct Message {
     pub gas_fee_cap: TokenAmount,
     pub gas_premium: TokenAmount,
 }
-
-impl Cbor for Message {}
 
 impl Message {
     /// Does some basic checks on the Message to see if the fields are valid.

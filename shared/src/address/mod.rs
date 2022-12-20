@@ -14,7 +14,7 @@ use std::str::FromStr;
 
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
-use fvm_ipld_encoding::{strict_bytes, Cbor};
+use fvm_ipld_encoding::strict_bytes;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::errors::Error;
@@ -73,8 +73,6 @@ const TESTNET_PREFIX: &str = "t";
 pub struct Address {
     payload: Payload,
 }
-
-impl Cbor for Address {}
 
 impl Address {
     /// Construct a new address with the specified network.

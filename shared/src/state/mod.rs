@@ -5,7 +5,6 @@
 use cid::Cid;
 use fvm_ipld_encoding::repr::*;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
 use serde::{Deserialize, Serialize};
 
 /// Specifies the version of the state tree
@@ -39,8 +38,6 @@ pub struct StateRoot {
     /// Info. The structure depends on the state root version.
     pub info: Cid,
 }
-
-impl Cbor for StateRoot {}
 
 /// Empty state tree information. This is serialized as an array for future proofing.
 #[derive(Default, Deserialize, Serialize)]

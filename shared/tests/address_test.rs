@@ -6,7 +6,7 @@ use std::iter;
 use std::str::FromStr;
 
 use data_encoding::{DecodeError, DecodeKind};
-use fvm_ipld_encoding::{from_slice, Cbor};
+use fvm_ipld_encoding::{from_slice, to_vec};
 use fvm_shared::address::{
     Address, Error, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN,
 };
@@ -559,7 +559,7 @@ fn cbor_encoding() {
 
     for t in test_vectors.iter() {
         let res = Address::from_str(t.input).unwrap();
-        let encoded = res.marshal_cbor().unwrap();
+        let encoded = to_vec(&res).unwrap();
         // assert intermediate value is correct
         assert_eq!(encoded.as_slice(), t.encoded);
         let rec: Address = from_slice(&encoded).unwrap();

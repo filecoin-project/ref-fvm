@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use cid::Cid;
-use fvm_ipld_encoding::{strict_bytes, Cbor};
+use fvm_ipld_encoding::strict_bytes;
 use serde_tuple::*;
 
 use super::*;
@@ -55,9 +55,3 @@ pub struct WindowPoStVerifyInfo {
 pub struct OnChainWindowPoStVerifyInfo {
     pub proofs: Vec<PoStProof>,
 }
-
-impl Cbor for WindowPoStVerifyInfo {}
-
-impl Cbor for PoStProof {}
-
-impl Cbor for SectorInfo {}

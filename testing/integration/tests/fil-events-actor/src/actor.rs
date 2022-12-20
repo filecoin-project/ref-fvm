@@ -1,7 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::Cbor;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
@@ -15,15 +14,11 @@ struct EventPayload1 {
     b: String,
 }
 
-impl Cbor for EventPayload1 {}
-
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 struct EventPayload2 {
     c: i32,
     d: Vec<u64>,
 }
-
-impl Cbor for EventPayload2 {}
 
 #[no_mangle]
 pub fn invoke(params: u32) -> u32 {
@@ -43,7 +38,7 @@ pub fn invoke(params: u32) -> u32 {
     let single_entry_evt = vec![Entry {
         flags: Flags::all(),
         key: "foo".to_owned(),
-        value: payload.marshal_cbor().unwrap().into(),
+        value: fvm_ipld_encoding::to_vec(&payload).unwrap().into(),
     }];
 
     let payload1 = EventPayload1 {
@@ -59,12 +54,12 @@ pub fn invoke(params: u32) -> u32 {
         Entry {
             flags: Flags::all(),
             key: "bar".to_owned(),
-            value: payload1.marshal_cbor().unwrap().into(),
+            value: fvm_ipld_encoding::to_vec(&payload1).unwrap().into(),
         },
         Entry {
             flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
             key: "baz".to_string(),
-            value: payload2.marshal_cbor().unwrap().into(),
+            value: fvm_ipld_encoding::to_vec(&payload2).unwrap().into(),
         },
     ];
 
@@ -75,7 +70,7 @@ pub fn invoke(params: u32) -> u32 {
         }
         EMIT_MALFORMED => unsafe {
             // mangle an event.
-            let mut serialized = single_entry_evt.marshal_cbor().unwrap();
+            let mut serialized = fvm_ipld_encoding::to_vec(&single_entry_evt).unwrap();
             serialized[1] = 0xff;
 
             assert!(

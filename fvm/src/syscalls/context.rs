@@ -5,10 +5,11 @@ use std::ops::{Deref, DerefMut};
 use std::panic;
 
 use cid::Cid;
-use fvm_ipld_encoding::{from_slice, Cbor};
+use fvm_ipld_encoding::from_slice;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
+use serde::de::DeserializeOwned;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;
@@ -106,7 +107,7 @@ impl Memory {
         Address::from_bytes(bytes).or_error(ErrorNumber::IllegalArgument)
     }
 
-    pub fn read_cbor<T: Cbor>(&self, offset: u32, len: u32) -> Result<T> {
+    pub fn read_cbor<T: DeserializeOwned>(&self, offset: u32, len: u32) -> Result<T> {
         let bytes = self.try_slice(offset, len)?;
         // Catch panics when decoding cbor from actors, _just_ in case.
         match panic::catch_unwind(|| from_slice(bytes).or_error(ErrorNumber::IllegalArgument)) {

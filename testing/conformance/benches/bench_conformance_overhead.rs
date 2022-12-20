@@ -10,7 +10,7 @@ use fvm::engine::MultiEngine;
 use fvm::machine::BURNT_FUNDS_ACTOR_ID;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
-use fvm_ipld_encoding::{Cbor, RawBytes};
+use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
@@ -52,7 +52,7 @@ fn bench_500_simple_state_access(
 ) -> anyhow::Result<()> {
     let five_hundred_state_accesses = (0..500)
         .map(|i| ApplyMessage {
-            bytes: Message {
+            bytes: fvm_ipld_encoding::to_vec(&Message {
                 version: 0,
                 from: Address::new_id(BURNT_FUNDS_ACTOR_ID),
                 to: Address::new_id(BURNT_FUNDS_ACTOR_ID),
@@ -63,8 +63,7 @@ fn bench_500_simple_state_access(
                 gas_limit: 5000000000,
                 gas_fee_cap: TokenAmount::zero(),
                 gas_premium: TokenAmount::zero(),
-            }
-            .marshal_cbor()
+            })
             .unwrap(),
             epoch_offset: None,
         })
