@@ -263,8 +263,8 @@ lazy_static! {
             memory_access_cost: Gas::zero(),
 
             // Don't yet charge anything for copying.
-            memory_copy_per_byte_cost: Gas::zero(),
-            memory_fill_per_byte_cost: Gas::zero(),
+            memory_copy_per_byte_cost: Gas::from_milligas(400),
+            memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
         // NOTE: we currently "flush" events, but we need to stop doing that except when asked.
