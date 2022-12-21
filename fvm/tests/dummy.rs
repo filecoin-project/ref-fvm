@@ -10,7 +10,7 @@ use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
-use fvm::machine::limiter::ExecMemory;
+use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{kernel, Kernel};
@@ -24,7 +24,6 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IDENTITY_HASH};
 use multihash::{Code, Multihash};
-use wasmtime::ResourceLimiter;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
 
@@ -79,22 +78,7 @@ pub struct DummyLimiter {
     curr_exec_memory_bytes: usize,
 }
 
-impl ResourceLimiter for DummyLimiter {
-    fn memory_growing(&mut self, current: usize, desired: usize, _maximum: Option<usize>) -> bool {
-        self.curr_exec_memory_bytes += desired - current;
-        true
-    }
-
-    fn table_growing(&mut self, _current: u32, _desired: u32, _maximum: Option<u32>) -> bool {
-        true
-    }
-}
-
-impl ExecMemory for DummyLimiter {
-    fn curr_exec_memory_bytes(&self) -> usize {
-        self.curr_exec_memory_bytes
-    }
-
+impl MemoryLimiter for DummyLimiter {
     fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
     where
         G: Fn(&mut T) -> &mut Self,
@@ -104,6 +88,15 @@ impl ExecMemory for DummyLimiter {
         let ret = f(t);
         g(t).curr_exec_memory_bytes = memory_bytes;
         ret
+    }
+
+    fn memory_used(&self) -> usize {
+        self.curr_exec_memory_bytes
+    }
+
+    fn grow_memory(&mut self, bytes: usize) -> bool {
+        self.curr_exec_memory_bytes += bytes;
+        true
     }
 }
 

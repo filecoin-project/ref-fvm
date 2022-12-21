@@ -11,7 +11,7 @@ use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationRe
 use fvm::engine::Engine;
 use fvm::gas::{price_list_by_network_version, Gas, GasTimer, GasTracker, PriceList};
 use fvm::kernel::*;
-use fvm::machine::limiter::ExecMemory;
+use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
@@ -35,7 +35,6 @@ use fvm_shared::sys::SendFlags;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use multihash::MultihashGeneric;
-use wasmtime::ResourceLimiter;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -51,8 +50,10 @@ pub struct TestData {
 /// Statistics about the resources used by test vector executions.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TestStats {
-    pub min_desired_memory_bytes: usize,
-    pub max_desired_memory_bytes: usize,
+    pub min_instance_memory_bytes: usize,
+    pub max_instance_memory_bytes: usize,
+    pub max_table_elements: u32,
+    pub min_table_elements: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -762,65 +763,65 @@ pub struct TestLimiter<L> {
     local_stats: TestStats,
 }
 
-impl<L> ResourceLimiter for TestLimiter<L>
-where
-    L: ResourceLimiter,
-{
-    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
-        if self.local_stats.max_desired_memory_bytes < desired {
-            self.local_stats.max_desired_memory_bytes = desired;
-        }
-
-        if self.local_stats.min_desired_memory_bytes == 0 {
-            self.local_stats.min_desired_memory_bytes = desired;
-        }
-
-        self.inner.memory_growing(current, desired, maximum)
-    }
-
-    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
-        self.inner.table_growing(current, desired, maximum)
-    }
-}
-
 /// Store the minimum of the maximums of desired memories in the global stats.
 impl<L> Drop for TestLimiter<L> {
     fn drop(&mut self) {
         if let Some(ref stats) = self.global_stats {
             if let Ok(mut stats) = stats.lock() {
-                let max_desired = self.local_stats.max_desired_memory_bytes;
-                let min_desired = self.local_stats.min_desired_memory_bytes;
+                let max_desired = self.local_stats.max_instance_memory_bytes;
+                let min_desired = self.local_stats.min_instance_memory_bytes;
 
-                if stats.exec.max_desired_memory_bytes < max_desired {
-                    stats.exec.max_desired_memory_bytes = max_desired;
+                if stats.exec.max_instance_memory_bytes < max_desired {
+                    stats.exec.max_instance_memory_bytes = max_desired;
                 }
 
-                if stats.exec.min_desired_memory_bytes == 0
-                    || stats.exec.min_desired_memory_bytes > max_desired
+                if stats.exec.min_instance_memory_bytes == 0
+                    || stats.exec.min_instance_memory_bytes > max_desired
                 {
-                    stats.exec.min_desired_memory_bytes = max_desired;
+                    stats.exec.min_instance_memory_bytes = max_desired;
                 }
 
-                if stats.init.max_desired_memory_bytes < min_desired {
-                    stats.init.max_desired_memory_bytes = min_desired;
+                if stats.init.max_instance_memory_bytes < min_desired {
+                    stats.init.max_instance_memory_bytes = min_desired;
                 }
 
-                if stats.init.min_desired_memory_bytes == 0
-                    || stats.init.min_desired_memory_bytes > min_desired
+                if stats.init.min_instance_memory_bytes == 0
+                    || stats.init.min_instance_memory_bytes > min_desired
                 {
-                    stats.init.min_desired_memory_bytes = min_desired;
+                    stats.init.min_instance_memory_bytes = min_desired;
+                }
+
+                let max_desired = self.local_stats.max_table_elements;
+                let min_desired = self.local_stats.min_table_elements;
+
+                if stats.exec.max_table_elements < max_desired {
+                    stats.exec.max_table_elements = max_desired;
+                }
+
+                if stats.exec.min_table_elements == 0 || stats.exec.min_table_elements > max_desired
+                {
+                    stats.exec.min_table_elements = max_desired;
+                }
+
+                if stats.init.max_table_elements < min_desired {
+                    stats.init.max_table_elements = min_desired;
+                }
+
+                if stats.init.min_table_elements == 0 || stats.init.min_table_elements > min_desired
+                {
+                    stats.init.min_table_elements = min_desired;
                 }
             }
         }
     }
 }
 
-impl<L> ExecMemory for TestLimiter<L>
+impl<L> MemoryLimiter for TestLimiter<L>
 where
-    L: ExecMemory,
+    L: MemoryLimiter,
 {
-    fn curr_exec_memory_bytes(&self) -> usize {
-        self.inner.curr_exec_memory_bytes()
+    fn memory_used(&self) -> usize {
+        self.inner.memory_used()
     }
 
     fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
@@ -829,5 +830,34 @@ where
         F: FnOnce(&mut T) -> R,
     {
         L::with_stack_frame(t, |t| &mut g(t).inner, f)
+    }
+
+    fn grow_instance_memory(&mut self, from: usize, to: usize) -> bool {
+        if self.local_stats.max_instance_memory_bytes < to {
+            self.local_stats.max_instance_memory_bytes = to;
+        }
+
+        if from == 0 && to < self.local_stats.min_instance_memory_bytes {
+            self.local_stats.min_instance_memory_bytes = to;
+        }
+
+        self.inner.grow_instance_memory(from, to)
+    }
+
+    fn grow_instance_table(&mut self, from: u32, to: u32) -> bool {
+        if self.local_stats.max_table_elements < to {
+            self.local_stats.max_table_elements = to;
+        }
+
+        if from == 0 && to < self.local_stats.min_table_elements {
+            self.local_stats.min_table_elements = to;
+        }
+
+        self.inner.grow_instance_table(from, to)
+    }
+
+    fn grow_memory(&mut self, _: usize) -> bool {
+        // We don't expect this to be called explicitly.
+        panic!("explicit call to grow_memory")
     }
 }

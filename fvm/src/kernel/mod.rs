@@ -32,11 +32,10 @@ pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use fvm_shared::event::{ActorEvent, StampedEvent};
 pub use hash::SupportedHashes;
 use multihash::MultihashGeneric;
-use wasmtime::ResourceLimiter;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
-use crate::machine::limiter::ExecMemory;
+use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 
 pub struct SendResult {
@@ -362,7 +361,7 @@ pub trait DebugOps {
 /// It's only part of the kernel out of necessity to pass it through to the
 /// call manager which tracks the limits across the whole execution stack.
 pub trait LimiterOps {
-    type Limiter: ResourceLimiter + ExecMemory;
+    type Limiter: MemoryLimiter;
     /// Give access to the limiter of the underlying call manager.
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
 }

@@ -22,7 +22,7 @@ use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTimer, GasTracker};
 use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
-use crate::machine::limiter::ExecMemory;
+use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;

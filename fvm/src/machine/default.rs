@@ -21,7 +21,7 @@ use crate::externs::Externs;
 #[cfg(feature = "m2-native")]
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Result};
-use crate::machine::limiter::ExecResourceLimiter;
+use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::{ActorState, StateTree};
 use crate::syscall_error;
@@ -134,7 +134,7 @@ where
 {
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
-    type Limiter = ExecResourceLimiter;
+    type Limiter = DefaultMemoryLimiter;
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.state_tree.store()
@@ -258,6 +258,6 @@ where
     }
 
     fn new_limiter(&self) -> Self::Limiter {
-        ExecResourceLimiter::for_network(&self.context().network)
+        DefaultMemoryLimiter::for_network(&self.context().network)
     }
 }

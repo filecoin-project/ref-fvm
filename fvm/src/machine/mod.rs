@@ -9,7 +9,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use num_traits::Zero;
-use wasmtime::ResourceLimiter;
 
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
@@ -27,7 +26,7 @@ mod manifest;
 use fvm_shared::event::StampedEvent;
 pub use manifest::Manifest;
 
-use self::limiter::ExecMemory;
+use self::limiter::MemoryLimiter;
 
 mod boxed;
 
@@ -50,7 +49,7 @@ pub const BURNT_FUNDS_ACTOR_ID: ActorID = 99;
 pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
-    type Limiter: ResourceLimiter + ExecMemory;
+    type Limiter: MemoryLimiter;
 
     /// Returns a reference to the machine's blockstore.
     fn blockstore(&self) -> &Self::Blockstore;
@@ -125,10 +124,11 @@ pub struct NetworkConfig {
     /// DEFAULT: 512MiB
     pub max_inst_memory_bytes: u64,
 
-    /// Maximum size of memory used during the entire (recursive) message execution.
+    /// Maximum size of memory used during the entire (recursive) message execution. Includes blocks
+    /// and
     ///
     /// DEFAULT: 2GiB
-    pub max_exec_memory_bytes: u64,
+    pub max_memory_bytes: u64,
 
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
     /// "manifest".
@@ -159,7 +159,7 @@ impl NetworkConfig {
             max_call_depth: 1024,
             max_wasm_stack: 2048,
             max_inst_memory_bytes: 512 * (1 << 20),
-            max_exec_memory_bytes: 2 * (1 << 30),
+            max_memory_bytes: 2 * (1 << 30),
             actor_debugging: false,
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),
