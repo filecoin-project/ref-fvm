@@ -12,7 +12,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use fvm_shared::{ActorID, IPLD_RAW, METHOD_CONSTRUCTOR, METHOD_SEND};
+use fvm_shared::{ActorID, IPLD_RAW, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
@@ -22,10 +22,7 @@ use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
-use crate::state_tree::ActorState;
-use crate::system_actor::SYSTEM_ACTOR_ID;
 use crate::trace::ExecutionTrace;
-use crate::EMPTY_ARR_CID;
 
 /// The default [`Executor`].
 ///
@@ -126,58 +123,6 @@ where
             });
 
             let result = cm.with_transaction(false, |cm| {
-                let pl = cm.context().price_list;
-                let sender_st =
-                    cm.machine()
-                        .state_tree()
-                        .get_actor(sender_id)?
-                        .ok_or_else(|| {
-                            ExecutionError::Fatal({
-                                anyhow!("prevalidation should have confirmed sender exists")
-                            })
-                        })?;
-
-                if cm
-                    .machine()
-                    .builtin_actors()
-                    .is_embryo_actor(&sender_st.code)
-                {
-                    // We need to deploy the Ethereum Account actor
-                    let _ = cm.charge_gas(pl.on_create_actor(false))?;
-
-                    // Transform the actor code CID into the Ethereum Account code CID.
-                    let ethaccount_code_cid = *cm.machine().builtin_actors().get_ethaccount_code();
-                    cm.state_tree_mut().set_actor(
-                        sender_id,
-                        ActorState {
-                            code: ethaccount_code_cid,
-                            // We zero out the state as that is the state for EthAccounts
-                            // This _should_ be a no-op since the embryo already has an EMPTY_ARR_CID state
-                            state: *EMPTY_ARR_CID,
-                            ..sender_st
-                        },
-                    )?;
-
-                    // Now actually invoke the constructor
-                    let ret = cm.send::<K>(
-                        SYSTEM_ACTOR_ID,
-                        msg.from,
-                        METHOD_CONSTRUCTOR,
-                        None,
-                        &TokenAmount::zero(),
-                        None,
-                    )?;
-
-                    // If we _failed_ to deploy the EthAccount actor, we abort early.
-                    // If we succeeded, proceed to the actual invocation.
-                    if !ret.exit_code.is_success() {
-                        return Ok(InvocationResult {
-                            exit_code: ExitCode::SYS_SENDER_INVALID,
-                            value: None,
-                        });
-                    }
-                }
-
                 // Invoke the message.
                 let ret =
                     cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
@@ -425,7 +370,7 @@ where
             return Ok(Ok((sender_id, TokenAmount::zero(), inclusion_cost)));
         }
 
-        let sender_state = match self
+        let mut sender_state = match self
             .state_tree()
             .get_actor(sender_id)
             .with_context(|| format!("failed to lookup actor {}", &msg.from))?
@@ -445,12 +390,21 @@ where
         // - an Ethereum Externally Owned Address
         // - an embryo actor that has an f4 address in the EAM's namespace
 
-        let sender_is_valid = self.builtin_actors().is_account_actor(&sender_state.code)
-            || self.builtin_actors().is_ethaccount_actor(&sender_state.code) ||
-            (self.builtin_actors().is_embryo_actor(&sender_state.code) && sender_state
+        let mut sender_is_valid = self.builtin_actors().is_account_actor(&sender_state.code)
+            || self
+                .builtin_actors()
+                .is_ethaccount_actor(&sender_state.code);
+
+        if self.builtin_actors().is_embryo_actor(&sender_state.code) &&
+            sender_state.sequence == 0 &&
+            sender_state
                 .delegated_address
                 .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID))
-                .unwrap_or(false));
+                .unwrap_or(false) {
+            sender_is_valid = true;
+            let ethaccount_code = self.builtin_actors().get_ethaccount_code();
+            sender_state.code = *ethaccount_code;
+        }
 
         if !sender_is_valid {
             return Ok(Err(ApplyRet::prevalidation_fail(
@@ -489,6 +443,8 @@ where
         self.state_tree_mut().mutate_actor(sender_id, |act| {
             act.deduct_funds(&gas_cost)?;
             act.sequence += 1;
+            // In case we've transformed an Embryo into an EthAccount
+            act.code = sender_state.code;
             Ok(())
         })?;
 
