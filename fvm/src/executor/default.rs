@@ -402,8 +402,7 @@ where
                 .map(|a| matches!(a.payload(), Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID))
                 .unwrap_or(false) {
             sender_is_valid = true;
-            let ethaccount_code = self.builtin_actors().get_ethaccount_code();
-            sender_state.code = *ethaccount_code;
+            sender_state.code = *self.builtin_actors().get_ethaccount_code();
         }
 
         if !sender_is_valid {
@@ -426,6 +425,8 @@ where
             )));
         };
 
+        sender_state.sequence += 1;
+
         // Ensure from actor has enough balance to cover the gas cost of the message.
         let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender_state.balance < gas_cost {
@@ -439,14 +440,10 @@ where
             )));
         }
 
-        // Deduct message inclusion gas cost and increment sequence.
-        self.state_tree_mut().mutate_actor(sender_id, |act| {
-            act.deduct_funds(&gas_cost)?;
-            act.sequence += 1;
-            // In case we've transformed an Embryo into an EthAccount
-            act.code = sender_state.code;
-            Ok(())
-        })?;
+        sender_state.deduct_funds(&gas_cost)?;
+
+        // Update the actor in the state tree
+        self.state_tree_mut().set_actor(sender_id, sender_state)?;
 
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }
