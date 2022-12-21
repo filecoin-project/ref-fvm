@@ -25,7 +25,7 @@ pub(crate) struct Extension {
     /// resulting in a maximum of 256 slots. The minimum `bit_width` is 1, which would be
     /// a binary tree. Because the root will take at least 1 bit from the hashed key,
     /// we know the extension can consume at most 255 bits, which should fit in a `u8`.
-    length: u8,
+    length: u32,
     /// A non-empty part of the `HashedKey` that is covered by the extension.
     /// It could be represented as a vector of indices in the levels of `Node`s
     /// which were skipped, but that could take up more space. And because the
@@ -38,16 +38,16 @@ pub(crate) struct Extension {
 }
 
 impl Extension {
-    pub fn new(length: u8, path: Vec<u8>) -> Self {
+    pub fn new(length: u32, path: Vec<u8>) -> Self {
         Self { length, path }
     }
 
-    pub fn len(&self) -> u8 {
+    pub fn len(&self) -> u32 {
         self.length
     }
 
     pub fn path_bits(&self) -> HashBits {
-        HashBits::new_from_slice(&self.path, self.length as u32)
+        HashBits::new_from_slice(&self.path, self.length)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -56,9 +56,9 @@ impl Extension {
 
     /// See how many bits we can match of the path, consuming `bit_width` bits at a time.
     /// Return the total number of consumed bits, and actually consume them from the key.
-    pub fn longest_match(&self, hashed_key: &mut HashBits, bit_width: u32) -> Result<u8, Error> {
+    pub fn longest_match(&self, hashed_key: &mut HashBits, bit_width: u32) -> Result<u32, Error> {
         let mut path = self.path_bits();
-        let mut matched = 0u8;
+        let mut matched = 0;
         while matched < self.length {
             let consumed = hashed_key.consumed;
             let n1 = hashed_key.next(bit_width)?;
@@ -67,7 +67,7 @@ impl Extension {
                 hashed_key.consumed = consumed;
                 break;
             }
-            matched += bit_width as u8;
+            matched += bit_width;
         }
         Ok(matched)
     }
@@ -110,10 +110,10 @@ impl Extension {
     /// Split the extension after `consumed` bits into a head, a tail, and the bits between.
     ///
     /// Returns error if the consumed bits would be longer than the path.
-    pub fn split(&self, consumed: u8, bit_width: u32) -> Result<(Self, Self, Self), Error> {
+    pub fn split(&self, consumed: u32, bit_width: u32) -> Result<(Self, Self, Self), Error> {
         let mut path = self.path_bits();
         let head = Self::from_bits(&mut path, consumed)?;
-        let idx = Self::from_bits(&mut path, bit_width as u8)?;
+        let idx = Self::from_bits(&mut path, bit_width)?;
         let tail = Self::from_bits(&mut path, self.length - head.length - idx.length)?;
         Ok((head, idx, tail))
     }
@@ -146,7 +146,7 @@ impl Extension {
 
     /// Build an extension from a prefix of some hashed bits, starting from however
     /// far it has been consumed so far, taking the next `length` bits.
-    pub fn from_bits(bits: &mut HashBits, mut length: u8) -> Result<Extension, Error> {
+    pub fn from_bits(bits: &mut HashBits, mut length: u32) -> Result<Extension, Error> {
         let mut builder = ExtensionBuilder::new();
         while length > 0 {
             let i = min(length, 8);
@@ -167,7 +167,7 @@ impl Extension {
 
 /// Helper to pack bits nibble by nibble.
 struct ExtensionBuilder {
-    written: u8,
+    written: u32,
     out: u8,
     path: Vec<u8>,
 }
@@ -185,7 +185,7 @@ impl ExtensionBuilder {
     pub fn add(&mut self, bit_width: u32, n: u8) {
         // See how far we have filled the current byte.
         let j = self.written % 8;
-        let i = bit_width as u8;
+        let i = bit_width;
         if j + i > 8 {
             // The next bits don't fit in our current byte. Take the leftmost bits,
             // append the full byte to the path, then start a new one and write the

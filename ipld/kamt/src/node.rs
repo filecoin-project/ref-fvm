@@ -682,7 +682,7 @@ struct PartialMatch<'a> {
     /// The original extension.
     ext: &'a Extension,
     /// Number of bits matched.
-    matched: u8,
+    matched: u32,
 }
 
 impl<'a> PartialMatch<'a> {
