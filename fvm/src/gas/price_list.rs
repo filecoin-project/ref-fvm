@@ -221,15 +221,25 @@ lazy_static! {
             scale: Gas::new(8),
         },
 
-        // TODO(#1264)
-        block_open: ScalingCost::fixed(Gas::new(114617)),
+        block_open: ScalingCost {
+            // This was benchmarked (#1264) at 187440 gas/read, but we've deducted the existing
+            // extern cost here. Once we get accurate charges for all "externs", we can get rid of
+            // the separate extern cost all together.
+            flat: Gas::new(166440),
+            // It costs takes about 0.562 ns/byte (5.6gas) to "read" from a client. However, that
+            // includes one allocation and memory copy, which we charge for separately.
+            //
+            // We disable this charge now because it's entirely covered by the "memory retention"
+            // cost. If we do drop the memory retention cost, we need to re-enable this.
+            /* scale: Gas::from_milligas(3200), */
+            scale: Gas::zero(),
+        },
 
         block_storage: ScalingCost {
             flat: Gas::new(353640),
             scale: Gas::new(1300),
         },
 
-        // NOTE(#1264): you can discount this cost when benchmarking, I think?
         syscall_cost: Gas::new(14000),
         extern_cost: Gas::new(21000),
 
@@ -673,8 +683,8 @@ impl PriceList {
     ) -> GasCharge {
         GasCharge::new(
             "OnVerifyConsensusFault",
-            self.extern_cost + self.verify_consensus_fault,
             Zero::zero(),
+            self.extern_cost + self.verify_consensus_fault,
         )
     }
 
@@ -692,11 +702,11 @@ impl PriceList {
 
         GasCharge::new(
             "OnGetRandomness",
+            Zero::zero(),
             self.extern_cost
                 + self.get_randomness // TODO(m2.2): consider different values for
                 + self
                 .hashing_cost[&SupportedHashes::Blake2b256].apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
-            Zero::zero(),
         )
     }
 
@@ -705,8 +715,8 @@ impl PriceList {
     pub fn on_block_open_base(&self) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenBase",
-            self.extern_cost + self.block_open.flat,
             Zero::zero(),
+            self.extern_cost + self.block_open.flat,
         )
     }
 
@@ -715,10 +725,8 @@ impl PriceList {
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenPerByte",
-            self.block_allocate.apply(data_size)
-                + (self.block_open.scale * data_size)
-                + self.block_memcpy.apply(data_size),
-            self.block_memory_retention.apply(data_size),
+            self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size),
+            self.block_memory_retention.apply(data_size) + (self.block_open.scale * data_size),
         )
     }
 
