@@ -460,65 +460,13 @@ where
                 .on_verify_signature(sig_type, plaintext.len()),
         )?;
 
-        // Resolve to key address before verifying signature.
+        // We only support key addresses (f1/f3). This change does not require a FIP, because no
+        // actors invoke this method with non-key addresses.
         let signing_addr = match signer.payload() {
-            // Already a key address.
             Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
-            // Resolve and re-check.
-            Payload::ID(id) => {
-                // TODO(#1228): remove this logic
-                let act = self
-                    .call_manager
-                    .machine()
-                    .state_tree()
-                    .get_actor(*id)?
-                    .context("state tree doesn't contain actor")
-                    .or_error(ErrorNumber::NotFound)?;
-
-                let is_account = self
-                    .call_manager
-                    .machine()
-                    .builtin_actors()
-                    .is_account_actor(&act.code);
-
-                if !is_account {
-                    // TODO: this is wrong. Maybe some InvalidActor type?
-                    // The argument is syntactically correct, but semantically wrong.
-                    return Err(
-                        syscall_error!(IllegalArgument; "target actor is not an account").into(),
-                    );
-                }
-
-                let _ = self
-                    .call_manager
-                    .charge_gas(self.call_manager.price_list().on_block_open_base())?;
-
-                let state_block = self
-                    .call_manager
-                    .state_tree()
-                    .store()
-                    .get(&act.state)
-                    .context("failed to look up state")
-                    .or_fatal()?
-                    .context("account actor state not found")
-                    .or_fatal()?;
-
-                let _ = self.call_manager.charge_gas(
-                    self.call_manager
-                        .price_list()
-                        .on_block_open_per_byte(state_block.len()),
-                )?;
-
-                let state: crate::account_actor::State =
-                    fvm_ipld_encoding::from_slice(&state_block)
-                        .context("failed to decode actor state as an account")
-                        .or_fatal()?; // because we've checked and this should be an account.
-
-                state.address
-            }
             // Not a key address.
             _ => {
-                return Err(syscall_error!(NotFound; "address protocol not supported").into());
+                return Err(syscall_error!(IllegalArgument; "address protocol {} not supported", signer.protocol()).into());
             }
         };
 

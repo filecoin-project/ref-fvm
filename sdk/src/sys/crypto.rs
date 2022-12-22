@@ -13,7 +13,7 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "crypto";
 
-    /// Verifies that a signature is valid for an address and plaintext.
+    /// Verifies that a signature is valid for an f1 or f3 address and plaintext.
     ///
     /// Returns 0 on success, or -1 if the signature fails to validate.
     ///
@@ -27,7 +27,6 @@ super::fvm_syscalls! {
     ///
     /// | Error               | Reason                                               |
     /// |---------------------|------------------------------------------------------|
-    /// | [`NotFound`]        | the signer's address could not be resolved           |
     /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
     pub fn verify_signature(
         sig_type: u32,

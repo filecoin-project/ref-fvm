@@ -19,6 +19,8 @@ use num_traits::FromPrimitive;
 use crate::{status_code_to_bool, sys, SyscallResult};
 
 /// Verifies that a signature is valid for an address and plaintext.
+///
+/// NOTE: This only supports f1 and f3 addresses.
 pub fn verify_signature(
     signature: &Signature,
     signer: &Address,
