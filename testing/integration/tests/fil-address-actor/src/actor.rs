@@ -42,7 +42,7 @@ pub fn invoke(params: u32) -> u32 {
         }
         // send to an f4 in the EAM's namespace, then resolve.
         3 => {
-            // Create an embryo.
+            // Create a placeholder.
             let addr =
                 Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
             assert!(
@@ -52,8 +52,8 @@ pub fn invoke(params: u32) -> u32 {
                     .is_success()
             );
 
-            // Resolve the ID address of the embryo.
-            let id = sdk::actor::resolve_address(&addr).expect("failed to find new embryo");
+            // Resolve the ID address of the placeholder.
+            let id = sdk::actor::resolve_address(&addr).expect("failed to find new placeholder");
 
             // Lookup the address of the account.
             let new_addr =
@@ -62,7 +62,7 @@ pub fn invoke(params: u32) -> u32 {
         }
         // send to an f4 of an unassigned ID address, then resolve.
         4 => {
-            // Create an embryo.
+            // Create a placeholder.
             let addr =
                 Address::new_delegated(999, b"foobar").expect("failed to construct f4 address");
             assert_eq!(

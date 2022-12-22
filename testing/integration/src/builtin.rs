@@ -23,7 +23,7 @@ pub fn fetch_builtin_code_cid(
         *manifest.get_system_code(),
         *manifest.get_init_code(),
         *manifest.get_account_code(),
-        *manifest.get_embryo_code(),
+        *manifest.get_placeholder_code(),
         *manifest.get_eam_code(),
     ))
 }

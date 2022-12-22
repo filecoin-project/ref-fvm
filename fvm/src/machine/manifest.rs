@@ -10,14 +10,14 @@ use fvm_ipld_encoding::CborStore;
 const ACCOUNT_ACTOR_NAME: &str = "account";
 const INIT_ACTOR_NAME: &str = "init";
 const SYSTEM_ACTOR_NAME: &str = "system";
-const EMBRYO_ACTOR_NAME: &str = "embryo";
+const PLACEHOLDER_ACTOR_NAME: &str = "placeholder";
 const EAM_ACTOR_NAME: &str = "eam";
 const ETHACCOUNT_ACTOR_NAME: &str = "ethaccount";
 
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
     account_code: Cid,
-    embryo_code: Cid,
+    placeholder_code: Cid,
     system_code: Cid,
     init_code: Cid,
     eam_code: Cid,
@@ -61,7 +61,7 @@ impl Manifest {
         ("ethaccount", id_cid(b"fil/test/ethaccount")),
         ("cron", id_cid(b"fil/test/cron")),
         ("account", id_cid(b"fil/test/account")),
-        ("embryo", id_cid(b"fil/test/embryo")),
+        ("placeholder", id_cid(b"fil/test/placeholder")),
     ];
 
     #[cfg(any(feature = "testing", test))]
@@ -112,9 +112,9 @@ impl Manifest {
             .get(INIT_ACTOR_NAME)
             .context("manifest missing init actor")?;
 
-        let embryo_code = *by_name
-            .get(EMBRYO_ACTOR_NAME)
-            .context("manifest missing embryo actor")?;
+        let placeholder_code = *by_name
+            .get(PLACEHOLDER_ACTOR_NAME)
+            .context("manifest missing placeholder actor")?;
 
         let eam_code = *by_name
             .get(EAM_ACTOR_NAME)
@@ -128,7 +128,7 @@ impl Manifest {
             account_code,
             system_code,
             init_code,
-            embryo_code,
+            placeholder_code,
             eam_code,
             ethaccount_code,
             by_id,
@@ -151,9 +151,9 @@ impl Manifest {
         &self.account_code == cid
     }
 
-    /// Returns true id the passed code CID is the embryo actor.
-    pub fn is_embryo_actor(&self, cid: &Cid) -> bool {
-        &self.embryo_code == cid
+    /// Returns true id the passed code CID is the placeholder actor.
+    pub fn is_placeholder_actor(&self, cid: &Cid) -> bool {
+        &self.placeholder_code == cid
     }
 
     /// Returns true id the passed code CID is the EthAccount actor.
@@ -186,8 +186,8 @@ impl Manifest {
     }
 
     /// Returns the code CID for the system actor.
-    pub fn get_embryo_code(&self) -> &Cid {
-        &self.embryo_code
+    pub fn get_placeholder_code(&self) -> &Cid {
+        &self.placeholder_code
     }
 
     /// Returns the code CID for the Ethereum Account actor.

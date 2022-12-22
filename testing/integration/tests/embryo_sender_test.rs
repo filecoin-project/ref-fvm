@@ -3,7 +3,7 @@
 mod bundles;
 
 #[test]
-fn embryo_as_sender() {
+fn placeholder_as_sender() {
     use bundles::*;
     use fvm::executor::{ApplyKind, Executor};
     use fvm::machine::Machine;
@@ -32,8 +32,8 @@ fn embryo_as_sender() {
 
     let sender = Address::new_delegated(10, b"foobar").expect("failed to construct address");
     tester
-        .create_embryo(&sender, initial_balance.clone())
-        .expect("failed to instantiate embryo");
+        .create_placeholder(&sender, initial_balance.clone())
+        .expect("failed to instantiate placeholder");
 
     // Instantiate machine
     tester.instantiate_machine(DummyExterns).unwrap();

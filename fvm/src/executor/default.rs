@@ -388,14 +388,14 @@ where
         // Sender is valid if it is:
         // - an account actor
         // - an Ethereum Externally Owned Address
-        // - an embryo actor that has an f4 address in the EAM's namespace
+        // - a placeholder actor that has an f4 address in the EAM's namespace
 
         let mut sender_is_valid = self.builtin_actors().is_account_actor(&sender_state.code)
             || self
                 .builtin_actors()
                 .is_ethaccount_actor(&sender_state.code);
 
-        if self.builtin_actors().is_embryo_actor(&sender_state.code) &&
+        if self.builtin_actors().is_placeholder_actor(&sender_state.code) &&
             sender_state.sequence == 0 &&
             sender_state
                 .delegated_address

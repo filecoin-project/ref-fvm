@@ -43,8 +43,8 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     builtin_actors: Cid,
     // Accounts actor cid
     accounts_code_cid: Cid,
-    // Embryo code cid.
-    embryo_code_cid: Cid,
+    // Placeholder code cid.
+    placeholder_code_cid: Cid,
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
@@ -71,7 +71,7 @@ where
             };
 
         // Get sys and init actors code cid
-        let (sys_code_cid, init_code_cid, accounts_code_cid, embryo_code_cid, eam_code_cid) =
+        let (sys_code_cid, init_code_cid, accounts_code_cid, placeholder_code_cid, eam_code_cid) =
             fetch_builtin_code_cid(&blockstore, &manifest_data_cid, manifest_version)?;
 
         // Initialize state tree
@@ -91,7 +91,7 @@ where
             code_cids: vec![],
             state_tree: Some(state_tree),
             accounts_code_cid,
-            embryo_code_cid,
+            placeholder_code_cid,
         })
     }
 
@@ -125,7 +125,11 @@ where
         state_tree.set_actor(id, state).map_err(anyhow::Error::from)
     }
 
-    pub fn create_embryo(&mut self, address: &Address, init_balance: TokenAmount) -> Result<()> {
+    pub fn create_placeholder(
+        &mut self,
+        address: &Address,
+        init_balance: TokenAmount,
+    ) -> Result<()> {
         assert_eq!(address.protocol(), Protocol::Delegated);
 
         let state_tree = self
@@ -139,7 +143,7 @@ where
         let cid = state_tree.store().put_cbor(&state, Code::Blake2b256)?;
 
         let actor_state = ActorState {
-            code: self.embryo_code_cid,
+            code: self.placeholder_code_cid,
             state: cid,
             sequence: 0,
             balance: init_balance,
