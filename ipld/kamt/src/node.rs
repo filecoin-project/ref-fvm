@@ -414,7 +414,7 @@ where
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
                     let ext = Self::find_longest_extension(conf, hashed_key, &hashes)?;
-                    let skipped = ext.consumed() as u32 / conf.bit_width;
+                    let skipped = ext.len() as u32 / conf.bit_width;
 
                     let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H, N>::default();
@@ -662,7 +662,7 @@ fn match_extension<'a, 'b>(
         let matched = ext.longest_match(hashed_key, conf.bit_width)?;
         let skipped = matched as u32 / conf.bit_width;
 
-        if matched == ext.consumed() {
+        if matched == ext.len() {
             Ok(ExtensionMatch::Full { skipped })
         } else {
             Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
@@ -682,7 +682,7 @@ struct PartialMatch<'a> {
     /// The original extension.
     ext: &'a Extension,
     /// Number of bits matched.
-    matched: u8,
+    matched: u32,
 }
 
 impl<'a> PartialMatch<'a> {

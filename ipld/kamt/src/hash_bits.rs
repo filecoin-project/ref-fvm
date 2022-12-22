@@ -13,6 +13,7 @@ type HashedKeySlice = [u8];
 #[derive(Debug, Clone, Copy)]
 pub struct HashBits<'a> {
     b: &'a HashedKeySlice,
+    length: u32,
     pub consumed: u32,
 }
 
@@ -33,14 +34,16 @@ impl<'a> HashBits<'a> {
     ) -> HashBits<'a> {
         Self {
             b: hash_buffer,
+            length: (hash_buffer.len() as u32) * u8::BITS,
             consumed,
         }
     }
 
     /// Constructs hash bits with a partial key.
-    pub fn new_from_slice(hash_buffer: &'a HashedKeySlice) -> HashBits<'a> {
+    pub fn new_from_slice(hash_buffer: &'a HashedKeySlice, length: u32) -> HashBits<'a> {
         Self {
             b: hash_buffer,
+            length,
             consumed: 0,
         }
     }
@@ -51,10 +54,10 @@ impl<'a> HashBits<'a> {
         if i > 8 || i == 0 {
             return Err(Error::InvalidHashBitLen);
         }
-        let maxi = (self.b.len() as u32) * 8 - self.consumed;
-        if maxi == 0 {
+        if self.consumed >= self.length {
             return Err(Error::MaxDepth);
         }
+        let maxi = self.length - self.consumed;
         // Only take what's left. If we consume 5 bits at a time from a 256 bit key,
         // there will be 1 bit left at the bottom.
         Ok(self.next_bits(std::cmp::min(i, maxi)))
@@ -92,8 +95,8 @@ impl<'a> HashBits<'a> {
     }
 
     /// Length in number of bits.
-    pub fn len(&self) -> usize {
-        self.b.len() * 8
+    pub fn len(&self) -> u32 {
+        self.length
     }
 }
 

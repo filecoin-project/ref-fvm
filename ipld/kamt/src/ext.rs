@@ -16,16 +16,11 @@ use crate::{Error, HashedKey};
 /// to the next non-empty `Node`.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct Extension {
-    /// Number of bits consumed from the path between the `Node` containing the `Link`
-    /// and the node the `Link` is pointing to the next `Node`. It might be less than
-    /// the length of the slice of the path in the extension, for example if the bit
-    /// width is 3 and we consumed only 6 bits out of 8, which is the length of a byte.
-    ///
-    /// The `bit_width` of a KAMT can at most be 8 (`HashBits::next` doesn't work with more),
-    /// resulting in a maximum of 256 slots. The minimum `bit_width` is 1, which would be
-    /// a binary tree. Because the root will take at least 1 bit from the hashed key,
-    /// we know the extension can consume at most 255 bits, which should fit in a `u8`.
-    consumed: u8,
+    /// The length (in bits) of the extension between the `Node` containing the `Link`
+    /// and the node the `Link` is pointing to. It might be less than the length of the
+    /// slice of the path in the extension, for example if the bit width is 3 and we
+    /// consumed only 6 bits out of 8, which is the length of a byte.
+    length: u32,
     /// A non-empty part of the `HashedKey` that is covered by the extension.
     /// It could be represented as a vector of indices in the levels of `Node`s
     /// which were skipped, but that could take up more space. And because the
@@ -38,28 +33,28 @@ pub(crate) struct Extension {
 }
 
 impl Extension {
-    pub fn new(consumed: u8, path: Vec<u8>) -> Self {
-        Self { consumed, path }
+    pub fn new(length: u32, path: Vec<u8>) -> Self {
+        Self { length, path }
     }
 
-    pub fn consumed(&self) -> u8 {
-        self.consumed
+    pub fn len(&self) -> u32 {
+        self.length
     }
 
     pub fn path_bits(&self) -> HashBits {
-        HashBits::new_from_slice(&self.path)
+        HashBits::new_from_slice(&self.path, self.length)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.consumed == 0
+        self.length == 0
     }
 
     /// See how many bits we can match of the path, consuming `bit_width` bits at a time.
     /// Return the total number of consumed bits, and actually consume them from the key.
-    pub fn longest_match(&self, hashed_key: &mut HashBits, bit_width: u32) -> Result<u8, Error> {
+    pub fn longest_match(&self, hashed_key: &mut HashBits, bit_width: u32) -> Result<u32, Error> {
         let mut path = self.path_bits();
-        let mut matched = 0u8;
-        while matched < self.consumed {
+        let mut matched = 0;
+        while matched < self.length {
             let consumed = hashed_key.consumed;
             let n1 = hashed_key.next(bit_width)?;
             let n2 = path.next(bit_width)?;
@@ -67,7 +62,7 @@ impl Extension {
                 hashed_key.consumed = consumed;
                 break;
             }
-            matched += bit_width as u8;
+            matched += bit_width;
         }
         Ok(matched)
     }
@@ -89,7 +84,7 @@ impl Extension {
         let mut builder = ExtensionBuilder::new();
         let total_bits = hashed_key.len();
 
-        'consume: while (hashed_key.consumed as usize) < total_bits {
+        'consume: while hashed_key.consumed < total_bits {
             let consumed = hashed_key.consumed;
             let n = hashed_key.next(bit_width)?;
 
@@ -110,30 +105,29 @@ impl Extension {
     /// Split the extension after `consumed` bits into a head, a tail, and the bits between.
     ///
     /// Returns error if the consumed bits would be longer than the path.
-    pub fn split(&self, consumed: u8, bit_width: u32) -> Result<(Self, Self, Self), Error> {
+    pub fn split(&self, consumed: u32, bit_width: u32) -> Result<(Self, Self, Self), Error> {
         let mut path = self.path_bits();
         let head = Self::from_bits(&mut path, consumed)?;
-        let idx = Self::from_bits(&mut path, bit_width as u8)?;
-        let tail = Self::from_bits(&mut path, self.consumed - head.consumed - idx.consumed)?;
+        let idx = Self::from_bits(&mut path, bit_width)?;
+        let tail = Self::from_bits(&mut path, self.length - head.length - idx.length)?;
         Ok((head, idx, tail))
     }
 
     /// Merge two extensions, to undo a prior split.
     pub fn unsplit(ext1: &Self, idx: &Self, ext2: &Self) -> Result<Self, Error> {
-        let bit_width = idx.consumed as u32;
-        let parts = vec![ext1, idx, ext2].into_iter().filter(|e| !e.is_empty());
-        Self::merge(parts, bit_width)
+        let bit_width = idx.length as u32;
+        Self::merge([ext1, idx, ext2], bit_width)
     }
 
     /// Merge multiple extensions into one.
     fn merge<'a, I>(exts: I, bit_width: u32) -> Result<Self, Error>
     where
-        I: Iterator<Item = &'a Self>,
+        I: IntoIterator<Item = &'a Self>,
     {
         let mut builder = ExtensionBuilder::new();
         for ext in exts {
             let mut path = ext.path_bits();
-            let mut bits_left = ext.consumed as u32;
+            let mut bits_left = ext.length as u32;
             while bits_left > 0 {
                 let i = min(bit_width, bits_left);
                 let n = path.next(i)?;
@@ -145,13 +139,13 @@ impl Extension {
     }
 
     /// Build an extension from a prefix of some hashed bits, starting from however
-    /// far it has been consumed so far, taking the next `consumed` bits.
-    pub fn from_bits(bits: &mut HashBits, mut consumed: u8) -> Result<Extension, Error> {
+    /// far it has been consumed so far, taking the next `length` bits.
+    pub fn from_bits(bits: &mut HashBits, mut length: u32) -> Result<Extension, Error> {
         let mut builder = ExtensionBuilder::new();
-        while consumed > 0 {
-            let i = min(consumed, 8);
+        while length > 0 {
+            let i = min(length, 8);
             let n = bits.next(i as u32)? as u8;
-            consumed -= i;
+            length -= i;
             builder.add(i as u32, n);
         }
         Ok(builder.build())
@@ -167,7 +161,7 @@ impl Extension {
 
 /// Helper to pack bits nibble by nibble.
 struct ExtensionBuilder {
-    written: u8,
+    written: u32,
     out: u8,
     path: Vec<u8>,
 }
@@ -185,7 +179,7 @@ impl ExtensionBuilder {
     pub fn add(&mut self, bit_width: u32, n: u8) {
         // See how far we have filled the current byte.
         let j = self.written % 8;
-        let i = bit_width as u8;
+        let i = bit_width;
         if j + i > 8 {
             // The next bits don't fit in our current byte. Take the leftmost bits,
             // append the full byte to the path, then start a new one and write the
@@ -242,16 +236,16 @@ mod tests {
         // The common prefix should be from here to somewhere inside `key[3]`
         let ext = Extension::longest_common_prefix(&mut hb, bit_width, &[key2, key3]).unwrap();
         // The first 4 bits of `key[3]` match, but we take `bit_width` at a time, and that stops at the 3rd bit.
-        assert_eq!(ext.consumed, 2 + 8 + 8 + 3);
+        assert_eq!(ext.length, 2 + 8 + 8 + 3);
         assert_eq!(ext.path.len(), 3);
         assert_eq!(ext.path[0], 0b00100100);
         assert_eq!(ext.path[1], 0b10101010);
         assert_eq!(ext.path[2], 0b10110000);
-        let total_consumed = 2 * bit_width + ext.consumed as u32;
+        let total_consumed = 2 * bit_width + ext.length as u32;
         assert_eq!(hb.consumed, total_consumed);
 
         let mut hb = HashBits::new_at_index(&key, 2 * bit_width);
-        assert_eq!(ext.longest_match(&mut hb, bit_width).unwrap(), ext.consumed);
+        assert_eq!(ext.longest_match(&mut hb, bit_width).unwrap(), ext.length);
         assert_eq!(hb.consumed, total_consumed);
         // Shouldn't work a second time.
         assert_eq!(ext.longest_match(&mut hb, bit_width).unwrap(), 0);
@@ -272,20 +266,20 @@ mod tests {
         hb.next(bit_width).unwrap();
 
         let ext = Extension::from_bits(&mut hb, 253).unwrap();
-        assert_eq!(ext.consumed, 253);
+        assert_eq!(ext.length, 253);
         assert_eq!(ext.path[0], 0b01000100);
 
         let (head, midx, tail) = ext.split(20, bit_width).unwrap();
 
-        assert_eq!(head.consumed, 20);
+        assert_eq!(head.length, 20);
         assert_eq!(head.path[0], 0b01000100);
         assert_eq!(head.path[1], 0b10010101);
         assert_eq!(head.path[2], 0b01010000);
 
-        assert_eq!(midx.consumed, 3);
+        assert_eq!(midx.length, 3);
         assert_eq!(midx.path[0], 0b01100000);
 
-        assert_eq!(tail.consumed, 230);
+        assert_eq!(tail.length, 230);
         assert_eq!(tail.path[0], 0b01101111);
         assert_eq!(tail.path[1], 0b10111000);
 
