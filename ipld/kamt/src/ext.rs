@@ -116,14 +116,13 @@ impl Extension {
     /// Merge two extensions, to undo a prior split.
     pub fn unsplit(ext1: &Self, idx: &Self, ext2: &Self) -> Result<Self, Error> {
         let bit_width = idx.length as u32;
-        let parts = vec![ext1, idx, ext2].into_iter().filter(|e| !e.is_empty());
-        Self::merge(parts, bit_width)
+        Self::merge([ext1, idx, ext2], bit_width)
     }
 
     /// Merge multiple extensions into one.
     fn merge<'a, I>(exts: I, bit_width: u32) -> Result<Self, Error>
     where
-        I: Iterator<Item = &'a Self>,
+        I: IntoIterator<Item = &'a Self>,
     {
         let mut builder = ExtensionBuilder::new();
         for ext in exts {
