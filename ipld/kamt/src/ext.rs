@@ -20,11 +20,6 @@ pub(crate) struct Extension {
     /// and the node the `Link` is pointing to. It might be less than the length of the
     /// slice of the path in the extension, for example if the bit width is 3 and we
     /// consumed only 6 bits out of 8, which is the length of a byte.
-    ///
-    /// The `bit_width` of a KAMT can at most be 8 (`HashBits::next` doesn't work with more),
-    /// resulting in a maximum of 256 slots. The minimum `bit_width` is 1, which would be
-    /// a binary tree. Because the root will take at least 1 bit from the hashed key,
-    /// we know the extension can consume at most 255 bits, which should fit in a `u8`.
     length: u32,
     /// A non-empty part of the `HashedKey` that is covered by the extension.
     /// It could be represented as a vector of indices in the levels of `Node`s
