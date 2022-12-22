@@ -312,21 +312,26 @@ where
     ) -> Result<()> {
         let start = GasTimer::start();
 
-        // Check to make sure the actor doesn't exist, or is an embryo.
+        // Check to make sure the actor doesn't exist, or is a placeholder.
         let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
-            // Replace the embryo
-            Some(mut act) if self.machine.builtin_actors().is_embryo_actor(&act.code) => {
+            // Replace the placeholder
+            Some(mut act)
+                if self
+                    .machine
+                    .builtin_actors()
+                    .is_placeholder_actor(&act.code) =>
+            {
                 if act.delegated_address.is_none() {
                     // The FVM made a mistake somewhere.
                     return Err(ExecutionError::Fatal(anyhow!(
-                        "embryo {actor_id} doesn't have a delegated address"
+                        "placeholder {actor_id} doesn't have a delegated address"
                     )));
                 }
                 if act.delegated_address != delegated_address {
                     // The Init actor made a mistake?
                     return Err(syscall_error!(
                         Forbidden,
-                        "embryo has a different delegated address"
+                        "placeholder has a different delegated address"
                     )
                     .into());
                 }
@@ -417,14 +422,14 @@ where
         Ok(id)
     }
 
-    fn create_embryo_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    fn create_placeholder_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
     {
         let t = self.charge_gas(self.price_list().on_create_actor(true))?;
 
         // Create the actor in the state tree, but don't call any constructor.
-        let code_cid = self.builtin_actors().get_embryo_code();
+        let code_cid = self.builtin_actors().get_placeholder_code();
 
         let state = ActorState::new_empty(*code_cid, Some(*addr));
         t.record(self.machine.create_actor(addr, state))
@@ -453,7 +458,7 @@ where
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
-                    self.create_embryo_actor::<K>(&to)?
+                    self.create_placeholder_actor::<K>(&to)?
                 }
                 _ => return Err(
                     syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
