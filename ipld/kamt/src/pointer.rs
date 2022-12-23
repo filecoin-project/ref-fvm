@@ -3,15 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
-use fvm_ipld_encoding::ser::Error as EncodingError;
-use libipld_core::ipld::Ipld;
-use libipld_core::serde::to_ipld;
+use fvm_ipld_encoding::{BytesDe, BytesSer};
 use once_cell::unsync::OnceCell;
-use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::node::Node;
@@ -19,9 +14,6 @@ use super::{Error, KeyValuePair};
 use crate::bitfield::Bitfield;
 use crate::ext::Extension;
 use crate::Config;
-
-const TAG_VALUES: &str = "v";
-const TAG_LINK: &str = "l";
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
@@ -79,66 +71,51 @@ where
     where
         S: Serializer,
     {
+        use serde::ser::SerializeMap;
+
         // Using a `Map` for everything to keep things simple.
         // Constructing the map manually so we don't have to clone the extension and give it to a struct.
-        let mut map = BTreeMap::new();
+        let mut map = serializer.serialize_map(Some(1))?;
         match self {
             Pointer::Values(vals) => {
-                add_to_ipld_map::<S, _>(&mut map, TAG_VALUES, vals)?;
+                map.serialize_entry("v", vals)?;
             }
             Pointer::Link { cid, ext, .. } => {
-                add_to_ipld_map::<S, _>(&mut map, TAG_LINK, &(cid, ext))?;
+                map.serialize_entry("l", &(cid, ext.len(), BytesSer(ext.path_bytes())))?;
             }
             Pointer::Dirty { .. } => {
                 return Err(ser::Error::custom("Cannot serialize cached values"))
             }
         }
-        Ipld::Map(map).serialize(serializer)
-    }
-}
-
-impl<K, V, H, const N: usize> TryFrom<Ipld> for Pointer<K, V, H, N>
-where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
-{
-    type Error = String;
-
-    fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
-        if let Ipld::Map(mut map) = ipld {
-            if let Some(values) = from_ipld_map::<Vec<KeyValuePair<K, V>>>(&mut map, TAG_VALUES) {
-                return values.map(Self::Values);
-            }
-
-            if let Some(link) = from_ipld_map::<(Cid, Extension)>(&mut map, TAG_LINK) {
-                return link.map(|(cid, ext)| Self::Link {
-                    cid,
-                    ext,
-                    cache: Default::default(),
-                });
-            }
-
-            Err(format!(
-                "Expected pointer tag in map; got {:#?}",
-                map.keys()
-            ))
-        } else {
-            Err(format!("Expected `Ipld::Map`, got {:#?}", ipld))
-        }
+        map.end()
     }
 }
 
 /// Deserialize the Pointer like a tagged enum.
 impl<'de, K, V, H, const N: usize> Deserialize<'de> for Pointer<K, V, H, N>
 where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
+    K: Deserialize<'de>,
+    V: Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ipld::deserialize(deserializer).and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
+        #[derive(Deserialize)]
+        enum PointerDe<K, V> {
+            #[serde(rename = "v")]
+            Values(Vec<KeyValuePair<K, V>>),
+            #[serde(rename = "l")]
+            Link(Cid, u32, BytesDe),
+        }
+        match PointerDe::<K, V>::deserialize(deserializer)? {
+            PointerDe::Values(vals) => Ok(Self::Values(vals)),
+            PointerDe::Link(k, l, BytesDe(p)) => Ok(Self::Link {
+                cid: k,
+                ext: Extension::new(l, p),
+                cache: Default::default(),
+            }),
+        }
     }
 }
 
@@ -150,8 +127,7 @@ impl<K, V, H, const N: usize> Default for Pointer<K, V, H, N> {
 
 impl<K, V, H, const N: usize> Pointer<K, V, H, N>
 where
-    K: Serialize + DeserializeOwned + PartialOrd,
-    V: Serialize + DeserializeOwned,
+    K: PartialOrd,
 {
     pub(crate) fn from_key_value(key: K, value: V) -> Self {
         Pointer::Values(vec![KeyValuePair::new(key, value)])
@@ -254,28 +230,6 @@ where
             _ => unreachable!("clean is only called on dirty pointer"),
         }
     }
-}
-
-fn from_ipld<T: DeserializeOwned>(ipld: Ipld) -> Result<T, String> {
-    Deserialize::deserialize(ipld).map_err(|error| error.to_string())
-}
-
-fn from_ipld_map<T: DeserializeOwned>(
-    map: &mut BTreeMap<String, Ipld>,
-    key: &str,
-) -> Option<Result<T, String>> {
-    map.remove(key).map(from_ipld)
-}
-
-fn add_to_ipld_map<S: Serializer, T: Serialize>(
-    map: &mut BTreeMap<String, Ipld>,
-    key: &str,
-    value: &T,
-) -> Result<(), S::Error> {
-    let value =
-        to_ipld(value).map_err(|e| S::Error::custom(format!("cannot serialize `{key}`: {e}")))?;
-    map.insert(key.to_owned(), value);
-    Ok(())
 }
 
 /// Helper method to undo a former split.
