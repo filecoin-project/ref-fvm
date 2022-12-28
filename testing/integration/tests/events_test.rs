@@ -116,7 +116,7 @@ fn events_test() {
         ..message
     };
     let res = executor
-        .execute_message(message.clone(), ApplyKind::Explicit, 100)
+        .execute_message(message, ApplyKind::Explicit, 100)
         .unwrap();
 
     assert_eq!(ExitCode::SYS_OUT_OF_GAS, res.msg_receipt.exit_code);
