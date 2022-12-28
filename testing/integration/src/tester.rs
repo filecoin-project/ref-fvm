@@ -95,7 +95,8 @@ where
         set_storagemarket_actor(&mut state_tree, market_code_cid, storagemarket_state)?;
         set_storagepower_actor(&mut state_tree, power_code_cid, storagepower_state)?;
         set_verifiedregistry_actor(&mut state_tree, verifreg_code_cid, verifreg_state)?;
-        set_reward_actor(&mut state_tree, reward_code_cid, reward_state);
+        set_datacap_actor(&mut state_tree, datacap_code_cid, datacap_state)?;
+        set_reward_actor(&mut state_tree, reward_code_cid, reward_state)?;
 
         Ok(Tester {
             nv,

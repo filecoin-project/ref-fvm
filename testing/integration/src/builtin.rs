@@ -188,7 +188,7 @@ pub fn set_datacap_actor(state_tree: &mut StateTree<impl Blockstore>, datacap_co
     };
 
     state_tree
-        .set_actor(DATA_CAP_ACTOR, reward_actor_state)
+        .set_actor(DATA_CAP_ACTOR, datacap_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("datacap actor".to_owned()))
 }
@@ -210,7 +210,7 @@ pub fn set_reward_actor(state_tree: &mut StateTree<impl Blockstore>, reward_code
     };
 
     state_tree
-        .set_actor(REWARD_ACTOR_ID, datacap_actor_state)
+        .set_actor(REWARD_ACTOR_ID, reward_actor_state)
         .map_err(anyhow::Error::from)
         .context(FailedToSetActor("reward actor".to_owned()))
 }
