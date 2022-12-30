@@ -6,6 +6,7 @@ use fil_events_actor::WASM_BINARY as EVENTS_BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::tester::IntegrationExecutor;
 use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::to_vec;
@@ -20,33 +21,7 @@ use num_traits::Zero;
 
 #[test]
 fn events_test() {
-    // Instantiate tester
-    let mut tester = new_tester(
-        NetworkVersion::V18,
-        StateTreeVersion::V5,
-        MemoryBlockstore::default(),
-    )
-    .unwrap();
-
-    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
-
-    let wasm_bin = EVENTS_BINARY.unwrap();
-
-    // Set actor state
-    let actor_state = [(); 0];
-    let state_cid = tester.set_state(&actor_state).unwrap();
-
-    // Set actor
-    let actor_address = Address::new_id(10000);
-
-    tester
-        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
-        .unwrap();
-
-    // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
-
-    let executor = tester.executor.as_mut().unwrap();
+    let (mut executor, sender_address, actor_address) = setup();
 
     // === Emits two events ===
 
@@ -64,6 +39,8 @@ fn events_test() {
         .unwrap();
 
     assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+
+    let gas_used = res.msg_receipt.gas_used;
 
     // Check that we got two events.
     assert_eq!(2, res.events.len());
@@ -122,7 +99,7 @@ fn events_test() {
     };
 
     let res = executor
-        .execute_message(message, ApplyKind::Explicit, 100)
+        .execute_message(message.clone(), ApplyKind::Explicit, 100)
         .unwrap();
 
     assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
@@ -130,4 +107,54 @@ fn events_test() {
     // Check that we got ten events events only; the events from the last five
     // actors in the call stack were discarded due to an abort.
     assert_eq!(10, res.events.len());
+
+    // === Out of gas records no events ===
+    let message = Message {
+        method_num: 2,
+        sequence: 4,
+        gas_limit: gas_used - 1,
+        ..message
+    };
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(ExitCode::SYS_OUT_OF_GAS, res.msg_receipt.exit_code);
+    assert!(res.msg_receipt.events_root.is_none());
+    assert_eq!(0, res.events.len());
+}
+
+fn setup() -> (
+    IntegrationExecutor<MemoryBlockstore, DummyExterns>,
+    Address,
+    Address,
+) {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = EVENTS_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.unwrap();
+    (executor, sender, actor)
 }
