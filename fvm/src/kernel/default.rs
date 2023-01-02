@@ -32,6 +32,7 @@ use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
+use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
@@ -819,6 +820,15 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
+        if self.caller != INIT_ACTOR_ID {
+            return Err(syscall_error!(
+                Forbidden,
+                "create_actor is restricted to InitActor. Called by {}",
+                self.caller
+            )
+            .into());
+        }
+
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
     }
