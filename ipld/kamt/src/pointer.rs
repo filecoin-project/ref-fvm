@@ -247,3 +247,67 @@ fn unsplit_ext(
 
     Ok(ext)
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+    use std::fmt::Debug;
+
+    use fvm_ipld_encoding::de::DeserializeOwned;
+    use fvm_ipld_encoding::{from_slice, to_vec, BytesDe};
+    use serde::Serialize;
+
+    use crate::ext::Extension;
+    use crate::pointer::Pointer;
+    use crate::KeyValuePair;
+
+    fn check_encoding<T: DeserializeOwned, V: Serialize>(expected: &T, input: &V)
+    where
+        T: Debug + Eq,
+    {
+        let decoded: T = from_slice(&to_vec(&input).unwrap()).unwrap();
+        assert_eq!(expected, &decoded);
+    }
+
+    #[test]
+    fn test_values_representation() {
+        use crate::id::Identity;
+
+        let v: Pointer<&str, &str, Identity, 32> =
+            Pointer::Values(vec![KeyValuePair("foo", "bar")]);
+        check_encoding(
+            // Expect a map with "v" -> [("foo", "bar")]
+            &[("v".to_owned(), vec![("foo".to_owned(), "bar".to_owned())])]
+                .into_iter()
+                .collect::<BTreeMap<_, _>>(),
+            &v,
+        )
+    }
+
+    #[test]
+    fn test_link_representation() {
+        use crate::id::Identity;
+
+        // Random values.
+        let k = cid::Cid::new_v1(
+            0x1,
+            cid::multihash::Multihash::wrap(0x2, &[0xa; 32]).unwrap(),
+        );
+        let ext = Extension::new(20, vec![0xff; 3]);
+
+        let v: Pointer<&str, &str, Identity, 32> = Pointer::Link {
+            ext,
+            cid: k,
+            cache: Default::default(),
+        };
+
+        check_encoding(
+            // Expect a map with "l" -> (cid, ext_len, ext_bytes)
+            // note: BytesDe will (correctly) reject "lists" of bytes, only accepting cbor "bytes" objects.
+            &[("l".to_owned(), (k, 20, BytesDe(vec![0xff; 3])))]
+                .into_iter()
+                .collect::<BTreeMap<_, _>>(),
+            &v,
+        )
+    }
+}
