@@ -20,6 +20,7 @@ pub struct GasCharge {
     /// 1. Storage gas.
     /// 2. Memory retention.
     /// 3. Deferred computation (e.g., flushing blocks.)
+    /// 4. Extern costs.
     ///
     /// This is split into a separate field to facilitate benchmarking.
     pub other_gas: Gas,
