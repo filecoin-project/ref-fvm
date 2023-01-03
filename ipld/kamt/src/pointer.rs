@@ -251,22 +251,22 @@ fn unsplit_ext(
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
-    use std::fmt::Debug;
 
-    use fvm_ipld_encoding::de::DeserializeOwned;
-    use fvm_ipld_encoding::{from_slice, to_vec, BytesDe};
+    use fvm_ipld_encoding::{to_vec, BytesSer};
     use serde::Serialize;
 
     use crate::ext::Extension;
     use crate::pointer::Pointer;
     use crate::KeyValuePair;
 
-    fn check_encoding<T: DeserializeOwned, V: Serialize>(expected: &T, input: &V)
+    fn check_encoding<T, V>(expected: &T, input: &V)
     where
-        T: Debug + Eq,
+        T: Serialize,
+        V: Serialize,
     {
-        let decoded: T = from_slice(&to_vec(&input).unwrap()).unwrap();
-        assert_eq!(expected, &decoded);
+        let encoded_expected = to_vec(&expected).unwrap();
+        let encoded_input = to_vec(&input).unwrap();
+        assert_eq!(encoded_expected, encoded_input);
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod test {
             Pointer::Values(vec![KeyValuePair("foo", "bar")]);
         check_encoding(
             // Expect a map with "v" -> [("foo", "bar")]
-            &[("v".to_owned(), vec![("foo".to_owned(), "bar".to_owned())])]
+            &[("v", [("foo", "bar")])]
                 .into_iter()
                 .collect::<BTreeMap<_, _>>(),
             &v,
@@ -304,7 +304,7 @@ mod test {
         check_encoding(
             // Expect a map with "l" -> (cid, ext_len, ext_bytes)
             // note: BytesDe will (correctly) reject "lists" of bytes, only accepting cbor "bytes" objects.
-            &[("l".to_owned(), (k, 20, BytesDe(vec![0xff; 3])))]
+            &[("l", (k, 20, BytesSer(&[0xff; 3][..])))]
                 .into_iter()
                 .collect::<BTreeMap<_, _>>(),
             &v,
