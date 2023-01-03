@@ -28,6 +28,9 @@ hex = "0.4"
 [workspace]
 members = ["."]
 
+[workspace.dependencies]
+cid = "0.9"
+multihash = "0.17"
 
 [[bin]]
 name = "rle_ops"
