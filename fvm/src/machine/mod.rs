@@ -124,8 +124,9 @@ pub struct NetworkConfig {
     /// DEFAULT: 512MiB
     pub max_inst_memory_bytes: u64,
 
-    /// Maximum size of memory used during the entire (recursive) message execution. Includes blocks
-    /// and
+    /// Maximum size of memory used during the entire (recursive) message execution. This currently
+    /// includes Wasm memories and table elements and will eventually be extended to include IPLD
+    /// blocks and actor code.
     ///
     /// DEFAULT: 2GiB
     pub max_memory_bytes: u64,

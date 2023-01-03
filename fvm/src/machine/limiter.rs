@@ -5,11 +5,17 @@ use crate::machine::NetworkConfig;
 
 /// Execution level memory tracking and adjustment.
 pub trait MemoryLimiter: Sized {
-    /// Get a snapshot of the total memory required by the modules on the call stack so far.
+    /// Get a snapshot of the total memory required by the callstack (in bytes). This currently
+    /// includes:
+    ///
+    /// - Memory used by tables (8 bytes per element).
+    /// - Memory used by wasmtime instances.
+    ///
+    /// In the future, this will likely be extended to include IPLD blocks, actor code, etc.
     fn memory_used(&self) -> usize;
 
-    /// Returns `true` if growing by `bytes` is allowed. Implement this memory to track and limit
-    /// memory usage.
+    /// Returns `true` if growing by `delta` bytes is allowed. Implement this memory to track and
+    /// limit memory usage.
     fn grow_memory(&mut self, delta: usize) -> bool;
 
     /// Push a new frame onto the call stack, and keep tallying up the current execution memory,
