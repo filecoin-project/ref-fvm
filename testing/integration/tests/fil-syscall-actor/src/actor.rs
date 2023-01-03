@@ -39,6 +39,7 @@ pub fn invoke(_: u32) -> u32 {
     test_create_actor();
     test_network_context();
     test_message_context();
+    test_balance();
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
@@ -235,4 +236,15 @@ fn test_message_context() {
     assert_eq!(sdk::message::method_number(), 1);
     assert!(sdk::message::value_received().is_zero());
     assert!(sdk::message::gas_premium().is_zero());
+}
+
+fn test_balance() {
+    // Getting the balance of a non-existent actor should return None.
+    assert_eq!(sdk::actor::balance_of(9191919), None);
+
+    // Our balance should match.
+    assert_eq!(
+        sdk::actor::balance_of(sdk::message::receiver()),
+        Some(sdk::sself::current_balance())
+    );
 }
