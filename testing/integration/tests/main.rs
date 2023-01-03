@@ -329,7 +329,7 @@ fn native_stack_overflow() {
             DummyExterns,
             |nc| {
                 // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
-                nc.max_exec_memory_bytes = 4 * (1 << 30);
+                nc.max_memory_bytes = 4 * (1 << 30);
                 nc.max_inst_memory_bytes = 4 * (1 << 30);
             },
             |_| (),

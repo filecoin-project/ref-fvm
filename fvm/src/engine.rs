@@ -17,7 +17,7 @@ use wasmtime::{
 };
 
 use crate::gas::{GasTimer, WasmGasPrices};
-use crate::machine::limiter::ExecMemory;
+use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::{bind_syscalls, charge_for_init, record_init_time, InvocationData};
 use crate::Kernel;
@@ -539,7 +539,7 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        let memory_bytes = kernel.limiter_mut().curr_exec_memory_bytes();
+        let memory_bytes = kernel.limiter_mut().memory_used();
 
         let id = InvocationData {
             kernel,
@@ -557,8 +557,108 @@ impl Engine {
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
 
-        store.limiter(|id| id.kernel.limiter_mut());
+        fn as_wasmtime_limiter<K: Kernel>(
+            data: &mut InvocationData<K>,
+        ) -> &mut dyn wasmtime::ResourceLimiter {
+            // SAFETY: This is safe because WasmtimeLimiter is `repr(transparent)`.
+            // Unfortunately, we can't simply wrap the limiter as we need to return a reference.
+            let limiter: &mut WasmtimeLimiter<K::Limiter> = unsafe {
+                let limiter_ref = data.kernel.limiter_mut();
+                // (debug)-assert that these types have the same layout (guaranteed by
+                // `repr(transparent)`).
+                debug_assert_eq!(
+                    std::alloc::Layout::for_value(&*limiter_ref),
+                    std::alloc::Layout::new::<WasmtimeLimiter<K::Limiter>>()
+                );
+                // Then cast.
+                &mut *(limiter_ref as *mut K::Limiter as *mut WasmtimeLimiter<K::Limiter>)
+            };
+            limiter as &mut dyn wasmtime::ResourceLimiter
+        }
+
+        store.limiter(as_wasmtime_limiter);
 
         store
+    }
+}
+
+#[repr(transparent)]
+struct WasmtimeLimiter<L>(L);
+
+impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
+    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+        if maximum.map_or(false, |m| desired > m) {
+            return false;
+        }
+
+        self.0.grow_instance_memory(current, desired)
+    }
+
+    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
+        if maximum.map_or(false, |m| desired > m) {
+            return false;
+        }
+        self.0.grow_instance_table(current, desired)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wasmtime::ResourceLimiter;
+
+    use crate::engine::WasmtimeLimiter;
+    use crate::machine::limiter::MemoryLimiter;
+
+    #[derive(Default)]
+    struct Limiter {
+        memory: usize,
+    }
+    impl MemoryLimiter for Limiter {
+        fn memory_used(&self) -> usize {
+            unimplemented!()
+        }
+
+        fn grow_memory(&mut self, bytes: usize) -> bool {
+            self.memory += bytes;
+            true
+        }
+
+        fn with_stack_frame<T, G, F, R>(_: &mut T, _: G, _: F) -> R
+        where
+            G: Fn(&mut T) -> &mut Self,
+            F: FnOnce(&mut T) -> R,
+        {
+            unimplemented!()
+        }
+    }
+
+    #[test]
+    fn memory() {
+        let mut limits = WasmtimeLimiter(Limiter::default());
+        assert!(limits.memory_growing(0, 3, None));
+        assert_eq!(limits.0.memory, 3);
+
+        // The maximum in the args takes precedence.
+        assert!(!limits.memory_growing(3, 4, Some(2)));
+        assert_eq!(limits.0.memory, 3);
+
+        // Increase by 2.
+        assert!(limits.memory_growing(2, 4, None));
+        assert_eq!(limits.0.memory, 5);
+    }
+
+    #[test]
+    fn table() {
+        let mut limits = WasmtimeLimiter(Limiter::default());
+        assert!(limits.table_growing(0, 3, None));
+        assert_eq!(limits.0.memory, 3 * 8);
+
+        // The maximum in the args takes precedence.
+        assert!(!limits.table_growing(3, 4, Some(2)));
+        assert_eq!(limits.0.memory, 3 * 8);
+
+        // Increase by 2.
+        assert!(limits.table_growing(2, 4, None));
+        assert_eq!(limits.0.memory, 5 * 8);
     }
 }

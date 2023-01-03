@@ -1,16 +1,22 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use wasmtime::ResourceLimiter;
 
 use crate::machine::NetworkConfig;
 
 /// Execution level memory tracking and adjustment.
-pub trait ExecMemory
-where
-    Self: Sized,
-{
-    /// Get a snapshot of the total memory required by the modules on the call stack so far.
-    fn curr_exec_memory_bytes(&self) -> usize;
+pub trait MemoryLimiter: Sized {
+    /// Get a snapshot of the total memory required by the callstack (in bytes). This currently
+    /// includes:
+    ///
+    /// - Memory used by tables (8 bytes per element).
+    /// - Memory used by wasmtime instances.
+    ///
+    /// In the future, this will likely be extended to include IPLD blocks, actor code, etc.
+    fn memory_used(&self) -> usize;
+
+    /// Returns `true` if growing by `delta` bytes is allowed. Implement this memory to track and
+    /// limit memory usage.
+    fn grow_memory(&mut self, delta: usize) -> bool;
 
     /// Push a new frame onto the call stack, and keep tallying up the current execution memory,
     /// then restore it to the current value when the frame is finished.
@@ -18,62 +24,55 @@ where
     where
         G: Fn(&mut T) -> &mut Self,
         F: FnOnce(&mut T) -> R;
+
+    /// Grows an instance's memory from `from` to `to`. There's no need to manually implement this
+    /// unless you need to track instance metrics.
+    fn grow_instance_memory(&mut self, from: usize, to: usize) -> bool {
+        self.grow_memory(to.saturating_sub(from))
+    }
+
+    /// Grows an instance's table from `from` to `to` elements. There's no need to manually
+    /// implement this unless you need to track table metrics.
+    fn grow_instance_table(&mut self, from: u32, to: u32) -> bool {
+        // we charge 8 bytes per table element
+        self.grow_memory(to.saturating_sub(from).saturating_mul(8) as usize)
+    }
 }
 
 /// Limit resources throughout the whole message execution,
 /// across all Wasm instances.
-pub struct ExecResourceLimiter {
-    /// Maximum bytes that a single Wasm instance can use.
-    max_inst_memory_bytes: usize,
-    /// Maximum bytes that can be used at any point in time during an execution.
-    max_exec_memory_bytes: usize,
-    /// Total bytes desired so far by all the instances including the currently executing instance on the call stack.
-    curr_exec_memory_bytes: usize,
+pub struct DefaultMemoryLimiter {
+    max_memory_bytes: usize,
+    curr_memory_bytes: usize,
 }
 
-impl ExecResourceLimiter {
-    pub fn new(max_inst_memory_bytes: usize, max_exec_memory_bytes: usize) -> Self {
+impl DefaultMemoryLimiter {
+    pub fn new(max_memory_bytes: usize) -> Self {
         Self {
-            max_inst_memory_bytes,
-            max_exec_memory_bytes,
-            curr_exec_memory_bytes: 0,
+            max_memory_bytes,
+            curr_memory_bytes: 0,
         }
     }
 
     pub fn for_network(config: &NetworkConfig) -> Self {
-        Self::new(
-            config.max_inst_memory_bytes as usize,
-            config.max_exec_memory_bytes as usize,
-        )
+        Self::new(config.max_memory_bytes as usize)
     }
 }
 
-impl ResourceLimiter for ExecResourceLimiter {
-    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
-        if desired > min(self.max_inst_memory_bytes, maximum) {
+impl MemoryLimiter for DefaultMemoryLimiter {
+    fn memory_used(&self) -> usize {
+        self.curr_memory_bytes
+    }
+
+    fn grow_memory(&mut self, bytes: usize) -> bool {
+        let total_desired = self.curr_memory_bytes.saturating_add(bytes);
+
+        if total_desired > self.max_memory_bytes {
             return false;
         }
 
-        let delta_desired = desired.saturating_sub(current);
-        let total_desired = self.curr_exec_memory_bytes.saturating_add(delta_desired);
-
-        if total_desired > self.max_exec_memory_bytes {
-            return false;
-        }
-
-        self.curr_exec_memory_bytes = total_desired;
+        self.curr_memory_bytes = total_desired;
         true
-    }
-
-    /// No limit on table elements.
-    fn table_growing(&mut self, _current: u32, desired: u32, maximum: Option<u32>) -> bool {
-        maximum.map_or(true, |m| desired <= m)
-    }
-}
-
-impl ExecMemory for ExecResourceLimiter {
-    fn curr_exec_memory_bytes(&self) -> usize {
-        self.curr_exec_memory_bytes
     }
 
     fn with_stack_frame<T, G, F, R>(t: &mut T, g: G, f: F) -> R
@@ -81,57 +80,54 @@ impl ExecMemory for ExecResourceLimiter {
         G: Fn(&mut T) -> &mut Self,
         F: FnOnce(&mut T) -> R,
     {
-        let memory_bytes = g(t).curr_exec_memory_bytes;
+        let memory_bytes = g(t).curr_memory_bytes;
         let ret = f(t);
         // This method is part of the trait so that a setter like this
         // doesn't have to be made public.
-        g(t).curr_exec_memory_bytes = memory_bytes;
+        g(t).curr_memory_bytes = memory_bytes;
         ret
     }
 }
 
-fn min(a: usize, b: Option<usize>) -> usize {
-    b.map_or(a, |b| std::cmp::min(a, b))
-}
-
 #[cfg(test)]
 mod tests {
-    use wasmtime::ResourceLimiter;
-
-    use super::ExecResourceLimiter;
-    use crate::machine::limiter::ExecMemory;
+    use super::DefaultMemoryLimiter;
+    use crate::machine::limiter::MemoryLimiter;
 
     #[test]
     fn basics() {
-        let mut limits = ExecResourceLimiter::new(4, 10);
-        assert!(limits.memory_growing(0, 3, None));
-        assert!(!limits.memory_growing(3, 4, Some(2))); // The maximum in the args takes precedence.
-        assert!(limits.memory_growing(3, 4, None)); // Ok, just at instance limit.
-        assert!(!limits.memory_growing(4, 5, None)); // Fail, over instance limit.
-        ExecResourceLimiter::with_stack_frame(
+        let mut limits = DefaultMemoryLimiter::new(4);
+        assert!(limits.grow_memory(3));
+        assert!(limits.grow_memory(1)); // Ok, just at memory limit.
+        assert!(!limits.grow_memory(1)); // Fail, over memory limit.
+
+        let mut limits = DefaultMemoryLimiter::new(6);
+        assert!(limits.grow_memory(1));
+        DefaultMemoryLimiter::with_stack_frame(
             &mut limits,
             |x| x,
             |limits| {
-                assert!(limits.memory_growing(0, 4, None)); // Ok, within instance limit.
-                ExecResourceLimiter::with_stack_frame(
+                assert!(limits.grow_memory(3)); // Ok, within memory limit.
+                DefaultMemoryLimiter::with_stack_frame(
                     limits,
                     |x| x,
                     |limits| {
-                        assert!(!limits.memory_growing(0, 3, None)); // Fail, 4+4+3 would be over the call stack limit of 10.
-                        assert!(limits.memory_growing(0, 2, None)); // Ok, just at the call stack limit (although we should used a seen a push as well.)
-                        assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4 + 2);
+                        assert!(!limits.grow_memory(3)); // Fail, 1+3+3 would be over the limit of 6.
+                        assert!(limits.grow_memory(2)); // Ok, just at the call stack limit (although we should used a seen a push as well.)
+                        assert_eq!(limits.memory_used(), 1 + 3 + 2);
                     },
                 );
-                assert_eq!(limits.curr_exec_memory_bytes(), 4 + 4);
+                assert_eq!(limits.memory_used(), 4);
             },
         );
-        assert_eq!(limits.curr_exec_memory_bytes(), 4);
+        assert_eq!(limits.memory_used(), 1);
     }
 
     #[test]
     fn table() {
-        let mut limits = ExecResourceLimiter::new(1, 1);
-        assert!(limits.table_growing(0, 100, None));
-        assert!(!limits.table_growing(0, 100, Some(10)));
+        let mut limits = DefaultMemoryLimiter::new(10);
+        assert!(limits.grow_instance_table(0, 1)); // 8 bytes
+        assert!(limits.grow_memory(2)); // 2 bytes
+        assert!(!limits.grow_memory(1));
     }
 }

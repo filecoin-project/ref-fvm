@@ -9,7 +9,7 @@ use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
 use crate::kernel::ExecutionError;
-use crate::machine::limiter::ExecMemory;
+use crate::machine::limiter::MemoryLimiter;
 use crate::Kernel;
 
 pub(crate) mod error;
@@ -104,7 +104,7 @@ pub fn charge_for_exec<K: Kernel>(
     let data = ctx.data_mut();
 
     // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
-    let memory_bytes = data.kernel.limiter_mut().curr_exec_memory_bytes();
+    let memory_bytes = data.kernel.limiter_mut().memory_used();
     let memory_delta_bytes = memory_bytes.saturating_sub(data.last_memory_bytes);
     let memory_gas = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
 
