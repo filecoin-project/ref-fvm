@@ -11,7 +11,7 @@ fvm_ipld_encoding = { version = "0.3.2", path = "../../../../ipld/encoding" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../../../ipld/blockstore" }
 
 anyhow = "1.0.57"
-cid = { version = "0.8.2", default-features = false }
+cid = { workspace = true, default-features = false }
 serde = { version = "1.0.136", features = ["derive"] }
 serde_tuple = "0.5"
 

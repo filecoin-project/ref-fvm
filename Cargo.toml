@@ -12,6 +12,11 @@ members = [
     "testing/calibration/contract/*-actor"
 ]
 
+[workspace.dependencies]
+cid = "0.9"
+libipld-core = "0.15"
+multihash = "0.17"
+
 [profile.actor]
 inherits = "release"
 panic = "abort"
