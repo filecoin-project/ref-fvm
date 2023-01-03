@@ -71,23 +71,23 @@ where
     where
         S: Serializer,
     {
-        use serde::ser::SerializeMap;
-
-        // Using a `Map` for everything to keep things simple.
-        // Constructing the map manually so we don't have to clone the extension and give it to a struct.
-        let mut map = serializer.serialize_map(Some(1))?;
+        #[derive(Serialize)]
+        enum PointerSer<'a, K, V> {
+            #[serde(rename = "v")]
+            Values(&'a [KeyValuePair<K, V>]),
+            #[serde(rename = "l")]
+            Link(&'a Cid, u32, BytesSer<'a>),
+        }
         match self {
-            Pointer::Values(vals) => {
-                map.serialize_entry("v", vals)?;
-            }
+            Pointer::Values(vals) => PointerSer::Values(vals),
             Pointer::Link { cid, ext, .. } => {
-                map.serialize_entry("l", &(cid, ext.len(), BytesSer(ext.path_bytes())))?;
+                PointerSer::Link(cid, ext.len(), BytesSer(ext.path_bytes()))
             }
             Pointer::Dirty { .. } => {
                 return Err(ser::Error::custom("Cannot serialize cached values"))
             }
         }
-        map.end()
+        .serialize(serializer)
     }
 }
 
