@@ -663,6 +663,7 @@ mod tests {
     use fvm_shared::{ActorID, IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;
 
+    use super::HistoryMap;
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ID;
     use crate::state_tree::{ActorState, StateTree};
@@ -882,5 +883,71 @@ mod tests {
             let err = StateTree::new(&store, v).err().unwrap();
             assert!(err.is_fatal());
         }
+    }
+
+    #[test]
+    fn history_map() {
+        let mut map = HistoryMap::<i32, &'static str>::default();
+
+        // Basic history tests.
+        assert_eq!(map.get(&1), None);
+        assert_eq!(map.history_len(), 0);
+        map.insert(1, "foo");
+        assert_eq!(map.history_len(), 1);
+        assert_eq!(map.get(&1), Some(&"foo"));
+        map.insert(2, "bar");
+        assert_eq!(map.history_len(), 2);
+        assert_eq!(map.get(&1), Some(&"foo"));
+        assert_eq!(map.get(&2), Some(&"bar"));
+        map.insert(1, "baz");
+        assert_eq!(map.history_len(), 3);
+        assert_eq!(map.get(&1), Some(&"baz"));
+        map.rollback(4); // doesn't panic.
+        assert_eq!(map.history_len(), 3);
+        map.rollback(3); // no-op.
+        assert_eq!(map.history_len(), 3);
+        assert_eq!(map.get(&1), Some(&"baz"));
+        map.rollback(2); // undoes the insert of 1 -> baz
+        assert_eq!(map.history_len(), 2);
+        assert_eq!(map.get(&1), Some(&"foo"));
+        assert_eq!(map.get(&2), Some(&"bar"));
+        map.rollback(1); // undoes the insert of 2 -> bar
+        assert_eq!(map.history_len(), 1);
+        assert_eq!(map.get(&1), Some(&"foo"));
+        assert_eq!(map.get(&2), None);
+        map.rollback(0); // empties the map
+        assert_eq!(map.history_len(), 0);
+        assert_eq!(map.get(&1), None);
+
+        // Inserts
+        assert_eq!(
+            map.get_or_try_insert_with(1, || -> Result<_, ()> { Ok("foo") })
+                .unwrap(),
+            &"foo",
+        );
+        assert_eq!(map.get(&1), Some(&"foo"));
+        assert_eq!(map.history_len(), 1);
+
+        // Doing it again changes nothing.
+        assert_eq!(
+            map.get_or_try_insert_with(1, || -> Result<_, ()> { panic!() })
+                .unwrap(),
+            &"foo",
+        );
+        assert_eq!(map.history_len(), 1);
+
+        // Bubbles the error and changes nothing.
+        assert_eq!(
+            map.get_or_try_insert_with(2, || { Err("err") })
+                .unwrap_err(),
+            "err",
+        );
+        assert_eq!(map.get(&2), None);
+        assert_eq!(map.history_len(), 1);
+
+        // Undo the first insertion.
+        map.rollback(0); // empties the map
+        assert_eq!(map.history_len(), 0);
+        assert_eq!(map.get(&1), None);
     }
 }
