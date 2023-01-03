@@ -47,7 +47,10 @@ pub struct StateTree<S> {
     read_only_layers: u32,
 }
 
-/// A map with an "undo" history. All inserts into this map
+/// A map with an "undo" history. All changes to this map are recorded in the history and can be "reverted" by calling `rollback`. Specifically:
+///
+/// 1. The user can call `history_len` to record the current history length.
+/// 2. The user can _later_ call `rollback(previous_length)` to rollback to the state in step 1.
 struct HistoryMap<K, V> {
     map: HashMap<K, V>,
     history: Vec<(K, Option<V>)>,
