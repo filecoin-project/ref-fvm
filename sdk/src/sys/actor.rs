@@ -133,6 +133,17 @@ super::fvm_syscalls! {
     #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 
+    /// Gets the balance of the specified actor.
+    ///
+    /// # Arguments
+    ///
+    /// - `actor_id` is the ID of the target actor.
+    ///
+    /// # Errors
+    ///
+    /// | Error                | Reason                                         |
+    /// |----------------------|------------------------------------------------|
+    /// | [`NotFound`]         | the target actor does not exist                |
     pub fn balance_of(
         actor_id: u64
     )  -> Result<super::TokenAmount>;

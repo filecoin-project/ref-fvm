@@ -872,17 +872,14 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_balance_of())?;
 
-        let balance = t
-            .record(
-                self.call_manager
-                    .state_tree()
-                    .get_actor(actor_id)
-                    .context("cannot find actor"),
-            )?
-            .map(|a| a.balance)
-            .unwrap_or_default();
-
-        Ok(balance)
+        t.record(
+            self.call_manager
+                .state_tree()
+                .get_actor(actor_id)?
+                .context("actor not found")
+                .or_error(ErrorNumber::NotFound)
+                .map(|a| a.balance),
+        )
     }
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
