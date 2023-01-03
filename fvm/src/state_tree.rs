@@ -2,9 +2,11 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
@@ -32,19 +34,12 @@ pub struct StateTree<S> {
     version: StateTreeVersion,
     info: Option<Cid>,
 
-    /// State snapshots.
-    snaps: StateSnapshots,
-    /// Read-cache for the backing blockstore. This DOES NOT contain
-    /// mutations in progress (contained in the snapshots). Always check
-    /// snapshots first, then the read cache, then fall back to the backing
-    /// blockstore.
-    read_cache: RefCell<HashMap<ActorID, Option<ActorState>>>,
-}
-
-/// Collection of state snapshots
-struct StateSnapshots {
-    /// Current layers. On success, we merge the top layer into the next layer. On abort, we discard
-    /// the top layer.
+    /// An actor-state cache that internally keeps an undo history.
+    actor_cache: RefCell<HistoryMap<ActorID, ActorCacheEntry>>,
+    /// An actor-address cache that internally keeps an undo history.
+    resolve_cache: RefCell<HistoryMap<Address, ActorID>>,
+    /// Snapshot layers. Each layer contains points in the actor/resolve cache histories to which
+    /// said caches will be reverted on revert.
     layers: Vec<StateSnapLayer>,
     /// Number of read-only layers stacked on top of the "layers". When this number is > 0:
     /// 1. Modifications are rejected.
@@ -52,173 +47,98 @@ struct StateSnapshots {
     read_only_layers: u32,
 }
 
-/// State snap shot layer
-#[derive(Debug, Default)]
-struct StateSnapLayer {
-    actors: RefCell<HashMap<ActorID, Option<ActorState>>>,
-    resolve_cache: RefCell<HashMap<Address, ActorID>>,
+/// A map with an "undo" history. All inserts into this map
+struct HistoryMap<K, V> {
+    map: HashMap<K, V>,
+    history: Vec<(K, Option<V>)>,
 }
 
-#[allow(clippy::large_enum_variant)]
-enum StateCacheResult {
-    Uncached,
-    Exists(ActorState),
-    Deleted,
-}
-
-impl StateSnapshots {
-    /// State snapshot constructor
-    fn new() -> Self {
+impl<K, V> Default for HistoryMap<K, V> {
+    fn default() -> Self {
         Self {
-            layers: vec![StateSnapLayer::default()],
-            read_only_layers: 0,
+            map: Default::default(),
+            history: Default::default(),
         }
     }
+}
 
-    fn add_layer(&mut self, read_only: bool) {
-        if read_only || self.is_read_only() {
-            self.read_only_layers += 1;
-        } else {
-            self.layers.push(StateSnapLayer::default())
-        }
+impl<K, V> HistoryMap<K, V>
+where
+    K: Hash + Eq + Clone,
+{
+    /// Insert a k/v pair into the map, recording the previous value in the history.
+    fn insert(&mut self, k: K, v: V) {
+        self.history.push((k.clone(), self.map.insert(k, v)))
     }
 
-    fn drop_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-            return Ok(());
-        }
-
-        self.layers
-            .pop()
-            .with_context(|| {
-                format!(
-                    "drop layer failed to index snapshot layer at index {}",
-                    &self.layers.len() - 1
-                )
-            })
-            .or_fatal()?;
-
-        Ok(())
+    /// Lookup a value in the map given a key.
+    fn get<Q>(&self, k: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        self.map.get(k)
     }
 
-    fn merge_last_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-            return Ok(());
-        }
-
-        self.layers
-            .get(&self.layers.len() - 2)
-            .with_context(|| {
-                format!(
-                    "merging layers failed to index snapshot layer at index: {}",
-                    &self.layers.len() - 2
-                )
-            })
-            .or_fatal()?
-            .actors
-            .borrow_mut()
-            .extend(
-                self.layers[&self.layers.len() - 1]
-                    .actors
-                    .borrow_mut()
-                    .drain(),
-            );
-
-        self.layers
-            .get(&self.layers.len() - 2)
-            .with_context(|| {
-                format!(
-                    "merging layers failed to index snapshot layer at index: {}",
-                    &self.layers.len() - 2
-                )
-            })
-            .or_fatal()?
-            .resolve_cache
-            .borrow_mut()
-            .extend(
-                self.layers[&self.layers.len() - 1]
-                    .resolve_cache
-                    .borrow_mut()
-                    .drain(),
-            );
-
-        self.drop_layer()
-    }
-
-    fn top_layer(&self) -> Result<&StateSnapLayer> {
-        self.layers
-            .last()
-            .context("state snapshots empty")
-            .or_fatal()
-    }
-
-    #[inline(always)]
-    fn is_read_only(&self) -> bool {
-        self.read_only_layers > 0
-    }
-
-    fn assert_writable(&self) -> Result<()> {
-        if self.is_read_only() {
-            Err(syscall_error!(ReadOnly; "cannot mutate state while in read-only mode").into())
-        } else {
-            Ok(())
-        }
-    }
-
-    fn resolve_address(&self, addr: &Address) -> Option<ActorID> {
-        if let &Payload::ID(id) = addr.payload() {
-            return Some(id);
-        }
-        for layer in self.layers.iter().rev() {
-            if let Some(res_addr) = layer.resolve_cache.borrow().get(addr).cloned() {
-                return Some(res_addr);
+    /// Looks up a value in the map given a key, or initializes the entry with the provided
+    /// function. Any modifications to the map are recorded in the history.
+    fn get_or_try_insert_with<F, E>(&mut self, k: K, f: F) -> std::result::Result<&V, E>
+    where
+        F: FnOnce() -> std::result::Result<V, E>,
+    {
+        match self.map.entry(k) {
+            Entry::Occupied(e) => Ok(e.into_mut()),
+            Entry::Vacant(e) => {
+                let v = f()?;
+                self.history.push((e.key().clone(), None));
+                Ok(e.insert(v))
             }
         }
-
-        None
     }
 
-    fn cache_resolve_address(&self, addr: Address, id: ActorID) -> Result<()> {
-        self.top_layer()?
-            .resolve_cache
-            .borrow_mut()
-            .insert(addr, id);
-        Ok(())
-    }
-
-    /// Returns the actor if present in the snapshots.
-    fn get_actor(&self, id: ActorID) -> StateCacheResult {
-        for layer in self.layers.iter().rev() {
-            if let Some(state) = layer.actors.borrow().get(&id) {
-                return state
-                    .clone()
-                    .map(StateCacheResult::Exists)
-                    .unwrap_or(StateCacheResult::Deleted);
-            }
+    /// Rollback to the specified point in history.
+    fn rollback(&mut self, height: usize) {
+        if self.history.len() <= height {
+            return;
         }
-
-        StateCacheResult::Uncached
+        for (k, v) in self.history.drain(height..).rev() {
+            match v {
+                Some(v) => self.map.insert(k, v),
+                None => self.map.remove(&k),
+            };
+        }
     }
 
-    fn set_actor(&self, id: ActorID, actor: ActorState) -> Result<()> {
-        self.assert_writable()?;
-
-        self.top_layer()?
-            .actors
-            .borrow_mut()
-            .insert(id, Some(actor));
-        Ok(())
+    /// Returns the current history length.
+    fn history_len(&self) -> usize {
+        self.history.len()
     }
 
-    fn delete_actor(&self, id: ActorID) -> Result<()> {
-        self.assert_writable()?;
-
-        self.top_layer()?.actors.borrow_mut().insert(id, None);
-
-        Ok(())
+    /// Discards all undo history.
+    fn discard_history(&mut self) {
+        self.history.clear();
     }
+
+    /// Iterate mutably over the current map.
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut V)> {
+        self.map.iter_mut()
+    }
+}
+
+/// An entry in the actor cache.
+struct ActorCacheEntry {
+    /// True if this is a change that should be flushed.
+    dirty: bool,
+    /// The cached actor, or None if the actor doesn't exist and/or has been deleted.
+    actor: Option<ActorState>,
+}
+
+/// State snap shot layer.
+struct StateSnapLayer {
+    /// The actor-cache height at which this snapshot was taken.
+    actor_cache_height: usize,
+    /// The resolve-cache height at which this snapshot was taken.
+    resolve_cache_height: usize,
 }
 
 impl<S> StateTree<S>
@@ -252,8 +172,10 @@ where
             hamt,
             version,
             info,
-            snaps: StateSnapshots::new(),
-            read_cache: Default::default(),
+            actor_cache: Default::default(),
+            resolve_cache: Default::default(),
+            layers: Vec::new(),
+            read_only_layers: 0,
         })
     }
 
@@ -300,8 +222,10 @@ where
                     hamt,
                     version,
                     info,
-                    snaps: StateSnapshots::new(),
-                    read_cache: Default::default(),
+                    actor_cache: Default::default(),
+                    resolve_cache: Default::default(),
+                    layers: Vec::new(),
+                    read_only_layers: 0,
                 })
             }
         }
@@ -324,34 +248,36 @@ where
 
     /// Get actor state from an actor ID.
     pub fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
-        // Check cache for actor state
-        Ok(match self.snaps.get_actor(id) {
-            StateCacheResult::Exists(state) => Some(state),
-            StateCacheResult::Deleted => None,
-            StateCacheResult::Uncached => {
-                let mut read_cache = self.read_cache.borrow_mut();
-                match read_cache.entry(id) {
-                    Entry::Occupied(e) => e.get().clone(),
-                    Entry::Vacant(e) => {
-                        e.insert({
-                            // It's not cached, so we look it up and cache it.
-                            let key = Address::new_id(id).to_bytes();
-                            self.hamt
-                                .get(&key)
-                                .with_context(|| format!("failed to lookup actor {}", id))
-                                .or_fatal()?
-                                .cloned()
-                        })
-                        .clone()
-                    }
-                }
-            }
-        })
+        self.actor_cache
+            .borrow_mut()
+            .get_or_try_insert_with(id, || {
+                // It's not cached/dirty, so we look it up and cache it.
+                let key = Address::new_id(id).to_bytes();
+                Ok(ActorCacheEntry {
+                    dirty: false,
+                    actor: self
+                        .hamt
+                        .get(&key)
+                        .with_context(|| format!("failed to lookup actor {}", id))
+                        .or_fatal()?
+                        .cloned(),
+                })
+            })
+            .map(|ActorCacheEntry { actor, .. }| actor.clone())
     }
 
     /// Set actor state with an actor ID.
     pub fn set_actor(&mut self, id: ActorID, actor: ActorState) -> Result<()> {
-        self.snaps.set_actor(id, actor)
+        self.assert_writable()?;
+
+        self.actor_cache.borrow_mut().insert(
+            id,
+            ActorCacheEntry {
+                actor: Some(actor),
+                dirty: true,
+            },
+        );
+        Ok(())
     }
 
     /// Get an ID address from any Address
@@ -360,7 +286,7 @@ where
             return Ok(Some(id));
         }
 
-        if let Some(res_address) = self.snaps.resolve_address(addr) {
+        if let Some(&res_address) = self.resolve_cache.borrow().get(addr) {
             return Ok(Some(res_address));
         }
 
@@ -371,16 +297,23 @@ where
             None => return Ok(None),
         };
 
-        self.snaps.cache_resolve_address(*addr, a)?;
+        self.resolve_cache.borrow_mut().insert(*addr, a);
 
         Ok(Some(a))
     }
 
     /// Delete actor identified by the supplied ID. Returns no error if the actor doesn't exist.
     pub fn delete_actor(&mut self, id: ActorID) -> Result<()> {
-        // Record that we've deleted the actor.
-        self.snaps.delete_actor(id)?;
+        self.assert_writable()?;
 
+        // Record that we've deleted the actor.
+        self.actor_cache.borrow_mut().insert(
+            id,
+            ActorCacheEntry {
+                dirty: true,
+                actor: None,
+            },
+        );
         Ok(())
     }
 
@@ -437,34 +370,62 @@ where
 
     /// Begin a new state transaction. Transactions stack.
     pub fn begin_transaction(&mut self, read_only: bool) {
-        self.snaps.add_layer(read_only);
+        if read_only || self.is_read_only() {
+            self.read_only_layers += 1;
+        } else {
+            self.layers.push(StateSnapLayer {
+                actor_cache_height: self.actor_cache.get_mut().history_len(),
+                resolve_cache_height: self.resolve_cache.get_mut().history_len(),
+            })
+        }
     }
 
     /// End a transaction, reverting if requested.
     pub fn end_transaction(&mut self, revert: bool) -> Result<()> {
-        if revert {
-            self.snaps.drop_layer()
+        if self.is_read_only() {
+            self.read_only_layers -= 1;
         } else {
-            self.snaps.merge_last_layer()
+            let layer = self
+                .layers
+                .pop()
+                .context("state snapshots empty")
+                .or_fatal()?;
+            if revert {
+                self.actor_cache
+                    .get_mut()
+                    .rollback(layer.actor_cache_height);
+                self.resolve_cache
+                    .get_mut()
+                    .rollback(layer.resolve_cache_height);
+            }
         }
+        // When we end the last transaction, discard the undo history.
+        if !self.in_transaction() {
+            self.actor_cache.get_mut().discard_history();
+            self.resolve_cache.get_mut().discard_history();
+        }
+        Ok(())
+    }
+
+    /// Returns true if we're inside of a transaction.
+    pub fn in_transaction(&self) -> bool {
+        !(self.read_only_layers == 0 && self.layers.is_empty())
     }
 
     /// Flush state tree and return Cid root.
     pub fn flush(&mut self) -> Result<Cid> {
-        if self.snaps.layers.len() != 1 {
+        if self.in_transaction() {
             return Err(ExecutionError::Fatal(anyhow!(
-                "tried to flush state tree with snapshots on the stack: {:?}",
-                self.snaps.layers.len()
+                "cannot flush while inside of a transaction",
             )));
         }
-
-        // Clear the read-cache as it only reflects the state of the current state-tree, not
-        // modifications contained in the snaps.
-        self.read_cache.borrow_mut().clear();
-
-        for (&id, sto) in self.snaps.layers[0].actors.borrow().iter() {
+        for (&id, entry) in self.actor_cache.get_mut().iter_mut() {
+            if !entry.dirty {
+                continue;
+            }
+            entry.dirty = false;
             let addr = Address::new_id(id);
-            match sto {
+            match entry.actor {
                 None => {
                     self.hamt.delete(&addr.to_bytes()).or_fatal()?;
                 }
@@ -515,7 +476,15 @@ where
     }
 
     pub fn is_read_only(&self) -> bool {
-        self.snaps.is_read_only()
+        self.read_only_layers > 0
+    }
+
+    fn assert_writable(&self) -> Result<()> {
+        if self.is_read_only() {
+            Err(syscall_error!(ReadOnly; "cannot mutate state while in read-only mode").into())
+        } else {
+            Ok(())
+        }
     }
 }
 
