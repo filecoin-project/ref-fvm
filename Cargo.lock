@@ -1926,7 +1926,7 @@ name = "fil_gas_calibration_actor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
@@ -1963,7 +1963,7 @@ name = "fil_integer_overflow_actor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
@@ -1997,7 +1997,7 @@ dependencies = [
 name = "fil_readonly_actor"
 version = "0.1.0"
 dependencies = [
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_encoding 0.3.2",
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
@@ -2022,7 +2022,7 @@ dependencies = [
  "fvm_sdk 3.0.0-alpha.19",
  "fvm_shared 3.0.0-alpha.15",
  "minicov",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "substrate-wasm-builder",
 ]
 
@@ -2353,7 +2353,7 @@ dependencies = [
  "arbitrary",
  "blake2b_simd",
  "byteorder",
- "cid 0.9.0",
+ "cid 0.8.6",
  "derive-getters",
  "derive_builder",
  "derive_more",
@@ -2368,7 +2368,7 @@ dependencies = [
  "lazy_static",
  "log",
  "minstant",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "num-derive",
  "num-traits",
  "num_cpus",
@@ -2428,7 +2428,7 @@ dependencies = [
  "async-std",
  "base64",
  "byteorder",
- "cid 0.9.0",
+ "cid 0.8.6",
  "colored",
  "criterion",
  "derive-getters",
@@ -2448,9 +2448,9 @@ dependencies = [
  "itertools 0.10.5",
  "ittapi-rs",
  "lazy_static",
- "libipld-core 0.15.0",
+ "libipld-core 0.14.0",
  "log",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "num-derive",
  "num-traits",
  "num_cpus",
@@ -2473,7 +2473,7 @@ dependencies = [
  "anyhow",
  "blake2b_simd",
  "bls-signatures",
- "cid 0.9.0",
+ "cid 0.8.6",
  "fil_builtin_actors_bundle",
  "fil_gas_calibration_actor",
  "futures",
@@ -2485,7 +2485,7 @@ dependencies = [
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
  "libsecp256k1",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "num-traits",
  "rand",
  "rand_chacha",
@@ -2502,7 +2502,7 @@ name = "fvm_integration_tests"
 version = "0.1.1-alpha.1"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
+ "cid 0.8.6",
  "fil_address_actor",
  "fil_builtin_actors_bundle",
  "fil_events_actor",
@@ -2525,7 +2525,7 @@ dependencies = [
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
  "libsecp256k1",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "num-traits",
  "rand",
  "rand_chacha",
@@ -2560,7 +2560,7 @@ name = "fvm_ipld_amt"
 version = "0.5.0"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
+ "cid 0.8.6",
  "criterion",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.2",
@@ -2619,8 +2619,8 @@ name = "fvm_ipld_blockstore"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
- "multihash 0.17.0",
+ "cid 0.8.6",
+ "multihash 0.16.3",
 ]
 
 [[package]]
@@ -2639,7 +2639,7 @@ name = "fvm_ipld_car"
 version = "0.6.0"
 dependencies = [
  "async-std",
- "cid 0.9.0",
+ "cid 0.8.6",
  "futures",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.2",
@@ -2686,9 +2686,9 @@ name = "fvm_ipld_encoding"
 version = "0.3.2"
 dependencies = [
  "anyhow",
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_blockstore 0.1.1",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "serde",
  "serde_ipld_dagcbor",
  "serde_json",
@@ -2741,14 +2741,14 @@ version = "0.6.1"
 dependencies = [
  "anyhow",
  "byteorder",
- "cid 0.9.0",
+ "cid 0.8.6",
  "criterion",
  "forest_hash_utils",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.2",
  "hex",
- "libipld-core 0.15.0",
- "multihash 0.17.0",
+ "libipld-core 0.14.0",
+ "multihash 0.16.3",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
@@ -2785,14 +2785,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "cid 0.9.0",
+ "cid 0.8.6",
  "criterion",
  "forest_hash_utils",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.2",
  "hex",
- "libipld-core 0.15.0",
- "multihash 0.17.0",
+ "libipld-core 0.14.0",
+ "multihash 0.16.3",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
@@ -2842,7 +2842,7 @@ dependencies = [
 name = "fvm_sdk"
 version = "3.0.0-alpha.19"
 dependencies = [
- "cid 0.9.0",
+ "cid 0.8.6",
  "fvm_ipld_encoding 0.3.2",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
@@ -2905,7 +2905,7 @@ dependencies = [
  "blake2b_simd",
  "bls-signatures",
  "byteorder",
- "cid 0.9.0",
+ "cid 0.8.6",
  "data-encoding",
  "data-encoding-macro",
  "filecoin-proofs-api",
@@ -2914,7 +2914,7 @@ dependencies = [
  "lazy_static",
  "libsecp256k1",
  "log",
- "multihash 0.17.0",
+ "multihash 0.16.3",
  "num-bigint",
  "num-derive",
  "num-integer",
@@ -3624,17 +3624,10 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835d6ff01d610179fbce3de1694d007e500bf33a7f29689838941d6bf783ae40"
 dependencies = [
- "blake2b_simd",
- "blake2s_simd 1.0.0",
- "blake3",
  "core2",
- "digest 0.10.6",
  "multihash-derive",
- "ripemd",
  "serde",
  "serde-big-array",
- "sha2 0.10.6",
- "sha3",
  "unsigned-varint",
 ]
 

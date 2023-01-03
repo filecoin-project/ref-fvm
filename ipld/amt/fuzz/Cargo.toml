@@ -23,7 +23,7 @@ fvm_ipld_blockstore = { path = "../../blockstore" }
 members = ["."]
 
 [workspace.dependencies]
-cid = "0.9"
+cid = "0.8"
 
 [[bin]]
 name = "equivalence"

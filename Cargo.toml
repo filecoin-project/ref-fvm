@@ -13,9 +13,9 @@ members = [
 ]
 
 [workspace.dependencies]
-cid = "0.9"
-libipld-core = "0.15"
-multihash = "0.17"
+cid = "0.8"
+libipld-core = "0.14"
+multihash = "0.16"
 
 [profile.actor]
 inherits = "release"
