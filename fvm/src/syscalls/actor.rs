@@ -142,6 +142,6 @@ pub fn balance_of(context: Context<'_, impl Kernel>, actor_id: u64) -> Result<sy
     let balance = context.kernel.balance_of(actor_id)?;
     balance
         .try_into()
-        .context("base-fee exceeds u128 limit")
+        .context("balance exceeds u128 limit")
         .or_fatal()
 }
