@@ -560,9 +560,20 @@ impl Engine {
         fn as_wasmtime_limiter<K: Kernel>(
             data: &mut InvocationData<K>,
         ) -> &mut dyn wasmtime::ResourceLimiter {
-            unsafe {
-                &mut *(data.kernel.limiter_mut() as *mut _ as *mut WasmtimeLimiter<K::Limiter>)
-            }
+            // SAFETY: This is safe because WasmtimeLimiter is `repr(transparent)`.
+            // Unfortunately, we can't simply wrap the limiter as we need to return a reference.
+            let limiter: &mut WasmtimeLimiter<K::Limiter> = unsafe {
+                let limiter_ref = data.kernel.limiter_mut();
+                // (debug)-assert that these types have the same layout (guaranteed by
+                // `repr(transparent)`).
+                debug_assert_eq!(
+                    std::alloc::Layout::for_value(&*limiter_ref),
+                    std::alloc::Layout::new::<WasmtimeLimiter<K::Limiter>>()
+                );
+                // Then cast.
+                &mut *(limiter_ref as *mut K::Limiter as *mut WasmtimeLimiter<K::Limiter>)
+            };
+            limiter as &mut dyn wasmtime::ResourceLimiter
         }
 
         store.limiter(as_wasmtime_limiter);
