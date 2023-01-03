@@ -16,12 +16,6 @@ jobs:
     steps:
     - name: Checking out fvm
       uses: actions/checkout@v2
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        profile: minimal
-        override: true
-        components: rustfmt
     - name: Running fmt
       uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
       with:
@@ -49,20 +43,17 @@ jobs:
             key: v3
             command: clippy
             args: --all --all-targets
-            components: clippy
           - name: test-fvm
             key: v3-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
-            components: llvm-tools-preview
           - name: test
             key: v3-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude fvm_gas_calibration --exclude "*actor" --lcov --output-path lcov.info
-            components: llvm-tools-preview
           - name: integration
             key: v3
             command: test
@@ -92,13 +83,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         submodules: ${{ matrix.submodules }}
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        profile: minimal
-        target: wasm32-unknown-unknown
-        override: true
-        components: ${{ matrix.components }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
     - name: Installing Cargo llvm-cov
       if: ${{ matrix.covname }}
