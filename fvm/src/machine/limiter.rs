@@ -10,7 +10,7 @@ pub trait MemoryLimiter: Sized {
 
     /// Returns `true` if growing by `bytes` is allowed. Implement this memory to track and limit
     /// memory usage.
-    fn grow_memory(&mut self, bytes: usize) -> bool;
+    fn grow_memory(&mut self, delta: usize) -> bool;
 
     /// Push a new frame onto the call stack, and keep tallying up the current execution memory,
     /// then restore it to the current value when the frame is finished.
