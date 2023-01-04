@@ -4,16 +4,14 @@ use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::machine::Manifest;
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, system_actor, storagemarket_actor, storagepower_actor};
+use fvm::{init_actor, storagemarket_actor, storagepower_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::ActorID;
 use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
-use crate::verifiedregistry_actor;
-use crate::datacap_actor;
-use crate::reward_actor;
+use crate::{datacap_actor, reward_actor, verifiedregistry_actor};
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
@@ -32,7 +30,7 @@ pub fn fetch_builtin_code_cid(
         *manifest.get_storagepower_code(),
         *manifest.get_verifiedregistry_code(),
         *manifest.get_datacap_code(),
-        *manifest.get_reward_code()
+        *manifest.get_reward_code(),
     ))
 }
 
@@ -105,7 +103,11 @@ pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: 
         .context(FailedToSetActor("eam actor".to_owned()))
 }
 
-pub fn set_storagemarket_actor(state_tree: &mut StateTree<impl Blockstore>, storagemarket_code_cid: Cid, storagemarket_state: storagemarket_actor::State,) -> Result<()> {
+pub fn set_storagemarket_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    storagemarket_code_cid: Cid,
+    storagemarket_state: storagemarket_actor::State,
+) -> Result<()> {
     const STORAGE_MARKET_ACTOR: ActorID = 5;
 
     let storagemarket_state_cid = state_tree
@@ -127,7 +129,11 @@ pub fn set_storagemarket_actor(state_tree: &mut StateTree<impl Blockstore>, stor
         .context(FailedToSetActor("storagemarket actor".to_owned()))
 }
 
-pub fn set_storagepower_actor(state_tree: &mut StateTree<impl Blockstore>, storagepower_code_cid: Cid, storagepower_state: storagepower_actor::State,) -> Result<()> {
+pub fn set_storagepower_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    storagepower_code_cid: Cid,
+    storagepower_state: storagepower_actor::State,
+) -> Result<()> {
     const STORAGE_POWER_ACTOR: ActorID = 4;
 
     let storagepower_state_cid = state_tree
@@ -149,8 +155,12 @@ pub fn set_storagepower_actor(state_tree: &mut StateTree<impl Blockstore>, stora
         .context(FailedToSetActor("storagepower actor".to_owned()))
 }
 
-pub fn set_verifiedregistry_actor(state_tree: &mut StateTree<impl Blockstore>, verifiedregistry_code_cid: Cid, verifiedregistry_state: verifiedregistry_actor::State,) -> Result<()> {
-    const VERIFIED_REGISTRY_ACTOR : ActorID = 6;
+pub fn set_verifiedregistry_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    verifiedregistry_code_cid: Cid,
+    verifiedregistry_state: verifiedregistry_actor::State,
+) -> Result<()> {
+    const VERIFIED_REGISTRY_ACTOR: ActorID = 6;
 
     let verifiedregistry_state_cid = state_tree
         .store()
@@ -171,8 +181,12 @@ pub fn set_verifiedregistry_actor(state_tree: &mut StateTree<impl Blockstore>, v
         .context(FailedToSetActor("verifiedregistry actor".to_owned()))
 }
 
-pub fn set_datacap_actor(state_tree: &mut StateTree<impl Blockstore>, datacap_code_cid: Cid, datacap_state: datacap_actor::State,) -> Result<()> {
-    const DATA_CAP_ACTOR : ActorID = 7;
+pub fn set_datacap_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    datacap_code_cid: Cid,
+    datacap_state: datacap_actor::State,
+) -> Result<()> {
+    const DATA_CAP_ACTOR: ActorID = 7;
 
     let datacap_state_cid = state_tree
         .store()
@@ -193,7 +207,11 @@ pub fn set_datacap_actor(state_tree: &mut StateTree<impl Blockstore>, datacap_co
         .context(FailedToSetActor("datacap actor".to_owned()))
 }
 
-pub fn set_reward_actor(state_tree: &mut StateTree<impl Blockstore>, reward_code_cid: Cid, reward_state: reward_actor::State,) -> Result<()> {
+pub fn set_reward_actor(
+    state_tree: &mut StateTree<impl Blockstore>,
+    reward_code_cid: Cid,
+    reward_state: reward_actor::State,
+) -> Result<()> {
     const REWARD_ACTOR_ID: ActorID = 2;
 
     let reward_state_cid = state_tree

@@ -1,15 +1,15 @@
+use std::str::FromStr;
+
 use fvm_ipld_encoding::repr::*;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::{ChainEpoch, EPOCH_UNDEFINED};
 use fvm_shared::econ::TokenAmount;
-
+use fvm_shared::math::PRECISION;
 use fvm_shared::sector::{Spacetime, StoragePower};
 use fvm_shared::smooth::{AlphaBetaFilter, FilterEstimate, DEFAULT_ALPHA, DEFAULT_BETA};
 use lazy_static::lazy_static;
-use fvm_shared::math::PRECISION;
-use std::str::FromStr;
 
 lazy_static! {
     pub static ref BASELINE_EXPONENT: StoragePower =

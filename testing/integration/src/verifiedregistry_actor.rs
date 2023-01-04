@@ -1,12 +1,10 @@
 use cid::Cid;
+use fil_actors_runtime::MapMap;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
-use fil_actors_runtime::MapMap;
-use fvm_shared::ActorID;
-use fvm_shared::HAMT_BIT_WIDTH;
-
+use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
 pub struct State {
@@ -28,14 +26,12 @@ impl State {
     // integration/tester.
     #[allow(unused)]
     pub fn new_test<BS: Blockstore>(store: &BS, root_key: Address) -> Self {
-        let empty_map = Hamt::<_, ()>::new_with_bit_width(store, 5)
-        .flush()
-        .unwrap();
+        let empty_map = Hamt::<_, ()>::new_with_bit_width(store, 5).flush().unwrap();
 
-    let empty_mapmap =
-        MapMap::<_, (), ActorID, u64>::new(store, HAMT_BIT_WIDTH, HAMT_BIT_WIDTH)
-            .flush()
-            .unwrap();
+        let empty_mapmap =
+            MapMap::<_, (), ActorID, u64>::new(store, HAMT_BIT_WIDTH, HAMT_BIT_WIDTH)
+                .flush()
+                .unwrap();
 
         Self {
             root_key,
@@ -46,5 +42,4 @@ impl State {
             claims: empty_mapmap,
         }
     }
-
 }

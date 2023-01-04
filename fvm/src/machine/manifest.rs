@@ -19,7 +19,6 @@ const VERIFIED_REGISTRY_ACTOR_NAME: &str = "verifiedregistry";
 const DATA_CAP_ACTOR_NAME: &str = "datacap";
 const REWARD_ACTOR_NAME: &str = "reward";
 
-
 /// A mapping of builtin actor CIDs to their respective types.
 pub struct Manifest {
     account_code: Cid,
@@ -280,7 +279,7 @@ impl Manifest {
     pub fn get_datacap_code(&self) -> &Cid {
         &self.datacap_code
     }
-    
+
     /// Returns the code CID for the reward actor.
     pub fn get_reward_code(&self) -> &Cid {
         &self.reward_code
