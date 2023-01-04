@@ -27,4 +27,5 @@ pub enum ExecutionEvent {
     CallReturn(RawBytes),
     CallAbort(ExitCode),
     CallError(SyscallError),
+    Log(String),
 }

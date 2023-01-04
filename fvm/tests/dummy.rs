@@ -8,6 +8,7 @@ use fvm::externs::{Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::trace::ExecutionEvent;
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
@@ -297,4 +298,10 @@ impl CallManager for DummyCallManager {
     fn invocation_count(&self) -> u64 {
         todo!()
     }
+
+    fn tracing(&self) -> bool {
+        false
+    }
+
+    fn trace(&mut self, _event: ExecutionEvent) {}
 }

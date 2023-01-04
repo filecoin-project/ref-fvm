@@ -31,6 +31,7 @@ use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
+use crate::trace::ExecutionEvent;
 use crate::{syscall_error, EMPTY_ARR_CID};
 
 lazy_static! {
@@ -799,8 +800,11 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn log(&self, msg: String) {
-        println!("{}", msg)
+    fn log(&mut self, msg: String) {
+        println!("{}", &msg);
+        if self.call_manager.tracing() {
+            self.call_manager.trace(ExecutionEvent::Log(msg));
+        }
     }
 
     fn debug_enabled(&self) -> bool {

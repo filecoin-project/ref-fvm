@@ -99,7 +99,7 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        if self.machine.context().tracing {
+        if self.tracing() {
             self.trace(ExecutionEvent::Call {
                 from,
                 to,
@@ -127,7 +127,7 @@ where
         // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
         if self.call_stack_depth > self.machine.context().max_call_depth {
             let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
+            if self.tracing() {
                 self.trace(ExecutionEvent::CallError(sys_err.clone()));
             }
             return Err(sys_err.into());
@@ -136,7 +136,7 @@ where
         let result = self.send_unchecked::<K>(from, to, method, params, value);
         self.call_stack_depth -= 1;
 
-        if self.machine.context().tracing {
+        if self.tracing() {
             self.trace(match &result {
                 Ok(InvocationResult::Return(v)) => ExecutionEvent::CallReturn(
                     v.as_ref()
@@ -238,23 +238,21 @@ where
     fn invocation_count(&self) -> u64 {
         self.invocation_count
     }
+
+    fn trace(&mut self, trace: ExecutionEvent) {
+        // The price of deref magic is that you sometimes need to tell the compiler: no, this is
+        // fine.
+        let s = &mut **self;
+        s.exec_trace
+            .extend(s.gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
+        s.exec_trace.push(trace);
+    }
 }
 
 impl<M> DefaultCallManager<M>
 where
     M: Machine,
 {
-    fn trace(&mut self, trace: ExecutionEvent) {
-        // The price of deref magic is that you sometimes need to tell the compiler: no, this is
-        // fine.
-        let s = &mut **self;
-
-        s.exec_trace
-            .extend(s.gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
-
-        s.exec_trace.push(trace);
-    }
-
     fn create_account_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,

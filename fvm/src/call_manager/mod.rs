@@ -17,7 +17,7 @@ mod default;
 
 pub use default::DefaultCallManager;
 
-use crate::trace::ExecutionTrace;
+use crate::trace::{ExecutionEvent, ExecutionTrace};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -121,6 +121,14 @@ pub trait CallManager: 'static {
         self.gas_tracker_mut().apply_charge(charge)?;
         Ok(())
     }
+
+    /// Whether tracing is requested.
+    fn tracing(&self) -> bool {
+        self.machine().context().tracing
+    }
+
+    /// Records an execution trace event.
+    fn trace(&mut self, event: ExecutionEvent);
 }
 
 /// The result of a method invocation.
