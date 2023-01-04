@@ -1,3 +1,5 @@
+// Copyright 2023 Zondax AG
+// SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -5,7 +7,7 @@ use fvm_ipld_hamt::Hamt;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
+use fvm_shared::sector::{StoragePower};
 use fvm_shared::smooth::FilterEstimate;
 use lazy_static::lazy_static;
 

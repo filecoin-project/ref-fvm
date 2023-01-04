@@ -1,11 +1,10 @@
-use fil_actors_runtime::{ActorError, AsActorError};
+// Copyright 2023 Zondax AG
+// SPDX-License-Identifier: Apache-2.0, MIT
 use frc46_token::token;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::ActorID;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct State {

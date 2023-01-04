@@ -1,4 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
+// Copyright 2023 Zondax AG
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context, Result};
 use cid::Cid;

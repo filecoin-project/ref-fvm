@@ -1,3 +1,5 @@
+// Copyright 2023 Zondax AG
+// SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::Blockstore;
@@ -7,7 +9,6 @@ use fvm_ipld_hamt::Hamt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use libipld_core::ipld::Ipld;
 
 pub type AllocationID = u64;
 

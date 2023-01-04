@@ -1,3 +1,5 @@
+// Copyright 2023 Zondax AG
+// SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fil_actors_runtime::MapMap;
 use fvm_ipld_blockstore::Blockstore;

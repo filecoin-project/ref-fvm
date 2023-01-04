@@ -2527,7 +2527,6 @@ dependencies = [
  "fvm_ipld_hamt 0.6.1",
  "fvm_shared 3.0.0-alpha.15",
  "lazy_static",
- "libipld-core 0.13.1",
  "libsecp256k1",
  "multihash 0.16.3",
  "num-traits",
