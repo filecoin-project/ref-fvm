@@ -235,16 +235,15 @@ lazy_static! {
             scale: Gas::zero(),
         },
 
-        block_storage: ScalingCost {
-            flat: Gas::new(353640),
+        block_persist_storage: ScalingCost {
+            flat: Gas::new(130000), // ~ Assume about 100 bytes of metadata per block.
             scale: Gas::new(1300),
         },
 
+        block_persist_compute: Gas::new(172000),
+
         syscall_cost: Gas::new(14000),
         extern_cost: Gas::new(21000),
-
-        // TODO(#1264) (Consider subtracting from the block storage flat fee).
-        block_flush: ScalingCost::zero(),
 
         // TODO(#1279)
         state_read_base: Zero::zero(),
@@ -435,11 +434,11 @@ pub struct PriceList {
     /// Gas cost for opening a block.
     pub(crate) block_open: ScalingCost,
 
-    /// Gas cost for storing a block.
-    pub(crate) block_storage: ScalingCost,
+    /// Gas cost for persisting a block over time.
+    pub(crate) block_persist_storage: ScalingCost,
 
-    /// Gas cost to cover the expected cost of flushing.
-    pub(crate) block_flush: ScalingCost,
+    /// Gas cost to cover the cost of flushing a block.
+    pub(crate) block_persist_compute: Gas,
 
     /// General gas cost for performing a syscall, accounting for the overhead thereof.
     pub(crate) syscall_cost: Gas,
@@ -753,20 +752,23 @@ impl PriceList {
     /// Returns the gas required for committing an object to the state blockstore.
     #[inline]
     pub fn on_block_link(&self, hash_code: SupportedHashes, data_size: usize) -> GasCharge {
-        // First we compute the expected cost of allocating & copying the block. We'll end up
-        // charging it twice.
-        let memcpy = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
-
-        // Then the cost of actually hashing the new block.
+        // The initial compute costs include a single memcpy + alloc and the cost of actually
+        // hashing the block to compute the CID.
+        let memcpy = self.block_memcpy.apply(data_size);
+        let alloc = self.block_allocate.apply(data_size);
         let hashing = self.hashing_cost[&hash_code].apply(data_size);
 
-        // Then the expected cost of flushing (client side).
-        let flushing = self.block_flush.apply(data_size);
+        let initial_compute = memcpy + alloc + hashing;
 
-        // Then the cost of actually storing the block.
-        let storage = self.block_storage.apply(data_size);
+        // We also have to charge for storage...
+        let storage = self.block_persist_storage.apply(data_size);
 
-        GasCharge::new("OnBlockLink", memcpy + hashing, storage + memcpy + flushing)
+        // And deferred compute (the cost of flushing). Technically, there are a few memcpys and
+        // allocations here, but the storage cost itself is _much_ greater than all these small
+        // per-byte charges combined, so we ignore them for simplicity.
+        let deferred_compute = self.block_persist_compute;
+
+        GasCharge::new("OnBlockLink", initial_compute, deferred_compute + storage)
     }
 
     /// Returns the gas required for storing an object.
