@@ -4,8 +4,6 @@
 
 use std::cmp::min;
 
-use serde::{Deserialize, Serialize};
-
 use crate::hash_bits::{mkmask, HashBits};
 use crate::{Error, HashedKey};
 
@@ -14,7 +12,7 @@ use crate::{Error, HashedKey};
 /// the tree being very deep, with most but the deepest being empty. The
 /// extension allows a `Pointer::Link` to skip empty levels and point straight
 /// to the next non-empty `Node`.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub(crate) struct Extension {
     /// The length (in bits) of the extension between the `Node` containing the `Link`
     /// and the node the `Link` is pointing to. It might be less than the length of the
@@ -43,6 +41,10 @@ impl Extension {
 
     pub fn path_bits(&self) -> HashBits {
         HashBits::new_from_slice(&self.path, self.length)
+    }
+
+    pub fn path_bytes(&self) -> &[u8] {
+        &self.path
     }
 
     pub fn is_empty(&self) -> bool {
