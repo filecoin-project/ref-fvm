@@ -7,7 +7,7 @@ use fvm_ipld_hamt::Hamt;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::sector::{StoragePower};
+use fvm_shared::sector::StoragePower;
 use fvm_shared::smooth::FilterEstimate;
 use lazy_static::lazy_static;
 
