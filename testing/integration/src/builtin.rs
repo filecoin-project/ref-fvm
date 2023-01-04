@@ -16,12 +16,14 @@ use crate::{
     datacap_actor, reward_actor, storagemarket_actor, storagepower_actor, verifiedregistry_actor,
 };
 
+type SingletonCodeCID = (Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid);
+
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
     blockstore: &impl Blockstore,
     builtin_actors: &Cid,
     ver: u32,
-) -> Result<(Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid, Cid)> {
+) -> Result<SingletonCodeCID> {
     let manifest = Manifest::load(blockstore, builtin_actors, ver).context(FailedToLoadManifest)?;
     Ok((
         *manifest.get_system_code(),
