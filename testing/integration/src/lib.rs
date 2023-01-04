@@ -8,3 +8,5 @@ pub mod error;
 pub mod reward_actor;
 pub mod tester;
 pub mod verifiedregistry_actor;
+pub mod storagemarket_actor;
+pub mod storagepower_actor;

@@ -8,7 +8,7 @@ use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, storagemarket_actor, storagepower_actor, system_actor, DefaultKernel};
+use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_shared::address::{Address, Protocol};
@@ -25,7 +25,7 @@ use crate::builtin::{
     set_storagemarket_actor, set_storagepower_actor, set_sys_actor, set_verifiedregistry_actor,
 };
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
-use crate::{datacap_actor, reward_actor, verifiedregistry_actor};
+use crate::{datacap_actor, reward_actor, verifiedregistry_actor, storagemarket_actor, storagepower_actor};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 
@@ -155,7 +155,7 @@ where
         &mut self,
         address: &Address,
         init_balance: TokenAmount,
-    ) -> Result<()> {
+    ) -> Result<ActorID> {
         assert_eq!(address.protocol(), Protocol::Delegated);
 
         let state_tree = self

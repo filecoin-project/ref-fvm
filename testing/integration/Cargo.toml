@@ -18,11 +18,12 @@ fvm_ipld_encoding = { version = "0.3.2", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
-frc46_token = "1.1.0"
+frc46_token = "3.0.0"
 futures = "0.3.19"
 multihash = { version = "0.16.1", default-features = false }
 num-traits = "0.2"
 lazy_static = "1.4.0"
+libipld-core = { version = "0.13.1", features = ["serde-codec"] }
 libsecp256k1 = "0.7.0"
 rand = "0.8.5"
 rand_chacha = "0.3"

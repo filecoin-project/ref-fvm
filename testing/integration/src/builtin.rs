@@ -4,14 +4,14 @@ use anyhow::{Context, Result};
 use cid::Cid;
 use fvm::machine::Manifest;
 use fvm::state_tree::{ActorState, StateTree};
-use fvm::{init_actor, storagemarket_actor, storagepower_actor, system_actor};
+use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::ActorID;
 use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
-use crate::{datacap_actor, reward_actor, verifiedregistry_actor};
+use crate::{datacap_actor, reward_actor, verifiedregistry_actor, storagemarket_actor, storagepower_actor};
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
