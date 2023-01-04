@@ -11,7 +11,9 @@ use fvm_shared::ActorID;
 use multihash::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
-use crate::{datacap_actor, reward_actor, verifiedregistry_actor, storagemarket_actor, storagepower_actor};
+use crate::{
+    datacap_actor, reward_actor, storagemarket_actor, storagepower_actor, verifiedregistry_actor,
+};
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(

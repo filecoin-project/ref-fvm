@@ -1,12 +1,12 @@
-use fvm_shared::bigint::bigint_ser;
+use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_hamt::Hamt;
+use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sector::{RegisteredPoStProof, StoragePower};
-use fvm_shared::smooth::{FilterEstimate};
-use cid::Cid;
-use fvm_ipld_hamt::Hamt;
-use fvm_ipld_blockstore::Blockstore;
+use fvm_shared::smooth::FilterEstimate;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -55,11 +55,11 @@ pub struct State {
 
 impl State {
     pub fn new_test<BS: Blockstore>(store: &BS) -> Self {
-        let empty_map = Hamt::<_, ()>::new_with_bit_width(store, 5)
+        let empty_map = Hamt::<_, ()>::new_with_bit_width(store, 5).flush().unwrap();
+
+        let empty_mmap = Hamt::<_, Cid>::new_with_bit_width(store, 6)
             .flush()
             .unwrap();
-
-        let empty_mmap = Hamt::<_, Cid>::new_with_bit_width(store, 6).flush().unwrap();
         State {
             cron_event_queue: empty_mmap,
             claims: empty_map,

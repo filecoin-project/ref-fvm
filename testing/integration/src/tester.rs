@@ -25,7 +25,9 @@ use crate::builtin::{
     set_storagemarket_actor, set_storagepower_actor, set_sys_actor, set_verifiedregistry_actor,
 };
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
-use crate::{datacap_actor, reward_actor, verifiedregistry_actor, storagemarket_actor, storagepower_actor};
+use crate::{
+    datacap_actor, reward_actor, storagemarket_actor, storagepower_actor, verifiedregistry_actor,
+};
 
 const DEFAULT_BASE_FEE: u64 = 100;
 

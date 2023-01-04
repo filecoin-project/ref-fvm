@@ -1,12 +1,12 @@
 use cid::Cid;
+use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
-use fvm_shared::clock::{ChainEpoch};
+use fvm_ipld_hamt::Hamt;
+use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
 use fvm_shared::econ::TokenAmount;
-use fvm_ipld_amt::Amt;
-use fvm_ipld_hamt::Hamt;
 use libipld_core::ipld::Ipld;
 
 pub type AllocationID = u64;
@@ -62,49 +62,43 @@ impl State {
     // integration/tester.
     #[allow(unused)]
     pub fn new_test<B: Blockstore>(store: &B) -> Self {
-        let empty_proposals_array = Amt::<(), _>::new_with_bit_width(store, 5)
+        let empty_proposals_array = Amt::<(), _>::new_with_bit_width(store, 5).flush().unwrap();
+
+        let empty_states_array = Amt::<(), _>::new_with_bit_width(store, 6).flush().unwrap();
+
+        let empty_pending_proposals_map =
+            Hamt::<_, ()>::new_with_bit_width(store, 5).flush().unwrap();
+
+        let empty_balance_table = Hamt::<_, TokenAmount>::new_with_bit_width(store, 5)
             .flush()
             .unwrap();
 
-        let empty_states_array = Amt::<(), _>::new_with_bit_width(store, 6)
+        let empty_deal_ops_hamt = Hamt::<_, Cid>::new_with_bit_width(store, 5)
             .flush()
             .unwrap();
 
-        let empty_pending_proposals_map = Hamt::<_, ()>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_balance_table = Hamt::<_,TokenAmount>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_deal_ops_hamt = Hamt::<_,Cid>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_pending_deal_allocation_map = Hamt::<_, AllocationID>::new_with_bit_width(store, 5)
+        let empty_pending_deal_allocation_map =
+            Hamt::<_, AllocationID>::new_with_bit_width(store, 5)
+                .flush()
+                .unwrap();
+
+        let empty_states_array = Amt::<(), _>::new_with_bit_width(store, 6).flush().unwrap();
+
+        let empty_pending_proposals_map =
+            Hamt::<_, ()>::new_with_bit_width(store, 5).flush().unwrap();
+
+        let empty_balance_table = Hamt::<_, TokenAmount>::new_with_bit_width(store, 5)
             .flush()
             .unwrap();
 
-        let empty_states_array = Amt::<(), _>::new_with_bit_width(store, 6)
+        let empty_deal_ops_hamt = Hamt::<_, Cid>::new_with_bit_width(store, 5)
             .flush()
             .unwrap();
 
-        let empty_pending_proposals_map = Hamt::<_, ()>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_balance_table = Hamt::<_,TokenAmount>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_deal_ops_hamt = Hamt::<_,Cid>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
-        
-        let empty_pending_deal_allocation_map = Hamt::<_, AllocationID>::new_with_bit_width(store, 5)
-            .flush()
-            .unwrap();
+        let empty_pending_deal_allocation_map =
+            Hamt::<_, AllocationID>::new_with_bit_width(store, 5)
+                .flush()
+                .unwrap();
 
         State {
             proposals: empty_proposals_array,
@@ -121,5 +115,4 @@ impl State {
             pending_deal_allocation_ids: empty_pending_deal_allocation_map,
         }
     }
-
 }
