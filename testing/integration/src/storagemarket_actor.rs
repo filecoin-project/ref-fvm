@@ -4,7 +4,6 @@ use cid::Cid;
 use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::deal::DealID;
@@ -55,8 +54,6 @@ pub struct State {
     /// Verified registry allocation IDs for deals that are not yet activated.
     pub pending_deal_allocation_ids: Cid, // HAMT[DealID]AllocationID
 }
-
-impl Cbor for State {}
 
 impl State {
     // ideally we would just #[cfg(test)] this, but it is used by non test-gated code in

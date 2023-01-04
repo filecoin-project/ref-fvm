@@ -3,7 +3,6 @@
 use frc46_token::token;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::Cbor;
 use fvm_shared::address::Address;
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
@@ -22,5 +21,3 @@ impl State {
         }
     }
 }
-
-impl Cbor for State {}

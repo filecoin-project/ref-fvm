@@ -82,7 +82,7 @@ pub struct State {
 
 impl State {
     pub fn new_test() -> Self {
-        let mut st = Self {
+        let st = Self {
             effective_baseline_power: BASELINE_INITIAL_VALUE.clone(),
             this_epoch_baseline_power: INIT_BASELINE_POWER.clone(),
             epoch: EPOCH_UNDEFINED,
