@@ -173,7 +173,8 @@ lazy_static! {
         .cloned()
         .collect(),
 
-        verify_consensus_fault: Gas::new(495422),
+        verify_consensus_fault: Gas::new(516422),
+
         verify_replica_update: Gas::new(36316136),
         verify_post_lookup: [
             (
@@ -203,8 +204,8 @@ lazy_static! {
         .collect(),
 
         // TODO(#1277): Implement this first before benchmarking.
-        // TODO(#1264): do look at lookback here, but don't bother with the amount of entropy (see the line above).
-        get_randomness: Gas::zero(),
+        // TODO(#1384): Reprice
+        get_randomness_seed: Gas::new(21000),
 
         block_allocate: ScalingCost {
             flat: Gas::zero(),
@@ -222,10 +223,8 @@ lazy_static! {
         },
 
         block_open: ScalingCost {
-            // This was benchmarked (#1264) at 187440 gas/read, but we've deducted the existing
-            // extern cost here. Once we get accurate charges for all "externs", we can get rid of
-            // the separate extern cost all together.
-            flat: Gas::new(166440),
+            // This was benchmarked (#1264) at 187440 gas/read.
+            flat: Gas::new(187440),
             // It costs takes about 0.562 ns/byte (5.6gas) to "read" from a client. However, that
             // includes one allocation and memory copy, which we charge for separately.
             //
@@ -241,7 +240,6 @@ lazy_static! {
         },
 
         syscall_cost: Gas::new(14000),
-        extern_cost: Gas::new(21000),
 
         // TODO(#1264) (Consider subtracting from the block storage flat fee).
         block_flush: ScalingCost::zero(),
@@ -417,8 +415,9 @@ pub struct PriceList {
     pub(crate) verify_consensus_fault: Gas,
     pub(crate) verify_replica_update: Gas,
 
-    /// Gas cost for fetching randomness.
-    pub(crate) get_randomness: Gas,
+    /// Gas cost for fetching a randomness seed for an epoch. We charge separately for extracting
+    /// randomness (hashing).
+    pub(crate) get_randomness_seed: Gas,
 
     /// Gas cost per byte copied.
     pub(crate) block_memcpy: ScalingCost,
@@ -443,8 +442,6 @@ pub struct PriceList {
 
     /// General gas cost for performing a syscall, accounting for the overhead thereof.
     pub(crate) syscall_cost: Gas,
-    /// General gas cost for calling an extern, accounting for the overhead thereof.
-    pub(crate) extern_cost: Gas,
 
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
@@ -684,12 +681,12 @@ impl PriceList {
         GasCharge::new(
             "OnVerifyConsensusFault",
             Zero::zero(),
-            self.extern_cost + self.verify_consensus_fault,
+            self.verify_consensus_fault,
         )
     }
 
     /// Returns the cost of the gas required for getting randomness from the client, based on the
-    /// numebr of bytes of entropy.
+    /// number of bytes of entropy.
     #[inline]
     pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge {
         const RAND_INITIAL_HASH: u64 =
@@ -703,21 +700,16 @@ impl PriceList {
         GasCharge::new(
             "OnGetRandomness",
             Zero::zero(),
-            self.extern_cost
-                + self.get_randomness // TODO(m2.2): consider different values for
-                + self
-                .hashing_cost[&SupportedHashes::Blake2b256].apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
+            self.get_randomness_seed
+                + self.hashing_cost[&SupportedHashes::Blake2b256]
+                    .apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
         )
     }
 
     /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
     pub fn on_block_open_base(&self) -> GasCharge {
-        GasCharge::new(
-            "OnBlockOpenBase",
-            Zero::zero(),
-            self.extern_cost + self.block_open.flat,
-        )
+        GasCharge::new("OnBlockOpenBase", Zero::zero(), self.block_open.flat)
     }
 
     /// Returns the gas required for loading an object based on the size of the object.
