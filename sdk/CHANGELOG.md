@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0 [2023-01-05]
+
+Refactor: `send` uses `Option<IpldBlock>` for return value
+  - `Send` no longer returns `Receipts`
+  - Instead, a new `Response` type captures the exit code and optional return data
+
 ## 2.1.0 [2022-12-12]
 
 Refactor: `send` and `message` use `Option<IpldBlock>` for params
