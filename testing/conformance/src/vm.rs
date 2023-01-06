@@ -10,6 +10,7 @@ use fvm::machine::{
     DefaultMachine, Engine, Machine, MachineContext, Manifest, MultiEngine, NetworkConfig,
 };
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::trace::ExecutionEvent;
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car_unchecked;
@@ -284,6 +285,8 @@ where
     fn invocation_count(&self) -> u64 {
         self.0.invocation_count()
     }
+
+    fn trace(&mut self, _event: ExecutionEvent) {}
 }
 
 /// A kernel for intercepting syscalls.
@@ -496,7 +499,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = TestCallManager<C>>,
 {
-    fn log(&self, msg: String) {
+    fn log(&mut self, msg: String) {
         self.0.log(msg)
     }
 

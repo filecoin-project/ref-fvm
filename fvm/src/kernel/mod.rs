@@ -329,7 +329,7 @@ pub trait RandomnessOps {
 /// Debugging APIs.
 pub trait DebugOps {
     /// Log a message.
-    fn log(&self, msg: String);
+    fn log(&mut self, msg: String);
 
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;
