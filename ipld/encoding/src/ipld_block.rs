@@ -1,4 +1,4 @@
-use std::fmt::{Formatter, Debug};
+use std::fmt::{Debug, Formatter};
 
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
@@ -15,7 +15,6 @@ pub struct IpldBlock {
 
 impl Debug for IpldBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        
         write!(f, "IpldBlock {{ ")?;
         write!(f, "codec: {:x}, data: [", self.codec)?;
 
@@ -79,12 +78,45 @@ mod test {
 
     #[test]
     fn debug_hex() {
-        assert_eq!("IpldBlock { codec: 0, data: [] }", format!("{:?}", IpldBlock { codec: 0, data: vec![] }));
-        assert_eq!("IpldBlock { codec: 1, data: [00] }", format!("{:?}", IpldBlock { codec: 1, data: vec![0] }));
-        assert_eq!("IpldBlock { codec: ab, data: [0f] }", format!("{:?}", IpldBlock { codec: 0xab, data: vec![15] }));
+        assert_eq!(
+            "IpldBlock { codec: 0, data: [] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0,
+                    data: vec![]
+                }
+            )
+        );
+        assert_eq!(
+            "IpldBlock { codec: 1, data: [00] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 1,
+                    data: vec![0]
+                }
+            )
+        );
+        assert_eq!(
+            "IpldBlock { codec: ab, data: [0f] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0xab,
+                    data: vec![15]
+                }
+            )
+        );
         assert_eq!(
             "IpldBlock { codec: aaaa, data: [00010a10ff] }",
-            format!("{:?}", IpldBlock { codec: 0xaaaa, data: vec![0, 1, 10, 16, 255]})
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0xaaaa,
+                    data: vec![0, 1, 10, 16, 255]
+                }
+            )
         );
     }
 }
