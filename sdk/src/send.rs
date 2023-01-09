@@ -3,19 +3,22 @@
 use std::convert::TryInto;
 
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::receipt::Receipt;
 use fvm_shared::sys::SendFlags;
 use fvm_shared::MethodNum;
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
+/// The outcome of a `Send`, covering its ExitCode and optional return data
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Response {
+    pub exit_code: ExitCode,
+    pub return_data: Option<IpldBlock>,
+}
+
 /// Sends a message to another actor.
-// TODO: Drop the use of receipts here as we don't return the gas used. Alternatively, we _could_
-// return gas used?
 pub fn send(
     to: &Address,
     method: MethodNum,
@@ -23,9 +26,9 @@ pub fn send(
     value: TokenAmount,
     gas_limit: Option<u64>,
     flags: SendFlags,
-) -> SyscallResult<Receipt> {
+) -> SyscallResult<Response> {
     let recipient = to.to_bytes();
-    let value: fvm_shared::sys::TokenAmount = value
+    let value: sys::TokenAmount = value
         .try_into()
         .map_err(|_| ErrorNumber::InsufficientFunds)?;
     unsafe {
@@ -40,7 +43,7 @@ pub fn send(
         let fvm_shared::sys::out::send::Send {
             exit_code,
             return_id,
-            return_codec: _, // assume cbor for now.
+            return_codec,
             return_size,
         } = sys::send::send(
             recipient.as_ptr(),
@@ -56,7 +59,7 @@ pub fn send(
         // Process the result.
         let exit_code = ExitCode::new(exit_code);
         let return_data = if return_id == NO_DATA_BLOCK_ID {
-            Default::default()
+            None
         } else {
             // Allocate a buffer to read the return data.
             let mut bytes = vec![0; return_size as usize];
@@ -64,14 +67,15 @@ pub fn send(
             // Now read the return data.
             let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
             assert_eq!(0, unread);
-            RawBytes::from(bytes)
+            Some(IpldBlock {
+                codec: return_codec,
+                data: bytes.to_vec(),
+            })
         };
 
-        Ok(Receipt {
+        Ok(Response {
             exit_code,
             return_data,
-            gas_used: 0,
-            events_root: Default::default(), // TODO; it's likely time to change the Receipt return type here.
         })
     }
 }
