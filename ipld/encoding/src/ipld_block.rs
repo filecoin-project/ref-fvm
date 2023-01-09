@@ -15,13 +15,21 @@ pub struct IpldBlock {
 
 impl Debug for IpldBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "IpldBlock {{ ")?;
-        write!(f, "codec: {:x}, data: [", self.codec)?;
-
-        for byte in &self.data {
-            write!(f, "{:02x}", byte)?;
+        struct HexFmtHelper<'a>(&'a [u8]);
+        impl Debug for HexFmtHelper<'_> {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "[")?;
+                for byte in self.0 {
+                    write!(f, "{:02x}", byte)?;
+                }
+                write!(f, "]")
+            }
         }
-        write!(f, "] }}")
+
+        f.debug_struct("IpldBlock")
+            .field("codec", &format_args!("{:x}", self.codec))
+            .field("data", &HexFmtHelper(&self.data))
+            .finish()
     }
 }
 
