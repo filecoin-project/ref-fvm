@@ -121,7 +121,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             )
             .unwrap();
             assert!(output.exit_code.is_success());
-            assert_eq!(output.return_data.bytes(), b"output");
+            assert_eq!(output.return_data.unwrap().data, b"output");
 
             // Aborts should work.
             let output = sdk::send::send(
@@ -149,7 +149,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             )
             .unwrap();
             assert!(output.exit_code.is_success());
-            assert_eq!(output.return_data.bytes(), b"output");
+            assert_eq!(output.return_data.unwrap().data, b"output");
 
             // Should be able to emit events.
             let evt = vec![Entry {
