@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.20 [2023-01-09]
+
+- Remove the Cbor trait and its uses
+- Refactor: `send` uses `Option<IpldBlock>` for return value
+  - `Send` no longer returns `Receipts`
+  - Instead, a new `Response` type captures the exit code and optional return data
+
 ## 3.0.0-alpha.19 [2022-12-17]
 
 - feat: only store delegated addresses in the state-tree
