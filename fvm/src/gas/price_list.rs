@@ -219,7 +219,7 @@ lazy_static! {
 
         block_memory_retention: ScalingCost {
             flat: Gas::zero(),
-            scale: Gas::new(8),
+            scale: Gas::new(10),
         },
 
         block_open: ScalingCost {
@@ -714,10 +714,18 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
+        // These are the actual compute costs involved.
+        let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
+        let block_open = self.block_open.scale * data_size;
+
+        // But we need to make sure we charge at least the memory retention cost.
+        let retention_min = self.block_memory_retention.apply(data_size);
+        let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
         GasCharge::new(
             "OnBlockOpenPerByte",
-            self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size),
-            self.block_memory_retention.apply(data_size) + (self.block_open.scale * data_size),
+            compute,
+            // We charge the `block_open` fee as "extra" to make sure the FVM benchmarks still work.
+            block_open + retention_surcharge,
         )
     }
 
@@ -734,11 +742,14 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
-        GasCharge::new(
-            "OnBlockCreate",
-            self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size),
-            self.block_memory_retention.apply(data_size),
-        )
+        // These are the actual compute costs involved.
+        let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
+
+        // But we need to make sure we charge at least the memory retention cost.
+        let retention_min = self.block_memory_retention.apply(data_size);
+        let retention_surcharge = (retention_min - compute).max(Gas::zero());
+
+        GasCharge::new("OnBlockCreate", compute, retention_surcharge)
     }
 
     /// Returns the gas required for committing an object to the state blockstore.
@@ -1216,4 +1227,15 @@ impl Rules for WasmGasPrices {
     fn linear_calc_cost(&self) -> u64 {
         0
     }
+}
+
+#[test]
+fn test_read_write() {
+    // The math for these operations is complicated, so we explicitly test to make sure we're
+    // getting the expected 10 gas/byte.
+    assert_eq!(
+        HYGGE_PRICES.on_block_open_per_byte(10).total(),
+        Gas::new(100)
+    );
+    assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
 }
