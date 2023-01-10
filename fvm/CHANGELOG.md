@@ -4,9 +4,23 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 3.0.0-alpha.18 [UNRELEASED]
+## 3.0.0-alpha.18 [2022-01-10]
 
+- Remove the CBOR trait
+  - the `read_cbor` syscall is implemented over `DeserializeOwned`
+- Executor: Always transform embryo to eth_account if executing message
 - Rename embryo -> placeholder
+- Kernel: remove support for non-key addresses from `verify_signature`
+- Gas: Make the block "read" charge more accurate 
+- StateTree: Rewrite snapshotting to have O(1) lookups
+  - Maintain an undo history instead of true state "layers"
+- Kernel: fix: return `NotFound` from `balance_of`
+- feat: refactor memory limits and apply to tables
+  - Refactors memory limits to remove the per-instance limits from the limiter itself
+  - Removes wasmtime interfaces from the limiter, instead implementing a wrapper\
+- Gas: Finalize write costs
+- Gas: Remove the explicit extern cost
+- CallManager: Change the recursive call limit to 1024
 
 ## 3.0.0-alpha.17 [2022-12-19]
 
