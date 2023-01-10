@@ -217,7 +217,7 @@ lazy_static! {
             scale: Gas::from_milligas(400),
         },
 
-        block_memory_retention: ScalingCost {
+        block_memory_retention_minimum: ScalingCost {
             flat: Gas::zero(),
             scale: Gas::new(10),
         },
@@ -429,7 +429,7 @@ pub struct PriceList {
     ///
     /// This is just a _minimum_. The final per-byte charge of retaining a block is:
     /// `min(block_memory_retention.scale, compute_costs)`.
-    pub(crate) block_memory_retention: ScalingCost,
+    pub(crate) block_memory_retention_minimum: ScalingCost,
 
     /// Gas cost for opening a block.
     pub(crate) block_open: ScalingCost,
@@ -720,7 +720,7 @@ impl PriceList {
         let block_open = self.block_open.scale * data_size;
 
         // But we need to make sure we charge at least the memory retention cost.
-        let retention_min = self.block_memory_retention.apply(data_size);
+        let retention_min = self.block_memory_retention_minimum.apply(data_size);
         let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
         GasCharge::new(
             "OnBlockOpenPerByte",
@@ -747,7 +747,7 @@ impl PriceList {
         let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
 
         // But we need to make sure we charge at least the memory retention cost.
-        let retention_min = self.block_memory_retention.apply(data_size);
+        let retention_min = self.block_memory_retention_minimum.apply(data_size);
         let retention_surcharge = (retention_min - compute).max(Gas::zero());
 
         GasCharge::new("OnBlockCreate", compute, retention_surcharge)
