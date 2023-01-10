@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use serde::de::value;
@@ -5,10 +7,30 @@ use {serde, serde_ipld_dagcbor};
 
 use crate::{CodecProtocol, Error, RawBytes, DAG_CBOR, IPLD_RAW};
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct IpldBlock {
     pub codec: u64,
     pub data: Vec<u8>,
+}
+
+impl Debug for IpldBlock {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        struct HexFmtHelper<'a>(&'a [u8]);
+        impl Debug for HexFmtHelper<'_> {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "[")?;
+                for byte in self.0 {
+                    write!(f, "{:02x}", byte)?;
+                }
+                write!(f, "]")
+            }
+        }
+
+        f.debug_struct("IpldBlock")
+            .field("codec", &format_args!("{:x}", self.codec))
+            .field("data", &HexFmtHelper(&self.data))
+            .finish()
+    }
 }
 
 impl IpldBlock {
@@ -55,5 +77,54 @@ impl From<RawBytes> for Option<IpldBlock> {
             codec: DAG_CBOR,
             data: other.into(),
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::IpldBlock;
+
+    #[test]
+    fn debug_hex() {
+        assert_eq!(
+            "IpldBlock { codec: 0, data: [] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0,
+                    data: vec![]
+                }
+            )
+        );
+        assert_eq!(
+            "IpldBlock { codec: 1, data: [00] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 1,
+                    data: vec![0]
+                }
+            )
+        );
+        assert_eq!(
+            "IpldBlock { codec: ab, data: [0f] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0xab,
+                    data: vec![15]
+                }
+            )
+        );
+        assert_eq!(
+            "IpldBlock { codec: aaaa, data: [00010a10ff] }",
+            format!(
+                "{:?}",
+                IpldBlock {
+                    codec: 0xaaaa,
+                    data: vec![0, 1, 10, 16, 255]
+                }
+            )
+        );
     }
 }
