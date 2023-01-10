@@ -225,13 +225,9 @@ lazy_static! {
         block_open: ScalingCost {
             // This was benchmarked (#1264) at 187440 gas/read.
             flat: Gas::new(187440),
-            // It costs takes about 0.562 ns/byte (5.6gas) to "read" from a client. However, that
+            // It costs takes about 0.567 ns/byte (5.7gas) to "read" from a client. However, that
             // includes one allocation and memory copy, which we charge for separately.
-            //
-            // We disable this charge now because it's entirely covered by the "memory retention"
-            // cost. If we do drop the memory retention cost, we need to re-enable this.
-            /* scale: Gas::from_milligas(3200), */
-            scale: Gas::zero(),
+            scale: Gas::from_milligas(3300),
         },
 
         block_persist_storage: ScalingCost {
@@ -427,8 +423,9 @@ pub struct PriceList {
     /// Minimum gas cost for every block retained in memory (read and/or written) to ensure we can't
     /// retain more than 1GiB of memory while executing a block.
     ///
-    /// This is just a _minimum_. The final per-byte charge of retaining a block is:
-    /// `min(block_memory_retention.scale, compute_costs)`.
+    /// This is just a _minimum_ per-byte fee. To compute the actual cost, we take the maximum of
+    /// the memory retention fee and the actual cost of reading/writing a block. Due to the
+    /// significant cost of opening blocks, this fee should only kick in for newly _created_ blocks.
     pub(crate) block_memory_retention_minimum: ScalingCost,
 
     /// Gas cost for opening a block.
@@ -717,16 +714,22 @@ impl PriceList {
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
         // These are the actual compute costs involved.
         let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
-        let block_open = self.block_open.scale * data_size;
+        // We've already charged the "base" before we tried to open it, so now we just need to
+        // charge the variable amount.
+        let block_open_variable = self.block_open.scale * data_size;
 
         // But we need to make sure we charge at least the memory retention cost.
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
-        let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
+        // To compute the memory retention surcharge, we need to know how much we've charged for
+        // this block so far
+        let total_charged = compute + self.block_open.flat + block_open_variable;
+        let retention_surcharge = (retention_min - total_charged).max(Gas::zero());
         GasCharge::new(
             "OnBlockOpenPerByte",
             compute,
-            // We charge the `block_open` fee as "extra" to make sure the FVM benchmarks still work.
-            block_open + retention_surcharge,
+            // We charge the `block_open_variable` fee as "extra" to make sure the FVM benchmarks
+            // still work.
+            block_open_variable + retention_surcharge,
         )
     }
 
@@ -1233,10 +1236,23 @@ impl Rules for WasmGasPrices {
 #[test]
 fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
-    // getting the expected 10 gas/byte.
+    // getting the expected rates.
+
+    // For small blocks, we expect the block open cost to be 5.7gas/byte.
     assert_eq!(
         HYGGE_PRICES.on_block_open_per_byte(10).total(),
-        Gas::new(100)
+        Gas::new(57)
     );
+
+    // For very large blocks, the memory retention fee should dominate and the total gas used should
+    // equal the number of bytes times the memory retention fee.
+    const SIZE: usize = 1_000_000_000;
+    assert_eq!(
+        HYGGE_PRICES.on_block_open_per_byte(SIZE).total()
+            + HYGGE_PRICES.on_block_open_base().total(),
+        HYGGE_PRICES.block_memory_retention_minimum.apply(SIZE)
+    );
+
+    // For new blocks, the memory retention fee always dominates.
     assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
 }
