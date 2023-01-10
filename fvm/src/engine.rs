@@ -11,10 +11,7 @@ use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{
-    Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
-    Module, Mutability, PoolingAllocationStrategy, Val, ValType,
-};
+use wasmtime::{Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability, PoolingAllocationStrategy, Val, ValType};
 
 use crate::gas::{GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
@@ -102,16 +99,15 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: OnDemand
     // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
-    c.allocation_strategy(InstanceAllocationStrategy::Pooling {
-        strategy: PoolingAllocationStrategy::ReuseAffinity,
-        instance_limits: InstanceLimits {
-            count: instance_count,
-            // Adjust the maximum amount of host memory that can be committed to an instance to
-            // match the static linear memory size we reserve for each slot.
-            memory_pages: instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
-            ..Default::default()
-        },
-    });
+
+    let mut alloc_strat_cfg = wasmtime::PoolingAllocationConfig::default();
+    alloc_strat_cfg.strategy(PoolingAllocationStrategy::ReuseAffinity);
+    alloc_strat_cfg.instance_count(instance_count);
+
+    // Adjust the maximum amount of host memory that can be committed to an instance to
+    // match the static linear memory size we reserve for each slot.
+    alloc_strat_cfg.instance_memory_pages(instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64));
+    c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
     // wasmtime default: true
     // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
