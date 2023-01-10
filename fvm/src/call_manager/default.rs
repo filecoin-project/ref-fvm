@@ -712,20 +712,7 @@ where
     where
         F: FnOnce(&mut Self) -> Result<V>,
     {
-        // We check _then_ set because we don't count the top call. This effectively allows a
-        // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
-        // likely a bug, this is how NV15 behaves so we mimic that behavior here.
-        //
-        // By example:
-        //
-        // 1. If the max depth is 0, call_stack_depth will be 1 and the top-level message won't be
-        //    able to make sub-calls (1 > 0).
-        // 2. If the max depth is 1, the call_stack_depth will be 1 in the top-level message, 2 in
-        //    sub-calls, and said sub-calls will not be able to make further subcalls (2 > 1).
-        //
-        // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
-        // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.context().max_call_depth {
+        if self.call_stack_depth >= self.machine.context().max_call_depth {
             let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
             if self.machine.context().tracing {
                 self.trace(ExecutionEvent::CallError(sys_err.clone()));

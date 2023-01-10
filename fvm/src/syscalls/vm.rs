@@ -15,7 +15,7 @@ pub enum Never {}
 
 unsafe impl SyscallSafe for Never {}
 
-/// The maximum message length included in the backtrace. Given 1025 levels, this gives us a total
+/// The maximum message length included in the backtrace. Given 1024 levels, this gives us a total
 /// maximum of around 1MiB for debugging.
 const MAX_MESSAGE_LEN: usize = 1024;
 

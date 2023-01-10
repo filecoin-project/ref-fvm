@@ -11,7 +11,7 @@ pub fn invoke(_: u32) -> u32 {
     let m = sdk::message::method_number();
     // If we start with method 1, we'll be over recursive send limit, starting
     // with method 2 should be fine
-    if m > 1026 {
+    if m > 1025 {
         sdk::vm::abort(0x42, None);
     }
 
