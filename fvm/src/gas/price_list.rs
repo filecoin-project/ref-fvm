@@ -424,10 +424,11 @@ pub struct PriceList {
     /// Gas cost per byte allocated (computation cost).
     pub(crate) block_allocate: ScalingCost,
 
-    /// Gas cost for every block retained in memory (read and/or written) to ensure we can't retain
-    /// more than 1GiB of memory while executing a block.
+    /// Minimum gas cost for every block retained in memory (read and/or written) to ensure we can't
+    /// retain more than 1GiB of memory while executing a block.
     ///
-    /// This is applied along with `block_allocate` but kept separate so we can benchmark properly.
+    /// This is just a _minimum_. The final per-byte charge of retaining a block is:
+    /// `min(block_memory_retention.scale, compute_costs)`.
     pub(crate) block_memory_retention: ScalingCost,
 
     /// Gas cost for opening a block.
