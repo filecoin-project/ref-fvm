@@ -99,7 +99,10 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let epoch = variant.epoch;
         let state_root = v.preconditions.state_tree.root_cid;
 
-        let externs = TestExterns::new(&v.randomness);
+        let mut externs = TestExterns::new(&v.randomness);
+        if let Some(tipset_cids) = v.tipset_cids.clone() {
+            externs.tipset_cids = tipset_cids;
+        }
 
         // Load the builtin actors bundles into the blockstore.
         let nv_actors = TestMachine::import_actors(&blockstore);
@@ -110,8 +113,14 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
             .ok_or_else(|| anyhow!("no builtin actors index for NV {network_version}"))?;
 
         let mut nc = NetworkConfig::new(network_version);
+        if let Some(chain_id) = v.chain_id {
+            nc.chain_id = chain_id.into();
+        }
         nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
+        if let Some(timestap) = variant.timestamp {
+            mc.timestamp = timestap;
+        }
         // Allow overriding prices to some other network version.
         if let Some(nv) = price_network_version {
             nc.price_list = price_list_by_network_version(nv);

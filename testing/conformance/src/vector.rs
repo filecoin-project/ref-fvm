@@ -16,8 +16,10 @@ use futures::AsyncRead;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::tuple::*;
+use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::ActorID;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Deserialize, Clone)]
@@ -90,6 +92,7 @@ impl Selector {
 pub struct Variant {
     pub id: String,
     pub epoch: ChainEpoch,
+    pub timestamp: Option<u64>,
     pub nv: u32,
 }
 
@@ -122,7 +125,16 @@ pub struct RandomnessRule {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct TipsetCid {
+    pub epoch: ChainEpoch,
+    #[serde(with = "super::cidjson")]
+    pub cid: Cid,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct MessageVector {
+    pub chain_id: Option<u64>,
+
     pub selector: Option<Selector>,
     #[serde(rename = "_meta")]
     pub meta: Option<MetaData>,
@@ -133,8 +145,18 @@ pub struct MessageVector {
     pub apply_messages: Vec<ApplyMessage>,
     pub postconditions: PostConditions,
 
+    pub skip_compare_gas_used: bool,
+    #[serde(with = "address_vec")]
+    pub skip_compare_addresses: Option<Vec<Address>>,
+    pub skip_compare_actor_ids: Option<Vec<ActorID>>,
+    #[serde(with = "address_vec")]
+    pub additional_compare_addresses: Option<Vec<Address>>,
+
     #[serde(default)]
     pub randomness: Randomness,
+
+    #[serde(default)]
+    pub tipset_cids: Option<Vec<TipsetCid>>,
 }
 
 impl MessageVector {
@@ -257,6 +279,29 @@ mod message_receipt_vec {
                 events_root: None,
             })
             .collect())
+    }
+}
+
+mod address_vec {
+    use std::str::FromStr;
+
+    use serde::{Deserialize, Deserializer};
+
+    use super::*;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<Address>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<Vec<String>> = Deserialize::deserialize(deserializer)?;
+        if let Some(data) = s {
+            let addr_strs: Vec<Address> = data
+                .into_iter()
+                .map(|v| Address::from_str(v.as_str()).unwrap())
+                .collect();
+            return Ok(Some(addr_strs));
+        }
+        Ok(None)
     }
 }
 

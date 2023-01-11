@@ -66,7 +66,12 @@ pub fn is_runnable(entry: &DirEntry) -> bool {
 }
 
 /// Compares the result of running a message with the expected result.
-fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display) -> Result<()> {
+fn check_msg_result(
+    expected_rec: &Receipt,
+    ret: &ApplyRet,
+    label: impl Display,
+    skip_compare_gas_used: bool,
+) -> Result<()> {
     let error = ret
         .failure_info
         .as_ref()
@@ -94,14 +99,16 @@ fn check_msg_result(expected_rec: &Receipt, ret: &ApplyRet, label: impl Display)
         ));
     }
 
-    let (expected, actual) = (expected_rec.gas_used, actual_rec.gas_used);
-    if expected != actual {
-        return Err(anyhow!(
-            "gas used of msg {} did not match; expected: {}, got {}",
-            label,
-            expected,
-            actual
-        ));
+    if !skip_compare_gas_used {
+        let (expected, actual) = (expected_rec.gas_used, actual_rec.gas_used);
+        if expected != actual {
+            return Err(anyhow!(
+                "gas used of msg {} did not match; expected: {}, got {}",
+                label,
+                expected,
+                actual
+            ));
+        }
     }
 
     Ok(())
@@ -112,9 +119,9 @@ fn compare_actors(
     identifier: impl Display,
     actual: Option<ActorState>,
     expected: Option<ActorState>,
-) -> Result<()> {
+) -> Result<bool> {
     if actual == expected {
-        return Ok(());
+        return Ok(true);
     }
     log::error!(
         "{} actor state differs: {:?} != {:?}",
@@ -139,14 +146,24 @@ fn compare_actors(
         }
         _ => {}
     }
-    Ok(())
+    Ok(false)
 }
 
 /// Compares the state-root with the postcondition state-root in the test vector. If they don't
 /// match, it performs a basic actor & state-diff of the message senders and receivers in the test
 /// vector, along with all system actors.
 fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector) -> Result<()> {
-    if root == &vector.postconditions.state_tree.root_cid {
+    let skip_compare_addresses = vector.skip_compare_addresses.clone();
+    let skip_compare_actor_ids = vector.skip_compare_actor_ids.clone();
+    let additional_compare_addresses = vector.additional_compare_addresses.clone();
+
+    let mut need_compare_root = false;
+    let mut compare_actors_success = true;
+    if matches!(skip_compare_addresses, None) && matches!(skip_compare_actor_ids, None) {
+        need_compare_root = true;
+    }
+
+    if need_compare_root && root == &vector.postconditions.state_tree.root_cid {
         return Ok(());
     }
 
@@ -160,35 +177,68 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
 
     for m in &vector.apply_messages {
         let msg: Message = from_slice(&m.bytes)?;
-        let actual_actor = actual_st.get_actor_by_address(&msg.from)?;
-        let expected_actor = expected_st.get_actor_by_address(&msg.from)?;
-        compare_actors(bs, "sender", actual_actor, expected_actor)?;
+        if matches!(skip_compare_addresses.clone(), Some(skip_addrs) if !skip_addrs.contains(&msg.from))
+        {
+            let actual_actor = actual_st.get_actor_by_address(&msg.from)?;
+            let expected_actor = expected_st.get_actor_by_address(&msg.from)?;
+            if !compare_actors(bs, "sender", actual_actor, expected_actor)? {
+                compare_actors_success = false;
+            }
+        }
 
-        let actual_actor = actual_st.get_actor_by_address(&msg.to)?;
-        let expected_actor = expected_st.get_actor_by_address(&msg.to)?;
-        compare_actors(bs, "receiver", actual_actor, expected_actor)?;
+        if matches!(skip_compare_addresses.clone(), Some(skip_addrs) if !skip_addrs.contains(&msg.to))
+        {
+            let actual_actor = actual_st.get_actor_by_address(&msg.to)?;
+            let expected_actor = expected_st.get_actor_by_address(&msg.to)?;
+            if !compare_actors(bs, "receiver", actual_actor, expected_actor)? {
+                compare_actors_success = false;
+            }
+        }
+    }
+
+    if let Some(addrs) = additional_compare_addresses {
+        for addr in addrs {
+            let actual_actor = actual_st.get_actor_by_address(&addr)?;
+            let expected_actor = expected_st.get_actor_by_address(&addr)?;
+            if !compare_actors(bs, &addr.to_string(), actual_actor, expected_actor)? {
+                compare_actors_success = false;
+            }
+        }
     }
 
     // All system actors
     for id in 0..100 {
+        if matches!(skip_compare_actor_ids.clone(), Some(skip_actor_ids) if skip_actor_ids.contains(&id))
+        {
+            continue;
+        }
         let expected_actor = match expected_st.get_actor(id) {
             Ok(act) => act,
             Err(_) => continue, // we don't expect it anyways.
         };
         let actual_actor = actual_st.get_actor(id)?;
-        compare_actors(
+        if !compare_actors(
             bs,
             format_args!("builtin {}", id),
             actual_actor,
             expected_actor,
-        )?;
+        )? {
+            compare_actors_success = false;
+        }
     }
 
-    Err(anyhow!(
-        "wrong post root cid; expected {}, but got {}",
-        &vector.postconditions.state_tree.root_cid,
-        root
-    ))
+    if need_compare_root {
+        return Err(anyhow!(
+            "wrong post root cid; expected {}, but got {}",
+            &vector.postconditions.state_tree.root_cid,
+            root
+        ));
+    } else {
+        if compare_actors_success {
+            return Ok(());
+        }
+        return Err(anyhow!("compare actors fail"));
+    }
 }
 
 /// Represents the result from running a vector.
@@ -263,7 +313,7 @@ pub fn run_variant(
         if check_correctness {
             // Compare the actual receipt with the expected receipt.
             let expected_receipt = &v.postconditions.receipts[i];
-            if let Err(err) = check_msg_result(expected_receipt, &ret, i) {
+            if let Err(err) = check_msg_result(expected_receipt, &ret, i, v.skip_compare_gas_used) {
                 return Ok(VariantResult::Failed { id, reason: err });
             }
         }

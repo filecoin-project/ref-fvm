@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 extern crate criterion;
 
+use colored::*;
 use criterion::*;
 use fvm::engine::MultiEngine;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm::machine::Machine;
 use fvm_conformance_tests::driver::*;
+use fvm_conformance_tests::report;
 use fvm_conformance_tests::vector::{MessageVector, Variant};
 use fvm_conformance_tests::vm::{TestKernel, TestMachine};
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -145,6 +147,17 @@ pub fn bench_vector_file(
                 engines,
             );
         } else {
+            match testresult {
+                VariantResult::Failed { reason, id } => {
+                    report!("FAIL".white().on_red(), name, id);
+                    println!("\t|> reason: {:#}", reason);
+                }
+                VariantResult::Skipped { reason, id } => {
+                    report!("SKIP".on_yellow(), name, id);
+                    println!("\t|> reason: {}", reason);
+                }
+                _ => (),
+            };
             return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", check_strength, name));
         };
     }
