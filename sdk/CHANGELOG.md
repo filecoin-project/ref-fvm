@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.21 [2023-01-11]
+
+- SDK: refactor: exit takes Option<IpldBlock>
+
 ## 3.0.0-alpha.20 [2023-01-09]
 
 - Remove the Cbor trait and its uses
