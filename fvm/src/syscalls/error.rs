@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
+use std::fmt;
 
 use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{BlockId, ExecutionError};
@@ -50,13 +51,33 @@ impl Abort {
     }
 }
 
-/// Wraps an execution error in a Trap.
+impl fmt::Display for Abort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Abort::*;
+
+        // todo make this less bad
+        let desc = match self {
+            Exit(_, _, _) => "exit",
+            OutOfGas => "out of gas",
+            Fatal(_) => "fatal error",
+        };
+        write!(f, "wasm trap: {desc}")
+    }
+}
+
+impl std::error::Error for Abort {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self)
+    }
+}
+
+/*/// Wraps an execution error in a Trap.
 impl From<Abort> for Trap {
     fn from(a: Abort) -> Self {
         Trap::from(Box::new(Envelope::wrap(a)) as Box<dyn std::error::Error + Send + Sync + 'static>)
     }
-}
-
+}*/
+/*
 /// Unwraps a trap error from an actor into an "abort".
 impl From<Trap> for Abort {
     fn from(t: Trap) -> Self {
@@ -79,8 +100,8 @@ impl From<Trap> for Abort {
             .unwrap_or_else(|| Abort::Fatal(t.into()))
     }
 }
-
-/// A super special secret error type for stapling an error to a trap in a way that allows us to
+*/
+/*/// A super special secret error type for stapling an error to a trap in a way that allows us to
 /// pull it back out.
 ///
 /// BE VERY CAREFUL WITH THIS ERROR TYPE: Its source is self-referential.
@@ -105,4 +126,4 @@ impl std::error::Error for Envelope {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(self)
     }
-}
+}*/
