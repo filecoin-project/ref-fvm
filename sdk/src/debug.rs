@@ -35,6 +35,7 @@ mod inner {
     pub fn init_logging() {
         if enabled() {
             log::set_logger(&Logger).expect("failed to enable logging");
+            log::set_max_level(log::LevelFilter::Trace);
         }
     }
 
