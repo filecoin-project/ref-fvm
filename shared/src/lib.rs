@@ -32,6 +32,9 @@ pub mod sys;
 pub mod version;
 
 use econ::TokenAmount;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
+
+use crate::error::ExitCode;
 
 lazy_static! {
     /// Total Filecoin available to the network.
@@ -105,3 +108,10 @@ pub type MethodNum = u64;
 pub const METHOD_SEND: MethodNum = 0;
 /// Base actor constructor method.
 pub const METHOD_CONSTRUCTOR: MethodNum = 1;
+
+/// The outcome of a `Send`, covering its ExitCode and optional return data
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Response {
+    pub exit_code: ExitCode,
+    pub return_data: Option<IpldBlock>,
+}

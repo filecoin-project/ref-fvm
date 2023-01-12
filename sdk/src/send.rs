@@ -7,16 +7,9 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::sys::SendFlags;
-use fvm_shared::MethodNum;
+use fvm_shared::{MethodNum, Response};
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
-
-/// The outcome of a `Send`, covering its ExitCode and optional return data
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Response {
-    pub exit_code: ExitCode,
-    pub return_data: Option<IpldBlock>,
-}
 
 /// Sends a message to another actor.
 pub fn send(
