@@ -11,7 +11,10 @@ use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability, PoolingAllocationStrategy, Val, ValType};
+use wasmtime::{
+    Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability,
+    PoolingAllocationStrategy, Val, ValType,
+};
 
 use crate::gas::{GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
@@ -106,7 +109,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
-    alloc_strat_cfg.instance_memory_pages(instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64));
+    alloc_strat_cfg.instance_memory_pages(
+        instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
+    );
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
     // wasmtime default: true
