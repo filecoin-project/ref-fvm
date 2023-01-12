@@ -37,7 +37,7 @@ blake2b_simd = "1.0.0"
 
 
 [dependencies.wasmtime]
-version = "1.0.2"
+version = "4.0.0"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
