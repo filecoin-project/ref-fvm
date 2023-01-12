@@ -596,11 +596,7 @@ where
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
                 // here as an Abort
 
-                Ok(res.map_err(|e: anyhow::Error|match e.anyhow_kind() {
-                    // translate  anyhow error we get into an abort
-                    wasmtime::Trap => e,
-                    Abort => e,
-                })?)
+                Ok(res?)
             })();
 
             let invocation_data = store.into_data();
