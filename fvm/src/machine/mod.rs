@@ -131,6 +131,11 @@ pub struct NetworkConfig {
     /// DEFAULT: 2GiB
     pub max_memory_bytes: u64,
 
+    /// The maximum blocks size that can be created in the FVM.
+    ///
+    /// DEFAULT: 1MiB
+    pub max_block_size: usize,
+
     /// An override for builtin-actors. If specified, this should be the CID of a builtin-actors
     /// "manifest".
     ///
@@ -165,6 +170,7 @@ impl NetworkConfig {
             builtin_actors_override: None,
             price_list: price_list_by_network_version(network_version),
             actor_redirect: vec![],
+            max_block_size: 1 << 20,
         }
     }
 

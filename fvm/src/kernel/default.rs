@@ -249,6 +249,10 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        if data.len() > self.machine().context().max_block_size {
+            return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
+        }
+
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
