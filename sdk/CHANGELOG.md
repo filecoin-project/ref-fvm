@@ -2,9 +2,13 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.22 [2023-01-12]
+
+- Refactor: Move Response from SDK to shared
+
 ## 3.0.0-alpha.21 [2023-01-11]
 
-- SDK: refactor: exit takes Option<IpldBlock>
+- Refactor: exit takes Option<IpldBlock>
 
 ## 3.0.0-alpha.20 [2023-01-09]
 
