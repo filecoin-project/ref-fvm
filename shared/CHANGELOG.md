@@ -4,6 +4,11 @@
 
 - ...
 
+## 3.0.0-alpha.16 [2023-01-12]
+
+- Remove uses of the Cbor trait
+- Refactor: Move Response from SDK to shared
+
 ## 3.0.0-alpha.15 [2022-12-14]
 
 - Refactor: ChainID was moved from FVM to shared
