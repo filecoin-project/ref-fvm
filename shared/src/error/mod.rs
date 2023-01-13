@@ -90,7 +90,7 @@ impl ExitCode {
     pub const USR_ILLEGAL_ARGUMENT: ExitCode = ExitCode::new(16);
     /// The requested resource does not exist.
     pub const USR_NOT_FOUND: ExitCode = ExitCode::new(17);
-    /// The requested operation is not forbidden.
+    /// The requested operation is forbidden.
     pub const USR_FORBIDDEN: ExitCode = ExitCode::new(18);
     /// The actor has insufficient funds to perform the requested operation.
     pub const USR_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(19);
