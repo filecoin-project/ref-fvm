@@ -1,0 +1,60 @@
+[package]
+name = "fevm-test-vectors"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/froghub-io/fevm-test-vectors.git"
+
+[lib]
+
+[dependencies]
+fil_actors_runtime = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next", features = [ "test_utils" ] }
+fil_actor_init = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_cron = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_system = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_account = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_reward = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_evm = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+fil_actor_eam = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next", features = ["m2-native"] }
+
+anyhow = "1.0.65"
+bimap = { version = "0.6.2" }
+blake2b_simd = "1.0"
+cid = { version = "0.8.3", default-features = false, features = ["serde-codec"] }
+fvm_actor_utils = "2.0.0"
+fvm_ipld_bitfield = "0.5.4"
+fvm_ipld_blockstore = { version = "0.1.1", default-features = false }
+fvm_ipld_encoding = { version = "0.3.2", default-features = false }
+fvm_ipld_hamt = "0.6.1"
+fvm_shared = { version = "=3.0.0-alpha.15", default-features = false }
+indexmap = { version = "1.8.0", features = ["serde-1"] }
+integer-encoding = { version = "3.0.3", default-features = false }
+lazy_static = "1.4.0"
+log = "0.4.14"
+fil_logger = "0.1.0"
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+regex = "1"
+serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1.0.30"
+fvm_ipld_kamt = { version = "0.1.0" }
+fvm_ipld_car = "0.6.0"
+async-std = { version = "1.9", features = ["attributes"] }
+tokio-stream = "0.1"
+flate2 = { version = "1.0" }
+base64 = "0.13.0"
+serde_json = "1.0.87"
+serde_tuple = "0.5.0"
+hex = "0.4.3"
+bytes = { version = "1.1.0", features = ["serde"], default-features = false }
+rlp = { version = "0.5.1", default-features = false }
+multihash = { version = "0.16.1", default-features = false }
+tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }
+ethers = { version = "1.0.2" }
+clap = { version = "3.2.3", features = ["derive"] }
+walkdir = "2.3.2"
+
+[features]
+m2-native = []
