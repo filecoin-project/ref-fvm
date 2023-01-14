@@ -274,11 +274,13 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
+        // TODO::PARAM
         event_validation_cost: ScalingCost {
             flat: Zero::zero(),
             scale: Zero::zero(),
         },
 
+        // TODO::PARAM
         event_accept_per_index_element: ScalingCost {
             flat: Zero::zero(),
             scale: Zero::zero(),
