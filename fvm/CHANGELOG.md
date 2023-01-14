@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.19 [2022-01-13]
+
+- Adjust memory retention gas fees.
+- Add a basic block-size limit of 1MiB.
+- Update wasmtime to v2.0.2
+
 ## 3.0.0-alpha.18 [2022-01-10]
 
 - Remove the CBOR trait
