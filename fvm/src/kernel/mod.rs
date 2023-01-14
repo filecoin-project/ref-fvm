@@ -29,7 +29,7 @@ pub mod default;
 pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
-use fvm_shared::event::{StampedEvent};
+use fvm_shared::event::StampedEvent;
 pub use hash::SupportedHashes;
 use multihash::MultihashGeneric;
 

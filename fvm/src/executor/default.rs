@@ -5,8 +5,6 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-
-
 use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
@@ -18,7 +16,6 @@ use fvm_shared::{ActorID, IPLD_RAW, METHOD_SEND};
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
-
 use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
