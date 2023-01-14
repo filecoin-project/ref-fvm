@@ -747,8 +747,8 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
     M: Machine,
 {
-    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
-        self.0.emit_event(evt)
+    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+        self.0.emit_event(raw_evt)
     }
 }
 

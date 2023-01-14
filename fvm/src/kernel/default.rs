@@ -978,17 +978,35 @@ impl<C> EventOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+        let len = raw_evt.len() as usize;
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
+            .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
 
-        // TODO eventually validate entries
-        //  https://github.com/filecoin-project/ref-fvm/issues/1082
+        let actor_evt = match panic::catch_unwind(|| {
+            fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
+        }) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("panic when decoding cbor from actor: {:?}", e);
+                Err(syscall_error!(IllegalArgument; "panic when decoding cbor from actor").into())
+            }
+        }?;
 
-        let evt = StampedEvent::new(self.actor_id, evt);
-        self.call_manager.append_event(evt);
         t.stop();
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_actor_event_accept(&actor_evt, len),
+        )?;
+
+        let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
+        self.call_manager.append_event(stamped_evt);
+
+        t.stop();
+
         Ok(())
     }
 }

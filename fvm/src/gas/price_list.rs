@@ -274,18 +274,16 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // NOTE: we currently "flush" events, but we need to stop doing that except when asked.
-        // For now, just charge for the basic costs.
-        // Also: Let's get all the other costs first, then we can work on these.
+        event_validation_cost: ScalingCost {
+            flat: Zero::zero(),
+            scale: Zero::zero(),
+        },
 
-        // TODO(#1279)
-        event_emit_base_cost: Zero::zero(),
-        // TODO(#1279)
-        event_per_entry_cost: Zero::zero(),
-        // TODO(#1279)
-        event_entry_index_cost: Zero::zero(),
-        // TODO(#1279)
-        event_per_byte_cost: Zero::zero(),
+        event_accept_per_index_element: ScalingCost {
+            flat: Zero::zero(),
+            scale: Zero::zero(),
+        }
+
     };
 }
 
@@ -446,11 +444,12 @@ pub struct PriceList {
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
 
-    // Event-related pricing factors.
-    pub(crate) event_emit_base_cost: Gas,
-    pub(crate) event_per_entry_cost: Gas,
-    pub(crate) event_entry_index_cost: Gas,
-    pub(crate) event_per_byte_cost: Gas,
+    /// Gas cost to validate an ActorEvent as soon as it's received from the actor, and prior
+    /// to it being parsed.
+    pub(crate) event_validation_cost: ScalingCost,
+
+    /// Gas cost of every indexed element, scaling per number of bytes indexed.
+    pub(crate) event_accept_per_index_element: ScalingCost,
 
     /// Gas cost of looking up an actor in the common state tree.
     ///
@@ -894,22 +893,45 @@ impl PriceList {
     }
 
     #[inline]
-    pub fn on_actor_event(&self, evt: &ActorEvent) -> GasCharge {
-        let (mut indexed_entries, mut total_bytes) = (0, 0);
-        for evt in evt.entries.iter() {
-            indexed_entries += evt
-                .flags
-                .intersection(Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE)
-                .bits()
-                .count_ones();
-            total_bytes += evt.key.len() + evt.value.bytes().len();
-        }
+    pub fn on_actor_event_validate(&self, data_size: usize) -> GasCharge {
+        let memcpy = self.block_memcpy.apply(data_size);
+        let alloc = self.block_allocate.apply(data_size);
+        let validate = self.event_validation_cost.apply(data_size);
 
         GasCharge::new(
-            "OnActorEvent",
-            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len()),
-            (self.event_entry_index_cost * indexed_entries)
-                + (self.event_per_byte_cost * total_bytes),
+            "OnActorEventValidate",
+            memcpy + alloc + validate,
+            Zero::zero(),
+        )
+    }
+
+    #[inline]
+    pub fn on_actor_event_accept(&self, evt: &ActorEvent, serialized_len: usize) -> GasCharge {
+        let (mut indexed_bytes, mut indexed_elements) = (0, 0);
+        for evt in evt.entries.iter() {
+            if evt.flags.contains(Flags::FLAG_INDEXED_KEY) {
+                indexed_bytes += evt.key.len();
+                indexed_elements += 1;
+            }
+            if evt.flags.contains(Flags::FLAG_INDEXED_VALUE) {
+                indexed_bytes += evt.value.len();
+                indexed_elements += 1;
+            }
+        }
+
+        // The estimated size of the serialized StampedEvent event, which includes the ActorEvent
+        // + 8 bytes for the actor ID + some bytes for CBOR framing.
+        const STAMP_EXTRA_SIZE: usize = 12;
+        let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
+
+        let memcpy = self.block_memcpy.apply(stamped_event_size);
+        let alloc = self.block_allocate.apply(stamped_event_size);
+
+        GasCharge::new(
+            "OnActorEventAccept",
+            memcpy.mul(3) + alloc,
+            self.event_accept_per_index_element.flat * indexed_elements
+                + self.event_accept_per_index_element.scale * indexed_bytes,
         )
     }
 }
