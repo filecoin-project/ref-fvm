@@ -36,7 +36,6 @@ pub fn invoke(_: u32) -> u32 {
 
     test_expected_hash();
     test_hash_syscall();
-    test_create_actor();
     test_network_context();
     test_message_context();
     test_balance();
@@ -44,30 +43,6 @@ pub fn invoke(_: u32) -> u32 {
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
     0
-}
-
-fn test_create_actor() {
-    let msig_cid = sdk::actor::get_code_cid_for_type(Type::Multisig as i32);
-    let acct_cid = sdk::actor::get_code_cid_for_type(Type::Account as i32);
-    let acct_addr = Address::new_secp256k1(&[0u8; SECP_PUB_LEN]).unwrap();
-
-    // Deploy
-    sdk::actor::create_actor(1000, &msig_cid, None).unwrap();
-    sdk::actor::create_actor(1001, &acct_cid, Some(acct_addr)).unwrap();
-
-    // Check addresses
-    assert_eq!(None, sdk::actor::lookup_delegated_address(1000));
-    assert_eq!(Some(acct_addr), sdk::actor::lookup_delegated_address(1001));
-
-    // Check code
-    assert_eq!(
-        msig_cid,
-        sdk::actor::get_actor_code_cid(&Address::new_id(1000)).unwrap()
-    );
-    assert_eq!(
-        acct_cid,
-        sdk::actor::get_actor_code_cid(&Address::new_id(1001)).unwrap()
-    );
 }
 
 // use SDK methods to hash and compares against locally (inside the actor) hashed digest

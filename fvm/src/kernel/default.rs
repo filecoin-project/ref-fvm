@@ -47,6 +47,9 @@ const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
 const FINALITY: i64 = 900;
 
+#[cfg(feature = "testing")]
+const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
+
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
@@ -820,11 +823,17 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
-        if self.caller != INIT_ACTOR_ID {
+        let allowed_actor = if cfg!(feature = "testing") {
+            TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR
+        } else {
+            INIT_ACTOR_ID
+        };
+
+        if self.actor_id != allowed_actor {
             return Err(syscall_error!(
                 Forbidden,
                 "create_actor is restricted to InitActor. Called by {}",
-                self.caller
+                self.actor_id
             )
             .into());
         }

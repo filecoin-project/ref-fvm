@@ -1900,6 +1900,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_create_actor"
+version = "0.1.0"
+dependencies = [
+ "fil_actors_runtime",
+ "fvm_sdk 3.0.0-alpha.22",
+ "fvm_shared 3.0.0-alpha.16",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
@@ -2505,6 +2515,7 @@ dependencies = [
  "cid 0.8.6",
  "fil_address_actor",
  "fil_builtin_actors_bundle",
+ "fil_create_actor",
  "fil_events_actor",
  "fil_exit_data_actor",
  "fil_gaslimit_actor",
