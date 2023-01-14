@@ -7,13 +7,11 @@ use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::IntegrationExecutor;
-use fvm_ipld_amt::Amt;
-use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
-use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -47,14 +45,11 @@ fn events_test() {
 
     // Check the events AMT.
     assert!(res.msg_receipt.events_root.is_some());
-    let events_amt: Amt<StampedEvent, _> =
-        Amt::load(&res.msg_receipt.events_root.unwrap(), executor.blockstore()).unwrap();
-    assert_eq!(2, events_amt.count());
-
-    // Check that events in the AMT match events returned in ApplyRet.
-    for (i, evt) in res.events.iter().enumerate() {
-        assert_eq!(Some(evt), events_amt.get(i as u64).unwrap());
-    }
+    // Check that we haven't inserted the events AMT in the blockstore.
+    assert!(!executor
+        .blockstore()
+        .has(&res.msg_receipt.events_root.unwrap())
+        .unwrap());
 
     // === Emits an improperly formatted event ===
 

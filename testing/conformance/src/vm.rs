@@ -211,10 +211,6 @@ where
             local_stats: TestStats::default(),
         }
     }
-
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        self.machine.commit_events(events)
-    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -281,7 +277,7 @@ where
         })
     }
 
-    fn finish(self) -> (FinishRet, Self::Machine) {
+    fn finish(self) -> (Result<FinishRet>, Self::Machine) {
         self.0.finish()
     }
 

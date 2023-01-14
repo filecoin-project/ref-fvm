@@ -3,4 +3,7 @@
 //! Private blockstores for use in the FVM.
 
 mod buffered;
+mod discard;
+
 pub use buffered::BufferedBlockstore;
+pub(crate) use discard::DiscardBlockstore;
