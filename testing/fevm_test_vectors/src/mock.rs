@@ -191,7 +191,7 @@ where
         );
     }
 
-    pub fn mock_embryo_address_actor(&mut self, addr: Address, balance: TokenAmount, nonce: u64) {
+    pub fn mock_ethaccount_actor(&mut self, addr: Address, balance: TokenAmount, nonce: u64) {
         let mut id_addr = Address::new_id(0);
         self.mutate_state(INIT_ACTOR_ADDR, |st: &mut InitState| {
             let (addr_id, exist) = st.map_addresses_to_id(self.store, &addr, None).unwrap();
@@ -204,7 +204,7 @@ where
         self.set_actor(
             id_addr,
             actor(
-                self.get_actor_code(Type::Placeholder),
+                self.get_actor_code(Type::EthAccount),
                 EMPTY_ARR_CID,
                 nonce,
                 balance,

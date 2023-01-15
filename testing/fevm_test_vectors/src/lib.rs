@@ -225,7 +225,7 @@ where
     mock.mock_builtin_actor();
 
     let from = Address::new_delegated(EAM_ACTOR_ID, &input.from.0).unwrap();
-    mock.mock_embryo_address_actor(from, TokenAmount::from_whole(100000000), input.nonce);
+    mock.mock_ethaccount_actor(from, TokenAmount::from_whole(100000000), input.nonce);
 
     // preconditions
     let create_contract_eth_addr = if input.create_contract() {
