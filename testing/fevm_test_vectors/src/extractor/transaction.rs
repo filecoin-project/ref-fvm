@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+use std::str::FromStr;
+use anyhow::ensure;
 
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider};
@@ -8,6 +10,8 @@ use ethers::utils::get_contract_address;
 use super::opcodes::*;
 use crate::extractor::types::{EthState, EthTransactionTestVector};
 
+/// Extract pre-transaction and post-transaction states and other transaction
+/// info for the given tx hash from Geth node.
 pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
     provider: &Provider<P>,
     tx_hash: H256,
@@ -19,6 +23,8 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         .await?
         .unwrap();
 
+    let next_block_id: BlockId = (block.number.unwrap() + 1).into();
+
     let mut block_hashes = BTreeMap::new();
     block_hashes.insert(block.number.unwrap().as_u64(), block.hash.unwrap());
 
@@ -27,6 +33,12 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         .to
         .unwrap_or_else(|| get_contract_address(tx_from, transaction.nonce));
 
+    // Get pre-transaction state simply by built-in prestate tracer of Geth,
+    // all accounts involved in the transaction will be traced, (accounts accessed by
+    // BALANCE, EXTCODE* opcode are also included), each account state consists of
+    // nonce, balance, code and storage(accessed slots only).
+    // see https://geth.ethereum.org/docs/developers/evm-tracing/built-in-tracers#prestate-tracer
+    // for more info about prestate trace.
     let prestate_tracing_options: GethDebugTracingOptions = GethDebugTracingOptions {
         tracer: Some("prestateTracer".to_owned()),
         ..Default::default()
@@ -41,11 +53,17 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         )
         .await?;
 
+    // all state modification made by this transaction will be applied to poststate,
+    // it's based on prestate.
     let mut poststate = prestate.clone();
 
+    // trace the state-change made by this transaction through structLogger tracer,
+    // which is the default tracer of Geth traceTransaction RPC.
+    // Note: there seems be a "diff mode" of prestate tracer, but it's not available
+    // currently on latest Geth release(v1.10.26)
     let trace_options: GethDebugTracingOptions = GethDebugTracingOptions {
-        disable_storage: Some(true),
-        enable_memory: Some(false),
+        disable_storage: Some(true), // disable storage capture since we can get it from the stack.
+        enable_memory: Some(false), // memory capture would result in huge response size(GB) on some transactions.
         disable_stack: Some(false),
         enable_return_data: Some(true),
         ..Default::default()
@@ -64,13 +82,21 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
     // increase sender nonce
     sender_account.nonce += 1;
 
+    // used to track real execution context(e.g. which contract's storage is read, written)
     let mut execution_contexts = vec![tx_to];
+    // used to handle reverting and other errors, the first poststate snapshot should
+    // be taken after gas fee deduction but before tx value transfer
     let mut snapshots = vec![poststate.clone()];
 
     if transaction.to.is_none() {
-        // FIXME the contract may have self-destructed
-        let code = provider.get_code(tx_to, None).await?;
-        assert_ne!(code.len(), 0);
+        // FIXME The contract may have self-destructed.
+        // We can get runtime code of the created contract(ether created by
+        // topmost transaction or created by CREATE,CREATE2 opcode) from
+        // memory in structLog(created by structLogger tracer), this require
+        // us to enable memory trace option, but this would result in
+        // huge response size on some transactions.
+        let code = provider.get_code(tx_to, Some(next_block_id)).await?;
+        ensure!(code.len() == 0, "failed to get code for {tx_to:?}");
         let eth_account_state = poststate.get_mut(&tx_to).unwrap();
         eth_account_state.code = code;
     }
@@ -83,6 +109,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         account_state.balance += transaction.value;
     }
 
+    // start to apply changes made by tx on poststate
     let mut depth = 1u64;
     let mut i = 0;
     while i < transaction_trace.struct_logs.len() {
@@ -94,8 +121,8 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
             snapshots.truncate(depth.try_into().unwrap());
         }
 
+        // handle opcodes that might change the state
         match log.op.as_str() {
-            OP_SLOAD => {}
             OP_SSTORE => {
                 let stack = log.stack.as_ref().unwrap();
 
@@ -121,7 +148,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
 
                     let caller_account_state = poststate.get_mut(caller).unwrap();
 
-                    // the call will fail silently without error in trace logs and there's no "revert".
+                    // In some cases, the "CALL" will fail without any error and there's no "revert".
                     if depth <= 1024 && caller_account_state.balance >= value {
                         caller_account_state.balance -= value;
 
@@ -164,6 +191,8 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
                 let value = stack[stack.len() - 1];
 
                 let mut address = H160::zero();
+                // get the address of the created contract, it's on the stack
+                // of next log with the same call depth.
                 for log in &transaction_trace.struct_logs[i + 1..] {
                     if log.depth == depth {
                         let stack = log.stack.as_ref().unwrap();
@@ -174,7 +203,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
 
                 let caller = execution_contexts.last().unwrap();
 
-                // the call will fail silently without error in trace logs and there's no "revert".
+                // In some cases, the "CREATE" will fail without any error and there's no "revert".
                 if depth <= 1024 && poststate.get(caller).unwrap().balance >= value {
                     if !value.is_zero() {
                         poststate.get_mut(caller).unwrap().balance -= value;
@@ -185,8 +214,8 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
                     poststate.get_mut(caller).unwrap().nonce += 1;
 
                     // FIXME
-                    let code = provider.get_code(address, None).await?;
-                    assert_ne!(code.len(), 0);
+                    let code = provider.get_code(address, Some(next_block_id)).await?;
+                    ensure!(code.len() == 0, "failed to get code for {tx_to:?}");
                     poststate.get_mut(&address).unwrap().code = code;
                 }
 
@@ -212,7 +241,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
 
                 let caller = execution_contexts.last().unwrap();
 
-                // the call will fail silently without error in trace logs and there's no "revert".
+                // In some cases, the "CREATE2" will fail without any error and there's no "revert".
                 if depth <= 1024 && poststate.get(caller).unwrap().balance >= value {
                     if !value.is_zero() {
                         poststate.get_mut(caller).unwrap().balance -= value;
@@ -223,8 +252,8 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
                     poststate.get_mut(caller).unwrap().nonce += 1;
 
                     // FIXME
-                    let code = provider.get_code(address, None).await?;
-                    assert_ne!(code.len(), 0);
+                    let code = provider.get_code(address, Some(next_block_id)).await?;
+                    ensure!(code.len() == 0, "failed to get code for {tx_to:?}");
                     poststate.get_mut(&address).unwrap().code = code;
                 }
 
@@ -249,11 +278,6 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
                 caller_account_state.nonce = 0;
                 caller_account_state.code = Bytes::default();
             }
-            OP_BALANCE => {}
-            OP_SELFBALANCE => {}
-            OP_EXTCODESIZE => {}
-            OP_EXTCODECOPY => {}
-            OP_EXTCODEHASH => {}
             OP_BLOCKHASH => {
                 let stack = log.stack.as_ref().unwrap();
 
@@ -280,8 +304,9 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         i += 1;
     }
 
-    // refund unused gas
-    // TODO  some opcodes(e.g. SSTORE) have additional gas refund.
+    // refund unused gas to tx sender
+    // Note: Some opcodes(e.g. SSTORE) have additional gas refund. But it seems that
+    // we don't need further handling it, since there's no opcode gas refund on FEVM?
     let leftover_gas = transaction.gas - transaction_trace.gas;
     poststate.get_mut(&tx_from).unwrap().balance += leftover_gas * gas_price;
 
