@@ -1,8 +1,9 @@
 [package]
 name = "fevm-test-vectors"
+description = "Extracts a test vector from a geth rpc endpoint"
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/froghub-io/fevm-test-vectors.git"
+repository = "https://github.com/filecoin-project/ref-fvm"
 
 [lib]
 

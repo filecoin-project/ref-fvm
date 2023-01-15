@@ -68,6 +68,7 @@ pub async fn export_test_vector_file(
     input: EthTransactionTestVector,
     path: PathBuf,
 ) -> anyhow::Result<()> {
+    let _debug = serde_json::to_string(&input).unwrap();
     let actor_codes = get_code_cid_map()?;
     let store = TracingBlockStore::new(MemoryBlockstore::new());
 
@@ -173,6 +174,7 @@ pub async fn export_test_vector_file(
                 source: env!("CARGO_PKG_REPOSITORY").to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             }],
+            _debug
         }),
         car: gz_car_bytes,
         preconditions: PreConditions {
