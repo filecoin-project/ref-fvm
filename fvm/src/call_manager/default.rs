@@ -535,36 +535,11 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<BlockId, Abort> = (|| {
-                use wasmtime_runtime::InstantiationError;
                 // Instantiate the module.
                 let instance = engine
-                    .get_instance(&mut store, &state.code)
-                    .and_then(|i| i.context("actor code not found"))
-                    .map_err(|e| match e.downcast::<InstantiationError>() {
-                        Ok(e) => match e {
-                            // This will be handled in validation.
-                            InstantiationError::Link(e) => Abort::Fatal(anyhow!(e)),
-                            // TODO: We may want a separate OOM exit code? However, normal ooms will usually exit with SYS_ILLEGAL_INSTRUCTION.
-                            InstantiationError::Resource(e) => Abort::Exit(
-                                ExitCode::SYS_ILLEGAL_INSTRUCTION,
-                                e.to_string(),
-                                NO_DATA_BLOCK_ID,
-                            ),
-                            // TODO: we probably shouldn't hit this unless we're running code? We
-                            // should check if we can "validate away" this case.
-                            InstantiationError::Trap(e) => Abort::Exit(
-                                ExitCode::SYS_ILLEGAL_INSTRUCTION,
-                                format!("actor initialization failed: {:?}", e),
-                                0,
-                            ),
-                            // TODO: Consider using the instance limit instead of an explicit stack depth?
-                            InstantiationError::Limit(limit) => Abort::Fatal(anyhow!(
-                                "did not expect to hit wasmtime instance limit: {}",
-                                limit
-                            )),
-                        },
-                        Err(e) => Abort::Fatal(e),
-                    })?;
+                    .instantiate(&mut store, &state.code)?
+                    .context("actor not found")
+                    .map_err(Abort::Fatal)?;
 
                 // Resolve and store a reference to the exported memory.
                 let memory = instance
