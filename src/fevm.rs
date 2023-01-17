@@ -3,7 +3,7 @@ use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{strict_bytes, to_vec, tuple::*, BytesDe, BytesSer, Cbor, RawBytes};
+use fvm_ipld_encoding::{strict_bytes, tuple::*, BytesDe, BytesSer, RawBytes};
 use fvm_shared::{address::Address, message::Message, ActorID, METHOD_CONSTRUCTOR};
 
 use crate::Options;
@@ -14,6 +14,7 @@ pub fn run<B: Blockstore>(
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
+    gas: i64,
 ) -> anyhow::Result<()> {
     let accounts: [Account; 1] = tester.create_accounts().unwrap();
     tester
@@ -24,19 +25,14 @@ pub fn run<B: Blockstore>(
         )
         .unwrap();
 
-    // create actor
-    let create_params = Create2Params {
-        initcode: Vec::from(contract),
-        salt: [0u8; 32],
-    };
-    let create_params_ser = to_vec(&create_params).unwrap();
+    let create_params_ser = Vec::from(contract);
     let create_mlen = create_params_ser.len();
     let create_msg = Message {
         from: accounts[0].1,
         to: Address::new_id(10),
         gas_limit: 10_000_000_000,
-        method_num: EAMMethod::Create2 as u64,
-        params: RawBytes::from(create_params_ser),
+        method_num: EAMMethod::CreateExternal as u64,
+        params: RawBytes::serialize(BytesSer(&create_params_ser)).unwrap(),
         ..Message::default()
     };
 
@@ -64,7 +60,7 @@ pub fn run<B: Blockstore>(
         from: accounts[0].1,
         to: Address::new_id(create_return.actor_id),
         sequence: 1,
-        gas_limit: i64::MAX,
+        gas_limit: gas,
         method_num: EVMMethod::InvokeContract as u64,
         params: RawBytes::serialize(BytesSer(&input_data)).unwrap(),
         ..Message::default()
@@ -118,17 +114,18 @@ pub enum EAMMethod {
     Constructor = METHOD_CONSTRUCTOR,
     Create = 2,
     Create2 = 3,
+    CreateExternal = 4,
 }
 
-#[allow(dead_code)]
 #[repr(u64)]
 pub enum EVMMethod {
     Constructor = METHOD_CONSTRUCTOR,
-    InvokeContract = 2,
+    Resurrect = 2,
     GetBytecode = 3,
-    GetStorageAt = 4,
-    InvokeContractReadOnly = 5,
+    GetBytecodeHash = 4,
+    GetStorageAt = 5,
     InvokeContractDelegate = 6,
+    InvokeContract = frc42_dispatch::method_hash!("InvokeEVM"),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,7 +138,6 @@ pub struct Create2Params {
     #[serde(with = "strict_bytes")]
     pub salt: [u8; 32],
 }
-impl Cbor for Create2Params {}
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct CreateReturn {
@@ -149,4 +145,3 @@ pub struct CreateReturn {
     pub robust_address: Address,
     pub eth_address: EthAddress,
 }
-impl Cbor for CreateReturn {}

@@ -17,6 +17,7 @@ cid = { version = "0.8.5", default-features = false }
 clap = { version = "4.0.27", features = ["derive"] }
 hex = "0.4.3"
 serde = { version = "1.0.148", features = ["derive"] }
+frc42_dispatch = "3.0.0"
 
 [patch.crates-io]
 # temporary solution to funty@1.2.0 being yanked, we should propose bitvec upgrade to upstream filecoin crates

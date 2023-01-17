@@ -7,7 +7,6 @@ use fvm_integration_tests::tester::Tester;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use hex;
 use std::fs;
 
 /// Run a contract invocation for benchmarking purposes
@@ -41,12 +40,18 @@ struct Args {
 
     /// Invocation parameters, in hex.
     params: String,
+
+    #[arg(short, long, default_value = "10000000000")] 
+    /// Gas limit in atto precision to use during invocation.
+    /// Default: 10 billion gas
+    gas_limit: i64,
 }
 
 pub struct Options {
     pub debug: bool,
     pub trace: bool,
     pub events: bool,
+    pub gas_limit: i64,
 }
 
 fn main() {
@@ -55,9 +60,10 @@ fn main() {
         debug: args.debug,
         trace: args.trace,
         events: args.events,
+        gas_limit: args.gas_limit,
     };
-    let mut blockstore = MemoryBlockstore::default();
-    let bundle_cid = match bundle::import_bundle(&mut blockstore, args.bundle.as_str()) {
+    let blockstore = MemoryBlockstore::default();
+    let bundle_cid = match bundle::import_bundle(&blockstore, args.bundle.as_str()) {
         Ok(cid) => cid,
         Err(what) => {
             exit_with_error(format!("error loading bundle: {}", what));
@@ -86,10 +92,10 @@ fn main() {
                 exit_with_error(format!("error decoding contract entrypoint: {}", what));
             });
             let params = hex::decode(args.params).unwrap_or_else(|what| {
-                exit_with_error(format!("error decoding contract entrypoint: {}", what));
+                exit_with_error(format!("error decoding contract params: {}", what));
             });
 
-            fevm::run(&mut tester, &options, &contract, &entrypoint, &params).unwrap_or_else(
+            fevm::run(&mut tester, &options, &contract, &entrypoint, &params, options.gas_limit).unwrap_or_else(
                 |what| {
                     exit_with_error(format!(" contract execution failed: {}", what));
                 },
