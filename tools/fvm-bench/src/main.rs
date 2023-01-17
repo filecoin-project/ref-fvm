@@ -1,7 +1,8 @@
 mod fevm;
 
-use clap::Parser;
 use std::fs;
+
+use clap::Parser;
 
 /// Run a contract invocation for benchmarking purposes
 #[derive(Parser, Debug)]
@@ -66,11 +67,17 @@ fn main() {
                 testkit::exit_with_error(format!("error decoding contract params: {}", what));
             });
 
-            fevm::run(&mut tester, &options, &contract, &entrypoint, &params, args.gas_limit).unwrap_or_else(
-                |what| {
-                    testkit::exit_with_error(format!(" contract execution failed: {}", what));
-                },
-            );
+            fevm::run(
+                &mut tester,
+                &options,
+                &contract,
+                &entrypoint,
+                &params,
+                args.gas_limit,
+            )
+            .unwrap_or_else(|what| {
+                testkit::exit_with_error(format!(" contract execution failed: {}", what));
+            });
         }
 
         "wasm" => {

@@ -2,9 +2,9 @@
 
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::Tester;
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::state::StateTreeVersion;
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_shared::state::StateTreeVersion;
+use fvm_shared::version::NetworkVersion;
 
 pub mod bundle;
 //pub mod fevm;
@@ -21,7 +21,7 @@ pub struct ExecutionOptions {
 
 pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
 
-pub fn new_tester(bundle_path: &String) ->  BasicTester {
+pub fn new_tester(bundle_path: &String) -> BasicTester {
     let blockstore = MemoryBlockstore::default();
     let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
         Ok(cid) => cid,
