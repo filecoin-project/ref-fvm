@@ -28,7 +28,7 @@ pub struct Account {
     pub seqno: u64,
 }
 
-pub fn new_tester(bundle_path: &String) -> BasicTester {
+pub fn new_tester(bundle_path: String) -> BasicTester {
     let blockstore = MemoryBlockstore::default();
     let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
         Ok(cid) => cid,

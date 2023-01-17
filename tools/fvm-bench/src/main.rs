@@ -52,7 +52,7 @@ fn main() {
         trace: args.trace,
         events: args.events,
     };
-    let mut tester = testkit::new_tester(&args.bundle);
+    let mut tester = testkit::new_tester(args.bundle);
 
     match args.mode.as_str() {
         "fevm" => {

@@ -13,17 +13,16 @@ use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 use crate::{Account, BasicTester};
 
 pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: &[u8]) -> ApplyRet {
-    let create_params_ser = Vec::from(contract);
-    let create_mlen = create_params_ser.len();
     let create_msg = Message {
         from: owner.account.1,
         to: Address::new_id(10), // EAM
         gas_limit: 10_000_000_000,
         method_num: EAMMethod::CreateExternal as u64,
-        params: RawBytes::serialize(BytesSer(&create_params_ser)).unwrap(),
+        params: RawBytes::serialize(BytesSer(contract)).unwrap(),
         sequence: owner.seqno,
         ..Message::default()
     };
+    let create_mlen = create_msg.params.len();
 
     let create_res = tester
         .executor
@@ -49,7 +48,7 @@ pub fn invoke_contract(
         sequence: src.seqno,
         gas_limit: gas,
         method_num: EVMMethod::InvokeContract as u64,
-        params: RawBytes::serialize(BytesSer(&input_data)).unwrap(),
+        params: RawBytes::serialize(BytesSer(input_data)).unwrap(),
         ..Message::default()
     };
     let invoke_mlen = invoke_msg.params.len();
