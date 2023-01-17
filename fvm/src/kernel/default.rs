@@ -823,13 +823,11 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
-        let allowed_actor = if cfg!(feature = "testing") {
-            TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR
-        } else {
-            INIT_ACTOR_ID
-        };
+        let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID
+            || (cfg!(feature = "testing")
+                && self.actor_id == TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
 
-        if self.actor_id != allowed_actor {
+        if !is_allowed_to_create_actor {
             return Err(syscall_error!(
                 Forbidden,
                 "create_actor is restricted to InitActor. Called by {}",

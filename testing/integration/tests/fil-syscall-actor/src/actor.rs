@@ -1,8 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use actors_v10_runtime::runtime::builtins::Type;
 use fvm_sdk as sdk;
-use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::error::ExitCode;
