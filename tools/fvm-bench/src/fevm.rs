@@ -1,16 +1,14 @@
 use anyhow::anyhow;
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account, Tester};
-use fvm_ipld_blockstore::Blockstore;
+use fvm_integration_tests::tester::{Account};
 use fvm_ipld_encoding::{strict_bytes, tuple::*, BytesDe, BytesSer, RawBytes};
 use fvm_shared::{address::Address, message::Message, ActorID, METHOD_CONSTRUCTOR};
+use testkit::ExecutionOptions;
 
-use crate::Options;
-
-pub fn run<B: Blockstore>(
-    tester: &mut Tester<B, DummyExterns>,
-    options: &Options,
+pub fn run(
+    tester: &mut testkit::BasicTester,
+    options: &ExecutionOptions,
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
