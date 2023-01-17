@@ -117,6 +117,7 @@ pub enum EAMMethod {
     CreateExternal = 4,
 }
 
+#[allow(dead_code)]
 #[repr(u64)]
 pub enum EVMMethod {
     Constructor = METHOD_CONSTRUCTOR,
@@ -125,7 +126,10 @@ pub enum EVMMethod {
     GetBytecodeHash = 4,
     GetStorageAt = 5,
     InvokeContractDelegate = 6,
-    InvokeContract = frc42_dispatch::method_hash!("InvokeEVM"),
+    // it is very unfortunate but this hasher creates a circular dependency and is useless in
+    // this context. And who the hell thought it is a good idea to remove the reserved method?
+    //InvokeContract = frc42_dispatch::method_hash!("InvokeEVM"),
+    InvokeContract = 3844450837,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
