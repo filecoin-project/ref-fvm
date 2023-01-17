@@ -84,8 +84,8 @@ pub enum EVMMethod {
     GetBytecodeHash = 4,
     GetStorageAt = 5,
     InvokeContractDelegate = 6,
-    // it is very unfortunate but this hasher creates a circular dependency and is useless in
-    // this context. And who the hell thought it is a good idea to remove the reserved method?
+    // it is very unfortunate but the hasher creates a circular dependency, so we use the raw
+    // number.
     //InvokeContract = frc42_dispatch::method_hash!("InvokeEVM"),
     InvokeContract = 3844450837,
 }
