@@ -51,6 +51,8 @@ impl NetworkVersion {
     /// Hygge (builtin-actors v10)
     pub const V18: Self = Self(18);
 
+    pub const MAX: Self = Self(u32::MAX);
+
     /// Construct a new arbitrary network version.
     pub const fn new(v: u32) -> Self {
         Self(v)
