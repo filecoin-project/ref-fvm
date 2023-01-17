@@ -9,16 +9,20 @@ use std::sync::{Arc, Condvar, Mutex};
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_shared::error::ExitCode;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
     Module, Mutability, PoolingAllocationStrategy, Val, ValType,
 };
+use wasmtime_runtime::InstantiationError;
 
+use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::gas::{GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
+use crate::syscalls::error::Abort;
 use crate::syscalls::{bind_syscalls, charge_for_init, record_init_time, InvocationData};
 use crate::Kernel;
 
@@ -472,11 +476,13 @@ impl Engine {
 
     /// Lookup and instantiate a loaded wasmtime module with the given store. This will cache the
     /// linker, syscalls, etc.
-    pub fn get_instance<K: Kernel>(
+    ///
+    /// This returns an `Abort` as it may need to execute initialization code, charge gas, etc.
+    pub fn instantiate<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
-    ) -> anyhow::Result<Option<wasmtime::Instance>> {
+    ) -> Result<Option<wasmtime::Instance>, Abort> {
         let k = self.with_redirect(k);
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
@@ -491,7 +497,7 @@ impl Engine {
                     let mut linker: Linker<InvocationData<K>> = Linker::new(&self.0.engine);
                     linker.allow_shadowing(true);
 
-                    bind_syscalls(&mut linker)?;
+                    bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
                     Box::new(Cache { linker })
                 })
                 .downcast_mut()
@@ -499,7 +505,9 @@ impl Engine {
         };
         cache
             .linker
-            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
+            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)
+            .context("failed to define gas counter")
+            .map_err(Abort::Fatal)?;
 
         let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
 
@@ -508,9 +516,34 @@ impl Engine {
             // pay for the minimum memory requirements. The module instrumentation in `inject` only
             // adds code to charge for _growing_ the memory, but not for the amount made accessible
             // initially. The limits are checked by wasmtime during instantiation, though.
-            let t = charge_for_init(store, module)?;
+            let t = charge_for_init(store, module).map_err(Abort::from_error_as_fatal)?;
 
-            let inst = cache.linker.instantiate(&mut *store, module)?;
+            let inst = cache.linker.instantiate(&mut *store, module).map_err(|e| {
+                match e.downcast::<InstantiationError>() {
+                    // This will be handled in validation.
+                    Ok(InstantiationError::Link(e)) => Abort::Fatal(anyhow!(e)),
+                    // TODO: We may want a separate OOM exit code? However, normal ooms will usually
+                    // exit with SYS_ILLEGAL_INSTRUCTION.
+                    Ok(InstantiationError::Resource(e)) => Abort::Exit(
+                        ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                        e.to_string(),
+                        NO_DATA_BLOCK_ID,
+                    ),
+                    // TODO: we probably shouldn't hit this unless we're running code? We
+                    // should check if we can "validate away" this case.
+                    Ok(InstantiationError::Trap(e)) => Abort::Exit(
+                        ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                        format!("actor initialization failed: {:?}", e),
+                        0,
+                    ),
+                    // TODO: Consider using the instance limit instead of an explicit stack depth?
+                    Ok(InstantiationError::Limit(limit)) => Abort::Fatal(anyhow!(
+                        "did not expect to hit wasmtime instance limit: {}",
+                        limit
+                    )),
+                    Err(e) => Abort::Fatal(e),
+                }
+            })?;
 
             // Record the time it took for the linker to instantiate the module.
             // This should also include everything that happens above in this method.
@@ -529,9 +562,14 @@ impl Engine {
                 .machine()
                 .blockstore()
                 .get(k)
-                .context("failed to lookup wasm module in blockstore")?
+                .context("failed to lookup wasm module in blockstore")
+                .map_err(Abort::Fatal)?
             {
-                Some(raw_wasm) => instantiate(store, &v.insert(self.load_raw(&raw_wasm)?).module),
+                Some(raw_wasm) => instantiate(
+                    store,
+                    &v.insert(self.load_raw(&raw_wasm).map_err(Abort::Fatal)?)
+                        .module,
+                ),
                 None => Ok(None),
             },
         }
