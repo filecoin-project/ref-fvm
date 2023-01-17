@@ -4,6 +4,7 @@
 mod fevm;
 
 use std::fs;
+
 use clap::Parser;
 
 /// Run a contract invocation for benchmarking purposes
