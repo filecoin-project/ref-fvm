@@ -8,7 +8,7 @@ fvm_integration_tests = { path = "../../testing/integration" }
 fvm_ipld_blockstore = { path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { path = "../../ipld/encoding" }
 fvm_shared = { path = "../../shared" }
-fvm = { path = "../../fvm" }
+fvm = { path = "../../fvm", default-features = false, features = ["testing"] }
 testkit = { path = "../testkit" }
 
 anyhow = "1.0.47"
