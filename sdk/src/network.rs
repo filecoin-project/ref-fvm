@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::convert::TryInto;
-
 use cid::Cid;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::clock::ChainEpoch;
@@ -31,10 +29,7 @@ pub fn curr_epoch() -> ChainEpoch {
 }
 
 pub fn version() -> NetworkVersion {
-    NETWORK_CONTEXT
-        .network_version
-        .try_into()
-        .expect("invalid network version")
+    NETWORK_CONTEXT.network_version
 }
 
 pub fn base_fee() -> TokenAmount {

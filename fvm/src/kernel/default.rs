@@ -701,7 +701,7 @@ where
         let ctx = NetworkContext {
             chain_id: (*chain_id).into(),
             epoch: *epoch,
-            network_version: *network_version as u32,
+            network_version: *network_version,
             timestamp: *timestamp,
             base_fee: base_fee
                 .try_into()
