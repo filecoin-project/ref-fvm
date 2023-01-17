@@ -2,8 +2,10 @@
 
 ## [Unreleased]
 
-- ...
+## 3.0.0-alpha.17 [2022-01-17]
 
+- Add `hyperspace` feature to loosen up network version restrictions.
+- 
 ## 3.0.0-alpha.16 [2023-01-12]
 
 - Remove uses of the Cbor trait

@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.20 [2022-01-17]
+
+- Add `hyperspace` feature to loosen up network version restrictions.
+
 ## 3.0.0-alpha.19 [2022-01-13]
 
 - Adjust memory retention gas fees.
