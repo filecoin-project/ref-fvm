@@ -1,0 +1,12 @@
+#!/bin/bash
+
+compile() {
+    src=$1
+    bin="$(basename $src .eas).bin"
+    echo "Assemble $src -> $bin"
+    eas $src | tr -d '\n' > $bin
+}
+
+for x in $*; do
+    compile $x;
+done

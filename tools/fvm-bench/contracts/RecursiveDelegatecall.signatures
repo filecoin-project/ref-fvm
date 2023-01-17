@@ -1,0 +1,6 @@
+Function signatures:
+ec49254c: recursiveCall(uint256)
+3af3f24f: totalCalls()
+
+Event signatures:
+aab69767807d0ab32f0099452739da31b76ecd3e8694bb49898829c8bf9d0635: RecursiveCallEvent(uint256,address)
