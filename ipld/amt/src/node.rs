@@ -16,6 +16,14 @@ use serde::{ser, Deserialize, Serialize};
 use super::ValueMut;
 use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
 
+#[derive(Debug)]
+pub struct Stats {
+    pub height: u32,
+    pub offset: u64,
+    pub node: String,
+    pub blocks_to_expand: u64,
+}
+
 /// This represents a link to another Node
 #[derive(Debug)]
 pub(super) enum Link<V> {
@@ -473,6 +481,105 @@ where
         }
 
         Ok(true)
+    }
+
+    // 1. traverse the node in dfs
+    // 2.
+
+    pub(super) fn for_each_while_limit<S, F>(
+        &self,
+        bs: &S,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
+        max_blocks_to_expand: u64,
+        f: &mut F,
+    ) -> Result<(bool, u64), Error>
+    where
+        F: FnMut(u64, &V, Stats) -> anyhow::Result<bool>,
+        S: Blockstore,
+    {
+        let mut blocks_expanded = 0;
+        let res: (bool, u64) = match self {
+            Node::Leaf { vals } => {
+                for (i, v) in (0..).zip(vals.iter()) {
+                    if let Some(v) = v {
+                        let keep_going = f(
+                            offset + i,
+                            v,
+                            Stats {
+                                height,
+                                offset,
+                                node: format!("{:#?}", i),
+                                blocks_to_expand: max_blocks_to_expand,
+                            },
+                        )?;
+
+                        if !keep_going {
+                            // don't keep going, nothing is expanded for a leaf
+                            return Ok((false, 0));
+                        }
+                    }
+                }
+                // keep going, nothing is expanded for a leaf
+                (true, 0)
+            }
+            Node::Link { links } => {
+                for (i, l) in (0..).zip(links.iter()) {
+                    if let Some(l) = l {
+                        let offs = offset + (i * nodes_for_height(bit_width, height));
+                        let (keep_going, expanded) = match l {
+                            Link::Dirty(sub) => {
+                                let res = sub.for_each_while_limit(
+                                    bs,
+                                    height - 1,
+                                    bit_width,
+                                    offs,
+                                    max_blocks_to_expand,
+                                    f,
+                                )?;
+                                res
+                            }
+                            Link::Cid { cid, cache } => {
+                                if cache.get().is_none() {
+                                    blocks_expanded += 1;
+                                    if (blocks_expanded > max_blocks_to_expand) {
+                                        return Ok((false, blocks_expanded));
+                                    }
+                                }
+
+                                let cached_node = cache.get_or_try_init(|| {
+                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
+                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .expand(bit_width)
+                                        .map(Box::new)
+                                })?;
+
+                                let (keep_going, expanded) = cached_node.for_each_while_limit(
+                                    bs,
+                                    height - 1,
+                                    bit_width,
+                                    offs,
+                                    max_blocks_to_expand - blocks_expanded,
+                                    f,
+                                )?;
+
+                                blocks_expanded += expanded;
+
+                                (keep_going, blocks_expanded)
+                            }
+                        };
+
+                        if !keep_going {
+                            return Ok((false, blocks_expanded));
+                        }
+                    }
+                }
+                (true, blocks_expanded)
+            }
+        };
+
+        Ok(res)
     }
 
     /// Returns a `(keep_going, did_mutate)` pair. `keep_going` will be `false` iff

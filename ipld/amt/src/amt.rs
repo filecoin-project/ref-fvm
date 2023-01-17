@@ -13,7 +13,7 @@ use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
 
 use super::ValueMut;
-use crate::node::{CollapsedNode, Link};
+use crate::node::{CollapsedNode, Link, Stats};
 use crate::root::version::{Version as AmtVersion, V0, V3};
 use crate::root::RootImpl;
 use crate::{
@@ -363,6 +363,35 @@ where
             f(i, x)?;
             Ok(true)
         })
+    }
+
+    pub fn for_each_limit<F>(&self, blocks_to_expand: u64, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V, Stats) -> anyhow::Result<()>,
+    {
+        self.for_each_while_limit(blocks_to_expand, |i, x, stats| {
+            f(i, x, stats)?;
+            Ok(true)
+        })
+    }
+
+    /// Iterates over each value in the Amt and runs a function on the values, for as long as that
+    /// function keeps returning `true`.
+    pub fn for_each_while_limit<F>(&self, max_blocks_to_expand: u64, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V, Stats) -> anyhow::Result<bool>,
+    {
+        self.root
+            .node
+            .for_each_while_limit(
+                &self.block_store,
+                self.height(),
+                self.bit_width(),
+                0,
+                max_blocks_to_expand,
+                &mut f,
+            )
+            .map(|_| ())
     }
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
