@@ -140,6 +140,8 @@ pub struct MessageAddress {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MessageVector {
+    pub class: String,
+
     pub chain_id: Option<u64>,
 
     pub selector: Option<Selector>,
@@ -193,7 +195,7 @@ impl MessageVector {
             serde_json::from_reader(reader)?;
 
         let class_json = vector
-            .remove("class")
+            .get("class")
             .context("expected test vector to have a class")?;
 
         let class: &str = serde_json::from_str(class_json.get())?;
