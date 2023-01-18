@@ -350,9 +350,9 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
 ) -> anyhow::Result<BTreeMap<H160, Vec<Transaction>>> {
     let mut contracts = BTreeSet::from_iter(contracts);
 
-    let mut result = BTreeMap::new();
+    let mut ret = BTreeMap::new();
     for contract in &contracts {
-        result.insert(*contract, vec![]);
+        ret.insert(*contract, vec![]);
     }
 
     let mut block_num = provider.get_block_number().await?;
@@ -370,7 +370,7 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
         for tx in block.transactions.into_iter().rev() {
             if let Some(contract) = tx.to {
                 if contracts.contains(&contract) {
-                    let transactions = result.get_mut(&contract).unwrap();
+                    let transactions = ret.get_mut(&contract).unwrap();
                     if transactions.len() < tx_num {
                         transactions.push(tx);
                     } else {
@@ -382,7 +382,7 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
 
         block_num -= 1.into();
     }
-    Ok(result)
+    Ok(ret)
 }
 
 // export RPC='http://localhost:8545'
