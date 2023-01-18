@@ -217,6 +217,7 @@ pub struct ApplyMessage {
 mod base64_bytes {
     use std::borrow::Cow;
 
+    use base64::Engine;
     use serde::de;
 
     use super::*;
@@ -226,7 +227,9 @@ mod base64_bytes {
         D: Deserializer<'de>,
     {
         let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
-        base64::decode(s.as_ref()).map_err(de::Error::custom)
+        base64::engine::general_purpose::STANDARD
+            .decode(s.as_ref())
+            .map_err(de::Error::custom)
     }
 }
 
