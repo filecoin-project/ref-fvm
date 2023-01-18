@@ -2533,6 +2533,8 @@ dependencies = [
  "libsecp256k1",
  "multihash",
  "num-traits",
+ "quickcheck",
+ "quickcheck_macros",
  "rand",
  "rand_chacha",
  "serde",
