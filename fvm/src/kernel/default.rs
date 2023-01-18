@@ -32,6 +32,7 @@ use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
+use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
@@ -45,6 +46,9 @@ const BLAKE2B_256: u64 = 0xb220;
 const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
 const FINALITY: i64 = 900;
+
+#[cfg(feature = "testing")]
+const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
@@ -819,6 +823,19 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
+        let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID
+            || (cfg!(feature = "testing")
+                && self.actor_id == TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
+
+        if !is_allowed_to_create_actor {
+            return Err(syscall_error!(
+                Forbidden,
+                "create_actor is restricted to InitActor. Called by {}",
+                self.actor_id
+            )
+            .into());
+        }
+
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
     }

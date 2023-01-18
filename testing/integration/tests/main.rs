@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fil_create_actor::WASM_BINARY as CREATE_ACTOR_BINARY;
 use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
@@ -28,12 +29,15 @@ use num_traits::Zero;
 mod bundles;
 use bundles::*;
 use fvm_shared::chainid::ChainID;
+use fvm_shared::ActorID;
 
 /// The state object.
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
     pub count: u64,
 }
+
+const ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
 #[test]
 fn hello_world() {
@@ -192,6 +196,91 @@ fn syscalls() {
         } else {
             panic!("non-zero exit code {}", res.msg_receipt.exit_code)
         }
+    }
+}
+
+#[test]
+fn create_actor() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+    tester.set_account_sequence(sender[0].0, 100).unwrap();
+
+    let wasm_bin = CREATE_ACTOR_BINARY.unwrap();
+
+    // Configure actor allowed to call create_actor
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+    let actor_allowed_to_create_actor = Address::new_id(ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
+    tester
+        .set_actor_from_bin(
+            wasm_bin,
+            state_cid,
+            actor_allowed_to_create_actor,
+            TokenAmount::zero(),
+        )
+        .unwrap();
+
+    // Configure actor not allowed to call create_actor
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+    let actor_not_allowed_to_create_actor = Address::new_id(99);
+    tester
+        .set_actor_from_bin(
+            wasm_bin,
+            state_cid,
+            actor_not_allowed_to_create_actor,
+            TokenAmount::zero(),
+        )
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    {
+        let message = Message {
+            from: sender[0].1,
+            to: actor_allowed_to_create_actor,
+            gas_limit: 1000000000,
+            method_num: 1,
+            sequence: 100,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert_eq!(res.msg_receipt.exit_code, ExitCode::OK);
+    }
+
+    {
+        let message = Message {
+            from: sender[0].1,
+            to: actor_not_allowed_to_create_actor,
+            gas_limit: 1000000000,
+            method_num: 1,
+            sequence: 101,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
     }
 }
 
