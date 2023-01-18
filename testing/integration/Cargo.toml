@@ -29,8 +29,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
 thiserror = "1.0.30"
-quickcheck = "1"
-quickcheck_macros = "1"
+paste = "1.0.9"
+arbitrary = { version = "1.2", optional = true }
+arbtest = { version = "0.2", optional = true }
 
 [dependencies.wasmtime]
 version = "2.0.2"
@@ -57,5 +58,6 @@ fil_create_actor = { path = "tests/fil-create-actor" }
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
 [features]
-default = []
+default = ["smt"]
 m2-native = []
+smt = ["arbitrary", "arbtest"]

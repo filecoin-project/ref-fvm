@@ -1,4 +1,4 @@
-use quickcheck::{Arbitrary, Gen, TestResult, Testable};
+use arbitrary::Unstructured;
 
 /// State machine tests inspired by [ScalaCheck](https://github.com/typelevel/scalacheck/blob/main/doc/UserGuide.md#stateful-testing)
 /// and [quickcheck-state-machine](https://hackage.haskell.org/package/quickcheck-state-machine).
@@ -13,7 +13,7 @@ pub trait StateMachine {
     type Result;
 
     /// Generate a random initial state.
-    fn gen_init_state(&self, g: &mut Gen) -> Self::State;
+    fn gen_state(&self, u: &mut Unstructured) -> arbitrary::Result<Self::State>;
 
     /// Create a new System Under Test reflecting the given initial state.
     ///
@@ -21,56 +21,73 @@ pub trait StateMachine {
     fn new_system(&self, state: &Self::State) -> Self::System;
 
     /// Generate a random command given the latest state.
-    fn gen_command(&self, g: &mut Gen, state: &Self::State) -> Self::Command;
+    fn gen_command(
+        &self,
+        u: &mut Unstructured,
+        state: &Self::State,
+    ) -> arbitrary::Result<Self::Command>;
 
     /// Apply a command on the System Under Test.
     fn run_command(&self, system: &mut Self::System, cmd: &Self::Command) -> Self::Result;
 
-    /// Check that the state transition on the System Under Test was correct, given the model pre-state.
-    fn post_condition(
+    /// Use assertions to check that the state transition on the System Under Test was correct, given the model pre-state.
+    fn check_post_conditions(
         &self,
         pre_state: &Self::State,
         cmd: &Self::Command,
         result: &Self::Result,
         post_system: &Self::System,
-    ) -> TestResult;
+    );
 
     /// Apply a command on the model state.
     ///
     /// We could use `Cow` here if we wanted to preserve the history of state and
     /// also avoid cloning when there's no change.
-    fn next_state(&self, state: &mut Self::State, cmd: &Self::Command);
+    fn next_state(&self, state: Self::State, cmd: &Self::Command) -> Self::State;
 }
 
-/// Adapter for [quickcheck::Testable].
-pub struct QuickCheckStateMachine<T>(pub T);
-
-impl<T: StateMachine + 'static> Testable for QuickCheckStateMachine<T> {
-    fn result(&self, g: &mut Gen) -> TestResult {
-        let n = usize::arbitrary(g) % g.size();
-        let mut state = self.0.gen_init_state(g);
-        let mut system = self.0.new_system(&state);
-        for _ in 0..n {
-            let cmd = self.0.gen_command(g, &state);
-            let res = self.0.run_command(&mut system, &cmd);
-            let res = self.0.post_condition(&state, &cmd, &res, &system);
-            if res.is_failure() {
-                return res;
-            }
-            self.0.next_state(&mut state, &cmd);
-        }
-        return TestResult::passed();
+/// Run a state machine test by generating `max_steps` commands.
+///
+/// It is expected to panic if some post condition fails.
+pub fn run<T: StateMachine>(
+    u: &mut Unstructured,
+    t: &T,
+    max_steps: usize,
+) -> arbitrary::Result<()> {
+    let mut state = t.gen_state(u)?;
+    let mut system = t.new_system(&state);
+    for _ in 0..max_steps {
+        let cmd = t.gen_command(u, &state)?;
+        let res = t.run_command(&mut system, &cmd);
+        t.check_post_conditions(&state, &cmd, &res, &system);
+        state = t.next_state(state, &cmd);
     }
+    Ok(())
 }
 
-/// Run quickcheck on a state machine.
-pub fn state_machine_test<T: StateMachine + 'static>(t: T) {
-    // Sadly `QuickCheck` and the `Gen` it uses are not seedable. There is an open PR of it,
-    // but it's been there for so long I doubt that it will be merged:`
-    // https://github.com/BurntSushi/quickcheck/pull/278
-    // Without that, an error in this test says nothing about how to reproduce it.
-    // We could print all the commands, but that could be unreadable, and unportable as well.
-    quickcheck::QuickCheck::new().quickcheck(QuickCheckStateMachine(t))
+/// Run a state machine test as a `#[test]`.
+///
+/// # Example
+///
+/// ```ignore
+/// state_machine_test!(counter, 100 ms, 100 steps, CounterStateMachine { buggy: false });
+/// ```
+#[macro_export]
+macro_rules! state_machine_test {
+    ($name:ident, $ms:literal ms, $steps:literal steps, $smt:expr) => {
+        #[test]
+        fn $name() {
+            arbtest::builder()
+                .budget_ms($ms)
+                .run(|u| $crate::smt::run(u, &$smt, $steps))
+        }
+    };
+    ($name:ident, $steps:literal steps, $smt:expr) => {
+        #[test]
+        fn $name() {
+            arbtest::builder().run(|u| $crate::smt::run(u, &$smt, $steps))
+        }
+    };
 }
 
 /// Run a state machine test with QuickCheck as a `#[test]`.
@@ -78,21 +95,25 @@ pub fn state_machine_test<T: StateMachine + 'static>(t: T) {
 /// # Example
 ///
 /// ```ignore
-/// state_machine_test!(counter, CounterStateMachine { buggy: false });
+/// state_machine_seed!(counter, 0x001a560e00000020, 100 steps, CounterStateMachine { buggy: true });
 /// ```
 #[macro_export]
-macro_rules! state_machine_test {
-    ($name:ident, $smt:expr) => {
-        #[test]
-        fn $name() {
-            $crate::smt::state_machine_test($smt)
+macro_rules! state_machine_seed {
+    ($name:ident, $seed:literal, $steps:literal steps, $smt:expr) => {
+        paste::paste! {
+          #[test]
+          fn [<$name _with_seed_ $seed>]() {
+              arbtest::builder()
+                  .seed($seed)
+                  .run(|u| $crate::smt::run(u, &$smt, $steps))
+          }
         }
     };
 }
 
 #[cfg(test)]
 mod tests {
-    use quickcheck::{Arbitrary, TestResult};
+    use arbitrary::{Result, Unstructured};
 
     use super::StateMachine;
 
@@ -135,14 +156,14 @@ mod tests {
     impl StateMachine for CounterStateMachine {
         type System = Counter;
         type State = i32;
-        type Command = CounterCommand;
+        type Command = &'static CounterCommand;
         type Result = Option<i32>;
 
-        fn gen_init_state(&self, g: &mut quickcheck::Gen) -> Self::State {
+        fn gen_state(&self, u: &mut Unstructured) -> Result<Self::State> {
             if self.buggy {
-                i32::arbitrary(g).abs() + 1
+                Ok(u.arbitrary::<i32>()?.abs() + 1)
             } else {
-                0
+                Ok(0)
             }
         }
 
@@ -150,9 +171,9 @@ mod tests {
             Counter::new()
         }
 
-        fn gen_command(&self, g: &mut quickcheck::Gen, _state: &Self::State) -> Self::Command {
+        fn gen_command(&self, u: &mut Unstructured, _state: &Self::State) -> Result<Self::Command> {
             use CounterCommand::*;
-            *g.choose(&[Get, Inc, Dec, Reset]).unwrap()
+            u.choose(&[Get, Inc, Dec, Reset])
         }
 
         fn run_command(&self, system: &mut Self::System, cmd: &Self::Command) -> Self::Result {
@@ -166,42 +187,57 @@ mod tests {
             None
         }
 
-        fn post_condition(
+        fn check_post_conditions(
             &self,
             pre_state: &Self::State,
             cmd: &Self::Command,
             result: &Self::Result,
             _post_system: &Self::System,
-        ) -> quickcheck::TestResult {
-            use CounterCommand::*;
+        ) {
             match cmd {
-                Get => {
-                    if Some(pre_state) == result.as_ref() {
-                        TestResult::passed()
-                    } else {
-                        TestResult::error(format!("expected {pre_state}, got {result:?}"))
-                    }
+                CounterCommand::Get => {
+                    assert_eq!(result.as_ref(), Some(pre_state))
                 }
-                _ => TestResult::passed(), // We could check the state if we wanted, or we can wait for Get.
+                _ => {} // We could check the state if we wanted, or we can wait for Get.
             }
         }
 
-        fn next_state(&self, state: &mut Self::State, cmd: &Self::Command) {
+        fn next_state(&self, state: Self::State, cmd: &Self::Command) -> Self::State {
             use CounterCommand::*;
             match cmd {
-                Inc => *state += 1,
-                Dec => *state -= 1,
-                Reset => *state = 0,
-                Get => {}
+                Inc => state + 1,
+                Dec => state - 1,
+                Reset => 0,
+                Get => state,
             }
         }
     }
 
-    state_machine_test!(counter, CounterStateMachine { buggy: false });
+    state_machine_test!(counter, 100 steps, CounterStateMachine { buggy: false });
 
+    /// Test the equivalent of:
+    ///
+    /// ```ignore
+    /// state_machine_test!(counter, 100 steps, CounterStateMachine { buggy: true });
+    /// ```
     #[test]
     #[should_panic]
-    fn buggy_counter() {
-        super::state_machine_test(CounterStateMachine { buggy: true })
+    fn counter_with_bug() {
+        let t = CounterStateMachine { buggy: true };
+        arbtest::builder().run(|u| super::run(u, &t, 100))
+    }
+
+    /// Test the equivalent of:
+    ///
+    /// ```ignore
+    /// state_machine_seed!(counter, 0x001a560e00000020, 100 steps, CounterStateMachine { buggy: true });
+    /// ```
+    #[test]
+    #[should_panic]
+    fn counter_with_seed() {
+        let t = CounterStateMachine { buggy: true };
+        arbtest::builder()
+            .seed(0x001a560e00000020)
+            .run(|u| super::run(u, &t, 100))
     }
 }
