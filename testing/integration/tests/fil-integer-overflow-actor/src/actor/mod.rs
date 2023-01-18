@@ -3,7 +3,7 @@
 use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{to_vec, CborStore, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, CborStore, RawBytes, CBOR, DAG_CBOR};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_sdk::NO_DATA_BLOCK_ID;
@@ -117,7 +117,7 @@ pub fn invoke(params_pointer: u32) -> u32 {
 
     match ret {
         None => NO_DATA_BLOCK_ID,
-        Some(v) => match fvm_sdk::ipld::put_block(DAG_CBOR, v.bytes()) {
+        Some(v) => match fvm_sdk::ipld::put_block(CBOR, v.bytes()) {
             Ok(id) => id,
             Err(err) => abort(
                 ExitCode::USR_SERIALIZATION.value(),

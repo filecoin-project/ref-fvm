@@ -27,7 +27,7 @@ pub fn invoke(params_id: u32) -> u32 {
     // Gas limit to use is supplied as a param.
     let params: Params = {
         let msg_params = sdk::message::params_raw(params_id).unwrap().unwrap();
-        assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+        assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
         fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap()
     };
 
