@@ -20,15 +20,15 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StateTreeVector {
     #[serde(with = "super::cidjson")]
     pub root_cid: Cid,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct GenerationData {
     #[serde(default)]
     pub source: String,
@@ -36,7 +36,7 @@ pub struct GenerationData {
     pub version: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MetaData {
     pub id: String,
     #[serde(default)]
@@ -46,9 +46,10 @@ pub struct MetaData {
     #[serde(default)]
     pub comment: String,
     pub gen: Vec<GenerationData>,
+    pub _debug: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PreConditions {
     pub state_tree: StateTreeVector,
     #[serde(default)]
@@ -59,7 +60,7 @@ pub struct PreConditions {
     pub variants: Vec<Variant>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostConditions {
     pub state_tree: StateTreeVector,
     #[serde(with = "message_receipt_vec")]
@@ -68,7 +69,7 @@ pub struct PostConditions {
     pub receipts_roots: Vec<Cid>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Selector {
     #[serde(default)]
     pub chaos_actor: Option<String>,
@@ -88,7 +89,7 @@ impl Selector {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Variant {
     pub id: String,
     pub epoch: ChainEpoch,
@@ -100,14 +101,14 @@ pub struct Variant {
 pub type Randomness = Vec<RandomnessMatch>;
 
 /// One randomness entry.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RandomnessMatch {
     pub on: RandomnessRule,
     #[serde(with = "base64_bytes")]
     pub ret: Vec<u8>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum RandomnessKind {
     Beacon,
@@ -115,7 +116,7 @@ pub enum RandomnessKind {
 }
 
 /// Rule for matching when randomness is returned.
-#[derive(Debug, Deserialize_tuple, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize_tuple, Serialize_tuple, PartialEq, Eq, Clone)]
 pub struct RandomnessRule {
     pub kind: RandomnessKind,
     pub dst: i64,
@@ -124,14 +125,20 @@ pub struct RandomnessRule {
     pub entropy: Vec<u8>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TipsetCid {
     pub epoch: ChainEpoch,
     #[serde(with = "super::cidjson")]
     pub cid: Cid,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MessageAddress {
+    #[serde(with = "address_vec")]
+    pub addresses: Option<Vec<Address>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MessageVector {
     pub chain_id: Option<u64>,
 
@@ -228,7 +235,7 @@ impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplyMessage {
     #[serde(with = "base64_bytes")]
     pub bytes: Vec<u8>,
@@ -250,6 +257,14 @@ mod base64_bytes {
         let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
         base64::decode(s.as_ref()).map_err(de::Error::custom)
     }
+
+    pub fn serialize<S>(data: &Vec<u8>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let encode_str = base64::encode(data);
+        encode_str.serialize(serializer)
+    }
 }
 
 mod message_receipt_vec {
@@ -258,7 +273,7 @@ mod message_receipt_vec {
 
     use super::*;
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     pub struct MessageReceiptVector {
         exit_code: ExitCode,
         #[serde(rename = "return", with = "base64_bytes")]
@@ -279,6 +294,21 @@ mod message_receipt_vec {
                 events_root: None,
             })
             .collect())
+    }
+
+    pub fn serialize<S>(data: &Vec<Receipt>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let output: Vec<MessageReceiptVector> = data
+            .into_iter()
+            .map(|v| MessageReceiptVector {
+                exit_code: v.exit_code,
+                return_value: v.return_data.clone().into(),
+                gas_used: v.gas_used,
+            })
+            .collect();
+        output.serialize(serializer)
     }
 }
 
@@ -302,6 +332,20 @@ mod address_vec {
             return Ok(Some(addr_strs));
         }
         Ok(None)
+    }
+
+    pub fn serialize<S>(
+        data: &Option<Vec<Address>>,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        if let Some(addrs) = data {
+            let output: Vec<String> = addrs.into_iter().map(|v| v.to_string()).collect();
+            return Some(output).serialize(serializer);
+        }
+        return serializer.serialize_none();
     }
 }
 
