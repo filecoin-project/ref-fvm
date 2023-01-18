@@ -9,7 +9,8 @@ members = [
     "testing/calibration",
     "ipld/*",
     "testing/integration/tests/*-actor",
-    "testing/calibration/contract/*-actor"
+    "testing/integration/tests/evm",
+    "testing/calibration/contract/*-actor",
 ]
 
 [profile.actor]

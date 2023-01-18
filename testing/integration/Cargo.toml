@@ -42,6 +42,7 @@ features = ["cranelift", "parallel-compilation"]
 wat = "1.0.51"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor' }
 fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor' }
 fil_ipld_actor = { path = 'tests/fil-ipld-actor' }
@@ -54,6 +55,8 @@ fil_exit_data_actor = { path = "tests/fil-exit-data-actor" }
 fil_gaslimit_actor = { path = "tests/fil-gaslimit-actor" }
 fil_readonly_actor = { path = "tests/fil-readonly-actor" }
 fil_create_actor = { path = "tests/fil-create-actor" }
+
+evm_contracts = { path = "tests/evm" }
 
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 

@@ -1,0 +1,47 @@
+{
+  "_format": "ethers-rs-sol-cache-3",
+  "paths": {
+    "artifacts": "artifacts",
+    "build_infos": "artifacts/build-info",
+    "sources": "contracts",
+    "tests": "test",
+    "scripts": "script",
+    "libraries": [
+      "node_modules"
+    ]
+  },
+  "files": {
+    "contracts/SimpleCoin.sol": {
+      "lastModificationDate": 1674050186018,
+      "contentHash": "58aca481d2d1bc8153222e2af627229e",
+      "sourceName": "contracts/SimpleCoin.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.4.2",
+      "artifacts": {
+        "SimpleCoin": {
+          "0.8.2+commit.661d1103.Linux.gcc": "SimpleCoin.sol/SimpleCoin.json"
+        }
+      }
+    }
+  }
+}
