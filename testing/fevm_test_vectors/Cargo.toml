@@ -59,6 +59,7 @@ tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }
 ethers = { version = "1.0.2" }
 clap = { version = "3.2.3", features = ["derive"] }
 walkdir = "2.3.2"
+colored = "2"
 
 [features]
 m2-native = []

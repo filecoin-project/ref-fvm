@@ -11,6 +11,10 @@ use async_std::sync::RwLock;
 use bytes::Buf;
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
+use conformance::vector::{
+    ApplyMessage, GenerationData, MessageVector, MetaData, PostConditions, PreConditions,
+    RandomnessKind, RandomnessMatch, RandomnessRule, StateTreeVector, TipsetCid, Variant,
+};
 use ethers::abi::AbiEncode;
 use fil_actor_eam::EthAddress;
 use fil_actor_evm::interpreter::system::StateKamt;
@@ -25,7 +29,6 @@ use fvm_ipld_car::CarHeader;
 use fvm_ipld_encoding::{BytesDe, Cbor, CborStore, RawBytes, DAG_CBOR};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
-use fvm_shared_local::address::Address as LocalAddress;
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::hash::SupportedHashes;
@@ -36,6 +39,7 @@ use fvm_shared::receipt::Receipt;
 use fvm_shared::state::StateRoot;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, IDENTITY_HASH, METHOD_SEND};
+use fvm_shared_local::address::Address as LocalAddress;
 use util::get_code_cid_map;
 
 use crate::evm_state::State as EvmState;
@@ -44,7 +48,6 @@ use crate::mock::{address_to_eth, Actor, Mock, KAMT_CONFIG};
 use crate::tracing_blockstore::TracingBlockStore;
 use crate::types::{ContractParams, CreateParams};
 use crate::util::{compute_address_create, hex_to_u256, u256_to_bytes};
-use conformance::vector::{MessageVector, GenerationData, MetaData, RandomnessMatch, RandomnessRule, TipsetCid, Variant, PreConditions, StateTreeVector, ApplyMessage, PostConditions, RandomnessKind};
 
 pub mod evm_state;
 pub mod extractor;
@@ -120,7 +123,9 @@ pub async fn export_test_vector_file(
     //receipt
     let receipt = fvm_shared_local::receipt::Receipt {
         exit_code: fvm_shared_local::error::ExitCode::OK,
-        return_data: fvm_ipld_encoding_local::RawBytes::serialize(BytesDe(input.return_value.to_vec()))?,
+        return_data: fvm_ipld_encoding_local::RawBytes::serialize(BytesDe(
+            input.return_value.to_vec(),
+        ))?,
         gas_used: 0,
         events_root: None,
     };
@@ -160,6 +165,7 @@ pub async fn export_test_vector_file(
         nv: NetworkVersion::V18 as u32,
     }];
     let test_vector = MessageVector {
+        class: String::from_str("message")?,
         chain_id: Some(input.chain_id.as_u64()),
         selector: None,
         meta: Some(MetaData {
@@ -171,7 +177,7 @@ pub async fn export_test_vector_file(
                 source: env!("CARGO_PKG_REPOSITORY").to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             }],
-            _debug
+            _debug,
         }),
         car: gz_car_bytes,
         preconditions: PreConditions {
@@ -191,10 +197,12 @@ pub async fn export_test_vector_file(
                 root_cid: post_state_root,
             },
             receipts: vec![receipt],
-            receipts_roots: vec![]
+            receipts_roots: vec![],
         },
         skip_compare_gas_used: true,
-        skip_compare_addresses: Some(vec![LocalAddress::from_bytes(&message.from.to_bytes()).unwrap()]),
+        skip_compare_addresses: Some(vec![
+            LocalAddress::from_bytes(&message.from.to_bytes()).unwrap()
+        ]),
         skip_compare_actor_ids: Some(vec![REWARD_ACTOR_ID, BURNT_FUNDS_ACTOR_ID]),
         additional_compare_addresses: Some(
             contract_addrs
