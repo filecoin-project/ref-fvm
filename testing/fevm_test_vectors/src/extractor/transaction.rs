@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
-use std::str::FromStr;
-use anyhow::ensure;
+use std::collections::{BTreeMap, BTreeSet};
 
+use anyhow::ensure;
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider};
 use ethers::utils;
@@ -9,6 +8,7 @@ use ethers::utils::get_contract_address;
 
 use super::opcodes::*;
 use crate::extractor::types::{EthState, EthTransactionTestVector};
+use crate::extractor::util::{decode_address, H256_to_U256, U256_to_H256};
 
 /// Extract pre-transaction and post-transaction states and other transaction
 /// info for the given tx hash from Geth node.
@@ -342,20 +342,47 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
     Ok(eth_transaction_test_vector)
 }
 
-fn decode_address(raw_address: U256) -> H160 {
-    let mut bytes = [0; 32];
-    raw_address.to_big_endian(&mut bytes);
-    H160::from_slice(&bytes[12..])
-}
+pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
+    provider: &Provider<P>,
+    contracts: Vec<H160>,
+    tx_num: usize,
+    furthest_block_num: Option<U64>,
+) -> anyhow::Result<BTreeMap<H160, Vec<Transaction>>> {
+    let mut contracts = BTreeSet::from_iter(contracts);
 
-fn U256_to_H256(val: U256) -> H256 {
-    let mut bytes = [0; 32];
-    val.to_big_endian(&mut bytes);
-    H256::from_slice(&bytes)
-}
+    let mut result = BTreeMap::new();
+    for contract in &contracts {
+        result.insert(*contract, vec![]);
+    }
 
-fn H256_to_U256(val: H256) -> U256 {
-    U256::from_big_endian(val.as_bytes())
+    let mut block_num = provider.get_block_number().await?;
+    loop {
+        if let Some(furthest_block_num) = furthest_block_num {
+            if block_num < furthest_block_num {
+                break;
+            }
+        }
+        if contracts.is_empty() {
+            break;
+        }
+
+        let block = provider.get_block_with_txs(BlockNumber::Latest).await?.unwrap();
+        for tx in block.transactions.into_iter().rev() {
+            if let Some(contract) = tx.to {
+                if contracts.contains(&contract) {
+                    let transactions = result.get_mut(&contract).unwrap();
+                    if transactions.len() < tx_num {
+                        transactions.push(tx);
+                    } else {
+                        contracts.take(&contract);
+                    }
+                }
+            }
+        }
+
+        block_num -= 1.into();
+    }
+    Ok(result)
 }
 
 // export RPC='http://localhost:8545'
@@ -363,18 +390,20 @@ fn H256_to_U256(val: H256) -> U256 {
 // cargo test --package fevm-test-vectors --lib extractor::transaction::test_extract_eth_tv -- --exact -Z unstable-options --show-output
 #[tokio::test]
 async fn test_extract_eth_tv() {
+    use std::str::FromStr;
+
     let rpc = std::env::var("RPC").unwrap_or("http://localhost:8545".to_owned());
     let tx_hash = std::env::var("TX").unwrap();
     let tx_hash = H256::from_str(&tx_hash).unwrap();
 
     let provider = Provider::<Http>::try_from(rpc).expect("could not instantiate HTTP Provider");
 
-    let r = extract_eth_transaction_test_vector(&provider, tx_hash)
+    let etv = extract_eth_transaction_test_vector(&provider, tx_hash)
         .await
         .unwrap();
-    for (address, account) in r.prestate {
+    for (address, account) in etv.prestate {
         let pre_balance = account.balance;
-        let post_balance = r.poststate.get(&address).unwrap().balance;
+        let post_balance = etv.poststate.get(&address).unwrap().balance;
         if pre_balance != post_balance {
             if pre_balance < post_balance {
                 println!(
