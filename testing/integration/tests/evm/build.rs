@@ -14,6 +14,8 @@ use serde::Serialize;
 ///
 /// This would be much easier to achieve with `make` and `solc` directly, but this way
 /// we can rely purely on `cargo`.
+///
+/// See https://docs.rs/ethers/latest/ethers/solc/
 fn main() {
     // The following will look for Solidity files in the `contracts` directory.
     let path_config = ProjectPathsConfig::hardhat(env!("CARGO_MANIFEST_DIR")).unwrap();
@@ -59,7 +61,7 @@ fn main() {
                 .expect("Bytecode is part of the default outputs");
 
             export_json(&mk_path("abi"), abi);
-            export_hex(&mk_path("hex"), &bytecode.object.as_bytes().unwrap());
+            export_hex(&mk_path("hex"), bytecode.object.as_bytes().unwrap());
         }
     }
 
