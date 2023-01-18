@@ -25,6 +25,7 @@ use fvm_ipld_car::CarHeader;
 use fvm_ipld_encoding::{BytesDe, Cbor, CborStore, RawBytes, DAG_CBOR};
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::Address;
+use fvm_shared_local::address::Address as LocalAddress;
 use fvm_shared::bigint::{BigInt, Integer};
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::hash::SupportedHashes;
@@ -36,7 +37,6 @@ use fvm_shared::state::StateRoot;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, IDENTITY_HASH, METHOD_SEND};
 use util::get_code_cid_map;
-use vector::{ApplyMessage, PreConditions, StateTreeVector, TestVector, Variant};
 
 use crate::evm_state::State as EvmState;
 use crate::extractor::types::EthTransactionTestVector;
@@ -44,16 +44,14 @@ use crate::mock::{address_to_eth, Actor, Mock, KAMT_CONFIG};
 use crate::tracing_blockstore::TracingBlockStore;
 use crate::types::{ContractParams, CreateParams};
 use crate::util::{compute_address_create, hex_to_u256, u256_to_bytes};
-use crate::vector::{GenerationData, MetaData, RandomnessMatch, RandomnessRule, TipsetCid};
+use conformance::vector::{MessageVector, GenerationData, MetaData, RandomnessMatch, RandomnessRule, TipsetCid, Variant, PreConditions, StateTreeVector, ApplyMessage, PostConditions, RandomnessKind};
 
-mod cidjson;
 pub mod evm_state;
 pub mod extractor;
 pub mod mock;
 pub mod tracing_blockstore;
 pub mod types;
 pub mod util;
-mod vector;
 
 const LOG_INIT: Once = Once::new();
 
@@ -120,9 +118,9 @@ pub async fn export_test_vector_file(
     let message = to_message(&input);
 
     //receipt
-    let receipt = Receipt {
-        exit_code: ExitCode::OK,
-        return_data: RawBytes::serialize(BytesDe(input.return_value.to_vec()))?,
+    let receipt = fvm_shared_local::receipt::Receipt {
+        exit_code: fvm_shared_local::error::ExitCode::OK,
+        return_data: fvm_ipld_encoding_local::RawBytes::serialize(BytesDe(input.return_value.to_vec()))?,
         gas_used: 0,
         events_root: None,
     };
@@ -148,7 +146,7 @@ pub async fn export_test_vector_file(
     };
     let randomness = vec![RandomnessMatch {
         on: RandomnessRule {
-            kind: vector::RandomnessKind::Beacon,
+            kind: RandomnessKind::Beacon,
             dst: 10, //fil_actors_runtime::runtime::randomness::DomainSeparationTag::EvmPrevRandao as i64,
             epoch: input.block_number as ChainEpoch,
             entropy: Vec::from(ENTROPY),
@@ -161,8 +159,7 @@ pub async fn export_test_vector_file(
         timestamp: Some(input.timestamp.as_u64()),
         nv: NetworkVersion::V18 as u32,
     }];
-    let test_vector = TestVector {
-        class: String::from_str("message")?,
+    let test_vector = MessageVector {
         chain_id: Some(input.chain_id.as_u64()),
         selector: None,
         meta: Some(MetaData {
@@ -189,19 +186,23 @@ pub async fn export_test_vector_file(
             bytes: message.marshal_cbor()?,
             epoch_offset: None,
         }],
-        postconditions: vector::PostConditions {
+        postconditions: PostConditions {
             state_tree: StateTreeVector {
                 root_cid: post_state_root,
             },
             receipts: vec![receipt],
+            receipts_roots: vec![]
         },
         skip_compare_gas_used: true,
-        skip_compare_addresses: Some(vec![message.from]),
+        skip_compare_addresses: Some(vec![LocalAddress::from_bytes(&message.from.to_bytes()).unwrap()]),
         skip_compare_actor_ids: Some(vec![REWARD_ACTOR_ID, BURNT_FUNDS_ACTOR_ID]),
         additional_compare_addresses: Some(
             contract_addrs
                 .into_iter()
                 .filter(|contract_addr| contract_addr != &message.to)
+                .collect::<Vec<Address>>()
+                .into_iter()
+                .map(|e| LocalAddress::from_bytes(&e.to_bytes()).unwrap())
                 .collect(),
         ),
         tipset_cids: Some(tipset_cids),

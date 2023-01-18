@@ -17,6 +17,7 @@ fil_actor_reward = { version = "10.0.0-alpha.1", git = "https://github.com/filec
 fil_actor_evm = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
 fil_actor_eam = { version = "10.0.0-alpha.1", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next" }
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors.git", branch = "next", features = ["m2-native"] }
+conformance = { package = "fvm_conformance_tests", path = "../conformance" }
 
 anyhow = "1.0.65"
 bimap = { version = "0.6.2" }
@@ -26,8 +27,10 @@ fvm_actor_utils = "2.0.0"
 fvm_ipld_bitfield = "0.5.4"
 fvm_ipld_blockstore = { version = "0.1.1", default-features = false }
 fvm_ipld_encoding = { version = "0.3.2", default-features = false }
+fvm_ipld_encoding_local = { package = "fvm_ipld_encoding", version = "0.3.2", path = "../../ipld/encoding" }
 fvm_ipld_hamt = "0.6.1"
 fvm_shared = { version = "3.0.0-alpha.15", default-features = false }
+fvm_shared_local = { package = "fvm_shared", version = "3.0.0-alpha.15", path = "../../shared" }
 indexmap = { version = "1.8.0", features = ["serde-1"] }
 integer-encoding = { version = "3.0.3", default-features = false }
 lazy_static = "1.4.0"
