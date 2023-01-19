@@ -60,6 +60,7 @@ ethers = { version = "1.0.2" }
 clap = { version = "3.2.3", features = ["derive"] }
 walkdir = "2.3.2"
 colored = "2"
+indicatif = "0.17.3"
 
 [features]
 m2-native = []

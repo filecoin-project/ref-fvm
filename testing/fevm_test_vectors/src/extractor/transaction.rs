@@ -5,6 +5,8 @@ use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider};
 use ethers::utils;
 use ethers::utils::get_contract_address;
+use indicatif::ProgressBar;
+use log::{info, warn};
 
 use super::opcodes::*;
 use crate::extractor::types::{EthState, EthTransactionTestVector};
@@ -354,8 +356,8 @@ pub async fn extract_eth_transaction_test_vector_from_tx<P: JsonRpcClient>(
 pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
     provider: &Provider<P>,
     contracts: Vec<H160>,
-    tx_num: usize,
-    furthest_block_num: Option<U64>,
+    max_tx_num_per_contract: usize,
+    max_block_search_num: usize,
 ) -> anyhow::Result<BTreeMap<H160, Vec<Transaction>>> {
     let mut contracts = BTreeSet::from_iter(contracts);
 
@@ -364,23 +366,26 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
         ret.insert(*contract, vec![]);
     }
 
-    let mut block_num = provider.get_block_number().await?;
+    let bar = ProgressBar::new(max_block_search_num as u64);
+
+    let latest_block_number = provider.get_block_number().await?;
+    let mut current_block_numer = latest_block_number;
     loop {
-        if let Some(furthest_block_num) = furthest_block_num {
-            if block_num < furthest_block_num {
-                break;
-            }
+        if latest_block_number - current_block_numer >= max_block_search_num.into() {
+            warn!("max block search num is reached");
+            break;
         }
         if contracts.is_empty() {
+            info!("all done");
             break;
         }
 
-        let block = provider.get_block_with_txs(block_num).await?.unwrap();
+        let block = provider.get_block_with_txs(current_block_numer).await?.unwrap();
         for tx in block.transactions.into_iter().rev() {
             if let Some(contract) = tx.to {
                 if contracts.contains(&contract) {
                     let transactions = ret.get_mut(&contract).unwrap();
-                    if transactions.len() < tx_num {
+                    if transactions.len() < max_tx_num_per_contract {
                         transactions.push(tx);
                     } else {
                         contracts.take(&contract);
@@ -389,7 +394,8 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
             }
         }
 
-        block_num -= 1.into();
+        bar.inc(1);
+        current_block_numer -= 1.into();
     }
     Ok(ret)
 }

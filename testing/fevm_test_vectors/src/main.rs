@@ -58,7 +58,7 @@ pub struct Batch {
     tx_num: usize,
 
     #[clap(short, long)]
-    furthest_block_num: Option<u64>,
+    max_block_num: usize,
 
     /// test vector output dir path
     #[clap(short, long)]
@@ -94,11 +94,8 @@ async fn main() -> anyhow::Result<()> {
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
             let contracts = config.contracts.into_iter().map(|e| H160::from_str(&*e).expect("contract format error")).collect::<Vec<H160>>();
-            let furthest_block_num = match config.furthest_block_num {
-                Some(e) => Some(U64::from(e)),
-                None => None
-            };
-            let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, furthest_block_num))?;
+
+            let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, config.max_block_num))?;
             for (contract, txs) in res {
                 let contract_dir = out_dir.join(contract.encode_hex());
                 if !contract_dir.exists() {
