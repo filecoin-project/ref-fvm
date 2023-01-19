@@ -33,7 +33,7 @@ pub fn new_tester(bundle_path: String) -> BasicTester {
     let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
         Ok(cid) => cid,
         Err(what) => {
-            exit_with_error(format!("error loading bundle: {}", what));
+            panic!("error loading bundle: {}", what);
         }
     };
     Tester::new(
@@ -43,7 +43,7 @@ pub fn new_tester(bundle_path: String) -> BasicTester {
         blockstore,
     )
     .unwrap_or_else(|what| {
-        exit_with_error(format!("error creating execution framework: {}", what));
+        panic!("error creating execution framework: {}", what);
     })
 }
 
