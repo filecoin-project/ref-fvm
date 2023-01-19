@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
                 .expect("could not instantiate HTTP Provider");
             let contracts = config.contracts.into_iter().map(|e| H160::from_str(&*e).expect("contract format error")).collect::<Vec<H160>>();
             let furthest_block_num = match config.furthest_block_num {
-                Some(e) => Some(provider.get_block_number().await? - U64::from(e)),
+                Some(e) => Some(U64::from(e)),
                 None => None
             };
             let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, furthest_block_num))?;
