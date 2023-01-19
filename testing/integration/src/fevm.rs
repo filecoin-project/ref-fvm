@@ -102,6 +102,18 @@ pub enum EVMMethod {
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EthAddress(#[serde(with = "strict_bytes")] pub [u8; 20]);
 
+impl EthAddress {
+    /// Returns an EVM-form ID address from actor ID.
+    ///
+    /// This is copied from the `evm` actor library.
+    pub fn from_id(id: u64) -> EthAddress {
+        let mut bytes = [0u8; 20];
+        bytes[0] = 0xff;
+        bytes[12..].copy_from_slice(&id.to_be_bytes());
+        EthAddress(bytes)
+    }
+}
+
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct CreateReturn {
     pub actor_id: ActorID,

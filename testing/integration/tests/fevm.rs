@@ -9,6 +9,9 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use cucumber::{Parameter, World};
+use ethers::abi::Detokenize;
+use ethers::prelude::builders::ContractCall;
+use ethers::prelude::decode_function_data;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
 use fvm_integration_tests::tester::Account as TestAccount;
@@ -16,6 +19,7 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_shared::ActorID;
 use lazy_static::lazy_static;
 use simple_coin_world::SimpleCoinWorld;
 
@@ -88,6 +92,8 @@ impl Display for AccountNumber {
 pub struct ContractTester {
     tester: BasicTester,
     accounts: Vec<Account>,
+    /// Last `(owner_addr, contract_addr)` pair.
+    last_created: Option<(TestAccount, Address)>,
 }
 
 impl Default for ContractTester {
@@ -114,6 +120,7 @@ impl ContractTester {
         Self {
             tester,
             accounts: Vec::new(),
+            last_created: None,
         }
     }
 
@@ -163,12 +170,18 @@ impl ContractTester {
             .unwrap()
     }
 
+    /// Get a mutable reference to an account
+    pub fn account_id(&mut self, acct: &AccountNumber) -> ActorID {
+        self.account_mut(acct).account.0
+    }
+
     /// Deploy a contract owned by an account.
     pub fn create_contract(&mut self, owner: AccountNumber, contract_name: String) {
         self.ensure_machine_instantiated();
 
         // Need to clone because I have to pass 2 mutable references to `fevm::create_contract`.
         let mut account = self.account_mut(&owner).clone();
+        let creator = account.account;
         let contract = get_contract_code(&contract_name);
 
         let create_res =
@@ -182,7 +195,47 @@ impl ContractTester {
             .deserialize()
             .expect("error deserializing CreateReturn");
 
-        let _actor_addr = Address::new_id(create_return.actor_id);
+        let contract_addr = Address::new_id(create_return.actor_id);
+        self.last_created = Some((creator, contract_addr))
+    }
+
+    /// Instantiate a contract and return it with its address.
+    fn get_contract<T, F>(&self, f: F) -> (T, Address)
+    where
+        F: Fn(ActorID) -> T,
+    {
+        let ((owner_id, _), contract_addr) = self
+            .last_created
+            .expect("haven't deployed the contract yet");
+
+        let contract = f(owner_id);
+        (contract, contract_addr)
+    }
+
+    /// Take a function that calls an ABI method to return a `ContractCall`.
+    /// Then, instead of calling the contract on-chain, run it through our
+    /// EVM interpreter in the test runtime. Finally parse the results.
+    pub fn call_contract<R: Detokenize>(
+        &mut self,
+        acct: AccountNumber,
+        contract_addr: Address,
+        gas_limit: i64,
+        call: TestContractCall<R>,
+    ) -> R {
+        let input = call.calldata().expect("Should have calldata.");
+        let mut account = self.account_mut(&acct).clone();
+        let invoke_res = fvm_integration_tests::fevm::invoke_contract(
+            &mut self.tester,
+            &mut account,
+            contract_addr,
+            &input,
+            gas_limit,
+        );
+        *self.account_mut(&acct) = account;
+        let result = invoke_res.msg_receipt.return_data;
+
+        decode_function_data(&call.function, result.bytes(), false)
+            .expect("error deserializing return data")
     }
 }
 
@@ -202,38 +255,48 @@ macro_rules! contract_matchers {
     };
 }
 
+pub type MockProvider = ethers::providers::Provider<ethers::providers::MockProvider>;
+pub type TestContractCall<R> = ContractCall<MockProvider, R>;
+
+/// Convert an FVM actor ID to `ethers` address.
+pub fn id_to_h160(id: ActorID) -> ethers::core::types::Address {
+    let addr = fvm_integration_tests::fevm::EthAddress::from_id(id);
+    ethers::core::types::Address::from_slice(&addr.0)
+}
+
 /// Create constructors for a smart contract, injecting a mock provider for the client,
 /// because we are not going to send them to an actual blockchain.
-// macro_rules! contract_constructors {
-//     ($contract:ident) => {
-//         #[allow(dead_code)]
-//         pub fn new_with_eth_address(
-//             owner: fil_actor_evm::interpreter::address::EthAddress,
-//         ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
-//             // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
-//             let address = ethers::core::types::Address::from_slice(owner.as_ref());
-//             // A dummy client that we don't intend to use to call the contract or send transactions.
-//             let (client, _mock) = ethers::providers::Provider::mocked();
-//             $contract::new(address, std::sync::Arc::new(client))
-//         }
+macro_rules! contract_constructors {
+    ($contract:ident) => {
+        #[allow(dead_code)]
+        pub fn new_with_eth_addr(
+            owner: fvm_integration_tests::fevm::EthAddress,
+        ) -> $contract<$crate::MockProvider> {
+            // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
+            let address = ethers::core::types::Address::from_slice(&owner.0);
+            // A dummy client that we don't intend to use to call the contract or send transactions.
+            let (client, _mock) = ethers::providers::Provider::mocked();
+            $contract::new(address, std::sync::Arc::new(client))
+        }
 
-//         #[allow(dead_code)]
-//         pub fn new_with_actor_id(
-//             owner: fvm_shared::ActorID,
-//         ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
-//             let owner = fil_actor_evm::interpreter::address::EthAddress::from_id(owner);
-//             new_with_eth_address(owner)
-//         }
-//     };
-// }
+        #[allow(dead_code)]
+        pub fn new_with_actor_id(owner: fvm_shared::ActorID) -> $contract<$crate::MockProvider> {
+            let owner = fvm_integration_tests::fevm::EthAddress::from_id(owner);
+            new_with_eth_addr(owner)
+        }
+    };
+}
 
 mod simple_coin_world {
-    use cucumber::{given, when, World};
+    use cucumber::{given, then, when, World};
+    use ethers::types::U256;
+    use evm_contracts::simple_coin::SimpleCoin;
+    use fvm_shared::address::Address;
 
     //use evm_contracts::simple_coin::SimpleCoin;
-    use crate::ContractTester;
+    use crate::{id_to_h160, AccountNumber, ContractTester, MockProvider};
 
-    // contract_constructors!(SimpleCoin);
+    contract_constructors!(SimpleCoin);
 
     // `World` is your shared, likely mutable state.
     // Cucumber constructs it via `Default::default()` for each scenario.
@@ -242,5 +305,23 @@ mod simple_coin_world {
         pub tester: ContractTester,
     }
 
+    impl SimpleCoinWorld {
+        fn get_contract(&self) -> (SimpleCoin<MockProvider>, Address) {
+            self.tester.get_contract(new_with_actor_id)
+        }
+    }
+
     contract_matchers!(SimpleCoinWorld);
+
+    #[then(expr = "the balance of {acct} is {int} coin(s)")]
+    fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
+        let (contract, contract_addr) = world.get_contract();
+        let account_id = world.tester.account_mut(&acct).account.0;
+        let call = contract.get_balance(id_to_h160(account_id));
+        let balance = world
+            .tester
+            .call_contract(acct, contract_addr, 10_000_000_000, call);
+
+        assert_eq!(balance, U256::from(coins))
+    }
 }
