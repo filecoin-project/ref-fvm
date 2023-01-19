@@ -17,10 +17,11 @@ use crate::extractor::util::{decode_address, H256_to_U256, U256_to_H256};
 pub async fn extract_eth_transaction_test_vector_from_tx_hash<P: JsonRpcClient>(
     provider: &Provider<P>,
     tx_hash: H256,
+    tag: Option<String>,
 ) -> anyhow::Result<EthTransactionTestVector> {
     let transaction = provider.get_transaction(tx_hash).await?.unwrap();
 
-    extract_eth_transaction_test_vector_from_tx(provider, transaction).await
+    extract_eth_transaction_test_vector_from_tx(provider, transaction, tag).await
 }
 
 /// Extract pre-transaction and post-transaction states and other transaction
@@ -28,6 +29,7 @@ pub async fn extract_eth_transaction_test_vector_from_tx_hash<P: JsonRpcClient>(
 pub async fn extract_eth_transaction_test_vector_from_tx<P: JsonRpcClient>(
     provider: &Provider<P>,
     transaction: Transaction,
+    tag: Option<String>,
 ) -> anyhow::Result<EthTransactionTestVector> {
     let block = provider
         .get_block_with_txs(transaction.block_hash.unwrap())
@@ -322,6 +324,7 @@ pub async fn extract_eth_transaction_test_vector_from_tx<P: JsonRpcClient>(
     poststate.get_mut(&tx_from).unwrap().balance += leftover_gas * gas_price;
 
     let eth_transaction_test_vector = EthTransactionTestVector {
+        tag,
         hash: transaction.hash,
         nonce: transaction.nonce.as_u64(),
         from: transaction.from,

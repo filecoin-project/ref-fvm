@@ -46,6 +46,9 @@ pub struct Generate {
     /// test vector output dir path
     #[clap(short, long)]
     out_dir: String,
+
+    #[clap(long)]
+    tag: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -54,8 +57,9 @@ pub struct Batch {
     #[clap(short, long)]
     geth_rpc_endpoint: String,
 
-    #[clap(long, multiple_values=true)]
-    contracts: Vec<String>,
+    /// multiple contract addresses, such as: 0x1F98431c8aD98523631AE4a59f267346ea31F984,0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696
+    #[clap(short, long)]
+    contracts: String,
 
     #[clap(short, long)]
     tx_num: usize,
@@ -66,6 +70,9 @@ pub struct Batch {
     /// test vector output dir path
     #[clap(short, long)]
     out_dir: String,
+
+    #[clap(long)]
+    tag: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -99,16 +106,23 @@ async fn main() -> anyhow::Result<()> {
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
             let evm_input =
-                extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash).await?;
+                extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash, config.tag).await?;
             let path = out_dir.join(format!("{}.json", config.tx_hash));
             block_on(export_test_vector_file(evm_input, path))?;
         }
         SubCommand::Batch(config) => {
+            if config.tag.is_some() {
+                println!("------ {:?} ------", config.tag.clone().unwrap())
+            }
             let out_dir = Path::new(&config.out_dir);
             assert!(out_dir.is_dir(), "out_dir must directory");
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
-            let contracts = config.contracts.into_iter().map(|e| H160::from_str(&*e).expect("contract format error")).collect::<Vec<H160>>();
+            let contracts = config.contracts.split(",");
+            let contracts = contracts.into_iter()
+                .filter(|e| e.trim().len() > 0)
+                .map(|e| H160::from_str(&*(e.trim())).expect("contract format error")
+                ).collect::<Vec<H160>>();
 
             let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, config.max_block_num))?;
             for (contract, txs) in res {
@@ -118,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 for tx in txs {
                     let path = contract_dir.join(format!("{}.json", tx.hash.encode_hex()));
-                    let evm_input = extract_eth_transaction_test_vector_from_tx(&provider, tx).await?;
+                    let evm_input = extract_eth_transaction_test_vector_from_tx(&provider, tx, config.tag.clone()).await?;
                     block_on(export_test_vector_file(evm_input, path))?;
                 }
             }

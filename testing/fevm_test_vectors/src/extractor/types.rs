@@ -28,6 +28,7 @@ pub type EthState = BTreeMap<H160, EthAccountState>;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EthTransactionTestVector {
     // transaction fields
+    pub tag: Option<String>,
     pub hash: H256,
     pub nonce: u64,
     pub from: H160,

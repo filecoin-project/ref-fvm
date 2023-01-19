@@ -163,7 +163,7 @@ pub async fn export_test_vector_file(
         ret,
     }];
     let variants = vec![Variant {
-        id: String::from("test_evm"),
+        id: match input.tag { Some(e) => e, None => String::from("test_evm") },
         epoch: input.block_number as ChainEpoch,
         timestamp: Some(input.timestamp.as_u64()),
         nv: NetworkVersion::V18 as u32,
