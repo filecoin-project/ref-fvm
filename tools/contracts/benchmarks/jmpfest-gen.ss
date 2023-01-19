@@ -1,4 +1,11 @@
 #!/usr/bin/env gxi
+;; This script was used to generate the bodies of the two jumpfest contracts,
+;; (linear and random). You shouldn't have to run it, but it is here as reference
+;; if you want to understand the logic behind the two contracts.
+;; Some complain that it is written in an alien language, but it is a one-shot script
+;; that took me 10 min to write (as opposed to the 3 hours and frustration it would
+;; take me to write it in rust), so you'll have to deal. Rust is good(ish) for lot of things,
+;; but suitable for quick hacking it is not.
 
 (import :std/iter
         :std/format
