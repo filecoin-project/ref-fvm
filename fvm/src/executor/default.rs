@@ -5,7 +5,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{RawBytes, CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -114,9 +114,9 @@ where
                         // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
                         IPLD_RAW
                     } else {
-                        // TODO: This should probably be CBOR
-                        // See #987.
-                        DAG_CBOR
+                        // This is CBOR, not DAG_CBOR, because links sent from off-chain aren't
+                        // reachable.
+                        CBOR
                     },
                     msg.params.bytes(),
                 )

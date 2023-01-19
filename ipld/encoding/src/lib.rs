@@ -19,7 +19,13 @@ pub use self::cbor_store::CborStore;
 pub use self::errors::*;
 pub use self::vec::*;
 
+/// CBOR should be used to pass CBOR data when internal links don't need to be
+/// traversable/reachable. When a CBOR block is loaded, said links will not be added to the
+/// reachable set.
+pub const CBOR: u64 = 0x51;
+/// DagCBOR should be used for all IPLD-CBOR data where CIDs need to be traversable.
 pub const DAG_CBOR: u64 = 0x71;
+/// RAW should be used for raw data.
 pub const IPLD_RAW: u64 = 0x55;
 
 // TODO: these really don't work all that well in a shared context like this as anyone importing

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -415,7 +415,7 @@ where
             system_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            Some(Block::new(DAG_CBOR, params)),
+            Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
         )?;
 
