@@ -19,7 +19,7 @@ fvm_ipld_encoding = { version = "0.3.2", path = "../../ipld/encoding" }
 anyhow = "1.0.47"
 thiserror = "1.0.30"
 num-traits = "0.2"
-derive_builder = "0.11.2"
+derive_builder = "0.12.0"
 ahash = "0.8"
 num-derive = "0.3.3"
 cid = { version = "0.8.5", default-features = false }
@@ -36,7 +36,7 @@ byteorder = "1.4.3"
 futures = "0.3.19"
 async-std = { version = "1.9", features = ["attributes"] }
 wasmtime = { version = "2.0.2", default-features = false }
-base64 = "0.13.0"
+base64 = "0.21.0"
 flate2 = { version = "1.0" }
 colored = "2"
 either = "1.6.1"
