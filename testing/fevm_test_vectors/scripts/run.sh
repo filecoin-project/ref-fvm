@@ -14,7 +14,7 @@ Uniswap_V2='
   0xA5644E29708357803b5A882D272c41cC0dF92B34
 '
 contracts=`echo $Uniswap_V2 | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Uniswap_V2"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Uniswap_V2"
 
 MakerDao='
   0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F,
@@ -404,7 +404,7 @@ MakerDao='
   0x615984F33604011Fcd76E9b89803Be3816276E61
 '
 contracts=`echo $MakerDao | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "MakerDao"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "MakerDao"
 
 OpenSea='
   0x1e0049783f008a0085193e00003d00cd54003c71,
@@ -419,142 +419,142 @@ OpenSea='
   0x00005ea00ac477b1030ce78506496e8c2de24bf5
 '
 contracts=`echo $OpenSea | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "OpenSea"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "OpenSea"
 
 Curve='
   0xD533a949740bb3306d119CC777fa900bA034cd52
 '
 contracts=`echo $Curve | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Curve"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Curve"
 
 ConvexFinance='
   0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B
 '
 contracts=`echo $ConvexFinance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "ConvexFinance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "ConvexFinance"
 
 AAVE_V2='
   0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
 '
 contracts=`echo $AAVE_V2 | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "AAVE_V2"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "AAVE_V2"
 
 Lido='
   0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32
 '
 contracts=`echo $Lido | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Lido"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Lido"
 
 1inch_Network = '
   0x1111111254fb6c44bAC0beD2854e76F90643097d
 '
 contracts=`echo $1inch_Network | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "1inch_Network"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "1inch_Network"
 
 Metamask_Swap='
   0x881D40237659C251811CEC9c364ef91dC08D300C,
   0xF326e4dE8F66A0BDC0970b79E0924e33c79f1915
 '
 contracts=`echo $Metamask_Swap | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Metamask_Swap"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Metamask_Swap"
 
 
 Compound_Finance='
   0xc00e94Cb662C3520282E6f5717214004A7f26888
 '
 contracts=`echo $Compound_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Compound_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Compound_Finance"
 
 Balancer='
   0xba100000625a3754423978a60c9317c58a424e3D
 '
 contracts=`echo $Balancer | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Balancer"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Balancer"
 
 Rocket_Pool='
   0xD33526068D116cE69F19A9ee46F0bd304F21A51f
 '
 contracts=`echo $Rocket_Pool | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Rocket_Pool"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Rocket_Pool"
 
 Yearn_Finance='
   0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e
 '
 contracts=`echo $Yearn_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Yearn_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Yearn_Finance"
 
 SushiSwap='
   0x6B3595068778DD592e39A122f4f5a5cF09C90fE2
 '
 contracts=`echo $SushiSwap | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "SushiSwap"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "SushiSwap"
 
 dYdX='
   0x92D6C1e31e14520e676a687F0a93788B716BEff5
 '
 contracts=`echo $dYdX | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "dYdX"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "dYdX"
 
 Stargate='
   0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6
 '
 contracts=`echo $Stargate | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Stargate"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Stargate"
 
 0x='
   0xE41d2489571d322189246DaFA5ebDe1F4699F498
 '
 contracts=`echo $0x | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "0x"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "0x"
 
 Frax_Finance='
   0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0
 '
 contracts=`echo $Frax_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Frax_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Frax_Finance"
 
 Abracadabra='
   0x090185f2135308BaD17527004364eBcC2D37e5F6
 '
 contracts=`echo $Abracadabra | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Abracadabra"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Abracadabra"
 
 Euler='
   0xd9Fcd98c322942075A5C3860693e9f4f03AAE07b
 '
 contracts=`echo $Euler | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Euler"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Euler"
 
 Synthetix='
   0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F
 '
 contracts=`echo $Synthetix | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Synthetix"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Synthetix"
 
 Olympus_DAO='
   0x383518188C0C6d7730D91b2c03a03C837814a899
 '
 contracts=`echo $Olympus_DAO | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Olympus_DAO"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Olympus_DAO"
 
 
 Nexus_Mutual='
   0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B
 '
 contracts=`echo $Nexus_Mutual | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Nexus_Mutual"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Nexus_Mutual"
 
 Bancor='
   0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C
 '
 contracts=`echo $Bancor | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Bancor"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Bancor"
 
 Loopring='
   0xBBbbCA6A901c926F240b89EacB641d8Aec7AEafD
 '
 contracts=`echo $Loopring | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Loopring"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Loopring"
 
 DefiSaver='
   0x287778F121F134C66212FB16c9b53eC991D32f5b,
@@ -781,31 +781,31 @@ DefiSaver='
   0x99DDE0B130833Ce0a6D9EFcFE330327aCf38006E
 '
 contracts=`echo $DefiSaver | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DefiSaver"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DefiSaver"
 
 Ribbon_Finance='
   0x6123B0049F904d730dB3C36a31167D9d4121fA6B
 '
 contracts=`echo $Ribbon_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Ribbon_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Ribbon_Finance"
 
 Synapse='
   0x0f2D719407FdBeFF09D87557AbB7232601FD9F29
 '
 contracts=`echo $Synapse | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Synapse"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Synapse"
 
 Badger_DAO='
   0x3472A5A71965499acd81997a54BBA8D852C6E53d
 '
 contracts=`echo $Badger_DAO | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Badger_DAO"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Badger_DAO"
 
 Notional='
   0xCFEAead4947f0705A14ec42aC3D44129E1Ef3eD5
 '
 contracts=`echo $Notional | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Notional"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Notional"
 
 Set_Protocol='
   0xeF72D3278dC3Eba6Dc2614965308d1435FFd748a,
@@ -830,7 +830,7 @@ Set_Protocol='
   0xb9ebB277f1D9eAbB11eA9Ba4CaAcaa3DE9ab0eD6
 '
 contracts=`echo $Set_Protocol | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Set_Protocol"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Set_Protocol"
 
 Opyn='
   0x64187ae08781B09368e6253F9E94951243A493D5,
@@ -851,67 +851,67 @@ Opyn='
   0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
 '
 contracts=`echo $Opyn | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Opyn"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Opyn"
 
 Angle='
   0x31429d1856aD1377A8A0079410B297e1a9e214c2
 '
 contracts=`echo $Angle | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Angle"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Angle"
 
 Idle_Finance='
   0x875773784Af8135eA0ef43b5a374AaD105c5D39e
 '
 contracts=`echo $Idle_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Idle_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Idle_Finance"
 
 Index_Coop='
   0x0954906da0Bf32d5479e25f46056d22f08464cab
 '
 contracts=`echo $Index_Coop | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Index_Coop"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Index_Coop"
 
 Alchemix='
   0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF
 '
 contracts=`echo $Alchemix | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Alchemix"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Alchemix"
 
 Temple_DAO='
   0x470EBf5f030Ed85Fc1ed4C2d36B9DD02e77CF1b7
 '
 contracts=`echo $Temple_DAO | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Temple_DAO"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Temple_DAO"
 
 Tokemak='
   0x2e9d63788249371f1DFC918a52f8d799F4a38C94
 '
 contracts=`echo $Tokemak | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Tokemak"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Tokemak"
 
 DODO='
   0x43Dfc4159D86F3A37A5A4B3D4580b888ad7d4DDd
 '
 contracts=`echo $DODO | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DODO"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DODO"
 
 DFX_Finance='
   0x888888435FDe8e7d4c54cAb67f206e4199454c60
 '
 contracts=`echo $DFX_Finance | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DFX_Finance"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "DFX_Finance"
 
 Clipper='
   0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c
 '
 contracts=`echo $Clipper | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Clipper"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Clipper"
 
 Defi_Swap='
   0xA0b73E1Ff0B80914AB6fe0444E65848C4C34450b
 '
 contracts=`echo $Defi_Swap | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Defi_Swap"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Defi_Swap"
 
 LooksRare='
   0xf4d2888d29d722226fafa5d9b24f9164c092421e,
@@ -948,7 +948,7 @@ LooksRare='
   0xa6a96fa698a6d5afcef6e8efeacaae7ee43f2486
 '
 contracts=`echo $LooksRare | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "LooksRare"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "LooksRare"
 
 CoW_Swap='
   0x9008D19f58AAbD9eD0D60971565AA8510560ab41,
@@ -956,7 +956,7 @@ CoW_Swap='
   0xC92E8bdf79f0507f65a392b0ab4667716BFE0110
 '
 contracts=`echo $CoW_Swap | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "CoW_Swap"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "CoW_Swap"
 
 X2Y2='
   0xf849de01b080adc3a814fabe1e2087475cf2e354,
@@ -968,10 +968,10 @@ X2Y2='
   0x6d11992a247ae0d726cb967a70fc981e8308b723
 '
 contracts=`echo $X2Y2 | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "X2Y2"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "X2Y2"
 
 Sudoswap='
   0x432f962D8209781da23fB37b6B59ee15dE7d9841
 '
 contracts=`echo $Sudoswap | tr -d '\n\r' | sed s/[[:space:]]//g`
-cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Sudoswap"
+RUST_LOG=error cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Sudoswap"
