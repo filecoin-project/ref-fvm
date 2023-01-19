@@ -8,14 +8,43 @@
 cargo build --release
 ```
 
-## Generate Test Vector
+## Command
+
+**Generate Test Vector**
 
 ``` bash
-RUST_LOG=info fevm-test-vectors generate --geth-rpc-endpoint <GETH_RPC_ENDPOINT> --tx-hash <TX_HASH> --out-dir <OUT_DIR>
+fevm-test-vectors generate --geth-rpc-endpoint <GETH_RPC_ENDPOINT> --tx-hash <TX_HASH> --out-dir <OUT_DIR>
 ```
 
-## Example
+**Batch Generate Test Vectors**
 
+``` bash
+fevm-test-vectors batch-generate --geth-rpc-endpoint <GETH_RPC_ENDPOINT> --contracts <CONTRACTS> \ 
+    --max-tx <MAX_TX_NUM> --recent_blocks <RECENT_BLOCK_NUM> --out-dir <OUT_DIR>
+```
+
+**ReGenerate Test Vectors**
+
+``` bash
+fevm-test-vectors re-generate --input <TEST_VECTOR_DIR/TEST_VECTOR_FILE>
+```
+
+**Consume Test Vectors**
+
+``` bash
+fevm-test-vectors consume --input <TEST_VECTOR_DIR/TEST_VECTOR_FILE> --output-file <TEST_RESULTS_CSV>
+```
+
+## Script
+
+In the `scripts` directory, We provide a script which fetch hundreds popular contracts's addresses and then generate test vectors in batch.
+
+```bash
+bash run.sh <GETH_RPC_ENDPOINT> <MAX_TX> <RECENT_BLOCKS> <OUT_DIR>
+```
+
+
+## Test Vector Example
 The `_debug` field of metadata contains information about transaction.
 
 ```json
