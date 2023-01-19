@@ -823,9 +823,11 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
-        let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID
-            || (cfg!(feature = "testing")
-                && self.actor_id == TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
+        let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID;
+
+        #[cfg(feature = "testing")]
+        let is_allowed_to_create_actor =
+            is_allowed_to_create_actor || self.actor_id == TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR;
 
         if !is_allowed_to_create_actor {
             return Err(syscall_error!(
