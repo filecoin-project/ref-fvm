@@ -1894,7 +1894,7 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_sdk 3.0.0-alpha.22",
- "fvm_shared 3.0.0-alpha.16",
+ "fvm_shared 3.0.0-alpha.17",
  "substrate-wasm-builder",
 ]
 
