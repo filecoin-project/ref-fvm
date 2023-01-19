@@ -55,13 +55,13 @@ pub fn get_contract_code(name: &str) -> &[u8] {
         .unwrap()
 }
 
-/// Account number that's +1 from array indexes, e.g. `account #1` is in `accounts[0]`.
+/// Account number that's +1 from array indexes, e.g. `account 1` is in `accounts[0]`.
 ///
 /// This can be used in Gherkin like `When account #1 sends 10 tokens to account #2`.
 ///
-/// After parsing, the value inside is the array index, that is, #1 becomes 0.
+/// After parsing, the value inside is the array index without having to -1.
 #[derive(Parameter)]
-#[param(name = "acct", regex = r"account #(\d+)")]
+#[param(name = "acct", regex = r"account (\d+)")]
 pub struct AccountNumber(pub usize);
 
 impl FromStr for AccountNumber {
@@ -78,7 +78,7 @@ impl FromStr for AccountNumber {
 
 impl Display for AccountNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "account #{}", self.0)
+        write!(f, "account {}", self.0 + 1)
     }
 }
 
