@@ -123,6 +123,13 @@ async fn main() -> anyhow::Result<()> {
             }
             let out_dir = Path::new(&config.out_dir);
             assert!(out_dir.is_dir(), "out_dir must directory");
+            let out_dir = match config.tag.clone() {
+                Some(tag) => out_dir.clone().join(tag),
+                None => out_dir.to_path_buf()
+            };
+            if !out_dir.exists() {
+                std::fs::create_dir(out_dir.clone())?;
+            }
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
             let contracts = config.contracts.split(",");
