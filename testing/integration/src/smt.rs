@@ -72,6 +72,9 @@ pub fn run<T: StateMachine>(
 /// ```ignore
 /// state_machine_test!(counter, 100 ms, 100 steps, CounterStateMachine { buggy: false });
 /// ```
+///
+/// If the test fails, it will print out the seed which can be used to reproduce the error.
+/// One can use [state_machine_seed!] to do that with minimal changes to the parameters.
 #[macro_export]
 macro_rules! state_machine_test {
     ($name:ident, $ms:literal ms, $steps:literal steps, $smt:expr) => {
@@ -90,7 +93,7 @@ macro_rules! state_machine_test {
     };
 }
 
-/// Run a state machine test with QuickCheck as a `#[test]`.
+/// Run a state machine test as a `#[test]` with a `seed` to reproduce a failure.
 ///
 /// # Example
 ///
