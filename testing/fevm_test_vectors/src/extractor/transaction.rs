@@ -12,12 +12,21 @@ use crate::extractor::util::{decode_address, H256_to_U256, U256_to_H256};
 
 /// Extract pre-transaction and post-transaction states and other transaction
 /// info for the given tx hash from Geth node.
-pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
+pub async fn extract_eth_transaction_test_vector_from_tx_hash<P: JsonRpcClient>(
     provider: &Provider<P>,
     tx_hash: H256,
 ) -> anyhow::Result<EthTransactionTestVector> {
     let transaction = provider.get_transaction(tx_hash).await?.unwrap();
 
+    extract_eth_transaction_test_vector_from_tx(provider, transaction).await
+}
+
+/// Extract pre-transaction and post-transaction states and other transaction
+/// info for the given tx from Geth node.
+pub async fn extract_eth_transaction_test_vector_from_tx<P: JsonRpcClient>(
+    provider: &Provider<P>,
+    transaction: Transaction,
+) -> anyhow::Result<EthTransactionTestVector> {
     let block = provider
         .get_block_with_txs(transaction.block_hash.unwrap())
         .await?
@@ -47,7 +56,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         .request(
             "debug_traceTransaction",
             [
-                utils::serialize(&tx_hash),
+                utils::serialize(&transaction.hash),
                 utils::serialize(&prestate_tracing_options),
             ],
         )
@@ -69,7 +78,7 @@ pub async fn extract_eth_transaction_test_vector<P: JsonRpcClient>(
         ..Default::default()
     };
     let transaction_trace = provider
-        .debug_trace_transaction(tx_hash, trace_options)
+        .debug_trace_transaction(transaction.hash, trace_options)
         .await?;
 
     let sender_account = poststate.get_mut(&tx_from).unwrap();
@@ -366,7 +375,7 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
             break;
         }
 
-        let block = provider.get_block_with_txs(BlockNumber::Latest).await?.unwrap();
+        let block = provider.get_block_with_txs(block_num).await?.unwrap();
         for tx in block.transactions.into_iter().rev() {
             if let Some(contract) = tx.to {
                 if contracts.contains(&contract) {
@@ -398,7 +407,7 @@ async fn test_extract_eth_tv() {
 
     let provider = Provider::<Http>::try_from(rpc).expect("could not instantiate HTTP Provider");
 
-    let etv = extract_eth_transaction_test_vector(&provider, tx_hash)
+    let etv = extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash)
         .await
         .unwrap();
     for (address, account) in etv.prestate {

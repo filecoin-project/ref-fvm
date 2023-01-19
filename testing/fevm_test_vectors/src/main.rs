@@ -11,7 +11,7 @@ use conformance::report;
 use conformance::vector::MessageVector;
 use ethers::prelude::*;
 use ethers::providers::{Http, Provider};
-use fevm_test_vectors::extractor::transaction::extract_eth_transaction_test_vector;
+use fevm_test_vectors::extractor::transaction::extract_eth_transaction_test_vector_from_tx_hash;
 use fevm_test_vectors::extractor::types::EthTransactionTestVector;
 use fevm_test_vectors::{export_test_vector_file, init_log};
 use walkdir::{DirEntry, WalkDir};
@@ -62,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
             let tx_hash = H256::from_str(&*config.tx_hash)?;
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
-            let evm_input = extract_eth_transaction_test_vector(&provider, tx_hash).await?;
+            let evm_input = extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash).await?;
             let path = out_dir.join(format!("{}.json", config.tx_hash));
             block_on(export_test_vector_file(evm_input, path))?;
         }
