@@ -12,11 +12,15 @@ use conformance::report;
 use conformance::vector::MessageVector;
 use ethers::prelude::*;
 use ethers::providers::{Http, Provider};
-use fevm_test_vectors::extractor::transaction::{extract_eth_transaction_test_vector_from_tx, extract_eth_transaction_test_vector_from_tx_hash, get_most_recent_transactions_of_contracts};
+use fevm_test_vectors::extractor::transaction::{
+    extract_eth_transaction_test_vector_from_tx, extract_eth_transaction_test_vector_from_tx_hash,
+    get_most_recent_transactions_of_contracts,
+};
 use fevm_test_vectors::extractor::types::EthTransactionTestVector;
 use fevm_test_vectors::{consume_test_vector, export_test_vector_file, init_log};
 use fvm::engine::MultiEngine;
 use walkdir::{DirEntry, WalkDir};
+
 use crate::abi::AbiEncode;
 
 #[derive(Parser, Debug)]
@@ -28,8 +32,8 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 enum SubCommand {
     Generate(Generate),
-    Batch(Batch),
-    Rebuild(Rebuild),
+    BatchGenerate(BatchGenerate),
+    ReGenerate(ReGenerate),
     Consume(Consume),
 }
 
@@ -53,7 +57,7 @@ pub struct Generate {
 
 #[derive(Debug, Parser)]
 #[clap(about = "Batch generate from contract address.", long_about = None)]
-pub struct Batch {
+pub struct BatchGenerate {
     #[clap(short, long)]
     geth_rpc_endpoint: String,
 
@@ -61,11 +65,13 @@ pub struct Batch {
     #[clap(short, long)]
     contracts: String,
 
+    // max tx num
     #[clap(short, long)]
-    tx_num: usize,
+    max_tx: usize,
 
+    // specify the number of recent blocks
     #[clap(short, long)]
-    max_block_num: usize,
+    recent_blocks: usize,
 
     /// test vector output dir path
     #[clap(short, long)]
@@ -76,8 +82,8 @@ pub struct Batch {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Rebuild test vector from input.", long_about = None)]
-pub struct Rebuild {
+#[clap(about = "ReGenerate test vectors from debug field.", long_about = None)]
+pub struct ReGenerate {
     /// test vector input file/dir path
     #[clap(short, long)]
     input: String,
@@ -106,11 +112,12 @@ async fn main() -> anyhow::Result<()> {
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
             let evm_input =
-                extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash, config.tag).await?;
+                extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash, config.tag)
+                    .await?;
             let path = out_dir.join(format!("{}.json", config.tx_hash));
             block_on(export_test_vector_file(evm_input, path))?;
         }
-        SubCommand::Batch(config) => {
+        SubCommand::BatchGenerate(config) => {
             if config.tag.is_some() {
                 println!("------ {:?} ------", config.tag.clone().unwrap())
             }
@@ -119,12 +126,18 @@ async fn main() -> anyhow::Result<()> {
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
             let contracts = config.contracts.split(",");
-            let contracts = contracts.into_iter()
+            let contracts = contracts
+                .into_iter()
                 .filter(|e| e.trim().len() > 0)
-                .map(|e| H160::from_str(&*(e.trim())).expect("contract format error")
-                ).collect::<Vec<H160>>();
+                .map(|e| H160::from_str(&*(e.trim())).expect("contract format error"))
+                .collect::<Vec<H160>>();
 
-            let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, config.max_block_num))?;
+            let res = block_on(get_most_recent_transactions_of_contracts(
+                &provider,
+                contracts,
+                config.max_tx,
+                config.recent_blocks,
+            ))?;
             for (contract, txs) in res {
                 let contract_dir = out_dir.join(contract.encode_hex());
                 if !contract_dir.exists() {
@@ -132,12 +145,17 @@ async fn main() -> anyhow::Result<()> {
                 }
                 for tx in txs {
                     let path = contract_dir.join(format!("{}.json", tx.hash.encode_hex()));
-                    let evm_input = extract_eth_transaction_test_vector_from_tx(&provider, tx, config.tag.clone()).await?;
+                    let evm_input = extract_eth_transaction_test_vector_from_tx(
+                        &provider,
+                        tx,
+                        config.tag.clone(),
+                    )
+                    .await?;
                     block_on(export_test_vector_file(evm_input, path))?;
                 }
             }
         }
-        SubCommand::Rebuild(config) => {
+        SubCommand::ReGenerate(config) => {
             let input = Path::new(&config.input);
             let vector_results: Vec<PathBuf> = if input.is_dir() {
                 WalkDir::new(input)
