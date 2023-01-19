@@ -11,10 +11,11 @@ use conformance::report;
 use conformance::vector::MessageVector;
 use ethers::prelude::*;
 use ethers::providers::{Http, Provider};
-use fevm_test_vectors::extractor::transaction::extract_eth_transaction_test_vector_from_tx_hash;
+use fevm_test_vectors::extractor::transaction::{extract_eth_transaction_test_vector_from_tx, extract_eth_transaction_test_vector_from_tx_hash, get_most_recent_transactions_of_contracts};
 use fevm_test_vectors::extractor::types::EthTransactionTestVector;
 use fevm_test_vectors::{export_test_vector_file, init_log};
 use walkdir::{DirEntry, WalkDir};
+use crate::abi::AbiEncode;
 
 #[derive(Parser, Debug)]
 pub struct Cli {
@@ -25,6 +26,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 enum SubCommand {
     Generate(Generate),
+    Batch(Batch),
     Rebuild(Rebuild),
 }
 
@@ -37,6 +39,26 @@ pub struct Generate {
     /// eth transaction hash
     #[clap(short, long)]
     tx_hash: String,
+
+    /// test vector output dir path
+    #[clap(short, long)]
+    out_dir: String,
+}
+
+#[derive(Debug, Parser)]
+#[clap(about = "Batch generate from contract address.", long_about = None)]
+pub struct Batch {
+    #[clap(short, long)]
+    geth_rpc_endpoint: String,
+
+    #[clap(long, multiple_values=true)]
+    contracts: Vec<String>,
+
+    #[clap(short, long)]
+    tx_num: usize,
+
+    #[clap(short, long)]
+    furthest_block_num: Option<u64>,
 
     /// test vector output dir path
     #[clap(short, long)]
@@ -65,6 +87,29 @@ async fn main() -> anyhow::Result<()> {
             let evm_input = extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash).await?;
             let path = out_dir.join(format!("{}.json", config.tx_hash));
             block_on(export_test_vector_file(evm_input, path))?;
+        }
+        SubCommand::Batch(config) => {
+            let out_dir = Path::new(&config.out_dir);
+            assert!(out_dir.is_dir(), "out_dir must directory");
+            let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
+                .expect("could not instantiate HTTP Provider");
+            let contracts = config.contracts.into_iter().map(|e| H160::from_str(&*e).expect("contract format error")).collect::<Vec<H160>>();
+            let furthest_block_num = match config.furthest_block_num {
+                Some(e) => Some(U64::from(e)),
+                None => None
+            };
+            let res = block_on(get_most_recent_transactions_of_contracts(&provider, contracts, config.tx_num, furthest_block_num))?;
+            for (contract, txs) in res {
+                let contract_dir = out_dir.join(contract.encode_hex());
+                if !contract_dir.exists() {
+                    std::fs::create_dir(contract_dir.clone())?;
+                }
+                for tx in txs {
+                    let path = contract_dir.join(format!("{}.json", tx.hash.encode_hex()));
+                    let evm_input = extract_eth_transaction_test_vector_from_tx(&provider, tx).await?;
+                    block_on(export_test_vector_file(evm_input, path))?;
+                }
+            }
         }
         SubCommand::Rebuild(config) => {
             let input = Path::new(&config.input);
