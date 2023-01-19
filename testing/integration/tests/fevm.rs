@@ -9,7 +9,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use cucumber::{Parameter, World};
-use ethers::abi::Detokenize;
+use ethers::abi::{Detokenize, StateMutability};
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::decode_function_data;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -171,7 +171,7 @@ impl ContractTester {
             .unwrap()
     }
 
-    /// Get a mutable reference to an account
+    /// Get the ID of an account we created earlier.
     pub fn account_id(&mut self, acct: &AccountNumber) -> ActorID {
         self.account_mut(acct).account.0
     }
@@ -213,14 +213,13 @@ impl ContractTester {
         (contract, contract_addr)
     }
 
-    /// Take a function that calls an ABI method to return a `ContractCall`.
-    /// Then, instead of calling the contract on-chain, run it through our
-    /// EVM interpreter in the test runtime. Finally parse the results.
+    /// Take a ABI method call, with the caller and the destination address.
+    /// Then wrap it up into a message (ie. transaction) and run it through
+    /// the execution stack. Finally parse the results.
     pub fn call_contract<R: Detokenize>(
         &mut self,
         acct: AccountNumber,
         contract_addr: Address,
-        gas_limit: i64,
         call: TestContractCall<R>,
     ) -> R {
         let input = call.calldata().expect("Should have calldata.");
@@ -230,9 +229,21 @@ impl ContractTester {
             &mut account,
             contract_addr,
             &input,
-            gas_limit,
+            call.tx
+                .gas()
+                .expect("need to set gas")
+                .as_u64()
+                .try_into()
+                .expect("too much gas"),
         );
-        *self.account_mut(&acct) = account;
+
+        // I think the nonce doesn't need to increase for views. Need to check.
+        match call.function.state_mutability {
+            StateMutability::View | StateMutability::Pure => {}
+            _ => {
+                *self.account_mut(&acct) = account;
+            }
+        }
 
         if !invoke_res.msg_receipt.exit_code.is_success() {
             panic!(
@@ -328,11 +339,11 @@ mod simple_coin_world {
     #[then(expr = "the balance of {acct} is {int} coin(s)")]
     fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
         let (contract, contract_addr) = world.get_contract();
-        let account_id = world.tester.account_mut(&acct).account.0;
+        let account_id = world.tester.account_id(&acct);
         let call = contract.get_balance(id_to_h160(account_id));
         let balance = world
             .tester
-            .call_contract(acct, contract_addr, 10_000_000_000, call);
+            .call_contract(acct, contract_addr, call.gas(10_000_000_000i64));
 
         assert_eq!(balance, U256::from(coins))
     }
