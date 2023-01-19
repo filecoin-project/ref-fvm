@@ -60,7 +60,7 @@ fil_create_actor = { path = "tests/fil-create-actor" }
 evm_contracts = { path = "tests/evm" }
 
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
-fil_actor_evm = { package = "fil_actor_evm", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+#fil_actor_evm = { package = "fil_actor_evm", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
 
 cucumber = "0.19"

@@ -193,7 +193,7 @@ macro_rules! contract_matchers {
             world.tester.create_accounts(n);
         }
 
-        #[when(expr = "{acct} creates the {word} contract")]
+        #[when(expr = "{acct} creates a {word} contract")]
         fn create_contract(world: &mut $world, owner: $crate::AccountNumber, contract: String) {
             world.tester.create_contract(owner, contract)
         }
@@ -202,36 +202,36 @@ macro_rules! contract_matchers {
 
 /// Create constructors for a smart contract, injecting a mock provider for the client,
 /// because we are not going to send them to an actual blockchain.
-macro_rules! contract_constructors {
-    ($contract:ident) => {
-        #[allow(dead_code)]
-        pub fn new_with_eth_address(
-            owner: fil_actor_evm::interpreter::address::EthAddress,
-        ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
-            // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
-            let address = ethers::core::types::Address::from_slice(owner.as_ref());
-            // A dummy client that we don't intend to use to call the contract or send transactions.
-            let (client, _mock) = ethers::providers::Provider::mocked();
-            $contract::new(address, std::sync::Arc::new(client))
-        }
+// macro_rules! contract_constructors {
+//     ($contract:ident) => {
+//         #[allow(dead_code)]
+//         pub fn new_with_eth_address(
+//             owner: fil_actor_evm::interpreter::address::EthAddress,
+//         ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
+//             // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
+//             let address = ethers::core::types::Address::from_slice(owner.as_ref());
+//             // A dummy client that we don't intend to use to call the contract or send transactions.
+//             let (client, _mock) = ethers::providers::Provider::mocked();
+//             $contract::new(address, std::sync::Arc::new(client))
+//         }
 
-        #[allow(dead_code)]
-        pub fn new_with_actor_id(
-            owner: fvm_shared::ActorID,
-        ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
-            let owner = fil_actor_evm::interpreter::address::EthAddress::from_id(owner);
-            new_with_eth_address(owner)
-        }
-    };
-}
+//         #[allow(dead_code)]
+//         pub fn new_with_actor_id(
+//             owner: fvm_shared::ActorID,
+//         ) -> $contract<ethers::providers::Provider<ethers::providers::MockProvider>> {
+//             let owner = fil_actor_evm::interpreter::address::EthAddress::from_id(owner);
+//             new_with_eth_address(owner)
+//         }
+//     };
+// }
 
 mod simple_coin_world {
     use cucumber::{given, when, World};
-    use evm_contracts::simple_coin::SimpleCoin;
 
+    //use evm_contracts::simple_coin::SimpleCoin;
     use crate::ContractTester;
 
-    contract_constructors!(SimpleCoin);
+    // contract_constructors!(SimpleCoin);
 
     // `World` is your shared, likely mutable state.
     // Cucumber constructs it via `Default::default()` for each scenario.

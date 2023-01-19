@@ -101,16 +101,8 @@ pub enum EVMMethod {
 pub struct EthAddress(#[serde(with = "strict_bytes")] pub [u8; 20]);
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
-pub struct Create2Params {
-    #[serde(with = "strict_bytes")]
-    pub initcode: Vec<u8>,
-    #[serde(with = "strict_bytes")]
-    pub salt: [u8; 32],
-}
-
-#[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct CreateReturn {
     pub actor_id: ActorID,
-    pub robust_address: Address,
+    pub robust_address: Option<Address>,
     pub eth_address: EthAddress,
 }
