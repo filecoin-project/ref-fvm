@@ -11,6 +11,9 @@ use async_std::sync::RwLock;
 use bytes::Buf;
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
+use colored::*;
+use conformance::driver::{run_variant, VariantResult};
+use conformance::report;
 use conformance::vector::{
     ApplyMessage, GenerationData, MessageVector, MetaData, PostConditions, PreConditions,
     RandomnessKind, RandomnessMatch, RandomnessRule, StateTreeVector, TipsetCid, Variant,
@@ -24,6 +27,7 @@ use fil_actors_runtime::runtime::EMPTY_ARR_CID;
 use fil_actors_runtime::{AsActorError, BURNT_FUNDS_ACTOR_ID, EAM_ACTOR_ID, REWARD_ACTOR_ID};
 use flate2::bufread::GzEncoder;
 use flate2::Compression;
+use fvm::engine::MultiEngine;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_car::CarHeader;
 use fvm_ipld_encoding::{BytesDe, Cbor, CborStore, RawBytes, DAG_CBOR};
@@ -35,11 +39,11 @@ use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
 use fvm_shared::state::StateRoot;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{MethodNum, HAMT_BIT_WIDTH, IDENTITY_HASH, METHOD_SEND};
 use fvm_shared_local::address::Address as LocalAddress;
+use serde::Serialize;
 use util::get_code_cid_map;
 
 use crate::evm_state::State as EvmState;
@@ -393,4 +397,64 @@ pub fn get_evm_actors_slots<BS: Blockstore>(
         Ok(())
     })?;
     Ok(states)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct VariantTestResult {
+    pub id: String,
+    pub state: String,
+    pub reason: String,
+}
+
+pub fn consume_test_vector(
+    vector: &MessageVector,
+    name: &str,
+    engines: &MultiEngine,
+) -> anyhow::Result<Vec<VariantTestResult>> {
+    let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
+
+    let test_vector_name = name;
+    let mut results = Vec::new();
+    for variant in vector.preconditions.variants.iter() {
+        let name = format!("{} | {}", name, variant.id);
+
+        // this tests the variant before we run the benchmark and record the bench results to disk.
+        // if we broke the test, it's not a valid optimization :P
+        let testresult = run_variant(bs.clone(), vector, variant, engines, true, None, None)
+            .map_err(|e| {
+                anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
+            })?;
+
+        let testresult = match testresult {
+            VariantResult::Ok { id } => {
+                report!("OK".on_green(), test_vector_name, id);
+                VariantTestResult {
+                    id: name,
+                    state: String::from("Ok"),
+                    reason: Default::default(),
+                }
+            }
+            VariantResult::Skipped { reason, id } => {
+                report!("SKIP".on_yellow(), test_vector_name, id);
+                println!("\t|> reason: {}", reason);
+                VariantTestResult {
+                    id: name,
+                    state: String::from("Skipped"),
+                    reason,
+                }
+            }
+            VariantResult::Failed { reason, id } => {
+                report!("FAIL".white().on_red(), test_vector_name, id);
+                println!("\t|> reason: {:#}", reason);
+                VariantTestResult {
+                    id: name,
+                    state: String::from("Failed"),
+                    reason: reason.to_string(),
+                }
+            }
+        };
+        results.push(testresult);
+    }
+    Ok(results)
 }

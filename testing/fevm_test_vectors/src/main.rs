@@ -7,13 +7,15 @@ use std::str::FromStr;
 use async_std::task::block_on;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use conformance::driver::is_runnable;
 use conformance::report;
 use conformance::vector::MessageVector;
 use ethers::prelude::*;
 use ethers::providers::{Http, Provider};
 use fevm_test_vectors::extractor::transaction::{extract_eth_transaction_test_vector_from_tx, extract_eth_transaction_test_vector_from_tx_hash, get_most_recent_transactions_of_contracts};
 use fevm_test_vectors::extractor::types::EthTransactionTestVector;
-use fevm_test_vectors::{export_test_vector_file, init_log};
+use fevm_test_vectors::{consume_test_vector, export_test_vector_file, init_log};
+use fvm::engine::MultiEngine;
 use walkdir::{DirEntry, WalkDir};
 use crate::abi::AbiEncode;
 
@@ -28,6 +30,7 @@ enum SubCommand {
     Generate(Generate),
     Batch(Batch),
     Rebuild(Rebuild),
+    Consume(Consume),
 }
 
 #[derive(Debug, Parser)]
@@ -73,6 +76,17 @@ pub struct Rebuild {
     input: String,
 }
 
+#[derive(Debug, Parser)]
+#[clap(about = "Comsume test vectors from input", long_about = None)]
+struct Consume {
+    /// test vector input file/dir path
+    #[clap(short, long)]
+    input: String,
+
+    #[clap(short, long)]
+    out: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_log();
@@ -84,7 +98,8 @@ async fn main() -> anyhow::Result<()> {
             let tx_hash = H256::from_str(&*config.tx_hash)?;
             let provider = Provider::<Http>::try_from(config.geth_rpc_endpoint)
                 .expect("could not instantiate HTTP Provider");
-            let evm_input = extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash).await?;
+            let evm_input =
+                extract_eth_transaction_test_vector_from_tx_hash(&provider, tx_hash).await?;
             let path = out_dir.join(format!("{}.json", config.tx_hash));
             block_on(export_test_vector_file(evm_input, path))?;
         }
@@ -135,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                     Err(e) => {
                         report!(
-                            "FILE PARSING FAIL/NOT BENCHED".white().on_purple(),
+                            "FILE PARSING FAIL".white().on_purple(),
                             &vector_path.display().to_string(),
                             "n/a"
                         );
@@ -167,15 +182,64 @@ async fn main() -> anyhow::Result<()> {
                 block_on(export_test_vector_file(evm_input, vector_path))?;
             }
         }
+        SubCommand::Consume(config) => {
+            consume_test_vectors(config.input.as_str(), config.out.as_str())
+        }
     }
     Ok(())
 }
 
-pub fn is_runnable(entry: &DirEntry) -> bool {
-    let file_name = match entry.path().to_str() {
-        Some(file) => file,
-        None => return false,
+pub fn consume_test_vectors(input: &str, output: &str) {
+    let input_path = Path::new(input);
+    let vector_results: Vec<PathBuf> = if input_path.is_file() {
+        iter::once(Path::new(input).to_path_buf()).collect()
+    } else {
+        WalkDir::new(input)
+            .into_iter()
+            .flat_map(|e| e.ok())
+            .filter(is_runnable)
+            .map(|e| e.path().to_path_buf())
+            .collect()
     };
 
-    file_name.ends_with(".json")
+    let output_csv = Path::new(output);
+    let output_csv = File::create(output_csv).unwrap();
+    let mut output_csv = csv::Writer::from_writer(output_csv);
+
+    let engines = MultiEngine::default();
+    for vector_path in vector_results.into_iter() {
+        let message_vector = match MessageVector::from_file(&vector_path) {
+            Ok(mv) => {
+                if !mv.is_supported() {
+                    report!(
+                        "SKIPPING FILE DUE TO SELECTOR".on_yellow(),
+                        &vector_path.display().to_string(),
+                        "n/a"
+                    );
+                    continue;
+                }
+                mv
+            }
+            Err(e) => {
+                report!(
+                    "FILE PARSING FAIL".white().on_purple(),
+                    &vector_path.display().to_string(),
+                    "n/a"
+                );
+                println!("\t|> reason: {:#}", e);
+                continue;
+            }
+        };
+        let testresults = consume_test_vector(
+            &message_vector,
+            &vector_path.display().to_string(),
+            &engines,
+        )
+        .unwrap();
+
+        for testresult in testresults.into_iter() {
+            output_csv.serialize(testresult).unwrap();
+        }
+    }
+    output_csv.flush().unwrap();
 }
