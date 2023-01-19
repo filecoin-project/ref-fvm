@@ -146,6 +146,12 @@ async fn main() -> anyhow::Result<()> {
                 config.max_tx,
                 config.recent_blocks,
             ))?;
+            let mut total = 0;
+            for (_, txs) in &res {
+                total += txs.len();
+            }
+            println!("total transaction: {:?}", total);
+            let bar = ProgressBar::new(total as u64);
             for (contract, txs) in res {
                 let contract_dir = out_dir.join(format!("0x{}", hex::encode(contract.as_bytes())));
                 if !contract_dir.exists() {
@@ -163,6 +169,7 @@ async fn main() -> anyhow::Result<()> {
                     )
                     .await?;
                     block_on(export_test_vector_file(evm_input, path))?;
+                    bar.inc(1);
                 }
             }
         }
