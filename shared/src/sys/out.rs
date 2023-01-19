@@ -96,7 +96,9 @@ pub mod vm {
         pub method_number: MethodNum,
         /// The value that was received.
         pub value_received: TokenAmount,
-        /// The current gas premium
+        /// The gas premium being paid by the currently executing message (on top of the base-fee).
+        /// This may be less than the premium specified in the message if the base fee plus the
+        /// premium would exceed the fee cap.
         pub gas_premium: TokenAmount,
         /// Flags pertaining to the currently executing actor's invocation context.
         pub flags: ContextFlags,
