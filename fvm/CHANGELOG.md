@@ -4,6 +4,14 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.21 [2022-01-19]
+
+- Machine: Put the Empty Array object in the blockstore on creation
+- Kernel: Restrict `create_actor` to the InitActor
+  - We make an exception for integration tests
+- Deps: Update `derive_builder` to 0.12.0
+- Use CBOR instead of DAG_CBOR for message params
+
 ## 3.0.0-alpha.20 [2022-01-17]
 
 - Add `hyperspace` feature to loosen up network version restrictions.
