@@ -2324,7 +2324,6 @@ dependencies = [
  "ethers",
  "ethers-core",
  "ethers-solc",
- "fil_actor_evm",
  "serde",
  "serde_json",
 ]
@@ -3460,7 +3459,9 @@ dependencies = [
  "arbtest",
  "cid 0.8.6",
  "cucumber",
+ "ethers",
  "evm_contracts",
+ "fil_actor_evm",
  "fil_address_actor",
  "fil_builtin_actors_bundle",
  "fil_create_actor",

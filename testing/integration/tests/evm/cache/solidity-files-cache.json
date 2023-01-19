@@ -12,7 +12,7 @@
   },
   "files": {
     "contracts/SimpleCoin.sol": {
-      "lastModificationDate": 1674050186018,
+      "lastModificationDate": 1674123287549,
       "contentHash": "58aca481d2d1bc8153222e2af627229e",
       "sourceName": "contracts/SimpleCoin.sol",
       "solcConfig": {
