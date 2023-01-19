@@ -123,13 +123,13 @@ where
             StateTreeVersion::V0
             | StateTreeVersion::V1
             | StateTreeVersion::V2
-            | StateTreeVersion::V3
-            | StateTreeVersion::V4 => Err(ExecutionError::Fatal(anyhow!(
+            | StateTreeVersion::V3 => Err(ExecutionError::Fatal(anyhow!(
                 "unsupported state tree version: {:?}",
                 version
             ))),
 
-            StateTreeVersion::V5 => {
+            StateTreeVersion::V4
+            | StateTreeVersion::V5 => {
                 let hamt = Hamt::load_with_bit_width(&actors, store, HAMT_BIT_WIDTH)
                     .context("failed to load state tree")
                     .or_fatal()?;
