@@ -72,8 +72,3 @@ pub fn prepare_execution(tester: &mut BasicTester, options: &ExecutionOptions) {
         )
         .unwrap();
 }
-
-pub fn exit_with_error(msg: String) -> ! {
-    println!("{}", msg);
-    std::process::exit(1);
-}

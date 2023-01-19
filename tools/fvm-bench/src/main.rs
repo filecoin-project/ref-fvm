@@ -5,6 +5,7 @@ mod fevm;
 
 use std::fs;
 
+use anyhow::{anyhow, Context};
 use clap::Parser;
 
 /// Run a contract invocation for benchmarking purposes
@@ -45,7 +46,7 @@ struct Args {
     gas_limit: i64,
 }
 
-fn main() {
+fn run() -> anyhow::Result<()> {
     let args = Args::parse();
     let options = testkit::ExecutionOptions {
         debug: args.debug,
@@ -56,19 +57,12 @@ fn main() {
 
     match args.mode.as_str() {
         "fevm" => {
-            let contract_hex = fs::read_to_string(args.contract).unwrap_or_else(|what| {
-                testkit::exit_with_error(format!("error reading contract: {}", what));
-            });
-            let contract = hex::decode(contract_hex).unwrap_or_else(|what| {
-                testkit::exit_with_error(format!("error decoding contract: {}", what));
-            });
-
-            let entrypoint = hex::decode(args.method).unwrap_or_else(|what| {
-                testkit::exit_with_error(format!("error decoding contract entrypoint: {}", what));
-            });
-            let params = hex::decode(args.params).unwrap_or_else(|what| {
-                testkit::exit_with_error(format!("error decoding contract params: {}", what));
-            });
+            let contract_hex =
+                fs::read_to_string(args.contract).context("error reading contract")?;
+            let contract = hex::decode(contract_hex).context("error decoding contract")?;
+            let entrypoint =
+                hex::decode(args.method).context("error decoding contract entrypoint")?;
+            let params = hex::decode(args.params).context("error decoding contract params")?;
 
             fevm::run(
                 &mut tester,
@@ -78,17 +72,17 @@ fn main() {
                 &params,
                 args.gas_limit,
             )
-            .unwrap_or_else(|what| {
-                testkit::exit_with_error(format!(" contract execution failed: {}", what));
-            });
+            .context("contract execution failed")
         }
 
-        "wasm" => {
-            testkit::exit_with_error("wasm actors not supported yet".to_owned());
-        }
+        "wasm" => Err(anyhow!("wasm actors not supported yet")),
+        _ => Err(anyhow!("unknown mode {}", args.mode)),
+    }
+}
 
-        _ => {
-            testkit::exit_with_error(format!("unknown mode {}", args.mode));
-        }
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("ERROR: {}", e);
+        std::process::exit(1);
     }
 }

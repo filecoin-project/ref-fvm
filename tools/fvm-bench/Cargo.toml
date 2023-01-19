@@ -10,7 +10,6 @@ fvm_ipld_encoding = { path = "../../ipld/encoding" }
 fvm_shared = { path = "../../shared" }
 fvm = { path = "../../fvm", default-features = false, features = ["testing"] }
 testkit = { path = "../testkit" }
-
 anyhow = "1.0.47"
 clap = { version = "4.0.27", features = ["derive"] }
 hex = "0.4.3"
