@@ -57,7 +57,7 @@ pub fn get_contract_code(name: &str) -> &[u8] {
 
 /// Account number that's +1 from array indexes, e.g. `account 1` is in `accounts[0]`.
 ///
-/// This can be used in Gherkin like `When account #1 sends 10 tokens to account #2`.
+/// This can be used in Gherkin like `When account 1 sends 10 tokens to account 2`.
 ///
 /// After parsing, the value inside is the array index without having to -1.
 #[derive(Parameter)]
