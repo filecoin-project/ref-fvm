@@ -7,3 +7,5 @@ pub mod error;
 #[cfg(feature = "smt")]
 pub mod smt;
 pub mod tester;
+// TODO: Should come from https://github.com/filecoin-project/ref-fvm/pull/1493
+pub mod fevm;

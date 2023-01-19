@@ -3483,6 +3483,7 @@ dependencies = [
  "fvm_ipld_encoding 0.3.2",
  "fvm_ipld_hamt 0.6.1",
  "fvm_shared 3.0.0-alpha.17",
+ "hex",
  "lazy_static",
  "libsecp256k1",
  "multihash 0.16.3",
@@ -3495,6 +3496,7 @@ dependencies = [
  "serde_repr",
  "serde_tuple",
  "thiserror",
+ "tokio",
  "wasmtime",
  "wat",
 ]

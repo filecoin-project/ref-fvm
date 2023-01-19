@@ -42,6 +42,7 @@ features = ["cranelift", "parallel-compilation"]
 wat = "1.0.51"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+hex = "0.4"
 
 fil_hello_world_actor = { path = 'tests/fil-hello-world-actor' }
 fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor' }
@@ -64,6 +65,8 @@ fil_actor_evm = { package = "fil_actor_evm", git = "https://github.com/filecoin-
 
 cucumber = "0.19"
 ethers = { version = "1.0" }
+tokio = { version = "1.24", features = ["rt-multi-thread", "macros"] }
+
 
 [[test]]
 name = "fevm"   # The EVM tests are using Cucumber
