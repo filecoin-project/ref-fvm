@@ -16,6 +16,7 @@ use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
 use fvm_integration_tests::tester::Account as TestAccount;
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -232,10 +233,21 @@ impl ContractTester {
             gas_limit,
         );
         *self.account_mut(&acct) = account;
-        let result = invoke_res.msg_receipt.return_data;
 
-        decode_function_data(&call.function, result.bytes(), false)
-            .expect("error deserializing return data")
+        if !invoke_res.msg_receipt.exit_code.is_success() {
+            panic!(
+                "contract invocation failed: {} -- {:?}",
+                invoke_res.msg_receipt.exit_code, invoke_res.failure_info,
+            );
+        }
+
+        let BytesDe(bytes) = invoke_res
+            .msg_receipt
+            .return_data
+            .deserialize()
+            .expect("error deserializing return data");
+
+        decode_function_data(&call.function, bytes, false).expect("error deserializing return data")
     }
 }
 
