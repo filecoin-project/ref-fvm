@@ -1,8 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-#![allow(dead_code)]
-
 use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
@@ -68,7 +66,6 @@ pub fn invoke_contract(
 // we could theoretically have a dependency on the builtin actors themselves and reuse the
 // actual definitions but it is currently a mess with the branches, so we just copy the types
 /////////////////////////////////////////////////////////////////////////////////////////
-#[allow(dead_code)]
 #[repr(u64)]
 pub enum EAMMethod {
     Constructor = METHOD_CONSTRUCTOR,
@@ -77,7 +74,6 @@ pub enum EAMMethod {
     CreateExternal = 4,
 }
 
-#[allow(dead_code)]
 #[repr(u64)]
 pub enum EVMMethod {
     Constructor = METHOD_CONSTRUCTOR,
