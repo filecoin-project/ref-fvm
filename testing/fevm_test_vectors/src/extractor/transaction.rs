@@ -383,7 +383,10 @@ pub async fn get_most_recent_transactions_of_contracts<P: JsonRpcClient>(
             break;
         }
 
-        let block = provider.get_block_with_txs(current_block_numer).await?.unwrap();
+        let block = provider
+            .get_block_with_txs(current_block_numer)
+            .await?
+            .unwrap();
         for tx in block.transactions.into_iter().rev() {
             if let Some(contract) = tx.to {
                 if contracts.contains(&contract) {

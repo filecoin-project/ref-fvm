@@ -19,6 +19,7 @@ use fevm_test_vectors::extractor::transaction::{
 use fevm_test_vectors::extractor::types::EthTransactionTestVector;
 use fevm_test_vectors::{consume_test_vector, export_test_vector_file, init_log};
 use fvm::engine::MultiEngine;
+use indicatif::ProgressBar;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::abi::AbiEncode;
@@ -65,11 +66,11 @@ pub struct BatchGenerate {
     #[clap(short, long)]
     contracts: String,
 
-    // max tx num
+    /// max tx num
     #[clap(short, long)]
     max_tx: usize,
 
-    // specify the number of recent blocks
+    /// specify the number of recent blocks
     #[clap(short, long)]
     recent_blocks: usize,
 
@@ -97,7 +98,7 @@ struct Consume {
     input: String,
 
     #[clap(short, long)]
-    out: String,
+    out_file: String,
 }
 
 #[tokio::main]
@@ -125,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
             assert!(out_dir.is_dir(), "out_dir must directory");
             let out_dir = match config.tag.clone() {
                 Some(tag) => out_dir.clone().join(tag),
-                None => out_dir.to_path_buf()
+                None => out_dir.to_path_buf(),
             };
             if !out_dir.exists() {
                 std::fs::create_dir(out_dir.clone())?;
@@ -146,12 +147,15 @@ async fn main() -> anyhow::Result<()> {
                 config.recent_blocks,
             ))?;
             for (contract, txs) in res {
-                let contract_dir = out_dir.join(contract.encode_hex());
+                let contract_dir = out_dir.join(format!("0x{}", hex::encode(contract.as_bytes())));
                 if !contract_dir.exists() {
                     std::fs::create_dir(contract_dir.clone())?;
                 }
                 for tx in txs {
-                    let path = contract_dir.join(format!("{}.json", tx.hash.encode_hex()));
+                    let path = contract_dir.join(format!(
+                        "{}.json",
+                        format!("0x{}", hex::encode(tx.hash.as_bytes()))
+                    ));
                     let evm_input = extract_eth_transaction_test_vector_from_tx(
                         &provider,
                         tx,
@@ -222,7 +226,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         SubCommand::Consume(config) => {
-            consume_test_vectors(config.input.as_str(), config.out.as_str())
+            consume_test_vectors(config.input.as_str(), config.out_file.as_str())
         }
     }
     Ok(())
@@ -244,6 +248,8 @@ pub fn consume_test_vectors(input: &str, output: &str) {
     let output_csv = Path::new(output);
     let output_csv = File::create(output_csv).unwrap();
     let mut output_csv = csv::Writer::from_writer(output_csv);
+
+    let bar = ProgressBar::new(vector_results.len() as u64);
 
     let engines = MultiEngine::default();
     for vector_path in vector_results.into_iter() {
@@ -275,6 +281,7 @@ pub fn consume_test_vectors(input: &str, output: &str) {
             &engines,
         )
         .unwrap();
+        bar.inc(1);
 
         for testresult in testresults.into_iter() {
             output_csv.serialize(testresult).unwrap();
