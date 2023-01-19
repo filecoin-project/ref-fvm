@@ -32,20 +32,26 @@ pub trait StateMachine {
     /// Apply a command on the System Under Test.
     fn run_command(&self, system: &mut Self::System, cmd: &Self::Command) -> Self::Result;
 
-    /// Use assertions to check that the state transition on the System Under Test was correct, given the model pre-state.
-    fn check_post_conditions(
-        &self,
-        pre_state: &Self::State,
-        cmd: &Self::Command,
-        result: &Self::Result,
-        post_system: &Self::System,
-    );
+    /// Use assertions to check that the result returned by the System Under Test
+    /// was correct, given the model pre-state.
+    fn check_result(&self, cmd: &Self::Command, pre_state: &Self::State, result: &Self::Result);
 
     /// Apply a command on the model state.
     ///
     /// We could use `Cow` here if we wanted to preserve the history of state and
     /// also avoid cloning when there's no change.
-    fn next_state(&self, state: Self::State, cmd: &Self::Command) -> Self::State;
+    fn next_state(&self, cmd: &Self::Command, state: Self::State) -> Self::State;
+
+    /// Use assertions to check that the state transition on the System Under Test
+    /// was correct, by comparing to the model post-state.
+    ///
+    /// This can be used to check invariants which should always be true.
+    fn check_system(
+        &self,
+        cmd: &Self::Command,
+        post_state: &Self::State,
+        post_system: &Self::System,
+    );
 }
 
 /// Run a state machine test by generating `max_steps` commands.
@@ -61,8 +67,9 @@ pub fn run<T: StateMachine>(
     for _ in 0..max_steps {
         let cmd = t.gen_command(u, &state)?;
         let res = t.run_command(&mut system, &cmd);
-        t.check_post_conditions(&state, &cmd, &res, &system);
-        state = t.next_state(state, &cmd);
+        t.check_result(&cmd, &state, &res);
+        state = t.next_state(&cmd, state);
+        t.check_system(&cmd, &state, &system)
     }
     Ok(())
 }
@@ -192,22 +199,21 @@ mod tests {
             None
         }
 
-        fn check_post_conditions(
+        fn check_result(
             &self,
-            pre_state: &Self::State,
             cmd: &Self::Command,
+            pre_state: &Self::State,
             result: &Self::Result,
-            _post_system: &Self::System,
         ) {
             match cmd {
                 CounterCommand::Get => {
                     assert_eq!(result.as_ref(), Some(pre_state))
                 }
-                _ => {} // We could check the state if we wanted, or we can wait for Get.
+                _ => {}
             }
         }
 
-        fn next_state(&self, state: Self::State, cmd: &Self::Command) -> Self::State {
+        fn next_state(&self, cmd: &Self::Command, state: Self::State) -> Self::State {
             use CounterCommand::*;
             match cmd {
                 Inc => state + 1,
@@ -215,6 +221,16 @@ mod tests {
                 Reset => 0,
                 Get => state,
             }
+        }
+
+        fn check_system(
+            &self,
+            _cmd: &Self::Command,
+            post_state: &Self::State,
+            post_system: &Self::System,
+        ) {
+            // We can check the state if we want to, or we can wait for a Get command.
+            assert_eq!(post_state, &post_system.get())
         }
     }
 
@@ -224,6 +240,19 @@ mod tests {
     ///
     /// ```ignore
     /// state_machine_test!(counter, 100 steps, CounterStateMachine { buggy: true });
+    /// ```
+    ///
+    /// Which would have an output like:
+    ///
+    /// ```text
+    /// ---- smt::tests::counter_with_seed stdout ----
+    /// thread 'smt::tests::counter panicked at 'assertion failed: `(left == right)`
+    ///   left: `296607493`,
+    ///  right: `1`', testing/integration/src/smt.rs:233:13
+    ///
+    ///
+    /// arb_test failed!
+    ///     Seed: 0x001a560e00000020
     /// ```
     #[test]
     #[should_panic]
