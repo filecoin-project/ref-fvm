@@ -17,6 +17,7 @@ use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
 use num_traits::Zero;
 #[cfg(feature = "arb")]
 use quickcheck::Arbitrary;
+use serde::{Deserialize, Serialize};
 
 use crate::history_map::HistoryMap;
 use crate::init_actor::State as InitActorState;
@@ -379,7 +380,9 @@ where
 }
 
 /// State of all actor implementations.
-#[derive(PartialEq, Eq, Clone, Debug, Serialize_tuple, Deserialize_tuple)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[serde(from = "ActorStateOld")]
+#[serde(into = "ActorStateOld")]
 pub struct ActorState {
     /// Link to code for the actor.
     pub code: Cid,
@@ -392,9 +395,45 @@ pub struct ActorState {
     /// The actor's "delegated" address, if assigned.
     ///
     /// This field is set on actor creation and never modified.
-    #[serde(skip)]
     pub delegated_address: Option<Address>,
 }
+
+impl From<ActorStateOld> for ActorState {
+    fn from(a: ActorStateOld) -> Self {
+        Self{
+            code: a.code,
+            state: a.state,
+            sequence: a.sequence,
+            balance: a.balance,
+            delegated_address: None
+        }
+    }
+}
+
+impl Into<ActorStateOld> for ActorState {
+    fn into(self) -> ActorStateOld {
+        ActorStateOld{
+            code: self.code,
+            state: self.state,
+            sequence: self.sequence,
+            balance: self.balance,
+        }
+    }
+}
+
+/// State of all actor implementations.
+#[derive(PartialEq, Eq, Clone, Debug, Serialize_tuple, Deserialize_tuple)]
+pub struct ActorStateOld {
+    /// Link to code for the actor.
+    pub code: Cid,
+    /// Link to the state of the actor.
+    pub state: Cid,
+    /// Sequence of the actor.
+    pub sequence: u64,
+    /// Tokens available to the actor.
+    pub balance: TokenAmount,
+}
+
 
 impl ActorState {
     /// Constructor for actor state
