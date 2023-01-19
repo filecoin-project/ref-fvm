@@ -106,6 +106,7 @@ pub mod vm {
 pub mod network {
     use crate::clock::ChainEpoch;
     use crate::sys::TokenAmount;
+    use crate::version::NetworkVersion;
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
@@ -119,6 +120,6 @@ pub mod network {
         /// The Chain ID of the network.
         pub chain_id: u64,
         /// The network version.
-        pub network_version: u32,
+        pub network_version: NetworkVersion,
     }
 }
