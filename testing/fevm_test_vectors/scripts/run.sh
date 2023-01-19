@@ -1,8 +1,4 @@
 #!/bin/bash
-geth_rpc_endpoint=$1
-tx_num=$2
-furthest_block_num=$3
-out_dir=$4
 
 Uniswap_V2='
   0x1F98431c8aD98523631AE4a59f267346ea31F984,
@@ -18,7 +14,7 @@ Uniswap_V2='
   0xA5644E29708357803b5A882D272c41cC0dF92B34
 '
 contracts=`echo $Uniswap_V2 | tr -d '\n\r' | sed s/[[:space:]]//g`
-RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch -g $1 -c $contracts -t $2 -f $3 -o $4 --tag "Uniswap_V2"
+RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "Uniswap_V2"
 
 MakerDao='
   0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F,
@@ -408,7 +404,7 @@ MakerDao='
   0x615984F33604011Fcd76E9b89803Be3816276E61
 '
 contracts=`echo $MakerDao | tr -d '\n\r' | sed s/[[:space:]]//g`
-RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch -g $1 -c $contracts -t $2 -f $3 -o $4 --tag "MakerDao"
+RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "MakerDao"
 
 OpenSea='
   0x1e0049783f008a0085193e00003d00cd54003c71,
@@ -423,8 +419,33 @@ OpenSea='
   0x00005ea00ac477b1030ce78506496e8c2de24bf5
 '
 contracts=`echo $MakerDao | tr -d '\n\r' | sed s/[[:space:]]//g`
-RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch -g $1 -c $contracts -t $2 -f $3 -o $4 --tag "OpenSea"
+RUST_LOG=info cargo run --package fevm-test-vectors --bin fevm-test-vectors batch-generate -g $1 -c $contracts -m $2 -r $3 -o $4 --tag "OpenSea"
 
 Curve='
-
+  0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7,
+  0xdc24316b9ae028f1497c275eb9192a3ea0f67022,
+  0xd51a44d3fae010294c616388b506acda1bfaae46,
+  0xa5407eae9ba41422680e2e00537571bcc53efbfd,
+  0xc5424b857f758e906013f3555dad202e4bdb4567,
+  0x8301ae4fc9c624d1d396cbdaa1ed877821d7c511,
+  0xd632f22692fac7611d2aa1c0d552930d43caed3b,
+  0xb576491f1e6e5e62f1d8f26062ee822b40b0e0d4,
+  0x3211c6cbef1429da3d0d58494938299c92ad5860,
+  0x9d0464996170c6b9e75eed71c68b99ddedf279e8,
+  0xed279fdd11ca84beef15af5d39bb4d4bee23f0ca,
+  0x7fc77b5c7614e1533320ea6ddc2eb61fa00a9714,
+  0x618788357d0ebd8a37e763adab3bc575d54c2c7d,
+  0xd658a338613198204dca1143ac3f01a722b5d94a,
+  0x21d158d95c2e150e144c36fc64e3653b8d6c6267,
+  0x6e314039f4c56000f4ebb3a7854a84cc6225fb92,
+  0xa1f8a6807c402e4a15ef4eba36528a3fed24e577,
+  0x838af967537350d2c44abb8c010e49e32673ab94,
+  0x87650d7bbfc3a9f10587d7778206671719d9910d,
+  0xe3c190c57b5959ae62efe3b6797058b76ba2f5ef,
+  0xdcef968d416a41cdac0ed8702fac8128a64241a2,
+  0xb9446c4ef5ebe66268da6700d26f96273de3d571,
+  0x453d92c7d4263201c69aacfaf589ed14202d83a4,
+  0x6a6283ab6e31c2aec3fa08697a8f806b740660b2,
+  0xf2f12b364f614925ab8e2c8bfc606edb9282ba09,
+  0xc47ebd6c0f68fd5963005d28d0ba533750e5c11b
 '
