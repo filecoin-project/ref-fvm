@@ -80,6 +80,12 @@ where
             events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
         }
 
+        // Pre-resolve the message receiver's address, if known.
+        let receiver_id = self
+            .state_tree()
+            .lookup_id(&msg.to)
+            .context("failure when looking up message receiver")?;
+
         // Filecoin caps the premium plus the base-fee at the fee-cap.
         // We expose the _effective_ premium to the user.
         let effective_premium = msg
@@ -114,6 +120,8 @@ where
                 msg.gas_limit,
                 sender_id,
                 msg.from,
+                receiver_id,
+                msg.to,
                 msg.sequence,
                 effective_premium,
             );

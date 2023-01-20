@@ -3,7 +3,6 @@
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
@@ -13,7 +12,7 @@ use num_traits::Zero;
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
 use crate::kernel::Result;
-use crate::state_tree::{ActorState, StateTree};
+use crate::state_tree::StateTree;
 
 mod default;
 
@@ -68,15 +67,6 @@ pub trait Machine: 'static {
 
     /// Returns a mutable reference to the state tree.
     fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore>;
-
-    /// Creates an uninitialized actor.
-    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID>;
-
-    /// Transfers tokens from one actor to another.
-    ///
-    /// If either the receiver or the sender do not exist, this method fails with a FATAL error.
-    /// Otherwise, if the amounts are invalid, etc., it fails with a syscall error.
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
 
     /// Flushes the state-tree and returns the new root CID.
     fn flush(&mut self) -> Result<Cid> {

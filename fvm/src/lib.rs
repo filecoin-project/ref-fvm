@@ -39,6 +39,7 @@ pub mod init_actor;
 pub mod system_actor;
 
 mod eam_actor;
+mod history_map;
 pub mod trace;
 
 use cid::multihash::{Code, MultihashDigest};

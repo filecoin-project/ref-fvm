@@ -184,14 +184,6 @@ where
         self.machine.state_tree_mut()
     }
 
-    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
-        self.machine.create_actor(addr, act)
-    }
-
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        self.machine.transfer(from, to, value)
-    }
-
     fn into_store(self) -> Self::Blockstore {
         self.machine.into_store()
     }
@@ -231,6 +223,8 @@ where
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
+        receiver: Option<ActorID>,
+        receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -240,6 +234,8 @@ where
             gas_limit,
             origin,
             origin_address,
+            receiver,
+            receiver_address,
             nonce,
             gas_premium,
         ))
@@ -338,14 +334,6 @@ where
         self.0.externs()
     }
 
-    fn state_tree(&self) -> &StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.0.state_tree()
-    }
-
-    fn state_tree_mut(&mut self) -> &mut StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.0.state_tree_mut()
-    }
-
     fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<GasTimer> {
         self.0.charge_gas(charge)
     }
@@ -360,6 +348,30 @@ where
 
     fn append_event(&mut self, evt: StampedEvent) {
         self.0.append_event(evt)
+    }
+
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+        self.0.resolve_address(address)
+    }
+
+    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
+        self.0.get_actor(id)
+    }
+
+    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
+        self.0.set_actor(id, state)
+    }
+
+    fn delete_actor(&mut self, id: ActorID) -> Result<()> {
+        self.0.delete_actor(id)
+    }
+
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+        self.0.transfer(from, to, value)
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.0.is_read_only()
     }
 }
 
@@ -454,8 +466,8 @@ where
         Ok(())
     }
 
-    fn balance_of(&self, _actor_id: ActorID) -> Result<TokenAmount> {
-        todo!()
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        self.0.balance_of(actor_id)
     }
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
