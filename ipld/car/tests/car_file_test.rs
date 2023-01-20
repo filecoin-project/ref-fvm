@@ -19,8 +19,7 @@ async fn load_into_blockstore() {
 #[async_std::test]
 async fn load_car_reader_into_blockstore() {
     let file = File::open("tests/test.car").await.unwrap();
-    let buf_reader = BufReader::new(file);
-    let car_reader = CarReader::new(buf_reader).await.unwrap();
+    let car_reader = CarReader::new(file).await.unwrap();
     let bs = MemoryBlockstore::default();
 
     // perform some action with the reader
