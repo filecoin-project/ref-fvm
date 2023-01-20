@@ -44,3 +44,22 @@ Feature: SimpleCoin
       Given 1 random account
       When the seqno of account 1 is set to 2
       Then account 1 fails to create a SimpleCoin contract with 'Actor sequence invalid: 2 != 0'
+
+  Rule: Sending coins
+
+    Scenario: When the sender has sufficient balance, the receiver is credited and the sender is credited
+      Given 3 random accounts
+      When account 1 creates a SimpleCoin contract
+      And account 1 sends account 2 4000 coins
+      And account 1 sends account 3 1000 coins
+      And account 2 sends account 3 2000 coins
+      Then the balance of account 1 is 5000 coins
+      Then the balance of account 2 is 2000 coins
+      Then the balance of account 3 is 3000 coins
+
+    Scenario: Doesn't have enough to send
+      Given 2 random accounts
+      When account 1 creates a SimpleCoin contract
+      And account 1 sends account 2 11000 coins
+      Then the balance of account 1 is 10000 coins
+      And the balance of account 2 is 0 coins

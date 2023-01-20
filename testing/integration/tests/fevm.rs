@@ -13,6 +13,7 @@ use cucumber::{Parameter, World};
 use ethers::abi::Detokenize;
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::decode_function_data;
+use ethers::types::H160;
 use fvm::executor::ApplyFailure;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
@@ -215,6 +216,11 @@ impl ContractTester {
         self.account_mut(acct).account.0
     }
 
+    /// Address type expected by the `ethers` ABI generated code.
+    pub fn account_h160(&mut self, acct: &AccountNumber) -> H160 {
+        id_to_h160(self.account_id(acct))
+    }
+
     /// Deploy a contract owned by an account.
     pub fn create_contract(
         &mut self,
@@ -404,7 +410,7 @@ mod simple_coin_world {
     use fvm_shared::address::Address;
 
     //use evm_contracts::simple_coin::SimpleCoin;
-    use crate::{id_to_h160, AccountNumber, ContractTester, MockProvider};
+    use crate::{AccountNumber, ContractTester, MockProvider};
 
     contract_constructors!(SimpleCoin);
 
@@ -423,11 +429,27 @@ mod simple_coin_world {
 
     contract_matchers!(SimpleCoinWorld);
 
+    #[when(expr = "{acct} sends {acct} {int} coin(s)")]
+    fn send_coin(
+        world: &mut SimpleCoinWorld,
+        sender: AccountNumber,
+        receiver: AccountNumber,
+        coins: u64,
+    ) {
+        let (contract, contract_addr) = world.get_contract();
+        let receiver_addr = world.tester.account_h160(&receiver);
+        let call = contract.send_coin(receiver_addr, U256::from(coins));
+        let _sufficient = world
+            .tester
+            .call_contract(sender, contract_addr, call.gas(10_000_000_000i64))
+            .expect("send_coin should succeed");
+    }
+
     #[then(expr = "the balance of {acct} is {int} coin(s)")]
     fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
         let (contract, contract_addr) = world.get_contract();
-        let account_id = world.tester.account_id(&acct);
-        let call = contract.get_balance(id_to_h160(account_id));
+        let addr = world.tester.account_h160(&acct);
+        let call = contract.get_balance(addr);
         let balance = world
             .tester
             .call_contract(acct, contract_addr, call.gas(10_000_000_000i64))
