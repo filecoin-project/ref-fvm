@@ -5,7 +5,7 @@
 use async_std::fs::File;
 use async_std::io::BufReader;
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_car::{CarReader, load_car, load_car_reader};
+use fvm_ipld_car::{load_car, CarReader};
 
 #[async_std::test]
 async fn load_into_blockstore() {
@@ -23,9 +23,11 @@ async fn load_car_reader_into_blockstore() {
     let car_reader = CarReader::new(buf_reader).await.unwrap();
     let bs = MemoryBlockstore::default();
 
+    // perform some action with the reader
     let roots = car_reader.header.roots.clone();
 
-    let res = load_car_reader(&bs, car_reader).await.unwrap();
+    // load it into the blockstore
+    let res = car_reader.read_into(&bs).await.unwrap();
 
     assert_eq!(res, roots);
 }

@@ -126,6 +126,24 @@ where
             Ok(None)
         }
     }
+
+    /// Loads the CAR file into the given blockstore
+    pub async fn read_into<B: Blockstore>(mut self, s: &B) -> Result<Vec<Cid>, Error> {
+        // Batch write key value pairs from car file
+        // TODO: Stream the data once some of the stream APIs stabilize.
+        let mut buf = Vec::with_capacity(100);
+        while let Some(block) = self.next_block().await? {
+            buf.push((block.cid, block.data));
+            if buf.len() > 1000 {
+                s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
+                    .map_err(|e| Error::Other(e.to_string()))?;
+                buf.clear();
+            }
+        }
+        s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
+            .map_err(|e| Error::Other(e.to_string()))?;
+        Ok(self.header.roots)
+    }
 }
 
 /// IPLD Block
@@ -142,7 +160,7 @@ where
     R: AsyncRead + Send + Unpin,
 {
     let car_reader = CarReader::new(reader).await?;
-    load_car_reader(s, car_reader).await
+    car_reader.read_into(s).await
 }
 
 /// Loads a CAR buffer into a Blockstore without checking the CIDs.
@@ -152,29 +170,7 @@ where
     R: AsyncRead + Send + Unpin,
 {
     let car_reader = CarReader::new_unchecked(reader).await?;
-    load_car_reader(s, car_reader).await
-}
-
-/// Loads a CAR reader directly into a blockstore
-pub async fn load_car_reader<R, B>(s: &B, mut car_reader: CarReader<R>) -> Result<Vec<Cid>, Error>
-where
-    B: Blockstore,
-    R: AsyncRead + Send + Unpin,
-{
-    // Batch write key value pairs from car file
-    // TODO: Stream the data once some of the stream APIs stabilize.
-    let mut buf = Vec::with_capacity(100);
-    while let Some(block) = car_reader.next_block().await? {
-        buf.push((block.cid, block.data));
-        if buf.len() > 1000 {
-            s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
-                .map_err(|e| Error::Other(e.to_string()))?;
-            buf.clear();
-        }
-    }
-    s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
-        .map_err(|e| Error::Other(e.to_string()))?;
-    Ok(car_reader.header.roots)
+    car_reader.read_into(s).await
 }
 
 #[cfg(test)]
