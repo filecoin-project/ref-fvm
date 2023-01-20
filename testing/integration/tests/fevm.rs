@@ -141,7 +141,14 @@ impl ContractTester {
     /// Note that it's not possible to create more accounts after this.
     fn instantiate_machine(&mut self) {
         self.tester
-            .instantiate_machine(DummyExterns)
+            .instantiate_machine_with_config(
+                DummyExterns,
+                |nc| {
+                    // Disable this because it's mixed with test output and repetitive.
+                    nc.actor_debugging = false
+                },
+                |_mc| {},
+            )
             .expect("error instantiating machine");
     }
 
