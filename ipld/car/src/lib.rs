@@ -141,7 +141,8 @@ where
     B: Blockstore,
     R: AsyncRead + Send + Unpin,
 {
-    load_car_inner(s, reader, true).await
+    let car_reader = CarReader::new(reader).await?;
+    load_car_reader(s, car_reader).await
 }
 
 /// Loads a CAR buffer into a Blockstore without checking the CIDs.
@@ -150,20 +151,16 @@ where
     B: Blockstore,
     R: AsyncRead + Send + Unpin,
 {
-    load_car_inner(s, reader, false).await
+    let car_reader = CarReader::new_unchecked(reader).await?;
+    load_car_reader(s, car_reader).await
 }
 
-async fn load_car_inner<R, B>(s: &B, reader: R, verify: bool) -> Result<Vec<Cid>, Error>
+/// Loads a CAR reader directly into a blockstore
+pub async fn load_car_reader<R, B>(s: &B, mut car_reader: CarReader<R>) -> Result<Vec<Cid>, Error>
 where
     B: Blockstore,
     R: AsyncRead + Send + Unpin,
 {
-    let mut car_reader = if verify {
-        CarReader::new(reader).await
-    } else {
-        CarReader::new_unchecked(reader).await
-    }?;
-
     // Batch write key value pairs from car file
     // TODO: Stream the data once some of the stream APIs stabilize.
     let mut buf = Vec::with_capacity(100);
