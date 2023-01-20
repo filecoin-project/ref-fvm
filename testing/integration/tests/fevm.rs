@@ -208,11 +208,6 @@ impl ContractTester {
         self.account_mut(acct).account.0
     }
 
-    /// Get the nonce of an account.`
-    pub fn account_seqno(&mut self, acct: &AccountNumber) -> u64 {
-        self.account_mut(acct).seqno
-    }
-
     /// Deploy a contract owned by an account.
     pub fn create_contract(
         &mut self,
@@ -348,9 +343,16 @@ macro_rules! contract_matchers {
             assert!(format!("{err:?}").contains(&message))
         }
 
+        #[when(expr = "the seqno of {acct} is set to {int}")]
+        fn set_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
+            // NOTE: If we called `Tester::set_account_sequence` as well then they would
+            // be in sync and no error would be detected. That can be done as setup.
+            world.tester.account_mut(&acct).seqno = seqno;
+        }
+
         #[then(expr = "the seqno of {acct} is {int}")]
         fn check_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
-            assert_eq!(world.tester.account_seqno(&acct), seqno)
+            assert_eq!(world.tester.account_mut(&acct).seqno, seqno)
         }
     };
 }
