@@ -324,16 +324,31 @@ impl ContractTester {
 /// expected to have a `tester: ContractTester` field.
 macro_rules! contract_matchers {
     ($world:ident) => {
+        /// Example:
+        /// ```text
+        /// Given 3 random accounts`
+        /// ```
         #[given(expr = "{int} random account(s)")]
         fn create_accounts(world: &mut $world, n: usize) {
             world.tester.create_accounts(n);
         }
 
+        /// Example:
+        /// ```text
+        /// Given accounts with private keys
+        ///   | private keys                                                     |
+        ///   | 5e969c4ac2f287128d6fd71e7d111dbd19a5b2bea59da5d5d908044a514f5f8e |
+        ///   | ...                                                              |
+        /// ```
         #[given(expr = "accounts with private keys")]
         fn create_accounts_with_keys(world: &mut $world, step: &Step) {
             world.tester.create_accounts_with_keys(step);
         }
 
+        /// Example:
+        /// ```text
+        /// When account 1 creates a SimpleCoin contract
+        /// ```
         #[when(expr = "{acct} creates a {word} contract")]
         fn create_contract(world: &mut $world, owner: $crate::AccountNumber, contract: String) {
             world
@@ -342,6 +357,10 @@ macro_rules! contract_matchers {
                 .expect("countract creation should succeed")
         }
 
+        /// Example:
+        /// ```text
+        /// Then account 1 fails to create a SimpleCoin contract with 'Actor sequence invalid: 2 != 0'
+        /// ```
         #[then(expr = "{acct} fails to create a {word} contract with {string}")]
         fn fail_create_contract(
             world: &mut $world,
@@ -356,6 +375,10 @@ macro_rules! contract_matchers {
             assert!(format!("{err:?}").contains(&message))
         }
 
+        /// Example:
+        /// ```text
+        /// When the seqno of account 1 is set to 2
+        /// ```
         #[when(expr = "the seqno of {acct} is set to {int}")]
         fn set_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
             // NOTE: If we called `Tester::set_account_sequence` as well then they would
@@ -363,6 +386,10 @@ macro_rules! contract_matchers {
             world.tester.account_mut(&acct).seqno = seqno;
         }
 
+        /// Example:
+        /// ```text
+        /// Then the seqno of account 1 is 4
+        /// ```
         #[then(expr = "the seqno of {acct} is {int}")]
         fn check_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
             assert_eq!(world.tester.account_mut(&acct).seqno, seqno)
@@ -429,6 +456,10 @@ mod simple_coin_world {
 
     contract_matchers!(SimpleCoinWorld);
 
+    /// Example:
+    /// ```text
+    /// When account 1 sends account 2 1000 coins
+    /// ```
     #[when(expr = "{acct} sends {acct} {int} coin(s)")]
     fn send_coin(
         world: &mut SimpleCoinWorld,
@@ -445,6 +476,10 @@ mod simple_coin_world {
             .expect("send_coin should succeed");
     }
 
+    /// Example:
+    /// ```text
+    /// Then the balance of account 2 is 1000 coins
+    /// ```
     #[then(expr = "the balance of {acct} is {int} coin(s)")]
     fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
         let (contract, contract_addr) = world.get_contract();
