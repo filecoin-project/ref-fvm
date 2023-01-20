@@ -51,6 +51,8 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     pub executor: Option<IntegrationExecutor<B, E>>,
     // State tree constructed before instantiating the Machine
     pub state_tree: Option<StateTree<B>>,
+    /// Create accounts with determnistic keys..
+    accounts_rng_seed: u64,
 }
 
 impl<B, E> Tester<B, E>
@@ -92,6 +94,7 @@ where
             state_tree: Some(state_tree),
             accounts_code_cid,
             placeholder_code_cid,
+            accounts_rng_seed: 8,
         })
     }
 
@@ -100,7 +103,8 @@ where
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
         use rand::SeedableRng;
 
-        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
+        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(self.accounts_rng_seed);
+        self.accounts_rng_seed += 1;
 
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
