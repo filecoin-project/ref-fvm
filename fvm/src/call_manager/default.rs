@@ -207,19 +207,15 @@ where
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction(read_only);
-        self.events.create_layer(read_only);
+        self.events.begin_transaction(read_only);
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
-        self.state_tree_mut().end_transaction(revert)?;
 
-        if revert {
-            self.events.discard_last_layer()?;
-        } else {
-            self.events.merge_last_layer()?;
-        }
+        self.state_tree_mut().end_transaction(revert)?;
+        self.events.end_transaction(revert)?;
 
         res
     }
@@ -729,7 +725,7 @@ impl EventsAccumulator {
         }
     }
 
-    fn create_layer(&mut self, read_only: bool) {
+    fn begin_transaction(&mut self, read_only: bool) {
         if read_only || self.is_read_only() {
             self.read_only_layers += 1;
         } else {
@@ -737,29 +733,18 @@ impl EventsAccumulator {
         }
     }
 
-    fn merge_last_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-            Ok(())
-        } else {
-            self.idxs.pop().map(|_| {}).ok_or_else(|| {
-                ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling merge_last_layer"
-                ))
-            })
-        }
-    }
-
-    fn discard_last_layer(&mut self) -> Result<()> {
+    fn end_transaction(&mut self, revert: bool) -> Result<()> {
         if self.is_read_only() {
             self.read_only_layers -= 1;
         } else {
             let idx = self.idxs.pop().ok_or_else(|| {
                 ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling discard_last_layer"
+                    "no index in the event accumulator when ending a transaction"
                 ))
             })?;
-            self.events.truncate(idx);
+            if revert {
+                self.events.truncate(idx);
+            }
         }
         Ok(())
     }
