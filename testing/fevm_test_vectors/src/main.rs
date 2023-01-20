@@ -185,6 +185,8 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 iter::once(Path::new(input).to_path_buf()).collect()
             };
+
+            let bar = ProgressBar::new(vector_results.len() as u64);
             for vector_path in vector_results {
                 let message_vector = match MessageVector::from_file(&vector_path) {
                     Ok(mv) => {
@@ -230,6 +232,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 };
                 block_on(export_test_vector_file(evm_input, vector_path))?;
+                bar.inc(1);
             }
         }
         SubCommand::Consume(config) => {
