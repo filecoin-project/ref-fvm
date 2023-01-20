@@ -63,3 +63,9 @@ Feature: SimpleCoin
       And account 1 sends account 2 11000 coins
       Then the balance of account 1 is 10000 coins
       And the balance of account 2 is 0 coins
+
+    Scenario: When coins are sent, an event is emitted
+      Given 2 random accounts
+      When account 1 creates a SimpleCoin contract
+      And account 1 sends account 2 4000 coins
+      Then a Transfer event of 4000 coins from account 1 to account 2 is emitted

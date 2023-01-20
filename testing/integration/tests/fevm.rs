@@ -13,7 +13,7 @@ use cucumber::{Parameter, World};
 use ethers::abi::Detokenize;
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::decode_function_data;
-use ethers::types::H160;
+use ethers::types::{H160, H256};
 use fvm::executor::ApplyFailure;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
@@ -22,6 +22,7 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
 use fvm_shared::error::ExitCode;
+use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
@@ -107,6 +108,8 @@ pub struct ContractTester {
     accounts: Vec<Account>,
     /// Last `(owner_addr, contract_addr)` pair.
     last_created: Option<(TestAccount, Address)>,
+    /// Events emitted by the last contract invocation.
+    last_events: Vec<StampedEvent>,
 }
 
 impl Default for ContractTester {
@@ -134,6 +137,7 @@ impl ContractTester {
             tester,
             accounts: Vec::new(),
             last_created: None,
+            last_events: Vec::new(),
         }
     }
 
@@ -302,6 +306,12 @@ impl ContractTester {
         // NB `call.function.state_mutability` would tell us.
         *self.account_mut(&acct) = account;
 
+        // Store events, they can be parsed by the world that knows what to expect.
+        self.last_events.clear();
+        for evt in invoke_res.events {
+            self.last_events.push(evt)
+        }
+
         if !invoke_res.msg_receipt.exit_code.is_success() {
             return Err(ExecError {
                 exit_code: invoke_res.msg_receipt.exit_code,
@@ -406,6 +416,18 @@ pub fn id_to_h160(id: ActorID) -> ethers::core::types::Address {
     ethers::core::types::Address::from_slice(&addr.0)
 }
 
+pub fn to_h256(bytes: &[u8]) -> H256 {
+    match bytes.len() {
+        32 => H256::from_slice(bytes),
+        n if n < 32 => {
+            let mut padded = [0u8; 32];
+            padded[(32 - n)..].copy_from_slice(bytes);
+            H256(padded)
+        }
+        _ => panic!("bytes too long for h256"),
+    }
+}
+
 /// Create constructors for a smart contract, injecting a mock provider for the client,
 /// because we are not going to send them to an actual blockchain.
 macro_rules! contract_constructors {
@@ -432,12 +454,13 @@ macro_rules! contract_constructors {
 mod simple_coin_world {
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
-    use ethers::types::U256;
-    use evm_contracts::simple_coin::SimpleCoin;
+    use ethers::types::{Bytes, H256, U256};
+    use evm_contracts::simple_coin::{self, SimpleCoin, TransferFilter};
+    use fvm_ipld_encoding::BytesDe;
     use fvm_shared::address::Address;
 
     //use evm_contracts::simple_coin::SimpleCoin;
-    use crate::{AccountNumber, ContractTester, MockProvider};
+    use crate::{to_h256, AccountNumber, ContractTester, MockProvider};
 
     contract_constructors!(SimpleCoin);
 
@@ -451,6 +474,58 @@ mod simple_coin_world {
     impl SimpleCoinWorld {
         fn get_contract(&self) -> (SimpleCoin<MockProvider>, Address) {
             self.tester.get_contract(new_with_actor_id)
+        }
+
+        // TODO: Make this generic and move to `ContractTester`
+        /// The call returns events like these:
+        ///
+        /// ```text
+        /// StampedEvent { emitter: 103,
+        ///  event: ActorEvent { entries: [
+        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic1", value: RawBytes { 5820ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef } },
+        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic2", value: RawBytes { 54ff00000000000000000000000000000000000065 } },
+        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic3", value: RawBytes { 54ff00000000000000000000000000000000000066 } },
+        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "data", value: RawBytes { 582000000000000000000000000000000000000000000000000000000000000007d0 } }] } }
+        /// ```
+        ///
+        /// The values are:
+        /// * topic1 will be the cbor encoded keccak-256 hash of the event signature Transfer(address,address,uint256)
+        /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array)
+        /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array)
+        /// * data is a cbor encoded byte array of all the remaining arguments
+        fn parse_events(self: &mut SimpleCoinWorld) -> Vec<TransferFilter> {
+            let (contract, contract_addr) = self.get_contract();
+            let contract_id = contract_addr.id().expect("contract address is an ID");
+            let mut transfers = Vec::new();
+
+            for event in self.tester.last_events.iter() {
+                if event.emitter == contract_id {
+                    let mut topics = Vec::<H256>::new();
+                    let entries_len = event.event.entries.len();
+
+                    for entry in event.event.entries.iter().take(entries_len - 1) {
+                        let BytesDe(topic) = entry
+                            .value
+                            .deserialize()
+                            .expect("error deserializing topic entry");
+                        let topic = to_h256(&topic);
+                        topics.push(topic)
+                    }
+
+                    let BytesDe(data) = event.event.entries[entries_len - 1]
+                        .value
+                        .deserialize()
+                        .expect("error deserializing data entry");
+                    let data = Bytes::from(data);
+
+                    let transfer: simple_coin::TransferFilter = contract
+                        .decode_event("Transfer", topics, data)
+                        .expect("error decoding event");
+
+                    transfers.push(transfer);
+                }
+            }
+            transfers
         }
     }
 
@@ -491,5 +566,23 @@ mod simple_coin_world {
             .expect("get_balance should succeed");
 
         assert_eq!(balance, U256::from(coins))
+    }
+
+    /// Example:
+    /// ```text
+    /// a Transfer event of 4000 coins from account 1 to account 2 is emitted
+    /// ```
+    #[then(expr = "a Transfer event of {int} coins from {acct} to {acct} is emitted")]
+    fn check_transfer_event(
+        world: &mut SimpleCoinWorld,
+        coins: u64,
+        sender: AccountNumber,
+        receiver: AccountNumber,
+    ) {
+        let transfers = world.parse_events();
+        assert_eq!(transfers.len(), 1, "expected exactly 1 event");
+        assert_eq!(transfers[0].from, world.tester.account_h160(&sender));
+        assert_eq!(transfers[0].to, world.tester.account_h160(&receiver));
+        assert_eq!(transfers[0].value, U256::from(coins));
     }
 }
