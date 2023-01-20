@@ -10,7 +10,7 @@ use std::str::FromStr;
 
 use cucumber::gherkin::Step;
 use cucumber::{Parameter, World};
-use ethers::abi::{Detokenize, StateMutability};
+use ethers::abi::Detokenize;
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::decode_function_data;
 use fvm::executor::ApplyFailure;
@@ -208,6 +208,11 @@ impl ContractTester {
         self.account_mut(acct).account.0
     }
 
+    /// Get the nonce of an account.`
+    pub fn account_seqno(&mut self, acct: &AccountNumber) -> u64 {
+        self.account_mut(acct).seqno
+    }
+
     /// Deploy a contract owned by an account.
     pub fn create_contract(
         &mut self,
@@ -282,13 +287,12 @@ impl ContractTester {
                 .expect("too much gas"),
         );
 
-        // I think the nonce doesn't need to increase for views. Need to check.
-        match call.function.state_mutability {
-            StateMutability::View | StateMutability::Pure => {}
-            _ => {
-                *self.account_mut(&acct) = account;
-            }
-        }
+        // I think the nonce doesn't need to increase for views, but
+        // maybe that's just an optimisation by actually using a local node.
+        // FWIW the system increases the seqno, it doesn't have a special
+        // relationship with the EVM actor.
+        // NB `call.function.state_mutability` would tell us.
+        *self.account_mut(&acct) = account;
 
         if !invoke_res.msg_receipt.exit_code.is_success() {
             return Err(ExecError {
@@ -342,6 +346,11 @@ macro_rules! contract_matchers {
                 .create_contract(owner, contract)
                 .expect_err("contract creation should fail");
             assert!(format!("{err:?}").contains(&message))
+        }
+
+        #[then(expr = "the seqno of {acct} is {int}")]
+        fn check_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
+            assert_eq!(world.tester.account_seqno(&acct), seqno)
         }
     };
 }

@@ -29,3 +29,13 @@ Feature: SimpleCoin
         | 5e969c4ac2f287128d6fd71e7d111dbd19a5b2bea59da5d5d908044a514f5f8e |
       When account 1 creates a SimpleCoin contract
       Then account 2 fails to create a SimpleCoin contract with 'Actor sequence invalid: 0 != 1'
+
+  Rule: Nonce increases
+
+    Scenario: Sending multiple messages to views, the tester and the state stay in sync
+      Given 1 random account
+      When account 1 creates a SimpleCoin contract
+      Then the balance of account 1 is 10000 coins
+      And the balance of account 1 is 10000 coins
+      And the balance of account 1 is 10000 coins
+      And the seqno of account 1 is 4
