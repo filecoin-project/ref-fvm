@@ -12,8 +12,8 @@ use cucumber::gherkin::Step;
 use cucumber::{Parameter, World};
 use ethers::abi::Detokenize;
 use ethers::prelude::builders::ContractCall;
-use ethers::prelude::decode_function_data;
-use ethers::types::{H160, H256};
+use ethers::prelude::{decode_function_data, AbiError};
+use ethers::types::{Bytes, H160, H256};
 use fvm::executor::ApplyFailure;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
@@ -328,6 +328,61 @@ impl ContractTester {
         Ok(decode_function_data(&call.function, bytes, false)
             .expect("error deserializing return data"))
     }
+
+    /// Parse the events from the last contract invocation.
+    ///
+    /// TODO: Add a filter for selecting the event by its type signature.
+    ///
+    /// The call returns events like these:
+    ///
+    /// ```text
+    /// StampedEvent { emitter: 103,
+    ///  event: ActorEvent { entries: [
+    ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic1", value: RawBytes { 5820ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef } },
+    ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic2", value: RawBytes { 54ff00000000000000000000000000000000000065 } },
+    ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic3", value: RawBytes { 54ff00000000000000000000000000000000000066 } },
+    ///    Entry { flags: FLAG_INDEXED_VALUE, key: "data", value: RawBytes { 582000000000000000000000000000000000000000000000000000000000000007d0 } }] } }
+    /// ```
+    ///
+    /// The values are:
+    /// * topic1 will be the cbor encoded keccak-256 hash of the event signature Transfer(address,address,uint256)
+    /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array)
+    /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array)
+    /// * data is a cbor encoded byte array of all the remaining arguments
+    pub fn parse_events<F, T>(&self, contract_addr: Address, f: F) -> Vec<T>
+    where
+        F: Fn(Vec<H256>, Bytes) -> Result<T, AbiError>,
+    {
+        let contract_id = contract_addr.id().expect("contract address is an ID");
+        let mut events = Vec::new();
+
+        for event in self.last_events.iter() {
+            if event.emitter == contract_id {
+                let mut topics = Vec::<H256>::new();
+                let entries_len = event.event.entries.len();
+
+                for entry in event.event.entries.iter().take(entries_len - 1) {
+                    let BytesDe(topic) = entry
+                        .value
+                        .deserialize()
+                        .expect("error deserializing topic entry");
+                    let topic = to_h256(&topic);
+                    topics.push(topic)
+                }
+
+                let BytesDe(data) = event.event.entries[entries_len - 1]
+                    .value
+                    .deserialize()
+                    .expect("error deserializing data entry");
+                let data = Bytes::from(data);
+
+                let event: T = f(topics, data).expect("error decoding event");
+
+                events.push(event);
+            }
+        }
+        events
+    }
 }
 
 /// Create common given-when-then matchers for a `World` that is
@@ -454,13 +509,12 @@ macro_rules! contract_constructors {
 mod simple_coin_world {
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
-    use ethers::types::{Bytes, H256, U256};
-    use evm_contracts::simple_coin::{self, SimpleCoin, TransferFilter};
-    use fvm_ipld_encoding::BytesDe;
+    use ethers::types::U256;
+    use evm_contracts::simple_coin::{SimpleCoin, TransferFilter};
     use fvm_shared::address::Address;
 
     //use evm_contracts::simple_coin::SimpleCoin;
-    use crate::{to_h256, AccountNumber, ContractTester, MockProvider};
+    use crate::{AccountNumber, ContractTester, MockProvider};
 
     contract_constructors!(SimpleCoin);
 
@@ -472,60 +526,17 @@ mod simple_coin_world {
     }
 
     impl SimpleCoinWorld {
+        /// Get the last deployed contract.
         fn get_contract(&self) -> (SimpleCoin<MockProvider>, Address) {
             self.tester.get_contract(new_with_actor_id)
         }
 
-        // TODO: Make this generic and move to `ContractTester`
-        /// The call returns events like these:
-        ///
-        /// ```text
-        /// StampedEvent { emitter: 103,
-        ///  event: ActorEvent { entries: [
-        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic1", value: RawBytes { 5820ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef } },
-        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic2", value: RawBytes { 54ff00000000000000000000000000000000000065 } },
-        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "topic3", value: RawBytes { 54ff00000000000000000000000000000000000066 } },
-        ///    Entry { flags: FLAG_INDEXED_VALUE, key: "data", value: RawBytes { 582000000000000000000000000000000000000000000000000000000000000007d0 } }] } }
-        /// ```
-        ///
-        /// The values are:
-        /// * topic1 will be the cbor encoded keccak-256 hash of the event signature Transfer(address,address,uint256)
-        /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array)
-        /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array)
-        /// * data is a cbor encoded byte array of all the remaining arguments
-        fn parse_events(self: &mut SimpleCoinWorld) -> Vec<TransferFilter> {
+        /// Parse the events from the last send coin call.
+        fn parse_transfers(&self) -> Vec<TransferFilter> {
             let (contract, contract_addr) = self.get_contract();
-            let contract_id = contract_addr.id().expect("contract address is an ID");
-            let mut transfers = Vec::new();
-
-            for event in self.tester.last_events.iter() {
-                if event.emitter == contract_id {
-                    let mut topics = Vec::<H256>::new();
-                    let entries_len = event.event.entries.len();
-
-                    for entry in event.event.entries.iter().take(entries_len - 1) {
-                        let BytesDe(topic) = entry
-                            .value
-                            .deserialize()
-                            .expect("error deserializing topic entry");
-                        let topic = to_h256(&topic);
-                        topics.push(topic)
-                    }
-
-                    let BytesDe(data) = event.event.entries[entries_len - 1]
-                        .value
-                        .deserialize()
-                        .expect("error deserializing data entry");
-                    let data = Bytes::from(data);
-
-                    let transfer: simple_coin::TransferFilter = contract
-                        .decode_event("Transfer", topics, data)
-                        .expect("error decoding event");
-
-                    transfers.push(transfer);
-                }
-            }
-            transfers
+            self.tester.parse_events(contract_addr, |topics, data| {
+                contract.decode_event("Transfer", topics, data)
+            })
         }
     }
 
@@ -579,7 +590,7 @@ mod simple_coin_world {
         sender: AccountNumber,
         receiver: AccountNumber,
     ) {
-        let transfers = world.parse_events();
+        let transfers = world.parse_transfers();
         assert_eq!(transfers.len(), 1, "expected exactly 1 event");
         assert_eq!(transfers[0].from, world.tester.account_h160(&sender));
         assert_eq!(transfers[0].to, world.tester.account_h160(&receiver));
