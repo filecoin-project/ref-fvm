@@ -8,20 +8,24 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use cucumber::gherkin::Step;
 use cucumber::{Parameter, World};
 use ethers::abi::{Detokenize, StateMutability};
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::decode_function_data;
+use fvm::executor::ApplyFailure;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
-use fvm_integration_tests::tester::Account as TestAccount;
+use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALANCE};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
+use fvm_shared::error::ExitCode;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use lazy_static::lazy_static;
+use libsecp256k1::SecretKey;
 use simple_coin_world::SimpleCoinWorld;
 
 mod bundles;
@@ -87,6 +91,13 @@ impl Display for AccountNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "account {}", self.0 + 1)
     }
+}
+
+/// Error info returned in `ApplyRet`..
+#[derive(Debug)]
+pub struct ExecError {
+    pub exit_code: ExitCode,
+    pub failure_info: Option<ApplyFailure>,
 }
 
 /// Common machinery for all worlds to created and call contracts.
@@ -163,6 +174,27 @@ impl ContractTester {
         }
     }
 
+    /// Create accounts with the given list of private keys.
+    pub fn create_accounts_with_keys(&mut self, step: &Step) {
+        if let Some(table) = step.table.as_ref() {
+            // NOTE: skip header
+            for row in table.rows.iter().skip(1) {
+                let priv_key = &row[0];
+                let priv_key = hex::decode(priv_key).expect("invalid private key");
+                let priv_key =
+                    SecretKey::parse_slice(&priv_key).expect("invalid Secp256k1 private key");
+                let account = self
+                    .tester
+                    .make_secp256k1_account(priv_key, INITIAL_ACCOUNT_BALANCE.clone())
+                    .expect("error creating account");
+
+                let account = Account { account, seqno: 0 };
+
+                self.accounts.push(account);
+            }
+        }
+    }
+
     /// Get a mutable reference to an account
     pub fn account_mut(&mut self, acct: &AccountNumber) -> &mut Account {
         self.accounts
@@ -177,7 +209,11 @@ impl ContractTester {
     }
 
     /// Deploy a contract owned by an account.
-    pub fn create_contract(&mut self, owner: AccountNumber, contract_name: String) {
+    pub fn create_contract(
+        &mut self,
+        owner: AccountNumber,
+        contract_name: String,
+    ) -> Result<(), ExecError> {
         self.ensure_machine_instantiated();
 
         // Need to clone because I have to pass 2 mutable references to `fevm::create_contract`.
@@ -190,6 +226,13 @@ impl ContractTester {
 
         *self.account_mut(&owner) = account;
 
+        if !create_res.msg_receipt.exit_code.is_success() {
+            return Err(ExecError {
+                exit_code: create_res.msg_receipt.exit_code,
+                failure_info: create_res.failure_info,
+            });
+        }
+
         let create_return: CreateReturn = create_res
             .msg_receipt
             .return_data
@@ -197,7 +240,9 @@ impl ContractTester {
             .expect("error deserializing CreateReturn");
 
         let contract_addr = Address::new_id(create_return.actor_id);
-        self.last_created = Some((creator, contract_addr))
+        self.last_created = Some((creator, contract_addr));
+
+        Ok(())
     }
 
     /// Instantiate a contract and return it with its address.
@@ -221,7 +266,7 @@ impl ContractTester {
         acct: AccountNumber,
         contract_addr: Address,
         call: TestContractCall<R>,
-    ) -> R {
+    ) -> Result<R, ExecError> {
         let input = call.calldata().expect("Should have calldata.");
         let mut account = self.account_mut(&acct).clone();
         let invoke_res = fvm_integration_tests::fevm::invoke_contract(
@@ -246,10 +291,10 @@ impl ContractTester {
         }
 
         if !invoke_res.msg_receipt.exit_code.is_success() {
-            panic!(
-                "contract invocation failed: {} -- {:?}",
-                invoke_res.msg_receipt.exit_code, invoke_res.failure_info,
-            );
+            return Err(ExecError {
+                exit_code: invoke_res.msg_receipt.exit_code,
+                failure_info: invoke_res.failure_info,
+            });
         }
 
         let BytesDe(bytes) = invoke_res
@@ -258,7 +303,8 @@ impl ContractTester {
             .deserialize()
             .expect("error deserializing return data");
 
-        decode_function_data(&call.function, bytes, false).expect("error deserializing return data")
+        Ok(decode_function_data(&call.function, bytes, false)
+            .expect("error deserializing return data"))
     }
 }
 
@@ -271,9 +317,31 @@ macro_rules! contract_matchers {
             world.tester.create_accounts(n);
         }
 
+        #[given(expr = "accounts with private keys")]
+        fn create_accounts_with_keys(world: &mut $world, step: &Step) {
+            world.tester.create_accounts_with_keys(step);
+        }
+
         #[when(expr = "{acct} creates a {word} contract")]
         fn create_contract(world: &mut $world, owner: $crate::AccountNumber, contract: String) {
-            world.tester.create_contract(owner, contract)
+            world
+                .tester
+                .create_contract(owner, contract)
+                .expect("countract creation should succeed")
+        }
+
+        #[then(expr = "{acct} fails to create a {word} contract with {string}")]
+        fn fail_create_contract(
+            world: &mut $world,
+            owner: $crate::AccountNumber,
+            contract: String,
+            message: String,
+        ) {
+            let err = world
+                .tester
+                .create_contract(owner, contract)
+                .expect_err("contract creation should fail");
+            assert!(format!("{err:?}").contains(&message))
         }
     };
 }
@@ -311,6 +379,7 @@ macro_rules! contract_constructors {
 }
 
 mod simple_coin_world {
+    use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
     use ethers::types::U256;
     use evm_contracts::simple_coin::SimpleCoin;
@@ -343,7 +412,8 @@ mod simple_coin_world {
         let call = contract.get_balance(id_to_h160(account_id));
         let balance = world
             .tester
-            .call_contract(acct, contract_addr, call.gas(10_000_000_000i64));
+            .call_contract(acct, contract_addr, call.gas(10_000_000_000i64))
+            .expect("get_balance should succeed");
 
         assert_eq!(balance, U256::from(coins))
     }

@@ -1,5 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+
 use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -36,7 +37,7 @@ pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: 
         .as_mut()
         .expect("executor not initialized")
         .execute_message(create_msg, ApplyKind::Explicit, create_mlen)
-        .unwrap();
+        .expect("error executing message to create conract");
 
     owner.seqno += 1;
     create_res
@@ -65,7 +66,7 @@ pub fn invoke_contract(
         .as_mut()
         .expect("executor not initialized")
         .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)
-        .unwrap();
+        .expect("error executing message to invoke contract");
 
     src.seqno += 1;
     invoke_res
