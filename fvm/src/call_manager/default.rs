@@ -162,13 +162,16 @@ where
         // If we pushed a limit, pop it.
         if gas_limit.is_some() {
             self.gas_tracker.pop_limit()?;
-            // If we were limiting gas, convert the execution error to an exit.
-            if matches!(result, Err(ExecutionError::OutOfGas)) {
-                result = Ok(InvocationResult {
-                    exit_code: ExitCode::SYS_OUT_OF_GAS,
-                    value: None,
-                })
-            }
+        }
+        // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
+        // the error with an explicit exit code.
+        if !self.gas_tracker.gas_available().is_zero()
+            && matches!(result, Err(ExecutionError::OutOfGas))
+        {
+            result = Ok(InvocationResult {
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
+                value: None,
+            })
         }
 
         if self.machine.context().tracing {
