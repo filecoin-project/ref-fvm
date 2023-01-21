@@ -6,13 +6,14 @@ use std::cell::{Cell, RefCell};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
+use anyhow::Context;
 use num_traits::Zero;
 
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
 pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
 pub use self::timer::{GasInstant, GasTimer};
-use crate::kernel::{ExecutionError, Result};
+use crate::kernel::{ClassifyResult, ExecutionError, Result};
 
 mod charge;
 mod outputs;
@@ -181,9 +182,15 @@ impl Mul<usize> for Gas {
     }
 }
 
+struct GasSnapshot {
+    limit: Gas,
+    used: Gas,
+}
+
 pub struct GasTracker {
     gas_limit: Gas,
     gas_used: Cell<Gas>,
+    gas_snapshots: Vec<GasSnapshot>,
     trace: Option<RefCell<Vec<GasCharge>>>,
 }
 
@@ -194,6 +201,7 @@ impl GasTracker {
         Self {
             gas_limit,
             gas_used: Cell::new(gas_used),
+            gas_snapshots: Vec::new(),
             trace: enable_tracing.then_some(Default::default()),
         }
     }
@@ -240,20 +248,27 @@ impl GasTracker {
         }
     }
 
-    /// Absorbs another GasTracker (usually a nested one) into this one, charging for gas
-    /// used and appending all traces.
-    pub fn absorb(&self, other: &GasTracker) -> Result<()> {
-        if let Some(trace) = &self.trace {
-            trace.borrow_mut().extend(other.drain_trace());
-        }
-        self.charge_gas_inner(other.gas_used())
+    /// Push a new gas limit.
+    pub fn push_limit(&mut self, new_limit: Gas) {
+        self.gas_snapshots.push(GasSnapshot {
+            limit: self.gas_limit,
+            used: self.gas_used.get(),
+        });
+        self.gas_limit = std::cmp::min(self.gas_available(), new_limit);
+        *self.gas_used.get_mut() = Gas::zero();
     }
 
-    /// Make a "child" gas-tracker with a new limit, if and only if the new limit is less than the
-    /// available gas.
-    pub fn new_child(&self, new_limit: Gas) -> Option<GasTracker> {
-        (self.gas_available() > new_limit)
-            .then(|| GasTracker::new(new_limit, Gas::zero(), self.trace.is_some()))
+    /// Pop a gas limit, restoring the previous one, and adding the newly used gas to the old gas
+    /// limit.
+    pub fn pop_limit(&mut self) -> Result<()> {
+        let snap = self
+            .gas_snapshots
+            .pop()
+            .context("no gas limits to pop")
+            .or_fatal()?;
+        self.gas_limit = snap.limit;
+        *self.gas_used.get_mut() += snap.used;
+        Ok(())
     }
 
     /// Getter for the maximum gas usable by this message.

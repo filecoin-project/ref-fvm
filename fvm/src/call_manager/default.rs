@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::mem;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
@@ -152,24 +151,17 @@ where
             });
         }
 
-        // If a specific gas limit has been requested, create a child GasTracker and use that
-        // one hereon.
-        let prev_gas_tracker = gas_limit
-            .and_then(|limit| self.gas_tracker.new_child(limit))
-            .map(|new| mem::replace(&mut self.gas_tracker, new));
+        // If a specific gas limit has been requested, push a new limit into the gas tracker.
+        if let Some(limit) = gas_limit {
+            self.gas_tracker.push_limit(limit);
+        }
 
         let mut result =
             self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
 
-        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
-        if let Some(prev) = prev_gas_tracker {
-            let other = mem::replace(&mut self.gas_tracker, prev);
-            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
-            // would've already raised it, so we ignore it here. We could check and assert that's
-            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
-            // not safe to do so.
-            let _ = self.gas_tracker.absorb(&other);
-
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
             // If we were limiting gas, convert the execution error to an exit.
             if matches!(result, Err(ExecutionError::OutOfGas)) {
                 result = Ok(InvocationResult {
