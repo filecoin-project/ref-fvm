@@ -1,7 +1,7 @@
 [package]
 name = "fvm_integration_tests"
 description = "Filecoin Virtual Machine integration tests framework"
-version = "0.1.1-alpha.1"
+version = "3.0.0-alpha.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
