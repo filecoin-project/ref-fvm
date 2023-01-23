@@ -19,6 +19,8 @@ use serde::Serialize;
 ///
 /// See https://docs.rs/ethers/latest/ethers/solc/
 fn main() {
+    // Run with `cargo build -vv` to see output from any `eprintln!` or `println!`.
+
     // The following will look for Solidity files in the `contracts` directory.
     let path_config = ProjectPathsConfig::hardhat(env!("CARGO_MANIFEST_DIR")).unwrap();
     let artifacts_dir = path_config.artifacts.clone();
@@ -50,6 +52,7 @@ fn main() {
 
         for (contract_name, artifacts) in artifacts {
             assert_eq!(1, artifacts.len());
+
             let mk_path = |ext: &str| artifacts_dir.join(format!("{contract_name}.{ext}"));
             let artifact = &artifacts[0].artifact;
 
