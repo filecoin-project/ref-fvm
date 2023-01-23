@@ -5,7 +5,7 @@ use std::fs;
 
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_integration_tests::bundle;
+use crate::bundle;
 use fvm_ipld_blockstore::Blockstore;
 
 pub fn import_bundle(blockstore: &impl Blockstore, path: &str) -> anyhow::Result<Cid> {

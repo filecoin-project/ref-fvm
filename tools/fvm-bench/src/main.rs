@@ -7,6 +7,7 @@ use std::fs;
 
 use anyhow::{anyhow, Context};
 use clap::Parser;
+use fvm_integration_tests::testkit;
 
 /// Run a contract invocation for benchmarking purposes
 #[derive(Parser, Debug)]

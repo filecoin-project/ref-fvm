@@ -4,6 +4,7 @@
 use anyhow::anyhow;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
+use fvm_integration_tests::testkit;
 
 pub fn run(
     tester: &mut testkit::BasicTester,

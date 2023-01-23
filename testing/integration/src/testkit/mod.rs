@@ -1,7 +1,8 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account as TAccount, Tester};
+
+use crate::dummy::DummyExterns;
+use crate::tester::{Account as TAccount, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;

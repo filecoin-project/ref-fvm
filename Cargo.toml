@@ -10,7 +10,6 @@ members = [
     "ipld/*",
     "testing/integration/tests/*-actor",
     "testing/calibration/contract/*-actor",
-    "tools/testkit",
     "tools/fvm-bench",
 ]
 

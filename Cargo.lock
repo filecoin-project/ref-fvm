@@ -2443,7 +2443,6 @@ dependencies = [
  "fvm_shared 3.0.0-alpha.17",
  "hex",
  "serde",
- "testkit",
 ]
 
 [[package]]
@@ -4950,21 +4949,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "testkit"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cid",
- "fvm",
- "fvm_integration_tests",
- "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.17",
- "hex",
- "serde",
 ]
 
 [[package]]

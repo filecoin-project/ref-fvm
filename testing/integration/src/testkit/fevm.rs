@@ -8,7 +8,7 @@ use fvm_shared::address::Address;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 
-use crate::{Account, BasicTester};
+use crate::testkit::{Account, BasicTester};
 
 pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: &[u8]) -> ApplyRet {
     let create_msg = Message {
