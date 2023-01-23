@@ -44,8 +44,7 @@ fn main() {
     // or change the contract source, or change this line to include cached artifacts. The benefit of only working
     // on changed artifacts is that it's faster and also that it won't do anything on CI, so it shouldn't need `solc`.
     for (contract_path, artifacts) in output.compiled_artifacts() {
-        assert_eq!(1, artifacts.len());
-
+        // There will be a separate artifact for each contract in the Solidity file.
         let contract_path = PathBuf::from(contract_path);
         let artifacts_dir = artifacts_dir.join(contract_path.file_name().unwrap());
 
