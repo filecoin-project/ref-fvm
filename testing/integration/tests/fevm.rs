@@ -346,8 +346,8 @@ impl ContractTester {
     ///
     /// The values are:
     /// * topic1 will be the cbor encoded keccak-256 hash of the event signature Transfer(address,address,uint256)
-    /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array)
-    /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array)
+    /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array; needs padding to 32 bytes to work with ethers)
+    /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array; needs padding to 32 bytes to work with ethers)
     /// * data is a cbor encoded byte array of all the remaining arguments
     pub fn parse_events<F, T>(&self, contract_addr: Address, f: F) -> Vec<T>
     where
@@ -471,6 +471,10 @@ pub fn id_to_h160(id: ActorID) -> ethers::core::types::Address {
     ethers::core::types::Address::from_slice(&addr.0)
 }
 
+/// Left pad a byte array to 32 bytes.
+///
+/// For example the _topics_ in event filtering and parsing are expected to be 32 byte words,
+/// but the FVM returns 20 byte addresses to save on storage space, which need to be padded.
 pub fn to_h256(bytes: &[u8]) -> H256 {
     match bytes.len() {
         32 => H256::from_slice(bytes),
@@ -487,7 +491,7 @@ pub fn to_h256(bytes: &[u8]) -> H256 {
 /// because we are not going to send them to an actual blockchain.
 macro_rules! contract_constructors {
     ($contract:ident) => {
-        #[allow(dead_code)]
+        #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_eth_addr(
             owner: fvm_integration_tests::fevm::EthAddress,
         ) -> $contract<$crate::MockProvider> {
@@ -498,7 +502,7 @@ macro_rules! contract_constructors {
             $contract::new(address, std::sync::Arc::new(client))
         }
 
-        #[allow(dead_code)]
+        #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_actor_id(owner: fvm_shared::ActorID) -> $contract<$crate::MockProvider> {
             let owner = fvm_integration_tests::fevm::EthAddress::from_id(owner);
             new_with_eth_addr(owner)
