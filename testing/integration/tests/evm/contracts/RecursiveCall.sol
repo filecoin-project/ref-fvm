@@ -31,7 +31,7 @@ contract RecursiveCallInner {
                 : address(this);
             (bool success, ) = callee.delegatecall(
                 abi.encodeWithSignature(
-                    "recurse(address[],uint,uint)",
+                    "recurse(address[],uint32,uint32)",
                     addresses,
                     max_depth,
                     curr_depth + 1
@@ -69,7 +69,7 @@ contract RecursiveCallOuter {
         );
         (bool success, ) = addresses[0].delegatecall(
             abi.encodeWithSignature(
-                "recurse(address[],uint,uint)",
+                "recurse(address[],uint32,uint32)",
                 addresses,
                 max_depth,
                 1
