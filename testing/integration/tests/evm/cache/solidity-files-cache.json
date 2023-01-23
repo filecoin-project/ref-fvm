@@ -11,8 +11,43 @@
     ]
   },
   "files": {
+    "contracts/RecursiveCall.sol": {
+      "lastModificationDate": 1674479163804,
+      "contentHash": "480d99e887009fa61800b987137a4b33",
+      "sourceName": "contracts/RecursiveCall.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "RecursiveCallInner": {
+          "0.8.2+commit.661d1103.Linux.gcc": "RecursiveCall.sol/RecursiveCallInner.json"
+        },
+        "RecursiveCallOuter": {
+          "0.8.2+commit.661d1103.Linux.gcc": "RecursiveCall.sol/RecursiveCallOuter.json"
+        }
+      }
+    },
     "contracts/SimpleCoin.sol": {
-      "lastModificationDate": 1674123287549,
+      "lastModificationDate": 1674125603609,
       "contentHash": "58aca481d2d1bc8153222e2af627229e",
       "sourceName": "contracts/SimpleCoin.sol",
       "solcConfig": {
