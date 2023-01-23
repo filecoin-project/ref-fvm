@@ -8,3 +8,7 @@ Feature: RecursiveCall
     And account 1 calls recurse on contract 2 with max depth 1 and contracts
       | contracts  |
       | contract 1 |
+    Then the depths and senders of the contracts are
+      | contracts  | depths | senders   |
+      | contract 2 | 1      | account 1 |
+      | contract 1 | 0      |           |

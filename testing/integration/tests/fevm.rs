@@ -82,7 +82,7 @@ pub const DEFAULT_GAS: i64 = 10_000_000_000i64;
 /// This can be used in Gherkin like `When account 1 sends 10 tokens to account 2`.
 ///
 /// After parsing, the value inside is the array index without having to -1.
-#[derive(Parameter)]
+#[derive(Parameter, Debug, Clone, Copy)]
 #[param(name = "acct", regex = r"account (\d+)")]
 pub struct AccountNumber(pub usize);
 
@@ -109,7 +109,7 @@ impl Display for AccountNumber {
 /// This can be used in Gherkin like `When account 1 calls contract 2 ...`.
 ///
 /// After parsing, the value inside is the array index without having to -1.
-#[derive(Parameter)]
+#[derive(Parameter, Debug, Clone, Copy)]
 #[param(name = "cntr", regex = r"contract (\d+)")]
 pub struct ContractNumber(pub usize);
 
@@ -131,6 +131,23 @@ impl Display for ContractNumber {
     }
 }
 
+/// Remember what contract was deployed.
+#[derive(Debug, Clone)]
+pub struct DeployedContract {
+    name: String,
+    owner: TestAccount,
+    address: Address,
+}
+
+impl DeployedContract {
+    pub fn addr_to_h160(&self) -> H160 {
+        id_to_h160(self.address.id().expect("contract address is an ID"))
+    }
+    pub fn owner_id(&self) -> ActorID {
+        self.owner.0
+    }
+}
+
 /// Error info returned in `ApplyRet`..
 #[derive(Debug)]
 pub struct ExecError {
@@ -144,7 +161,7 @@ pub struct ContractTester {
     /// Accounts created by the tester.
     accounts: Vec<Account>,
     /// Contracts created by the tester; `(owner, contract_address)`.
-    contracts: Vec<(TestAccount, Address)>,
+    contracts: Vec<DeployedContract>,
     /// Events emitted by the last contract invocation.
     last_events: Vec<StampedEvent>,
 }
@@ -294,9 +311,24 @@ impl ContractTester {
             .expect("error deserializing CreateReturn");
 
         let contract_addr = Address::new_id(create_return.actor_id);
-        self.contracts.push((creator, contract_addr));
+
+        let contract = DeployedContract {
+            name: contract_name,
+            owner: creator,
+            address: contract_addr,
+        };
+
+        self.contracts.push(contract);
 
         Ok(())
+    }
+
+    /// Get a previously deployed contract.
+    pub fn deployed_contract(&self, cntr: ContractNumber) -> &DeployedContract {
+        self.contracts
+            .get(cntr.0)
+            .ok_or_else(|| format!("{cntr} has not been created"))
+            .unwrap()
     }
 
     /// Instantiate the last created contract and return it with its address.
@@ -304,13 +336,13 @@ impl ContractTester {
     where
         F: Fn(ActorID) -> T,
     {
-        let ((owner_id, _), contract_addr) = self
+        let deployed = self
             .contracts
             .last()
-            .expect("haven't deployed the contract yet");
+            .expect("haven't deployed a contract yet");
 
-        let contract = f(*owner_id);
-        (contract, *contract_addr)
+        let contract = f(deployed.owner_id());
+        (contract, deployed.address)
     }
 
     /// Instantiate a contract by number.
@@ -318,25 +350,9 @@ impl ContractTester {
     where
         F: Fn(ActorID) -> T,
     {
-        let ((owner_id, _), contract_addr) = self
-            .contracts
-            .get(cntr.0)
-            .ok_or_else(|| format!("{cntr} has not been created"))
-            .unwrap();
-
-        let contract = f(*owner_id);
-        (contract, *contract_addr)
-    }
-
-    /// Get the address of a contract by number.
-    pub fn contract_addr(&self, cntr: ContractNumber) -> Address {
-        let (_, contract_addr) = self
-            .contracts
-            .get(cntr.0)
-            .ok_or_else(|| format!("{cntr} has not been created"))
-            .unwrap();
-
-        *contract_addr
+        let deployed = self.deployed_contract(cntr);
+        let contract = f(deployed.owner_id());
+        (contract, deployed.address)
     }
 
     /// Take a ABI method call, with the caller and the destination address.
@@ -678,7 +694,7 @@ mod recursive_call_world {
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
 
-    use crate::{id_to_h160, AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+    use crate::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
 
     mod inner {
         pub use evm_contracts::recursive_call_inner::RecursiveCallInner;
@@ -720,9 +736,7 @@ mod recursive_call_world {
             // NOTE: skip header
             for row in table.rows.iter().skip(1) {
                 let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-                let contract_addr = world.tester.contract_addr(cntr);
-                let contract_addr =
-                    id_to_h160(contract_addr.id().expect("contract address is an ID"));
+                let contract_addr = world.tester.deployed_contract(cntr).addr_to_h160();
                 addresses.push(contract_addr);
             }
         }
@@ -735,5 +749,53 @@ mod recursive_call_world {
             .expect("recurse should not fail");
 
         assert!(success, "recurse should return success");
+    }
+
+    /// Example:
+    /// ```text
+    /// Then the depths and senders of the contracts are
+    ///   | contracts  | depths | senders   |
+    ///   | contract 2 | 1      | account 1 |
+    ///   | contract 1 | 0      |           |
+    /// ```
+    #[then(expr = "the depths and senders of the contracts are")]
+    fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
+        if let Some(table) = step.table.as_ref() {
+            // Use some existing account to probe state.
+            let acct = AccountNumber(0);
+            // NOTE: skip header
+            for row in table.rows.iter().skip(1) {
+                let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
+                let depth = u32::from_str(&row[1]).expect("not a depth");
+                let deployed = world.tester.deployed_contract(cntr);
+                match deployed.name.as_str() {
+                    "RecursiveCallInner" => {
+                        let (contract, addr) =
+                            world.tester.contract(cntr, inner::new_with_actor_id);
+
+                        let call = contract.depth().gas(DEFAULT_GAS);
+                        let state_depth = world
+                            .tester
+                            .call_contract(acct, addr, call)
+                            .expect("depth should not fail");
+
+                        assert_eq!(depth, state_depth, "inner depth");
+                    }
+                    "RecursiveCallOuter" => {
+                        let (contract, addr) =
+                            world.tester.contract(cntr, outer::new_with_actor_id);
+
+                        let call = contract.depth().gas(DEFAULT_GAS);
+                        let state_depth = world
+                            .tester
+                            .call_contract(acct, addr, call)
+                            .expect("depth should not fail");
+
+                        assert_eq!(depth, state_depth, "outer depth");
+                    }
+                    other => panic!("unexpected recursive contract: {other}"),
+                }
+            }
+        }
     }
 }
