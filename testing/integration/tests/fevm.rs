@@ -34,8 +34,8 @@ mod bundles;
 
 /// Used once to load contracts from files.
 macro_rules! contract_sources {
-    ($($sol:literal / $name:literal),+) => {
-        $(($name, include_str!(concat!("evm/artifacts/", $sol, ".sol/", $name, ".hex")))),+
+    ($($sol:literal / $contract:literal),+) => {
+        [ $(($contract, include_str!(concat!("evm/artifacts/", $sol, ".sol/", $contract, ".hex")))),+ ]
     };
 }
 
@@ -43,9 +43,11 @@ lazy_static! {
     /// Pre-loaded contract code bytecode in hexadecimal format.
     ///
     /// Assumes all the contract names are unique across all files!
-    static ref CONTRACTS: BTreeMap<&'static str, Vec<u8>> = [contract_sources! {
-                "SimpleCoin" / "SimpleCoin"
-    }]
+    static ref CONTRACTS: BTreeMap<&'static str, Vec<u8>> = contract_sources! {
+                "SimpleCoin" / "SimpleCoin",
+                "RecursiveCall" / "RecursiveCallInner",
+                "RecursiveCall" / "RecursiveCallOuter"
+    }
     .into_iter()
     .map(|(name, code)| {
         let bz = hex::decode(&code.trim_end()).expect(&format!("error parsing {name}")).into();
