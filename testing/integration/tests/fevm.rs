@@ -261,7 +261,7 @@ impl ContractTester {
         }
     }
 
-    /// Get a mutable reference to an account
+    /// Get a mutable reference to an account.
     pub fn account_mut(&mut self, acct: &AccountNumber) -> &mut Account {
         self.accounts
             .get_mut(acct.0)
@@ -269,13 +269,21 @@ impl ContractTester {
             .unwrap()
     }
 
+    /// Get a reference to a created account.
+    pub fn account(&self, acct: &AccountNumber) -> &Account {
+        self.accounts
+            .get(acct.0)
+            .ok_or_else(|| format!("{acct} has not been created"))
+            .unwrap()
+    }
+
     /// Get the ID of an account we created earlier.
-    pub fn account_id(&mut self, acct: &AccountNumber) -> ActorID {
-        self.account_mut(acct).account.0
+    pub fn account_id(&self, acct: &AccountNumber) -> ActorID {
+        self.account(acct).account.0
     }
 
     /// Address type expected by the `ethers` ABI generated code.
-    pub fn account_h160(&mut self, acct: &AccountNumber) -> H160 {
+    pub fn account_h160(&self, acct: &AccountNumber) -> H160 {
         id_to_h160(self.account_id(acct))
     }
 
@@ -766,8 +774,19 @@ mod recursive_call_world {
             // NOTE: skip header
             for row in table.rows.iter().skip(1) {
                 let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-                let depth = u32::from_str(&row[1]).expect("not a depth");
                 let deployed = world.tester.deployed_contract(cntr);
+                let depth = u32::from_str(&row[1]).expect("not a depth");
+
+                let sender = if row[2].is_empty() {
+                    None
+                } else if let Ok(acct) = AccountNumber::from_str(&row[2]) {
+                    Some(world.tester.account_h160(&acct))
+                } else if let Ok(cntr) = ContractNumber::from_str(&row[2]) {
+                    Some(world.tester.deployed_contract(cntr).addr_to_h160())
+                } else {
+                    panic!("unexpected sender: {}", row[2]);
+                };
+
                 match deployed.name.as_str() {
                     "RecursiveCallInner" => {
                         let (contract, addr) =
@@ -780,6 +799,16 @@ mod recursive_call_world {
                             .expect("depth should not fail");
 
                         assert_eq!(depth, state_depth, "inner depth");
+
+                        if let Some(sender) = sender {
+                            let call = contract.sender().gas(DEFAULT_GAS);
+                            let state_sender = world
+                                .tester
+                                .call_contract(acct, addr, call)
+                                .expect("sender should not fail");
+
+                            assert_eq!(sender, state_sender, "inner sender");
+                        }
                     }
                     "RecursiveCallOuter" => {
                         let (contract, addr) =
@@ -792,6 +821,16 @@ mod recursive_call_world {
                             .expect("depth should not fail");
 
                         assert_eq!(depth, state_depth, "outer depth");
+
+                        if let Some(sender) = sender {
+                            let call = contract.sender().gas(DEFAULT_GAS);
+                            let state_sender = world
+                                .tester
+                                .call_contract(acct, addr, call)
+                                .expect("sender should not fail");
+
+                            assert_eq!(sender, state_sender, "inner sender");
+                        }
                     }
                     other => panic!("unexpected recursive contract: {other}"),
                 }
