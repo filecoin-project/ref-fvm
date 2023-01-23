@@ -13,7 +13,7 @@ pub mod recursive_call_inner {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"name\":\"depth\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"max_depth\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"curr_depth\",\"type\":\"uint32\"}],\"name\":\"recurse\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"sender\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"name\":\"depth\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"max_depth\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"curr_depth\",\"type\":\"uint32\"}],\"name\":\"recurse\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"sender\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
     pub static RECURSIVECALLINNER_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {
@@ -61,7 +61,7 @@ pub mod recursive_call_inner {
             addresses: ::std::vec::Vec<ethers::core::types::Address>,
             max_depth: u32,
             curr_depth: u32,
-        ) -> ethers::contract::builders::ContractCall<M, bool> {
+        ) -> ethers::contract::builders::ContractCall<M, ()> {
             self.0
                 .method_hash([187, 135, 131, 51], (addresses, max_depth, curr_depth))
                 .expect("method not found (this should never happen)")
@@ -224,17 +224,6 @@ pub mod recursive_call_inner {
         Default,
     )]
     pub struct DepthReturn(pub u32);
-    #[doc = "Container type for all return fields from the `recurse` function with signature `recurse(address[],uint32,uint32)` and selector `[187, 135, 131, 51]`"]
-    #[derive(
-        Clone,
-        Debug,
-        Eq,
-        PartialEq,
-        ethers :: contract :: EthAbiType,
-        ethers :: contract :: EthAbiCodec,
-        Default,
-    )]
-    pub struct RecurseReturn(pub bool);
     #[doc = "Container type for all return fields from the `sender` function with signature `sender()` and selector `[103, 228, 4, 206]`"]
     #[derive(
         Clone,

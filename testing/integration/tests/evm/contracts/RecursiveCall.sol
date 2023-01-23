@@ -20,7 +20,7 @@ contract RecursiveCallInner {
         address[] calldata addresses,
         uint32 max_depth,
         uint32 curr_depth
-    ) public payable returns (bool) {
+    ) public payable {
         depth = curr_depth;
         sender = msg.sender;
         value = msg.value;
@@ -32,13 +32,13 @@ contract RecursiveCallInner {
             (bool success, ) = callee.delegatecall(
                 abi.encodeWithSignature(
                     "recurse(address[],uint,uint)",
+                    addresses,
                     max_depth,
                     curr_depth + 1
                 )
             );
-            return success;
+            require(success, "recursive call failed in inner");
         }
-        return true;
     }
 }
 
@@ -63,12 +63,14 @@ contract RecursiveCallOuter {
             value = msg.value;
             return true;
         }
-        if (addresses.length == 0) {
-            return false;
-        }
+        require(
+            addresses.length > 0,
+            "need at least 1 address for non-zero depth"
+        );
         (bool success, ) = addresses[0].delegatecall(
             abi.encodeWithSignature(
                 "recurse(address[],uint,uint)",
+                addresses,
                 max_depth,
                 1
             )

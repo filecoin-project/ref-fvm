@@ -28,6 +28,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
+use recursive_call_world::RecursiveCallWorld;
 use simple_coin_world::SimpleCoinWorld;
 
 mod bundles;
@@ -62,6 +63,7 @@ lazy_static! {
 #[tokio::main]
 async fn main() {
     SimpleCoinWorld::run("tests/evm/features/SimpleCoin.feature").await;
+    RecursiveCallWorld::run("tests/evm/features/RecursiveCall.feature").await;
 }
 
 /// Get a contract from the pre-loaded sources.
@@ -71,6 +73,9 @@ pub fn get_contract_code(name: &str) -> &[u8] {
         .ok_or_else(|| format!("contract {name} hasn't been loaded"))
         .unwrap()
 }
+
+/// Gas that should be enough to call anything.
+pub const DEFAULT_GAS: i64 = 10_000_000_000i64;
 
 /// Account number that's +1 from array indexes, e.g. `account 1` is in `accounts[0]`.
 ///
@@ -85,7 +90,7 @@ impl FromStr for AccountNumber {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match usize::from_str(s) {
+        match usize::from_str(s.strip_prefix("account ").unwrap_or(s)) {
             Ok(0) => Err("AccountNumber has to be at minimum 1".to_owned()),
             Ok(n) => Ok(AccountNumber(n - 1)),
             Err(_) => Err(format!("not an integer: {s}")),
@@ -99,6 +104,33 @@ impl Display for AccountNumber {
     }
 }
 
+/// Contract number that's +1 from array indexes, e.g. `contract 1` is in `contracts[0]`.
+///
+/// This can be used in Gherkin like `When account 1 calls contract 2 ...`.
+///
+/// After parsing, the value inside is the array index without having to -1.
+#[derive(Parameter)]
+#[param(name = "cntr", regex = r"contract (\d+)")]
+pub struct ContractNumber(pub usize);
+
+impl FromStr for ContractNumber {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match usize::from_str(s.strip_prefix("contract ").unwrap_or(s)) {
+            Ok(0) => Err("ContractNumber has to be at minimum 1".to_owned()),
+            Ok(n) => Ok(ContractNumber(n - 1)),
+            Err(_) => Err(format!("not an integer: {s}")),
+        }
+    }
+}
+
+impl Display for ContractNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "contract {}", self.0 + 1)
+    }
+}
+
 /// Error info returned in `ApplyRet`..
 #[derive(Debug)]
 pub struct ExecError {
@@ -109,9 +141,10 @@ pub struct ExecError {
 /// Common machinery for all worlds to created and call contracts.
 pub struct ContractTester {
     tester: BasicTester,
+    /// Accounts created by the tester.
     accounts: Vec<Account>,
-    /// Last `(owner_addr, contract_addr)` pair.
-    last_created: Option<(TestAccount, Address)>,
+    /// Contracts created by the tester; `(owner, contract_address)`.
+    contracts: Vec<(TestAccount, Address)>,
     /// Events emitted by the last contract invocation.
     last_events: Vec<StampedEvent>,
 }
@@ -140,7 +173,7 @@ impl ContractTester {
         Self {
             tester,
             accounts: Vec::new(),
-            last_created: None,
+            contracts: Vec::new(),
             last_events: Vec::new(),
         }
     }
@@ -261,22 +294,49 @@ impl ContractTester {
             .expect("error deserializing CreateReturn");
 
         let contract_addr = Address::new_id(create_return.actor_id);
-        self.last_created = Some((creator, contract_addr));
+        self.contracts.push((creator, contract_addr));
 
         Ok(())
     }
 
-    /// Instantiate a contract and return it with its address.
-    fn get_contract<T, F>(&self, f: F) -> (T, Address)
+    /// Instantiate the last created contract and return it with its address.
+    pub fn last_contract<T, F>(&self, f: F) -> (T, Address)
     where
         F: Fn(ActorID) -> T,
     {
         let ((owner_id, _), contract_addr) = self
-            .last_created
+            .contracts
+            .last()
             .expect("haven't deployed the contract yet");
 
-        let contract = f(owner_id);
-        (contract, contract_addr)
+        let contract = f(*owner_id);
+        (contract, *contract_addr)
+    }
+
+    /// Instantiate a contract by number.
+    pub fn contract<T, F>(&self, cntr: ContractNumber, f: F) -> (T, Address)
+    where
+        F: Fn(ActorID) -> T,
+    {
+        let ((owner_id, _), contract_addr) = self
+            .contracts
+            .get(cntr.0)
+            .ok_or_else(|| format!("{cntr} has not been created"))
+            .unwrap();
+
+        let contract = f(*owner_id);
+        (contract, *contract_addr)
+    }
+
+    /// Get the address of a contract by number.
+    pub fn contract_addr(&self, cntr: ContractNumber) -> Address {
+        let (_, contract_addr) = self
+            .contracts
+            .get(cntr.0)
+            .ok_or_else(|| format!("{cntr} has not been created"))
+            .unwrap();
+
+        *contract_addr
     }
 
     /// Take a ABI method call, with the caller and the destination address.
@@ -391,6 +451,13 @@ impl ContractTester {
 
 /// Create common given-when-then matchers for a `World` that is
 /// expected to have a `tester: ContractTester` field.
+///
+/// Make sure these imports are in scope:
+///
+/// ```ignore
+/// use cucumber::gherkin::Step;
+/// use cucumber::{given, then, when, World};
+/// ```
 macro_rules! contract_matchers {
     ($world:ident) => {
         /// Example:
@@ -521,8 +588,7 @@ mod simple_coin_world {
     use evm_contracts::simple_coin::{SimpleCoin, TransferFilter};
     use fvm_shared::address::Address;
 
-    //use evm_contracts::simple_coin::SimpleCoin;
-    use crate::{AccountNumber, ContractTester, MockProvider};
+    use crate::{AccountNumber, ContractTester, MockProvider, DEFAULT_GAS};
 
     contract_constructors!(SimpleCoin);
 
@@ -536,7 +602,7 @@ mod simple_coin_world {
     impl SimpleCoinWorld {
         /// Get the last deployed contract.
         fn get_contract(&self) -> (SimpleCoin<MockProvider>, Address) {
-            self.tester.get_contract(new_with_actor_id)
+            self.tester.last_contract(new_with_actor_id)
         }
 
         /// Parse the events from the last send coin call.
@@ -566,7 +632,7 @@ mod simple_coin_world {
         let call = contract.send_coin(receiver_addr, U256::from(coins));
         let _sufficient = world
             .tester
-            .call_contract(sender, contract_addr, call.gas(10_000_000_000i64))
+            .call_contract(sender, contract_addr, call.gas(DEFAULT_GAS))
             .expect("send_coin should succeed");
     }
 
@@ -581,7 +647,7 @@ mod simple_coin_world {
         let call = contract.get_balance(addr);
         let balance = world
             .tester
-            .call_contract(acct, contract_addr, call.gas(10_000_000_000i64))
+            .call_contract(acct, contract_addr, call.gas(DEFAULT_GAS))
             .expect("get_balance should succeed");
 
         assert_eq!(balance, U256::from(coins))
@@ -603,5 +669,71 @@ mod simple_coin_world {
         assert_eq!(transfers[0].from, world.tester.account_h160(&sender));
         assert_eq!(transfers[0].to, world.tester.account_h160(&receiver));
         assert_eq!(transfers[0].value, U256::from(coins));
+    }
+}
+
+mod recursive_call_world {
+    use std::str::FromStr;
+
+    use cucumber::gherkin::Step;
+    use cucumber::{given, then, when, World};
+
+    use crate::{id_to_h160, AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+
+    mod inner {
+        pub use evm_contracts::recursive_call_inner::RecursiveCallInner;
+        contract_constructors!(RecursiveCallInner);
+    }
+    mod outer {
+        pub use evm_contracts::recursive_call_outer::RecursiveCallOuter;
+        contract_constructors!(RecursiveCallOuter);
+    }
+
+    #[derive(World, Default, Debug)]
+    pub struct RecursiveCallWorld {
+        pub tester: ContractTester,
+    }
+
+    contract_matchers!(RecursiveCallWorld);
+
+    /// Example:
+    /// ```text
+    /// And account 1 calls recurse on contract 3 with max depth 3 and contracts
+    ///   | contracts  |
+    ///   | contract 2 |
+    ///   | contract 1 |
+    ///   | contract 2 |
+    /// ```
+    #[when(expr = "{acct} calls recurse on {cntr} with max depth {int} and contracts")]
+    fn recurse(
+        world: &mut RecursiveCallWorld,
+        acct: AccountNumber,
+        cntr: ContractNumber,
+        max_depth: u32,
+        step: &Step,
+    ) {
+        let (contract, contract_addr) = world.tester.contract(cntr, outer::new_with_actor_id);
+
+        let mut addresses = Vec::new();
+
+        if let Some(table) = step.table.as_ref() {
+            // NOTE: skip header
+            for row in table.rows.iter().skip(1) {
+                let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
+                let contract_addr = world.tester.contract_addr(cntr);
+                let contract_addr =
+                    id_to_h160(contract_addr.id().expect("contract address is an ID"));
+                addresses.push(contract_addr);
+            }
+        }
+
+        let call = contract.recurse(addresses, max_depth).gas(DEFAULT_GAS);
+
+        let success = world
+            .tester
+            .call_contract(acct, contract_addr, call)
+            .expect("recurse should not fail");
+
+        assert!(success, "recurse should return success");
     }
 }
