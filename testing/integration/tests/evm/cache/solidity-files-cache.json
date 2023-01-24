@@ -11,6 +11,41 @@
     ]
   },
   "files": {
+    "contracts/BankAccount.sol": {
+      "lastModificationDate": 1674576442900,
+      "contentHash": "eed8a836cc009d3c80a98720dde7437d",
+      "sourceName": "contracts/BankAccount.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "Account": {
+          "0.8.2+commit.661d1103.Linux.gcc": "BankAccount.sol/Account.json"
+        },
+        "Bank": {
+          "0.8.2+commit.661d1103.Linux.gcc": "BankAccount.sol/Bank.json"
+        }
+      }
+    },
     "contracts/RecursiveCall.sol": {
       "lastModificationDate": 1674570352775,
       "contentHash": "6ea5a636dd5749718dc7947f9e1db55c",

@@ -1,4 +1,3 @@
-@wip
 Feature: RecursiveCall
 
   Scenario: Single DELEGATECALL modifies caller state

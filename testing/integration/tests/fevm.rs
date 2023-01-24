@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use bank_account::BankAccountWorld;
 use cucumber::gherkin::Step;
 use cucumber::{Parameter, World};
 use ethers::abi::Detokenize;
@@ -46,7 +47,9 @@ lazy_static! {
     /// Assumes all the contract names are unique across all files!
     static ref CONTRACTS: BTreeMap<&'static str, Vec<u8>> = contract_sources! {
                 "SimpleCoin" / "SimpleCoin",
-                "RecursiveCall" / "RecursiveCall"
+                "RecursiveCall" / "RecursiveCall",
+                "BankAccount" / "Bank",
+                "BankAccount" / "Account"
     }
     .into_iter()
     .map(|(name, code)| {
@@ -65,6 +68,7 @@ async fn main() {
     //  https://cucumber-rs.github.io/cucumber/current/writing/tags.html#failing-on-skipped-steps
     SimpleCoinWorld::run("tests/evm/features/SimpleCoin.feature").await;
     RecursiveCallWorld::run("tests/evm/features/RecursiveCall.feature").await;
+    BankAccountWorld::run("tests/evm/features/BankAccount.feature").await;
 }
 
 /// Get a contract from the pre-loaded sources.
@@ -268,7 +272,7 @@ impl ContractTester {
     }
 
     /// Get a mutable reference to an account.
-    pub fn account_mut(&mut self, acct: &AccountNumber) -> &mut Account {
+    pub fn account_mut(&mut self, acct: AccountNumber) -> &mut Account {
         self.accounts
             .get_mut(acct.0)
             .ok_or_else(|| format!("{acct} has not been created"))
@@ -276,7 +280,7 @@ impl ContractTester {
     }
 
     /// Get a reference to a created account.
-    pub fn account(&self, acct: &AccountNumber) -> &Account {
+    pub fn account(&self, acct: AccountNumber) -> &Account {
         self.accounts
             .get(acct.0)
             .ok_or_else(|| format!("{acct} has not been created"))
@@ -284,12 +288,12 @@ impl ContractTester {
     }
 
     /// Get the ID of an account we created earlier.
-    pub fn account_id(&self, acct: &AccountNumber) -> ActorID {
+    pub fn account_id(&self, acct: AccountNumber) -> ActorID {
         self.account(acct).account.0
     }
 
     /// Address type expected by the `ethers` ABI generated code.
-    pub fn account_h160(&self, acct: &AccountNumber) -> H160 {
+    pub fn account_h160(&self, acct: AccountNumber) -> H160 {
         id_to_h160(self.account_id(acct))
     }
 
@@ -302,14 +306,14 @@ impl ContractTester {
         self.ensure_machine_instantiated();
 
         // Need to clone because I have to pass 2 mutable references to `fevm::create_contract`.
-        let mut account = self.account_mut(&owner).clone();
+        let mut account = self.account_mut(owner).clone();
         let creator = account.account;
         let contract = get_contract_code(&contract_name);
 
         let create_res =
             fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, contract);
 
-        *self.account_mut(&owner) = account;
+        *self.account_mut(owner) = account;
 
         if !create_res.msg_receipt.exit_code.is_success() {
             return Err(ExecError {
@@ -380,7 +384,7 @@ impl ContractTester {
         call: TestContractCall<R>,
     ) -> Result<R, ExecError> {
         let input = call.calldata().expect("Should have calldata.");
-        let mut account = self.account_mut(&acct).clone();
+        let mut account = self.account_mut(acct).clone();
         let invoke_res = fvm_integration_tests::fevm::invoke_contract(
             &mut self.tester,
             &mut account,
@@ -399,7 +403,7 @@ impl ContractTester {
         // FWIW the system increases the seqno, it doesn't have a special
         // relationship with the EVM actor.
         // NB `call.function.state_mutability` would tell us.
-        *self.account_mut(&acct) = account;
+        *self.account_mut(acct) = account;
 
         // Store events, they can be parsed by the world that knows what to expect.
         self.last_events.clear();
@@ -569,7 +573,7 @@ macro_rules! contract_matchers {
         fn set_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
             // NOTE: If we called `Tester::set_account_sequence` as well then they would
             // be in sync and no error would be detected. That can be done as setup.
-            world.tester.account_mut(&acct).seqno = seqno;
+            world.tester.account_mut(acct).seqno = seqno;
         }
 
         /// Example:
@@ -578,7 +582,7 @@ macro_rules! contract_matchers {
         /// ```
         #[then(expr = "the seqno of {acct} is {int}")]
         fn check_seqno(world: &mut $world, acct: $crate::AccountNumber, seqno: u64) {
-            assert_eq!(world.tester.account_mut(&acct).seqno, seqno)
+            assert_eq!(world.tester.account_mut(acct).seqno, seqno)
         }
     };
 }
@@ -678,7 +682,7 @@ mod simple_coin_world {
         coins: u64,
     ) {
         let (contract, contract_addr) = world.get_contract();
-        let receiver_addr = world.tester.account_h160(&receiver);
+        let receiver_addr = world.tester.account_h160(receiver);
         let call = contract.send_coin(receiver_addr, U256::from(coins));
         let _sufficient = world
             .tester
@@ -693,7 +697,7 @@ mod simple_coin_world {
     #[then(expr = "the balance of {acct} is {int} coin(s)")]
     fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
         let (contract, contract_addr) = world.get_contract();
-        let addr = world.tester.account_h160(&acct);
+        let addr = world.tester.account_h160(acct);
         let call = contract.get_balance(addr);
         let balance = world
             .tester
@@ -716,8 +720,8 @@ mod simple_coin_world {
     ) {
         let transfers = world.parse_transfers();
         assert_eq!(transfers.len(), 1, "expected exactly 1 event");
-        assert_eq!(transfers[0].from, world.tester.account_h160(&sender));
-        assert_eq!(transfers[0].to, world.tester.account_h160(&receiver));
+        assert_eq!(transfers[0].from, world.tester.account_h160(sender));
+        assert_eq!(transfers[0].to, world.tester.account_h160(receiver));
         assert_eq!(transfers[0].value, U256::from(coins));
     }
 }
@@ -864,7 +868,7 @@ mod recursive_call_world {
                 let sender = if row[2].is_empty() {
                     None
                 } else if let Ok(acct) = AccountNumber::from_str(&row[2]) {
-                    Some(world.tester.account_h160(&acct))
+                    Some(world.tester.account_h160(acct))
                 } else if let Ok(cntr) = ContractNumber::from_str(&row[2]) {
                     // NOTE: We are not using the ActorID here.
                     let delegated_addr = world.tester.deployed_contract(cntr).eth_address;
@@ -887,5 +891,109 @@ mod recursive_call_world {
                 }
             }
         }
+    }
+}
+
+mod bank_account {
+    use cucumber::gherkin::Step;
+    use cucumber::{given, then, when, World};
+    use ethers::types::H160;
+    use fvm_integration_tests::fevm::EthAddress;
+    use fvm_shared::address::Address;
+
+    use crate::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+
+    mod bank {
+        use evm_contracts::bank::Bank;
+
+        contract_constructors!(Bank);
+    }
+    mod account {
+        use evm_contracts::account::Account;
+
+        contract_constructors!(Account);
+    }
+
+    #[derive(World, Default, Debug)]
+    pub struct BankAccountWorld {
+        pub tester: ContractTester,
+        pub bank_accounts: Vec<H160>,
+    }
+
+    contract_matchers!(BankAccountWorld);
+
+    impl BankAccountWorld {
+        /// Get the Ethereum address of the bank contract (assumed to be the last deployed contract).
+        fn bank_eth_addr(&self) -> EthAddress {
+            self.tester
+                .contracts
+                .last()
+                .expect("no contracts deployed yet")
+                .eth_address
+        }
+        /// Get the ActorID address of the last opened bank account.
+        fn last_bank_account_addr(&self) -> Address {
+            let bank_account_eth_addr = self.bank_accounts.last().expect("no bank accounts yet");
+            let contract_addr: Address =
+                todo!("figure out how to go from the internal eth address to an external actor ID");
+
+            contract_addr
+        }
+    }
+
+    #[when(expr = "{acct} opens a bank account")]
+    fn open_bank_account(world: &mut BankAccountWorld, acct: AccountNumber) {
+        let (contract, contract_addr) = world.tester.last_contract(bank::new_with_actor_id);
+        let call = contract.open_account().gas(DEFAULT_GAS);
+
+        let bank_account_address = world
+            .tester
+            .call_contract(acct, contract_addr, call)
+            .expect("open_account should work");
+
+        panic!("ADDRESS = {bank_account_address:?}");
+    }
+
+    #[then(expr = "the owner of the bank is {acct}")]
+    fn check_bank_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
+        let (contract, contract_addr) = world.tester.last_contract(bank::new_with_actor_id);
+        let call = contract.owner().gas(DEFAULT_GAS);
+
+        let owner = world
+            .tester
+            .call_contract(acct, contract_addr, call)
+            .expect("bank owner should work");
+
+        assert_eq!(owner, world.tester.account_h160(acct))
+    }
+
+    #[then(expr = "the owner of the bank account is {acct}")]
+    fn check_account_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
+        let bank_eth_addr = world.bank_eth_addr();
+        let contract_addr = world.last_bank_account_addr();
+        let contract = account::new_with_eth_addr(bank_eth_addr);
+        let call = contract.owner().gas(DEFAULT_GAS);
+
+        let owner = world
+            .tester
+            .call_contract(acct, contract_addr, call)
+            .expect("account owner should work");
+
+        assert_eq!(owner, world.tester.account_h160(acct))
+    }
+
+    #[then(expr = "the bank of the bank account is {acct}")]
+    fn check_account_bank(world: &mut BankAccountWorld, acct: AccountNumber) {
+        let bank_eth_addr = world.bank_eth_addr();
+        let contract_addr = world.last_bank_account_addr();
+        let contract = account::new_with_eth_addr(bank_eth_addr);
+        let call = contract.bank().gas(DEFAULT_GAS);
+
+        let bank = world
+            .tester
+            .call_contract(acct, contract_addr, call)
+            .expect("account bank should work");
+
+        assert_eq!(bank.0, bank_eth_addr.0)
     }
 }
