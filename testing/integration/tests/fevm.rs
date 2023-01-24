@@ -62,6 +62,8 @@ lazy_static! {
 // which doesn't work, because it would deadlock on the single threaded `LocalPool`.
 #[tokio::main]
 async fn main() {
+    // NOTE: Enable `fail_on_skipped` or `repeat_skipped` if there are too many scenarios:
+    //  https://cucumber-rs.github.io/cucumber/current/writing/tags.html#failing-on-skipped-steps
     SimpleCoinWorld::run("tests/evm/features/SimpleCoin.feature").await;
     RecursiveCallWorld::run("tests/evm/features/RecursiveCall.feature").await;
 }
@@ -722,13 +724,13 @@ mod recursive_call_world {
 
     /// Example:
     /// ```text
-    /// And account 1 calls recurse on contract 3 with max depth 3 and contracts
-    ///   | contracts  |
+    /// And account 1 calls recurse on contract 3 with max depth 3 and contract addresses:
+    ///   | addresses  |
     ///   | contract 2 |
     ///   | contract 1 |
     ///   | contract 2 |
     /// ```
-    #[when(expr = "{acct} calls recurse on {cntr} with max depth {int} and contracts")]
+    #[when(expr = "{acct} calls recurse on {cntr} with max depth {int} and contract addresses:")]
     fn recurse(
         world: &mut RecursiveCallWorld,
         acct: AccountNumber,
@@ -761,12 +763,12 @@ mod recursive_call_world {
 
     /// Example:
     /// ```text
-    /// Then the depths and senders of the contracts are
-    ///   | contracts  | depths | senders   |
-    ///   | contract 2 | 1      | account 1 |
-    ///   | contract 1 | 0      |           |
+    /// Then the state of depth and sender of the contracts are:
+    ///   | contract   | depth | sender    |
+    ///   | contract 2 | 1     | account 1 |
+    ///   | contract 1 | 0     |           |
     /// ```
-    #[then(expr = "the depths and senders of the contracts are")]
+    #[then(expr = "the state of depth and sender of the contracts are:")]
     fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
         if let Some(table) = step.table.as_ref() {
             // Use some existing account to probe state.
