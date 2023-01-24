@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
+use fvm_integration_tests::testkit;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
-use fvm_integration_tests::testkit;
 
 pub fn run(
     tester: &mut testkit::BasicTester,
@@ -14,7 +14,7 @@ pub fn run(
     params: &[u8],
     gas: i64,
 ) -> anyhow::Result<()> {
-    let mut account = tester.create_basic_account();
+    let mut account = tester.create_basic_account(options)?;
 
     let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
 

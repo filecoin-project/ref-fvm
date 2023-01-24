@@ -34,7 +34,7 @@ pub struct BasicAccount {
 }
 
 impl BasicTester {
-    pub fn new_tester(bundle_path: String, options: &ExecutionOptions) -> Result<BasicTester> {
+    pub fn new_tester(bundle_path: String) -> Result<BasicTester> {
         let blockstore = MemoryBlockstore::default();
         let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
             Ok(cid) => cid,
@@ -43,17 +43,15 @@ impl BasicTester {
             }
         };
 
-        let mut tester = Tester::new(
+        Tester::new(
             NetworkVersion::V18,
             StateTreeVersion::V5,
             bundle_cid,
             blockstore,
-        )?;
-        tester.prepare_execution(options)?;
-
-        Ok(tester)
+        )
     }
 
+    // must be called after accounts have been created and the machine is ready to run
     fn prepare_execution(&mut self, options: &ExecutionOptions) -> Result<()> {
         self.instantiate_machine_with_config(
             DummyExterns,
@@ -63,21 +61,28 @@ impl BasicTester {
     }
 
     // TODO this method should move to the basie type. once the accounts have been integrated
-    pub fn create_basic_account(&mut self) -> BasicAccount {
+    pub fn create_basic_account(&mut self, options: &ExecutionOptions) -> Result<BasicAccount> {
         let accounts: [Account; 1] = self.create_accounts().unwrap();
-        BasicAccount {
+        let account = BasicAccount {
             account: accounts[0],
             seqno: 0,
-        }
+        };
+        self.prepare_execution(options)?;
+        Ok(account)
     }
 
     // TODO base type has the method, we need this to create the account wrapper; should go
     //      away once the latter hsa been integrated.
-    pub fn create_basic_accounts<const N: usize>(&mut self) -> [BasicAccount; N] {
+    pub fn create_basic_accounts<const N: usize>(
+        &mut self,
+        options: &ExecutionOptions,
+    ) -> Result<[BasicAccount; N]> {
         let accounts: [Account; N] = self.create_accounts().unwrap();
-        accounts.map(|a| BasicAccount {
+        let accounts = accounts.map(|a| BasicAccount {
             account: a,
             seqno: 0,
-        })
+        });
+        self.prepare_execution(options)?;
+        Ok(accounts)
     }
 }
