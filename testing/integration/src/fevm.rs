@@ -115,7 +115,7 @@ impl EthAddress {
     }
 }
 
-#[derive(Serialize_tuple, Deserialize_tuple)]
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
 pub struct CreateReturn {
     pub actor_id: ActorID,
     pub robust_address: Option<Address>,

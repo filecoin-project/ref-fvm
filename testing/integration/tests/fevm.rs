@@ -16,7 +16,7 @@ use ethers::prelude::{decode_function_data, AbiError};
 use ethers::types::{Bytes, H160, H256};
 use fvm::executor::ApplyFailure;
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn};
+use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn, EthAddress};
 use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALANCE};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
@@ -139,7 +139,10 @@ pub struct DeployedContract {
     /// and wanted to check what contract was deployed at a certain slot.
     _name: String,
     owner: TestAccount,
+    /// The ActorID address.
     address: Address,
+    /// The ethereum address from `CreateReturn`, produced by the EAM actor.
+    eth_address: EthAddress,
 }
 
 impl DeployedContract {
@@ -327,6 +330,7 @@ impl ContractTester {
             _name: contract_name,
             owner: creator,
             address: contract_addr,
+            eth_address: create_return.eth_address,
         };
 
         self.contracts.push(contract);
@@ -824,7 +828,9 @@ mod recursive_call_world {
                 } else if let Ok(acct) = AccountNumber::from_str(&row[2]) {
                     Some(world.tester.account_h160(&acct))
                 } else if let Ok(cntr) = ContractNumber::from_str(&row[2]) {
-                    Some(world.tester.deployed_contract(cntr).addr_to_h160())
+                    // NOTE: We are not using the ActorID here.
+                    let delegated_addr = world.tester.deployed_contract(cntr).eth_address;
+                    Some(H160::from_slice(&delegated_addr.0))
                 } else if let Ok(bytes) = hex::decode(row[2].strip_prefix("0x").unwrap_or(&row[2]))
                 {
                     Some(H160::from_slice(&bytes))
