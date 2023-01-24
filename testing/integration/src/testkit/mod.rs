@@ -1,11 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::dummy::DummyExterns;
-use crate::tester::{Account as TAccount, Tester};
+use anyhow::Result;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+
+use crate::dummy::DummyExterns;
+use crate::tester::{Account, Tester};
 
 pub mod bundle;
 pub mod fevm;
@@ -21,52 +23,61 @@ pub struct ExecutionOptions {
 }
 
 pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
-pub struct Account {
-    pub account: TAccount,
+
+/// This is an account wrapper to allow tracking of the current nonce associated with
+/// an account.
+// TOOO the nonce can be pused into the bae account type, but that's a larger refactoring
+// we avoid  iat first pass.
+pub struct BasicAccount {
+    pub account: Account,
     pub seqno: u64,
 }
 
-pub fn new_tester(bundle_path: String) -> BasicTester {
-    let blockstore = MemoryBlockstore::default();
-    let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
-        Ok(cid) => cid,
-        Err(what) => {
-            panic!("error loading bundle: {}", what);
-        }
-    };
-    Tester::new(
-        NetworkVersion::V18,
-        StateTreeVersion::V5,
-        bundle_cid,
-        blockstore,
-    )
-    .unwrap_or_else(|what| {
-        panic!("error creating execution framework: {}", what);
-    })
-}
+impl BasicTester {
+    pub fn new_tester(bundle_path: String, options: &ExecutionOptions) -> Result<BasicTester> {
+        let blockstore = MemoryBlockstore::default();
+        let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
+            Ok(cid) => cid,
+            Err(what) => {
+                return Err(anyhow::Error::from(what));
+            }
+        };
 
-pub fn create_account(tester: &mut BasicTester) -> Account {
-    let accounts: [TAccount; 1] = tester.create_accounts().unwrap();
-    Account {
-        account: accounts[0],
-        seqno: 0,
+        let mut tester = Tester::new(
+            NetworkVersion::V18,
+            StateTreeVersion::V5,
+            bundle_cid,
+            blockstore,
+        )?;
+        tester.prepare_execution(options)?;
+
+        Ok(tester)
     }
-}
 
-pub fn create_accounts<const N: usize>(tester: &mut BasicTester) -> [Account; N] {
-    let accounts: [TAccount; N] = tester.create_accounts().unwrap();
-    accounts.map(|a| Account {
-        account: a,
-        seqno: 0,
-    })
-}
-
-pub fn prepare_execution(tester: &mut BasicTester, options: &ExecutionOptions) {
-    tester
-        .instantiate_machine_with_config(
+    fn prepare_execution(&mut self, options: &ExecutionOptions) -> Result<()> {
+        self.instantiate_machine_with_config(
             DummyExterns,
             |cfg| cfg.actor_debugging = options.debug,
             |mc| mc.tracing = options.trace,
         )
-        .unwrap();
+    }
+
+    // TODO this method should move to the basie type. once the accounts have been integrated
+    pub fn create_basic_account(&mut self) -> BasicAccount {
+        let accounts: [Account; 1] = self.create_accounts().unwrap();
+        BasicAccount {
+            account: accounts[0],
+            seqno: 0,
+        }
+    }
+
+    // TODO base type has the method, we need this to create the account wrapper; should go
+    //      away once the latter hsa been integrated.
+    pub fn create_basic_accounts<const N: usize>(&mut self) -> [BasicAccount; N] {
+        let accounts: [Account; N] = self.create_accounts().unwrap();
+        accounts.map(|a| BasicAccount {
+            account: a,
+            seqno: 0,
+        })
+    }
 }

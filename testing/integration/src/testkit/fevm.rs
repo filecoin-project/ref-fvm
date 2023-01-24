@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::Result;
 use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
@@ -8,13 +9,20 @@ use fvm_shared::address::Address;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 
-use crate::testkit::{Account, BasicTester};
+use crate::testkit::{BasicAccount, BasicTester};
 
-pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: &[u8]) -> ApplyRet {
+pub const EAM_ADDRESS: Address = Address::new_id(10);
+pub const DEFAULT_GAS: i64 = 10_000_000_000;
+
+pub fn create_contract(
+    tester: &mut BasicTester,
+    owner: &mut BasicAccount,
+    contract: &[u8],
+) -> Result<ApplyRet> {
     let create_msg = Message {
         from: owner.account.1,
-        to: Address::new_id(10), // EAM
-        gas_limit: 10_000_000_000,
+        to: EAM_ADDRESS,
+        gas_limit: DEFAULT_GAS,
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),
         sequence: owner.seqno,
@@ -25,21 +33,20 @@ pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: 
     let create_res = tester
         .executor
         .as_mut()
-        .unwrap()
-        .execute_message(create_msg, ApplyKind::Explicit, create_mlen)
-        .unwrap();
+        .ok_or(anyhow::anyhow!("failed to get executor"))?
+        .execute_message(create_msg, ApplyKind::Explicit, create_mlen)?;
 
     owner.seqno += 1;
-    create_res
+    Ok(create_res)
 }
 
 pub fn invoke_contract(
     tester: &mut BasicTester,
-    src: &mut Account,
+    src: &mut BasicAccount,
     dest: Address,
     input_data: &[u8],
     gas: i64,
-) -> ApplyRet {
+) -> Result<ApplyRet> {
     let invoke_msg = Message {
         from: src.account.1,
         to: dest,
@@ -54,12 +61,11 @@ pub fn invoke_contract(
     let invoke_res = tester
         .executor
         .as_mut()
-        .unwrap()
-        .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)
-        .unwrap();
+        .ok_or(anyhow::anyhow!("failed to get executor"))?
+        .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)?;
 
     src.seqno += 1;
-    invoke_res
+    Ok(invoke_res)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

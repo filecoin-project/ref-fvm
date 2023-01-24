@@ -5,8 +5,9 @@ use std::fs;
 
 use anyhow::anyhow;
 use cid::Cid;
-use crate::bundle;
 use fvm_ipld_blockstore::Blockstore;
+
+use crate::bundle;
 
 pub fn import_bundle(blockstore: &impl Blockstore, path: &str) -> anyhow::Result<Cid> {
     let bundle_data = match fs::read(path) {

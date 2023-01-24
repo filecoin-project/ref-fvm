@@ -54,7 +54,7 @@ fn run() -> anyhow::Result<()> {
         trace: args.trace,
         events: args.events,
     };
-    let mut tester = testkit::new_tester(args.bundle);
+    let mut tester = testkit::BasicTester::new_tester(args.bundle, &options)?;
 
     match args.mode.as_str() {
         "fevm" => {
