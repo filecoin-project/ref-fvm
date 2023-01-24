@@ -26,9 +26,12 @@ contract RecursiveCallInner {
         value = msg.value;
 
         if (max_depth > curr_depth) {
+            // If we're deeper than we have addresses for, call the last address on the stack.
+            // NOTE: We can't use `address(this)` because with DELEGATECALL it could
+            // give the address of a `RecursiveCallOuter` which doesn't have this version of `recurse`.
             address callee = addresses.length > curr_depth
                 ? addresses[curr_depth]
-                : address(this);
+                : addresses[addresses.length - 1];
             (bool success, ) = callee.delegatecall(
                 abi.encodeWithSignature(
                     "recurse(address[],uint32,uint32)",

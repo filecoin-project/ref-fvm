@@ -12,8 +12,8 @@
   },
   "files": {
     "contracts/RecursiveCall.sol": {
-      "lastModificationDate": 1674487374565,
-      "contentHash": "c2962f1be7806d7c05c3057b759e844d",
+      "lastModificationDate": 1674553975248,
+      "contentHash": "0fe75da13253e7505f7aae8ae925e5df",
       "sourceName": "contracts/RecursiveCall.sol",
       "solcConfig": {
         "settings": {
