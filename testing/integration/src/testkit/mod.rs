@@ -38,9 +38,7 @@ impl BasicTester {
         let blockstore = MemoryBlockstore::default();
         let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
             Ok(cid) => cid,
-            Err(what) => {
-                return Err(anyhow::Error::from(what));
-            }
+            Err(what) => return Err(what),
         };
 
         Tester::new(

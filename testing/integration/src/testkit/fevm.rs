@@ -33,7 +33,7 @@ pub fn create_contract(
     let create_res = tester
         .executor
         .as_mut()
-        .ok_or(anyhow::anyhow!("failed to get executor"))?
+        .ok_or_else(|| anyhow::anyhow!("failed to get executor"))?
         .execute_message(create_msg, ApplyKind::Explicit, create_mlen)?;
 
     owner.seqno += 1;
@@ -61,7 +61,7 @@ pub fn invoke_contract(
     let invoke_res = tester
         .executor
         .as_mut()
-        .ok_or(anyhow::anyhow!("failed to get executor"))?
+        .ok_or_else(|| anyhow::anyhow!("failed to get executor"))?
         .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)?;
 
     src.seqno += 1;
