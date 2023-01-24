@@ -402,7 +402,7 @@ impl BasicTester {
         F: FnOnce(&mut BasicExecutor) -> Result<T>,
     {
         self.prepare_execution()?;
-        f(&mut self.executor.as_mut().unwrap())
+        f(self.executor.as_mut().unwrap())
     }
 
     fn prepare_execution(&mut self) -> Result<()> {
