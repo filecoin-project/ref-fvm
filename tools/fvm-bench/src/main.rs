@@ -7,7 +7,7 @@ use std::fs;
 
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use fvm_integration_tests::testkit;
+use fvm_integration_tests::tester;
 
 /// Run a contract invocation for benchmarking purposes
 #[derive(Parser, Debug)]
@@ -49,12 +49,12 @@ struct Args {
 
 fn run() -> anyhow::Result<()> {
     let args = Args::parse();
-    let options = testkit::ExecutionOptions {
+    let options = tester::ExecutionOptions {
         debug: args.debug,
         trace: args.trace,
         events: args.events,
     };
-    let mut tester = testkit::BasicTester::new(args.bundle, options)?;
+    let mut tester = tester::BasicTester::new_basic_tester(args.bundle, options)?;
 
     match args.mode.as_str() {
         "fevm" => {

@@ -9,7 +9,7 @@ use fvm_shared::address::Address;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 
-use crate::testkit::{BasicAccount, BasicTester};
+use crate::tester::{BasicAccount, BasicTester};
 
 pub const EAM_ADDRESS: Address = Address::new_id(10);
 pub const DEFAULT_GAS: i64 = 10_000_000_000;
@@ -30,12 +30,8 @@ pub fn create_contract(
     };
     let create_mlen = create_msg.params.len();
 
-    let create_res = tester.with_inner(|t| {
-        t.executor
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("failed to get executor"))?
-            .execute_message(create_msg, ApplyKind::Explicit, create_mlen)
-    })?;
+    let create_res = tester
+        .with_executor(|e| e.execute_message(create_msg, ApplyKind::Explicit, create_mlen))?;
 
     owner.seqno += 1;
     Ok(create_res)
@@ -59,12 +55,8 @@ pub fn invoke_contract(
     };
     let invoke_mlen = invoke_msg.params.len();
 
-    let invoke_res = tester.with_inner(|t| {
-        t.executor
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("failed to get executor"))?
-            .execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen)
-    })?;
+    let invoke_res = tester
+        .with_executor(|e| e.execute_message(invoke_msg, ApplyKind::Explicit, invoke_mlen))?;
 
     src.seqno += 1;
     Ok(invoke_res)

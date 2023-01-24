@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
-use fvm_integration_tests::testkit;
+use fvm_integration_tests::{tester, testkit};
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
 
 pub fn run(
-    tester: &mut testkit::BasicTester,
+    tester: &mut tester::BasicTester,
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
     gas: i64,
 ) -> anyhow::Result<()> {
-    let mut account = tester.create_account();
+    let mut account = tester.create_basic_account()?;
 
     let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
 
@@ -48,14 +48,15 @@ pub fn run(
     println!("Result: {}", hex::encode(invoke_result));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
 
-    if tester.options.trace {
+    let options = tester.options.clone().unwrap_or_default();
+    if options.trace {
         println!("Execution trace:");
         for tr in invoke_res.exec_trace {
             println!("{:?}", tr)
         }
     }
 
-    if tester.options.events {
+    if options.events {
         println!("Execution events:");
         for evt in invoke_res.events {
             println!("{:?}", evt)
