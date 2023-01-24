@@ -3,8 +3,7 @@ Feature: RecursiveCall
 
   Scenario: Single DELEGATECALL modifies delegator state
     Given 1 random account
-    When account 1 creates a RecursiveCallInner contract
-    And account 1 creates a RecursiveCallOuter contract
+    When account 1 creates a 2 RecursiveCall contracts
     And account 1 calls recurse on contract 2 with max depth 1 and contract addresses:
       | addresses  |
       | contract 1 |
@@ -14,12 +13,9 @@ Feature: RecursiveCall
       | contract 2 | 1     | account 1 |
 
 
-  Scenario: Multiple DELEGATECALL
+  Scenario: Multiple DELEGATECALL modifies delegator state
     Given 1 random account
-    When account 1 creates a RecursiveCallInner contract
-    And account 1 creates a RecursiveCallInner contract
-    And account 1 creates a RecursiveCallInner contract
-    And account 1 creates a RecursiveCallOuter contract
+    When account 1 creates 4 RecursiveCall contracts
     And account 1 calls recurse on contract 4 with max depth 5 and contract addresses:
       | addresses  |
       | contract 3 |
@@ -35,10 +31,9 @@ Feature: RecursiveCall
       | contract 4 | 5     | account 1 |
 
 
-  Scenario: Multiple self-recursion
+  Scenario: Deep self-recursion with DELEGATECALL
     Given 1 random account
-    When account 1 creates a RecursiveCallOuter contract
-    And account 1 creates a RecursiveCallInner contract
+    When account 1 creates 2 RecursiveCall contracts
     And account 1 calls recurse on contract 1 with max depth 100 and contract addresses:
       | addresses  |
       | contract 2 |

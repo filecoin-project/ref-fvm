@@ -46,8 +46,7 @@ lazy_static! {
     /// Assumes all the contract names are unique across all files!
     static ref CONTRACTS: BTreeMap<&'static str, Vec<u8>> = contract_sources! {
                 "SimpleCoin" / "SimpleCoin",
-                "RecursiveCall" / "RecursiveCallInner",
-                "RecursiveCall" / "RecursiveCallOuter"
+                "RecursiveCall" / "RecursiveCall"
     }
     .into_iter()
     .map(|(name, code)| {
@@ -136,7 +135,9 @@ impl Display for ContractNumber {
 /// Remember what contract was deployed.
 #[derive(Debug, Clone)]
 pub struct DeployedContract {
-    name: String,
+    /// Name would be useful if we had multiple contracts in the same solidity file
+    /// and wanted to check what contract was deployed at a certain slot.
+    _name: String,
     owner: TestAccount,
     address: Address,
 }
@@ -323,7 +324,7 @@ impl ContractTester {
         let contract_addr = Address::new_id(create_return.actor_id);
 
         let contract = DeployedContract {
-            name: contract_name,
+            _name: contract_name,
             owner: creator,
             address: contract_addr,
         };
@@ -521,6 +522,25 @@ macro_rules! contract_matchers {
 
         /// Example:
         /// ```text
+        /// When account 1 creates 5 RecursiveCall contract(s)
+        /// ```
+        #[when(expr = "{acct} creates {int} {word} contracts")]
+        fn create_contracts(
+            world: &mut $world,
+            owner: $crate::AccountNumber,
+            n: u32,
+            contract: String,
+        ) {
+            for _ in 0..n {
+                world
+                    .tester
+                    .create_contract(owner, contract.clone())
+                    .expect("countract creation should succeed")
+            }
+        }
+
+        /// Example:
+        /// ```text
         /// Then account 1 fails to create a SimpleCoin contract with 'Actor sequence invalid: 2 != 0'
         /// ```
         #[then(expr = "{acct} fails to create a {word} contract with {string}")]
@@ -703,17 +723,11 @@ mod recursive_call_world {
 
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
+    use evm_contracts::recursive_call::RecursiveCall;
 
     use crate::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
 
-    mod inner {
-        pub use evm_contracts::recursive_call_inner::RecursiveCallInner;
-        contract_constructors!(RecursiveCallInner);
-    }
-    mod outer {
-        pub use evm_contracts::recursive_call_outer::RecursiveCallOuter;
-        contract_constructors!(RecursiveCallOuter);
-    }
+    contract_constructors!(RecursiveCall);
 
     #[derive(World, Default, Debug)]
     pub struct RecursiveCallWorld {
@@ -738,9 +752,10 @@ mod recursive_call_world {
         max_depth: u32,
         step: &Step,
     ) {
-        let (contract, contract_addr) = world.tester.contract(cntr, outer::new_with_actor_id);
+        let (contract, contract_addr) = world.tester.contract(cntr, new_with_actor_id);
 
         let mut addresses = Vec::new();
+        let mut actions = Vec::new();
 
         if let Some(table) = step.table.as_ref() {
             // NOTE: skip header
@@ -748,10 +763,24 @@ mod recursive_call_world {
                 let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
                 let contract_addr = world.tester.deployed_contract(cntr).addr_to_h160();
                 addresses.push(contract_addr);
+
+                if row.len() > 1 {
+                    let action: Option<u8> = match row[1].as_str() {
+                        "" => None,
+                        "DELEGATECALL" => Some(0),
+                        "CALL" => Some(1),
+                        other => panic!("unknown action: {other}"),
+                    };
+                    if let Some(action) = action {
+                        actions.push(action)
+                    }
+                }
             }
         }
 
-        let call = contract.recurse(addresses, max_depth).gas(DEFAULT_GAS);
+        let call = contract
+            .recurse(addresses, actions, max_depth, 0)
+            .gas(DEFAULT_GAS);
 
         let success = world
             .tester
@@ -776,7 +805,6 @@ mod recursive_call_world {
             // NOTE: skip header
             for row in table.rows.iter().skip(1) {
                 let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-                let deployed = world.tester.deployed_contract(cntr);
                 let depth = u32::from_str(&row[1]).expect("not a depth");
 
                 let sender = if row[2].is_empty() {
@@ -789,52 +817,24 @@ mod recursive_call_world {
                     panic!("unexpected sender: {}", row[2]);
                 };
 
-                match deployed.name.as_str() {
-                    "RecursiveCallInner" => {
-                        let (contract, addr) =
-                            world.tester.contract(cntr, inner::new_with_actor_id);
+                let (contract, addr) = world.tester.contract(cntr, new_with_actor_id);
 
-                        let call = contract.depth().gas(DEFAULT_GAS);
-                        let state_depth = world
-                            .tester
-                            .call_contract(acct, addr, call)
-                            .expect("depth should not fail");
+                let call = contract.depth().gas(DEFAULT_GAS);
+                let state_depth = world
+                    .tester
+                    .call_contract(acct, addr, call)
+                    .expect("depth should not fail");
 
-                        assert_eq!(depth, state_depth, "inner depth");
+                assert_eq!(depth, state_depth, "outer depth");
 
-                        if let Some(sender) = sender {
-                            let call = contract.sender().gas(DEFAULT_GAS);
-                            let state_sender = world
-                                .tester
-                                .call_contract(acct, addr, call)
-                                .expect("sender should not fail");
+                if let Some(sender) = sender {
+                    let call = contract.sender().gas(DEFAULT_GAS);
+                    let state_sender = world
+                        .tester
+                        .call_contract(acct, addr, call)
+                        .expect("sender should not fail");
 
-                            assert_eq!(sender, state_sender, "inner sender");
-                        }
-                    }
-                    "RecursiveCallOuter" => {
-                        let (contract, addr) =
-                            world.tester.contract(cntr, outer::new_with_actor_id);
-
-                        let call = contract.depth().gas(DEFAULT_GAS);
-                        let state_depth = world
-                            .tester
-                            .call_contract(acct, addr, call)
-                            .expect("depth should not fail");
-
-                        assert_eq!(depth, state_depth, "outer depth");
-
-                        if let Some(sender) = sender {
-                            let call = contract.sender().gas(DEFAULT_GAS);
-                            let state_sender = world
-                                .tester
-                                .call_contract(acct, addr, call)
-                                .expect("sender should not fail");
-
-                            assert_eq!(sender, state_sender, "inner sender");
-                        }
-                    }
-                    other => panic!("unexpected recursive contract: {other}"),
+                    assert_eq!(sender, state_sender, "inner sender");
                 }
             }
         }

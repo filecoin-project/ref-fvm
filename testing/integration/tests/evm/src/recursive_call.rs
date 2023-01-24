@@ -1,11 +1,11 @@
-pub use recursive_call_inner::*;
+pub use recursive_call::*;
 #[allow(clippy::too_many_arguments, non_camel_case_types)]
-pub mod recursive_call_inner {
+pub mod recursive_call {
     #![allow(clippy::enum_variant_names)]
     #![allow(dead_code)]
     #![allow(clippy::type_complexity)]
     #![allow(unused_imports)]
-    #[doc = "RecursiveCallInner was auto-generated with ethers-rs Abigen. More information at: https://github.com/gakonst/ethers-rs"]
+    #[doc = "RecursiveCall was auto-generated with ethers-rs Abigen. More information at: https://github.com/gakonst/ethers-rs"]
     use std::sync::Arc;
 
     use ethers::contract::builders::{ContractCall, Event};
@@ -13,32 +13,32 @@ pub mod recursive_call_inner {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"name\":\"depth\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"max_depth\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"curr_depth\",\"type\":\"uint32\"}],\"name\":\"recurse\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"sender\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"name\":\"depth\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"enum RecursiveCall.Action[]\",\"name\":\"actions\",\"type\":\"uint8[]\"},{\"internalType\":\"uint32\",\"name\":\"max_depth\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"curr_depth\",\"type\":\"uint32\"}],\"name\":\"recurse\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"sender\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
-    pub static RECURSIVECALLINNER_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
+    pub static RECURSIVECALL_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {
             ethers::core::utils::__serde_json::from_str(__ABI).expect("invalid abi")
         });
-    pub struct RecursiveCallInner<M>(ethers::contract::Contract<M>);
-    impl<M> Clone for RecursiveCallInner<M> {
+    pub struct RecursiveCall<M>(ethers::contract::Contract<M>);
+    impl<M> Clone for RecursiveCall<M> {
         fn clone(&self) -> Self {
-            RecursiveCallInner(self.0.clone())
+            RecursiveCall(self.0.clone())
         }
     }
-    impl<M> std::ops::Deref for RecursiveCallInner<M> {
+    impl<M> std::ops::Deref for RecursiveCall<M> {
         type Target = ethers::contract::Contract<M>;
         fn deref(&self) -> &Self::Target {
             &self.0
         }
     }
-    impl<M> std::fmt::Debug for RecursiveCallInner<M> {
+    impl<M> std::fmt::Debug for RecursiveCall<M> {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            f.debug_tuple(stringify!(RecursiveCallInner))
+            f.debug_tuple(stringify!(RecursiveCall))
                 .field(&self.address())
                 .finish()
         }
     }
-    impl<M: ethers::providers::Middleware> RecursiveCallInner<M> {
+    impl<M: ethers::providers::Middleware> RecursiveCall<M> {
         #[doc = r" Creates a new contract instance with the specified `ethers`"]
         #[doc = r" client at the given `Address`. The contract derefs to a `ethers::Contract`"]
         #[doc = r" object"]
@@ -46,7 +46,7 @@ pub mod recursive_call_inner {
             address: T,
             client: ::std::sync::Arc<M>,
         ) -> Self {
-            ethers::contract::Contract::new(address.into(), RECURSIVECALLINNER_ABI.clone(), client)
+            ethers::contract::Contract::new(address.into(), RECURSIVECALL_ABI.clone(), client)
                 .into()
         }
         #[doc = "Calls the contract's `depth` (0x631c56ef) function"]
@@ -55,15 +55,19 @@ pub mod recursive_call_inner {
                 .method_hash([99, 28, 86, 239], ())
                 .expect("method not found (this should never happen)")
         }
-        #[doc = "Calls the contract's `recurse` (0xbb878333) function"]
+        #[doc = "Calls the contract's `recurse` (0x4885ccd9) function"]
         pub fn recurse(
             &self,
             addresses: ::std::vec::Vec<ethers::core::types::Address>,
+            actions: ::std::vec::Vec<u8>,
             max_depth: u32,
             curr_depth: u32,
-        ) -> ethers::contract::builders::ContractCall<M, ()> {
+        ) -> ethers::contract::builders::ContractCall<M, bool> {
             self.0
-                .method_hash([187, 135, 131, 51], (addresses, max_depth, curr_depth))
+                .method_hash(
+                    [72, 133, 204, 217],
+                    (addresses, actions, max_depth, curr_depth),
+                )
                 .expect("method not found (this should never happen)")
         }
         #[doc = "Calls the contract's `sender` (0x67e404ce) function"]
@@ -83,9 +87,7 @@ pub mod recursive_call_inner {
                 .expect("method not found (this should never happen)")
         }
     }
-    impl<M: ethers::providers::Middleware> From<ethers::contract::Contract<M>>
-        for RecursiveCallInner<M>
-    {
+    impl<M: ethers::providers::Middleware> From<ethers::contract::Contract<M>> for RecursiveCall<M> {
         fn from(contract: ethers::contract::Contract<M>) -> Self {
             Self(contract)
         }
@@ -102,7 +104,7 @@ pub mod recursive_call_inner {
     )]
     #[ethcall(name = "depth", abi = "depth()")]
     pub struct DepthCall;
-    #[doc = "Container type for all input parameters for the `recurse` function with signature `recurse(address[],uint32,uint32)` and selector `[187, 135, 131, 51]`"]
+    #[doc = "Container type for all input parameters for the `recurse` function with signature `recurse(address[],uint8[],uint32,uint32)` and selector `[72, 133, 204, 217]`"]
     #[derive(
         Clone,
         Debug,
@@ -112,9 +114,10 @@ pub mod recursive_call_inner {
         ethers :: contract :: EthDisplay,
         Default,
     )]
-    #[ethcall(name = "recurse", abi = "recurse(address[],uint32,uint32)")]
+    #[ethcall(name = "recurse", abi = "recurse(address[],uint8[],uint32,uint32)")]
     pub struct RecurseCall {
         pub addresses: ::std::vec::Vec<ethers::core::types::Address>,
+        pub actions: ::std::vec::Vec<u8>,
         pub max_depth: u32,
         pub curr_depth: u32,
     }
@@ -143,74 +146,74 @@ pub mod recursive_call_inner {
     #[ethcall(name = "value", abi = "value()")]
     pub struct ValueCall;
     #[derive(Debug, Clone, PartialEq, Eq, ethers :: contract :: EthAbiType)]
-    pub enum RecursiveCallInnerCalls {
+    pub enum RecursiveCallCalls {
         Depth(DepthCall),
         Recurse(RecurseCall),
         Sender(SenderCall),
         Value(ValueCall),
     }
-    impl ethers::core::abi::AbiDecode for RecursiveCallInnerCalls {
+    impl ethers::core::abi::AbiDecode for RecursiveCallCalls {
         fn decode(
             data: impl AsRef<[u8]>,
         ) -> ::std::result::Result<Self, ethers::core::abi::AbiError> {
             if let Ok(decoded) = <DepthCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
             {
-                return Ok(RecursiveCallInnerCalls::Depth(decoded));
+                return Ok(RecursiveCallCalls::Depth(decoded));
             }
             if let Ok(decoded) =
                 <RecurseCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
             {
-                return Ok(RecursiveCallInnerCalls::Recurse(decoded));
+                return Ok(RecursiveCallCalls::Recurse(decoded));
             }
             if let Ok(decoded) = <SenderCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
             {
-                return Ok(RecursiveCallInnerCalls::Sender(decoded));
+                return Ok(RecursiveCallCalls::Sender(decoded));
             }
             if let Ok(decoded) = <ValueCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
             {
-                return Ok(RecursiveCallInnerCalls::Value(decoded));
+                return Ok(RecursiveCallCalls::Value(decoded));
             }
             Err(ethers::core::abi::Error::InvalidData.into())
         }
     }
-    impl ethers::core::abi::AbiEncode for RecursiveCallInnerCalls {
+    impl ethers::core::abi::AbiEncode for RecursiveCallCalls {
         fn encode(self) -> Vec<u8> {
             match self {
-                RecursiveCallInnerCalls::Depth(element) => element.encode(),
-                RecursiveCallInnerCalls::Recurse(element) => element.encode(),
-                RecursiveCallInnerCalls::Sender(element) => element.encode(),
-                RecursiveCallInnerCalls::Value(element) => element.encode(),
+                RecursiveCallCalls::Depth(element) => element.encode(),
+                RecursiveCallCalls::Recurse(element) => element.encode(),
+                RecursiveCallCalls::Sender(element) => element.encode(),
+                RecursiveCallCalls::Value(element) => element.encode(),
             }
         }
     }
-    impl ::std::fmt::Display for RecursiveCallInnerCalls {
+    impl ::std::fmt::Display for RecursiveCallCalls {
         fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
             match self {
-                RecursiveCallInnerCalls::Depth(element) => element.fmt(f),
-                RecursiveCallInnerCalls::Recurse(element) => element.fmt(f),
-                RecursiveCallInnerCalls::Sender(element) => element.fmt(f),
-                RecursiveCallInnerCalls::Value(element) => element.fmt(f),
+                RecursiveCallCalls::Depth(element) => element.fmt(f),
+                RecursiveCallCalls::Recurse(element) => element.fmt(f),
+                RecursiveCallCalls::Sender(element) => element.fmt(f),
+                RecursiveCallCalls::Value(element) => element.fmt(f),
             }
         }
     }
-    impl ::std::convert::From<DepthCall> for RecursiveCallInnerCalls {
+    impl ::std::convert::From<DepthCall> for RecursiveCallCalls {
         fn from(var: DepthCall) -> Self {
-            RecursiveCallInnerCalls::Depth(var)
+            RecursiveCallCalls::Depth(var)
         }
     }
-    impl ::std::convert::From<RecurseCall> for RecursiveCallInnerCalls {
+    impl ::std::convert::From<RecurseCall> for RecursiveCallCalls {
         fn from(var: RecurseCall) -> Self {
-            RecursiveCallInnerCalls::Recurse(var)
+            RecursiveCallCalls::Recurse(var)
         }
     }
-    impl ::std::convert::From<SenderCall> for RecursiveCallInnerCalls {
+    impl ::std::convert::From<SenderCall> for RecursiveCallCalls {
         fn from(var: SenderCall) -> Self {
-            RecursiveCallInnerCalls::Sender(var)
+            RecursiveCallCalls::Sender(var)
         }
     }
-    impl ::std::convert::From<ValueCall> for RecursiveCallInnerCalls {
+    impl ::std::convert::From<ValueCall> for RecursiveCallCalls {
         fn from(var: ValueCall) -> Self {
-            RecursiveCallInnerCalls::Value(var)
+            RecursiveCallCalls::Value(var)
         }
     }
     #[doc = "Container type for all return fields from the `depth` function with signature `depth()` and selector `[99, 28, 86, 239]`"]
@@ -224,6 +227,17 @@ pub mod recursive_call_inner {
         Default,
     )]
     pub struct DepthReturn(pub u32);
+    #[doc = "Container type for all return fields from the `recurse` function with signature `recurse(address[],uint8[],uint32,uint32)` and selector `[72, 133, 204, 217]`"]
+    #[derive(
+        Clone,
+        Debug,
+        Eq,
+        PartialEq,
+        ethers :: contract :: EthAbiType,
+        ethers :: contract :: EthAbiCodec,
+        Default,
+    )]
+    pub struct RecurseReturn(pub bool);
     #[doc = "Container type for all return fields from the `sender` function with signature `sender()` and selector `[103, 228, 4, 206]`"]
     #[derive(
         Clone,

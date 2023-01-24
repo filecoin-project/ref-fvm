@@ -12,8 +12,8 @@
   },
   "files": {
     "contracts/RecursiveCall.sol": {
-      "lastModificationDate": 1674553975248,
-      "contentHash": "0fe75da13253e7505f7aae8ae925e5df",
+      "lastModificationDate": 1674556868852,
+      "contentHash": "bef7c613f088b39378129def294c55b2",
       "sourceName": "contracts/RecursiveCall.sol",
       "solcConfig": {
         "settings": {
@@ -38,11 +38,8 @@
       "imports": [],
       "versionRequirement": "^0.8.0",
       "artifacts": {
-        "RecursiveCallInner": {
-          "0.8.2+commit.661d1103.Linux.gcc": "RecursiveCall.sol/RecursiveCallInner.json"
-        },
-        "RecursiveCallOuter": {
-          "0.8.2+commit.661d1103.Linux.gcc": "RecursiveCall.sol/RecursiveCallOuter.json"
+        "RecursiveCall": {
+          "0.8.2+commit.661d1103.Linux.gcc": "RecursiveCall.sol/RecursiveCall.json"
         }
       }
     },
