@@ -9,7 +9,7 @@ use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
-use fvm_ipld_blockstore::{Block, Blockstore};
+use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
@@ -21,6 +21,7 @@ use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
 use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor};
+use crate::dummy::DummyExterns;
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -35,6 +36,17 @@ pub type IntegrationExecutor<B, E> =
     DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
 
 pub type Account = (ActorID, Address);
+
+/// Execution options
+#[derive(Clone, Debug, Default)]
+pub struct ExecutionOptions {
+    /// Enables debug logging
+    pub debug: bool,
+    /// Enables gas tracing
+    pub trace: bool,
+    /// Enabls events
+    pub events: bool,
+}
 
 pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     // Network version used in the test
@@ -51,6 +63,12 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     pub executor: Option<IntegrationExecutor<B, E>>,
     // State tree constructed before instantiating the Machine
     pub state_tree: Option<StateTree<B>>,
+
+    // execution options for machine instantiation
+    pub options: Option<ExecutionOptions>,
+
+    // ready if the machine has been instantiated
+    ready: bool,
 }
 
 impl<B, E> Tester<B, E>
@@ -92,6 +110,8 @@ where
             state_tree: Some(state_tree),
             accounts_code_cid,
             placeholder_code_cid,
+            options: None,
+            ready: false,
         })
     }
 
@@ -108,6 +128,11 @@ where
             *account = self.make_secp256k1_account(priv_key, INITIAL_ACCOUNT_BALANCE.clone())?;
         }
         Ok(ret)
+    }
+
+    pub fn create_account(&mut self) -> Result<Account> {
+        let accounts: [Account; 1] = self.create_accounts()?;
+        Ok(accounts[0])
     }
 
     pub fn set_account_sequence(&mut self, id: ActorID, new_sequence: u64) -> anyhow::Result<()> {
@@ -218,7 +243,9 @@ where
 
     /// Sets the Machine and the Executor in our Tester structure.
     pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
-        self.instantiate_machine_with_config(externs, |_| (), |_| ())
+        self.instantiate_machine_with_config(externs, |_| (), |_| ())?;
+        self.ready = true;
+        Ok(())
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
@@ -273,6 +300,7 @@ where
             )?;
 
         self.executor = Some(executor);
+        self.ready = true;
 
         Ok(())
     }
@@ -320,6 +348,80 @@ where
         Ok((assigned_addr, pub_key_addr))
     }
 }
+
+pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
+pub type BasicExecutor = IntegrationExecutor<MemoryBlockstore, DummyExterns>;
+
+// TODO refactor base Account type to include the seqno;
+// requires refactoring all over the place hpwever.
+pub struct BasicAccount {
+    pub account: Account,
+    pub seqno: u64,
+}
+
+impl BasicTester {
+    pub fn new_basic_tester(bundle_path: String, options: ExecutionOptions) -> Result<BasicTester> {
+        let blockstore = MemoryBlockstore::default();
+        let bundle_cid =
+            match crate::bundle::import_bundle_from_path(&blockstore, bundle_path.as_str()) {
+                Ok(cid) => cid,
+                Err(what) => return Err(what),
+            };
+
+        let mut tester = Tester::new(
+            NetworkVersion::V18,
+            StateTreeVersion::V5,
+            bundle_cid,
+            blockstore,
+        )?;
+
+        tester.options = Some(options);
+        tester.ready = false;
+
+        Ok(tester)
+    }
+
+    pub fn create_basic_account(&mut self) -> Result<BasicAccount> {
+        let accounts: [Account; 1] = self.create_accounts()?;
+        Ok(BasicAccount {
+            account: accounts[0],
+            seqno: 0,
+        })
+    }
+
+    pub fn create_basic_accounts<const N: usize>(&mut self) -> Result<[BasicAccount; N]> {
+        let accounts: [Account; N] = self.create_accounts()?;
+        Ok(accounts.map(|a| BasicAccount {
+            account: a,
+            seqno: 0,
+        }))
+    }
+
+    pub fn with_executor<F, T>(&mut self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut BasicExecutor) -> Result<T>,
+    {
+        self.prepare_execution()?;
+        f(self.executor.as_mut().unwrap())
+    }
+
+    fn prepare_execution(&mut self) -> Result<()> {
+        if !self.ready {
+            if let Some(options) = self.options.clone() {
+                self.instantiate_machine_with_config(
+                    DummyExterns,
+                    |cfg| cfg.actor_debugging = options.debug,
+                    |mc| mc.tracing = options.trace,
+                )?;
+            } else {
+                self.instantiate_machine(DummyExterns)?;
+            }
+            self.ready = true
+        }
+        Ok(())
+    }
+}
+
 /// Inserts the WASM code for the actor into the blockstore.
 fn put_wasm_code(blockstore: &impl Blockstore, wasm_binary: &[u8]) -> Result<Cid> {
     let cid = blockstore.put(

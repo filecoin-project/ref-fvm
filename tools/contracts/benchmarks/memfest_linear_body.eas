@@ -1,0 +1,90 @@
+## initialize memory slots linearly
+
+## RNG parameters for linear traversal
+## M = 2^32, a = 1, c = 1
+## X_{n+1} = a * X_n + c mod M
+%push(32)
+%push(2)
+exp
+%push(1)
+%push(1)
+
+## 10M slots = 320MB
+%push(10000000)
+
+## initial slot
+%push(0)
+
+## rng seed (X_0)
+%push(0)
+
+init_loop:
+jumpdest
+
+# ... M | a | c | 10M | slot | X_n
+
+dup3
+dup3
+gt
+%push(init_fini)
+jumpi
+
+# loop iteration: store X_{n+1} to current slot
+dup5   # ... M | a | c | 10M | slot | X_n | a
+mul    # ... M | a | c | 10M | slot | X_n * a
+dup4   # ... M | a | c | 10M | slot | X_n * a | c
+add    # ... M | a | c | 10M | slot | X_n * a + c
+dup6   # ... M | a | c | 10M | slot | X_n * a + c | M
+swap1
+mod    # ... M | a | c | 10M | slot | X_{n+1}
+dup1   # ... M | a | c | 10M | slot | X_{n+1} | X_{n+1}
+dup4   # ... M | a | c | 10M | slot | X_{n+1} | X_{n+1} | 10M
+mod    # ... M | a | c | 10M | slot | X_{n+1} | X_{n+1} mod 10M = next-slot
+dup3   # ... slot | X_{n+1} | next-slot | slot
+%push(1)
+add    # ... slot | X_{n+1} | next-slot | slot+1
+swap3  # ... slot+1 | X_{n+1} | next-slot | slot
+mstore
+
+%push(init_loop)
+jump
+
+# finish: last point to first
+init_fini:
+jumpdest
+
+# Unfortunately we need to have this copied verbatim, eas generates a bad jump if we include this
+# from a separate file.... sigh
+
+# 10M mloads
+%push(10000000)
+
+# initial slot
+%push(0)
+
+loop:
+jumpdest
+
+# load the current slot to follow
+mload   # ... iters | next-slot
+
+# check the iteration count
+swap1   # ... next-slot | iters
+%push(1)
+swap1   # ... next-slot | 1 | iters
+sub     # ... next-slot | iters-1
+dup1    # ... next-slot | iters-1 | iters-1
+iszero
+%push(done)
+jumpi
+
+# loop
+swap1   # ... iters-1 | next-slot
+%push(loop)
+jump
+
+done:
+jumpdest
+%push(0)
+%push(0)
+return

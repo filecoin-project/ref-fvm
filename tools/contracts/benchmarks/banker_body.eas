@@ -1,0 +1,52 @@
+address
+
+## Iterations
+%push(1000) # address | iters
+
+loop:
+jumpdest
+
+swap1   # iters | address
+
+dup1    # iters | address | address
+balance # iters | address | balance
+pop     # iters | address
+dup1    # iters | address | address
+balance # ...
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+dup1
+balance
+pop
+
+swap1 # address | iters
+
+# Update the counter.
+%push(1) # address | iters | 1
+swap1    # address | 1 | iters
+sub      # address | iters-1
+
+# maybe jump
+dup1
+%push(loop)
+jumpi
