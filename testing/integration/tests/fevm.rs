@@ -898,10 +898,10 @@ mod bank_account {
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
     use ethers::types::H160;
-    use fvm_integration_tests::fevm::EthAddress;
+    use fvm_integration_tests::fevm::{EthAddress, EAM_ACTOR_ID};
     use fvm_shared::address::Address;
 
-    use crate::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+    use crate::{AccountNumber, ContractTester, DEFAULT_GAS};
 
     mod bank {
         use evm_contracts::bank::Bank;
@@ -931,13 +931,13 @@ mod bank_account {
                 .expect("no contracts deployed yet")
                 .eth_address
         }
-        /// Get the ActorID address of the last opened bank account.
+        /// Get the FVM Address address of the last opened bank account.
         fn last_bank_account_addr(&self) -> Address {
             let bank_account_eth_addr = self.bank_accounts.last().expect("no bank accounts yet");
-            let contract_addr: Address =
-                todo!("figure out how to go from the internal eth address to an external actor ID");
-
-            contract_addr
+            let f4_addr =
+                Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &bank_account_eth_addr.0)
+                    .unwrap();
+            f4_addr
         }
     }
 
@@ -951,7 +951,7 @@ mod bank_account {
             .call_contract(acct, contract_addr, call)
             .expect("open_account should work");
 
-        panic!("ADDRESS = {bank_account_address:?}");
+        world.bank_accounts.push(bank_account_address)
     }
 
     #[then(expr = "the owner of the bank is {acct}")]
@@ -982,8 +982,8 @@ mod bank_account {
         assert_eq!(owner, world.tester.account_h160(acct))
     }
 
-    #[then(expr = "the bank of the bank account is {acct}")]
-    fn check_account_bank(world: &mut BankAccountWorld, acct: AccountNumber) {
+    #[then(expr = "the bank of the bank account is set")]
+    fn check_account_bank(world: &mut BankAccountWorld) {
         let bank_eth_addr = world.bank_eth_addr();
         let contract_addr = world.last_bank_account_addr();
         let contract = account::new_with_eth_addr(bank_eth_addr);
@@ -991,7 +991,7 @@ mod bank_account {
 
         let bank = world
             .tester
-            .call_contract(acct, contract_addr, call)
+            .call_contract(AccountNumber(0), contract_addr, call)
             .expect("account bank should work");
 
         assert_eq!(bank.0, bank_eth_addr.0)

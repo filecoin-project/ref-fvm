@@ -13,6 +13,7 @@ use crate::dummy::DummyExterns;
 use crate::tester::{Account as TAccount, Tester};
 
 pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
+pub const EAM_ACTOR_ID: Address = Address::new_id(10);
 
 #[derive(Debug, Clone)]
 pub struct Account {
@@ -23,7 +24,7 @@ pub struct Account {
 pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: &[u8]) -> ApplyRet {
     let create_msg = Message {
         from: owner.account.1,
-        to: Address::new_id(10), // EAM
+        to: EAM_ACTOR_ID,
         gas_limit: 10_000_000_000,
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),
