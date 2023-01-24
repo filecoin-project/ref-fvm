@@ -11,7 +11,8 @@ contract RecursiveCall {
     // What action should be taken at a given depth.
     enum Action {
         DELEGATECALL,
-        CALL
+        CALL,
+        REVERT
     }
 
     uint32 public depth;
@@ -32,40 +33,40 @@ contract RecursiveCall {
         value = msg.value;
         bool success = true;
 
-        if (max_depth > curr_depth) {
-            Action action = actions.length == 0
-                ? Action.DELEGATECALL
-                : actions.length > curr_depth
-                ? actions[curr_depth]
-                : actions[actions.length - 1];
+        Action action = curr_depth < actions.length
+            ? actions[curr_depth]
+            : actions[actions.length - 1];
 
-            // If we're deeper than we have addresses for, call `this`.
-            address callee = addresses.length > curr_depth
-                ? addresses[curr_depth]
-                : address(this);
+        address callee = curr_depth < actions.length
+            ? addresses[curr_depth]
+            : address(this);
 
-            if (action == Action.DELEGATECALL) {
-                (success, ) = callee.delegatecall(
-                    abi.encodeWithSignature(
-                        "recurse(address[],uint8[],uint32,uint32)",
-                        addresses,
-                        actions,
-                        max_depth,
-                        curr_depth + 1
-                    )
-                );
-            } else if (action == Action.CALL) {
-                (success, ) = callee.call(
-                    abi.encodeWithSignature(
-                        "recurse(address[],uint8[],uint32,uint32)",
-                        addresses,
-                        actions,
-                        max_depth,
-                        curr_depth + 1
-                    )
-                );
-            }
+        bool can_recurse = max_depth > curr_depth;
+
+        if (action == Action.DELEGATECALL && can_recurse) {
+            (success, ) = callee.delegatecall(
+                abi.encodeWithSignature(
+                    "recurse(address[],uint8[],uint32,uint32)",
+                    addresses,
+                    actions,
+                    max_depth,
+                    curr_depth + 1
+                )
+            );
+        } else if (action == Action.CALL && can_recurse) {
+            (success, ) = callee.call(
+                abi.encodeWithSignature(
+                    "recurse(address[],uint8[],uint32,uint32)",
+                    addresses,
+                    actions,
+                    max_depth,
+                    curr_depth + 1
+                )
+            );
+        } else if (action == Action.REVERT) {
+            revert();
         }
+
         return success;
     }
 }

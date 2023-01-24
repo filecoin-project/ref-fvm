@@ -723,6 +723,7 @@ mod simple_coin_world {
 }
 
 mod recursive_call_world {
+    use std::collections::HashMap;
     use std::str::FromStr;
 
     use cucumber::gherkin::Step;
@@ -740,6 +741,27 @@ mod recursive_call_world {
     }
 
     contract_matchers!(RecursiveCallWorld);
+
+    /// Mirroring `RevertCall.Action` in Solidity.
+    #[repr(u8)]
+    enum Action {
+        DELEGATECALL = 0u8,
+        CALL,
+        REVERT,
+    }
+
+    impl FromStr for Action {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "DELEGATECALL" => Ok(Action::DELEGATECALL),
+                "CALL" => Ok(Action::CALL),
+                "REVERT" => Ok(Action::REVERT),
+                other => Err(format!("invalid Action: {other}")),
+            }
+        }
+    }
 
     /// Example:
     /// ```text
@@ -763,23 +785,39 @@ mod recursive_call_world {
         let mut actions = Vec::new();
 
         if let Some(table) = step.table.as_ref() {
-            // NOTE: skip header
-            for row in table.rows.iter().skip(1) {
-                let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-                let contract_addr = world.tester.deployed_contract(cntr).addr_to_h160();
-                addresses.push(contract_addr);
+            let header = table.rows.first().expect("expected table header");
 
-                if row.len() > 1 {
-                    let action: Option<u8> = match row[1].as_str() {
-                        "" => None,
-                        "DELEGATECALL" => Some(0),
-                        "CALL" => Some(1),
-                        other => panic!("unknown action: {other}"),
-                    };
-                    if let Some(action) = action {
-                        actions.push(action)
-                    }
-                }
+            for row in table.rows.iter().skip(1) {
+                let kvs = header
+                    .iter()
+                    .zip(row)
+                    .filter_map(|(k, v)| {
+                        if v.is_empty() {
+                            None
+                        } else {
+                            Some((k.clone(), v.clone()))
+                        }
+                    })
+                    .collect::<HashMap<_, _>>();
+
+                let action = kvs
+                    .get("action")
+                    .map(|s| Action::from_str(s.as_str()))
+                    .transpose()
+                    .unwrap()
+                    .unwrap_or(Action::DELEGATECALL);
+
+                let cntr = kvs
+                    .get("address")
+                    .map(|s| ContractNumber::from_str(s.as_str()))
+                    .transpose()
+                    .unwrap()
+                    .unwrap_or(ContractNumber(0));
+
+                let contract_addr = world.tester.deployed_contract(cntr).addr_to_h160();
+
+                actions.push(action as u8);
+                addresses.push(contract_addr);
             }
         }
 
