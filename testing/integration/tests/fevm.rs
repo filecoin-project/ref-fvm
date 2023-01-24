@@ -723,6 +723,7 @@ mod recursive_call_world {
 
     use cucumber::gherkin::Step;
     use cucumber::{given, then, when, World};
+    use ethers::types::H160;
     use evm_contracts::recursive_call::RecursiveCall;
 
     use crate::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
@@ -805,7 +806,18 @@ mod recursive_call_world {
             // NOTE: skip header
             for row in table.rows.iter().skip(1) {
                 let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-                let depth = u32::from_str(&row[1]).expect("not a depth");
+                let (contract, addr) = world.tester.contract(cntr, new_with_actor_id);
+
+                if !row[1].is_empty() {
+                    let call = contract.depth().gas(DEFAULT_GAS);
+                    let exp_depth = u32::from_str(&row[1]).expect("not a depth");
+                    let depth = world
+                        .tester
+                        .call_contract(acct, addr, call)
+                        .expect("depth should not fail");
+
+                    assert_eq!(depth, exp_depth, "depth of {cntr}");
+                };
 
                 let sender = if row[2].is_empty() {
                     None
@@ -813,28 +825,21 @@ mod recursive_call_world {
                     Some(world.tester.account_h160(&acct))
                 } else if let Ok(cntr) = ContractNumber::from_str(&row[2]) {
                     Some(world.tester.deployed_contract(cntr).addr_to_h160())
+                } else if let Ok(bytes) = hex::decode(row[2].strip_prefix("0x").unwrap_or(&row[2]))
+                {
+                    Some(H160::from_slice(&bytes))
                 } else {
                     panic!("unexpected sender: {}", row[2]);
                 };
 
-                let (contract, addr) = world.tester.contract(cntr, new_with_actor_id);
-
-                let call = contract.depth().gas(DEFAULT_GAS);
-                let state_depth = world
-                    .tester
-                    .call_contract(acct, addr, call)
-                    .expect("depth should not fail");
-
-                assert_eq!(depth, state_depth, "outer depth");
-
-                if let Some(sender) = sender {
+                if let Some(exp_sender) = sender {
                     let call = contract.sender().gas(DEFAULT_GAS);
-                    let state_sender = world
+                    let sender = world
                         .tester
                         .call_contract(acct, addr, call)
                         .expect("sender should not fail");
 
-                    assert_eq!(sender, state_sender, "inner sender");
+                    assert_eq!(sender, exp_sender, "sender of {cntr}");
                 }
             }
         }
