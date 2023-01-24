@@ -54,7 +54,7 @@ fn run() -> anyhow::Result<()> {
         trace: args.trace,
         events: args.events,
     };
-    let mut tester = testkit::BasicTester::new_tester(args.bundle)?;
+    let mut tester = testkit::BasicTester::new(args.bundle, options)?;
 
     match args.mode.as_str() {
         "fevm" => {
@@ -65,15 +65,8 @@ fn run() -> anyhow::Result<()> {
                 hex::decode(args.method).context("error decoding contract entrypoint")?;
             let params = hex::decode(args.params).context("error decoding contract params")?;
 
-            fevm::run(
-                &mut tester,
-                &options,
-                &contract,
-                &entrypoint,
-                &params,
-                args.gas_limit,
-            )
-            .context("contract execution failed")
+            fevm::run(&mut tester, &contract, &entrypoint, &params, args.gas_limit)
+                .context("contract execution failed")
         }
 
         "wasm" => Err(anyhow!("wasm actors not supported yet")),

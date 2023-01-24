@@ -8,13 +8,12 @@ use fvm_shared::address::Address;
 
 pub fn run(
     tester: &mut testkit::BasicTester,
-    options: &testkit::ExecutionOptions,
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
     gas: i64,
 ) -> anyhow::Result<()> {
-    let mut account = tester.create_basic_account(options)?;
+    let mut account = tester.create_account();
 
     let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
 
@@ -49,14 +48,14 @@ pub fn run(
     println!("Result: {}", hex::encode(invoke_result));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
 
-    if options.trace {
+    if tester.options.trace {
         println!("Execution trace:");
         for tr in invoke_res.exec_trace {
             println!("{:?}", tr)
         }
     }
 
-    if options.events {
+    if tester.options.events {
         println!("Execution events:");
         for evt in invoke_res.events {
             println!("{:?}", evt)

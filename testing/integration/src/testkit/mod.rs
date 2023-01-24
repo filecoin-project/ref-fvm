@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::Result;
+use fvm::executor::ApplyRet;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -22,7 +23,11 @@ pub struct ExecutionOptions {
     pub events: bool,
 }
 
-pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
+pub struct BasicTester {
+    inner: Tester<MemoryBlockstore, DummyExterns>,
+    pub options: ExecutionOptions,
+    ready: bool,
+}
 
 /// This is an account wrapper to allow tracking of the current nonce associated with
 /// an account.
@@ -34,53 +39,64 @@ pub struct BasicAccount {
 }
 
 impl BasicTester {
-    pub fn new_tester(bundle_path: String) -> Result<BasicTester> {
+    pub fn new(bundle_path: String, options: ExecutionOptions) -> Result<BasicTester> {
         let blockstore = MemoryBlockstore::default();
         let bundle_cid = match bundle::import_bundle(&blockstore, bundle_path.as_str()) {
             Ok(cid) => cid,
             Err(what) => return Err(what),
         };
 
-        Tester::new(
+        let inner = Tester::new(
             NetworkVersion::V18,
             StateTreeVersion::V5,
             bundle_cid,
             blockstore,
-        )
+        )?;
+
+        Ok(BasicTester {
+            inner,
+            options,
+            ready: false,
+        })
+    }
+
+    pub fn with_inner<F>(&mut self, f: F) -> Result<ApplyRet>
+    where
+        F: FnOnce(&mut Tester<MemoryBlockstore, DummyExterns>) -> Result<ApplyRet>,
+    {
+        self.prepare_execution()?;
+        f(&mut self.inner)
     }
 
     // must be called after accounts have been created and the machine is ready to run
-    fn prepare_execution(&mut self, options: &ExecutionOptions) -> Result<()> {
-        self.instantiate_machine_with_config(
-            DummyExterns,
-            |cfg| cfg.actor_debugging = options.debug,
-            |mc| mc.tracing = options.trace,
-        )
+    fn prepare_execution(&mut self) -> Result<()> {
+        if !self.ready {
+            self.inner.instantiate_machine_with_config(
+                DummyExterns,
+                |cfg| cfg.actor_debugging = self.options.debug,
+                |mc| mc.tracing = self.options.trace,
+            )?;
+            self.ready = true
+        }
+        Ok(())
     }
 
     // TODO this method should move to the basie type. once the accounts have been integrated
-    pub fn create_basic_account(&mut self, options: &ExecutionOptions) -> Result<BasicAccount> {
-        let accounts: [Account; 1] = self.create_accounts().unwrap();
-        let account = BasicAccount {
+    pub fn create_account(&mut self) -> BasicAccount {
+        let accounts: [Account; 1] = self.inner.create_accounts().unwrap();
+        BasicAccount {
             account: accounts[0],
             seqno: 0,
-        };
-        self.prepare_execution(options)?;
-        Ok(account)
+        }
     }
 
     // TODO base type has the method, we need this to create the account wrapper; should go
     //      away once the latter hsa been integrated.
-    pub fn create_basic_accounts<const N: usize>(
-        &mut self,
-        options: &ExecutionOptions,
-    ) -> Result<[BasicAccount; N]> {
-        let accounts: [Account; N] = self.create_accounts().unwrap();
-        let accounts = accounts.map(|a| BasicAccount {
+    pub fn create_basic_accounts<const N: usize>(&mut self) -> [BasicAccount; N] {
+        let accounts: [Account; N] = self.inner.create_accounts().unwrap();
+        accounts.map(|a| BasicAccount {
             account: a,
             seqno: 0,
-        });
-        self.prepare_execution(options)?;
-        Ok(accounts)
+        })
     }
 }
