@@ -23,7 +23,7 @@ use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
 
-use crate::tracing::TestTraceFun;
+use crate::tracing::{CaptureApplyRetFun, TestTraceFun};
 use crate::vector::{MessageVector, Variant};
 use crate::vm::{TestKernel, TestMachine, TestStatsRef};
 
@@ -259,6 +259,7 @@ pub fn run_variant(
     mut check_correctness: bool,
     stats: TestStatsRef,
     trace: Option<TestTraceFun>,
+    capture_apply_ret_fn: Option<CaptureApplyRetFun>,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
@@ -293,6 +294,14 @@ pub fn run_variant(
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(engine, machine)?;
     let mut rets = Vec::new();
 
+    let capture_apply_ret_fn = if let Some(f) = capture_apply_ret_fn {
+        f
+    } else {
+        Box::new(move |_| {
+            return Ok(());
+        })
+    };
+
     // Apply all messages in the vector.
     for (i, m) in v.apply_messages.iter().enumerate() {
         let msg: Message = from_slice(&m.bytes)?;
@@ -309,6 +318,8 @@ pub fn run_variant(
             Ok(ret) => ret,
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
         };
+
+        capture_apply_ret_fn((i as i32, ret.clone()))?;
 
         if check_correctness {
             // Compare the actual receipt with the expected receipt.

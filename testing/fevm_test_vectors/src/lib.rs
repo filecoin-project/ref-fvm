@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
 
@@ -28,6 +30,7 @@ use fil_actors_runtime::{AsActorError, BURNT_FUNDS_ACTOR_ID, EAM_ACTOR_ID, REWAR
 use flate2::bufread::GzEncoder;
 use flate2::Compression;
 use fvm::engine::MultiEngine;
+use fvm::executor::ApplyRet;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_car::CarHeader;
 use fvm_ipld_encoding::{BytesDe, Cbor, CborStore, RawBytes, DAG_CBOR};
@@ -408,6 +411,7 @@ pub struct VariantTestResult {
     pub id: String,
     pub state: String,
     pub reason: String,
+    pub return_data: String,
 }
 
 pub fn consume_test_vector(
@@ -422,12 +426,30 @@ pub fn consume_test_vector(
     for variant in vector.preconditions.variants.iter() {
         let name = format!("{} | {}", name, variant.id);
 
+        let apply_results = Rc::new(RefCell::new(Vec::new()));
+        let apply_results_clone = apply_results.clone();
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
-        let testresult = run_variant(bs.clone(), vector, variant, engines, true, None, None)
-            .map_err(|e| {
-                anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
-            })?;
+        let testresult = run_variant(
+            bs.clone(),
+            vector,
+            variant,
+            engines,
+            true,
+            None,
+            None,
+            Some(Box::new(move |(_, apply_ret)| {
+                apply_results_clone.borrow_mut().push(apply_ret);
+                return Ok(());
+            })),
+        )
+        .map_err(|e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e))?;
+
+        let return_data = if let [apply_result] = apply_results.borrow().as_slice() {
+            hex::encode(apply_result.msg_receipt.return_data.bytes())
+        } else {
+            Default::default()
+        };
 
         let testresult = match testresult {
             VariantResult::Ok { id } => {
@@ -436,6 +458,7 @@ pub fn consume_test_vector(
                     id: name,
                     state: String::from("Ok"),
                     reason: Default::default(),
+                    return_data,
                 }
             }
             VariantResult::Skipped { reason, id } => {
@@ -445,6 +468,7 @@ pub fn consume_test_vector(
                     id: name,
                     state: String::from("Skipped"),
                     reason,
+                    return_data,
                 }
             }
             VariantResult::Failed { reason, id } => {
@@ -453,7 +477,8 @@ pub fn consume_test_vector(
                 VariantTestResult {
                     id: name,
                     state: String::from("Failed"),
-                    reason: format!("{:?}", reason),
+                    reason: format!("{:#}", reason),
+                    return_data,
                 }
             }
         };

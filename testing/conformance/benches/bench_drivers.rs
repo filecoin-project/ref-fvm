@@ -107,15 +107,23 @@ pub fn bench_vector_file(
         // if we broke the test, it's not a valid optimization :P
         let testresult = match check_strength {
             CheckStrength::FullTest => {
-                run_variant(bs.clone(), vector, variant, engines, true, None, None).map_err(
+                run_variant(bs.clone(), vector, variant, engines, true, None, None, None).map_err(
                     |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
                 )?
             }
-            CheckStrength::OnlyCheckSuccess => {
-                run_variant(bs.clone(), vector, variant, engines, false, None, None).map_err(
-                    |e| anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e),
-                )?
-            }
+            CheckStrength::OnlyCheckSuccess => run_variant(
+                bs.clone(),
+                vector,
+                variant,
+                engines,
+                false,
+                None,
+                None,
+                None,
+            )
+            .map_err(|e| {
+                anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
+            })?,
             CheckStrength::NoChecks => VariantResult::Ok {
                 id: variant.id.clone(),
             },

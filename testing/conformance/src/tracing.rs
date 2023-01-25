@@ -18,6 +18,8 @@ pub type TestTrace = (Duration, ApplyRet);
 /// from all messages in the tests, in the order of execution.
 pub type TestTraceFun = Box<dyn FnOnce(Vec<TestTrace>) -> IoResult<()>>;
 
+pub type CaptureApplyRetFun = Box<dyn Fn((i32, ApplyRet)) -> IoResult<()>>;
+
 /// Tombstone of a single message execution.
 #[derive(Serialize)]
 pub struct TestMessageTombstone {
