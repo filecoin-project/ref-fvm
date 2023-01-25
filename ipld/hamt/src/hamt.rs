@@ -362,6 +362,23 @@ where
         self.root.for_each(self.store.borrow(), &mut f)
     }
 
+    #[inline]
+    pub fn for_each_while<F>(&self, start_at: &[u8], limit: u64, mut f: F) -> Result<u64, Error>
+    where
+        V: DeserializeOwned,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+    {
+        // TODO: use start passed in from outside
+        self.root.for_each_while(
+            self.store.borrow(),
+            start_at,
+            &[],
+            limit,
+            &self.conf,
+            &mut f,
+        )
+    }
+
     /// Consumes this HAMT and returns the Blockstore it owns.
     pub fn into_store(self) -> BS {
         self.store

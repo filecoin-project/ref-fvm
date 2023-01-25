@@ -507,4 +507,95 @@ where
             Err(err) => Err(err),
         }
     }
+
+    // returns number of values traversed in the subtree
+    pub(crate) fn for_each_while<S, F>(
+        &self,
+        store: &S,
+        start_at: &[u8],
+        curr_path: &[u8],
+        limit: u64,
+        conf: &Config,
+        f: &mut F,
+    ) -> Result<u64, Error>
+    where
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+    {
+        assert_eq!(self.bitfield.count_ones(), self.pointers.len());
+
+        let mut values_traversed = 0;
+
+        for (i, p) in (0_u8..).zip(&self.pointers) {
+            if values_traversed >= limit {
+                return Ok(values_traversed);
+            }
+
+            let mut new_path = Vec::from(curr_path);
+            new_path.push(i);
+
+            match p {
+                Pointer::Link { cid, cache } => {
+                    if let Some(cached_node) = cache.get() {
+                        // TODO: fix params
+                        values_traversed += cached_node.for_each_while(
+                            store,
+                            start_at,
+                            &new_path,
+                            limit - values_traversed,
+                            conf,
+                            f,
+                        )?;
+                    } else {
+                        let node = if let Some(node) = store.get_cbor(cid)? {
+                            node
+                        } else {
+                            #[cfg(not(feature = "ignore-dead-links"))]
+                            return Err(Error::CidNotFound(cid.to_string()));
+
+                            #[cfg(feature = "ignore-dead-links")]
+                            continue;
+                        };
+
+                        // Ignore error intentionally, the cache value will always be the same
+                        let cache_node = cache.get_or_init(|| node);
+                        // TODO: fix params
+                        values_traversed += cache_node.for_each_while(
+                            store,
+                            start_at,
+                            &new_path,
+                            limit - values_traversed,
+                            conf,
+                            f,
+                        )?;
+                    }
+                }
+                Pointer::Dirty(node) => {
+                    // TODO: fix params
+                    values_traversed += node.for_each_while(
+                        store,
+                        start_at,
+                        &new_path,
+                        limit - values_traversed,
+                        conf,
+                        f,
+                    )?;
+                }
+                Pointer::Values(kvs) => {
+                    for kv in kvs {
+                        println!("new_path {:?}", new_path);
+
+                        f(kv.0.borrow(), kv.1.borrow())?;
+                        values_traversed += 1;
+
+                        // stop if over limit
+                        if values_traversed >= limit {
+                            return Ok(values_traversed);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(values_traversed)
+    }
 }
