@@ -40,10 +40,6 @@ impl Default for SimpleCoinWorld {
 
 crate::contract_matchers!(SimpleCoinWorld);
 
-/// Example:
-/// ```text
-/// When account 1 sends account 2 1000 coins
-/// ```
 #[when(expr = "{acct} sends {acct} {int} coin(s)")]
 fn send_coin(
     world: &mut SimpleCoinWorld,
@@ -60,10 +56,6 @@ fn send_coin(
         .expect("send_coin should succeed");
 }
 
-/// Example:
-/// ```text
-/// Then the balance of account 2 is 1000 coins
-/// ```
 #[then(expr = "the balance of {acct} is {int} coin(s)")]
 fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
     let (contract, contract_addr) = world.get_contract();
@@ -77,10 +69,6 @@ fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
     assert_eq!(balance, U256::from(coins))
 }
 
-/// Example:
-/// ```text
-/// a Transfer event of 4000 coins from account 1 to account 2 is emitted
-/// ```
 #[then(expr = "a Transfer event of {int} coins from {acct} to {acct} is emitted")]
 fn check_transfer_event(
     world: &mut SimpleCoinWorld,

@@ -28,7 +28,8 @@ Feature: SimpleCoin
         | 5e969c4ac2f287128d6fd71e7d111dbd19a5b2bea59da5d5d908044a514f5f8e |
         | 5e969c4ac2f287128d6fd71e7d111dbd19a5b2bea59da5d5d908044a514f5f8e |
       When account 1 creates a SimpleCoin contract
-      Then account 2 fails to create a SimpleCoin contract with 'Actor sequence invalid: 0 != 1'
+      And account 2 tries to create a SimpleCoin contract
+      Then the execution fails with message 'Actor sequence invalid: 0 != 1'
 
   Rule: Nonce increases
 
@@ -43,7 +44,8 @@ Feature: SimpleCoin
     Scenario: Deploying with the wrong nonce fails
       Given 1 random account
       When the seqno of account 1 is set to 2
-      Then account 1 fails to create a SimpleCoin contract with 'Actor sequence invalid: 2 != 0'
+      And account 1 tries to create a SimpleCoin contract
+      Then the execution fails with message 'Actor sequence invalid: 2 != 0'
 
   Rule: Sending coins
 

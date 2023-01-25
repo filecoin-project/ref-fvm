@@ -46,14 +46,6 @@ impl FromStr for Action {
     }
 }
 
-/// Example:
-/// ```text
-/// And account 1 calls recurse on contract 3 with max depth 3 and contract addresses:
-///   | addresses  |
-///   | contract 2 |
-///   | contract 1 |
-///   | contract 2 |
-/// ```
 #[when(expr = "{acct} calls recurse on {cntr} with max depth {int} and contract addresses:")]
 fn recurse(
     world: &mut RecursiveCallWorld,
@@ -116,13 +108,6 @@ fn recurse(
     assert!(success, "recurse should return success");
 }
 
-/// Example:
-/// ```text
-/// Then the state of depth and sender of the contracts are:
-///   | contract   | depth | sender    |
-///   | contract 2 | 1     | account 1 |
-///   | contract 1 | 0     |           |
-/// ```
 #[then(expr = "the state of depth and sender of the contracts are:")]
 fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
     if let Some(table) = step.table.as_ref() {

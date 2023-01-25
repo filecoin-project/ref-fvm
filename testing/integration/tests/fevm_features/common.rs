@@ -140,7 +140,7 @@ impl DeployedContract {
 }
 
 /// Error info returned in `ApplyRet`..
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecError {
     pub exit_code: ExitCode,
     pub failure_info: Option<ApplyFailure>,
@@ -157,6 +157,8 @@ pub struct ContractTester {
     pub contracts: Vec<DeployedContract>,
     /// Events emitted by the last contract invocation.
     pub last_events: Vec<StampedEvent>,
+    /// Any potential error with the last execution.
+    pub last_exec_error: Option<ExecError>,
 }
 
 impl std::fmt::Debug for ContractTester {
@@ -186,6 +188,7 @@ impl ContractTester {
             accounts: Vec::new(),
             contracts: Vec::new(),
             last_events: Vec::new(),
+            last_exec_error: None,
         }
     }
 
@@ -300,10 +303,14 @@ impl ContractTester {
         *self.account_mut(owner) = account;
 
         if !create_res.msg_receipt.exit_code.is_success() {
-            return Err(ExecError {
+            let err = ExecError {
                 exit_code: create_res.msg_receipt.exit_code,
                 failure_info: create_res.failure_info,
-            });
+            };
+            self.last_exec_error = Some(err.clone());
+            return Err(err);
+        } else {
+            self.last_exec_error = None;
         }
 
         let create_return: CreateReturn = create_res
@@ -396,10 +403,14 @@ impl ContractTester {
         }
 
         if !invoke_res.msg_receipt.exit_code.is_success() {
-            return Err(ExecError {
+            let err = ExecError {
                 exit_code: invoke_res.msg_receipt.exit_code,
                 failure_info: invoke_res.failure_info,
-            });
+            };
+            self.last_exec_error = Some(err.clone());
+            return Err(err);
+        } else {
+            self.last_exec_error = None;
         }
 
         let BytesDe(bytes) = invoke_res
@@ -481,10 +492,6 @@ impl ContractTester {
 #[macro_export]
 macro_rules! contract_matchers {
     ($world:ident) => {
-        /// Example:
-        /// ```text
-        /// Given 3 random accounts`
-        /// ```
         #[given(expr = "{int} random account(s)")]
         fn create_accounts(world: &mut $world, n: usize) {
             world.tester.create_accounts(n);
@@ -502,10 +509,6 @@ macro_rules! contract_matchers {
             world.tester.create_accounts_with_keys(step);
         }
 
-        /// Example:
-        /// ```text
-        /// When account 1 creates a SimpleCoin contract
-        /// ```
         #[when(expr = "{acct} creates a {word} contract")]
         fn create_contract(world: &mut $world, owner: AccountNumber, contract: String) {
             world
@@ -514,11 +517,7 @@ macro_rules! contract_matchers {
                 .expect("countract creation should succeed")
         }
 
-        /// Example:
-        /// ```text
-        /// When account 1 creates 5 RecursiveCall contract(s)
-        /// ```
-        #[when(expr = "{acct} creates {int} {word} contracts")]
+        #[when(expr = "{acct} creates {int} {word} contract(s)")]
         fn create_contracts(world: &mut $world, owner: AccountNumber, n: u32, contract: String) {
             for _ in 0..n {
                 world
@@ -528,21 +527,18 @@ macro_rules! contract_matchers {
             }
         }
 
-        /// Example:
-        /// ```text
-        /// Then account 1 fails to create a SimpleCoin contract with 'Actor sequence invalid: 2 != 0'
-        /// ```
-        #[then(expr = "{acct} fails to create a {word} contract with {string}")]
-        fn fail_create_contract(
-            world: &mut $world,
-            owner: AccountNumber,
-            contract: String,
-            message: String,
-        ) {
+        #[when(expr = "{acct} tries to create a {word} contract")]
+        fn try_create_contract(world: &mut $world, owner: AccountNumber, contract: String) {
+            let _ = world.tester.create_contract(owner, contract);
+        }
+
+        #[then(expr = "the execution fails with message {string}")]
+        fn check_last_exec_error(world: &mut $world, message: String) {
             let err = world
                 .tester
-                .create_contract(owner, contract)
-                .expect_err("contract creation should fail");
+                .last_exec_error
+                .as_ref()
+                .expect("last exec should have failed");
 
             assert!(
                 format!("{err:?}").contains(&message),
@@ -550,10 +546,6 @@ macro_rules! contract_matchers {
             )
         }
 
-        /// Example:
-        /// ```text
-        /// When the seqno of account 1 is set to 2
-        /// ```
         #[when(expr = "the seqno of {acct} is set to {int}")]
         fn set_seqno(world: &mut $world, acct: AccountNumber, seqno: u64) {
             // NOTE: If we called `Tester::set_account_sequence` as well then they would
@@ -561,10 +553,6 @@ macro_rules! contract_matchers {
             world.tester.account_mut(acct).seqno = seqno;
         }
 
-        /// Example:
-        /// ```text
-        /// Then the seqno of account 1 is 4
-        /// ```
         #[then(expr = "the seqno of {acct} is {int}")]
         fn check_seqno(world: &mut $world, acct: AccountNumber, seqno: u64) {
             assert_eq!(world.tester.account_mut(acct).seqno, seqno)

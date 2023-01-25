@@ -8,7 +8,8 @@ Feature: SelfDestruct
   Scenario: SELFDESTRUCT on contract creation, sending funds to self => fails
     Given 1 random account
     When the beneficiary is 0x0000000000000000000000000000000000000000
-    Then account 1 fails to create a SelfDestructOnCreate contract with 'Huh?'
+    And account 1 tries to create a SelfDestructOnCreate contract
+    Then the execution fails with message 'Huh?'
 
 
   Scenario: SELFDESTRUCT on contract creation, sending funds to an f410 EthAccount that doesn’t exist => succeeds
