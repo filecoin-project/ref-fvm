@@ -37,24 +37,22 @@ mod bundles;
 /// Used once to load contracts from files.
 macro_rules! contract_sources {
     ($($sol:literal / $contract:literal),+) => {
-        [ $(($contract, include_str!(concat!("evm/artifacts/", $sol, ".sol/", $contract, ".hex")))),+ ]
+        [ $((($sol, $contract), include_str!(concat!("evm/artifacts/", $sol, ".sol/", $contract, ".hex")))),+ ]
     };
 }
 
 lazy_static! {
     /// Pre-loaded contract code bytecode in hexadecimal format.
-    ///
-    /// Assumes all the contract names are unique across all files!
-    static ref CONTRACTS: BTreeMap<&'static str, Vec<u8>> = contract_sources! {
+    static ref CONTRACTS: BTreeMap<(&'static str, &'static str), Vec<u8>> = contract_sources! {
                 "SimpleCoin" / "SimpleCoin",
                 "RecursiveCall" / "RecursiveCall",
                 "BankAccount" / "Bank",
                 "BankAccount" / "Account"
     }
     .into_iter()
-    .map(|(name, code)| {
-        let bz = hex::decode(&code.trim_end()).expect(&format!("error parsing {name}")).into();
-        (name, bz)
+    .map(|((sol, contract), code)| {
+        let bz = hex::decode(&code.trim_end()).expect(&format!("error parsing {sol}/{contract}")).into();
+        ((sol, contract), bz)
     })
     .collect();
 }
@@ -72,10 +70,10 @@ async fn main() {
 }
 
 /// Get a contract from the pre-loaded sources.
-pub fn get_contract_code(name: &str) -> &[u8] {
+pub fn get_contract_code<'a>(sol_name: &'static str, contract_name: &'a str) -> &'a [u8] {
     CONTRACTS
-        .get(name)
-        .ok_or_else(|| format!("contract {name} hasn't been loaded"))
+        .get(&(sol_name, contract_name))
+        .ok_or_else(|| format!("contract {sol_name}/{contract_name} hasn't been loaded"))
         .unwrap()
 }
 
@@ -168,6 +166,8 @@ pub struct ExecError {
 /// Common machinery for all worlds to created and call contracts.
 pub struct ContractTester {
     tester: BasicTester,
+    /// Name of the solidity file we are adding contracts from.
+    sol_name: &'static str,
     /// Accounts created by the tester.
     accounts: Vec<Account>,
     /// Contracts created by the tester; `(owner, contract_address)`.
@@ -176,22 +176,22 @@ pub struct ContractTester {
     last_events: Vec<StampedEvent>,
 }
 
-impl Default for ContractTester {
-    fn default() -> Self {
-        Self::new(NetworkVersion::V18, StateTreeVersion::V5)
-    }
-}
-
 impl std::fmt::Debug for ContractTester {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ContractTester")
             .field("accounts", &self.accounts)
+            .field("contracts", &self.contracts)
+            .field("last_events", &self.last_events)
             .finish()
     }
 }
 
 impl ContractTester {
-    pub fn new(nv: NetworkVersion, stv: StateTreeVersion) -> Self {
+    pub fn new_with_default_versions(sol_name: &'static str) -> Self {
+        Self::new(NetworkVersion::V18, StateTreeVersion::V5, sol_name)
+    }
+
+    pub fn new(nv: NetworkVersion, stv: StateTreeVersion, sol_name: &'static str) -> Self {
         let blockstore = MemoryBlockstore::default();
         let tester = match bundles::new_tester(nv, stv, blockstore) {
             Ok(t) => t,
@@ -199,6 +199,7 @@ impl ContractTester {
         };
         Self {
             tester,
+            sol_name,
             accounts: Vec::new(),
             contracts: Vec::new(),
             last_events: Vec::new(),
@@ -308,7 +309,7 @@ impl ContractTester {
         // Need to clone because I have to pass 2 mutable references to `fevm::create_contract`.
         let mut account = self.account_mut(owner).clone();
         let creator = account.account;
-        let contract = get_contract_code(&contract_name);
+        let contract = get_contract_code(self.sol_name, &contract_name);
 
         let create_res =
             fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, contract);
@@ -648,7 +649,7 @@ mod simple_coin_world {
 
     // `World` is your shared, likely mutable state.
     // Cucumber constructs it via `Default::default()` for each scenario.
-    #[derive(World, Default, Debug)]
+    #[derive(World, Debug)]
     pub struct SimpleCoinWorld {
         pub tester: ContractTester,
     }
@@ -665,6 +666,14 @@ mod simple_coin_world {
             self.tester.parse_events(contract_addr, |topics, data| {
                 contract.decode_event("Transfer", topics, data)
             })
+        }
+    }
+
+    impl Default for SimpleCoinWorld {
+        fn default() -> Self {
+            Self {
+                tester: ContractTester::new_with_default_versions("SimpleCoin"),
+            }
         }
     }
 
@@ -739,9 +748,17 @@ mod recursive_call_world {
 
     contract_constructors!(RecursiveCall);
 
-    #[derive(World, Default, Debug)]
+    #[derive(World, Debug)]
     pub struct RecursiveCallWorld {
         pub tester: ContractTester,
+    }
+
+    impl Default for RecursiveCallWorld {
+        fn default() -> Self {
+            Self {
+                tester: ContractTester::new_with_default_versions("RecursiveCall"),
+            }
+        }
     }
 
     contract_matchers!(RecursiveCallWorld);
@@ -914,10 +931,19 @@ mod bank_account {
         contract_constructors!(Account);
     }
 
-    #[derive(World, Default, Debug)]
+    #[derive(World, Debug)]
     pub struct BankAccountWorld {
         pub tester: ContractTester,
         pub bank_accounts: Vec<H160>,
+    }
+
+    impl Default for BankAccountWorld {
+        fn default() -> Self {
+            Self {
+                tester: ContractTester::new_with_default_versions("BankAccount"),
+                bank_accounts: Vec::new(),
+            }
+        }
     }
 
     contract_matchers!(BankAccountWorld);
