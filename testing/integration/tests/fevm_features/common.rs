@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use cucumber::gherkin::Step;
 use cucumber::Parameter;
-use ethers::abi::Detokenize;
+use ethers::abi::{Detokenize, Tokenize};
 use ethers::prelude::builders::ContractCall;
 use ethers::prelude::{decode_function_data, AbiError};
 use ethers::types::{Bytes, H160, H256};
@@ -159,6 +159,9 @@ pub struct ContractTester {
     pub last_events: Vec<StampedEvent>,
     /// Any potential error with the last execution.
     pub last_exec_error: Option<ExecError>,
+    /// Any constructor arguments we want to use with the next contract creation,
+    /// after which it is cleared. It is expected to be in ABI encoded format.
+    pub next_constructor_args: Option<Vec<u8>>,
 }
 
 impl std::fmt::Debug for ContractTester {
@@ -189,6 +192,7 @@ impl ContractTester {
             contracts: Vec::new(),
             last_events: Vec::new(),
             last_exec_error: None,
+            next_constructor_args: None,
         }
     }
 
@@ -284,6 +288,14 @@ impl ContractTester {
         id_to_h160(self.account_id(acct))
     }
 
+    /// ABI encode some constructor arguments for the next contract creation.
+    ///
+    /// When they have multiple arguments, pass them as a tuple.
+    pub fn set_next_constructor_args<T: Tokenize>(&mut self, args: T) {
+        let bytes = ethers::abi::encode(&args.into_tokens());
+        self.next_constructor_args = Some(bytes);
+    }
+
     /// Deploy a contract owned by an account.
     pub fn create_contract(
         &mut self,
@@ -297,8 +309,12 @@ impl ContractTester {
         let creator = account.account;
         let contract = get_contract_code(self.sol_name, &contract_name);
 
-        let create_res =
-            fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, contract);
+        let create_res = if let Some(args) = self.next_constructor_args.take() {
+            let initcode = [contract, &args].concat();
+            fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, &initcode)
+        } else {
+            fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, contract)
+        };
 
         *self.account_mut(owner) = account;
 

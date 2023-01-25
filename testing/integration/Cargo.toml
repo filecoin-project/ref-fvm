@@ -64,7 +64,7 @@ actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/
 
 
 cucumber = "0.19"
-ethers = { version = "1.0" }
+ethers = "1.0"
 tokio = { version = "1.24", features = ["rt-multi-thread", "macros"] }
 
 

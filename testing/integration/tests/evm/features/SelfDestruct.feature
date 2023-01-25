@@ -7,7 +7,7 @@ Feature: SelfDestruct
 
   Scenario: SELFDESTRUCT on contract creation, sending funds to self => fails
     Given 1 random account
-    When the beneficiary is 0x0000000000000000000000000000000000000000
+    When the beneficiary is self
     And account 1 tries to create a SelfDestructOnCreate contract
     Then the execution fails with message 'Huh?'
 
