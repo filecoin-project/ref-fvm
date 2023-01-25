@@ -904,12 +904,12 @@ mod bank_account {
     use crate::{AccountNumber, ContractTester, DEFAULT_GAS};
 
     mod bank {
-        use evm_contracts::bank::Bank;
+        use evm_contracts::bank_account::Bank;
 
         contract_constructors!(Bank);
     }
     mod account {
-        use evm_contracts::account::Account;
+        use evm_contracts::bank_account::Account;
 
         contract_constructors!(Account);
     }

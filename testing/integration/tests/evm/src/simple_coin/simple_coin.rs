@@ -1,5 +1,3 @@
-// Copyright 2021-2023 Protocol Labs
-// SPDX-License-Identifier: Apache-2.0, MIT
 pub use simple_coin::*;
 #[allow(clippy::too_many_arguments, non_camel_case_types)]
 pub mod simple_coin {

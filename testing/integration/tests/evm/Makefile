@@ -19,6 +19,13 @@ $(ARTIFACTS_DIR)/%.sol: $(CONTRACTS_DIR)/%.sol | solc
 	solc --bin --abi --overwrite $< -o $@
 	for f in $@/*.bin; do echo $$f; mv $$f $@/$$(basename $$f .bin).hex; done
 
+# Remove artifacts then run the build.
+.PHONY: compile-contracts
+force-regen:
+	rm -rf artifacts cache
+	touch build.rs
+	cargo build --release
+
 # Requirements checks.
 
 .PHONY: solc

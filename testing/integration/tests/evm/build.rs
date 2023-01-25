@@ -45,10 +45,11 @@ fn main() {
     // NOTE: Only running on what changed. If something changes here, either delete the artifacts first to force regeneration,
     // or change the contract source, or change this line to include cached artifacts. The benefit of only working
     // on changed artifacts is that it's faster and also that it won't do anything on CI, so it shouldn't need `solc`.
-    for (contract_path, artifacts) in output.compiled_artifacts() {
+    for (sol_path, artifacts) in output.compiled_artifacts() {
         // There will be a separate artifact for each contract in the Solidity file.
-        let contract_path = PathBuf::from(contract_path);
-        let artifacts_dir = artifacts_dir.join(contract_path.file_name().unwrap());
+        let sol_path = PathBuf::from(sol_path);
+        let sol_name = sol_path.file_stem().unwrap().to_string_lossy();
+        let artifacts_dir = artifacts_dir.join(sol_path.file_name().unwrap());
 
         for (contract_name, artifacts) in artifacts {
             assert_eq!(1, artifacts.len());
@@ -72,7 +73,7 @@ fn main() {
 
             let abi_path = mk_path("abi");
             export_json(&abi_path, abi);
-            generate_facade(&abi_path, contract_name);
+            generate_facade(&abi_path, sol_name.as_ref(), contract_name);
         }
     }
 
@@ -107,12 +108,22 @@ fn export_str(path: &PathBuf, line: &str) {
 ///
 /// Instead of that, we can actually generate all the Rust code and check it into git,
 /// which makes it easier to see what's going on and works better in the editor as well.
-fn generate_facade(abi_path: &PathBuf, contract_name: &str) {
+fn generate_facade(abi_path: &PathBuf, sol_name: &str, contract_name: &str) {
+    let file_path = PathBuf::from(format!(
+        "./src/{}/{}.rs",
+        camel_to_snake(sol_name),
+        camel_to_snake(contract_name)
+    ));
+
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).expect("failed to create parent directories");
+    }
+
     ethers::prelude::Abigen::new(contract_name, abi_path.to_string_lossy())
         .unwrap()
         .generate()
         .unwrap()
-        .write_to_file(format!("./src/{}.rs", camel_to_snake(contract_name)))
+        .write_to_file(file_path)
         .unwrap();
 }
 
