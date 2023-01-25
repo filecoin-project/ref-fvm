@@ -1,10 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-//! Cucumber tests for FEVM integration test scenarios.
-//!
-//! See https://cucumber-rs.github.io/cucumber/current/quickstart.html
 
-use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -26,38 +22,12 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
-use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
 
-pub mod bank_account;
-pub mod recursive_call;
-pub mod simple_coin;
+use crate::CONTRACTS;
 
 mod bundles {
     include!("../bundles/mod.rs");
-}
-
-/// Used once to load contracts from files.
-macro_rules! contract_sources {
-    ($($sol:literal / $contract:literal),+) => {
-        [ $((($sol, $contract), include_str!(concat!("../evm/artifacts/", $sol, ".sol/", $contract, ".hex")))),+ ]
-    };
-}
-
-lazy_static! {
-    /// Pre-loaded contract code bytecode in hexadecimal format.
-    static ref CONTRACTS: BTreeMap<(&'static str, &'static str), Vec<u8>> = contract_sources! {
-                "SimpleCoin" / "SimpleCoin",
-                "RecursiveCall" / "RecursiveCall",
-                "BankAccount" / "Bank",
-                "BankAccount" / "Account"
-    }
-    .into_iter()
-    .map(|((sol, contract), code)| {
-        let bz = hex::decode(&code.trim_end()).expect(&format!("error parsing {sol}/{contract}")).into();
-        ((sol, contract), bz)
-    })
-    .collect();
 }
 
 /// Get a contract from the pre-loaded sources.
@@ -130,12 +100,12 @@ impl Display for ContractNumber {
 pub struct DeployedContract {
     /// Name would be useful if we had multiple contracts in the same solidity file
     /// and wanted to check what contract was deployed at a certain slot.
-    _name: String,
-    owner: TestAccount,
+    pub _name: String,
+    pub owner: TestAccount,
     /// The ActorID address.
-    address: Address,
+    pub address: Address,
     /// The ethereum address from `CreateReturn`, produced by the EAM actor.
-    eth_address: EthAddress,
+    pub eth_address: EthAddress,
 }
 
 impl DeployedContract {
@@ -156,15 +126,15 @@ pub struct ExecError {
 
 /// Common machinery for all worlds to created and call contracts.
 pub struct ContractTester {
-    tester: BasicTester,
+    pub tester: BasicTester,
     /// Name of the solidity file we are adding contracts from.
-    sol_name: &'static str,
+    pub sol_name: &'static str,
     /// Accounts created by the tester.
-    accounts: Vec<Account>,
+    pub accounts: Vec<Account>,
     /// Contracts created by the tester; `(owner, contract_address)`.
-    contracts: Vec<DeployedContract>,
+    pub contracts: Vec<DeployedContract>,
     /// Events emitted by the last contract invocation.
-    last_events: Vec<StampedEvent>,
+    pub last_events: Vec<StampedEvent>,
 }
 
 impl std::fmt::Debug for ContractTester {
@@ -484,7 +454,7 @@ impl ContractTester {
 /// ```ignore
 /// use cucumber::gherkin::Step;
 /// use cucumber::{given, then, when, World};
-/// use crate::fevm_features::AccountNumber;
+/// use crate::common::AccountNumber;
 /// ```
 #[macro_export]
 macro_rules! contract_matchers {
@@ -609,7 +579,7 @@ macro_rules! contract_constructors {
         #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_eth_addr(
             owner: fvm_integration_tests::fevm::EthAddress,
-        ) -> $contract<$crate::fevm_features::MockProvider> {
+        ) -> $contract<$crate::common::MockProvider> {
             // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
             let address = ethers::core::types::Address::from_slice(&owner.0);
             // A dummy client that we don't intend to use to call the contract or send transactions.
@@ -620,7 +590,7 @@ macro_rules! contract_constructors {
         #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_actor_id(
             owner: fvm_shared::ActorID,
-        ) -> $contract<$crate::fevm_features::MockProvider> {
+        ) -> $contract<$crate::common::MockProvider> {
             let owner = fvm_integration_tests::fevm::EthAddress::from_id(owner);
             new_with_eth_addr(owner)
         }

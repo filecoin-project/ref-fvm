@@ -6,7 +6,7 @@ use cucumber::{given, then, when, World};
 use ethers::types::H160;
 use evm_contracts::recursive_call::RecursiveCall;
 
-use crate::fevm_features::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+use crate::common::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
 
 crate::contract_constructors!(RecursiveCall);
 

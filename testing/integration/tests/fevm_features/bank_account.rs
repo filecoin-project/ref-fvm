@@ -4,7 +4,7 @@ use ethers::types::H160;
 use fvm_integration_tests::fevm::{EthAddress, EAM_ACTOR_ID};
 use fvm_shared::address::Address;
 
-use crate::fevm_features::{AccountNumber, ContractTester, DEFAULT_GAS};
+use crate::common::{AccountNumber, ContractTester, DEFAULT_GAS};
 
 mod bank {
     use evm_contracts::bank_account::Bank;

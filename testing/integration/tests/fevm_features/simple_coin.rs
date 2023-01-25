@@ -4,7 +4,7 @@ use ethers::types::U256;
 use evm_contracts::simple_coin::{SimpleCoin, TransferFilter};
 use fvm_shared::address::Address;
 
-use crate::fevm_features::{AccountNumber, ContractTester, MockProvider, DEFAULT_GAS};
+use crate::common::{AccountNumber, ContractTester, MockProvider, DEFAULT_GAS};
 
 crate::contract_constructors!(SimpleCoin);
 
