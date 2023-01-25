@@ -78,6 +78,38 @@
         }
       }
     },
+    "contracts/SelfDestruct.sol": {
+      "lastModificationDate": 1674645887826,
+      "contentHash": "583f973fdd749cb06fa2f20b00009d89",
+      "sourceName": "contracts/SelfDestruct.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "SelfDestructOnCreate": {
+          "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/SelfDestructOnCreate.json"
+        }
+      }
+    },
     "contracts/SimpleCoin.sol": {
       "lastModificationDate": 1674125603609,
       "contentHash": "58aca481d2d1bc8153222e2af627229e",
