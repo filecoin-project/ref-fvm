@@ -303,6 +303,14 @@ where
     ) -> Result<()> {
         let start = GasTimer::start();
 
+        if self.machine.builtin_actors().is_placeholder_actor(&code_id) {
+            return Err(syscall_error!(
+                Forbidden,
+                "cannot explicitly construct a placeholder actor"
+            )
+            .into());
+        }
+
         // Check to make sure the actor doesn't exist, or is a placeholder.
         let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
             // Replace the placeholder
