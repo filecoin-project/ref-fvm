@@ -1,4 +1,3 @@
-@wip
 Feature: BankAccount
 
   Scenario: Open bank account

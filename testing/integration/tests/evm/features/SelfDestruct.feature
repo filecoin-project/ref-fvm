@@ -1,3 +1,4 @@
+@wip
 Feature: SelfDestruct
 
   # Some of these are impossible to test today because we don’t dispatch to smart contract logic on send.

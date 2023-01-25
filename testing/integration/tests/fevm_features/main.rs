@@ -6,7 +6,8 @@
 //!
 //! Example:
 //! ```text
-//! cargo test --release --test fevm
+//! cargo test --release --test fevm_features
+//! cargo test --release --test fevm_features -- -t @wip
 //! ```
 
 use std::collections::BTreeMap;
@@ -14,13 +15,16 @@ use std::collections::BTreeMap;
 use cucumber::World;
 use lazy_static::lazy_static;
 
-pub mod bank_account;
-pub mod common;
-pub mod recursive_call;
-pub mod simple_coin;
+mod common;
+
+mod bank_account;
+mod recursive_call;
+mod self_destruct;
+mod simple_coin;
 
 use bank_account::BankAccountWorld;
 use recursive_call::RecursiveCallWorld;
+use self_destruct::SelfDestructWorld;
 use simple_coin::SimpleCoinWorld;
 
 /// Used once to load contracts from files.
@@ -36,7 +40,8 @@ lazy_static! {
                 "SimpleCoin" / "SimpleCoin",
                 "RecursiveCall" / "RecursiveCall",
                 "BankAccount" / "Bank",
-                "BankAccount" / "Account"
+                "BankAccount" / "Account",
+                "SelfDestruct" / "SelfDestructOnCreate"
     }
     .into_iter()
     .map(|((sol, contract), code)| {
@@ -56,4 +61,5 @@ async fn main() {
     SimpleCoinWorld::run("tests/evm/features/SimpleCoin.feature").await;
     RecursiveCallWorld::run("tests/evm/features/RecursiveCall.feature").await;
     BankAccountWorld::run("tests/evm/features/BankAccount.feature").await;
+    SelfDestructWorld::run("tests/evm/features/SelfDestruct.feature").await;
 }
