@@ -534,6 +534,36 @@ where
             let mut new_path = Vec::from(curr_path);
             new_path.push(i);
 
+            // if new_path is larger at any point, don't skip
+            let mut skip = None;
+            for (new, gate) in new_path.iter().zip(start_at.iter()) {
+                match new.cmp(gate) {
+                    std::cmp::Ordering::Less => {
+                        // if new_path is smaller at any point, skip
+                        skip = Some(true);
+                        break;
+                    }
+                    std::cmp::Ordering::Equal => {}
+                    std::cmp::Ordering::Greater => {
+                        // if new_path is greater at any point, definitely explore
+                        skip = Some(false);
+                        break;
+                    }
+                }
+            }
+
+            match skip {
+                // told to skip
+                Some(true) => {
+                    println!("Skipping {:?}", new_path);
+                    continue;
+                }
+                // told to not skip
+                Some(false) => {}
+                // matches so far, we are along the parent path so keep exploring
+                None => {}
+            }
+
             match p {
                 Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
@@ -582,11 +612,12 @@ where
                     )?;
                 }
                 Pointer::Values(kvs) => {
+                    let mut val_count = 0;
                     for kv in kvs {
-                        println!("new_path {:?}", new_path);
-
                         f(kv.0.borrow(), kv.1.borrow())?;
                         values_traversed += 1;
+                        println!("new_path {:?}: {}", new_path, val_count);
+                        val_count += 1;
 
                         // stop if over limit
                         if values_traversed >= limit {

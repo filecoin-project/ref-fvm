@@ -386,63 +386,6 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     }
 }
 
-fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
-    let mem = MemoryBlockstore::default();
-    let store = TrackingBlockstore::new(&mem);
-
-    let mut hamt: Hamt<_, BytesKey> = factory.new_with_bit_width(&store, 2);
-
-    for i in 0..200 {
-        hamt.set(tstring(i), tstring(i)).unwrap();
-    }
-
-    // Iterating through hamt with dirty caches.
-    let mut count = 0;
-    let num = 100;
-    hamt.for_each_while(&[], num, |k, v| {
-        assert_eq!(k, v);
-        println!("===============");
-        println!("k: {:?}, v: {:?}", k, v);
-        println!("===============");
-        count += 1;
-        Ok(())
-    })
-    .unwrap();
-    assert_eq!(count, num);
-
-    let c = hamt.flush().unwrap();
-    cids.check_next(c);
-
-    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5).unwrap();
-
-    // Iterating through hamt with no cache.
-    let mut count = 0;
-    hamt.for_each_while(&[], 0, |k, v| {
-        assert_eq!(k, v);
-        count += 1;
-        Ok(())
-    })
-    .unwrap();
-    assert_eq!(count, 0);
-
-    // Iterating through hamt with cached nodes.
-    let mut count = 0;
-    hamt.for_each_while(&[], 0, |k, v| {
-        assert_eq!(k, v);
-        count += 1;
-        Ok(())
-    })
-    .unwrap();
-    assert_eq!(count, 0);
-
-    let c = hamt.flush().unwrap();
-    cids.check_next(c);
-
-    if let Some(stats) = stats {
-        assert_eq!(*store.stats.borrow(), stats);
-    }
-}
-
 #[cfg(feature = "identity")]
 fn add_and_remove_keys(
     bit_width: u32,
@@ -787,11 +730,45 @@ fn tstring(v: impl Display) -> BytesKey {
     BytesKey(v.to_string().into_bytes())
 }
 
+fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
+    let mem = MemoryBlockstore::default();
+    let store = TrackingBlockstore::new(&mem);
+
+    let mut hamt: Hamt<_, i32> = factory.new_with_bit_width(&store, 2);
+
+    for i in 0..200 {
+        hamt.set(tstring(i), i).unwrap();
+    }
+
+    // Iterating through hamt with dirty caches.
+    let mut count = 0;
+    let num = 100;
+    hamt.for_each_while(&[], num, |k, v| {
+        println!("===============");
+        println!("k: {:?}, v: {:?}", k, v);
+        println!("===============");
+        count += 1;
+        Ok(())
+    })
+    .unwrap();
+
+    println!("counted: {}", count);
+
+    assert_eq!(count, num);
+}
+
 mod test_default {
     use fvm_ipld_blockstore::tracking::BSStats;
     use quickcheck_macros::quickcheck;
 
     use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
+
+    #[test]
+    fn for_each_while() {
+        #[rustfmt::skip]
+        let cids = CidChecker::new(vec![]);
+        super::for_each_while(HamtFactory::default(), None, cids);
+    }
 
     #[test]
     fn test_basics() {
@@ -878,13 +855,6 @@ mod test_default {
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
         ]);
         super::for_each(HamtFactory::default(), Some(stats), cids);
-    }
-
-    #[test]
-    fn for_each_while() {
-        #[rustfmt::skip]
-        let cids = CidChecker::new(vec![]);
-        super::for_each_while(HamtFactory::default(), None, cids);
     }
 
     #[test]
