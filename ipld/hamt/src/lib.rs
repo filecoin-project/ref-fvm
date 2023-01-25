@@ -17,6 +17,7 @@ mod hash;
 mod hash_algorithm;
 mod hash_bits;
 mod node;
+mod path;
 mod pointer;
 
 pub use forest_hash_utils::{BytesKey, Hash};
@@ -26,6 +27,7 @@ pub use self::error::Error;
 pub use self::hamt::Hamt;
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
+pub use self::path::Path;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;

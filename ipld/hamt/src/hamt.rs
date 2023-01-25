@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
 use crate::node::Node;
+use crate::path::Path;
 use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
 
 /// Implementation of the HAMT data structure for IPLD.
@@ -360,6 +361,26 @@ where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
+    }
+
+    #[inline]
+    pub fn for_each_while<F>(
+        &self,
+        start_at: &Path,
+        limit: u64,
+        mut f: F,
+    ) -> Result<(u64, Path), Error>
+    where
+        V: DeserializeOwned,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+    {
+        self.root.for_each_while(
+            self.store.borrow(),
+            start_at,
+            Path::default(),
+            limit,
+            &mut f,
+        )
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.

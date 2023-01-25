@@ -2,8 +2,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
+use std::vec;
 
 use cid::Cid;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
@@ -13,7 +15,7 @@ use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
+use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash, Path};
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
@@ -377,6 +379,54 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     })
     .unwrap();
     assert_eq!(count, 200);
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(c);
+
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
+}
+
+fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
+    let mem = MemoryBlockstore::default();
+    let store = TrackingBlockstore::new(&mem);
+
+    let mut hamt: Hamt<_, u64> = factory.new_with_bit_width(&store, 2);
+
+    const N_VALUES: u64 = 200;
+    for i in 0..N_VALUES {
+        hamt.set(tstring(i), i).unwrap();
+    }
+
+    for target_num in 0..N_VALUES {
+        let mut results = HashSet::new();
+
+        // add the first `target_num` values
+        let (num_traversed, next_range_start) = hamt
+            .for_each_while(&Path::default(), target_num, |_k, v| {
+                results.insert(*v);
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(num_traversed, target_num);
+        assert_eq!(results.len(), target_num as usize);
+
+        // add the next `target_num` values
+        let (num_traversed, _) = hamt
+            .for_each_while(&next_range_start, target_num, |_k, v| {
+                results.insert(*v);
+                Ok(())
+            })
+            .unwrap();
+
+        // num_traversed the second time should be the number of values left or the requested number
+        // of values, whichever is smaller
+        assert_eq!(num_traversed, min(N_VALUES - target_num, target_num));
+        // the total number of values traversed should be the number of values requested * 2 or the
+        // total number of values, whichever is smaller
+        assert_eq!(results.len(), min(N_VALUES, target_num * 2) as usize);
+    }
 
     let c = hamt.flush().unwrap();
     cids.check_next(c);
@@ -821,6 +871,16 @@ mod test_default {
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
         ]);
         super::for_each(HamtFactory::default(), Some(stats), cids);
+    }
+
+    #[test]
+    fn for_each_while() {
+        #[rustfmt::skip]
+        let stats = BSStats {r: 0, w: 47, br: 0, bw: 3545};
+        let cids = CidChecker::new(vec![
+            "bafy2bzacedj2tu3hkyta6yju4rwxw5w5emwcjfhtkwrlutz3myypjpu7qg4bu",
+        ]);
+        super::for_each_while(HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
