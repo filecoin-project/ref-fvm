@@ -95,6 +95,28 @@ impl Display for ContractNumber {
     }
 }
 
+/// Hexadecimal bytes.
+#[derive(Parameter, Debug, Clone)]
+#[param(name = "hex", regex = r"0x([a-fA-F0-9]{2})+")]
+pub struct Hex(pub Vec<u8>);
+
+impl FromStr for Hex {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match hex::decode(s.strip_prefix("0x").unwrap_or(s)) {
+            Ok(bs) => Ok(Self(bs)),
+            Err(e) => Err(format!("not hex bytes: {s}; {e}")),
+        }
+    }
+}
+
+impl Display for Hex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(&self.0))
+    }
+}
+
 /// Remember what contract was deployed.
 #[derive(Debug, Clone)]
 pub struct DeployedContract {
@@ -521,7 +543,11 @@ macro_rules! contract_matchers {
                 .tester
                 .create_contract(owner, contract)
                 .expect_err("contract creation should fail");
-            assert!(format!("{err:?}").contains(&message))
+
+            assert!(
+                format!("{err:?}").contains(&message),
+                "expected {message}, got {err:?}"
+            )
         }
 
         /// Example:
