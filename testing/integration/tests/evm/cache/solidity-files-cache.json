@@ -79,8 +79,8 @@
       }
     },
     "contracts/SelfDestruct.sol": {
-      "lastModificationDate": 1674652461268,
-      "contentHash": "25437e2bd95ec2295e8c29a6aa3aaaed",
+      "lastModificationDate": 1674678315144,
+      "contentHash": "b7063ea4ba2e7d535f2d57608444836a",
       "sourceName": "contracts/SelfDestruct.sol",
       "solcConfig": {
         "settings": {
