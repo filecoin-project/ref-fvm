@@ -1,6 +1,6 @@
 # EVM Contracts
 
-This crate contains test [contracts](./contracts/) used for integration testing the FEVM in [fevm.rs](../fevm.rs).
+This crate contains test [contracts](./contracts/) used for integration testing the FEVM in [fevm_features](../fevm_features).
 When the project is compiled, the generated ABI and bytecode are written to the [artifacts](./artifacts/) directory.
 The library generates ABI bindings as well, which can be imported into the tests.
 
@@ -10,4 +10,4 @@ should be fairly light on code.
 
 After adding new contracts, the generated modules must be added to `lib.rs` manually (although this could be part of `build.rs`).
 
-Tip: If it looks like a contract is not being picked up by `build.rs`, try `make all` to see if there's anything wrong with the Solidity compilation.
+_Tip_: If it looks like a contract is not being picked up by `build.rs`, try `make all` to see if there's anything wrong with the Solidity compilation.

@@ -11,8 +11,10 @@ use ethers::prelude::builders::ContractCall;
 use ethers::prelude::{decode_function_data, AbiError};
 use ethers::types::{Bytes, H160, H256};
 use fvm::executor::ApplyFailure;
+use fvm::machine::Machine;
+use fvm::state_tree::ActorState;
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn, EthAddress};
+use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn, EthAddress, EAM_ACTOR_ID};
 use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALANCE};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
@@ -22,6 +24,7 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
+use lazy_static::__Deref;
 use libsecp256k1::SecretKey;
 
 use crate::CONTRACTS;
@@ -288,6 +291,26 @@ impl ContractTester {
         id_to_h160(self.account_id(acct))
     }
 
+    /// Get the state of an actor, if it exists.
+    pub fn actor_state(&mut self, addr: Address) -> Option<ActorState> {
+        self.ensure_machine_instantiated();
+        let executor = self.tester.executor.as_ref().expect("machine instantiated");
+        let machine = executor.deref();
+        let state_tree = machine.state_tree();
+
+        state_tree
+            .get_actor_by_address(&addr)
+            .expect("actor lookup should succeed")
+    }
+
+    /// An f410 account is one managed by the EAM actor.
+    pub fn f410_account_state(&mut self, account: &Hex) -> Option<ActorState> {
+        let addr = Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &account.0)
+            .expect("delegated address");
+
+        self.actor_state(addr)
+    }
+
     /// ABI encode some constructor arguments for the next contract creation.
     ///
     /// When they have multiple arguments, pass them as a tuple.
@@ -503,7 +526,7 @@ impl ContractTester {
 /// ```ignore
 /// use cucumber::gherkin::Step;
 /// use cucumber::{given, then, when, World};
-/// use crate::common::AccountNumber;
+/// use crate::common::*;
 /// ```
 #[macro_export]
 macro_rules! contract_matchers {
@@ -523,6 +546,17 @@ macro_rules! contract_matchers {
         #[given(expr = "accounts with private keys")]
         fn create_accounts_with_keys(world: &mut $world, step: &Step) {
             world.tester.create_accounts_with_keys(step);
+        }
+
+        #[given(expr = "a non-existing f410 account {hex}")]
+        #[then(expr = "an f410 account {hex} does not exist")]
+        fn check_account_exists_not(world: &mut $world, account: crate::common::Hex) {
+            assert!(world.tester.f410_account_state(&account).is_none())
+        }
+
+        #[then(expr = "the f410 account {hex} exists")]
+        fn check_account_exists(world: &mut $world, account: crate::common::Hex) {
+            assert!(world.tester.f410_account_state(&account).is_some())
         }
 
         #[when(expr = "{acct} creates a {word} contract")]
