@@ -31,6 +31,8 @@ pub fn create_contract(
     let create_msg = Message {
         from: owner.account.1,
         to: EAM_ACTOR_ID,
+        // NOTE: There is a gas_limit, but no gas_cap_fee, so the account will pay nothing,
+        // it all goes to miner penalty.
         gas_limit: 10_000_000_000,
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),

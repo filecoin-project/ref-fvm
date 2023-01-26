@@ -28,8 +28,8 @@ Feature: SelfDestruct
     Given 1 random account
     When the value sent to the contract is 100 atto
     And account 1 creates 5 SelfDestructChain contracts
-    # TODO: Gas will make it not so, maybe use a different account as beneficiary.
-    # TODO: It looks like gas isn't affecting the balance. Should it?
+    # NOTE: The balances will check out because the `gas_fee_cap` on the `Message` is set to 0,
+    # which results in no charge for gas to the account, everything goes into miner penalty.
     Then the balance of account 1 is 9500 atto
     And the balance of contract 1 is 100 atto
     When account 1 calls destroy on contract 1 with addresses:
