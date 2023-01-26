@@ -55,7 +55,7 @@ fn destroy(world: &mut SelfDestructWorld, acct: AccountNumber, cntr: ContractNum
 
     if let Some(table) = step.table.as_ref() {
         for row in table.rows.iter().skip(1) {
-            let cntr = ContractNumber::from_str(&row[1]).expect("should be a contract number");
+            let cntr = ContractNumber::from_str(&row[0]).expect("should be a contract number");
             let contract_addr = world.tester.deployed_contract(cntr).addr_to_h160();
             addresses.push(contract_addr);
         }

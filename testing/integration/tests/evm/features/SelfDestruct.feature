@@ -32,7 +32,7 @@ Feature: SelfDestruct
     # TODO: It looks like gas isn't affecting the balance. Should it?
     Then the balance of account 1 is 9500 atto
     And the balance of contract 1 is 100 atto
-    And account 1 calls destroy on contract 1 with addresses:
+    When account 1 calls destroy on contract 1 with addresses:
       | contract   |
       | contract 2 |
       | contract 3 |
