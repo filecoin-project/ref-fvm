@@ -4,7 +4,7 @@ use ethers::types::H160;
 use fvm_integration_tests::fevm::{EthAddress, EAM_ACTOR_ID};
 use fvm_shared::address::Address;
 
-use crate::common::{AccountNumber, ContractTester, DEFAULT_GAS};
+use crate::common::*;
 
 mod bank {
     use evm_contracts::bank_account::Bank;
@@ -55,7 +55,7 @@ impl BankAccountWorld {
 #[when(expr = "{acct} opens a bank account")]
 fn open_bank_account(world: &mut BankAccountWorld, acct: AccountNumber) {
     let (contract, contract_addr) = world.tester.last_contract(bank::new_with_actor_id);
-    let call = contract.open_account().gas(DEFAULT_GAS);
+    let call = contract.open_account();
 
     let bank_account_address = world
         .tester
@@ -68,7 +68,7 @@ fn open_bank_account(world: &mut BankAccountWorld, acct: AccountNumber) {
 #[then(expr = "the owner of the bank is {acct}")]
 fn check_bank_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
     let (contract, contract_addr) = world.tester.last_contract(bank::new_with_actor_id);
-    let call = contract.owner().gas(DEFAULT_GAS);
+    let call = contract.owner();
 
     let owner = world
         .tester
@@ -83,7 +83,7 @@ fn check_account_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
     let bank_eth_addr = world.bank_eth_addr();
     let contract_addr = world.last_bank_account_addr();
     let contract = account::new_with_eth_addr(bank_eth_addr);
-    let call = contract.owner().gas(DEFAULT_GAS);
+    let call = contract.owner();
 
     let owner = world
         .tester
@@ -98,7 +98,7 @@ fn check_account_bank(world: &mut BankAccountWorld) {
     let bank_eth_addr = world.bank_eth_addr();
     let contract_addr = world.last_bank_account_addr();
     let contract = account::new_with_eth_addr(bank_eth_addr);
-    let call = contract.bank().gas(DEFAULT_GAS);
+    let call = contract.bank();
 
     let bank = world
         .tester

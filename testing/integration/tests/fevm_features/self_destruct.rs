@@ -2,7 +2,7 @@ use cucumber::gherkin::Step;
 use cucumber::{given, then, when, World};
 use ethers::types::H160;
 
-use crate::common::{AccountNumber, ContractTester, Hex};
+use crate::common::*;
 
 mod self_destruct_on_create {
     use evm_contracts::self_destruct::SelfDestructOnCreate;
@@ -32,8 +32,7 @@ fn set_beneficiary_self(world: &mut SelfDestructWorld) {
     world.tester.set_next_constructor_args(beneficiary);
 }
 
-#[when(expr = "the beneficiary is {hex}")]
-fn set_beneficiary(world: &mut SelfDestructWorld, beneficiary: Hex) {
-    let beneficiary = H160::from_slice(&beneficiary.0);
-    world.tester.set_next_constructor_args(beneficiary);
+#[when(expr = "the beneficiary is {hex160}")]
+fn set_beneficiary(world: &mut SelfDestructWorld, beneficiary: Hex160) {
+    world.tester.set_next_constructor_args(beneficiary.0);
 }

@@ -6,6 +6,7 @@ use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
 use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 
@@ -21,7 +22,12 @@ pub struct Account {
     pub seqno: u64,
 }
 
-pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: &[u8]) -> ApplyRet {
+pub fn create_contract(
+    tester: &mut BasicTester,
+    owner: &mut Account,
+    contract: &[u8],
+    value: TokenAmount,
+) -> ApplyRet {
     let create_msg = Message {
         from: owner.account.1,
         to: EAM_ACTOR_ID,
@@ -29,6 +35,7 @@ pub fn create_contract(tester: &mut BasicTester, owner: &mut Account, contract: 
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),
         sequence: owner.seqno,
+        value,
         ..Message::default()
     };
     let create_mlen = create_msg.params.len();
@@ -50,6 +57,7 @@ pub fn invoke_contract(
     dest: Address,
     input_data: &[u8],
     gas: i64,
+    value: TokenAmount,
 ) -> ApplyRet {
     let invoke_msg = Message {
         from: src.account.1,
@@ -58,6 +66,7 @@ pub fn invoke_contract(
         gas_limit: gas,
         method_num: EVMMethod::InvokeContract as u64,
         params: RawBytes::serialize(BytesSer(input_data)).unwrap(),
+        value,
         ..Message::default()
     };
     let invoke_mlen = invoke_msg.params.len();

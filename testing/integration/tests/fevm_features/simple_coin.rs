@@ -4,7 +4,7 @@ use ethers::types::U256;
 use evm_contracts::simple_coin::{SimpleCoin, TransferFilter};
 use fvm_shared::address::Address;
 
-use crate::common::{AccountNumber, ContractTester, MockProvider, DEFAULT_GAS};
+use crate::common::*;
 
 crate::contract_constructors!(SimpleCoin);
 
@@ -52,7 +52,7 @@ fn send_coin(
     let call = contract.send_coin(receiver_addr, U256::from(coins));
     let _sufficient = world
         .tester
-        .call_contract(sender, contract_addr, call.gas(DEFAULT_GAS))
+        .call_contract(sender, contract_addr, call)
         .expect("send_coin should succeed");
 }
 
@@ -63,7 +63,7 @@ fn check_balance(world: &mut SimpleCoinWorld, acct: AccountNumber, coins: u64) {
     let call = contract.get_balance(addr);
     let balance = world
         .tester
-        .call_contract(acct, contract_addr, call.gas(DEFAULT_GAS))
+        .call_contract(acct, contract_addr, call)
         .expect("get_balance should succeed");
 
     assert_eq!(balance, U256::from(coins))

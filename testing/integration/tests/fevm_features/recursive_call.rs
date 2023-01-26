@@ -6,7 +6,7 @@ use cucumber::{given, then, when, World};
 use ethers::types::H160;
 use evm_contracts::recursive_call::RecursiveCall;
 
-use crate::common::{AccountNumber, ContractNumber, ContractTester, DEFAULT_GAS};
+use crate::common::*;
 
 crate::contract_constructors!(RecursiveCall);
 
@@ -96,9 +96,7 @@ fn recurse(
         }
     }
 
-    let call = contract
-        .recurse(addresses, actions, max_depth, 0)
-        .gas(DEFAULT_GAS);
+    let call = contract.recurse(addresses, actions, max_depth, 0);
 
     let success = world
         .tester
@@ -119,7 +117,7 @@ fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
             let (contract, addr) = world.tester.contract(cntr, new_with_actor_id);
 
             if !row[1].is_empty() {
-                let call = contract.depth().gas(DEFAULT_GAS);
+                let call = contract.depth();
                 let exp_depth = u32::from_str(&row[1]).expect("not a depth");
                 let depth = world
                     .tester
@@ -144,7 +142,7 @@ fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
             };
 
             if let Some(exp_sender) = sender {
-                let call = contract.sender().gas(DEFAULT_GAS);
+                let call = contract.sender();
                 let sender = world
                     .tester
                     .call_contract(acct, addr, call)

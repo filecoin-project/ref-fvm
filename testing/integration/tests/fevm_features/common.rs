@@ -19,6 +19,7 @@ use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALA
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
@@ -98,25 +99,47 @@ impl Display for ContractNumber {
     }
 }
 
-/// Hexadecimal bytes.
+/// Hexadecimal bytes of length 20.
 #[derive(Parameter, Debug, Clone)]
-#[param(name = "hex", regex = r"0x([a-fA-F0-9]{2})+")]
-pub struct Hex(pub Vec<u8>);
+#[param(name = "hex160", regex = r"0x([a-fA-F0-9]{40})")]
+pub struct Hex160(pub H160);
 
-impl FromStr for Hex {
+impl FromStr for Hex160 {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match hex::decode(s.strip_prefix("0x").unwrap_or(s)) {
-            Ok(bs) => Ok(Self(bs)),
+            Ok(bs) => Ok(Self(H160::from_slice(&bs))),
             Err(e) => Err(format!("not hex bytes: {s}; {e}")),
         }
     }
 }
 
-impl Display for Hex {
+impl Display for Hex160 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{}", hex::encode(&self.0))
+    }
+}
+
+/// Tokens in Atto.
+#[derive(Parameter, Debug, Clone)]
+#[param(name = "atto", regex = r"(\d+) atto")]
+pub struct Atto(pub TokenAmount);
+
+impl FromStr for Atto {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match u64::from_str(s.strip_suffix(" atto").unwrap_or(s)) {
+            Ok(n) => Ok(Self(TokenAmount::from_atto(n))),
+            Err(_) => Err(format!("not an integer: {s}")),
+        }
+    }
+}
+
+impl Display for Atto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} atto", self.0.atto())
     }
 }
 
@@ -165,6 +188,8 @@ pub struct ContractTester {
     /// Any constructor arguments we want to use with the next contract creation,
     /// after which it is cleared. It is expected to be in ABI encoded format.
     pub next_constructor_args: Option<Vec<u8>>,
+    /// Any tokens to send to the next contract invocation.
+    pub next_token_amount: Option<TokenAmount>,
 }
 
 impl std::fmt::Debug for ContractTester {
@@ -196,6 +221,7 @@ impl ContractTester {
             last_events: Vec::new(),
             last_exec_error: None,
             next_constructor_args: None,
+            next_token_amount: None,
         }
     }
 
@@ -304,7 +330,7 @@ impl ContractTester {
     }
 
     /// An f410 account is one managed by the EAM actor.
-    pub fn f410_account_state(&mut self, account: &Hex) -> Option<ActorState> {
+    pub fn f410_account_state(&mut self, account: &H160) -> Option<ActorState> {
         let addr = Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &account.0)
             .expect("delegated address");
 
@@ -332,11 +358,23 @@ impl ContractTester {
         let creator = account.account;
         let contract = get_contract_code(self.sol_name, &contract_name);
 
+        let value = self.next_token_amount.take().unwrap_or_default();
+
         let create_res = if let Some(args) = self.next_constructor_args.take() {
             let initcode = [contract, &args].concat();
-            fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, &initcode)
+            fvm_integration_tests::fevm::create_contract(
+                &mut self.tester,
+                &mut account,
+                &initcode,
+                value,
+            )
         } else {
-            fvm_integration_tests::fevm::create_contract(&mut self.tester, &mut account, contract)
+            fvm_integration_tests::fevm::create_contract(
+                &mut self.tester,
+                &mut account,
+                contract,
+                value,
+            )
         };
 
         *self.account_mut(owner) = account;
@@ -415,17 +453,27 @@ impl ContractTester {
     ) -> Result<R, ExecError> {
         let input = call.calldata().expect("Should have calldata.");
         let mut account = self.account_mut(acct).clone();
+
+        let gas = call
+            .tx
+            .gas()
+            .map(|g| g.as_u64().try_into().expect("too much gas"))
+            .unwrap_or(DEFAULT_GAS);
+
+        // `next_token_amount` takes precedence so we can say that after the next call it's always empty.
+        let value = self
+            .next_token_amount
+            .take()
+            .or_else(|| call.tx.value().map(|v| TokenAmount::from_atto(v.as_u64())))
+            .unwrap_or_default();
+
         let invoke_res = fvm_integration_tests::fevm::invoke_contract(
             &mut self.tester,
             &mut account,
             contract_addr,
             &input,
-            call.tx
-                .gas()
-                .expect("need to set gas")
-                .as_u64()
-                .try_into()
-                .expect("too much gas"),
+            gas,
+            value,
         );
 
         // I think the nonce doesn't need to increase for views, but
@@ -548,15 +596,25 @@ macro_rules! contract_matchers {
             world.tester.create_accounts_with_keys(step);
         }
 
-        #[given(expr = "a non-existing f410 account {hex}")]
-        #[then(expr = "an f410 account {hex} does not exist")]
-        fn check_account_exists_not(world: &mut $world, account: crate::common::Hex) {
-            assert!(world.tester.f410_account_state(&account).is_none())
+        #[given(expr = "a non-existing f410 account {hex160}")]
+        #[then(expr = "f410 account {hex160} does not exist")]
+        fn check_f410_exists_not(world: &mut $world, account: Hex160) {
+            assert!(world.tester.f410_account_state(&account.0).is_none())
         }
 
-        #[then(expr = "the f410 account {hex} exists")]
-        fn check_account_exists(world: &mut $world, account: crate::common::Hex) {
-            assert!(world.tester.f410_account_state(&account).is_some())
+        #[then(expr = "f410 account {hex160} exists")]
+        fn check_f410_exists(world: &mut $world, account: Hex160) {
+            assert!(world.tester.f410_account_state(&account.0).is_some())
+        }
+
+        #[then(expr = "the balance of f410 account {hex160} is {atto}")]
+        fn check_f410_balance(world: &mut $world, account: Hex160, atto: Atto) {
+            let state = world
+                .tester
+                .f410_account_state(&account.0)
+                .expect("f410 account exists");
+
+            assert_eq!(state.balance, atto.0)
         }
 
         #[when(expr = "{acct} creates a {word} contract")]
@@ -565,6 +623,11 @@ macro_rules! contract_matchers {
                 .tester
                 .create_contract(owner, contract)
                 .expect("countract creation should succeed")
+        }
+
+        #[when(expr = "the value sent to the contract is {atto}")]
+        fn set_next_token_amount(world: &mut $world, atto: crate::common::Atto) {
+            world.tester.next_token_amount = Some(atto.0)
         }
 
         #[when(expr = "{acct} creates {int} {word} contract(s)")]
