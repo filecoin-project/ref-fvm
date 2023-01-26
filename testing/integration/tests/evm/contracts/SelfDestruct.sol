@@ -12,3 +12,35 @@ contract SelfDestructOnCreate {
         selfdestruct(payable(beneficiary));
     }
 }
+
+// We'll set up multiple contracts, then set up a self
+// destruct chain where they all send the refunds to
+// the caller in the chain. The outermost account
+// should get all the funds.
+contract SelfDestructChain {
+    // Pass an array of contracts to be destroyed and
+    // the current index. If the index is not beyond
+    // the size of the address array, pick the address
+    // under the current index and call destroy on it.
+    // Finally self destruct ourselves with the caller
+    // as the beneficiary.
+    function destroy(
+        // List of contracts to destroy.
+        address[] calldata _addresses,
+        // The current call depth in the chain.
+        uint32 _curr_depth
+    ) public {
+        // TODO: I think we can call selfdestruct here already.
+        if (_curr_depth < _addresses.length) {
+            (bool success, ) = _addresses[_curr_depth].call(
+                abi.encodeWithSignature(
+                    "destroy(address[],uint32)",
+                    _addresses,
+                    _curr_depth + 1
+                )
+            );
+            require(success);
+        }
+        selfdestruct(payable(msg.sender));
+    }
+}

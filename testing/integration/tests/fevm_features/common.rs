@@ -617,6 +617,23 @@ macro_rules! contract_matchers {
             assert_eq!(state.balance, atto.0)
         }
 
+        #[then(expr = "the balance of {acct} is {atto}")]
+        fn check_acct_balance(world: &mut $world, acct: AccountNumber, atto: Atto) {
+            let id = world.tester.account_id(acct);
+            let addr = fvm_shared::address::Address::new_id(id);
+            let state = world.tester.actor_state(addr).expect("account exists");
+
+            assert_eq!(state.balance, atto.0)
+        }
+
+        #[then(expr = "the balance of {cntr} is {atto}")]
+        fn check_cntr_balance(world: &mut $world, cntr: ContractNumber, atto: Atto) {
+            let addr = world.tester.deployed_contract(cntr).address;
+            let state = world.tester.actor_state(addr).expect("contract exists");
+
+            assert_eq!(state.balance, atto.0)
+        }
+
         #[when(expr = "{acct} creates a {word} contract")]
         fn create_contract(world: &mut $world, owner: AccountNumber, contract: String) {
             world
@@ -632,11 +649,15 @@ macro_rules! contract_matchers {
 
         #[when(expr = "{acct} creates {int} {word} contract(s)")]
         fn create_contracts(world: &mut $world, owner: AccountNumber, n: u32, contract: String) {
+            let next_constructor_args = world.tester.next_constructor_args.take();
+            let next_token_amount = world.tester.next_token_amount.take();
             for _ in 0..n {
+                world.tester.next_constructor_args = next_constructor_args.clone();
+                world.tester.next_token_amount = next_token_amount.clone();
                 world
                     .tester
                     .create_contract(owner, contract.clone())
-                    .expect("countract creation should succeed")
+                    .expect("countract creation should succeed");
             }
         }
 

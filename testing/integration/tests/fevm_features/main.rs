@@ -41,7 +41,8 @@ lazy_static! {
                 "RecursiveCall" / "RecursiveCall",
                 "BankAccount" / "Bank",
                 "BankAccount" / "Account",
-                "SelfDestruct" / "SelfDestructOnCreate"
+                "SelfDestruct" / "SelfDestructOnCreate",
+                "SelfDestruct" / "SelfDestructChain"
     }
     .into_iter()
     .map(|((sol, contract), code)| {

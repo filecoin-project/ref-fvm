@@ -18,7 +18,7 @@
     "linkReferences": {}
   },
   "deployedBytecode": {
-    "object": "0x6080604052600080fdfea2646970667358221220a5ffcb1e1a5b1edafb332bcb4867f1263b6d1cc1ace8d6b8b6133150dc84d02564736f6c63430008020033",
+    "object": "0x6080604052600080fdfea26469706673582212203f2b0a5cfd4dd60de17aa78776a23e9bda2ff332e0d874cad00d8091c06cccd464736f6c63430008020033",
     "sourceMap": "57:373:0:-:0;;;;;",
     "linkReferences": {}
   },

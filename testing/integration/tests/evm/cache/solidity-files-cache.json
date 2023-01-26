@@ -79,8 +79,8 @@
       }
     },
     "contracts/SelfDestruct.sol": {
-      "lastModificationDate": 1674678315144,
-      "contentHash": "b7063ea4ba2e7d535f2d57608444836a",
+      "lastModificationDate": 1674740703874,
+      "contentHash": "99a3a09ecf25bca041b09b16682bb817",
       "sourceName": "contracts/SelfDestruct.sol",
       "solcConfig": {
         "settings": {
@@ -105,6 +105,9 @@
       "imports": [],
       "versionRequirement": "^0.8.0",
       "artifacts": {
+        "SelfDestructChain": {
+          "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/SelfDestructChain.json"
+        },
         "SelfDestructOnCreate": {
           "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/SelfDestructOnCreate.json"
         }
