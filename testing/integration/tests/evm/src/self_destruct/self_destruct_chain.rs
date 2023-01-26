@@ -13,7 +13,7 @@ pub mod self_destruct_chain {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"_curr_depth\",\"type\":\"uint32\"}],\"name\":\"destroy\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"_curr_depth\",\"type\":\"uint32\"}],\"name\":\"destroy\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
     pub static SELFDESTRUCTCHAIN_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {

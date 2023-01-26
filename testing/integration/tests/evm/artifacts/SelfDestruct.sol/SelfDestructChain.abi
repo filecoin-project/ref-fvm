@@ -1,1 +1,1 @@
-[{"inputs":[{"internalType":"address[]","name":"_addresses","type":"address[]"},{"internalType":"uint32","name":"_curr_depth","type":"uint32"}],"name":"destroy","outputs":[],"stateMutability":"nonpayable","type":"function"}]
+[{"inputs":[],"stateMutability":"payable","type":"constructor"},{"inputs":[{"internalType":"address[]","name":"_addresses","type":"address[]"},{"internalType":"uint32","name":"_curr_depth","type":"uint32"}],"name":"destroy","outputs":[],"stateMutability":"nonpayable","type":"function"}]

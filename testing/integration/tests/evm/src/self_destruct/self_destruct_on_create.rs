@@ -13,7 +13,7 @@ pub mod self_destruct_on_create {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_beneficiary\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_beneficiary\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"constructor\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
     pub static SELFDESTRUCTONCREATE_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {

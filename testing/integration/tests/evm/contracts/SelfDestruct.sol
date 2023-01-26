@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 contract SelfDestructOnCreate {
-    constructor(address _beneficiary) {
+    // Mark the constructor as payable to be able to receive tokens.
+    constructor(address _beneficiary) payable {
         // If there is no non-zero address given, try to refund to self, which should fail.
         address beneficiary = _beneficiary ==
             0x0000000000000000000000000000000000000000
@@ -18,6 +19,9 @@ contract SelfDestructOnCreate {
 // the caller in the chain. The outermost account
 // should get all the funds.
 contract SelfDestructChain {
+    // Mark the constructor as payable to be able to receive tokens.
+    constructor() payable {}
+
     // Pass an array of contracts to be destroyed and
     // the current index. If the index is not beyond
     // the size of the address array, pick the address
