@@ -155,8 +155,8 @@ impl Display for Atto {
 #[derive(Parameter, Debug, Clone)]
 #[param(name = "contract_name", regex = r"(([A-Za-z0-9_]+ / )?[A-Za-z0-9_]+)")]
 pub struct ContractName {
-    sol_name: Option<String>,
-    contract_name: String,
+    pub sol_name: Option<String>,
+    pub contract_name: String,
 }
 
 impl FromStr for ContractName {

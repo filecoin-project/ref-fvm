@@ -1,6 +1,6 @@
-@wip
 Feature: SelfDestruct
 
+  @wip
   Scenario: SELFDESTRUCT on contract creation, sending funds to self => fails
     Given 1 random account
     When the beneficiary is self
@@ -42,4 +42,8 @@ Feature: SelfDestruct
     And the balance of contract 1 is 0 atto
 
 
-  Scenario: SELFDESTRUCTS + CREATE2. If possible, test this scenario: https://0age.medium.com/the-promise-and-the-peril-of-metamorphic-contracts-9eb8b8413c5e
+  @wip
+  Scenario: SELFDESTRUCT + CREATE2. If possible, test this scenario: https://0age.medium.com/the-promise-and-the-peril-of-metamorphic-contracts-9eb8b8413c5e
+    Given 1 random account
+    When the code of transient contract Metamorphic / TransientContract is loaded
+    And account 1 creates a Metamorphic / MetamorphicContractFactory contract

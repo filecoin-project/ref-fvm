@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use cucumber::gherkin::Step;
 use cucumber::{given, then, when, World};
+use ethers::abi::ethabi::Bytes;
 use ethers::types::H160;
 
 use crate::common::*;
@@ -67,4 +68,14 @@ fn destroy(world: &mut SelfDestructWorld, acct: AccountNumber, cntr: ContractNum
         .tester
         .call_contract(acct, contract_addr, call)
         .expect("destroy should not fail");
+}
+
+#[when(expr = "the code of transient contract {contract_name} is loaded")]
+fn load_transient_code(world: &mut SelfDestructWorld, contract: ContractName) {
+    let code = get_contract_code(
+        contract.sol_name.as_ref().expect("expected solidity name"),
+        &contract.contract_name,
+    );
+    let code: Bytes = Bytes::from(code);
+    world.tester.set_next_constructor_args(code)
 }
