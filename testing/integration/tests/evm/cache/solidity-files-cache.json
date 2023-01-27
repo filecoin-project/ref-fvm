@@ -46,6 +46,44 @@
         }
       }
     },
+    "contracts/Metamorphic.sol": {
+      "lastModificationDate": 1674818878880,
+      "contentHash": "90b042322d21df08c021f6ec025a5074",
+      "sourceName": "contracts/Metamorphic.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.5.6",
+      "artifacts": {
+        "FactoryInterface": {
+          "0.8.2+commit.661d1103.Linux.gcc": "Metamorphic.sol/FactoryInterface.json"
+        },
+        "MetamorphicContractFactory": {
+          "0.8.2+commit.661d1103.Linux.gcc": "Metamorphic.sol/MetamorphicContractFactory.json"
+        },
+        "TransientContract": {
+          "0.8.2+commit.661d1103.Linux.gcc": "Metamorphic.sol/TransientContract.json"
+        }
+      }
+    },
     "contracts/RecursiveCall.sol": {
       "lastModificationDate": 1674570352775,
       "contentHash": "6ea5a636dd5749718dc7947f9e1db55c",
@@ -79,7 +117,7 @@
       }
     },
     "contracts/SelfDestruct.sol": {
-      "lastModificationDate": 1674744503930,
+      "lastModificationDate": 1674818904864,
       "contentHash": "395b64c43a8abcded89fd4e19a3a40fd",
       "sourceName": "contracts/SelfDestruct.sol",
       "solcConfig": {

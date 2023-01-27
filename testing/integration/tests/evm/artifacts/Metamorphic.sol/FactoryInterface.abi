@@ -1,0 +1,1 @@
+[{"inputs":[],"name":"getInitializationCode","outputs":[{"internalType":"bytes","name":"initializationCode","type":"bytes"}],"stateMutability":"view","type":"function"}]
