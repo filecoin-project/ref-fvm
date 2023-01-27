@@ -58,6 +58,8 @@ interface MetamorphicInterface {
 }
 
 contract Cocoon {
+    constructor() payable {}
+
     function description() external pure returns (string memory) {
         return "Cocoon";
     }
@@ -70,6 +72,8 @@ contract Cocoon {
 }
 
 contract Bufferfly {
+    constructor() payable {}
+
     function description() external pure returns (string memory) {
         return "Butterfly";
     }

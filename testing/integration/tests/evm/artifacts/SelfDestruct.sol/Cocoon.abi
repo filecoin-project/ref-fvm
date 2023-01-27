@@ -1,1 +1,1 @@
-[{"inputs":[],"name":"description","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"die","outputs":[],"stateMutability":"nonpayable","type":"function"}]
+[{"inputs":[],"stateMutability":"payable","type":"constructor"},{"inputs":[],"name":"description","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"die","outputs":[],"stateMutability":"nonpayable","type":"function"}]

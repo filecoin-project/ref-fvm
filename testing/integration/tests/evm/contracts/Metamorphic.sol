@@ -374,30 +374,40 @@ contract MetamorphicContractFactory {
         returns (address metamorphicContractAddress)
     {
         // move transient contract initialization code from storage to memory.
-        bytes memory initCode = _transientContractInitializationCode;
+        // bytes memory initCode = _transientContractInitializationCode;
+        bytes memory initCode = getTransientBytecode();
 
         // declare variable to verify successful transient contract deployment.
         address deployedTransientContract;
 
         // determine the address of the transient contract.
-        address transientContractAddress = _getTransientContractAddress(salt);
+        //address transientContractAddress = _getTransientContractAddress(salt);
+        address transientContractAddress = getAddress(initCode, salt);
 
         // store the initialization code to be retrieved by the transient contract.
         _initCodes[transientContractAddress] = initializationCode;
 
         // load transient contract data and length of data, then deploy via CREATE2.
         /* solhint-disable no-inline-assembly */
-        assembly {
-            let encoded_data := add(0x20, initCode) // load initialization code.
-            let encoded_size := mload(initCode) // load the init code's length.
-            deployedTransientContract := create2(
-                // call CREATE2 with 4 arguments.
-                callvalue(), // forward any supplied endowment.
-                encoded_data, // pass in initialization code.
-                encoded_size, // pass in init code's length.
-                salt // pass in the salt value.
-            )
-        } /* solhint-enable no-inline-assembly */
+        // assembly {
+        //     let encoded_data := add(0x20, initCode) // load initialization code.
+        //     let encoded_size := mload(initCode) // load the init code's length.
+        //     deployedTransientContract := create2(
+        //         // call CREATE2 with 4 arguments.
+        //         callvalue(), // forward any supplied endowment.
+        //         encoded_data, // pass in initialization code.
+        //         encoded_size, // pass in init code's length.
+        //         salt // pass in the salt value.
+        //     )
+        // }
+        /* solhint-enable no-inline-assembly */
+
+        // NOTE: The original method with the assembly above doesn't work for some reason,
+        // there is no actor registered under the returned address.
+        // https://solidity-by-example.org/app/create2/
+        deployedTransientContract = address(
+            new TransientContract{salt: salt, value: msg.value}()
+        );
 
         // ensure that the contracts were successfully deployed.
         require(
@@ -414,6 +424,32 @@ contract MetamorphicContractFactory {
             transientContractAddress
         );
     } /* solhint-enable function-max-lines */
+
+    // 1. This is a different way of getting the transient byte code.
+    function getTransientBytecode() public pure returns (bytes memory) {
+        bytes memory bytecode = type(TransientContract).creationCode;
+
+        return bytecode;
+    }
+
+    // 2. Compute the address of the transient contract
+    function getAddress(bytes memory bytecode, bytes32 _salt)
+        public
+        view
+        returns (address)
+    {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                _salt,
+                keccak256(bytecode)
+            )
+        );
+
+        // NOTE: cast last 20 bytes of hash to address
+        return address(uint160(uint256(hash)));
+    }
 
     /**
      * @dev View function for retrieving the address of the implementation

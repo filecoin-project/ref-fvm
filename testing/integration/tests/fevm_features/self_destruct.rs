@@ -112,6 +112,12 @@ fn deploy_metamorph(
 
     // Look up what actor it is.
     let f410_addr = h160_to_f410(&metamorphic_addr);
+
+    let _state = world
+        .tester
+        .f410_account_state(&metamorphic_addr)
+        .expect("metamorphic contract should have state");
+
     let actor_id = world
         .tester
         .actor_id(&f410_addr)

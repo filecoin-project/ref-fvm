@@ -12,7 +12,7 @@
   },
   "files": {
     "contracts/BankAccount.sol": {
-      "lastModificationDate": 1674576442900,
+      "lastModificationDate": 1674835138366,
       "contentHash": "eed8a836cc009d3c80a98720dde7437d",
       "sourceName": "contracts/BankAccount.sol",
       "solcConfig": {
@@ -47,8 +47,8 @@
       }
     },
     "contracts/Metamorphic.sol": {
-      "lastModificationDate": 1674818878880,
-      "contentHash": "90b042322d21df08c021f6ec025a5074",
+      "lastModificationDate": 1674837471489,
+      "contentHash": "b147bc05b0a5898b88d32e8f8b6119a7",
       "sourceName": "contracts/Metamorphic.sol",
       "solcConfig": {
         "settings": {
@@ -117,8 +117,8 @@
       }
     },
     "contracts/SelfDestruct.sol": {
-      "lastModificationDate": 1674825010691,
-      "contentHash": "02a8851d2a3fe18187f4083362884244",
+      "lastModificationDate": 1674836794430,
+      "contentHash": "cdf8fd50958bcef6741e1e915c48b138",
       "sourceName": "contracts/SelfDestruct.sol",
       "solcConfig": {
         "settings": {

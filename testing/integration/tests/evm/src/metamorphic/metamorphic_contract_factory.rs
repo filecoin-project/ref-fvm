@@ -13,7 +13,7 @@ pub mod metamorphic_contract_factory {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"transientContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"metamorphicContract\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"}],\"name\":\"Metamorphosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"metamorphicContract\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"transientContract\",\"type\":\"address\"}],\"name\":\"MetamorphosedWithConstructor\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"implementationContractInitializationCode\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCalldata\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContract\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"implementationContract\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCalldata\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContractFromExistingImplementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContractWithConstructor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findMetamorphicContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findMetamorphicContractAddressWithConstructor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findTransientContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"transientContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getImplementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"name\":\"getImplementationContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementationContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMetamorphicContractInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMetamorphicContractInitializationCodeHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"metamorphicContractInitializationCodeHash\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"transientContractAddress\",\"type\":\"address\"}],\"name\":\"getMetamorphicContractInstanceInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTransientContractInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"transientContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTransientContractInitializationCodeHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"transientContractInitializationCodeHash\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"transientContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"metamorphicContract\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"}],\"name\":\"Metamorphosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"metamorphicContract\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"transientContract\",\"type\":\"address\"}],\"name\":\"MetamorphosedWithConstructor\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"implementationContractInitializationCode\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCalldata\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContract\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"implementationContract\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCalldata\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContractFromExistingImplementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"name\":\"deployMetamorphicContractWithConstructor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findMetamorphicContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findMetamorphicContractAddressWithConstructor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"findTransientContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"transientContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"bytecode\",\"type\":\"bytes\"},{\"internalType\":\"bytes32\",\"name\":\"_salt\",\"type\":\"bytes32\"}],\"name\":\"getAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getImplementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"metamorphicContractAddress\",\"type\":\"address\"}],\"name\":\"getImplementationContractAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementationContractAddress\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMetamorphicContractInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"metamorphicContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMetamorphicContractInitializationCodeHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"metamorphicContractInitializationCodeHash\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"transientContractAddress\",\"type\":\"address\"}],\"name\":\"getMetamorphicContractInstanceInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTransientBytecode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTransientContractInitializationCode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"transientContractInitializationCode\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTransientContractInitializationCodeHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"transientContractInitializationCodeHash\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
     pub static METAMORPHICCONTRACTFACTORY_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {
@@ -126,6 +126,16 @@ pub mod metamorphic_contract_factory {
                 .method_hash([163, 44, 251, 105], salt)
                 .expect("method not found (this should never happen)")
         }
+        #[doc = "Calls the contract's `getAddress` (0x48aac392) function"]
+        pub fn get_address(
+            &self,
+            bytecode: ethers::core::types::Bytes,
+            salt: [u8; 32],
+        ) -> ethers::contract::builders::ContractCall<M, ethers::core::types::Address> {
+            self.0
+                .method_hash([72, 170, 195, 146], (bytecode, salt))
+                .expect("method not found (this should never happen)")
+        }
         #[doc = "Calls the contract's `getImplementation` (0xaaf10f42) function"]
         pub fn get_implementation(
             &self,
@@ -174,6 +184,14 @@ pub mod metamorphic_contract_factory {
         ) -> ethers::contract::builders::ContractCall<M, ethers::core::types::Bytes> {
             self.0
                 .method_hash([89, 68, 158, 85], transient_contract_address)
+                .expect("method not found (this should never happen)")
+        }
+        #[doc = "Calls the contract's `getTransientBytecode` (0x52d56323) function"]
+        pub fn get_transient_bytecode(
+            &self,
+        ) -> ethers::contract::builders::ContractCall<M, ethers::core::types::Bytes> {
+            self.0
+                .method_hash([82, 213, 99, 35], ())
                 .expect("method not found (this should never happen)")
         }
         #[doc = "Calls the contract's `getTransientContractInitializationCode` (0x0563ef93) function"]
@@ -391,6 +409,21 @@ pub mod metamorphic_contract_factory {
     pub struct FindTransientContractAddressCall {
         pub salt: [u8; 32],
     }
+    #[doc = "Container type for all input parameters for the `getAddress` function with signature `getAddress(bytes,bytes32)` and selector `[72, 170, 195, 146]`"]
+    #[derive(
+        Clone,
+        Debug,
+        Eq,
+        PartialEq,
+        ethers :: contract :: EthCall,
+        ethers :: contract :: EthDisplay,
+        Default,
+    )]
+    #[ethcall(name = "getAddress", abi = "getAddress(bytes,bytes32)")]
+    pub struct GetAddressCall {
+        pub bytecode: ethers::core::types::Bytes,
+        pub salt: [u8; 32],
+    }
     #[doc = "Container type for all input parameters for the `getImplementation` function with signature `getImplementation()` and selector `[170, 241, 15, 66]`"]
     #[derive(
         Clone,
@@ -479,6 +512,18 @@ pub mod metamorphic_contract_factory {
     pub struct GetMetamorphicContractInstanceInitializationCodeCall {
         pub transient_contract_address: ethers::core::types::Address,
     }
+    #[doc = "Container type for all input parameters for the `getTransientBytecode` function with signature `getTransientBytecode()` and selector `[82, 213, 99, 35]`"]
+    #[derive(
+        Clone,
+        Debug,
+        Eq,
+        PartialEq,
+        ethers :: contract :: EthCall,
+        ethers :: contract :: EthDisplay,
+        Default,
+    )]
+    #[ethcall(name = "getTransientBytecode", abi = "getTransientBytecode()")]
+    pub struct GetTransientBytecodeCall;
     #[doc = "Container type for all input parameters for the `getTransientContractInitializationCode` function with signature `getTransientContractInitializationCode()` and selector `[5, 99, 239, 147]`"]
     #[derive(
         Clone,
@@ -521,6 +566,7 @@ pub mod metamorphic_contract_factory {
             FindMetamorphicContractAddressWithConstructorCall,
         ),
         FindTransientContractAddress(FindTransientContractAddressCall),
+        GetAddress(GetAddressCall),
         GetImplementation(GetImplementationCall),
         GetImplementationContractAddress(GetImplementationContractAddressCall),
         GetInitializationCode(GetInitializationCodeCall),
@@ -531,6 +577,7 @@ pub mod metamorphic_contract_factory {
         GetMetamorphicContractInstanceInitializationCode(
             GetMetamorphicContractInstanceInitializationCodeCall,
         ),
+        GetTransientBytecode(GetTransientBytecodeCall),
         GetTransientContractInitializationCode(GetTransientContractInitializationCodeCall),
         GetTransientContractInitializationCodeHash(GetTransientContractInitializationCodeHashCall),
     }
@@ -565,6 +612,11 @@ pub mod metamorphic_contract_factory {
                 return Ok(MetamorphicContractFactoryCalls::FindTransientContractAddress(decoded));
             }
             if let Ok(decoded) =
+                <GetAddressCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
+            {
+                return Ok(MetamorphicContractFactoryCalls::GetAddress(decoded));
+            }
+            if let Ok(decoded) =
                 <GetImplementationCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
             {
                 return Ok(MetamorphicContractFactoryCalls::GetImplementation(decoded));
@@ -589,6 +641,13 @@ pub mod metamorphic_contract_factory {
             if let Ok (decoded) = < GetMetamorphicContractInitializationCodeHashCall as ethers :: core :: abi :: AbiDecode > :: decode (data . as_ref ()) { return Ok (MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCodeHash (decoded)) }
             if let Ok (decoded) = < GetMetamorphicContractInstanceInitializationCodeCall as ethers :: core :: abi :: AbiDecode > :: decode (data . as_ref ()) { return Ok (MetamorphicContractFactoryCalls :: GetMetamorphicContractInstanceInitializationCode (decoded)) }
             if let Ok(decoded) =
+                <GetTransientBytecodeCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
+            {
+                return Ok(MetamorphicContractFactoryCalls::GetTransientBytecode(
+                    decoded,
+                ));
+            }
+            if let Ok(decoded) =
                 <GetTransientContractInitializationCodeCall as ethers::core::abi::AbiDecode>::decode(
                     data.as_ref(),
                 )
@@ -605,12 +664,12 @@ pub mod metamorphic_contract_factory {
     }
     impl ethers::core::abi::AbiEncode for MetamorphicContractFactoryCalls {
         fn encode(self) -> Vec<u8> {
-            match self { MetamorphicContractFactoryCalls :: DeployMetamorphicContract (element) => element . encode () , MetamorphicContractFactoryCalls :: DeployMetamorphicContractFromExistingImplementation (element) => element . encode () , MetamorphicContractFactoryCalls :: DeployMetamorphicContractWithConstructor (element) => element . encode () , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddressWithConstructor (element) => element . encode () , MetamorphicContractFactoryCalls :: FindTransientContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: GetImplementation (element) => element . encode () , MetamorphicContractFactoryCalls :: GetImplementationContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: GetInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCodeHash (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInstanceInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCodeHash (element) => element . encode () }
+            match self { MetamorphicContractFactoryCalls :: DeployMetamorphicContract (element) => element . encode () , MetamorphicContractFactoryCalls :: DeployMetamorphicContractFromExistingImplementation (element) => element . encode () , MetamorphicContractFactoryCalls :: DeployMetamorphicContractWithConstructor (element) => element . encode () , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddressWithConstructor (element) => element . encode () , MetamorphicContractFactoryCalls :: FindTransientContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: GetAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: GetImplementation (element) => element . encode () , MetamorphicContractFactoryCalls :: GetImplementationContractAddress (element) => element . encode () , MetamorphicContractFactoryCalls :: GetInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCodeHash (element) => element . encode () , MetamorphicContractFactoryCalls :: GetMetamorphicContractInstanceInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetTransientBytecode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCode (element) => element . encode () , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCodeHash (element) => element . encode () }
         }
     }
     impl ::std::fmt::Display for MetamorphicContractFactoryCalls {
         fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-            match self { MetamorphicContractFactoryCalls :: DeployMetamorphicContract (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: DeployMetamorphicContractFromExistingImplementation (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: DeployMetamorphicContractWithConstructor (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddressWithConstructor (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindTransientContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetImplementation (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetImplementationContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCodeHash (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInstanceInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCodeHash (element) => element . fmt (f) }
+            match self { MetamorphicContractFactoryCalls :: DeployMetamorphicContract (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: DeployMetamorphicContractFromExistingImplementation (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: DeployMetamorphicContractWithConstructor (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindMetamorphicContractAddressWithConstructor (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: FindTransientContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetImplementation (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetImplementationContractAddress (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInitializationCodeHash (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetMetamorphicContractInstanceInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetTransientBytecode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCode (element) => element . fmt (f) , MetamorphicContractFactoryCalls :: GetTransientContractInitializationCodeHash (element) => element . fmt (f) }
         }
     }
     impl ::std::convert::From<DeployMetamorphicContractCall> for MetamorphicContractFactoryCalls {
@@ -651,6 +710,11 @@ pub mod metamorphic_contract_factory {
             MetamorphicContractFactoryCalls::FindTransientContractAddress(var)
         }
     }
+    impl ::std::convert::From<GetAddressCall> for MetamorphicContractFactoryCalls {
+        fn from(var: GetAddressCall) -> Self {
+            MetamorphicContractFactoryCalls::GetAddress(var)
+        }
+    }
     impl ::std::convert::From<GetImplementationCall> for MetamorphicContractFactoryCalls {
         fn from(var: GetImplementationCall) -> Self {
             MetamorphicContractFactoryCalls::GetImplementation(var)
@@ -687,6 +751,11 @@ pub mod metamorphic_contract_factory {
     {
         fn from(var: GetMetamorphicContractInstanceInitializationCodeCall) -> Self {
             MetamorphicContractFactoryCalls::GetMetamorphicContractInstanceInitializationCode(var)
+        }
+    }
+    impl ::std::convert::From<GetTransientBytecodeCall> for MetamorphicContractFactoryCalls {
+        fn from(var: GetTransientBytecodeCall) -> Self {
+            MetamorphicContractFactoryCalls::GetTransientBytecode(var)
         }
     }
     impl ::std::convert::From<GetTransientContractInitializationCodeCall>
@@ -781,6 +850,17 @@ pub mod metamorphic_contract_factory {
     pub struct FindTransientContractAddressReturn {
         pub transient_contract_address: ethers::core::types::Address,
     }
+    #[doc = "Container type for all return fields from the `getAddress` function with signature `getAddress(bytes,bytes32)` and selector `[72, 170, 195, 146]`"]
+    #[derive(
+        Clone,
+        Debug,
+        Eq,
+        PartialEq,
+        ethers :: contract :: EthAbiType,
+        ethers :: contract :: EthAbiCodec,
+        Default,
+    )]
+    pub struct GetAddressReturn(pub ethers::core::types::Address);
     #[doc = "Container type for all return fields from the `getImplementation` function with signature `getImplementation()` and selector `[170, 241, 15, 66]`"]
     #[derive(
         Clone,
@@ -859,6 +939,17 @@ pub mod metamorphic_contract_factory {
     pub struct GetMetamorphicContractInstanceInitializationCodeReturn {
         pub initialization_code: ethers::core::types::Bytes,
     }
+    #[doc = "Container type for all return fields from the `getTransientBytecode` function with signature `getTransientBytecode()` and selector `[82, 213, 99, 35]`"]
+    #[derive(
+        Clone,
+        Debug,
+        Eq,
+        PartialEq,
+        ethers :: contract :: EthAbiType,
+        ethers :: contract :: EthAbiCodec,
+        Default,
+    )]
+    pub struct GetTransientBytecodeReturn(pub ethers::core::types::Bytes);
     #[doc = "Container type for all return fields from the `getTransientContractInitializationCode` function with signature `getTransientContractInitializationCode()` and selector `[5, 99, 239, 147]`"]
     #[derive(
         Clone,
