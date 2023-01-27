@@ -42,7 +42,9 @@ lazy_static! {
                 "BankAccount" / "Bank",
                 "BankAccount" / "Account",
                 "SelfDestruct" / "SelfDestructOnCreate",
-                "SelfDestruct" / "SelfDestructChain"
+                "SelfDestruct" / "SelfDestructChain",
+                "Metamorphic" / "MetamorphicContractFactory",
+                "Metamorphic" / "TransientContract"
     }
     .into_iter()
     .map(|((sol, contract), code)| {

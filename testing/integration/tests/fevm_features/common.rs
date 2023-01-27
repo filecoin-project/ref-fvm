@@ -35,7 +35,7 @@ mod bundles {
 }
 
 /// Get a contract from the pre-loaded sources.
-pub fn get_contract_code<'a>(sol_name: &'static str, contract_name: &'a str) -> &'a [u8] {
+pub fn get_contract_code<'a>(sol_name: &'a str, contract_name: &'a str) -> &'a [u8] {
     CONTRACTS
         .get(&(sol_name, contract_name))
         .ok_or_else(|| format!("contract {sol_name}/{contract_name} hasn't been loaded"))
@@ -140,6 +140,57 @@ impl FromStr for Atto {
 impl Display for Atto {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} atto", self.0.atto())
+    }
+}
+
+/// Contract name can either be a simple name, in which case the tester will load it from
+/// the sol file it's been instantiated with, or it supply its own solidity file name,
+/// so that we can load contracts from multiple solidity files into the same test.
+///
+/// # Example
+/// ```text
+/// When account 1 creates a Metamorphic / TransientContract contract
+/// And account 1 creates a Cocoon contract
+/// ```
+#[derive(Parameter, Debug, Clone)]
+#[param(name = "contract_name", regex = r"(([A-Za-z0-9_]+ / )?[A-Za-z0-9_]+)")]
+pub struct ContractName {
+    sol_name: Option<String>,
+    contract_name: String,
+}
+
+impl FromStr for ContractName {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s
+            .split('/')
+            .into_iter()
+            .map(|p| p.trim())
+            .collect::<Vec<_>>()
+            .as_slice()
+        {
+            [cn] => Ok(Self {
+                sol_name: None,
+                contract_name: (*cn).to_owned(),
+            }),
+            [sn, cn] => Ok(Self {
+                sol_name: Some((*sn).to_owned()),
+                contract_name: (*cn).to_owned(),
+            }),
+            _ => Err(format!(
+                "expected 'file / contract' or just 'contract'; got {s}"
+            )),
+        }
+    }
+}
+
+impl Display for ContractName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(sol_name) = &self.sol_name {
+            write!(f, "{} / ", sol_name)?;
+        }
+        write!(f, "{}", self.contract_name)
     }
 }
 
@@ -349,14 +400,21 @@ impl ContractTester {
     pub fn create_contract(
         &mut self,
         owner: AccountNumber,
-        contract_name: String,
+        contract_name: ContractName,
     ) -> Result<(), ExecError> {
         self.ensure_machine_instantiated();
 
         // Need to clone because I have to pass 2 mutable references to `fevm::create_contract`.
         let mut account = self.account_mut(owner).clone();
         let creator = account.account;
-        let contract = get_contract_code(self.sol_name, &contract_name);
+        let contract = get_contract_code(
+            contract_name
+                .sol_name
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or(self.sol_name),
+            &contract_name.contract_name,
+        );
 
         let value = self.next_token_amount.take().unwrap_or_default();
 
@@ -399,7 +457,7 @@ impl ContractTester {
         let contract_addr = Address::new_id(create_return.actor_id);
 
         let contract = DeployedContract {
-            _name: contract_name,
+            _name: contract_name.contract_name,
             owner: creator,
             address: contract_addr,
             eth_address: create_return.eth_address,
@@ -634,8 +692,8 @@ macro_rules! contract_matchers {
             assert_eq!(state.balance, atto.0)
         }
 
-        #[when(expr = "{acct} creates a {word} contract")]
-        fn create_contract(world: &mut $world, owner: AccountNumber, contract: String) {
+        #[when(expr = "{acct} creates a {contract_name} contract")]
+        fn create_contract(world: &mut $world, owner: AccountNumber, contract: ContractName) {
             world
                 .tester
                 .create_contract(owner, contract)
@@ -647,8 +705,13 @@ macro_rules! contract_matchers {
             world.tester.next_token_amount = Some(atto.0)
         }
 
-        #[when(expr = "{acct} creates {int} {word} contract(s)")]
-        fn create_contracts(world: &mut $world, owner: AccountNumber, n: u32, contract: String) {
+        #[when(expr = "{acct} creates {int} {contract_name} contract(s)")]
+        fn create_contracts(
+            world: &mut $world,
+            owner: AccountNumber,
+            n: u32,
+            contract: ContractName,
+        ) {
             let next_constructor_args = world.tester.next_constructor_args.take();
             let next_token_amount = world.tester.next_token_amount.take();
             for _ in 0..n {
@@ -661,8 +724,8 @@ macro_rules! contract_matchers {
             }
         }
 
-        #[when(expr = "{acct} tries to create a {word} contract")]
-        fn try_create_contract(world: &mut $world, owner: AccountNumber, contract: String) {
+        #[when(expr = "{acct} tries to create a {contract_name} contract")]
+        fn try_create_contract(world: &mut $world, owner: AccountNumber, contract: ContractName) {
             let _ = world.tester.create_contract(owner, contract);
         }
 
