@@ -23,6 +23,11 @@ mod metamorphic_contract_factory {
     crate::contract_constructors!(MetamorphicContractFactory);
 }
 
+mod metamorphic_interface {
+    use evm_contracts::self_destruct::MetamorphicInterface;
+    crate::contract_constructors!(MetamorphicInterface);
+}
+
 #[derive(World, Debug)]
 pub struct SelfDestructWorld {
     pub tester: ContractTester,
@@ -108,8 +113,6 @@ fn deploy_metamorph(
         .call_contract(acct, contract_addr, call)
         .expect("deploy should succeed");
 
-    eprintln!("metamorphic_addr = {}", hex::encode(metamorphic_addr.0));
-
     // Look up what actor it is.
     let f410_addr = h160_to_f410(&metamorphic_addr);
 
@@ -131,4 +134,20 @@ fn deploy_metamorph(
         eth_address: EthAddress(metamorphic_addr.0),
     };
     world.tester.contracts.push(deployed)
+}
+
+#[then(expr = "{cntr} describes itself as {string}")]
+fn check_description(world: &mut SelfDestructWorld, cntr: ContractNumber, descr: String) {
+    let (contract, contract_addr) = world
+        .tester
+        .contract(cntr, metamorphic_interface::new_with_actor_id);
+
+    let call = contract.description();
+
+    let self_descr = world
+        .tester
+        .call_contract(AccountNumber(0), contract_addr, call)
+        .expect("describe should work");
+
+    assert_eq!(self_descr, descr);
 }
