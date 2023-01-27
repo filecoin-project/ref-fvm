@@ -117,8 +117,8 @@
       }
     },
     "contracts/SelfDestruct.sol": {
-      "lastModificationDate": 1674836794430,
-      "contentHash": "cdf8fd50958bcef6741e1e915c48b138",
+      "lastModificationDate": 1674838565319,
+      "contentHash": "7a29e85b9ed56c1ee0f8199e2aa860eb",
       "sourceName": "contracts/SelfDestruct.sol",
       "solcConfig": {
         "settings": {
@@ -143,8 +143,8 @@
       "imports": [],
       "versionRequirement": "^0.8.0",
       "artifacts": {
-        "Bufferfly": {
-          "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/Bufferfly.json"
+        "Butterfly": {
+          "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/Butterfly.json"
         },
         "Cocoon": {
           "0.8.2+commit.661d1103.Linux.gcc": "SelfDestruct.sol/Cocoon.json"

@@ -28,6 +28,11 @@ mod metamorphic_interface {
     crate::contract_constructors!(MetamorphicInterface);
 }
 
+mod cocoon {
+    use evm_contracts::self_destruct::Cocoon;
+    crate::contract_constructors!(Cocoon);
+}
+
 #[derive(World, Debug)]
 pub struct SelfDestructWorld {
     pub tester: ContractTester,
@@ -56,7 +61,12 @@ fn set_beneficiary(world: &mut SelfDestructWorld, beneficiary: Hex160) {
 }
 
 #[when(expr = "{acct} calls destroy on {cntr} with addresses:")]
-fn destroy(world: &mut SelfDestructWorld, acct: AccountNumber, cntr: ContractNumber, step: &Step) {
+fn chain_destruct(
+    world: &mut SelfDestructWorld,
+    acct: AccountNumber,
+    cntr: ContractNumber,
+    step: &Step,
+) {
     let (contract, contract_addr) = world
         .tester
         .contract(cntr, self_destruct_chain::new_with_actor_id);
@@ -150,4 +160,16 @@ fn check_description(world: &mut SelfDestructWorld, cntr: ContractNumber, descr:
         .expect("describe should work");
 
     assert_eq!(self_descr, descr);
+}
+
+#[when(expr = "{cntr} is told to self destruct")]
+fn self_destruct(world: &mut SelfDestructWorld, cntr: ContractNumber) {
+    let (contract, contract_addr) = world.tester.contract(cntr, cocoon::new_with_actor_id);
+
+    let call = contract.destroy();
+
+    let _ = world
+        .tester
+        .call_contract(AccountNumber(0), contract_addr, call)
+        .expect("self destruct should work");
 }

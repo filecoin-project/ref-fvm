@@ -13,7 +13,7 @@ pub mod cocoon {
     use ethers::core::abi::{Abi, Detokenize, InvalidOutputType, Token, Tokenizable};
     use ethers::core::types::*;
     use ethers::providers::Middleware;
-    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"description\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"die\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]\n" ;
+    # [rustfmt :: skip] const __ABI : & str = "[{\"inputs\":[],\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"description\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"destroy\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]\n" ;
     #[doc = r" The parsed JSON-ABI of the contract."]
     pub static COCOON_ABI: ethers::contract::Lazy<ethers::core::abi::Abi> =
         ethers::contract::Lazy::new(|| {
@@ -54,10 +54,10 @@ pub mod cocoon {
                 .method_hash([114, 132, 228, 22], ())
                 .expect("method not found (this should never happen)")
         }
-        #[doc = "Calls the contract's `die` (0x35f46994) function"]
-        pub fn die(&self) -> ethers::contract::builders::ContractCall<M, ()> {
+        #[doc = "Calls the contract's `destroy` (0x83197ef0) function"]
+        pub fn destroy(&self) -> ethers::contract::builders::ContractCall<M, ()> {
             self.0
-                .method_hash([53, 244, 105, 148], ())
+                .method_hash([131, 25, 126, 240], ())
                 .expect("method not found (this should never happen)")
         }
     }
@@ -78,7 +78,7 @@ pub mod cocoon {
     )]
     #[ethcall(name = "description", abi = "description()")]
     pub struct DescriptionCall;
-    #[doc = "Container type for all input parameters for the `die` function with signature `die()` and selector `[53, 244, 105, 148]`"]
+    #[doc = "Container type for all input parameters for the `destroy` function with signature `destroy()` and selector `[131, 25, 126, 240]`"]
     #[derive(
         Clone,
         Debug,
@@ -88,12 +88,12 @@ pub mod cocoon {
         ethers :: contract :: EthDisplay,
         Default,
     )]
-    #[ethcall(name = "die", abi = "die()")]
-    pub struct DieCall;
+    #[ethcall(name = "destroy", abi = "destroy()")]
+    pub struct DestroyCall;
     #[derive(Debug, Clone, PartialEq, Eq, ethers :: contract :: EthAbiType)]
     pub enum CocoonCalls {
         Description(DescriptionCall),
-        Die(DieCall),
+        Destroy(DestroyCall),
     }
     impl ethers::core::abi::AbiDecode for CocoonCalls {
         fn decode(
@@ -104,8 +104,10 @@ pub mod cocoon {
             {
                 return Ok(CocoonCalls::Description(decoded));
             }
-            if let Ok(decoded) = <DieCall as ethers::core::abi::AbiDecode>::decode(data.as_ref()) {
-                return Ok(CocoonCalls::Die(decoded));
+            if let Ok(decoded) =
+                <DestroyCall as ethers::core::abi::AbiDecode>::decode(data.as_ref())
+            {
+                return Ok(CocoonCalls::Destroy(decoded));
             }
             Err(ethers::core::abi::Error::InvalidData.into())
         }
@@ -114,7 +116,7 @@ pub mod cocoon {
         fn encode(self) -> Vec<u8> {
             match self {
                 CocoonCalls::Description(element) => element.encode(),
-                CocoonCalls::Die(element) => element.encode(),
+                CocoonCalls::Destroy(element) => element.encode(),
             }
         }
     }
@@ -122,7 +124,7 @@ pub mod cocoon {
         fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
             match self {
                 CocoonCalls::Description(element) => element.fmt(f),
-                CocoonCalls::Die(element) => element.fmt(f),
+                CocoonCalls::Destroy(element) => element.fmt(f),
             }
         }
     }
@@ -131,9 +133,9 @@ pub mod cocoon {
             CocoonCalls::Description(var)
         }
     }
-    impl ::std::convert::From<DieCall> for CocoonCalls {
-        fn from(var: DieCall) -> Self {
-            CocoonCalls::Die(var)
+    impl ::std::convert::From<DestroyCall> for CocoonCalls {
+        fn from(var: DestroyCall) -> Self {
+            CocoonCalls::Destroy(var)
         }
     }
     #[doc = "Container type for all return fields from the `description` function with signature `description()` and selector `[114, 132, 228, 22]`"]

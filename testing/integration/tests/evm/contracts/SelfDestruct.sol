@@ -66,12 +66,12 @@ contract Cocoon {
 
     /// Self destruct so it can be resurrected as a Butterfly.
     /// Keep the money, if possible.
-    function die() public {
+    function destroy() public {
         selfdestruct(payable(address(this)));
     }
 }
 
-contract Bufferfly {
+contract Butterfly {
     constructor() payable {}
 
     function description() external pure returns (string memory) {

@@ -41,7 +41,6 @@ Feature: SelfDestruct
     And the balance of contract 1 is 0 atto
 
 
-  @wip
   Scenario: SELFDESTRUCT + CREATE2. If possible, test this scenario: https://0age.medium.com/the-promise-and-the-peril-of-metamorphic-contracts-9eb8b8413c5e
     Given 1 random account
     When the code of transient contract Metamorphic / TransientContract is loaded
@@ -50,8 +49,12 @@ Feature: SelfDestruct
     And account 1 calls deployMetamorphicContractWithConstructor on contract 1 with the code of Cocoon
     Then contract 2 describes itself as "Cocoon"
     And the balance of contract 2 is 100 atto
-# When contract 2 is told to self destruct
-# And account 1 calls deployMetamorphicContractWithConstructor on contract 1 with the code of Butterfly
-# And contract 2 describes itself as "Butterfly"
-# # Cocoon is expected to have refunded to its own address, which carries over to the new incarnation.
-# And the balance of contract 2 is 100 atto
+    When contract 2 is told to self destruct
+    # Cocoon is expected to have refunded to its own address...
+    Then the balance of contract 2 is 100 atto
+    When account 1 calls deployMetamorphicContractWithConstructor on contract 1 with the code of Butterfly
+    Then contract 2 describes itself as "Butterfly"
+    # ... which carries over to the new incarnation.
+    And the balance of contract 2 is 100 atto
+    # The same contract has been loaded
+    And the balance of contract 3 is 100 atto

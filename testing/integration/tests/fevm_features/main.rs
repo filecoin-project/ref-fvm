@@ -44,7 +44,7 @@ lazy_static! {
                 "SelfDestruct" / "SelfDestructOnCreate",
                 "SelfDestruct" / "SelfDestructChain",
                 "SelfDestruct" / "Cocoon",
-                "SelfDestruct" / "Bufferfly",
+                "SelfDestruct" / "Butterfly",
                 "Metamorphic" / "MetamorphicContractFactory",
                 "Metamorphic" / "TransientContract"
     }
