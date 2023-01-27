@@ -47,3 +47,12 @@ Feature: SelfDestruct
     Given 1 random account
     When the code of transient contract Metamorphic / TransientContract is loaded
     And account 1 creates a Metamorphic / MetamorphicContractFactory contract
+    And the value sent to the contract is 100 atto
+    And account 1 calls deployMetamorphicContractWithConstructor on contract 1 with the code of Cocoon
+    Then contract 2 describes itself as "Cocoon"
+    And the balance of contract 2 is 100 atto
+    When contract 2 is told to self destruct
+    And account 1 calls deployMetamorphicContractWithConstructor on contract 1 with the code of Butterfly
+    And contract 2 describes itself as "Butterfly"
+    # Cocoon is expected to have refunded to its own address, which carries over to the new incarnation.
+    And the balance of contract 2 is 100 atto

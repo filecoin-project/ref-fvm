@@ -43,6 +43,8 @@ lazy_static! {
                 "BankAccount" / "Account",
                 "SelfDestruct" / "SelfDestructOnCreate",
                 "SelfDestruct" / "SelfDestructChain",
+                "SelfDestruct" / "Cocoon",
+                "SelfDestruct" / "Bufferfly",
                 "Metamorphic" / "MetamorphicContractFactory",
                 "Metamorphic" / "TransientContract"
     }

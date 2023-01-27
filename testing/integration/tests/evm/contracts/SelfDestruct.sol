@@ -48,3 +48,29 @@ contract SelfDestructChain {
         selfdestruct(payable(msg.sender));
     }
 }
+
+/** Metamorphic contracts. */
+
+interface MetamorphicInterface {
+    // Each contract has a description that we can use to assert which one is living
+    // at the metamorphic address.
+    function description() external pure returns (string memory);
+}
+
+contract Cocoon {
+    function description() external pure returns (string memory) {
+        return "Cocoon";
+    }
+
+    /// Self destruct so it can be resurrected as a Butterfly.
+    /// Keep the money, if possible.
+    function die() public {
+        selfdestruct(payable(address(this)));
+    }
+}
+
+contract Bufferfly {
+    function description() external pure returns (string memory) {
+        return "Butterfly";
+    }
+}

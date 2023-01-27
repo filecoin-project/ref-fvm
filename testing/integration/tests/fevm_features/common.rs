@@ -11,8 +11,8 @@ use ethers::prelude::builders::ContractCall;
 use ethers::prelude::{decode_function_data, AbiError};
 use ethers::types::{Bytes, H160, H256};
 use fvm::executor::ApplyFailure;
-use fvm::machine::Machine;
-use fvm::state_tree::ActorState;
+use fvm::machine::{DefaultMachine, Machine};
+use fvm::state_tree::{ActorState, StateTree};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn, EthAddress, EAM_ACTOR_ID};
 use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALANCE};
@@ -153,7 +153,10 @@ impl Display for Atto {
 /// And account 1 creates a Cocoon contract
 /// ```
 #[derive(Parameter, Debug, Clone)]
-#[param(name = "contract_name", regex = r"(([A-Za-z0-9_]+ / )?[A-Za-z0-9_]+)")]
+#[param(
+    name = "contract_name",
+    regex = r"(([A-Za-z0-9_]+(( / )|/))?[A-Za-z0-9_]+)"
+)]
 pub struct ContractName {
     pub sol_name: Option<String>,
     pub contract_name: String,
@@ -199,7 +202,7 @@ impl Display for ContractName {
 pub struct DeployedContract {
     /// Name would be useful if we had multiple contracts in the same solidity file
     /// and wanted to check what contract was deployed at a certain slot.
-    pub _name: String,
+    pub _name: ContractName,
     pub owner: TestAccount,
     /// The ActorID address.
     pub address: Address,
@@ -274,6 +277,19 @@ impl ContractTester {
             next_constructor_args: None,
             next_token_amount: None,
         }
+    }
+
+    /// Read the raw contract code. The returned value can be passed to smart contract methods.
+    pub fn get_contract_code(&self, contract: &ContractName) -> ethers::abi::ethabi::Bytes {
+        let code = get_contract_code(
+            contract
+                .sol_name
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or(self.sol_name),
+            &contract.contract_name,
+        );
+        ethers::abi::ethabi::Bytes::from(code)
     }
 
     /// Prime the machine for contract execution.
@@ -368,12 +384,29 @@ impl ContractTester {
         id_to_h160(self.account_id(acct))
     }
 
-    /// Get the state of an actor, if it exists.
-    pub fn actor_state(&mut self, addr: Address) -> Option<ActorState> {
+    /// Get the state tree to
+    fn state_tree(
+        &mut self,
+    ) -> &StateTree<<DefaultMachine<MemoryBlockstore, DummyExterns> as Machine>::Blockstore> {
         self.ensure_machine_instantiated();
         let executor = self.tester.executor.as_ref().expect("machine instantiated");
         let machine = executor.deref();
         let state_tree = machine.state_tree();
+        state_tree
+    }
+
+    /// Look up the actor ID by address.
+    pub fn actor_id(&mut self, addr: &Address) -> Option<ActorID> {
+        let state_tree = self.state_tree();
+
+        state_tree
+            .lookup_id(&addr)
+            .expect("actor ID lookup should succeed")
+    }
+
+    /// Get the state of an actor, if it exists.
+    pub fn actor_state(&mut self, addr: Address) -> Option<ActorState> {
+        let state_tree = self.state_tree();
 
         state_tree
             .get_actor_by_address(&addr)
@@ -382,8 +415,7 @@ impl ContractTester {
 
     /// An f410 account is one managed by the EAM actor.
     pub fn f410_account_state(&mut self, account: &H160) -> Option<ActorState> {
-        let addr = Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &account.0)
-            .expect("delegated address");
+        let addr = h160_to_f410(account);
 
         self.actor_state(addr)
     }
@@ -457,7 +489,7 @@ impl ContractTester {
         let contract_addr = Address::new_id(create_return.actor_id);
 
         let contract = DeployedContract {
-            _name: contract_name.contract_name,
+            _name: contract_name,
             owner: creator,
             address: contract_addr,
             eth_address: create_return.eth_address,
@@ -764,6 +796,11 @@ pub type TestContractCall<R> = ContractCall<MockProvider, R>;
 pub fn id_to_h160(id: ActorID) -> ethers::core::types::Address {
     let addr = fvm_integration_tests::fevm::EthAddress::from_id(id);
     ethers::core::types::Address::from_slice(&addr.0)
+}
+
+/// Convert an Ethereum adress to a delegated address
+pub fn h160_to_f410(addr: &H160) -> Address {
+    Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &addr.0).expect("delegated address")
 }
 
 /// Left pad a byte array to 32 bytes.

@@ -1,7 +1,7 @@
 use cucumber::gherkin::Step;
 use cucumber::{given, then, when, World};
 use ethers::types::H160;
-use fvm_integration_tests::fevm::{EthAddress, EAM_ACTOR_ID};
+use fvm_integration_tests::fevm::EthAddress;
 use fvm_shared::address::Address;
 
 use crate::common::*;
@@ -46,8 +46,7 @@ impl BankAccountWorld {
     /// Get the FVM Address address of the last opened bank account.
     fn last_bank_account_addr(&self) -> Address {
         let bank_account_eth_addr = self.bank_accounts.last().expect("no bank accounts yet");
-        let f4_addr =
-            Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &bank_account_eth_addr.0).unwrap();
+        let f4_addr = h160_to_f410(bank_account_eth_addr);
         f4_addr
     }
 }
