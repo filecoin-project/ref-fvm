@@ -35,6 +35,10 @@ fevm-test-vectors re-generate --input <TEST_VECTOR_DIR/TEST_VECTOR_FILE>
 fevm-test-vectors consume --input <TEST_VECTOR_DIR/TEST_VECTOR_FILE> --output-file <TEST_RESULTS_CSV>
 ```
 
+Notice: Since the `consume` subcommand is sensitive to actor code cid, if the fil_builtin_actors_bundle package changes, 
+you need to use the `re-generate` subcommand to regenerate the test vector to ensure that the actor code cid is consistent, 
+otherwise an error such as `Send not from valid sender` will occur.
+
 ## Script
 
 In the `scripts` directory, We provide a script which fetch hundreds popular contracts's addresses and then generate test vectors in batch.
