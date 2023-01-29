@@ -9,7 +9,8 @@ members = [
     "testing/calibration",
     "ipld/*",
     "testing/integration/tests/*-actor",
-    "testing/calibration/contract/*-actor"
+    "testing/calibration/contract/*-actor",
+    "tools/fvm-bench",
 ]
 
 [profile.actor]

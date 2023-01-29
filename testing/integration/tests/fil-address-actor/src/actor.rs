@@ -15,7 +15,7 @@ pub fn invoke(params: u32) -> u32 {
         1 => {
             // Check our address.
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
             let expected_address: Option<Address> =
                 fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();
             let actual_address = sdk::actor::lookup_delegated_address(sdk::message::receiver());

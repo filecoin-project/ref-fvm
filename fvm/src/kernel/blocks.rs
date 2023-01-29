@@ -3,7 +3,7 @@
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use fvm_ipld_encoding::DAG_CBOR;
+use fvm_ipld_encoding::{CBOR, DAG_CBOR};
 use fvm_shared::IPLD_RAW;
 use thiserror::Error;
 
@@ -24,7 +24,7 @@ const FIRST_ID: BlockId = 1;
 const MAX_BLOCKS: u32 = i32::MAX as u32; // TODO(M2): Limit
 
 /// Codecs allowed by the IPLD subsytem.
-const ALLOWED_CODECS: &[u64; 2] = &[DAG_CBOR, IPLD_RAW];
+const ALLOWED_CODECS: &[u64; 3] = &[CBOR, DAG_CBOR, IPLD_RAW];
 
 #[derive(Debug, Copy, Clone)]
 pub struct BlockStat {

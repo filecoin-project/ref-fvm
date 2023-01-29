@@ -5,7 +5,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{RawBytes, CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -80,6 +80,27 @@ where
             events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
         }
 
+        // Filecoin caps the premium plus the base-fee at the fee-cap.
+        // We expose the _effective_ premium to the user.
+        let effective_premium = msg
+            .gas_premium
+            .clone()
+            .min(&msg.gas_fee_cap - &self.context().base_fee)
+            .max(TokenAmount::zero());
+
+        // TODO: Remove after the upgrade.
+        // If we're on hyperspace with a network version less than 20, we need to disable this fix
+        // until the next upgrade (version 20).
+        //
+        // I've written it this way to nicely isolate the bugfix to make it easier to remove.
+        #[cfg(feature = "hyperspace")]
+        let effective_premium =
+            if self.context().network_version < fvm_shared::version::NetworkVersion::new(20) {
+                msg.gas_premium.clone()
+            } else {
+                effective_premium
+            };
+
         // Acquire an engine from the pool. This may block if there are concurrently executing
         // messages inside other executors sharing the same pool.
         let engine = self.engine_pool.acquire();
@@ -94,7 +115,7 @@ where
                 sender_id,
                 msg.from,
                 msg.sequence,
-                msg.gas_premium.clone(),
+                effective_premium,
             );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
@@ -115,9 +136,9 @@ where
                         // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
                         IPLD_RAW
                     } else {
-                        // TODO: This should probably be CBOR
-                        // See #987.
-                        DAG_CBOR
+                        // This is CBOR, not DAG_CBOR, because links sent from off-chain aren't
+                        // reachable.
+                        CBOR
                     },
                     msg.params.bytes(),
                 )

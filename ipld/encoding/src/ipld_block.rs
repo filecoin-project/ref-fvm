@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use serde::de::value;
 use {serde, serde_ipld_dagcbor};
 
-use crate::{CodecProtocol, Error, RawBytes, DAG_CBOR, IPLD_RAW};
+use crate::{CodecProtocol, Error, RawBytes, CBOR, DAG_CBOR, IPLD_RAW};
 
 #[derive(PartialEq, Eq, Clone, Default)]
 pub struct IpldBlock {
@@ -46,7 +46,7 @@ impl IpldBlock {
                 description: e.to_string(),
                 protocol: CodecProtocol::Raw,
             }),
-            DAG_CBOR => Ok(serde_ipld_dagcbor::from_slice(self.data.as_slice())?),
+            DAG_CBOR | CBOR => Ok(serde_ipld_dagcbor::from_slice(self.data.as_slice())?),
             _ => Err(Error {
                 description: "unsupported protocol".to_string(),
                 protocol: CodecProtocol::Unsupported,
@@ -56,7 +56,7 @@ impl IpldBlock {
     pub fn serialize<T: serde::Serialize + ?Sized>(codec: u64, value: &T) -> Result<Self, Error> {
         let data = match codec {
             IPLD_RAW => crate::raw::to_vec(value)?,
-            DAG_CBOR => crate::to_vec(value)?,
+            DAG_CBOR | CBOR => crate::to_vec(value)?,
             _ => {
                 return Err(Error {
                     description: "unsupported protocol".to_string(),
@@ -66,7 +66,16 @@ impl IpldBlock {
         };
         Ok(IpldBlock { codec, data })
     }
+
+    /// Serialize the object as CBOR. Links (cids) are NOT considered reachable by the FVM.
     pub fn serialize_cbor<T: serde::Serialize + ?Sized>(value: &T) -> Result<Option<Self>, Error> {
+        Ok(Some(IpldBlock::serialize(CBOR, value)?))
+    }
+
+    /// Serialize the object as DagCBOR. Links (cids) _are_ considered reachable by the FVM.
+    pub fn serialize_dag_cbor<T: serde::Serialize + ?Sized>(
+        value: &T,
+    ) -> Result<Option<Self>, Error> {
         Ok(Some(IpldBlock::serialize(DAG_CBOR, value)?))
     }
 }
@@ -74,7 +83,7 @@ impl IpldBlock {
 impl From<RawBytes> for Option<IpldBlock> {
     fn from(other: RawBytes) -> Self {
         (!other.is_empty()).then(|| IpldBlock {
-            codec: DAG_CBOR,
+            codec: CBOR,
             data: other.into(),
         })
     }
