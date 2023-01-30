@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ethers_core::types::Bytes;
 use ethers_solc::artifacts::output_selection::OutputSelection;
@@ -26,8 +26,10 @@ fn main() {
     let artifacts_dir = path_config.artifacts.clone();
 
     // Don't think we need the AST, and it's big.
-    let mut solc_settings = Settings::default();
-    solc_settings.output_selection = OutputSelection::default_output_selection();
+    let solc_settings = Settings {
+        output_selection: OutputSelection::default_output_selection(),
+        ..Default::default()
+    };
     let solc_config = SolcConfig::builder().settings(solc_settings).build();
 
     let project = Project::builder()
@@ -108,7 +110,7 @@ fn export_str(path: &PathBuf, line: &str) {
 ///
 /// Instead of that, we can actually generate all the Rust code and check it into git,
 /// which makes it easier to see what's going on and works better in the editor as well.
-fn generate_facade(abi_path: &PathBuf, sol_name: &str, contract_name: &str) {
+fn generate_facade(abi_path: &Path, sol_name: &str, contract_name: &str) {
     let file_path = PathBuf::from(format!(
         "./src/{}/{}.rs",
         camel_to_snake(sol_name),
