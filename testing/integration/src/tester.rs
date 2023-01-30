@@ -364,6 +364,7 @@ pub type BasicExecutor = IntegrationExecutor<MemoryBlockstore, DummyExterns>;
 
 // TODO refactor base Account type to include the seqno;
 // requires refactoring all over the place hpwever.
+#[derive(Clone, Debug)]
 pub struct BasicAccount {
     pub account: Account,
     pub seqno: u64,

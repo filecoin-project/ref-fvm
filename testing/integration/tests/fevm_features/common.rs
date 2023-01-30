@@ -14,8 +14,10 @@ use fvm::executor::ApplyFailure;
 use fvm::machine::{DefaultMachine, Machine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account as TestAccount, BasicTester, INITIAL_ACCOUNT_BALANCE};
-use fvm_integration_tests::testkit::fevm::{self, Account, CreateReturn, EthAddress, EAM_ADDRESS};
+use fvm_integration_tests::tester::{
+    Account as TestAccount, BasicAccount, BasicTester, INITIAL_ACCOUNT_BALANCE,
+};
+use fvm_integration_tests::testkit::fevm::{self, CreateReturn, EthAddress, EAM_ADDRESS};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
@@ -232,7 +234,7 @@ pub struct ContractTester {
     /// Name of the solidity file we are adding contracts from.
     pub sol_name: &'static str,
     /// Accounts created by the tester.
-    pub accounts: Vec<Account>,
+    pub accounts: Vec<BasicAccount>,
     /// Contracts created by the tester; `(owner, contract_address)`.
     pub contracts: Vec<DeployedContract>,
     /// Events emitted by the last contract invocation.
@@ -328,7 +330,7 @@ impl ContractTester {
                 .create_accounts()
                 .expect("error creating account");
 
-            let account = Account {
+            let account = BasicAccount {
                 account: accounts[0],
                 seqno: 0,
             };
@@ -351,7 +353,7 @@ impl ContractTester {
                     .make_secp256k1_account(priv_key, INITIAL_ACCOUNT_BALANCE.clone())
                     .expect("error creating account");
 
-                let account = Account { account, seqno: 0 };
+                let account = BasicAccount { account, seqno: 0 };
 
                 self.accounts.push(account);
             }
@@ -359,7 +361,7 @@ impl ContractTester {
     }
 
     /// Get a mutable reference to an account.
-    pub fn account_mut(&mut self, acct: AccountNumber) -> &mut Account {
+    pub fn account_mut(&mut self, acct: AccountNumber) -> &mut BasicAccount {
         self.accounts
             .get_mut(acct.0)
             .ok_or_else(|| format!("{acct} has not been created"))
@@ -367,7 +369,7 @@ impl ContractTester {
     }
 
     /// Get a reference to a created account.
-    pub fn account(&self, acct: AccountNumber) -> &Account {
+    pub fn account(&self, acct: AccountNumber) -> &BasicAccount {
         self.accounts
             .get(acct.0)
             .ok_or_else(|| format!("{acct} has not been created"))
@@ -452,20 +454,12 @@ impl ContractTester {
 
         let create_res = if let Some(args) = self.next_constructor_args.take() {
             let initcode = [contract, &args].concat();
-            fevm::create_contract(
-                &mut self.tester,
-                &mut account,
-                &initcode,
-                value,
-            )
+            fevm::create_contract(&mut self.tester, &mut account, &initcode, value)
         } else {
-            fevm::create_contract(
-                &mut self.tester,
-                &mut account,
-                contract,
-                value,
-            )
+            fevm::create_contract(&mut self.tester, &mut account, contract, value)
         };
+
+        let create_res = create_res.expect("error creating contract");
 
         *self.account_mut(owner) = account;
 
@@ -557,7 +551,7 @@ impl ContractTester {
             .or_else(|| call.tx.value().map(|v| TokenAmount::from_atto(v.as_u64())))
             .unwrap_or_default();
 
-        let invoke_res = fvm_integration_tests::fevm::invoke_contract(
+        let invoke_res = fevm::invoke_contract(
             &mut self.tester,
             &mut account,
             contract_addr,
@@ -565,6 +559,8 @@ impl ContractTester {
             gas,
             value,
         );
+
+        let invoke_res = invoke_res.expect("error invoking contract");
 
         // I think the nonce doesn't need to increase for views, but
         // maybe that's just an optimisation by actually using a local node.
@@ -794,13 +790,13 @@ pub type TestContractCall<R> = ContractCall<MockProvider, R>;
 
 /// Convert an FVM actor ID to `ethers` address.
 pub fn id_to_h160(id: ActorID) -> ethers::core::types::Address {
-    let addr = fvm_integration_tests::fevm::EthAddress::from_id(id);
+    let addr = fevm::EthAddress::from_id(id);
     ethers::core::types::Address::from_slice(&addr.0)
 }
 
 /// Convert an Ethereum adress to a delegated address
 pub fn h160_to_f410(addr: &H160) -> Address {
-    Address::new_delegated(EAM_ACTOR_ID.id().unwrap(), &addr.0).expect("delegated address")
+    Address::new_delegated(EAM_ADDRESS.id().unwrap(), &addr.0).expect("delegated address")
 }
 
 /// Left pad a byte array to 32 bytes.
@@ -826,7 +822,7 @@ macro_rules! contract_constructors {
     ($contract:ident) => {
         #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_eth_addr(
-            owner: fvm_integration_tests::fevm::EthAddress,
+            owner: fvm_integration_tests::testkit::fevm::EthAddress,
         ) -> $contract<$crate::common::MockProvider> {
             // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
             let address = ethers::core::types::Address::from_slice(&owner.0);
@@ -839,7 +835,7 @@ macro_rules! contract_constructors {
         pub fn new_with_actor_id(
             owner: fvm_shared::ActorID,
         ) -> $contract<$crate::common::MockProvider> {
-            let owner = fvm_integration_tests::fevm::EthAddress::from_id(owner);
+            let owner = fvm_integration_tests::testkit::fevm::EthAddress::from_id(owner);
             new_with_eth_addr(owner)
         }
     };
