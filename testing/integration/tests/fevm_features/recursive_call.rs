@@ -30,9 +30,9 @@ crate::contract_matchers!(RecursiveCallWorld);
 /// Mirroring `RevertCall.Action` in Solidity.
 #[repr(u8)]
 enum Action {
-    DELEGATECALL = 0u8,
-    CALL,
-    REVERT,
+    DelegateCall = 0u8,
+    Call,
+    Revert,
 }
 
 impl FromStr for Action {
@@ -40,9 +40,9 @@ impl FromStr for Action {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "DELEGATECALL" => Ok(Action::DELEGATECALL),
-            "CALL" => Ok(Action::CALL),
-            "REVERT" => Ok(Action::REVERT),
+            "DELEGATECALL" => Ok(Action::DelegateCall),
+            "CALL" => Ok(Action::Call),
+            "REVERT" => Ok(Action::Revert),
             other => Err(format!("invalid Action: {other}")),
         }
     }
@@ -82,7 +82,7 @@ fn recurse(
                 .map(|s| Action::from_str(s.as_str()))
                 .transpose()
                 .unwrap()
-                .unwrap_or(Action::DELEGATECALL);
+                .unwrap_or(Action::DelegateCall);
 
             let cntr = kvs
                 .get("address")
