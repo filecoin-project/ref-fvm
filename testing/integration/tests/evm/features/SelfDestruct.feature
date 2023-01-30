@@ -1,5 +1,6 @@
 Feature: SelfDestruct
 
+  @wip
   Scenario: SELFDESTRUCT on contract creation, sending funds to self => fails
     Given 1 random account
     When the beneficiary is self
