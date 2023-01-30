@@ -57,7 +57,7 @@ jobs:
           - name: integration
             key: v3
             command: test
-            args: --package fvm_integration_tests --package "*actor"
+            args: --release --package fvm_integration_tests --package "*actor"
           - name: conformance
             key: v3
             command: test
