@@ -14,8 +14,8 @@ use fvm::executor::ApplyFailure;
 use fvm::machine::{DefaultMachine, Machine};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::fevm::{Account, BasicTester, CreateReturn, EthAddress, EAM_ACTOR_ID};
-use fvm_integration_tests::tester::{Account as TestAccount, INITIAL_ACCOUNT_BALANCE};
+use fvm_integration_tests::tester::{Account as TestAccount, BasicTester, INITIAL_ACCOUNT_BALANCE};
+use fvm_integration_tests::testkit::fevm::{self, Account, CreateReturn, EthAddress, EAM_ADDRESS};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
@@ -452,14 +452,14 @@ impl ContractTester {
 
         let create_res = if let Some(args) = self.next_constructor_args.take() {
             let initcode = [contract, &args].concat();
-            fvm_integration_tests::fevm::create_contract(
+            fevm::create_contract(
                 &mut self.tester,
                 &mut account,
                 &initcode,
                 value,
             )
         } else {
-            fvm_integration_tests::fevm::create_contract(
+            fevm::create_contract(
                 &mut self.tester,
                 &mut account,
                 contract,

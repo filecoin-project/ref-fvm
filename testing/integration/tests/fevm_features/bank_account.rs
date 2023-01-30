@@ -1,7 +1,7 @@
 use cucumber::gherkin::Step;
 use cucumber::{given, then, when, World};
 use ethers::types::H160;
-use fvm_integration_tests::fevm::EthAddress;
+use fvm_integration_tests::testkit::fevm::EthAddress;
 use fvm_shared::address::Address;
 
 use crate::common::*;

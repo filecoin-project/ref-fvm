@@ -6,6 +6,7 @@ use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
 use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 
@@ -18,6 +19,7 @@ pub fn create_contract(
     tester: &mut BasicTester,
     owner: &mut BasicAccount,
     contract: &[u8],
+    value: TokenAmount,
 ) -> Result<ApplyRet> {
     let create_msg = Message {
         from: owner.account.1,
@@ -26,6 +28,7 @@ pub fn create_contract(
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),
         sequence: owner.seqno,
+        value,
         ..Message::default()
     };
     let create_mlen = create_msg.params.len();
@@ -43,6 +46,7 @@ pub fn invoke_contract(
     dest: Address,
     input_data: &[u8],
     gas: i64,
+    value: TokenAmount,
 ) -> Result<ApplyRet> {
     let invoke_msg = Message {
         from: src.account.1,
@@ -51,6 +55,7 @@ pub fn invoke_contract(
         gas_limit: gas,
         method_num: EVMMethod::InvokeContract as u64,
         params: RawBytes::serialize(BytesSer(input_data)).unwrap(),
+        value,
         ..Message::default()
     };
     let invoke_mlen = invoke_msg.params.len();
@@ -90,6 +95,18 @@ pub enum EVMMethod {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EthAddress(#[serde(with = "strict_bytes")] pub [u8; 20]);
+
+impl EthAddress {
+    /// Returns an EVM-form ID address from actor ID.
+    ///
+    /// This is copied from the `evm` actor library.
+    pub fn from_id(id: u64) -> EthAddress {
+        let mut bytes = [0u8; 20];
+        bytes[0] = 0xff;
+        bytes[12..].copy_from_slice(&id.to_be_bytes());
+        EthAddress(bytes)
+    }
+}
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct CreateReturn {
