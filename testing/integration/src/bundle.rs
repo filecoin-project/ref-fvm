@@ -13,3 +13,14 @@ pub fn import_bundle(blockstore: &impl Blockstore, bundle: &[u8]) -> anyhow::Res
         _ => Err(anyhow!("multiple root CIDs in bundle")),
     }
 }
+
+pub fn import_bundle_from_path(blockstore: &impl Blockstore, path: &str) -> anyhow::Result<Cid> {
+    let bundle_data = match std::fs::read(path) {
+        Ok(data) => data,
+        Err(what) => {
+            return Err(anyhow!("error reading bundle: {}", what));
+        }
+    };
+
+    import_bundle(blockstore, &bundle_data)
+}

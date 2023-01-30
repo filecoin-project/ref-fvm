@@ -1,12 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::mem;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -152,31 +151,27 @@ where
             });
         }
 
-        // If a specific gas limit has been requested, create a child GasTracker and use that
-        // one hereon.
-        let prev_gas_tracker = gas_limit
-            .and_then(|limit| self.gas_tracker.new_child(limit))
-            .map(|new| mem::replace(&mut self.gas_tracker, new));
+        // If a specific gas limit has been requested, push a new limit into the gas tracker.
+        if let Some(limit) = gas_limit {
+            self.gas_tracker.push_limit(limit);
+        }
 
         let mut result =
             self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
 
-        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
-        if let Some(prev) = prev_gas_tracker {
-            let other = mem::replace(&mut self.gas_tracker, prev);
-            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
-            // would've already raised it, so we ignore it here. We could check and assert that's
-            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
-            // not safe to do so.
-            let _ = self.gas_tracker.absorb(&other);
-
-            // If we were limiting gas, convert the execution error to an exit.
-            if matches!(result, Err(ExecutionError::OutOfGas)) {
-                result = Ok(InvocationResult {
-                    exit_code: ExitCode::SYS_OUT_OF_GAS,
-                    value: None,
-                })
-            }
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
+        }
+        // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
+        // the error with an explicit exit code.
+        if !self.gas_tracker.gas_available().is_zero()
+            && matches!(result, Err(ExecutionError::OutOfGas))
+        {
+            result = Ok(InvocationResult {
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
+                value: None,
+            })
         }
 
         if self.machine.context().tracing {
@@ -207,19 +202,15 @@ where
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction(read_only);
-        self.events.create_layer(read_only);
+        self.events.begin_transaction(read_only);
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
-        self.state_tree_mut().end_transaction(revert)?;
 
-        if revert {
-            self.events.discard_last_layer()?;
-        } else {
-            self.events.merge_last_layer()?;
-        }
+        self.state_tree_mut().end_transaction(revert)?;
+        self.events.end_transaction(revert)?;
 
         res
     }
@@ -311,6 +302,14 @@ where
         delegated_address: Option<Address>,
     ) -> Result<()> {
         let start = GasTimer::start();
+
+        if self.machine.builtin_actors().is_placeholder_actor(&code_id) {
+            return Err(syscall_error!(
+                Forbidden,
+                "cannot explicitly construct a placeholder actor"
+            )
+            .into());
+        }
 
         // Check to make sure the actor doesn't exist, or is a placeholder.
         let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
@@ -415,7 +414,7 @@ where
             system_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            Some(Block::new(DAG_CBOR, params)),
+            Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
         )?;
 
@@ -729,7 +728,7 @@ impl EventsAccumulator {
         }
     }
 
-    fn create_layer(&mut self, read_only: bool) {
+    fn begin_transaction(&mut self, read_only: bool) {
         if read_only || self.is_read_only() {
             self.read_only_layers += 1;
         } else {
@@ -737,29 +736,18 @@ impl EventsAccumulator {
         }
     }
 
-    fn merge_last_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-            Ok(())
-        } else {
-            self.idxs.pop().map(|_| {}).ok_or_else(|| {
-                ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling merge_last_layer"
-                ))
-            })
-        }
-    }
-
-    fn discard_last_layer(&mut self) -> Result<()> {
+    fn end_transaction(&mut self, revert: bool) -> Result<()> {
         if self.is_read_only() {
             self.read_only_layers -= 1;
         } else {
             let idx = self.idxs.pop().ok_or_else(|| {
                 ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling discard_last_layer"
+                    "no index in the event accumulator when ending a transaction"
                 ))
             })?;
-            self.events.truncate(idx);
+            if revert {
+                self.events.truncate(idx);
+            }
         }
         Ok(())
     }

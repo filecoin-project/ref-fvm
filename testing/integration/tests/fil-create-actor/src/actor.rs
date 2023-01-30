@@ -3,6 +3,7 @@
 use actors_v10_runtime::runtime::builtins::Type;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
+use fvm_shared::error::ErrorNumber;
 
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
@@ -27,5 +28,13 @@ pub fn invoke(_: u32) -> u32 {
         acct_cid,
         sdk::actor::get_actor_code_cid(&Address::new_id(1001)).unwrap()
     );
+
+    // Check that we can't explicitly deploy a placeholder.
+    let placeholder_cid = sdk::actor::get_code_cid_for_type(Type::Placeholder as i32);
+    assert_eq!(
+        sdk::actor::create_actor(1002, &placeholder_cid, None),
+        Err(ErrorNumber::Forbidden)
+    );
+
     0
 }

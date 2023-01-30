@@ -1,0 +1,14 @@
+## this is a simple contract that computes the 1000th non trivial fibo (ie ignoring the first two 1s)
+
+# contract code
+%push(body_end - body_begin)
+dup1
+%push(body_begin)
+push1 0x00
+codecopy
+push1 0x00
+return
+
+body_begin:
+%include("fibomaon_body.eas")
+body_end:

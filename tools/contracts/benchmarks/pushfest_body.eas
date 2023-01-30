@@ -1,0 +1,58 @@
+## iterations of the loop
+%push(1000)
+
+## initial value
+push1 0x00
+
+loop:
+jumpdest
+
+%push(0x11)
+add
+%push(0x1011)
+add
+%push(0x100111)
+add
+%push(0x10000111)
+add
+%push(0x1000000011)
+add
+%push(0x100000000011)
+add
+%push(0x10000000000011)
+add
+%push(0x1000000000000011)
+add
+
+## ... iter | value
+push1 0x01
+## ... iter | value | 1
+dup3
+## ... iter | value | 1 | iter
+sub
+## ... iter | value | iter-1
+dup1
+## ... iter | value | iter-1 | iter-1
+swap3
+## ... iter-1 | value | iter-1 | iter
+pop
+## ... iter-1 | value | iter-1
+
+## iter -1 == 0 -> jump done
+iszero
+%push(done)
+jumpi
+
+%push(loop)
+jump
+
+# return the final value
+done:
+jumpdest
+
+# ... value
+push1 0x00
+mstore
+push1 0x20
+push1 0x00
+return

@@ -80,7 +80,7 @@ pub fn invoke(params: u32) -> u32 {
         },
         EMIT_SUBCALLS => {
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
 
             let mut counter: u64 = fvm_ipld_encoding::from_slice(msg_params.data.as_slice())
                 .expect("failed to deserialize param");
@@ -107,7 +107,7 @@ pub fn invoke(params: u32) -> u32 {
         }
         EMIT_SUBCALLS_REVERT => {
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
 
             let mut counter: u64 =
                 fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();
