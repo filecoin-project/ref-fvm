@@ -119,7 +119,7 @@ impl FromStr for Hex160 {
 
 impl Display for Hex160 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(&self.0))
+        write!(f, "0x{}", hex::encode(self.0))
     }
 }
 
@@ -284,11 +284,7 @@ impl ContractTester {
     /// Read the raw contract code. The returned value can be passed to smart contract methods.
     pub fn get_contract_code(&self, contract: &ContractName) -> ethers::abi::ethabi::Bytes {
         let code = get_contract_code(
-            contract
-                .sol_name
-                .as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or(self.sol_name),
+            contract.sol_name.as_deref().unwrap_or(self.sol_name),
             &contract.contract_name,
         );
         ethers::abi::ethabi::Bytes::from(code)
@@ -393,25 +389,20 @@ impl ContractTester {
         self.ensure_machine_instantiated();
         let executor = self.tester.executor.as_ref().expect("machine instantiated");
         let machine = executor.deref();
-        let state_tree = machine.state_tree();
-        state_tree
+        machine.state_tree()
     }
 
     /// Look up the actor ID by address.
     pub fn actor_id(&mut self, addr: &Address) -> Option<ActorID> {
-        let state_tree = self.state_tree();
-
-        state_tree
-            .lookup_id(&addr)
+        self.state_tree()
+            .lookup_id(addr)
             .expect("actor ID lookup should succeed")
     }
 
     /// Get the state of an actor, if it exists.
-    pub fn actor_state(&mut self, addr: Address) -> Option<ActorState> {
-        let state_tree = self.state_tree();
-
-        state_tree
-            .get_actor_by_address(&addr)
+    pub fn actor_state(&mut self, addr: &Address) -> Option<ActorState> {
+        self.state_tree()
+            .get_actor_by_address(addr)
             .expect("actor lookup should succeed")
     }
 
@@ -419,7 +410,7 @@ impl ContractTester {
     pub fn f410_account_state(&mut self, account: &H160) -> Option<ActorState> {
         let addr = h160_to_f410(account);
 
-        self.actor_state(addr)
+        self.actor_state(&addr)
     }
 
     /// ABI encode some constructor arguments for the next contract creation.
@@ -442,11 +433,7 @@ impl ContractTester {
         let mut account = self.account_mut(owner).clone();
         let creator = account.account;
         let contract = get_contract_code(
-            contract_name
-                .sol_name
-                .as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or(self.sol_name),
+            contract_name.sol_name.as_deref().unwrap_or(self.sol_name),
             &contract_name.contract_name,
         );
 
@@ -707,7 +694,7 @@ macro_rules! contract_matchers {
         fn check_acct_balance(world: &mut $world, acct: AccountNumber, atto: Atto) {
             let id = world.tester.account_id(acct);
             let addr = fvm_shared::address::Address::new_id(id);
-            let state = world.tester.actor_state(addr).expect("account exists");
+            let state = world.tester.actor_state(&addr).expect("account exists");
 
             assert_eq!(state.balance, atto.0)
         }
@@ -715,7 +702,7 @@ macro_rules! contract_matchers {
         #[then(expr = "the balance of {cntr} is {atto}")]
         fn check_cntr_balance(world: &mut $world, cntr: ContractNumber, atto: Atto) {
             let addr = world.tester.deployed_contract(cntr).address;
-            let state = world.tester.actor_state(addr).expect("contract exists");
+            let state = world.tester.actor_state(&addr).expect("contract exists");
 
             assert_eq!(state.balance, atto.0)
         }
@@ -729,7 +716,7 @@ macro_rules! contract_matchers {
         }
 
         #[when(expr = "the value sent to the contract is {atto}")]
-        fn set_next_token_amount(world: &mut $world, atto: crate::common::Atto) {
+        fn set_next_token_amount(world: &mut $world, atto: Atto) {
             world.tester.next_token_amount = Some(atto.0)
         }
 

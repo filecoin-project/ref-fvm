@@ -205,11 +205,8 @@ mod tests {
             pre_state: &Self::State,
             result: &Self::Result,
         ) {
-            match cmd {
-                CounterCommand::Get => {
-                    assert_eq!(result.as_ref(), Some(pre_state))
-                }
-                _ => {}
+            if let CounterCommand::Get = cmd {
+                assert_eq!(result.as_ref(), Some(pre_state))
             }
         }
 

@@ -50,7 +50,7 @@ lazy_static! {
     }
     .into_iter()
     .map(|((sol, contract), code)| {
-        let bz = hex::decode(&code.trim_end()).expect(&format!("error parsing {sol}/{contract}")).into();
+        let bz = hex::decode(code.trim_end()).unwrap_or_else(|e| panic!("error parsing {sol}/{contract}: {e}"));
         ((sol, contract), bz)
     })
     .collect();

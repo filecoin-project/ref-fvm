@@ -48,8 +48,7 @@ impl BankAccountWorld {
     /// Get the FVM Address address of the last opened bank account.
     fn last_bank_account_addr(&self) -> Address {
         let bank_account_eth_addr = self.bank_accounts.last().expect("no bank accounts yet");
-        let f4_addr = h160_to_f410(bank_account_eth_addr);
-        f4_addr
+        h160_to_f410(bank_account_eth_addr)
     }
 }
 

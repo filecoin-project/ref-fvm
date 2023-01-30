@@ -170,7 +170,7 @@ fn self_destruct(world: &mut SelfDestructWorld, cntr: ContractNumber) {
 
     let call = contract.destroy();
 
-    let _ = world
+    world
         .tester
         .call_contract(AccountNumber(0), contract_addr, call)
         .expect("self destruct should work");
