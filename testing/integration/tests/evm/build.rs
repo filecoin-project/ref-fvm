@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use ethers_core::types::Bytes;
 use ethers_solc::artifacts::output_selection::OutputSelection;
 use ethers_solc::artifacts::Settings;
+use ethers_solc::error::SolcError;
 use ethers_solc::{Project, ProjectPathsConfig, SolcConfig};
 use serde::Serialize;
 
@@ -38,7 +39,14 @@ fn main() {
         .build()
         .unwrap();
 
-    let output = project.compile().unwrap();
+    let output = match project.compile() {
+        Ok(output) => output,
+        Err(SolcError::Io(e)) if e.path() == PathBuf::from("solc").as_path() => {
+            eprintln!("It looks like the Solidity compiler is not installed. We'll use the cached artifacts.");
+            return;
+        }
+        Err(other) => panic!("error compiling contracts: {other}"),
+    };
 
     // I couldn't figure out a way to make `ethers_solc` write out the extra files for us.
     // It looks like it could write the ABI files with [ArtifactOutput::write_contract_extras],
