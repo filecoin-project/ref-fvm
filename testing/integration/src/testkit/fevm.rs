@@ -12,7 +12,7 @@ use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 use crate::tester::{BasicAccount, BasicTester};
 
 pub const EAM_ADDRESS: Address = Address::new_id(10);
-pub const DEFAULT_GAS: i64 = 10_000_000_000;
+pub const DEFAULT_GAS: u64 = 10_000_000_000;
 
 pub fn create_contract(
     tester: &mut BasicTester,
@@ -42,7 +42,7 @@ pub fn invoke_contract(
     src: &mut BasicAccount,
     dest: Address,
     input_data: &[u8],
-    gas: i64,
+    gas: u64,
 ) -> Result<ApplyRet> {
     let invoke_msg = Message {
         from: src.account.1,

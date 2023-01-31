@@ -73,7 +73,7 @@ where
 
         struct MachineExecRet {
             result: crate::kernel::error::Result<InvocationResult>,
-            gas_used: i64,
+            gas_used: u64,
             backtrace: Backtrace,
             exec_trace: ExecutionTrace,
             events_root: Option<Cid>,

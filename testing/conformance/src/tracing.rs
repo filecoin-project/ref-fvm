@@ -26,7 +26,7 @@ pub struct TestMessageTombstone {
     /// The path includes the name of the test, the ID of the variant, and the index of the message.
     pub trace_path: PathBuf,
     /// Overall gas burned.
-    pub gas_burned: i64,
+    pub gas_burned: u64,
     /// Overall time elapsed.
     pub elapsed_nanos: u128,
 }
@@ -38,8 +38,8 @@ pub struct TestMessageTombstone {
 #[derive(Serialize, Deserialize)]
 pub struct TestGasCharge {
     pub name: String,
-    pub compute_gas: i64,
-    pub other_gas: i64,
+    pub compute_gas: u64,
+    pub other_gas: u64,
     pub elapsed_nanos: Option<u128>,
 }
 

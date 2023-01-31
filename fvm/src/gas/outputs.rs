@@ -1,8 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::convert::TryFrom;
 
-use fvm_shared::bigint::BigInt;
 use fvm_shared::econ::TokenAmount;
 
 #[derive(Clone, Default)]
@@ -14,15 +12,15 @@ pub(crate) struct GasOutputs {
     pub refund: TokenAmount,
 
     // In whole gas units.
-    pub gas_refund: i64,
-    pub gas_burned: i64,
+    pub gas_refund: u64,
+    pub gas_burned: u64,
 }
 
 impl GasOutputs {
     pub fn compute(
         // In whole gas units.
-        gas_used: i64,
-        gas_limit: i64,
+        gas_used: u64,
+        gas_limit: u64,
         base_fee: &TokenAmount,
         fee_cap: &TokenAmount,
         gas_premium: &TokenAmount,
@@ -61,27 +59,33 @@ impl GasOutputs {
     }
 }
 
-fn compute_gas_overestimation_burn(gas_used: i64, gas_limit: i64) -> (i64, i64) {
-    const GAS_OVERUSE_NUM: i64 = 11;
-    const GAS_OVERUSE_DENOM: i64 = 10;
+fn compute_gas_overestimation_burn(gas_used: u64, gas_limit: u64) -> (u64, u64) {
+    const GAS_OVERUSE_NUM: u128 = 11;
+    const GAS_OVERUSE_DENOM: u128 = 10;
 
     if gas_used == 0 {
         return (0, gas_limit);
     }
 
-    let mut over = gas_limit - (GAS_OVERUSE_NUM * gas_used) / GAS_OVERUSE_DENOM;
-    if over < 0 {
-        return (gas_limit - gas_used, 0);
-    }
+    // Convert to u128 to prevent overflow on multiply.
+    let gas_used = gas_used as u128;
+    let gas_limit = gas_limit as u128;
 
-    if over > gas_used {
-        over = gas_used;
-    }
+    // Clamp the "overuse" between 0 and the gas used.
+    // This will charge for any "overuse" past 90%.
+    let over = gas_limit
+        .saturating_sub((GAS_OVERUSE_NUM * gas_used) / GAS_OVERUSE_DENOM)
+        .min(gas_used);
 
-    let mut gas_to_burn: BigInt = (gas_limit - gas_used).into();
-    gas_to_burn *= over;
-    gas_to_burn /= gas_used;
+    // We handle the case where the gas used exceeds the gas limit, just in case.
+    let gas_remaining = gas_limit.saturating_sub(gas_used);
 
-    let gas_to_burn = i64::try_from(gas_to_burn).unwrap();
-    (gas_limit - gas_used - gas_to_burn, gas_to_burn)
+    // This computes the fraction of the "remaining" gas to burn and will never be greater than 100%
+    // of the remaining gas.
+    let gas_to_burn = (gas_remaining * over) / gas_used;
+
+    // But... we use saturating sub, just in case.
+    let refund = gas_remaining.saturating_sub(gas_to_burn);
+
+    (refund as u64, gas_to_burn as u64)
 }

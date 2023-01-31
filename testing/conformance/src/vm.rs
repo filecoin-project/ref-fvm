@@ -220,7 +220,7 @@ where
     fn new(
         machine: Self::Machine,
         engine: Engine,
-        gas_limit: i64,
+        gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
         receiver: Option<ActorID>,

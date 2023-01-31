@@ -44,7 +44,7 @@ struct Args {
     #[arg(short, long, default_value = "10000000000")]
     /// Gas limit in atto precision to use during invocation.
     /// Default: 10 billion gas
-    gas_limit: i64,
+    gas_limit: u64,
 }
 
 fn run() -> anyhow::Result<()> {

@@ -51,7 +51,7 @@ pub trait CallManager: 'static {
     fn new(
         machine: Self::Machine,
         engine: Engine,
-        gas_limit: i64,
+        gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
         receiver: Option<ActorID>,
@@ -191,7 +191,7 @@ impl Default for InvocationResult {
 
 /// The returned values upon finishing a call manager.
 pub struct FinishRet {
-    pub gas_used: i64,
+    pub gas_used: u64,
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,

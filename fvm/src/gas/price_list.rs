@@ -323,24 +323,18 @@ pub(crate) struct StepCost(Vec<Step>);
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct Step {
-    start: i64,
+    start: u64,
     cost: Gas,
 }
 
 impl StepCost {
-    pub(crate) fn lookup(&self, x: i64) -> Gas {
-        let mut i: i64 = 0;
-        while i < self.0.len() as i64 {
-            if self.0[i as usize].start > x {
-                break;
-            }
-            i += 1;
-        }
-        i -= 1;
-        if i < 0 {
-            return Gas::zero();
-        }
-        self.0[i as usize].cost
+    pub(crate) fn lookup(&self, x: u64) -> Gas {
+        self.0
+            .iter()
+            .rev() // from the end
+            .find(|s| s.start <= x) // find the first "start" at or before the target.
+            .map(|s| s.cost) // and return the cost
+            .unwrap_or_default() // or zero
     }
 }
 
@@ -607,7 +601,7 @@ impl PriceList {
                     )
             });
         // Should be safe because there is a limit to how much seals get aggregated
-        let num = aggregate.infos.len() as i64;
+        let num = aggregate.infos.len() as u64;
         GasCharge::new(
             "OnVerifyAggregateSeals",
             per_proof * num + step.lookup(num),
@@ -884,7 +878,7 @@ impl PriceList {
 
     #[inline]
     pub fn on_actor_event_accept(&self, evt: &ActorEvent, serialized_len: usize) -> GasCharge {
-        let (mut indexed_bytes, mut indexed_elements) = (0, 0);
+        let (mut indexed_bytes, mut indexed_elements) = (0usize, 0u32);
         for evt in evt.entries.iter() {
             if evt.flags.contains(Flags::FLAG_INDEXED_KEY) {
                 indexed_bytes += evt.key.len();
@@ -906,7 +900,7 @@ impl PriceList {
 
         GasCharge::new(
             "OnActorEventAccept",
-            memcpy.mul(3) + alloc,
+            (memcpy * 3u32) + alloc,
             self.event_accept_per_index_element.flat * indexed_elements
                 + self.event_accept_per_index_element.scale * indexed_bytes,
         )
@@ -932,10 +926,7 @@ impl Rules for WasmGasPrices {
             linear: Gas,
             unit_multiplier: u32,
         ) -> anyhow::Result<InstructionCost> {
-            let base = base
-                .as_milligas()
-                .try_into()
-                .context("base gas exceeds u32")?;
+            let base = base.as_milligas();
             let gas_per_unit = linear * unit_multiplier;
             let expansion_cost: u32 = gas_per_unit
                 .as_milligas()
