@@ -202,10 +202,6 @@ impl Machine for DummyMachine {
     fn new_limiter(&self) -> Self::Limiter {
         DummyLimiter::default()
     }
-
-    fn commit_events(&self, _events: &[StampedEvent]) -> kernel::Result<Option<Cid>> {
-        todo!()
-    }
 }
 
 /// Minimal *pseudo-functional* implementation CallManager
@@ -317,9 +313,9 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn finish(self) -> (FinishRet, Self::Machine) {
+    fn finish(self) -> (kernel::Result<FinishRet>, Self::Machine) {
         (
-            FinishRet {
+            Ok(FinishRet {
                 gas_used: 0,
                 backtrace: Backtrace {
                     frames: Vec::new(),
@@ -327,7 +323,8 @@ impl CallManager for DummyCallManager {
                 },
                 exec_trace: Vec::new(),
                 events: Vec::new(),
-            },
+                events_root: None,
+            }),
             self.machine,
         )
     }

@@ -76,7 +76,7 @@ pub trait CallManager: 'static {
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
-    fn finish(self) -> (FinishRet, Self::Machine);
+    fn finish(self) -> (Result<FinishRet>, Self::Machine);
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
@@ -182,4 +182,5 @@ pub struct FinishRet {
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,
+    pub events_root: Option<Cid>,
 }

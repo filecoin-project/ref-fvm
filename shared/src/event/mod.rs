@@ -54,13 +54,7 @@ pub struct Entry {
     pub flags: Flags,
     /// The key of this event.
     pub key: String,
-    /// Any DAG-CBOR encodeable type.
+    /// FIP-0049 defines the value to be any CBOR encodeable type; however at this time it is
+    /// constrained to byte strings only (CBOR Major Type 2).
     pub value: RawBytes,
 }
-
-// TODO write macro
-// event!({
-//     "foo" | indexed1 | indexed2 => value1,
-//     "foo" => value2,
-//     "foo" => value3,
-// })

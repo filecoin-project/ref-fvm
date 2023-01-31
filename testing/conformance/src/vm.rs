@@ -24,7 +24,7 @@ use fvm_shared::crypto::signature::{
     SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::event::{ActorEvent, StampedEvent};
+use fvm_shared::event::StampedEvent;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
@@ -211,10 +211,6 @@ where
             local_stats: TestStats::default(),
         }
     }
-
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        self.machine.commit_events(events)
-    }
 }
 
 /// A CallManager that wraps kernels in an InterceptKernel.
@@ -281,7 +277,7 @@ where
         })
     }
 
-    fn finish(self) -> (FinishRet, Self::Machine) {
+    fn finish(self) -> (Result<FinishRet>, Self::Machine) {
         self.0.finish()
     }
 
@@ -751,8 +747,8 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
     M: Machine,
 {
-    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
-        self.0.emit_event(evt)
+    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+        self.0.emit_event(raw_evt)
     }
 }
 

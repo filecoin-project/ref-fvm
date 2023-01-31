@@ -4,13 +4,11 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_ipld_amt::Amt;
 use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
 use fvm_ipld_encoding::{to_vec, CborStore, DAG_CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::StampedEvent;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::ActorID;
 use log::debug;
@@ -27,8 +25,6 @@ use crate::machine::Manifest;
 use crate::state_tree::{ActorState, StateTree};
 use crate::system_actor::State as SystemActorState;
 use crate::{syscall_error, EMPTY_ARR_CID};
-
-pub const EVENTS_AMT_BITWIDTH: u32 = 5;
 
 lazy_static::lazy_static! {
     /// Pre-serialized block containing the empty array
@@ -235,33 +231,6 @@ where
         log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
-    }
-
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        if events.is_empty() {
-            return Ok(None);
-        }
-
-        let blockstore = self.blockstore();
-
-        let amt_cid = {
-            let mut amt = Amt::new_with_bit_width(blockstore, EVENTS_AMT_BITWIDTH);
-            // TODO this can be zero-copy if the AMT supports a batch set operation that takes an
-            //  iterator of references and flushes the batch at the end.
-            amt.batch_set(events.iter().cloned())
-                .context("failed to add events to AMT")
-                .or_fatal()?;
-            amt.flush()
-                .context("failed to flush events AMT")
-                .or_fatal()?
-        };
-
-        blockstore
-            .flush(&amt_cid)
-            .context("failed to flush the events AMT root CID through the buffered store")
-            .or_fatal()?;
-
-        Ok(Some(amt_cid))
     }
 
     fn into_store(self) -> Self::Blockstore {

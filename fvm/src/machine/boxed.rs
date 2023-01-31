@@ -3,7 +3,6 @@
 use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::event::StampedEvent;
 use fvm_shared::ActorID;
 
 use super::{Machine, MachineContext, Manifest};
@@ -75,10 +74,5 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn new_limiter(&self) -> Self::Limiter {
         (**self).new_limiter()
-    }
-
-    #[inline(always)]
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        (**self).commit_events(events)
     }
 }
