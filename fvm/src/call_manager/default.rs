@@ -238,8 +238,11 @@ where
         }
 
         let res = events.finish();
-        let (events, events_root) = match res {
-            Ok((events, events_root)) => (events, events_root),
+        let Events {
+            events,
+            root: events_root,
+        } = match res {
+            Ok(events) => events,
             Err(err) => return (Err(err), machine),
         };
 
@@ -726,6 +729,11 @@ pub struct EventsAccumulator {
     read_only_layers: u32,
 }
 
+pub(crate) struct Events {
+    root: Option<Cid>,
+    events: Vec<StampedEvent>,
+}
+
 impl EventsAccumulator {
     fn is_read_only(&self) -> bool {
         self.read_only_layers > 0
@@ -761,30 +769,31 @@ impl EventsAccumulator {
         Ok(())
     }
 
-    fn finish(self) -> Result<(Vec<StampedEvent>, Option<Cid>)> {
+    fn finish(self) -> Result<Events> {
         if !self.idxs.is_empty() {
             return Err(ExecutionError::Fatal(anyhow!(
                 "bad events accumulator state; expected layer indices to be empty, had {} items",
                 self.idxs.len()
             )));
         }
-        let events_root = if self.events.is_empty() {
-            None
-        } else {
+
+        let root = if !self.events.is_empty() {
             const EVENTS_AMT_BITWIDTH: u32 = 5;
-            let mut amt = Amt::new_with_bit_width(DiscardBlockstore, EVENTS_AMT_BITWIDTH);
-            // TODO this can be zero-copy if the AMT supports a batch set operation that took an
-            //  iterator of references and flushed the batch at the end, or an immutable constructor.
-            amt.batch_set(self.events.iter().cloned())
-                .context("failed to add events to AMT")
-                .or_fatal()?;
-            let amt_cid = amt
-                .flush()
-                .context("failed to flush events AMT")
-                .or_fatal()?;
-            Some(amt_cid)
+            let root = Amt::new_from_iter_with_bit_width(
+                DiscardBlockstore,
+                EVENTS_AMT_BITWIDTH,
+                self.events.iter().cloned(),
+            )
+            .context("failed to construct events AMT")
+            .or_fatal()?;
+            Some(root)
+        } else {
+            None
         };
 
-        Ok((self.events, events_root))
+        Ok(Events {
+            root,
+            events: self.events,
+        })
     }
 }
