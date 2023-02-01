@@ -92,7 +92,7 @@ impl StateAccessTracker {
     ) -> Result<GasTimer> {
         match self.actors.borrow().get(&actor) {
             // Already written.
-            Some(ActorAccessState::Updated) => Ok(GsTimer::empty()),
+            Some(ActorAccessState::Updated) => Ok(GasTimer::empty()),
             // Already read, but not written.
             Some(ActorAccessState::Read) => {
                 gas_tracker.apply_charge(self.price_list.on_actor_update())
