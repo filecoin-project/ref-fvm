@@ -541,7 +541,8 @@ impl PriceList {
         GasCharge::new("OnSyscall", self.syscall_cost, Zero::zero())
     }
 
-    /// Returns the gas required for creating an actor.
+    /// Returns the gas required for creating an actor. Pass `true` to when explicitly assigning a
+    /// new address.
     #[inline]
     pub fn on_create_actor(&self, new_address: bool) -> GasCharge {
         let mut gas = self.actor_create_storage;

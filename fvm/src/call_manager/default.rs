@@ -390,6 +390,8 @@ where
             }
             // Create a new actor.
             None => {
+                // We charge for creating the actor (storage) but not for address assignment as the
+                // init actor has already handled that for us.
                 let _ = self.charge_gas(self.price_list().on_create_actor(false))?;
                 ActorState::new_empty(code_id, delegated_address)
             }
@@ -509,9 +511,14 @@ where
 
     /// Helper method to create an uninitialized actor due to a send.
     fn create_actor_from_send(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
+        // This will charge for the address assignment and the actor storage, but not the actor
+        // lookup/update (charged below in `set_actor`).
         let _ = self.charge_gas(self.price_list().on_create_actor(true))?;
         let addr_id = self.state_tree_mut().register_new_address(addr)?;
         self.state_access_tracker.record_lookup_address(addr);
+
+        // Now we actually set the actor state, charging for reads/writes as necessary and recording
+        // the fact that the actor has been updated.
         self.set_actor(addr_id, act)?;
         Ok(addr_id)
     }

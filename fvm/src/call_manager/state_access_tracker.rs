@@ -16,9 +16,15 @@ struct StateAccessLayer {
     actors_height: usize,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+enum ActorAccessState {
+    Read,
+    Updated,
+}
+
 pub struct StateAccessTracker {
     price_list: &'static PriceList,
-    actors: RefCell<HistoryMap<ActorID, bool>>,
+    actors: RefCell<HistoryMap<ActorID, ActorAccessState>>,
     addresses: RefCell<HistoryMap<Address, ()>>,
     layers: Vec<StateAccessLayer>,
 }
@@ -31,7 +37,7 @@ impl StateAccessTracker {
             actors: RefCell::new(
                 iter::zip(
                     price_list.preloaded_actors.iter().copied(),
-                    iter::repeat(true),
+                    iter::repeat(ActorAccessState::Updated),
                 )
                 .collect(),
             ),
@@ -75,7 +81,7 @@ impl StateAccessTracker {
     pub fn record_actor_read(&self, actor: ActorID) {
         let mut actors = self.actors.borrow_mut();
         if actors.get(&actor).is_none() {
-            actors.insert(actor, false)
+            actors.insert(actor, ActorAccessState::Read)
         }
     }
 
@@ -86,9 +92,11 @@ impl StateAccessTracker {
     ) -> Result<GasTimer> {
         match self.actors.borrow().get(&actor) {
             // Already written.
-            Some(true) => Ok(GasTimer::empty()),
+            Some(ActorAccessState::Updated) => Ok(GsTimer::empty()),
             // Already read, but not written.
-            Some(false) => gas_tracker.apply_charge(self.price_list.on_actor_update()),
+            Some(ActorAccessState::Read) => {
+                gas_tracker.apply_charge(self.price_list.on_actor_update())
+            }
             // Never touched, charge both.
             None => {
                 let _ = gas_tracker.apply_charge(self.price_list.on_actor_lookup())?;
@@ -98,7 +106,9 @@ impl StateAccessTracker {
     }
 
     pub fn record_actor_update(&self, actor: ActorID) {
-        self.actors.borrow_mut().insert(actor, true)
+        self.actors
+            .borrow_mut()
+            .insert(actor, ActorAccessState::Updated)
     }
 
     pub fn charge_address_lookup(
