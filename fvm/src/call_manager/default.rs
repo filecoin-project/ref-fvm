@@ -654,7 +654,6 @@ where
 
         // Transfer, if necessary.
         if !value.is_zero() {
-            // Charge the method gas. Not sure why this comes second, but it does.
             let t = self.charge_gas(self.price_list().on_value_transfer())?;
             self.transfer(from, to, value)?;
             t.stop();
@@ -666,7 +665,7 @@ where
             return Ok(InvocationResult::default());
         }
 
-        // Charge the method gas. Not sure why this comes second, but it does.
+        // Charge the invocation gas.
         let t = self.charge_gas(self.price_list().on_method_invocation())?;
 
         // Store the parametrs, and initialize the block registry for the target actor.
