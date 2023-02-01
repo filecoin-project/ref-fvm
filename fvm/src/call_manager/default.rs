@@ -15,7 +15,7 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
-use super::state_access_tracker::StateAccessTracker;
+use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
@@ -114,7 +114,8 @@ where
         let gas_tracker =
             GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
 
-        let state_access_tracker = StateAccessTracker::new(machine.context().price_list);
+        let state_access_tracker =
+            StateAccessTracker::new(&machine.context().price_list.preloaded_actors);
 
         /* Origin */
 
@@ -415,10 +416,12 @@ where
         if let Ok(id) = address.id() {
             return Ok(Some(id));
         }
-        let t = self
-            .state_access_tracker
-            .charge_address_lookup(&self.gas_tracker, address)?;
-        let id = t.record(self.state_tree().lookup_id(address))?;
+        if !self.state_access_tracker.get_address_lookup_state(address) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_resolve_address())?;
+        }
+        let id = self.state_tree().lookup_id(address)?;
         if id.is_some() {
             self.state_access_tracker.record_lookup_address(address);
         }
@@ -426,28 +429,47 @@ where
     }
 
     fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
-        let t = self
-            .state_access_tracker
-            .charge_actor_read(&self.gas_tracker, id)?;
-        let actor = t.record(self.state_tree().get_actor(id))?;
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        let actor = self.state_tree().get_actor(id)?;
         self.state_access_tracker.record_actor_read(id);
         Ok(actor)
     }
 
     fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
-        let t = self
-            .state_access_tracker
-            .charge_actor_update(&self.gas_tracker, id)?;
-        t.record(self.state_tree_mut().set_actor(id, state))?;
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().set_actor(id, state)?;
         self.state_access_tracker.record_actor_update(id);
         Ok(())
     }
 
     fn delete_actor(&mut self, id: ActorID) -> Result<()> {
-        let t = self
-            .state_access_tracker
-            .charge_actor_update(&self.gas_tracker, id)?;
-        t.record(self.state_tree_mut().delete_actor(id))?;
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().delete_actor(id)?;
         self.state_access_tracker.record_actor_update(id);
         Ok(())
     }
