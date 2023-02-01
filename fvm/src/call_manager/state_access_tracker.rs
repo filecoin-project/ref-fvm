@@ -148,7 +148,7 @@ mod test {
         let mut iter_exp = charges.into_iter().fuse();
         if let Some((idx, (trace, exp))) = std::iter::zip(iter_trace.by_ref(), iter_exp.by_ref())
             .enumerate()
-            .find(|(_, (trace, exp))| trace.name != exp.name || trace.total() != exp.total())
+            .find(|(_, (trace, exp))| trace != exp)
         {
             panic!(
                 "expected {idx} gas charge {} ({}), got {} ({})",

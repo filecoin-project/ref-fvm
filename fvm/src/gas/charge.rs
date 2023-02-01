@@ -29,6 +29,19 @@ pub struct GasCharge {
     pub elapsed: GasDuration,
 }
 
+// Implement eq for _testing_ because equality usually isn't something anyone should care about here
+// (and we ignore elapsed times).
+#[cfg(feature = "testing")]
+impl PartialEq for GasCharge {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.compute_gas == other.compute_gas
+            && self.other_gas == other.other_gas
+    }
+}
+#[cfg(feature = "testing")]
+impl Eq for GasCharge {}
+
 impl GasCharge {
     pub fn new(name: impl Into<Cow<'static, str>>, compute_gas: Gas, other_gas: Gas) -> Self {
         let name = name.into();
