@@ -58,7 +58,7 @@ impl StateAccessTracker {
             .or_fatal()?;
         if revert {
             self.actors.get_mut().rollback(layer.actors_height);
-            self.actors.get_mut().rollback(layer.addresses_height);
+            self.addresses.get_mut().rollback(layer.addresses_height);
         }
         Ok(())
     }
@@ -240,13 +240,15 @@ mod test {
 
     #[test]
     fn test_state_access_tracker_lookup() {
-        let (pl, state, gas) = new_tracker();
+        let (pl, mut state, gas) = new_tracker();
 
         // Never charge to lookup ID addresses.
         let _ = state
             .charge_address_lookup(&gas, &Address::new_id(1))
             .unwrap();
         assert_charges(&gas, []);
+
+        state.begin_transaction();
 
         // Charge for address lookup.
         let t_addr = Address::new_secp256k1(&[0; SECP_PUB_LEN][..]).unwrap();
@@ -255,6 +257,18 @@ mod test {
 
         // But only if we haven't already.
         state.record_lookup_address(&t_addr);
+        assert_charges(&gas, []);
+
+        // Charge again if we revert.
+        state.end_transaction(true).unwrap();
+        let _ = state.charge_address_lookup(&gas, &t_addr).unwrap();
+        assert_charges(&gas, [pl.on_resolve_address()]);
+
+        // But not if we commit it.
+        state.begin_transaction();
+        state.record_lookup_address(&t_addr);
+        state.end_transaction(false).unwrap();
+        let _ = state.charge_address_lookup(&gas, &t_addr).unwrap();
         assert_charges(&gas, []);
     }
 }
