@@ -162,7 +162,7 @@ mod test {
 
     #[test]
     fn test_state_access_tracker_actor_free() {
-        let mut state = StateAccessTracker::new(&[1]);
+        let state = StateAccessTracker::new(&[1]);
 
         // We shouldn't charge for actors in the "preload" list.
         assert_eq!(
