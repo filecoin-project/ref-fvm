@@ -2,28 +2,46 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::cmp::Ordering;
-
 use cid::Cid;
 
+/// A path is specified as a sequence of branches
 #[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub struct Cursor {
+pub(crate) struct Path(pub(crate) Vec<u8>);
+
+#[derive(Default, PartialEq, Eq, Clone, Debug)]
+pub struct NodeCursor {
     cid: Cid,
-    branches: Vec<u8>,
+    path: Path,
 }
 
-impl PartialOrd for Cursor {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // compare along the entire path
-        for (branch, gate) in self.branches.iter().zip(other.branches.iter()) {
+#[derive(Default, PartialEq, Eq, Clone, Debug)]
+pub struct LeafCursor {
+    cid: Cid,
+    path: Path,
+}
+
+/// BranchOrdering is the result of comparing two `Branches` in a tree-like where each represents a
+/// path to a node in the tree
+enum BranchOrdering {
+    Less,
+    Equal,
+    Greater,
+    Ancestor,
+    Descendant,
+}
+
+impl Path {
+    /// Compares two Paths. A path "A" is less than a path "B" if "A" is contained within a subtree
+    /// to the left of "B" (when considered from their common ancestor).
+    fn cmp(&self, other: &Self) -> BranchOrdering {
+        // compare along shared segment length
+        for (branch, gate) in self.0.iter().zip(other.0.iter()) {
             match branch.cmp(gate) {
                 std::cmp::Ordering::Less => {
-                    // if the path has a smaller branch at any point, it can definitely be skipped
-                    return Some(Ordering::Less);
+                    return BranchOrdering::Less;
                 }
                 std::cmp::Ordering::Greater => {
-                    // if the path is larger at any depth, it cannot be skipped
-                    return Some(Ordering::Greater);
+                    return BranchOrdering::Greater;
                 }
                 std::cmp::Ordering::Equal => {
                     // path is equal to the range start so far, continue checking further branches
@@ -31,34 +49,59 @@ impl PartialOrd for Cursor {
             }
         }
 
-        // we explored the entire path and it matched, therefore it is a direct ancestor or the
-        // range start itself, and cannot be skipped
-        if self.branches.len() > other.branches.len() {
-            Some(Ordering::Greater)
-        } else {
-            Some(Ordering::Equal)
+        // the entire path segments matched, so the paths are of the same lineage
+        match self.0.len().cmp(&other.0.len()) {
+            std::cmp::Ordering::Less => BranchOrdering::Ancestor,
+            std::cmp::Ordering::Greater => BranchOrdering::Descendant,
+            std::cmp::Ordering::Equal => BranchOrdering::Equal,
         }
     }
 }
 
-impl Ord for Cursor {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+impl NodeCursor {
+    /// Creates a new cursor, extending the path by the specified `branch`
+    pub fn create_branch(&self, branch: u8) -> NodeCursor {
+        let mut new_cursor = self.clone();
+        new_cursor.path.0.push(branch);
+        new_cursor
+    }
+
+    /// Creates a leaf cursor, extending the path by the specified `branch`
+    pub fn create_leaf(&self, branch: u8) -> LeafCursor {
+        let mut new_path = self.path.clone();
+        new_path.0.push(branch);
+        LeafCursor {
+            cid: self.cid,
+            path: new_path,
+        }
+    }
+
+    /// Returns true if this branch can be safely skipped, given the specified `range_start`.
+    /// Direct ancestors of the range start cannot be skipped. At each depth, branches to the left
+    /// of the path specified by `range_start` can be ignored.
+    pub fn can_skip(&self, range_start: &LeafCursor) -> bool {
+        match self.path.cmp(&range_start.path) {
+            BranchOrdering::Less => true,
+            BranchOrdering::Equal => false,
+            BranchOrdering::Greater => false,
+            BranchOrdering::Ancestor => false,
+            BranchOrdering::Descendant => false,
+        }
     }
 }
 
-impl Cursor {
-    // Creates a new path with the extra branch specified at the end
-    pub fn create_branch(&self, branch: u8) -> Cursor {
-        let mut new_path = self.clone();
-        new_path.branches.push(branch);
-        new_path
-    }
-
-    // Returns true if the current path can be safely skipped, given the specified `range_start`.
-    // Direct ancestors of the range start cannot be skipped. At each depth, branches to the left of
-    // the path specified by `range_start` can be ignored.
-    pub fn can_skip(&self, range_start: &Cursor) -> bool {
-        self.cmp(range_start) == Ordering::Less
+impl LeafCursor {
+    /// Returns true if this leaf path should be skipped, given the specified `range_start`
+    /// The logic is the same as `can_skip` for a LeafBranch, but includes a case for equal leaves.
+    /// Since the cursor returned by iteration points to the last traversed value, the next iteration
+    /// must skip that particular leaf.
+    pub fn can_skip(&self, range_start: &LeafCursor) -> bool {
+        match self.path.cmp(&range_start.path) {
+            BranchOrdering::Less => true,
+            BranchOrdering::Equal => true,
+            BranchOrdering::Greater => false,
+            BranchOrdering::Ancestor => false,
+            BranchOrdering::Descendant => false,
+        }
     }
 }

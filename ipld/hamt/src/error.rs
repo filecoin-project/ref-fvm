@@ -22,6 +22,9 @@ pub enum Error {
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
     CidNotFound(String),
+    /// Zero page size error
+    #[error("Requested page size must be more than 0")]
+    ZeroPageSize,
     /// Dynamic error for when the error needs to be forwarded as is.
     #[error("{0}")]
     Dynamic(anyhow::Error),

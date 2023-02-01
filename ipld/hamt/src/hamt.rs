@@ -13,7 +13,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
-use crate::cursor::Cursor;
+use crate::cursor::{LeafCursor, NodeCursor};
 use crate::node::Node;
 use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
 
@@ -362,8 +362,8 @@ where
     {
         self.root.for_each_while(
             self.store.borrow(),
-            &Cursor::default(),
-            Cursor::default(),
+            None,
+            NodeCursor::default(),
             None,
             &mut f,
         )?;
@@ -373,18 +373,18 @@ where
     #[inline]
     pub fn for_each_ranged<F>(
         &self,
-        start_at: &Cursor,
+        start_at: Option<LeafCursor>,
         limit: u64,
         mut f: F,
-    ) -> Result<(u64, Cursor), Error>
+    ) -> Result<(u64, Option<LeafCursor>), Error>
     where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root.for_each_while(
             self.store.borrow(),
-            start_at,
-            Cursor::default(),
+            start_at.as_ref(),
+            NodeCursor::default(),
             Some(limit),
             &mut f,
         )

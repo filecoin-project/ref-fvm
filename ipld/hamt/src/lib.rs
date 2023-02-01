@@ -23,7 +23,7 @@ mod pointer;
 pub use forest_hash_utils::{BytesKey, Hash};
 use serde::{Deserialize, Serialize};
 
-pub use self::cursor::Cursor;
+pub use self::cursor::NodeCursor;
 pub use self::error::Error;
 pub use self::hamt::Hamt;
 pub use self::hash::*;

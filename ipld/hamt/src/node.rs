@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::borrow::Borrow;
-use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -18,7 +17,7 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
-use crate::cursor::Cursor;
+use crate::cursor::{LeafCursor, NodeCursor};
 use crate::Config;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
@@ -144,32 +143,31 @@ where
     pub(crate) fn for_each_while<S, F>(
         &self,
         store: &S,
-        start_at: &Cursor,
-        curr_pos: Cursor,
+        start_at: Option<&LeafCursor>,
+        curr_pos: NodeCursor,
         limit: Option<u64>,
         f: &mut F,
-    ) -> Result<(u64, Cursor), Error>
+    ) -> Result<(u64, Option<LeafCursor>), Error>
     where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
         S: Blockstore,
     {
+        if limit == Some(0) {
+            return Err(Error::ZeroPageSize);
+        }
+
         let mut count_traversed = 0;
-        let mut last_traversed = curr_pos.clone();
 
         for (branch, p) in (0_u8..).zip(&self.pointers) {
-            if limit.is_some() && count_traversed >= limit.unwrap() {
-                return Ok((count_traversed, last_traversed));
-            }
-
             let new_pos = curr_pos.create_branch(branch);
-            if new_pos.can_skip(start_at) {
+            if start_at.is_some() && new_pos.can_skip(start_at.unwrap()) {
                 continue;
             }
 
             match p {
                 Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
-                        let (traversed, last) = cached_node.for_each_while(
+                        let (traversed, last_traversed) = cached_node.for_each_while(
                             store,
                             start_at,
                             new_pos,
@@ -178,7 +176,9 @@ where
                         )?;
 
                         count_traversed += traversed;
-                        last_traversed = last;
+                        if limit.is_some() && count_traversed >= limit.unwrap() {
+                            return Ok((count_traversed, last_traversed));
+                        }
                     } else {
                         let node = if let Some(node) = store.get_cbor(cid)? {
                             node
@@ -192,7 +192,7 @@ where
 
                         // Ignore error intentionally, the cache value will always be the same
                         let cache_node = cache.get_or_init(|| node);
-                        let (traversed, last) = cache_node.for_each_while(
+                        let (traversed, last_traversed) = cache_node.for_each_while(
                             store,
                             start_at,
                             new_pos,
@@ -200,11 +200,13 @@ where
                             f,
                         )?;
                         count_traversed += traversed;
-                        last_traversed = last;
+                        if limit.is_some() && count_traversed >= limit.unwrap() {
+                            return Ok((count_traversed, last_traversed));
+                        }
                     }
                 }
                 Pointer::Dirty(node) => {
-                    let (traversed, next_path) = node.for_each_while(
+                    let (traversed, last_traversed) = node.for_each_while(
                         store,
                         start_at,
                         new_pos,
@@ -212,30 +214,31 @@ where
                         f,
                     )?;
                     count_traversed += traversed;
-                    last_traversed = next_path.clone();
+                    if limit.is_some() && count_traversed >= limit.unwrap() {
+                        return Ok((count_traversed, last_traversed));
+                    }
                 }
                 Pointer::Values(kvs) => {
                     for (branch, kv) in (0_u8..).zip(kvs) {
-                        if limit.is_some() && count_traversed >= limit.unwrap() {
-                            return Ok((count_traversed, last_traversed));
-                        }
-
                         // leaf branches must be strictly greater than the start_at cursor
-                        let leaf_path = new_pos.create_branch(branch);
-                        if leaf_path.cmp(start_at) != Ordering::Greater {
+                        let leaf_path = new_pos.create_leaf(branch);
+                        if start_at.is_some() && leaf_path.can_skip(start_at.unwrap()) {
                             continue;
                         }
 
                         f(kv.0.borrow(), kv.1.borrow())?;
 
                         count_traversed += 1;
-                        last_traversed = leaf_path;
+                        if limit.is_some() && count_traversed >= limit.unwrap() {
+                            return Ok((count_traversed, Some(leaf_path)));
+                        }
                     }
                 }
             }
         }
 
-        Ok((count_traversed, last_traversed))
+        // Finished iteration, therefore there are no more values to traverse
+        Ok((count_traversed, None))
     }
 
     /// Search for a key.

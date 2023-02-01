@@ -15,7 +15,7 @@ use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Config, Cursor, Error, Hamt, Hash};
+use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
@@ -399,12 +399,12 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
         hamt.set(tstring(i), i).unwrap();
     }
 
-    for target_num in 0..N_VALUES {
+    for target_num in 1..N_VALUES {
         let mut results = HashSet::new();
 
         // add the first `target_num` values
         let (num_traversed, next_range_start) = hamt
-            .for_each_ranged(&Cursor::default(), target_num, |_k, v| {
+            .for_each_ranged(None, target_num, |_k, v| {
                 results.insert(*v);
                 Ok(())
             })
@@ -412,9 +412,15 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
         assert_eq!(num_traversed, target_num);
         assert_eq!(results.len(), target_num as usize);
 
+        if target_num != N_VALUES {
+            assert!(next_range_start.is_some());
+        } else {
+            assert!(next_range_start.is_none());
+        }
+
         // add the next `target_num` values
         let (num_traversed, _) = hamt
-            .for_each_ranged(&next_range_start, target_num, |_k, v| {
+            .for_each_ranged(next_range_start, target_num, |_k, v| {
                 results.insert(*v);
                 Ok(())
             })
