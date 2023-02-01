@@ -2,10 +2,14 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.18 [2022-02-01]
+
+- Improve rustdocs around events and gas premium.
+
 ## 3.0.0-alpha.17 [2022-01-17]
 
 - Add `hyperspace` feature to loosen up network version restrictions.
-- 
+
 ## 3.0.0-alpha.16 [2023-01-12]
 
 - Remove uses of the Cbor trait
