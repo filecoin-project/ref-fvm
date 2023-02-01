@@ -1,0 +1,31 @@
+{
+  "abi": [
+    {
+      "inputs": [],
+      "name": "getInitializationCode",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "initializationCode",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": {
+    "object": "0x",
+    "sourceMap": "",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x",
+    "sourceMap": "",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {
+    "getInitializationCode()": "57b9f523"
+  },
+  "id": 0
+}

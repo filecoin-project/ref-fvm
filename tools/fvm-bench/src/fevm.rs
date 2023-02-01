@@ -5,6 +5,8 @@ use anyhow::anyhow;
 use fvm_integration_tests::{tester, testkit};
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
+use fvm_shared::bigint::Zero;
+use fvm_shared::econ::TokenAmount;
 
 pub fn run(
     tester: &mut tester::BasicTester,
@@ -15,7 +17,8 @@ pub fn run(
 ) -> anyhow::Result<()> {
     let mut account = tester.create_basic_account()?;
 
-    let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
+    let create_res =
+        testkit::fevm::create_contract(tester, &mut account, contract, TokenAmount::zero())?;
 
     if create_res.msg_receipt.exit_code.value() != 0 {
         return Err(anyhow!(
@@ -33,7 +36,14 @@ pub fn run(
     let mut input_params = Vec::from(params);
     input_data.append(&mut input_params);
 
-    let invoke_res = testkit::fevm::invoke_contract(tester, &mut account, actor, &input_data, gas)?;
+    let invoke_res = testkit::fevm::invoke_contract(
+        tester,
+        &mut account,
+        actor,
+        &input_data,
+        gas,
+        TokenAmount::zero(),
+    )?;
 
     if !invoke_res.msg_receipt.exit_code.is_success() {
         return Err(anyhow!(

@@ -63,6 +63,8 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     pub executor: Option<IntegrationExecutor<B, E>>,
     // State tree constructed before instantiating the Machine
     pub state_tree: Option<StateTree<B>>,
+    /// Create accounts with determnistic keys..
+    accounts_rng_seed: u64,
 
     // execution options for machine instantiation
     pub options: Option<ExecutionOptions>,
@@ -110,6 +112,7 @@ where
             state_tree: Some(state_tree),
             accounts_code_cid,
             placeholder_code_cid,
+            accounts_rng_seed: 8,
             options: None,
             ready: false,
         })
@@ -120,7 +123,8 @@ where
     pub fn create_accounts<const N: usize>(&mut self) -> Result<[Account; N]> {
         use rand::SeedableRng;
 
-        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(8);
+        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(self.accounts_rng_seed);
+        self.accounts_rng_seed += 1;
 
         let mut ret: [Account; N] = [(0, Address::default()); N];
         for account in ret.iter_mut().take(N) {
@@ -160,7 +164,7 @@ where
         let state_tree = self
             .state_tree
             .as_mut()
-            .ok_or_else(|| anyhow!("unable get state tree"))?;
+            .ok_or_else(|| anyhow!("Expected state tree in create_placeholder."))?;
 
         let id = state_tree.register_new_address(address).unwrap();
         let state: [u8; 32] = [0; 32];
@@ -186,7 +190,7 @@ where
         let state_cid = self
             .state_tree
             .as_mut()
-            .unwrap()
+            .expect("Expected state tree in set_state.")
             .store()
             .put_cbor(state, Code::Blake2b256)?;
 
@@ -208,7 +212,7 @@ where
             Err(_) => self
                 .state_tree
                 .as_mut()
-                .unwrap()
+                .expect("Expected state tree in set_actor_from_bin.")
                 .register_new_address(&actor_address)
                 .unwrap(),
         };
@@ -264,7 +268,10 @@ where
         G: FnOnce(&mut MachineContext),
     {
         // Take the state tree and leave None behind.
-        let mut state_tree = self.state_tree.take().unwrap();
+        let mut state_tree = self
+            .state_tree
+            .take()
+            .expect("Expected state tree in instantiate_machine_with_config.");
 
         // Calculate the state root.
         let state_root = state_tree
@@ -310,7 +317,10 @@ where
         if self.executor.is_some() {
             self.executor.as_ref().unwrap().blockstore()
         } else {
-            self.state_tree.as_ref().unwrap().store()
+            self.state_tree
+                .as_ref()
+                .expect("Expected state tree in blockstore.")
+                .store()
         }
     }
 
@@ -326,7 +336,7 @@ where
         let state_tree = self
             .state_tree
             .as_mut()
-            .ok_or_else(|| anyhow!("unable get state tree"))?;
+            .ok_or_else(|| anyhow!("Expected state tree in make_secp256k1_account."))?;
         let assigned_addr = state_tree.register_new_address(&pub_key_addr).unwrap();
         let state = fvm::account_actor::State {
             address: pub_key_addr,
@@ -354,6 +364,7 @@ pub type BasicExecutor = IntegrationExecutor<MemoryBlockstore, DummyExterns>;
 
 // TODO refactor base Account type to include the seqno;
 // requires refactoring all over the place hpwever.
+#[derive(Clone, Debug)]
 pub struct BasicAccount {
     pub account: Account,
     pub seqno: u64,

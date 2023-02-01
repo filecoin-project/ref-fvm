@@ -1,3 +1,6 @@
 imports_granularity = "Module"
 reorder_imports = true
 group_imports = "StdExternalCrate"
+
+# Ignore auto-generated files.
+ignore = ["testing/integration/tests/evm"]

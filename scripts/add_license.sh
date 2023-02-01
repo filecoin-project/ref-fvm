@@ -15,8 +15,26 @@ LINES=4
 
 ret=0
 
+# Ignore auto-generated code.
+IGNORE=(
+	"testing/integration/tests/evm"
+);
+
+ignore() {
+	file=$1
+	for path in $IGNORE; do
+		if echo "$file" | grep -q "$path"; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 # Look for files without headers.
 for file in $(git grep --cached -Il '' -- '*.rs'); do
+	if ignore "$file"; then
+		continue
+	fi
   header=$(head -$LINES "$file")
 	if ! echo "$header" | grep -q -P "$PAT_SPDX"; then
 		echo "$file was missing header"
@@ -28,6 +46,9 @@ done
 
 # Look for changes that don't have the new copyright holder.
 for file in $(git diff --diff-filter=d --name-only master -- '*.rs'); do
+	if ignore "$file"; then
+		continue
+	fi
   header=$(head -$LINES "$file")
 	if ! echo "$header" | grep -q -P "$PAT_PL"; then
 		echo "$file was missing Protocol Labs"

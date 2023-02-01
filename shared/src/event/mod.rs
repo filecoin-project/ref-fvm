@@ -12,9 +12,9 @@ use crate::ActorID;
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 pub struct StampedEvent {
     /// Carries the ID of the actor that emitted this event.
-    emitter: ActorID,
+    pub emitter: ActorID,
     /// The event as emitted by the actor.
-    event: ActorEvent,
+    pub event: ActorEvent,
 }
 
 impl StampedEvent {
