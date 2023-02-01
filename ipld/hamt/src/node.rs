@@ -18,7 +18,7 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
-use crate::path::Path;
+use crate::cursor::Cursor;
 use crate::Config;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
@@ -139,16 +139,46 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
+    /// Returns a tuple `(u64, Option<Path>)` indicating the number of values traversed and the path of the
+    /// last item that was traversed. If the last path traversed is `None`, then no more items were found.
+    pub(crate) fn for_each_while<S, F>(
+        &self,
+        store: &S,
+        start_at: &Cursor,
+        curr_pos: Cursor,
+        limit: Option<u64>,
+        f: &mut F,
+    ) -> Result<(u64, Cursor), Error>
     where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
         S: Blockstore,
     {
-        for p in &self.pointers {
+        let mut count_traversed = 0;
+        let mut last_traversed = curr_pos.clone();
+
+        for (branch, p) in (0_u8..).zip(&self.pointers) {
+            if limit.is_some() && count_traversed >= limit.unwrap() {
+                return Ok((count_traversed, last_traversed));
+            }
+
+            let new_pos = curr_pos.create_branch(branch);
+            if new_pos.can_skip(start_at) {
+                continue;
+            }
+
             match p {
                 Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
-                        cached_node.for_each(store, f)?
+                        let (traversed, last) = cached_node.for_each_while(
+                            store,
+                            start_at,
+                            new_pos,
+                            limit.map(|l| l - count_traversed),
+                            f,
+                        )?;
+
+                        count_traversed += traversed;
+                        last_traversed = last;
                     } else {
                         let node = if let Some(node) = store.get_cbor(cid)? {
                             node
@@ -162,18 +192,50 @@ where
 
                         // Ignore error intentionally, the cache value will always be the same
                         let cache_node = cache.get_or_init(|| node);
-                        cache_node.for_each(store, f)?
+                        let (traversed, last) = cache_node.for_each_while(
+                            store,
+                            start_at,
+                            new_pos,
+                            limit.map(|l| l - count_traversed),
+                            f,
+                        )?;
+                        count_traversed += traversed;
+                        last_traversed = last;
                     }
                 }
-                Pointer::Dirty(node) => node.for_each(store, f)?,
+                Pointer::Dirty(node) => {
+                    let (traversed, next_path) = node.for_each_while(
+                        store,
+                        start_at,
+                        new_pos,
+                        limit.map(|l| l - count_traversed),
+                        f,
+                    )?;
+                    count_traversed += traversed;
+                    last_traversed = next_path.clone();
+                }
                 Pointer::Values(kvs) => {
-                    for kv in kvs {
+                    for (branch, kv) in (0_u8..).zip(kvs) {
+                        if limit.is_some() && count_traversed >= limit.unwrap() {
+                            return Ok((count_traversed, last_traversed));
+                        }
+
+                        // leaf branches must be strictly greater than the start_at cursor
+                        let leaf_path = new_pos.create_branch(branch);
+                        if leaf_path.cmp(start_at) != Ordering::Greater {
+                            continue;
+                        }
+
                         f(kv.0.borrow(), kv.1.borrow())?;
+
+                        count_traversed += 1;
+                        last_traversed = leaf_path;
                     }
                 }
             }
         }
-        Ok(())
+
+        Ok((count_traversed, last_traversed))
     }
 
     /// Search for a key.
@@ -508,109 +570,5 @@ where
             Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
             Err(err) => Err(err),
         }
-    }
-
-    // returns number of values traversed in the subtree
-    pub(crate) fn for_each_while<S, F>(
-        &self,
-        store: &S,
-        start_at: &Path,
-        curr_path: Path,
-        limit: u64,
-        f: &mut F,
-    ) -> Result<(u64, Path), Error>
-    where
-        F: FnMut(&K, &V) -> anyhow::Result<()>,
-        S: Blockstore,
-    {
-        let mut values_traversed = 0;
-        let mut last_path = curr_path.clone();
-
-        for (branch, p) in (0_u8..).zip(&self.pointers) {
-            let new_path = curr_path.create_branch(branch);
-
-            if values_traversed >= limit {
-                return Ok((values_traversed, last_path));
-            }
-
-            if new_path.can_skip(start_at) {
-                continue;
-            }
-
-            match p {
-                Pointer::Link { cid, cache } => {
-                    if let Some(cached_node) = cache.get() {
-                        let (traversed, next_path) = cached_node.for_each_while(
-                            store,
-                            start_at,
-                            new_path,
-                            limit - values_traversed,
-                            f,
-                        )?;
-
-                        values_traversed += traversed;
-                        last_path = next_path.clone();
-                    } else {
-                        let node = if let Some(node) = store.get_cbor(cid)? {
-                            node
-                        } else {
-                            #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()));
-
-                            #[cfg(feature = "ignore-dead-links")]
-                            continue;
-                        };
-
-                        // Ignore error intentionally, the cache value will always be the same
-                        let cache_node = cache.get_or_init(|| node);
-                        let (traversed, next_path) = cache_node.for_each_while(
-                            store,
-                            start_at,
-                            new_path,
-                            limit - values_traversed,
-                            f,
-                        )?;
-                        values_traversed += traversed;
-                        last_path = next_path.clone();
-                    }
-                }
-                Pointer::Dirty(node) => {
-                    let (traversed, next_path) = node.for_each_while(
-                        store,
-                        start_at,
-                        new_path,
-                        limit - values_traversed,
-                        f,
-                    )?;
-                    values_traversed += traversed;
-                    last_path = next_path.clone();
-                }
-                Pointer::Values(kvs) => {
-                    let mut val_count = 0;
-                    for kv in kvs {
-                        let leaf_path = new_path.create_branch(val_count);
-
-                        if leaf_path.cmp(start_at) != Ordering::Greater {
-                            val_count += 1;
-                            continue;
-                        }
-
-                        // stop if over limit
-                        if values_traversed >= limit {
-                            return Ok((values_traversed, last_path));
-                        }
-
-                        f(kv.0.borrow(), kv.1.borrow())?;
-
-                        last_path = leaf_path;
-                        values_traversed += 1;
-                        val_count += 1;
-                    }
-                }
-            }
-        }
-
-        // this branch was fully explored, so return the next path (uncle)
-        Ok((values_traversed, last_path))
     }
 }

@@ -15,7 +15,7 @@ use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash, Path};
+use fvm_ipld_hamt::{BytesKey, Config, Cursor, Error, Hamt, Hash};
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
@@ -388,7 +388,7 @@ fn for_each(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) 
     }
 }
 
-fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
+fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
 
@@ -404,7 +404,7 @@ fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChe
 
         // add the first `target_num` values
         let (num_traversed, next_range_start) = hamt
-            .for_each_while(&Path::default(), target_num, |_k, v| {
+            .for_each_ranged(&Cursor::default(), target_num, |_k, v| {
                 results.insert(*v);
                 Ok(())
             })
@@ -414,7 +414,7 @@ fn for_each_while(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChe
 
         // add the next `target_num` values
         let (num_traversed, _) = hamt
-            .for_each_while(&next_range_start, target_num, |_k, v| {
+            .for_each_ranged(&next_range_start, target_num, |_k, v| {
                 results.insert(*v);
                 Ok(())
             })
@@ -874,13 +874,13 @@ mod test_default {
     }
 
     #[test]
-    fn for_each_while() {
+    fn for_each_ranged() {
         #[rustfmt::skip]
         let stats = BSStats {r: 0, w: 47, br: 0, bw: 3545};
         let cids = CidChecker::new(vec![
             "bafy2bzacedj2tu3hkyta6yju4rwxw5w5emwcjfhtkwrlutz3myypjpu7qg4bu",
         ]);
-        super::for_each_while(HamtFactory::default(), Some(stats), cids);
+        super::for_each_ranged(HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
