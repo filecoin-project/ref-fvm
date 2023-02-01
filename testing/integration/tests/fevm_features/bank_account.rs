@@ -80,9 +80,9 @@ fn check_bank_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
 
 #[then(expr = "the owner of the bank account is {acct}")]
 fn check_account_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
-    let bank_eth_addr = world.bank_eth_addr();
     let contract_addr = world.last_bank_account_addr();
-    let contract = account::new_with_eth_addr(bank_eth_addr);
+    let account_id = world.tester.account_id(acct);
+    let contract = account::new_with_actor_id(account_id);
     let call = contract.owner();
 
     let owner = world
@@ -93,11 +93,11 @@ fn check_account_owner(world: &mut BankAccountWorld, acct: AccountNumber) {
     assert_eq!(owner, world.tester.account_h160(acct))
 }
 
-#[then(expr = "the bank of the bank account is set")]
-fn check_account_bank(world: &mut BankAccountWorld) {
-    let bank_eth_addr = world.bank_eth_addr();
+#[then(expr = "the bank of the bank account owned by {acct} is set")]
+fn check_account_bank(world: &mut BankAccountWorld, acct: AccountNumber) {
     let contract_addr = world.last_bank_account_addr();
-    let contract = account::new_with_eth_addr(bank_eth_addr);
+    let account_id = world.tester.account_id(acct);
+    let contract = account::new_with_actor_id(account_id);
     let call = contract.bank();
 
     let bank = world
@@ -105,5 +105,5 @@ fn check_account_bank(world: &mut BankAccountWorld) {
         .call_contract(AccountNumber(0), contract_addr, call)
         .expect("account bank should work");
 
-    assert_eq!(bank.0, bank_eth_addr.0)
+    assert_eq!(bank.0, world.bank_eth_addr().0)
 }
