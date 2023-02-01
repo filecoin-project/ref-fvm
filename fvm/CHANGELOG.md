@@ -4,6 +4,16 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.22 [2022-02-01]
+
+- Align events implementation with FIP-0049 (#1481)
+- feat: explicitly reject placeholder creation (#1568)
+- Integrate fvm-bench and the basics of a testkit (#1493)
+- feat: simplify gas tracking stack (#1526)
+- feat: `CarReader::read_into()` (#1524)
+- feat: normalize transaction signatures (#1525)
+- fix: expose the effective gas premium (#1512)
+
 ## 3.0.0-alpha.21 [2022-01-19]
 
 - Machine: Put the Empty Array object in the blockstore on creation

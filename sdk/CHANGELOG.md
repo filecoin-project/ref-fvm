@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.23 [2023-02-01]
+
+- feat: use a struct for network versions (#1496)
+
 ## 3.0.0-alpha.22 [2023-01-12]
 
 - Refactor: Move Response from SDK to shared
