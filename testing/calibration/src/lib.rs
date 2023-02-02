@@ -102,6 +102,15 @@ pub struct RegressionResult {
     pub r_squared: f64,
 }
 
+const NOP_ACTOR: &str = r#"
+(module
+  (memory (export "memory") 1)
+  (func (export "invoke") (param $x i32) (result i32)
+    (i32.const 0)
+  )
+)
+"#;
+
 // Utility function to instantiation integration tester
 pub fn instantiate_tester() -> TestEnv {
     let blockstore = MemoryBlockstore::default();
@@ -129,7 +138,24 @@ pub fn instantiate_tester() -> TestEnv {
     let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
 
     tester
-        .set_actor_from_bin(&wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .set_actor_from_bin(
+            &wasm_bin,
+            state_cid,
+            actor_address,
+            TokenAmount::from_whole(100),
+        )
+        .unwrap();
+
+    // Setup a basic no-op actor.
+    let nop_actor_bin = wat::parse_str(NOP_ACTOR).unwrap();
+    let nop_actor_address = Address::new_id(10001);
+    tester
+        .set_actor_from_bin(
+            &nop_actor_bin,
+            state_cid,
+            nop_actor_address,
+            TokenAmount::zero(),
+        )
         .unwrap();
 
     tester
@@ -226,7 +252,7 @@ pub fn least_squares(label: String, obs: &[Obs], var_idx: usize) -> RegressionRe
     }
 }
 
-pub fn collect_obs(ret: ApplyRet, name: &str, label: &str, size: usize) -> Vec<Obs> {
+pub fn collect_obs(ret: &ApplyRet, name: &str, label: &str, size: usize) -> Vec<Obs> {
     ret.exec_trace
         .iter()
         .filter_map(|t| match t {

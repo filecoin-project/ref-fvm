@@ -652,12 +652,11 @@ where
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
-        // Charge the method gas. Not sure why this comes second, but it does.
-        let _ = self.charge_gas(self.price_list().on_method_invocation(value, method))?;
-
         // Transfer, if necessary.
         if !value.is_zero() {
+            let t = self.charge_gas(self.price_list().on_value_transfer())?;
             self.transfer(from, to, value)?;
+            t.stop();
         }
 
         // Abort early if we have a send.
@@ -665,6 +664,9 @@ where
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::default());
         }
+
+        // Charge the invocation gas.
+        let t = self.charge_gas(self.price_list().on_method_invocation())?;
 
         // Store the parametrs, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
@@ -831,6 +833,7 @@ where
                 }
             }
 
+            t.stop();
             (ret, cm)
         })
     }

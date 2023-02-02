@@ -38,7 +38,7 @@ fn main() {
 
             let ret = te.execute_or_die(METHOD as u64, &params);
 
-            let iter_obs = collect_obs(ret, CHARGE_NAME, &label, *size);
+            let iter_obs = collect_obs(&ret, CHARGE_NAME, &label, *size);
 
             // According to the charts there is always an outlier with 10x runtime,
             // which can throw off the model. Maybe it's while some things are warming up.
