@@ -214,10 +214,11 @@ pub struct DeployedContract {
 
 impl DeployedContract {
     pub fn addr_to_h160(&self) -> H160 {
-        id_to_h160(self.address.id().expect("contract address is an ID"))
+        id_to_h160(self.actor_id())
     }
-    pub fn owner_id(&self) -> ActorID {
-        self.owner.0
+
+    pub fn actor_id(&self) -> ActorID {
+        self.address.id().expect("contract address is an ID")
     }
 }
 
@@ -489,28 +490,29 @@ impl ContractTester {
             .unwrap()
     }
 
-    /// Instantiate the last created contract and return it with its address.
-    pub fn last_contract<T, F>(&self, f: F) -> (T, Address)
-    where
-        F: Fn(ActorID) -> T,
-    {
-        let deployed = self
-            .contracts
+    /// Get the last deployed contract.
+    pub fn last_deployed_contract(&self) -> &DeployedContract {
+        self.contracts
             .last()
-            .expect("haven't deployed a contract yet");
+            .expect("haven't deployed a contract yet")
+    }
 
-        let contract = f(deployed.owner_id());
-        (contract, deployed.address)
+    /// Instantiate the last created contract and return it with its address.
+    pub fn last_contract<T, F>(&self, f: F) -> T
+    where
+        F: Fn(EthAddress) -> T,
+    {
+        f(self.last_deployed_contract().eth_address)
     }
 
     /// Instantiate a contract by number.
-    pub fn contract<T, F>(&self, cntr: ContractNumber, f: F) -> (T, Address)
+    pub fn contract<T, F>(&self, cntr: ContractNumber, f: F) -> T
     where
-        F: Fn(ActorID) -> T,
+        F: Fn(EthAddress) -> T,
     {
         let deployed = self.deployed_contract(cntr);
-        let contract = f(deployed.owner_id());
-        (contract, deployed.address)
+
+        f(deployed.eth_address)
     }
 
     /// Take a ABI method call, with the caller and the destination address.
@@ -519,11 +521,19 @@ impl ContractTester {
     pub fn call_contract<R: Detokenize>(
         &mut self,
         acct: AccountNumber,
-        contract_addr: Address,
         call: TestContractCall<R>,
     ) -> Result<R, ExecError> {
         let input = call.calldata().expect("Should have calldata.");
         let mut account = self.account_mut(acct).clone();
+
+        // NOTE: It would also be possible call the contract through
+        // the address obtained from an actor ID, but using the eth
+        // address allows us to get rid of a parameter to this function.
+        let contract_addr = h160_to_f410(
+            call.tx
+                .to_addr()
+                .expect("call expected to contain contract address"),
+        );
 
         let gas = call
             .tx
@@ -603,11 +613,10 @@ impl ContractTester {
     /// * topic2 will be the first indexed argument, i.e. _from  (cbor encoded byte array; needs padding to 32 bytes to work with ethers)
     /// * topic3 will be the second indexed argument, i.e. _to (cbor encoded byte array; needs padding to 32 bytes to work with ethers)
     /// * data is a cbor encoded byte array of all the remaining arguments
-    pub fn parse_events<F, T>(&self, contract_addr: Address, f: F) -> Vec<T>
+    pub fn parse_events<F, T>(&self, contract_id: ActorID, f: F) -> Vec<T>
     where
         F: Fn(Vec<H256>, Bytes) -> Result<T, AbiError>,
     {
-        let contract_id = contract_addr.id().expect("contract address is an ID");
         let mut events = Vec::new();
 
         for event in self.last_events.iter() {
@@ -809,21 +818,13 @@ macro_rules! contract_constructors {
     ($contract:ident) => {
         #[allow(dead_code)] // Suppress warning if this is never called.
         pub fn new_with_eth_addr(
-            owner: fvm_integration_tests::testkit::fevm::EthAddress,
+            address: fvm_integration_tests::testkit::fevm::EthAddress,
         ) -> $contract<$crate::common::MockProvider> {
-            // The owner of the contract is expected to be the 160 bit hash used on Ethereum.
-            let address = ethers::core::types::Address::from_slice(&owner.0);
+            // The address of the contract is expected to be the 160 bit hash used on Ethereum.
+            let address = ethers::core::types::Address::from_slice(&address.0);
             // A dummy client that we don't intend to use to call the contract or send transactions.
             let (client, _mock) = ethers::providers::Provider::mocked();
             $contract::new(address, std::sync::Arc::new(client))
-        }
-
-        #[allow(dead_code)] // Suppress warning if this is never called.
-        pub fn new_with_actor_id(
-            owner: fvm_shared::ActorID,
-        ) -> $contract<$crate::common::MockProvider> {
-            let owner = fvm_integration_tests::testkit::fevm::EthAddress::from_id(owner);
-            new_with_eth_addr(owner)
         }
     };
 }

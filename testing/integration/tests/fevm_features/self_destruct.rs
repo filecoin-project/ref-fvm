@@ -69,9 +69,9 @@ fn chain_destruct(
     cntr: ContractNumber,
     step: &Step,
 ) {
-    let (contract, contract_addr) = world
+    let contract = world
         .tester
-        .contract(cntr, self_destruct_chain::new_with_actor_id);
+        .contract(cntr, self_destruct_chain::new_with_eth_addr);
 
     let mut addresses = Vec::new();
 
@@ -87,7 +87,7 @@ fn chain_destruct(
 
     world
         .tester
-        .call_contract(acct, contract_addr, call)
+        .call_contract(acct, call)
         .expect("destroy should not fail");
 }
 
@@ -108,9 +108,9 @@ fn deploy_metamorph(
 ) {
     let code = world.tester.get_contract_code(&contract_name);
     let code = ethers::types::Bytes::from(code);
-    let (contract, contract_addr) = world
+    let contract = world
         .tester
-        .contract(cntr, metamorphic_contract_factory::new_with_actor_id);
+        .contract(cntr, metamorphic_contract_factory::new_with_eth_addr);
 
     // As per `containsCaller` in `Metamorphic.sol` the first 20 bytes of the salt must match the caller. T
     // To deploy more alternatives we'd need to use different salts; here I just leave it on 0.
@@ -122,7 +122,7 @@ fn deploy_metamorph(
 
     let metamorphic_addr = world
         .tester
-        .call_contract(acct, contract_addr, call)
+        .call_contract(acct, call)
         .expect("deploy should succeed");
 
     // Look up what actor it is.
@@ -150,15 +150,15 @@ fn deploy_metamorph(
 
 #[then(expr = "{cntr} describes itself as {string}")]
 fn check_description(world: &mut SelfDestructWorld, cntr: ContractNumber, descr: String) {
-    let (contract, contract_addr) = world
+    let contract = world
         .tester
-        .contract(cntr, metamorphic_interface::new_with_actor_id);
+        .contract(cntr, metamorphic_interface::new_with_eth_addr);
 
     let call = contract.description();
 
     let self_descr = world
         .tester
-        .call_contract(AccountNumber(0), contract_addr, call)
+        .call_contract(AccountNumber(0), call)
         .expect("describe should work");
 
     assert_eq!(self_descr, descr);
@@ -166,12 +166,12 @@ fn check_description(world: &mut SelfDestructWorld, cntr: ContractNumber, descr:
 
 #[when(expr = "{cntr} is told to self destruct")]
 fn self_destruct(world: &mut SelfDestructWorld, cntr: ContractNumber) {
-    let (contract, contract_addr) = world.tester.contract(cntr, cocoon::new_with_actor_id);
+    let contract = world.tester.contract(cntr, cocoon::new_with_eth_addr);
 
     let call = contract.destroy();
 
     world
         .tester
-        .call_contract(AccountNumber(0), contract_addr, call)
+        .call_contract(AccountNumber(0), call)
         .expect("self destruct should work");
 }

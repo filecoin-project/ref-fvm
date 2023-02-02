@@ -56,7 +56,7 @@ fn recurse(
     max_depth: u32,
     step: &Step,
 ) {
-    let (contract, contract_addr) = world.tester.contract(cntr, new_with_actor_id);
+    let contract = world.tester.contract(cntr, new_with_eth_addr);
 
     let mut addresses = Vec::new();
     let mut actions = Vec::new();
@@ -102,7 +102,7 @@ fn recurse(
 
     let success = world
         .tester
-        .call_contract(acct, contract_addr, call)
+        .call_contract(acct, call)
         .expect("recurse should not fail");
 
     assert!(success, "recurse should return success");
@@ -116,14 +116,14 @@ fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
         // NOTE: skip header
         for row in table.rows.iter().skip(1) {
             let cntr = ContractNumber::from_str(&row[0]).expect("not a contract number");
-            let (contract, addr) = world.tester.contract(cntr, new_with_actor_id);
+            let contract = world.tester.contract(cntr, new_with_eth_addr);
 
             if !row[1].is_empty() {
                 let call = contract.depth();
                 let exp_depth = u32::from_str(&row[1]).expect("not a depth");
                 let depth = world
                     .tester
-                    .call_contract(acct, addr, call)
+                    .call_contract(acct, call)
                     .expect("depth should not fail");
 
                 assert_eq!(depth, exp_depth, "depth of {cntr}");
@@ -147,7 +147,7 @@ fn check_state(world: &mut RecursiveCallWorld, step: &Step) {
                 let call = contract.sender();
                 let sender = world
                     .tester
-                    .call_contract(acct, addr, call)
+                    .call_contract(acct, call)
                     .expect("sender should not fail");
 
                 assert_eq!(sender, exp_sender, "sender of {cntr}");
