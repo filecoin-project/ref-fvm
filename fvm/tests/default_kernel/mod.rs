@@ -29,6 +29,7 @@ pub fn build_inspecting_test() -> anyhow::Result<(TestingKernel, Rc<RefCell<Test
         0,
         0,
         Zero::zero(),
+        false,
     );
     Ok((kern, test_data))
 }
@@ -48,6 +49,7 @@ pub fn build_inspecting_gas_test(
         0,
         0,
         Zero::zero(),
+        false,
     );
     Ok((kern, test_data))
 }

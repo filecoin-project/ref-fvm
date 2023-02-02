@@ -58,6 +58,7 @@ pub struct DefaultKernel<C> {
     actor_id: ActorID,
     method: MethodNum,
     value_received: TokenAmount,
+    read_only: bool,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
@@ -91,6 +92,7 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        read_only: bool,
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
@@ -99,6 +101,7 @@ where
             actor_id,
             method,
             value_received,
+            read_only,
         }
     }
 
@@ -133,6 +136,11 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
+            );
+        }
         let mut state = self
             .call_manager
             .get_actor(self.actor_id)?
@@ -152,6 +160,10 @@ where
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
+        if self.read_only {
+            return Err(syscall_error!(ReadOnly; "cannot self-destruct when read-only").into());
+        }
+
         // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
         let t = self
@@ -331,7 +343,7 @@ where
                 .try_into()
                 .or_fatal()
                 .context("invalid gas premium")?,
-            flags: if self.call_manager.is_read_only() {
+            flags: if self.read_only {
                 ContextFlags::READ_ONLY
             } else {
                 ContextFlags::empty()
@@ -357,6 +369,11 @@ where
         flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
+        let read_only = self.read_only || flags.read_only();
+
+        if read_only && !value.is_zero() {
+            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
+        }
 
         // Load parameters.
         let params = if params_id == NO_DATA_BLOCK_ID {
@@ -371,11 +388,11 @@ where
         }
 
         // Send.
-        let result = self
-            .call_manager
-            .with_transaction(flags.read_only(), |cm| {
-                cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
-            })?;
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.send::<Self>(
+                from, *recipient, method, params, value, gas_limit, read_only,
+            )
+        })?;
 
         // Store result and return.
         Ok(match result {
@@ -802,6 +819,12 @@ where
             .into());
         }
 
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly, "create_actor cannot be called while read-only").into(),
+            );
+        }
+
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
     }
@@ -954,6 +977,9 @@ where
     C: CallManager,
 {
     fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+        if self.read_only {
+            return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
+        }
         let len = raw_evt.len() as usize;
         let t = self
             .call_manager

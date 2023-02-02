@@ -249,21 +249,21 @@ where
         params: Option<Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        read_only: bool,
     ) -> Result<InvocationResult> {
         // K is the kernel specified by the non intercepted kernel.
         // We wrap that here.
         self.0
-            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit)
+            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit, read_only)
     }
 
     fn with_transaction(
         &mut self,
-        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
         // This transmute is _safe_ because this type is "repr transparent".
         let inner_ptr = &mut self.0 as *mut C;
-        self.0.with_transaction(read_only, |inner: &mut C| unsafe {
+        self.0.with_transaction(|inner: &mut C| unsafe {
             // Make sure that we've got the right pointer. Otherwise, this cast definitely isn't
             // safe.
             assert_eq!(inner_ptr, inner as *mut C);
@@ -369,10 +369,6 @@ where
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
         self.0.transfer(from, to, value)
     }
-
-    fn is_read_only(&self) -> bool {
-        self.0.is_read_only()
-    }
 }
 
 /// A kernel for intercepting syscalls.
@@ -401,6 +397,7 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        read_only: bool,
     ) -> Self
     where
         Self: Sized,
@@ -416,6 +413,7 @@ where
                 actor_id,
                 method,
                 value_received,
+                read_only,
             ),
             data,
         )

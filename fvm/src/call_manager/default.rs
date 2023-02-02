@@ -174,6 +174,7 @@ where
         params: Option<Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -196,8 +197,9 @@ where
             self.gas_tracker.push_limit(limit);
         }
 
-        let mut result =
-            self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
+        let mut result = self.with_stack_frame(|s| {
+            s.send_unchecked::<K>(from, to, method, params, value, read_only)
+        });
 
         // If we pushed a limit, pop it.
         if gas_limit.is_some() {
@@ -238,11 +240,10 @@ where
 
     fn with_transaction(
         &mut self,
-        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction(read_only);
-        self.events.begin_transaction(read_only);
+        self.state_tree_mut().begin_transaction();
+        self.events.begin_transaction();
         self.state_access_tracker.begin_transaction();
 
         let (revert, res) = match f(self) {
@@ -452,7 +453,7 @@ where
                 .gas_tracker
                 .apply_charge(self.price_list().on_actor_update())?;
         }
-        self.state_tree_mut().set_actor(id, state)?;
+        self.state_tree_mut().set_actor(id, state);
         self.state_access_tracker.record_actor_update(id);
         Ok(())
     }
@@ -469,7 +470,7 @@ where
                 .gas_tracker
                 .apply_charge(self.price_list().on_actor_update())?;
         }
-        self.state_tree_mut().delete_actor(id)?;
+        self.state_tree_mut().delete_actor(id);
         self.state_access_tracker.record_actor_update(id);
         Ok(())
     }
@@ -509,10 +510,6 @@ where
         log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
-    }
-
-    fn is_read_only(&self) -> bool {
-        self.state_tree().is_read_only()
     }
 }
 
@@ -584,6 +581,7 @@ where
             fvm_shared::METHOD_CONSTRUCTOR,
             Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
+            false,
         )?;
 
         Ok(id)
@@ -608,6 +606,7 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -617,12 +616,18 @@ where
             Some(addr) => addr,
             None => match to.payload() {
                 Payload::BLS(_) | Payload::Secp256k1(_) => {
+                    if read_only {
+                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                    }
                     // Try to create an account actor if the receiver is a key address.
                     self.create_account_actor_from_send::<K>(&to)?
                 }
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
+                    if read_only {
+                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                    }
                     self.create_placeholder_actor_from_send::<K>(&to)?
                 }
                 _ => return Err(
@@ -632,7 +637,7 @@ where
             },
         };
 
-        self.send_resolved::<K>(from, to, method, params, value)
+        self.send_resolved::<K>(from, to, method, params, value, read_only)
     }
 
     /// Send with resolved addresses.
@@ -643,6 +648,7 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -694,7 +700,15 @@ where
             let engine = cm.engine.clone(); // reference the RC.
 
             // Make the kernel.
-            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
+            let kernel = K::new(
+                cm,
+                block_registry,
+                from,
+                to,
+                method,
+                value.clone(),
+                read_only,
+            );
 
             // Make a store.
             let mut store = engine.new_store(kernel);
@@ -882,7 +896,6 @@ where
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
-    read_only_layers: u32,
 }
 
 pub(crate) struct Events {
@@ -891,36 +904,22 @@ pub(crate) struct Events {
 }
 
 impl EventsAccumulator {
-    fn is_read_only(&self) -> bool {
-        self.read_only_layers > 0
-    }
-
     fn append_event(&mut self, evt: StampedEvent) {
-        if !self.is_read_only() {
-            self.events.push(evt)
-        }
+        self.events.push(evt)
     }
 
-    fn begin_transaction(&mut self, read_only: bool) {
-        if read_only || self.is_read_only() {
-            self.read_only_layers += 1;
-        } else {
-            self.idxs.push(self.events.len());
-        }
+    fn begin_transaction(&mut self) {
+        self.idxs.push(self.events.len());
     }
 
     fn end_transaction(&mut self, revert: bool) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-        } else {
-            let idx = self.idxs.pop().ok_or_else(|| {
-                ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when ending a transaction"
-                ))
-            })?;
-            if revert {
-                self.events.truncate(idx);
-            }
+        let idx = self.idxs.pop().ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when ending a transaction"
+            ))
+        })?;
+        if revert {
+            self.events.truncate(idx);
         }
         Ok(())
     }

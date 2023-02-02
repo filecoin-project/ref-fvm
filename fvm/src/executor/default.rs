@@ -152,10 +152,17 @@ where
                 )
             });
 
-            let result = cm.with_transaction(false, |cm| {
+            let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                let ret =
-                    cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
+                let ret = cm.send::<K>(
+                    sender_id,
+                    msg.to,
+                    msg.method_num,
+                    params,
+                    &msg.value,
+                    None,
+                    false,
+                )?;
 
                 // Charge for including the result (before we end the transaction).
                 if let Some(value) = &ret.value {
@@ -471,7 +478,7 @@ where
         sender_state.deduct_funds(&gas_cost)?;
 
         // Update the actor in the state tree
-        self.state_tree_mut().set_actor(sender_id, sender_state)?;
+        self.state_tree_mut().set_actor(sender_id, sender_state);
 
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }

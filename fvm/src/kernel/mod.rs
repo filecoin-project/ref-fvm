@@ -90,6 +90,7 @@ pub trait Kernel:
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        read_only: bool,
     ) -> Self
     where
         Self: Sized;
