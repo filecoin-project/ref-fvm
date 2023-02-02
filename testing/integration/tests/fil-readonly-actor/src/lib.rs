@@ -151,13 +151,14 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert!(output.exit_code.is_success());
             assert_eq!(output.return_data.unwrap().data, b"output");
 
-            // Should be able to emit events.
+            // Should fail to emit events.
             let evt = vec![Entry {
                 flags: Flags::all(),
                 key: "foo".to_owned(),
                 value: RawBytes::new(empty),
             }];
-            sdk::event::emit_event(&evt.into()).unwrap();
+            let err = sdk::event::emit_event(&evt.into()).unwrap_err();
+            assert_eq!(err, ErrorNumber::ReadOnly);
 
             // Should not be able to delete self.
             let err =

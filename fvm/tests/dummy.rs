@@ -284,6 +284,7 @@ impl CallManager for DummyCallManager {
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
         _gas_limit: Option<Gas>,
+        _read_only: bool,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()
@@ -291,7 +292,6 @@ impl CallManager for DummyCallManager {
 
     fn with_transaction(
         &mut self,
-        _read_only: bool,
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
@@ -385,11 +385,13 @@ impl CallManager for DummyCallManager {
         id: ActorID,
         state: fvm::state_tree::ActorState,
     ) -> fvm::kernel::Result<()> {
-        self.machine.state_tree_mut().set_actor(id, state)
+        self.machine.state_tree_mut().set_actor(id, state);
+        Ok(())
     }
 
     fn delete_actor(&mut self, id: ActorID) -> fvm::kernel::Result<()> {
-        self.machine.state_tree_mut().delete_actor(id)
+        self.machine.state_tree_mut().delete_actor(id);
+        Ok(())
     }
 
     fn transfer(
@@ -399,9 +401,5 @@ impl CallManager for DummyCallManager {
         _value: &TokenAmount,
     ) -> fvm::kernel::Result<()> {
         todo!()
-    }
-
-    fn is_read_only(&self) -> bool {
-        self.machine().state_tree().is_read_only()
     }
 }

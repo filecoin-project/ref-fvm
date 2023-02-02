@@ -147,7 +147,8 @@ where
 
         state.sequence = new_sequence;
 
-        state_tree.set_actor(id, state).map_err(anyhow::Error::from)
+        state_tree.set_actor(id, state);
+        Ok(())
     }
 
     pub fn create_placeholder(
@@ -175,9 +176,8 @@ where
             delegated_address: Some(*address),
         };
 
-        state_tree
-            .set_actor(id, actor_state)
-            .map_err(anyhow::Error::from)
+        state_tree.set_actor(id, actor_state);
+        Ok(())
     }
 
     /// Set a new state in the state tree
@@ -235,8 +235,7 @@ where
         self.state_tree
             .as_mut()
             .unwrap()
-            .set_actor(actor_id, actor_state)
-            .map_err(anyhow::Error::from)?;
+            .set_actor(actor_id, actor_state);
 
         Ok(code_cid)
     }
@@ -342,9 +341,7 @@ where
             delegated_address: None,
         };
 
-        state_tree
-            .set_actor(assigned_addr, actor_state)
-            .map_err(anyhow::Error::from)?;
+        state_tree.set_actor(assigned_addr, actor_state);
         Ok((assigned_addr, pub_key_addr))
     }
 }

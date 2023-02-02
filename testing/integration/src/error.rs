@@ -11,8 +11,6 @@ pub(crate) enum Error {
     FailedToLoadManifest,
     #[error("could not set state in tree for: {0}")]
     FailedToSetState(String),
-    #[error("could not set actor: {0}")]
-    FailedToSetActor(String),
     #[error("failed to flush tree")]
     FailedToFlushTree,
 }

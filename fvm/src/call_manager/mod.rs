@@ -62,6 +62,7 @@ pub trait CallManager: 'static {
 
     /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
+    #[allow(clippy::too_many_arguments)]
     fn send<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
@@ -70,12 +71,12 @@ pub trait CallManager: 'static {
         params: Option<kernel::Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        read_only: bool,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
         &mut self,
-        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
@@ -104,9 +105,6 @@ pub trait CallManager: 'static {
     /// This method doesn't have any side-effects and will continue to return the same address until
     /// `create_actor` is called next.
     fn next_actor_address(&self) -> Address;
-
-    /// The call stack is currently in "read-only" mode. All state mutations will fail.
-    fn is_read_only(&self) -> bool;
 
     /// Create a new actor with the given code CID, actor ID, and delegated address. This method
     /// does not register the actor with the init actor. It just creates it in the state-tree.

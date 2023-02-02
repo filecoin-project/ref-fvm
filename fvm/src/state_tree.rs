@@ -38,10 +38,6 @@ pub struct StateTree<S> {
     /// Snapshot layers. Each layer contains points in the actor/resolve cache histories to which
     /// said caches will be reverted on revert.
     layers: Vec<StateSnapLayer>,
-    /// Number of read-only layers stacked on top of the "layers". When this number is > 0:
-    /// 1. Modifications are rejected.
-    /// 2. Creating/discarding a layer simply adds/subtracts from this number
-    read_only_layers: u32,
 }
 
 /// An entry in the actor cache.
@@ -95,7 +91,6 @@ where
             actor_cache: Default::default(),
             resolve_cache: Default::default(),
             layers: Vec::new(),
-            read_only_layers: 0,
         })
     }
 
@@ -145,7 +140,6 @@ where
                     actor_cache: Default::default(),
                     resolve_cache: Default::default(),
                     layers: Vec::new(),
-                    read_only_layers: 0,
                 })
             }
         }
@@ -187,17 +181,14 @@ where
     }
 
     /// Set actor state with an actor ID.
-    pub fn set_actor(&mut self, id: ActorID, actor: ActorState) -> Result<()> {
-        self.assert_writable()?;
-
+    pub fn set_actor(&mut self, id: ActorID, actor: ActorState) {
         self.actor_cache.borrow_mut().insert(
             id,
             ActorCacheEntry {
                 actor: Some(actor),
                 dirty: true,
             },
-        );
-        Ok(())
+        )
     }
 
     /// Get an ID address from any Address
@@ -222,10 +213,8 @@ where
         Ok(Some(a))
     }
 
-    /// Delete actor identified by the supplied ID. Returns no error if the actor doesn't exist.
-    pub fn delete_actor(&mut self, id: ActorID) -> Result<()> {
-        self.assert_writable()?;
-
+    /// Delete actor identified by the supplied ID.
+    pub fn delete_actor(&mut self, id: ActorID) {
         // Record that we've deleted the actor.
         self.actor_cache.borrow_mut().insert(
             id,
@@ -234,7 +223,6 @@ where
                 actor: None,
             },
         );
-        Ok(())
     }
 
     /// Mutate and set actor state identified by the supplied ID. Returns a fatal error if the actor
@@ -267,7 +255,7 @@ where
         // Apply function of actor state
         mutate(&mut act)?;
         // Set the actor
-        self.set_actor(id, act)?;
+        self.set_actor(id, act);
         Ok(true)
     }
 
@@ -283,42 +271,34 @@ where
             .put_cbor(&state, multihash::Code::Blake2b256)
             .or_fatal()?;
 
-        self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor)?;
+        self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor);
         self.resolve_cache.borrow_mut().insert(*addr, new_id);
 
         Ok(new_id)
     }
 
     /// Begin a new state transaction. Transactions stack.
-    pub fn begin_transaction(&mut self, read_only: bool) {
-        if read_only || self.is_read_only() {
-            self.read_only_layers += 1;
-        } else {
-            self.layers.push(StateSnapLayer {
-                actor_cache_height: self.actor_cache.get_mut().history_len(),
-                resolve_cache_height: self.resolve_cache.get_mut().history_len(),
-            })
-        }
+    pub fn begin_transaction(&mut self) {
+        self.layers.push(StateSnapLayer {
+            actor_cache_height: self.actor_cache.get_mut().history_len(),
+            resolve_cache_height: self.resolve_cache.get_mut().history_len(),
+        })
     }
 
     /// End a transaction, reverting if requested.
     pub fn end_transaction(&mut self, revert: bool) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-        } else {
-            let layer = self
-                .layers
-                .pop()
-                .context("state snapshots empty")
-                .or_fatal()?;
-            if revert {
-                self.actor_cache
-                    .get_mut()
-                    .rollback(layer.actor_cache_height);
-                self.resolve_cache
-                    .get_mut()
-                    .rollback(layer.resolve_cache_height);
-            }
+        let layer = self
+            .layers
+            .pop()
+            .context("state snapshots empty")
+            .or_fatal()?;
+        if revert {
+            self.actor_cache
+                .get_mut()
+                .rollback(layer.actor_cache_height);
+            self.resolve_cache
+                .get_mut()
+                .rollback(layer.resolve_cache_height);
         }
         // When we end the last transaction, discard the undo history.
         if !self.in_transaction() {
@@ -330,7 +310,7 @@ where
 
     /// Returns true if we're inside of a transaction.
     pub fn in_transaction(&self) -> bool {
-        !(self.read_only_layers == 0 && self.layers.is_empty())
+        !self.layers.is_empty()
     }
 
     /// Flush state tree and return Cid root.
@@ -394,18 +374,6 @@ where
             f(addr, v)
         })?;
         Ok(())
-    }
-
-    pub fn is_read_only(&self) -> bool {
-        self.read_only_layers > 0
-    }
-
-    fn assert_writable(&self) -> Result<()> {
-        if self.is_read_only() {
-            Err(syscall_error!(ReadOnly; "cannot mutate state while in read-only mode").into())
-        } else {
-            Ok(())
-        }
     }
 }
 
@@ -611,11 +579,11 @@ mod tests {
         // test address not in cache
         assert_eq!(tree.get_actor(actor_id).unwrap(), None);
         // test successful insert
-        assert!(tree.set_actor(actor_id, act_s).is_ok());
+        tree.set_actor(actor_id, act_s);
         // test inserting with different data
-        assert!(tree.set_actor(actor_id, act_a.clone()).is_ok());
-        // Assert insert with same data returns ok
-        assert!(tree.set_actor(actor_id, act_a.clone()).is_ok());
+        tree.set_actor(actor_id, act_a.clone());
+        // Assert insert with same data works
+        tree.set_actor(actor_id, act_a.clone());
         // test getting set item
         assert_eq!(tree.get_actor(actor_id).unwrap().unwrap(), act_a);
     }
@@ -627,9 +595,9 @@ mod tests {
 
         let actor_id = 3;
         let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1, None);
-        tree.set_actor(actor_id, act_s.clone()).unwrap();
+        tree.set_actor(actor_id, act_s.clone());
         assert_eq!(tree.get_actor(actor_id).unwrap(), Some(act_s));
-        tree.delete_actor(actor_id).unwrap();
+        tree.delete_actor(actor_id);
         assert_eq!(tree.get_actor(actor_id).unwrap(), None);
     }
 
@@ -653,8 +621,8 @@ mod tests {
             None,
         );
 
-        tree.begin_transaction(false);
-        tree.set_actor(INIT_ACTOR_ID, act_s).unwrap();
+        tree.begin_transaction();
+        tree.set_actor(INIT_ACTOR_ID, act_s);
 
         // Test mutate function
         tree.mutate_actor(INIT_ACTOR_ID, |mut actor| {
@@ -688,7 +656,7 @@ mod tests {
 
         let addresses: &[ActorID] = &[101, 102, 103];
 
-        tree.begin_transaction(false);
+        tree.begin_transaction();
         tree.set_actor(
             addresses[0],
             ActorState::new(
@@ -698,8 +666,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
 
         tree.set_actor(
             addresses[1],
@@ -710,8 +677,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.set_actor(
             addresses[2],
             ActorState::new(
@@ -721,8 +687,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.end_transaction(false).unwrap();
         tree.flush().unwrap();
 
@@ -766,7 +731,7 @@ mod tests {
 
         let actor_id: ActorID = 1;
 
-        tree.begin_transaction(false);
+        tree.begin_transaction();
         tree.set_actor(
             actor_id,
             ActorState::new(
@@ -776,8 +741,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.end_transaction(true).unwrap();
 
         tree.flush().unwrap();
