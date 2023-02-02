@@ -12,7 +12,7 @@ use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
-use fvm::state_tree::{ActorState, StateTree};
+use fvm::state_tree::StateTree;
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -174,23 +174,6 @@ impl Machine for DummyMachine {
         &mut self.state_tree
     }
 
-    fn create_actor(
-        &mut self,
-        _addr: &Address,
-        _act: ActorState,
-    ) -> kernel::Result<fvm_shared::ActorID> {
-        todo!()
-    }
-
-    fn transfer(
-        &mut self,
-        _from: fvm_shared::ActorID,
-        _to: fvm_shared::ActorID,
-        _value: &fvm_shared::econ::TokenAmount,
-    ) -> kernel::Result<()> {
-        todo!()
-    }
-
     fn into_store(self) -> Self::Blockstore {
         self.state_tree.into_store()
     }
@@ -272,6 +255,8 @@ impl CallManager for DummyCallManager {
         _gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
+        _receiver: Option<ActorID>,
+        _receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
@@ -385,5 +370,38 @@ impl CallManager for DummyCallManager {
 
     fn append_event(&mut self, _evt: StampedEvent) {
         todo!()
+    }
+
+    fn resolve_address(&self, address: &Address) -> fvm::kernel::Result<Option<ActorID>> {
+        self.machine.state_tree().lookup_id(address)
+    }
+
+    fn get_actor(&self, id: ActorID) -> fvm::kernel::Result<Option<fvm::state_tree::ActorState>> {
+        self.machine.state_tree().get_actor(id)
+    }
+
+    fn set_actor(
+        &mut self,
+        id: ActorID,
+        state: fvm::state_tree::ActorState,
+    ) -> fvm::kernel::Result<()> {
+        self.machine.state_tree_mut().set_actor(id, state)
+    }
+
+    fn delete_actor(&mut self, id: ActorID) -> fvm::kernel::Result<()> {
+        self.machine.state_tree_mut().delete_actor(id)
+    }
+
+    fn transfer(
+        &mut self,
+        _from: ActorID,
+        _to: ActorID,
+        _value: &TokenAmount,
+    ) -> fvm::kernel::Result<()> {
+        todo!()
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.machine().state_tree().is_read_only()
     }
 }

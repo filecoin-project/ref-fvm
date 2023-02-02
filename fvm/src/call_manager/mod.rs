@@ -10,10 +10,11 @@ use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
-use crate::state_tree::StateTree;
+use crate::state_tree::ActorState;
 use crate::Kernel;
 
 pub mod backtrace;
+mod state_access_tracker;
 pub use backtrace::Backtrace;
 
 mod default;
@@ -46,12 +47,15 @@ pub trait CallManager: 'static {
     type Machine: Machine;
 
     /// Construct a new call manager.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         machine: Self::Machine,
         engine: Engine,
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
+        receiver: Option<ActorID>,
+        receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self;
@@ -101,14 +105,35 @@ pub trait CallManager: 'static {
     /// `create_actor` is called next.
     fn next_actor_address(&self) -> Address;
 
+    /// The call stack is currently in "read-only" mode. All state mutations will fail.
+    fn is_read_only(&self) -> bool;
+
     /// Create a new actor with the given code CID, actor ID, and delegated address. This method
     /// does not register the actor with the init actor. It just creates it in the state-tree.
+    ///
+    /// It handles all appropriate gas charging for creating new actors.
     fn create_actor(
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    /// Resolve an address into an actor ID, charging gas as appropriate.
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
+
+    /// Sets an actor in the state-tree, charging gas as appropriate. Use `create_actor` if you want
+    /// to create a new actor.
+    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()>;
+
+    /// Looks up an actor in the state-tree, charging gas as appropriate.
+    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>>;
+
+    /// Deletes an actor from the state-tree, charging gas as appropriate.
+    fn delete_actor(&mut self, id: ActorID) -> Result<()>;
+
+    /// Transfers tokens from one actor to another, charging gas as appropriate.
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
 
     /// Getter for message nonce.
     fn nonce(&self) -> u64;
@@ -134,16 +159,6 @@ pub trait CallManager: 'static {
     /// Returns the externs.
     fn externs(&self) -> &<Self::Machine as Machine>::Externs {
         self.machine().externs()
-    }
-
-    /// Returns the state tree.
-    fn state_tree(&self) -> &StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.machine().state_tree()
-    }
-
-    /// Returns a mutable state-tree.
-    fn state_tree_mut(&mut self) -> &mut StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.machine_mut().state_tree_mut()
     }
 
     /// Charge gas.

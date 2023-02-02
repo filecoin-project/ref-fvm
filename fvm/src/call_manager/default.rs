@@ -15,13 +15,14 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
+use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
-use crate::gas::{Gas, GasTimer, GasTracker};
+use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
 };
@@ -48,6 +49,9 @@ pub struct InnerDefaultCallManager<M: Machine> {
     engine: Rc<Engine>,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The state-access tracker that helps us charge gas for actor-state lookups/updates and actor
+    /// address resolutions.
+    state_access_tracker: StateAccessTracker,
     /// The gas premium paid by this message.
     gas_premium: TokenAmount,
     /// The ActorID and the address of the original sender of the chain message that initiated
@@ -101,12 +105,43 @@ where
         gas_limit: i64,
         origin: ActorID,
         origin_address: Address,
+        receiver: Option<ActorID>,
+        receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
         let gas_tracker =
             GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
+
+        let state_access_tracker =
+            StateAccessTracker::new(&machine.context().price_list.preloaded_actors);
+
+        /* Origin */
+
+        // - We don't charge for looking up the message's origin (assumed to be done ahead of time
+        //   and in parallel.
+        // - We've already charged for updating the message's origin in preflight.
+        state_access_tracker.record_actor_update(origin);
+        // Treat the top-level origin and sender as "already charged".
+        state_access_tracker.record_lookup_address(&origin_address);
+
+        /* Receiver */
+
+        // Treat the top-level as "preloaded", if it exists. The executor will have pre-resolved
+        // this address, if possible.
+        if let Some(receiver_id) = receiver {
+            state_access_tracker.record_actor_read(receiver_id)
+        }
+        // Avoid charging for any subsequent lookups. If the receiver _doesn't_ exist, we'll end up
+        // charging to assign the address (one address lookup + update charge), but that's a
+        // different matter.
+        //
+        // NOTE: Technically, we should be _caching_ the existence of the receiver, so we can skip
+        // this step on `send` and create the target actor immediately. By not doing that, we're not
+        // being perfectly efficient and are technically under-charging gas. HOWEVER, this behavior
+        // cannot be triggered by an actor on-chain, so it's not a concern (for now).
+        state_access_tracker.record_lookup_address(&receiver_address);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             engine: Rc::new(engine),
@@ -123,6 +158,7 @@ where
             invocation_count: 0,
             limits,
             events: Default::default(),
+            state_access_tracker,
         })))
     }
 
@@ -207,6 +243,7 @@ where
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction(read_only);
         self.events.begin_transaction(read_only);
+        self.state_access_tracker.begin_transaction();
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
@@ -215,6 +252,7 @@ where
 
         self.state_tree_mut().end_transaction(revert)?;
         self.events.end_transaction(revert)?;
+        self.state_access_tracker.end_transaction(revert)?;
 
         res
     }
@@ -313,8 +351,6 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
-        let start = GasTimer::start();
-
         if self.machine.builtin_actors().is_placeholder_actor(&code_id) {
             return Err(syscall_error!(
                 Forbidden,
@@ -324,7 +360,7 @@ where
         }
 
         // Check to make sure the actor doesn't exist, or is a placeholder.
-        let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
+        let actor = match self.get_actor(actor_id)? {
             // Replace the placeholder
             Some(mut act)
                 if self
@@ -347,19 +383,22 @@ where
                     .into());
                 }
                 act.code = code_id;
-                (act, false)
+                act
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => (ActorState::new_empty(code_id, delegated_address), true),
+            None => {
+                // We charge for creating the actor (storage) but not for address assignment as the
+                // init actor has already handled that for us.
+                let _ = self.charge_gas(self.price_list().on_create_actor(false))?;
+                ActorState::new_empty(code_id, delegated_address)
+            }
         };
-        let t = self.charge_gas(self.price_list().on_create_actor(is_new))?;
-        self.state_tree_mut().set_actor(actor_id, actor)?;
+        self.set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
-        t.stop_with(start);
         Ok(())
     }
 
@@ -370,6 +409,110 @@ where
     // Helper for creating actors. This really doesn't belong on this trait.
     fn invocation_count(&self) -> u64 {
         self.invocation_count
+    }
+
+    /// Resolve an address and charge for it.
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+        if let Ok(id) = address.id() {
+            return Ok(Some(id));
+        }
+        if !self.state_access_tracker.get_address_lookup_state(address) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_resolve_address())?;
+        }
+        let id = self.state_tree().lookup_id(address)?;
+        if id.is_some() {
+            self.state_access_tracker.record_lookup_address(address);
+        }
+        Ok(id)
+    }
+
+    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        let actor = self.state_tree().get_actor(id)?;
+        self.state_access_tracker.record_actor_read(id);
+        Ok(actor)
+    }
+
+    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().set_actor(id, state)?;
+        self.state_access_tracker.record_actor_update(id);
+        Ok(())
+    }
+
+    fn delete_actor(&mut self, id: ActorID) -> Result<()> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().delete_actor(id)?;
+        self.state_access_tracker.record_actor_update(id);
+        Ok(())
+    }
+
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+        if value.is_negative() {
+            return Err(syscall_error!(IllegalArgument;
+                "attempted to transfer negative transfer value {}", value)
+            .into());
+        }
+
+        // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
+        // that and the case where the _receiving_ actor doesn't exist.
+        let mut from_actor = self
+            .get_actor(from)?
+            .ok_or_else(||syscall_error!(InsufficientFunds; "insufficient funds to transfer {value}FIL from {from} to {to})"))?;
+
+        if &from_actor.balance < value {
+            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
+        }
+
+        if from == to {
+            log::debug!("attempting to self-transfer: noop (from/to: {})", from);
+            return Ok(());
+        }
+
+        let mut to_actor = self.get_actor(to)?.ok_or_else(
+            || syscall_error!(NotFound; "transfer recipient {to} does not exist in state-tree"),
+        )?;
+
+        from_actor.deduct_funds(value)?;
+        to_actor.deposit_funds(value);
+
+        self.set_actor(from, from_actor)?;
+        self.set_actor(to, to_actor)?;
+
+        log::trace!("transferred {} from {} to {}", value, from, to);
+
+        Ok(())
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.state_tree().is_read_only()
     }
 }
 
@@ -388,12 +531,28 @@ where
         s.exec_trace.push(trace);
     }
 
-    fn create_account_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    /// Helper method to create an uninitialized actor due to a send.
+    fn create_actor_from_send(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
+        // This will charge for the address assignment and the actor storage, but not the actor
+        // lookup/update (charged below in `set_actor`).
+        let _ = self.charge_gas(self.price_list().on_create_actor(true))?;
+        let addr_id = self.state_tree_mut().register_new_address(addr)?;
+        self.state_access_tracker.record_lookup_address(addr);
+
+        // Now we actually set the actor state, charging for reads/writes as necessary and recording
+        // the fact that the actor has been updated.
+        self.set_actor(addr_id, act)?;
+        Ok(addr_id)
+    }
+
+    /// Helper method to create an f1/f3 account actor due to a send. This method:
+    ///
+    /// 1. Creates the actor.
+    /// 2. Initializes it by calling the constructor.
+    fn create_account_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
     {
-        let t = self.charge_gas(self.price_list().on_create_actor(true))?;
-
         if addr.is_bls_zero_address() {
             return Err(
                 syscall_error!(IllegalArgument; "cannot create the bls zero address actor").into(),
@@ -404,7 +563,7 @@ where
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
             let state = ActorState::new_empty(*code_cid, None);
-            self.machine.create_actor(addr, state)?
+            self.create_actor_from_send(addr, state)?
         };
 
         // Now invoke the constructor; first create the parameters, then
@@ -419,9 +578,6 @@ where
             syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
         })?;
 
-        // The cost of sending the message is measured independently.
-        t.stop();
-
         self.send_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
@@ -433,17 +589,15 @@ where
         Ok(id)
     }
 
-    fn create_placeholder_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    /// Helper method to create a placeholder actor due to a send. This method does not execute any
+    /// constructors.
+    fn create_placeholder_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
     {
-        let t = self.charge_gas(self.price_list().on_create_actor(true))?;
-
-        // Create the actor in the state tree, but don't call any constructor.
         let code_cid = self.builtin_actors().get_placeholder_code();
-
         let state = ActorState::new_empty(*code_cid, Some(*addr));
-        t.record(self.machine.create_actor(addr, state))
+        self.create_actor_from_send(addr, state)
     }
 
     /// Send without checking the call depth.
@@ -459,17 +613,17 @@ where
         K: Kernel<CallManager = Self>,
     {
         // Get the receiver; this will resolve the address.
-        let to = match self.state_tree().lookup_id(&to)? {
+        let to = match self.resolve_address(&to)? {
             Some(addr) => addr,
             None => match to.payload() {
                 Payload::BLS(_) | Payload::Secp256k1(_) => {
                     // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor::<K>(&to)?
+                    self.create_account_actor_from_send::<K>(&to)?
                 }
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
-                    self.create_placeholder_actor::<K>(&to)?
+                    self.create_placeholder_actor_from_send::<K>(&to)?
                 }
                 _ => return Err(
                     syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
@@ -495,7 +649,6 @@ where
     {
         // Lookup the actor.
         let state = self
-            .state_tree()
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
@@ -504,7 +657,7 @@ where
 
         // Transfer, if necessary.
         if !value.is_zero() {
-            self.machine.transfer(from, to, value)?;
+            self.transfer(from, to, value)?;
         }
 
         // Abort early if we have a send.

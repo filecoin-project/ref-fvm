@@ -1,13 +1,10 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::ActorID;
 
 use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
-use crate::state_tree::{ActorState, StateTree};
+use crate::state_tree::StateTree;
 
 type Type = MachineContext;
 
@@ -44,16 +41,6 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore> {
         (**self).state_tree_mut()
-    }
-
-    #[inline(always)]
-    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
-        (**self).create_actor(addr, act)
-    }
-
-    #[inline(always)]
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        (**self).transfer(from, to, value)
     }
 
     #[inline(always)]

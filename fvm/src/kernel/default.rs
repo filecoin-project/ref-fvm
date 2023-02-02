@@ -113,29 +113,7 @@ where
 {
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
     fn get_self(&self) -> Result<Option<ActorState>> {
-        self.call_manager
-            .state_tree()
-            .get_actor(self.actor_id)
-            .or_fatal()
-            .context("error when finding current actor")
-    }
-
-    /// Mutates this actor's state, returning a syscall error if this actor has been deleted.
-    fn mutate_self<F>(&mut self, mutate: F) -> Result<()>
-    where
-        F: FnOnce(&mut ActorState) -> Result<()>,
-    {
-        self.call_manager
-            .state_tree_mut()
-            .maybe_mutate_actor_id(self.actor_id, mutate)
-            .context("failed to mutate self")
-            .and_then(|found| {
-                if found {
-                    Ok(())
-                } else {
-                    Err(syscall_error!(IllegalOperation; "actor deleted").into())
-                }
-            })
+        self.call_manager.get_actor(self.actor_id)
     }
 }
 
@@ -144,13 +122,9 @@ where
     C: CallManager,
 {
     fn root(&self) -> Result<Cid> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_root())?;
-
         // This can fail during normal operations if the actor has been deleted.
-        let cid = t
-            .record(self.get_self())?
+        let cid = self
+            .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
@@ -159,20 +133,19 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let t = self
+        let mut state = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_set_root())?;
-
-        t.record(self.mutate_self(|actor_state| {
-            actor_state.state = new;
-            Ok(())
-        }))
+            .get_actor(self.actor_id)?
+            .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
+        state.state = new;
+        self.call_manager.set_actor(self.actor_id, state)?;
+        Ok(())
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_current_balance())?;
+            .charge_gas(self.call_manager.price_list().on_self_balance())?;
 
         // If the actor doesn't exist, it has zero balance.
         t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
@@ -199,16 +172,11 @@ where
 
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
-                .machine_mut()
                 .transfer(self.actor_id, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
-        t.record(
-            self.call_manager
-                .state_tree_mut()
-                .delete_actor(self.actor_id),
-        )
+        t.record(self.call_manager.delete_actor(self.actor_id))
     }
 }
 
@@ -363,7 +331,7 @@ where
                 .try_into()
                 .or_fatal()
                 .context("invalid gas premium")?,
-            flags: if self.call_manager.state_tree().is_read_only() {
+            flags: if self.call_manager.is_read_only() {
                 ContextFlags::READ_ONLY
             } else {
                 ContextFlags::empty()
@@ -793,8 +761,7 @@ where
 
         t.record(Ok(self
             .call_manager
-            .state_tree()
-            .lookup_id(address)?
+            .resolve_address(address)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?))
     }
 
@@ -805,10 +772,7 @@ where
 
         t.record(Ok(self
             .call_manager
-            .state_tree()
-            .get_actor(id)
-            .context("failed to lookup actor to get code CID")
-            .or_fatal()?
+            .get_actor(id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .code))
     }
@@ -895,14 +859,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_balance_of())?;
 
-        t.record(
-            self.call_manager
-                .state_tree()
-                .get_actor(actor_id)?
-                .context("actor not found")
-                .or_error(ErrorNumber::NotFound)
-                .map(|a| a.balance),
-        )
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .balance)
     }
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
@@ -910,12 +869,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_lookup_delegated_address())?;
 
-        let address = t
-            .record(self.call_manager.state_tree().get_actor(actor_id))?
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .delegated_address;
-
-        Ok(address)
+            .delegated_address)
     }
 }
 
