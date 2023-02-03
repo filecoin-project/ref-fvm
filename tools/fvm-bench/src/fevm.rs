@@ -11,7 +11,7 @@ pub fn run(
     contract: &[u8],
     entrypoint: &[u8],
     params: &[u8],
-    gas: i64,
+    gas: u64,
 ) -> anyhow::Result<()> {
     let mut account = tester.create_basic_account()?;
 

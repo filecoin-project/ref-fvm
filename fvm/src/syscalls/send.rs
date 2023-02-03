@@ -27,8 +27,9 @@ pub fn send(
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
     let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
 
-    // If that gas limit exceeds i64, treat it as infinity. u64::MAX is used to indicate "all gas".
-    let gas_limit = gas_limit.try_into().ok().map(Gas::new);
+    // If that gas is u64::MAX, treat it as "all gas". Although really, this doesn't matter. Any gas
+    // exceeding the current gas available is treated as "all remaining gas".
+    let gas_limit = (gas_limit < u64::MAX).then(|| Gas::new(gas_limit));
 
     let flags = SendFlags::from_bits(flags)
         .with_context(|| format!("invalid send flags: {flags}"))

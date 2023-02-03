@@ -244,7 +244,7 @@ mod message_receipt_vec {
         exit_code: ExitCode,
         #[serde(rename = "return", with = "base64_bytes")]
         return_value: Vec<u8>,
-        gas_used: i64,
+        gas_used: u64,
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Receipt>, D::Error>

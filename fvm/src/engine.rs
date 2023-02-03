@@ -11,6 +11,7 @@ use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::error::ExitCode;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
+use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
@@ -19,7 +20,7 @@ use wasmtime::{
 use wasmtime_runtime::InstantiationError;
 
 use crate::call_manager::NO_DATA_BLOCK_ID;
-use crate::gas::{GasTimer, WasmGasPrices};
+use crate::gas::{Gas, GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
@@ -583,7 +584,7 @@ impl Engine {
             kernel,
             last_error: None,
             avail_gas_global: self.0.dummy_gas_global,
-            last_milligas_available: 0,
+            last_gas_available: Gas::zero(),
             last_memory_bytes: memory_bytes,
             last_charge_time: GasTimer::start(),
             memory: self.0.dummy_memory,
