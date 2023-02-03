@@ -346,8 +346,8 @@ fn random_ascii_string(n: usize, seed: u64) -> String {
 /// Knuth's quick and dirty random number generator.
 /// https://en.wikipedia.org/wiki/Linear_congruential_generator
 fn lcg64(initial_seed: u64) -> impl Iterator<Item = u64> {
-    let a = 6364136223846793005 as u64;
-    let c = 1442695040888963407 as u64;
+    let a = 6364136223846793005_u64;
+    let c = 1442695040888963407_u64;
     let mut seed = initial_seed;
     std::iter::repeat_with(move || {
         seed = a.wrapping_mul(seed).wrapping_add(c);
