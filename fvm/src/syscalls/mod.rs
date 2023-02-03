@@ -119,13 +119,13 @@ pub fn charge_for_exec<K: Kernel>(
         data.last_gas_available - Gas::from_milligas(milligas_available_wasm_abs)
     };
 
-    // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
+    // Now we separate the amount of gas charged for memory; this is only makes a difference in
+    // tracing. `exec_gas_charge` is the number we want to charge. If, for some reason,
+    // `memory_gas_charge` exceeds `exec_gas_charge`, we just set `memory_gas_charge` to
+    // `exec_gas_charge`, and set `exec_gas_charge` to zero.
     let memory_bytes = data.kernel.limiter_mut().memory_used();
     let memory_delta_bytes = memory_bytes.saturating_sub(data.last_memory_bytes);
 
-    // `exec_gas_charge` is the number we want to charge. If, for some reason, `memory_gas_charge`
-    // exceeds `exec_gas_charge`, we just set `memory_gas_charge` to `exec_gas_charge`, and set
-    // `exec_gas_charge` to zero.
     let mut memory_gas_charge = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
     if memory_gas_charge <= exec_gas_charge {
         exec_gas_charge -= memory_gas_charge;
