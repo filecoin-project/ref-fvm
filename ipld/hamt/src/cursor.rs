@@ -1,9 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use fvm_ipld_encoding::tuple::*;
+
 /// A Path is specified as a sequence of branches taken at each level of traversal
-#[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub(crate) struct Path(pub(crate) Vec<u8>);
+#[derive(Serialize_tuple, Deserialize_tuple, Default, PartialEq, Eq, Clone, Debug)]
+pub(crate) struct Path {
+    pub(crate) branches: Vec<u8>,
+}
 
 /// A NodeCursor points to a non-leaf node reached by following the specified path from the root of
 /// a trie at the `root` cid
@@ -14,7 +18,7 @@ pub(crate) struct NodeCursor {
 
 /// A LeafCursor points to a leaf node reached by following the specified path from the root of a
 /// trie at the `root` cid
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 pub struct LeafCursor {
     path: Path,
 }
@@ -34,7 +38,7 @@ impl Path {
     /// to the left of "B" (when considered from their common ancestor).
     fn cmp(&self, other: &Self) -> BranchOrdering {
         // compare along shared segment length
-        for (branch, gate) in self.0.iter().zip(other.0.iter()) {
+        for (branch, gate) in self.branches.iter().zip(other.branches.iter()) {
             match branch.cmp(gate) {
                 std::cmp::Ordering::Less => {
                     return BranchOrdering::Less;
@@ -49,7 +53,7 @@ impl Path {
         }
 
         // the entire path segments matched, so the paths are of the same lineage
-        match self.0.len().cmp(&other.0.len()) {
+        match self.branches.len().cmp(&other.branches.len()) {
             std::cmp::Ordering::Less => BranchOrdering::Ancestor,
             std::cmp::Ordering::Greater => BranchOrdering::Descendant,
             std::cmp::Ordering::Equal => BranchOrdering::Equal,
@@ -61,14 +65,14 @@ impl NodeCursor {
     /// Creates a new cursor, extending the path by the specified `branch`
     pub fn create_branch(&self, branch: u8) -> NodeCursor {
         let mut new_path = self.path.clone();
-        new_path.0.push(branch);
+        new_path.branches.push(branch);
         NodeCursor { path: new_path }
     }
 
     /// Creates a leaf cursor, extending the path by the specified `branch`
     pub fn create_leaf(&self, branch: u8) -> LeafCursor {
         let mut new_path = self.path.clone();
-        new_path.0.push(branch);
+        new_path.branches.push(branch);
         LeafCursor { path: new_path }
     }
 
