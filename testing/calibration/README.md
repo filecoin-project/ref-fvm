@@ -19,7 +19,7 @@ The calibration uses the machinery from the integration tests, but it's kept sep
 
 Note that the `--release` flag has a huge impact on runtimes and therefore the model paramters, in the order of 100x.
 
-Alternatively all the scenarios and exports can be executed the followign way:
+Alternatively all the scenarios and exports can be executed the following way:
 
 ```shell
 make run

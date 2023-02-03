@@ -47,6 +47,7 @@ fn main() {
                 if charge.name.starts_with("OnBlock") {
                     if let Some(t) = charge.elapsed.get() {
                         let ob = Obs {
+                            charge: charge.name.to_string(),
                             label: "n/a".into(),
                             elapsed_nanos: t.as_nanos(),
                             variables: vec![*size],
