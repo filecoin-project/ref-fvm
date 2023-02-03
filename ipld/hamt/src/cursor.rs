@@ -1,22 +1,21 @@
 // Copyright 2021-2023 Protocol Labs
-// Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::Cid;
-
-/// A path is specified as a sequence of branches
+/// A Path is specified as a sequence of branches taken at each level of traversal
 #[derive(Default, PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Path(pub(crate) Vec<u8>);
 
+/// A NodeCursor points to a non-leaf node reached by following the specified path from the root of
+/// a trie at the `root` cid
 #[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub struct NodeCursor {
-    cid: Cid,
+pub(crate) struct NodeCursor {
     path: Path,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Debug)]
+/// A LeafCursor points to a leaf node reached by following the specified path from the root of a
+/// trie at the `root` cid
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct LeafCursor {
-    cid: Cid,
     path: Path,
 }
 
@@ -61,19 +60,16 @@ impl Path {
 impl NodeCursor {
     /// Creates a new cursor, extending the path by the specified `branch`
     pub fn create_branch(&self, branch: u8) -> NodeCursor {
-        let mut new_cursor = self.clone();
-        new_cursor.path.0.push(branch);
-        new_cursor
+        let mut new_path = self.path.clone();
+        new_path.0.push(branch);
+        NodeCursor { path: new_path }
     }
 
     /// Creates a leaf cursor, extending the path by the specified `branch`
     pub fn create_leaf(&self, branch: u8) -> LeafCursor {
         let mut new_path = self.path.clone();
         new_path.0.push(branch);
-        LeafCursor {
-            cid: self.cid,
-            path: new_path,
-        }
+        LeafCursor { path: new_path }
     }
 
     /// Returns true if this branch can be safely skipped, given the specified `range_start`.
@@ -91,14 +87,21 @@ impl NodeCursor {
 }
 
 impl LeafCursor {
+    /// Creates a new empty pseudo-LeafCursor that acts to specify the root of the trie. This is
+    /// used as `range_start` in cases where iteration should start from the beginning of the trie.
+    pub fn start() -> LeafCursor {
+        LeafCursor {
+            path: Path::default(),
+        }
+    }
+
     /// Returns true if this leaf path should be skipped, given the specified `range_start`
     /// The logic is the same as `can_skip` for a LeafBranch, but includes a case for equal leaves.
     /// Since the cursor returned by iteration points to the last traversed value, the next iteration
     /// must skip that particular leaf.
     pub fn can_skip(&self, range_start: &LeafCursor) -> bool {
         match self.path.cmp(&range_start.path) {
-            BranchOrdering::Less => true,
-            BranchOrdering::Equal => true,
+            BranchOrdering::Less | BranchOrdering::Equal => true,
             BranchOrdering::Greater => false,
             BranchOrdering::Ancestor => false,
             BranchOrdering::Descendant => false,

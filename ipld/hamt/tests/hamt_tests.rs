@@ -15,7 +15,7 @@ use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
-use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
+use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash, LeafCursor};
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
@@ -394,17 +394,25 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
 
     let mut hamt: Hamt<_, u64> = factory.new_with_bit_width(&store, 2);
 
+    // First, create a HAMT with N_VALUES many entries
     const N_VALUES: u64 = 200;
     for i in 0..N_VALUES {
         hamt.set(tstring(i), i).unwrap();
     }
 
+    // For each target_number less than N_VALUES attempt to retrieve two pages of data from the HAMT
+    // The first iteration should retrieve the first `target_num` values
+    // The second iteration should retrieve the next `target_num` values using the cursor returned
+    // from the first iteration. The second request may exceed the number of values left in the HAMT,
+    // it should only retrieve as many values as are left at max.
+    // Both iterations add their results to a HashSet to assert that no values are duplicated
+    // demonstrating that non-overlapping pages were returned.
     for target_num in 1..N_VALUES {
         let mut results = HashSet::new();
 
         // add the first `target_num` values
         let (num_traversed, next_range_start) = hamt
-            .for_each_ranged(None, target_num, |_k, v| {
+            .for_each_ranged(&LeafCursor::start(), target_num, |_k, v| {
                 results.insert(*v);
                 Ok(())
             })
@@ -412,27 +420,39 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
         assert_eq!(num_traversed, target_num);
         assert_eq!(results.len(), target_num as usize);
 
-        if target_num != N_VALUES {
+        if target_num <= N_VALUES {
             assert!(next_range_start.is_some());
+
+            // add the next `target_num` values
+            let (num_traversed, _) = hamt
+                .for_each_ranged(&next_range_start.unwrap(), target_num, |_k, v| {
+                    results.insert(*v);
+                    Ok(())
+                })
+                .unwrap();
+
+            // num_traversed the second time should be the number of values left or the requested number
+            // of values, whichever is smaller
+            assert_eq!(num_traversed, min(N_VALUES - target_num, target_num));
+            // the total number of values traversed should be the number of values requested * 2 or the
+            // total number of values, whichever is smaller
+            assert_eq!(results.len(), min(N_VALUES, target_num * 2) as usize);
         } else {
             assert!(next_range_start.is_none());
         }
-
-        // add the next `target_num` values
-        let (num_traversed, _) = hamt
-            .for_each_ranged(next_range_start, target_num, |_k, v| {
-                results.insert(*v);
-                Ok(())
-            })
-            .unwrap();
-
-        // num_traversed the second time should be the number of values left or the requested number
-        // of values, whichever is smaller
-        assert_eq!(num_traversed, min(N_VALUES - target_num, target_num));
-        // the total number of values traversed should be the number of values requested * 2 or the
-        // total number of values, whichever is smaller
-        assert_eq!(results.len(), min(N_VALUES, target_num * 2) as usize);
     }
+
+    let mut results = HashSet::new();
+    // Requesting more values than exist in the HAMT should return all values and an empty cursor
+    let (num_traversed, next_range_start) = hamt
+        .for_each_ranged(&LeafCursor::start(), 500, |_k, v| {
+            results.insert(*v);
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(num_traversed, N_VALUES);
+    assert_eq!(results.len(), N_VALUES as usize);
+    assert!(next_range_start.is_none());
 
     let c = hamt.flush().unwrap();
     cids.check_next(c);
