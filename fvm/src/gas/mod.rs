@@ -171,17 +171,15 @@ pub struct GasTracker {
     trace: Option<RefCell<Vec<GasCharge>>>,
 }
 
-const UNLIMITED_GAS: Gas = Gas::from_milligas(i64::MAX as u64);
-
 impl GasTracker {
     /// Gas limit and gas used are provided in protocol units (i.e. full units).
     /// They are converted to milligas for internal canonical accounting.
     ///
-    /// - If the gas limit exceeds `i64::MAX` milligas, it's rounded down to `i64::MAX` milligas and
-    ///   treated as "unlimited".
+    /// - If the gas limit exceeds `i64::MAX` milligas, it's rounded down to `i64::MAX` milligas.
     /// - If the gas used exceeds the gas limit, it's capped at the gas limit.
     pub fn new(mut gas_limit: Gas, mut gas_used: Gas, enable_tracing: bool) -> Self {
-        gas_limit = gas_limit.min(UNLIMITED_GAS);
+        const MAX_GAS: Gas = Gas::from_milligas(i64::MAX as u64);
+        gas_limit = gas_limit.min(MAX_GAS);
         gas_used = gas_used.min(gas_limit);
         Self {
             gas_limit,
@@ -192,9 +190,6 @@ impl GasTracker {
     }
 
     fn charge_gas_inner(&self, to_use: Gas) -> Result<()> {
-        if self.gas_limit == UNLIMITED_GAS {
-            return Ok(());
-        }
         // The gas type uses saturating math.
         let gas_used = self.gas_used.get() + to_use;
         if gas_used > self.gas_limit {
