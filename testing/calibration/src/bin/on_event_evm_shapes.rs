@@ -43,14 +43,18 @@ fn main() {
 
         let ret = te.execute_or_die(METHOD as u64, &params);
 
+        // projected length of the CBOR payload (confirmed with observations)
+        // 1 is the list header; 5 per entry CBOR overhead + flags.
+        let len = 1 + entries * value_size + entries * key_size + entries * 5;
+
         {
-            let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, *value_size);
+            let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, len);
             series = eliminate_outliers(series, 0.02, Eliminate::Top);
             validate_obs.extend(series);
         };
 
         {
-            let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, *value_size);
+            let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, len);
             series = eliminate_outliers(series, 0.02, Eliminate::Top);
             accept_obs.extend(series);
         };
@@ -62,6 +66,6 @@ fn main() {
             .map(|g| least_squares(g[0].label.to_owned(), g, 0))
             .collect::<Vec<_>>();
 
-        export(name, &obs, &regression).unwrap();
+        export(name, obs, &regression).unwrap();
     }
 }

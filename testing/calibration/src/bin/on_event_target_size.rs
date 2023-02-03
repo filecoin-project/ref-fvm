@@ -78,6 +78,6 @@ pub fn run() {
             .map(|g| least_squares(g[0].label.to_owned(), g, 0))
             .collect::<Vec<_>>();
 
-        export(name, &obs, &regression).unwrap();
+        export(name, obs, &regression).unwrap();
     }
 }
