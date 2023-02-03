@@ -63,9 +63,9 @@ pub fn update_gas_available(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
-    let avail_gas = ctx.data_mut().kernel.gas_available();
 
-    let gas_global = ctx.data_mut().avail_gas_global;
+    // Get current gas available.
+    let avail_gas = ctx.data_mut().kernel.gas_available();
     let avail_milligas = avail_gas
         .as_milligas()
         .try_into()
@@ -73,6 +73,8 @@ pub fn update_gas_available(
         // means there's a serious bug (e.g., some kind of wrap-around).
         .map_err(|_| Abort::Fatal(anyhow!("available milligas exceeded i64::MAX")))?;
 
+    // Update the wasm context to reflect this.
+    let gas_global = ctx.data_mut().avail_gas_global;
     gas_global
         .set(&mut ctx, Val::I64(avail_milligas))
         .map_err(|e| Abort::Fatal(anyhow!("failed to set available gas global: {}", e)))?;
@@ -102,14 +104,19 @@ pub fn charge_for_exec<K: Kernel>(
 
     let data = ctx.data_mut();
 
+    // abs_diff(0) is the simplest way to get the absolute value of an i64 as a u64 without
+    // overflows.
+    let milligas_available_wasm_abs = milligas_available_wasm.abs_diff(0);
+
+    // Get the exec gas to charge, taking negatives into account.
     let mut exec_gas_charge = if milligas_available_wasm < 0 {
         // If the gas remaining is negative, we charge for all remaining gas, plus `-remaining_gas`.
         // That way we actually run out.
-        data.last_gas_available
-            + Gas::from_milligas(milligas_available_wasm.saturating_abs() as u64)
+        data.last_gas_available + Gas::from_milligas(milligas_available_wasm_abs)
     } else {
-        // If it's non-negative, we charge for up-to all remaining gas.
-        data.last_gas_available - Gas::from_milligas(milligas_available_wasm as u64)
+        // If it's non-negative, we charge for up-to all remaining gas. This subtraction saturates
+        // at zero.
+        data.last_gas_available - Gas::from_milligas(milligas_available_wasm_abs)
     };
 
     // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
