@@ -908,17 +908,28 @@ impl PriceList {
             }
         }
 
-        // The estimated size of the serialized StampedEvent event, which includes the ActorEvent
-        // + 8 bytes for the actor ID + some bytes for CBOR framing.
+        // The estimated size of the serialized StampedEvent event, which
+        // includes the ActorEvent + 8 bytes for the actor ID + some bytes
+        // for CBOR framing.
         const STAMP_EXTRA_SIZE: usize = 12;
         let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
 
-        let memcpy = self.block_memcpy.apply(stamped_event_size);
-        let alloc = self.block_allocate.apply(stamped_event_size);
+        // Charge for 3 memory copy operations.
+        // This includes the cost of forming a StampedEvent, copying into the
+        // AMT's buffer on finish, and returning to the client.
+        let memcpy = self.block_memcpy.apply(stamped_event_size) * 3;
+
+        // Charge for 2 memory allocations.
+        // This includes the cost of retaining the StampedEvent in the call manager,
+        // and allocaing into the AMT's buffer on finish.
+        let alloc = self.block_allocate.apply(stamped_event_size) * 2;
+
+        // Charge for the hashing on AMT insertion.
+        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(stamped_event_size);
 
         GasCharge::new(
             "OnActorEventAccept",
-            memcpy.mul(3) + alloc,
+            memcpy + alloc + hash,
             self.event_accept_per_index_element.flat * indexed_elements
                 + self.event_accept_per_index_element.scale * indexed_bytes,
         )
