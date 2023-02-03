@@ -6,7 +6,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::{to_vec, RawBytes, CBOR, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, CBOR, DAG_CBOR, IPLD_RAW};
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::econ::TokenAmount;
@@ -155,7 +155,8 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             let evt = vec![Entry {
                 flags: Flags::all(),
                 key: "foo".to_owned(),
-                value: RawBytes::new(empty),
+                codec: IPLD_RAW,
+                value: vec![0, 1, 2],
             }];
             let err = sdk::event::emit_event(&evt.into()).unwrap_err();
             assert_eq!(err, ErrorNumber::ReadOnly);

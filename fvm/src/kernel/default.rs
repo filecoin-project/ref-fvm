@@ -9,13 +9,14 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::bytes_32;
+use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::event::ActorEvent;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::sys::out::vm::ContextFlags;
@@ -985,6 +986,13 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
 
+        // This is an over-estimation of the maximum event size, for safety. No valid event can even
+        // get close to this. We check this first so we don't try to decode a large event.
+        const MAX_ENCODED_SIZE: usize = 1 << 20;
+        if raw_evt.len() > MAX_ENCODED_SIZE {
+            return Err(syscall_error!(IllegalArgument; "event WAY too large").into());
+        }
+
         let actor_evt = {
             let res = match panic::catch_unwind(|| {
                 fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
@@ -998,6 +1006,7 @@ where
             t.stop();
             res
         }?;
+        validate_actor_event(&actor_evt)?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
@@ -1022,6 +1031,35 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
             Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
         }
     }
+}
+
+fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
+    const MAX_ENTRIES: usize = 256;
+    const MAX_DATA: usize = 8 << 10;
+    const MAX_KEY_LEN: usize = 32;
+
+    if evt.entries.len() > MAX_ENTRIES {
+        return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_ENTRIES}", evt.entries.len()).into());
+    }
+    let mut total_value_size: usize = 0;
+    for entry in &evt.entries {
+        if entry.key.len() > MAX_KEY_LEN {
+            return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", entry.key.len()).into());
+        }
+        if entry.codec != IPLD_RAW {
+            return Err(
+                syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", entry.codec)
+                    .into(),
+            );
+        }
+        total_value_size += entry.value.len();
+    }
+    if total_value_size > MAX_DATA {
+        return Err(
+            syscall_error!(IllegalArgument; "event total values exceeded max size: {total_value_size} > {MAX_DATA}").into(),
+        );
+    }
+    Ok(())
 }
 
 /// PoSt proof variants.

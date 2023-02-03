@@ -1,5 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use fvm_ipld_encoding::IPLD_RAW;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
@@ -55,6 +56,7 @@ pub fn invoke(params_id: u32) -> u32 {
             vec![Entry {
                 flags: Flags::all(),
                 key: "foo".to_owned(),
+                codec: IPLD_RAW,
                 value: fvm_ipld_encoding::to_vec(&payload).unwrap().into(),
             }]
         };
