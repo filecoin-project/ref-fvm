@@ -102,7 +102,7 @@ where
     fn new(
         machine: M,
         engine: Engine,
-        gas_limit: i64,
+        gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
         receiver: Option<ActorID>,
@@ -268,8 +268,7 @@ where
             ..
         } = *self.0.take().expect("call manager is poisoned");
 
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        let gas_used = gas_tracker.gas_used().max(Gas::zero()).round_up();
+        let gas_used = gas_tracker.gas_used().round_up();
 
         // Finalize any trace events, if we're tracing.
         if machine.context().tracing {
@@ -744,7 +743,8 @@ where
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
-                // Charge for any remaining uncharged execution gas, returning an error if we run out.
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
                 charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already

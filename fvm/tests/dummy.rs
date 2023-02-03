@@ -204,6 +204,8 @@ pub struct TestData {
     pub charge_gas_calls: usize,
 }
 
+const BLOCK_GAS_LIMIT: Gas = Gas::new(10_000_000_000);
+
 impl DummyCallManager {
     pub fn new_stub() -> (Self, Rc<RefCell<TestData>>) {
         let rc = Rc::new(RefCell::new(TestData {
@@ -213,7 +215,7 @@ impl DummyCallManager {
         (
             Self {
                 machine: DummyMachine::new_stub().unwrap(),
-                gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
+                gas_tracker: GasTracker::new(BLOCK_GAS_LIMIT, Gas::new(0), false),
                 origin: 0,
                 nonce: 0,
                 test_data: rc,
@@ -252,7 +254,7 @@ impl CallManager for DummyCallManager {
     fn new(
         machine: Self::Machine,
         _engine: Engine,
-        _gas_limit: i64,
+        _gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
         _receiver: Option<ActorID>,
@@ -266,7 +268,7 @@ impl CallManager for DummyCallManager {
         let limits = machine.new_limiter();
         Self {
             machine,
-            gas_tracker: GasTracker::new(Gas::new(i64::MAX), Gas::new(0), false),
+            gas_tracker: GasTracker::new(BLOCK_GAS_LIMIT, Gas::new(0), false),
             gas_premium,
             origin,
             origin_address,

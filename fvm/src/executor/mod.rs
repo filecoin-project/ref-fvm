@@ -84,8 +84,8 @@ pub struct ApplyRet {
     pub base_fee_burn: TokenAmount,
     pub over_estimation_burn: TokenAmount,
     pub refund: TokenAmount,
-    pub gas_refund: i64,
-    pub gas_burned: i64,
+    pub gas_refund: u64,
+    pub gas_burned: u64,
 
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,

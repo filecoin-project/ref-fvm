@@ -15,14 +15,14 @@ use crate::MethodNum;
 #[cfg_attr(feature = "testing", derive(Default))]
 #[derive(PartialEq, Clone, Debug, Hash, Eq)]
 pub struct Message {
-    pub version: i64,
+    pub version: u64,
     pub from: Address,
     pub to: Address,
     pub sequence: u64,
     pub value: TokenAmount,
     pub method_num: MethodNum,
     pub params: RawBytes,
-    pub gas_limit: i64,
+    pub gas_limit: u64,
     pub gas_fee_cap: TokenAmount,
     pub gas_premium: TokenAmount,
 }
@@ -33,8 +33,9 @@ impl Message {
         if self.gas_limit == 0 {
             return Err(anyhow!("Message has no gas limit set"));
         }
-        if self.gas_limit < 0 {
-            return Err(anyhow!("Message has negative gas limit"));
+        // TODO: max block limit?
+        if self.gas_limit > i64::MAX as u64 {
+            return Err(anyhow!("Message gas exceeds i64 max"));
         }
         Ok(())
     }
@@ -99,12 +100,12 @@ impl quickcheck::Arbitrary for Message {
         Self {
             to: Address::arbitrary(g),
             from: Address::arbitrary(g),
-            version: i64::arbitrary(g),
+            version: u64::arbitrary(g),
             sequence: u64::arbitrary(g),
             value: TokenAmount::arbitrary(g),
             method_num: u64::arbitrary(g),
             params: fvm_ipld_encoding::RawBytes::new(Vec::arbitrary(g)),
-            gas_limit: i64::arbitrary(g),
+            gas_limit: u64::arbitrary(g),
             gas_fee_cap: TokenAmount::arbitrary(g),
             gas_premium: TokenAmount::arbitrary(g),
         }

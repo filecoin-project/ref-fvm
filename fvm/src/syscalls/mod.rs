@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::mem;
-
 use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
@@ -47,7 +45,7 @@ pub struct InvocationData<K> {
     /// The last-set milligas limit. When `charge_for_exec` is called, we charge for the
     /// _difference_ between the current gas available (the wasm global) and the
     /// `last_milligas_available`.
-    pub last_milligas_available: i64,
+    pub last_gas_available: Gas,
 
     /// The total size of the memory used by the execution the last time we charged gas for it.
     pub last_memory_bytes: usize,
@@ -65,17 +63,27 @@ pub fn update_gas_available(
     ctx: &mut impl AsContextMut<Data = InvocationData<impl Kernel>>,
 ) -> Result<(), Abort> {
     let mut ctx = ctx.as_context_mut();
-    let avail_milligas = ctx.data_mut().kernel.gas_available().as_milligas();
 
+    // Get current gas available.
+    let avail_gas = ctx.data_mut().kernel.gas_available();
+    let avail_milligas = avail_gas
+        .as_milligas()
+        .try_into()
+        // The gas tracker guarantees that this can't be the case. If this does happen, it likely
+        // means there's a serious bug (e.g., some kind of wrap-around).
+        .map_err(|_| Abort::Fatal(anyhow!("available milligas exceeded i64::MAX")))?;
+
+    // Update the wasm context to reflect this.
     let gas_global = ctx.data_mut().avail_gas_global;
     gas_global
         .set(&mut ctx, Val::I64(avail_milligas))
         .map_err(|e| Abort::Fatal(anyhow!("failed to set available gas global: {}", e)))?;
 
-    ctx.data_mut().last_milligas_available = avail_milligas;
-
-    // Also adjust the instant we use in `charge_for_exec` to measure wasm execution time.
-    ctx.data_mut().last_charge_time = GasTimer::start();
+    // Finally, update the last-seen values. We'll use these values in `charge_for_exec` below.
+    let data = ctx.data_mut();
+    data.last_gas_available = avail_gas;
+    data.last_memory_bytes = data.kernel.limiter_mut().memory_used();
+    data.last_charge_time = GasTimer::start();
 
     Ok(())
 }
@@ -87,49 +95,65 @@ pub fn charge_for_exec<K: Kernel>(
     let mut ctx = ctx.as_context_mut();
     let global = ctx.data_mut().avail_gas_global;
 
-    let milligas_available = global
+    // Get the remaining milligas. This will go _negative_ if we run out.
+    let milligas_available_wasm = global
         .get(&mut ctx)
         .i64()
         .context("failed to get wasm gas")
         .map_err(Abort::Fatal)?;
 
-    // Determine milligas used, and update the gas tracker.
-    let mut exec_gas = {
-        let data = ctx.data_mut();
-        let last_milligas = mem::replace(&mut data.last_milligas_available, milligas_available);
-        // This should never be negative, but we might as well check.
-        Gas::from_milligas(last_milligas.saturating_sub(milligas_available))
-    };
-
     let data = ctx.data_mut();
 
-    // Separate the amount of gas charged for memory; this is only makes a difference in tracing.
+    // abs_diff(0) is the simplest way to get the absolute value of an i64 as a u64 without
+    // overflows.
+    let milligas_available_wasm_abs = milligas_available_wasm.abs_diff(0);
+
+    // Get the exec gas to charge, taking negatives into account.
+    let mut exec_gas_charge = if milligas_available_wasm < 0 {
+        // If the gas remaining is negative, we charge for all remaining gas, plus `-remaining_gas`.
+        // That way we actually run out.
+        data.last_gas_available + Gas::from_milligas(milligas_available_wasm_abs)
+    } else {
+        // If it's non-negative, we charge for up-to all remaining gas. This subtraction saturates
+        // at zero.
+        data.last_gas_available - Gas::from_milligas(milligas_available_wasm_abs)
+    };
+
+    // Now we separate the amount of gas charged for memory; this is only makes a difference in
+    // tracing. `exec_gas_charge` is the number we want to charge. If, for some reason,
+    // `memory_gas_charge` exceeds `exec_gas_charge`, we just set `memory_gas_charge` to
+    // `exec_gas_charge`, and set `exec_gas_charge` to zero.
     let memory_bytes = data.kernel.limiter_mut().memory_used();
     let memory_delta_bytes = memory_bytes.saturating_sub(data.last_memory_bytes);
-    let memory_gas = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
 
-    exec_gas = (exec_gas - memory_gas).max(Gas::zero());
+    let mut memory_gas_charge = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
+    if memory_gas_charge <= exec_gas_charge {
+        exec_gas_charge -= memory_gas_charge;
+    } else {
+        memory_gas_charge = exec_gas_charge;
+        exec_gas_charge = Gas::zero();
+    }
+
+    // Now we actually charge. If we go below 0, we run out of gas.
 
     let t = data
         .kernel
-        .charge_gas("wasm_exec", exec_gas)
+        .charge_gas("wasm_exec", exec_gas_charge)
         .map_err(Abort::from_error_as_fatal)?;
 
-    // It should be okay to record time associated with Wasm execution because `charge_for_exec` is called
-    // before syscalls `impl_bind_syscalls`, so the syscall timings are going to be interleaved, rather than
-    // nested inside it. But we also have to make sure to reset the timer after each syscall, when Wasm resumes,
-    // which happens in `update_gas_available`.
+    // It should be okay to record time associated with Wasm execution because `charge_for_exec` is
+    // called before syscalls `impl_bind_syscalls`, so the syscall timings are going to be
+    // interleaved, rather than nested inside it. But we also have to make sure to reset the timer
+    // after each syscall, when Wasm resumes, which happens in `update_gas_available`.
     t.stop_with(data.last_charge_time);
-    data.last_charge_time = GasTimer::start();
-    data.last_memory_bytes = memory_bytes;
 
-    if !memory_gas.is_zero() {
-        // Only recording time for the execution, not for the memory part, which is unknown.
-        // But we could perform stomething like a multi-variate linear regression to see if the amount of
+    if !memory_gas_charge.is_zero() {
+        // Only recording time for the execution, not for the memory part, which is unknown. But we
+        // could perform stomething like a multi-variate linear regression to see if the amount of
         // memory explains any of the exectuion time.
         let _ = data
             .kernel
-            .charge_gas("wasm_memory_grow", memory_gas)
+            .charge_gas("wasm_memory_grow", memory_gas_charge)
             .map_err(Abort::from_error_as_fatal)?;
     }
 

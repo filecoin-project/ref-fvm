@@ -13,7 +13,7 @@ use crate::error::ExitCode;
 pub struct Receipt {
     pub exit_code: ExitCode,
     pub return_data: RawBytes,
-    pub gas_used: i64,
+    pub gas_used: u64,
     /// If any actor events were emitted during execution, this field will contain the CID of the
     /// root of the AMT holding the StampedEvents. Otherwise, this will be None (serializing to a
     /// CBOR NULL value on the wire).

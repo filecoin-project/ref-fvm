@@ -441,6 +441,8 @@ mod gas {
 
     use super::*;
 
+    const BLOCK_GAS_LIMIT: Gas = Gas::new(10_000_000_000);
+
     #[test]
     fn test() -> anyhow::Result<()> {
         let avaliable = Gas::new(10);
@@ -456,17 +458,13 @@ mod gas {
         assert_eq!(kern.gas_available(), Gas::new(4));
         assert_eq!(kern.gas_used(), Gas::new(6));
 
-        let _ = kern.charge_gas("refund 6 gas", Gas::new(-6))?;
-
-        assert_eq!(kern.gas_available(), avaliable);
-        assert_eq!(kern.gas_used(), Gas::new(0));
         Ok(())
     }
 
     #[test]
     fn used() -> anyhow::Result<()> {
         let used = Gas::new(123456);
-        let gas_tracker = GasTracker::new(Gas::new(i64::MAX), used, false);
+        let gas_tracker = GasTracker::new(BLOCK_GAS_LIMIT, used, false);
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
@@ -490,7 +488,6 @@ mod gas {
     #[test]
     fn charge() -> anyhow::Result<()> {
         let test_gas = Gas::new(123456);
-        let neg_test_gas = Gas::new(-123456);
         let gas_tracker = GasTracker::new(test_gas, Gas::new(0), false);
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
@@ -506,22 +503,6 @@ mod gas {
             kern.gas_used(),
             test_gas,
             "charging gas over what is avaliable and failing should not affect gas used"
-        );
-
-        // charge negative (refund) gas
-        let _ = kern.charge_gas("refund~", neg_test_gas)?;
-        assert_eq!(kern.gas_used(), Gas::new(0));
-        let _ = kern.charge_gas("free gas!", neg_test_gas)?;
-
-        assert_eq!(
-            kern.gas_used(),
-            neg_test_gas,
-            "gas avaliable should be negative"
-        );
-        assert_eq!(
-            kern.gas_available() + kern.gas_used(),
-            test_gas,
-            "gas avaliable + gas used should be equal to the gas limit"
         );
 
         // kernel with 0 avaliable gas
