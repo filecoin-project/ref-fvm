@@ -985,17 +985,19 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
 
-        let actor_evt = match panic::catch_unwind(|| {
-            fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
-        }) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("panic when decoding cbor from actor: {:?}", e);
-                Err(syscall_error!(IllegalArgument; "panic when decoding cbor from actor").into())
-            }
+        let actor_evt = {
+            let res = match panic::catch_unwind(|| {
+                fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
+            }) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("panic when decoding event cbor from actor: {:?}", e);
+                    Err(syscall_error!(IllegalArgument; "panic when decoding event cbor from actor").into())
+                }
+            };
+            t.stop();
+            res
         }?;
-
-        t.stop();
 
         let t = self.call_manager.charge_gas(
             self.call_manager
