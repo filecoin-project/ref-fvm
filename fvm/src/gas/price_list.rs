@@ -269,13 +269,25 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // TODO::PARAM
+        // These parameters are specifically sized for EVM events. They will need
+        // to be revisited before Wasm actors are able to emit arbitrary events.
+        //
+        // Validation costs are dependent on encoded length, but also
+        // co-dependent on the number of entries. The latter is a chicken-and-egg
+        // situation because we can only learn how many entries were emitted once we
+        // decode the CBOR event.
+        //
+        // We will likely need to revisit the ABI of emit_event to remove CBOR
+        // as the exchange format.
         event_validation_cost: ScalingCost {
-            flat: Zero::zero(),
-            scale: Zero::zero(),
+            flat: Gas::new(1750),
+            scale: Gas::new(25),
         },
 
-        // TODO::PARAM
+        // The protocol does not currently mandate indexing work, so these are
+        // left at zero. Once we start populating and committing indexing data
+        // structures, these costs will need to reflect the computation and
+        // storage costs of such actions.
         event_accept_per_index_element: ScalingCost {
             flat: Zero::zero(),
             scale: Zero::zero(),
