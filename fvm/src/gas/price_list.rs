@@ -1232,3 +1232,43 @@ fn test_read_write() {
     );
     assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
 }
+
+#[test]
+fn test_step_cost() {
+    let costs = StepCost(vec![
+        Step {
+            start: 10,
+            cost: Gas::new(1),
+        },
+        Step {
+            start: 20,
+            cost: Gas::new(2),
+        },
+    ]);
+    assert!(costs.lookup(0).is_zero());
+    assert!(costs.lookup(5).is_zero());
+
+    assert_eq!(costs.lookup(10), Gas::new(1));
+    assert_eq!(costs.lookup(11), Gas::new(1));
+    assert_eq!(costs.lookup(19), Gas::new(1));
+
+    assert_eq!(costs.lookup(20), Gas::new(2));
+    assert_eq!(costs.lookup(100), Gas::new(2));
+}
+
+#[test]
+fn test_step_cost_empty() {
+    let costs = StepCost(vec![]);
+    assert!(costs.lookup(0).is_zero());
+    assert!(costs.lookup(10).is_zero());
+}
+
+#[test]
+fn test_step_cost_zero() {
+    let costs = StepCost(vec![Step {
+        start: 0,
+        cost: Gas::new(1),
+    }]);
+    assert_eq!(costs.lookup(0), Gas::new(1));
+    assert_eq!(costs.lookup(10), Gas::new(1));
+}
