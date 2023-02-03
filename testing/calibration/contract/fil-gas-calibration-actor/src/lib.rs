@@ -38,7 +38,7 @@ pub enum Method {
     OnRecoverSecpPublicKey,
     /// Measure sends
     OnSend,
-    /// Emit events variying the number of entries, and with variable lengths for keys and values.
+    /// Emit events, driven by the selected mode. See EventCalibrationMode for more info.
     OnEvent,
 }
 
