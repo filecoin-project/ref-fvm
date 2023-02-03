@@ -14,13 +14,9 @@ const CHARGE_ACCEPT: &str = "OnActorEventAccept";
 const METHOD: Method = Method::OnEvent;
 
 fn main() {
-    let config: Vec<(usize, (usize, usize))> = vec![
-        (1, (2, 32)), // LOG0
-        (2, (2, 32)), // LOG1
-        (3, (2, 32)), // LOG2
-        (4, (2, 32)), // LOG3
-        (5, (2, 32)), // LOG4
-    ];
+    let entries = 1..=5;
+    let (key_size, value_size) = (2, 32); // 2 bytes per key, 32 bytes per value (topics)
+    let last_entry_value_sizes = (5u32..=13).map(|n| u64::pow(2, n) as usize); // 32 bytes to 8KiB (payload)
 
     let iterations = 500;
 
@@ -30,34 +26,40 @@ fn main() {
 
     let mut rng = thread_rng();
 
-    for (entries, (key_size, value_size)) in config.iter() {
-        let label = format!("{entries:?}entries");
-        let params = OnEventParams {
-            iterations,
-            // number of entries to emit
-            entries: *entries,
-            mode: EventCalibrationMode::Shape((*key_size, *value_size)),
-            flags: Flags::FLAG_INDEXED_ALL,
-            seed: rng.gen(),
-        };
+    for entry_count in entries {
+        for last_entry_value_size in last_entry_value_sizes.clone() {
+            let label = format!("{entry_count:?}entries");
+            let params = OnEventParams {
+                iterations,
+                // number of entries to emit
+                entries: entry_count,
+                mode: EventCalibrationMode::Shape((key_size, value_size, last_entry_value_size)),
+                flags: Flags::FLAG_INDEXED_ALL,
+                seed: rng.gen(),
+            };
 
-        let ret = te.execute_or_die(METHOD as u64, &params);
+            let ret = te.execute_or_die(METHOD as u64, &params);
 
-        // projected length of the CBOR payload (confirmed with observations)
-        // 1 is the list header; 5 per entry CBOR overhead + flags.
-        let len = 1 + entries * value_size + entries * key_size + entries * 5;
+            // Estimated length of the CBOR payload (confirmed with observations)
+            // 1 is the list header; 5 per entry CBOR overhead + flags.
+            let len = 1
+                + (entry_count - 1 * value_size)
+                + last_entry_value_size
+                + entry_count * key_size
+                + entry_count * 5;
 
-        {
-            let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, len);
-            series = eliminate_outliers(series, 0.02, Eliminate::Top);
-            validate_obs.extend(series);
-        };
+            {
+                let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, len);
+                series = eliminate_outliers(series, 0.02, Eliminate::Top);
+                validate_obs.extend(series);
+            };
 
-        {
-            let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, len);
-            series = eliminate_outliers(series, 0.02, Eliminate::Top);
-            accept_obs.extend(series);
-        };
+            {
+                let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, len);
+                series = eliminate_outliers(series, 0.02, Eliminate::Top);
+                accept_obs.extend(series);
+            };
+        }
     }
 
     for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {

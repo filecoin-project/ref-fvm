@@ -84,7 +84,7 @@ pub struct OnRecoverSecpPublicKeyParams {
 #[derive(Serialize, Deserialize)]
 pub enum EventCalibrationMode {
     /// Produce events with the specified shape.
-    Shape((usize, usize)),
+    Shape((usize, usize, usize)),
     /// Attempt to reach a target size for the CBOR event.
     TargetSize(usize),
 }
@@ -264,19 +264,28 @@ fn on_event(p: OnEventParams) -> Result<()> {
 }
 
 fn on_event_shape(p: OnEventParams) -> Result<()> {
-    let EventCalibrationMode::Shape((key_size, value_size)) = p.mode else { panic!() };
-    let mut value = random_bytes(value_size, p.seed);
+    let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else { panic!() };
+    let mut value = vec![0; value_size];
+    let mut last_value = vec![0; last_value_size];
 
     for i in 0..p.iterations {
         random_mutations(&mut value, p.seed + i as u64, MUTATION_COUNT);
         let key = random_ascii_string(key_size, p.seed + p.iterations as u64 + i as u64); // non-overlapping seed
-        let entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
+        let mut entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
             flags: p.flags,
             key: key.clone(),
             value: value.clone().into(),
         })
-        .take(p.entries)
+        .take(p.entries - 1)
         .collect();
+
+        random_mutations(&mut last_value, p.seed + i as u64, MUTATION_COUNT);
+        entries.push(Entry {
+            flags: p.flags,
+            key,
+            value: last_value.clone().into(),
+        });
+
         fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
     }
 
