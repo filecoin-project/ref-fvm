@@ -82,12 +82,19 @@ pub struct OnRecoverSecpPublicKeyParams {
 }
 
 #[derive(Serialize, Deserialize)]
+pub enum EventCalibrationMode {
+    /// Produce events with the specified shape.
+    Shape((usize, usize)),
+    /// Attempt to reach a target size for the CBOR event.
+    TargetSize(usize),
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct OnEventParams {
     pub iterations: usize,
+    pub mode: EventCalibrationMode,
     /// Number of entries in the event.
     pub entries: usize,
-    /// Target size of the CBOR object.
-    pub target_size: usize,
     /// Flags to apply to all entries.
     pub flags: Flags,
     pub seed: u64,
@@ -211,38 +218,6 @@ fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
     Ok(())
 }
 
-fn on_event(p: OnEventParams) -> Result<()> {
-    // Deduct the approximate overhead of each entry (3 bytes) + flag (1 byte). This
-    // is fuzzy because the size of the encoded CBOR depends on the length of fields, but it's good enough.
-    let size_per_entry =
-        ((p.target_size.checked_sub(p.entries * 4).unwrap_or(1)) / p.entries).max(1);
-    let mut rand = lcg64(p.seed);
-    for _ in 0..p.iterations {
-        let mut entries = Vec::with_capacity(p.entries);
-        for _ in 0..p.entries {
-            let (r1, r2, r3) = (
-                rand.next().unwrap(),
-                rand.next().unwrap(),
-                rand.next().unwrap(),
-            );
-            // Generate a random key of an arbitrary length that fits within the size per entry.
-            // This will never be equal to size_per_entry, and it might be zero, which is fine
-            // for gas calculation purposes.
-            let key = random_ascii_string((r1 % size_per_entry as u64) as usize, r2);
-            // Generate a value to fill up the remaining bytes.
-            let value = random_bytes(size_per_entry - key.len(), r3);
-            entries.push(Entry {
-                flags: p.flags,
-                key,
-                value: RawBytes::from(value),
-            })
-        }
-        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
-    }
-
-    Ok(())
-}
-
 fn on_recover_secp_public_key(p: OnRecoverSecpPublicKeyParams) -> Result<()> {
     let mut data = random_bytes(p.size, p.seed);
     let sig: [u8; SECP_SIG_LEN] = p
@@ -278,6 +253,66 @@ fn on_send(p: OnSendParams) -> Result<()> {
         )
         .unwrap();
     }
+    Ok(())
+}
+
+fn on_event(p: OnEventParams) -> Result<()> {
+    match p.mode {
+        EventCalibrationMode::Shape(_) => on_event_shape(p),
+        EventCalibrationMode::TargetSize(_) => on_event_target_size(p),
+    }
+}
+
+fn on_event_shape(p: OnEventParams) -> Result<()> {
+    let EventCalibrationMode::Shape((key_size, value_size)) = p.mode else { panic!() };
+    let mut value = random_bytes(value_size, p.seed);
+
+    for i in 0..p.iterations {
+        random_mutations(&mut value, p.seed + i as u64, MUTATION_COUNT);
+        let key = random_ascii_string(key_size, p.seed + p.iterations as u64 + i as u64); // non-overlapping seed
+        let entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
+            flags: p.flags,
+            key: key.clone(),
+            value: value.clone().into(),
+        })
+        .take(p.entries)
+        .collect();
+        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
+    }
+
+    Ok(())
+}
+
+fn on_event_target_size(p: OnEventParams) -> Result<()> {
+    let EventCalibrationMode::TargetSize(target_size) = p.mode else { panic!() };
+
+    // Deduct the approximate overhead of each entry (3 bytes) + flag (1 byte). This
+    // is fuzzy because the size of the encoded CBOR depends on the length of fields, but it's good enough.
+    let size_per_entry = ((target_size.checked_sub(p.entries * 4).unwrap_or(1)) / p.entries).max(1);
+    let mut rand = lcg64(p.seed);
+    for _ in 0..p.iterations {
+        let mut entries = Vec::with_capacity(p.entries);
+        for _ in 0..p.entries {
+            let (r1, r2, r3) = (
+                rand.next().unwrap(),
+                rand.next().unwrap(),
+                rand.next().unwrap(),
+            );
+            // Generate a random key of an arbitrary length that fits within the size per entry.
+            // This will never be equal to size_per_entry, and it might be zero, which is fine
+            // for gas calculation purposes.
+            let key = random_ascii_string((r1 % size_per_entry as u64) as usize, r2);
+            // Generate a value to fill up the remaining bytes.
+            let value = random_bytes(size_per_entry - key.len(), r3);
+            entries.push(Entry {
+                flags: p.flags,
+                key,
+                value: RawBytes::from(value),
+            })
+        }
+        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
+    }
+
     Ok(())
 }
 
