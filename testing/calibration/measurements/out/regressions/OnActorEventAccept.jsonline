@@ -1,5 +1,5 @@
-{"label":"1entries","intercept":null,"slope":null,"r_squared":null}
-{"label":"2entries","intercept":null,"slope":null,"r_squared":null}
-{"label":"3entries","intercept":null,"slope":null,"r_squared":null}
-{"label":"4entries","intercept":null,"slope":null,"r_squared":null}
-{"label":"5entries","intercept":null,"slope":null,"r_squared":null}
+{"label":"1entries","intercept":23.49768947989774,"slope":0.00021436889192159842,"r_squared":0.0010948800782948354}
+{"label":"2entries","intercept":22.168667872768285,"slope":0.00042655490508736334,"r_squared":0.006684510947860378}
+{"label":"3entries","intercept":22.97599334775105,"slope":0.000428501042265117,"r_squared":0.006648533020296332}
+{"label":"4entries","intercept":23.59714245582339,"slope":0.0006430144072523128,"r_squared":0.012923935540681053}
+{"label":"5entries","intercept":23.334108804855862,"slope":0.0004872615160039055,"r_squared":0.007626881617103898}
