@@ -43,7 +43,7 @@ fn main() {
             // Estimated length of the CBOR payload (confirmed with observations)
             // 1 is the list header; 5 per entry CBOR overhead + flags.
             let len = 1
-                + (entry_count - 1 * value_size)
+                + ((entry_count - 1) * value_size)
                 + last_entry_value_size
                 + entry_count * key_size
                 + entry_count * 5;
@@ -60,14 +60,5 @@ fn main() {
                 accept_obs.extend(series);
             };
         }
-    }
-
-    for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
-        let regression = obs
-            .group_by(|a, b| a.label == b.label)
-            .map(|g| least_squares(g[0].label.to_owned(), g, 0))
-            .collect::<Vec<_>>();
-
-        export(name, obs, &regression).unwrap();
     }
 }

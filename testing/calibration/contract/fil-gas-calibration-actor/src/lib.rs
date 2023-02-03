@@ -1,5 +1,3 @@
-use std::num::Wrapping;
-
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
@@ -348,12 +346,12 @@ fn random_ascii_string(n: usize, seed: u64) -> String {
 /// Knuth's quick and dirty random number generator.
 /// https://en.wikipedia.org/wiki/Linear_congruential_generator
 fn lcg64(initial_seed: u64) -> impl Iterator<Item = u64> {
-    let a = 6364136223846793005;
-    let c = 1442695040888963407;
-    let mut seed = Wrapping(initial_seed);
+    let a = 6364136223846793005 as u64;
+    let c = 1442695040888963407 as u64;
+    let mut seed = initial_seed;
     std::iter::repeat_with(move || {
-        seed = Wrapping(a) * seed + Wrapping(c);
-        seed.0
+        seed = a.wrapping_mul(seed).wrapping_add(c);
+        seed
     })
 }
 
