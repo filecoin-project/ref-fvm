@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.24 [2023-02-06]
+
+- Update fvm shared for event changes.
+
 ## 3.0.0-alpha.23 [2023-02-01]
 
 - feat: use a struct for network versions (#1496)
