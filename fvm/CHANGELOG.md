@@ -4,6 +4,17 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-alpha.23 [2022-02-01]
+
+- Large update to gas charging:
+    - Change send gas.
+    - Add actor lookup/update gas.
+    - Add address lookup/update gas.
+    - Update IPLD gas fees.
+    - Update event gas.
+    - Add a tipset lookup gas fee.
+- Tweaks to the event syscall parameters (it now takes a codec and accepts raw values).
+
 ## 3.0.0-alpha.22 [2022-02-01]
 
 - Align events implementation with FIP-0049 (#1481)
