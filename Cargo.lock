@@ -1908,7 +1908,7 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "serde",
  "substrate-wasm-builder",
 ]
@@ -1946,7 +1946,7 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -1956,7 +1956,7 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "serde",
  "serde_tuple",
  "substrate-wasm-builder",
@@ -1968,7 +1968,7 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -1980,7 +1980,7 @@ dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "num-derive",
  "num-traits",
  "serde",
@@ -1993,7 +1993,7 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "log",
  "serde",
  "serde_tuple",
@@ -2005,7 +2005,7 @@ name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -2018,7 +2018,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "serde",
  "serde_tuple",
  "substrate-wasm-builder",
@@ -2030,7 +2030,7 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "minicov",
  "substrate-wasm-builder",
 ]
@@ -2040,7 +2040,7 @@ name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -2051,7 +2051,7 @@ dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -2060,7 +2060,7 @@ name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "substrate-wasm-builder",
 ]
 
@@ -2071,7 +2071,7 @@ dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "minicov",
  "multihash",
  "substrate-wasm-builder",
@@ -2415,7 +2415,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "lazy_static",
  "log",
  "minstant",
@@ -2449,7 +2449,7 @@ dependencies = [
  "fvm_integration_tests",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "hex",
  "serde",
 ]
@@ -2510,7 +2510,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "itertools 0.10.5",
  "ittapi-rs",
  "lazy_static",
@@ -2548,7 +2548,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "lazy_static",
  "libsecp256k1",
  "multihash",
@@ -2590,7 +2590,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "lazy_static",
  "libsecp256k1",
  "multihash",
@@ -2887,7 +2887,7 @@ version = "3.0.0-alpha.24"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.19",
+ "fvm_shared 3.0.0-alpha.20",
  "lazy_static",
  "log",
  "num-traits",
@@ -2954,7 +2954,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "3.0.0-alpha.19"
+version = "3.0.0-alpha.20"
 dependencies = [
  "anyhow",
  "arbitrary",

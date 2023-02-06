@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0-alpha.20 [2022-02-06]
+
+- Change the `BLOCK_GAS_LIMIT` constant to a `u64` to match all the other gas values.
+
 ## 3.0.0-alpha.19 [2022-02-06]
 
 - Change the event datastructure to take a codec and not double-encode the value.
