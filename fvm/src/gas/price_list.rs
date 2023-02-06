@@ -124,6 +124,10 @@ lazy_static! {
                 }
             }
         },
+
+        tipset_cid_latest: Gas::new(50_000),
+        tipset_cid_historical: Gas::new(215_000),
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -395,6 +399,11 @@ pub struct PriceList {
     pub(crate) secp256k1_recover_cost: Gas,
 
     pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
+
+    /// Gas cost for looking up the last tipset CID.
+    pub(crate) tipset_cid_latest: Gas,
+    /// Gas cost for looking up older tipset keys.
+    pub(crate) tipset_cid_historical: Gas,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -832,6 +841,20 @@ impl PriceList {
             "OnGetCodeCidForType",
             self.builtin_actor_manifest_lookup,
             Zero::zero(),
+        )
+    }
+
+    /// Returns the gas required for looking up a tipset CID with the given lookback.
+    #[inline]
+    pub fn on_tipset_cid(&self, lookback: bool) -> GasCharge {
+        GasCharge::new(
+            "OnTipsetCid",
+            Zero::zero(),
+            if lookback {
+                self.tipset_cid_historical
+            } else {
+                self.tipset_cid_latest
+            },
         )
     }
 

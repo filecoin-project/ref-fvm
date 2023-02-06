@@ -704,19 +704,32 @@ where
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
+        use std::cmp::Ordering::*;
+
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
         let offset = self.call_manager.context().epoch - epoch;
-        if offset < 0 {
-            Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into())
-        } else if offset == 0 {
-            Err(syscall_error!(IllegalArgument; "cannot lookup the tipset cid for the current epoch").into())
-        } else if offset >= FINALITY {
-            Err(syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into())
-        } else {
-            self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
+
+        // Can't lookup the current tipset CID, or a future tipset CID>
+        match offset.cmp(&0) {
+            Less => return Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into()),
+            Equal => return Err(syscall_error!(IllegalArgument; "cannot lookup the tipset cid for the current epoch").into()),
+            Greater => {},
         }
+
+        // Can't lookup tipset CIDs beyond finality.
+        if offset >= FINALITY {
+            return Err(
+                syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into(),
+            );
+        }
+
+        let _ = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset > 1));
+
+        self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
     }
 }
 
