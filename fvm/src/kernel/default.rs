@@ -706,10 +706,11 @@ where
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        // TODO: https://github.com/filecoin-project/ref-fvm/issues/1023
         let offset = self.call_manager.context().epoch - epoch;
         if offset < 0 {
             Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into())
+        } else if offset == 0 {
+            Err(syscall_error!(IllegalArgument; "cannot lookup the tipset cid for the current epoch").into())
         } else if offset >= FINALITY {
             Err(syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into())
         } else {
