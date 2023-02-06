@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
 use cid::multihash::Code;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
@@ -272,7 +272,8 @@ fn on_event_shape(p: OnEventParams) -> Result<()> {
         let mut entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
             flags: p.flags,
             key: key.clone(),
-            value: value.clone().into(),
+            codec: IPLD_RAW,
+            value: value.clone(),
         })
         .take(p.entries - 1)
         .collect();
@@ -281,7 +282,8 @@ fn on_event_shape(p: OnEventParams) -> Result<()> {
         entries.push(Entry {
             flags: p.flags,
             key,
-            value: last_value.clone().into(),
+            codec: IPLD_RAW,
+            value: last_value.clone(),
         });
 
         fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
@@ -313,8 +315,9 @@ fn on_event_target_size(p: OnEventParams) -> Result<()> {
             let value = random_bytes(size_per_entry - key.len(), r3);
             entries.push(Entry {
                 flags: p.flags,
+                codec: IPLD_RAW,
                 key,
-                value: RawBytes::from(value),
+                value,
             })
         }
         fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
