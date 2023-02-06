@@ -61,7 +61,7 @@ pub type ActorID = u64;
 /// Default bit width for the hamt in the filecoin protocol.
 pub const HAMT_BIT_WIDTH: u32 = 5;
 /// Total gas limit allowed per block. This is shared across networks.
-pub const BLOCK_GAS_LIMIT: i64 = 10_000_000_000;
+pub const BLOCK_GAS_LIMIT: u64 = 10_000_000_000;
 /// Total Filecoin supply.
 pub const TOTAL_FILECOIN_BASE: i64 = 2_000_000_000;
 
