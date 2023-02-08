@@ -63,6 +63,8 @@ macro_rules! total_enum_map {
     };
 }
 
+const STORAGE_COST: u64 = 30_000;
+
 lazy_static! {
     static ref HYGGE_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
@@ -74,7 +76,7 @@ lazy_static! {
         on_chain_return_compute: ScalingCost::zero(),
         on_chain_return_storage: ScalingCost {
             flat: Zero::zero(),
-            scale: Gas::new(1300),
+            scale: Gas::new(STORAGE_COST),
         },
 
         send_transfer_funds: Gas::new(6000),
@@ -238,8 +240,8 @@ lazy_static! {
         },
 
         block_persist_storage: ScalingCost {
-            flat: Gas::new(130000), // ~ Assume about 100 bytes of metadata per block.
-            scale: Gas::new(1300),
+            flat: Gas::new(100*STORAGE_COST), // ~ Assume about 100 bytes of metadata per block.
+            scale: Gas::new(STORAGE_COST),
         },
 
         block_persist_compute: Gas::new(172000),
