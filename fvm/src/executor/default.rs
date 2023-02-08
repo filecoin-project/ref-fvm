@@ -94,19 +94,6 @@ where
             .min(&msg.gas_fee_cap - &self.context().base_fee)
             .max(TokenAmount::zero());
 
-        // TODO: Remove after the upgrade.
-        // If we're on hyperspace with a network version less than 20, we need to disable this fix
-        // until the next upgrade (version 20).
-        //
-        // I've written it this way to nicely isolate the bugfix to make it easier to remove.
-        #[cfg(feature = "hyperspace")]
-        let effective_premium =
-            if self.context().network_version < fvm_shared::version::NetworkVersion::new(20) {
-                msg.gas_premium.clone()
-            } else {
-                effective_premium
-            };
-
         // Acquire an engine from the pool. This may block if there are concurrently executing
         // messages inside other executors sharing the same pool.
         let engine = self.engine_pool.acquire();
