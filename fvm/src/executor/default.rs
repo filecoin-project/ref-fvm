@@ -463,7 +463,7 @@ where
         sender_state.sequence += 1;
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
+        let gas_cost: TokenAmount = 0*msg.gas_fee_cap.clone() * msg.gas_limit;
         if sender_state.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_STATE_INVALID,
@@ -475,7 +475,7 @@ where
             )));
         }
 
-        sender_state.deduct_funds(&gas_cost)?;
+        //sender_state.deduct_funds(&gas_cost)?;
 
         // Update the actor in the state tree
         self.state_tree_mut().set_actor(sender_id, sender_state);
@@ -528,14 +528,14 @@ where
             Ok(())
         };
 
-        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;
+        //transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;
 
-        transfer_to_actor(REWARD_ACTOR_ID, &miner_tip)?;
+        //transfer_to_actor(REWARD_ACTOR_ID, &miner_tip)?;
 
-        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &over_estimation_burn)?;
+        //transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &over_estimation_burn)?;
 
-        // refund unused gas
-        transfer_to_actor(sender_id, &refund)?;
+        //// refund unused gas
+        //transfer_to_actor(sender_id, &refund)?;
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
             // Sanity check. This could be a fatal error.
