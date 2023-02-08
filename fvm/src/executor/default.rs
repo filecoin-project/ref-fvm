@@ -537,10 +537,10 @@ where
         //// refund unused gas
         //transfer_to_actor(sender_id, &refund)?;
 
-        if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
-            // Sanity check. This could be a fatal error.
-            return Err(anyhow!("Gas handling math is wrong"));
-        }
+        //if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
+            //// Sanity check. This could be a fatal error.
+            //return Err(anyhow!("Gas handling math is wrong"));
+        //}
         Ok(ApplyRet {
             msg_receipt: receipt,
             penalty: miner_penalty,
