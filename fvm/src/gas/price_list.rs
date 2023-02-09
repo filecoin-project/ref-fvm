@@ -63,7 +63,7 @@ macro_rules! total_enum_map {
     };
 }
 
-const STORAGE_COST: u64 = 1726;
+const STORAGE_COST: u64 = 3750;
 
 lazy_static! {
     static ref HYGGE_PRICES: PriceList = PriceList {
