@@ -67,7 +67,7 @@ lazy_static! {
     static ref HYGGE_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
         on_chain_message_storage: ScalingCost {
-            flat: Gas::new(36),
+            flat: Gas::new(36*1300),
             scale: Gas::new(1300),
         },
 
