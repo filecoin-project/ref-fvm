@@ -113,16 +113,14 @@ impl Manifest {
             .context("manifest missing init actor")?;
 
         let placeholder_code = *by_name
-            .get(PLACEHOLDER_ACTOR_NAME)
-            .context("manifest missing placeholder actor")?;
-
+            .get(PLACEHOLDER_ACTOR_NAME).unwrap_or(&account_code);
         let eam_code = *by_name
             .get(EAM_ACTOR_NAME)
-            .context("manifest missing eam actor")?;
+            .unwrap_or(&account_code);
 
         let ethaccount_code = *by_name
             .get(ETHACCOUNT_ACTOR_NAME)
-            .context("manifest missing ethaccount actor")?;
+            .unwrap_or(&account_code);
 
         Ok(Self {
             account_code,
