@@ -67,7 +67,7 @@ lazy_static! {
     static ref HYGGE_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
         on_chain_message_storage: ScalingCost {
-            flat: Gas::new(36),
+            flat: Gas::new(36*1300),
             scale: Gas::new(1300),
         },
 
@@ -82,7 +82,7 @@ lazy_static! {
 
         actor_lookup: Gas::new(500_000),
         actor_update: Gas::new(475_000),
-        actor_create_storage: Gas::new(250_000),
+        actor_create_storage: Gas::new(650_000),
 
         address_lookup: Gas::new(1_050_000),
         address_assignment: Gas::new(1_000_000),
@@ -238,8 +238,8 @@ lazy_static! {
         },
 
         block_persist_storage: ScalingCost {
-            flat: Gas::new(130000), // ~ Assume about 100 bytes of metadata per block.
-            scale: Gas::new(1300),
+            flat: Gas::new(334000), // ~ Assume about 100 bytes of metadata per block.
+            scale: Gas::new(3340),
         },
 
         block_persist_compute: Gas::new(172000),
