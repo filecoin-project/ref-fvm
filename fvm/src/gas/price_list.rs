@@ -76,7 +76,7 @@ lazy_static! {
         on_chain_return_compute: ScalingCost::zero(),
         on_chain_return_storage: ScalingCost {
             flat: Zero::zero(),
-            scale: Gas::new(STORAGE_COST),
+            scale: Gas::new(1300),
         },
 
         send_transfer_funds: Gas::new(6000),
