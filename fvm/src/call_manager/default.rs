@@ -6,7 +6,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
+use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -184,10 +184,7 @@ where
                 from,
                 to,
                 method,
-                params: params
-                    .as_ref()
-                    .map(|blk| blk.data().to_owned().into())
-                    .unwrap_or_default(),
+                params: params.as_ref().map(Into::into),
                 value: value.clone(),
             });
         }
@@ -218,15 +215,11 @@ where
 
         if self.machine.context().tracing {
             self.trace(match &result {
-                Ok(InvocationResult { exit_code, value }) => ExecutionEvent::CallReturn(
-                    *exit_code,
-                    value
-                        .as_ref()
-                        .map(|blk| RawBytes::from(blk.data().to_vec()))
-                        .unwrap_or_default(),
-                ),
+                Ok(InvocationResult { exit_code, value }) => {
+                    ExecutionEvent::CallReturn(*exit_code, value.as_ref().map(Into::into))
+                }
                 Err(ExecutionError::OutOfGas) => {
-                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, RawBytes::default())
+                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, None)
                 }
                 Err(ExecutionError::Fatal(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
