@@ -731,10 +731,12 @@ fn tstring(v: impl Display) -> BytesKey {
 }
 
 mod test_default {
-    use fvm_ipld_blockstore::tracking::BSStats;
+    use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_hamt::{BytesKey, Hamt};
     use quickcheck_macros::quickcheck;
 
-    use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
+    use crate::{tstring, CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
 
     #[test]
     fn test_basics() {
@@ -821,6 +823,118 @@ mod test_default {
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
         ]);
         super::for_each(HamtFactory::default(), Some(stats), cids);
+    }
+
+    #[test]
+    fn for_each_ranged() {
+        #[rustfmt::skip]
+        let factory = HamtFactory::default();
+        let mem = MemoryBlockstore::default();
+        let store = TrackingBlockstore::new(&mem);
+
+        let mut hamt: Hamt<_, usize> = factory.new_with_bit_width(&store, 5);
+
+        const RANGE: usize = 200;
+        for i in 0..RANGE {
+            hamt.set(tstring(i), i).unwrap();
+        }
+
+        // collect all KV paris by iterating through the entire hamt
+        let mut kvs = Vec::new();
+        hamt.for_each(|k, v| {
+            assert_eq!(k, &tstring(v));
+            kvs.push((k.clone(), *v));
+            Ok(())
+        })
+        .unwrap();
+
+        // Iterate through the array, requesting pages of different sizes
+        for page_size in 0..RANGE {
+            let mut kvs_variable_page = Vec::new();
+            let (num_traversed, next_key) = hamt
+                .for_each_ranged::<BytesKey, _>(None, Some(page_size), |k, v| {
+                    kvs_variable_page.push((k.clone(), *v));
+                    Ok(())
+                })
+                .unwrap();
+
+            assert_eq!(num_traversed, page_size);
+            assert_eq!(kvs_variable_page.len(), num_traversed);
+            assert_eq!(next_key.unwrap(), kvs[page_size].0);
+
+            // Items iterated over should match the ordering of for_each
+            assert_eq!(kvs_variable_page, kvs[..page_size]);
+        }
+
+        // Iterate through the array, requesting more items than are remaining
+        let (num_traversed, next_key) = hamt
+            .for_each_ranged::<BytesKey, _>(None, Some(RANGE + 10), |k, v| Ok(()))
+            .unwrap();
+        assert_eq!(num_traversed, RANGE);
+        assert_eq!(next_key, None);
+
+        // Iterate through it again starting at a certain key
+        for start_at in 0..RANGE as usize {
+            let mut kvs_variable_start = Vec::new();
+            let (num_traversed, next_key) = hamt
+                .for_each_ranged(Some(&kvs[start_at].0), None, |k, v| {
+                    assert_eq!(k, &tstring(v));
+                    kvs_variable_start.push((k.clone(), *v));
+
+                    Ok(())
+                })
+                .unwrap();
+
+            // No limit specified, iteration should be exhaustive
+            assert_eq!(next_key, None);
+            assert_eq!(num_traversed, kvs_variable_start.len());
+            assert_eq!(kvs_variable_start.len(), kvs.len() - start_at,);
+
+            // Items iterated over should match the ordering of for_each
+            assert_eq!(kvs_variable_start, kvs[start_at..]);
+        }
+
+        // Chain paginated requests to iterate over entire HAMT
+        {
+            let mut kvs_paginated_requests = Vec::new();
+            let mut iterations = 0;
+            let mut cursor: Option<BytesKey> = None;
+
+            // Request all items in pages of 20 items each
+            const PAGE_SIZE: usize = 20;
+            loop {
+                let (page_size, next) = match cursor {
+                    Some(ref start) => hamt
+                        .for_each_ranged::<BytesKey, _>(Some(start), Some(PAGE_SIZE), |k, v| {
+                            kvs_paginated_requests.push((k.clone(), *v));
+                            Ok(())
+                        })
+                        .unwrap(),
+                    None => hamt
+                        .for_each_ranged::<BytesKey, _>(None, Some(PAGE_SIZE), |k, v| {
+                            kvs_paginated_requests.push((k.clone(), *v));
+                            Ok(())
+                        })
+                        .unwrap(),
+                };
+                iterations += 1;
+                assert_eq!(page_size, PAGE_SIZE);
+                assert_eq!(kvs_paginated_requests.len(), iterations * PAGE_SIZE);
+
+                if next.is_none() {
+                    break;
+                } else {
+                    assert_eq!(next.clone().unwrap(), kvs[(iterations * PAGE_SIZE)].0);
+                    cursor = next;
+                }
+            }
+
+            // should have retrieved all key value pairs in the same order
+            assert_eq!(kvs_paginated_requests.len(), kvs.len(), "{}", iterations);
+            assert_eq!(kvs_paginated_requests, kvs);
+            // should have used the expected number of iterations
+            assert_eq!(iterations, RANGE / PAGE_SIZE);
+        }
     }
 
     #[test]

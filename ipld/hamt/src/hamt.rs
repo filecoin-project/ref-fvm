@@ -13,6 +13,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
+use crate::hash_bits::HashBits;
 use crate::node::Node;
 use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
 
@@ -360,6 +361,74 @@ where
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root.for_each(self.store.borrow(), &mut f)
+    }
+
+    /// Iterates over each KV in the Hamt and runs a function on the values. If starting key is
+    /// provided, iteration will start from that key. If max is provided, iteration will stop after
+    /// max number of items have been traversed. The number of items that were traversed is
+    /// returned. If there are more items in the Hamt after max items have been traversed, the key
+    /// of the next item will be returned.
+    ///
+    /// This function will constrain all values to be of the same type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_hamt::Hamt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Hamt<_, _, u64> = Hamt::new(store);
+    /// map.set(1, 1).unwrap();
+    /// map.set(2, 2).unwrap();
+    /// map.set(3, 3).unwrap();
+    /// map.set(4, 4).unwrap();
+    ///
+    /// let mut numbers = vec![];
+    ///
+    /// map.for_each_ranged(None, None, |_, v: &u64| {
+    ///     numbers.push(*v);
+    ///     Ok(())
+    /// }).unwrap();
+    ///
+    /// let mut subset = vec![];
+    ///
+    /// let (_, next_key) = map.for_each_ranged(Some(&numbers[0]), Some(2), |_, v: &u64| {
+    ///     subset.push(*v);
+    ///     Ok(())
+    /// }).unwrap();
+    ///
+    /// assert_eq!(subset, numbers[..2]);
+    /// assert_eq!(next_key.unwrap(), numbers[2]);
+    /// ```
+    #[inline]
+    pub fn for_each_ranged<Q: ?Sized, F>(
+        &self,
+        starting_key: Option<&Q>,
+        max: Option<usize>,
+        mut f: F,
+    ) -> Result<(usize, Option<K>), Error>
+    where
+        K: Borrow<Q> + Clone,
+        Q: Eq + Hash,
+        V: DeserializeOwned,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+    {
+        match starting_key {
+            Some(key) => {
+                let hash = H::hash(key);
+                self.root.for_each_ranged(
+                    self.store.borrow(),
+                    &self.conf,
+                    Some((HashBits::new(&hash), key)),
+                    max,
+                    &mut f,
+                )
+            }
+            None => self
+                .root
+                .for_each_ranged(self.store.borrow(), &self.conf, None, max, &mut f),
+        }
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.

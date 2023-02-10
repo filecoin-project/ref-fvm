@@ -174,6 +174,109 @@ where
         Ok(())
     }
 
+    pub(crate) fn for_each_ranged<Q: ?Sized, S, F>(
+        &self,
+        store: &S,
+        conf: &Config,
+        mut starting_cursor: Option<(HashBits, &Q)>,
+        limit: Option<usize>,
+        f: &mut F,
+    ) -> Result<(usize, Option<K>), Error>
+    where
+        K: Borrow<Q> + Clone,
+        Q: Eq + Hash,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+    {
+        // determine which subtree the starting_cursor is in
+        let cindex = match starting_cursor {
+            Some((ref mut bits, _)) => {
+                let idx = bits.next(conf.bit_width)?;
+                self.index_for_bit_pos(idx)
+            }
+            None => 0,
+        };
+
+        let mut traversed_count = 0;
+
+        // skip exploration of subtrees that are before the subtree which contains the cursor
+        for p in &self.pointers[cindex..] {
+            match p {
+                Pointer::Link { cid, cache } => {
+                    if let Some(cached_node) = cache.get() {
+                        let (traversed, key) = cached_node.for_each_ranged(
+                            store,
+                            conf,
+                            starting_cursor.take(),
+                            limit.map(|l| l.checked_sub(traversed_count).unwrap()),
+                            f,
+                        )?;
+                        traversed_count += traversed;
+                        if limit.map_or(false, |l| traversed_count > l) && key.is_some() {
+                            return Ok((traversed_count, key));
+                        }
+                    } else {
+                        let node = if let Some(node) = store.get_cbor(cid)? {
+                            node
+                        } else {
+                            #[cfg(not(feature = "ignore-dead-links"))]
+                            return Err(Error::CidNotFound(cid.to_string()));
+
+                            #[cfg(feature = "ignore-dead-links")]
+                            continue;
+                        };
+
+                        // Ignore error intentionally, the cache value will always be the same
+                        let cache_node = cache.get_or_init(|| node);
+                        let (traversed, key) = cache_node.for_each_ranged(
+                            store,
+                            conf,
+                            starting_cursor.take(),
+                            limit.map(|l| l.checked_sub(traversed_count).unwrap()),
+                            f,
+                        )?;
+                        traversed_count += traversed;
+                        if limit.map_or(false, |l| traversed_count >= l) && key.is_some() {
+                            return Ok((traversed_count, key));
+                        }
+                    }
+                }
+                Pointer::Dirty(node) => {
+                    let (traversed, key) = node.for_each_ranged(
+                        store,
+                        conf,
+                        starting_cursor.take(),
+                        limit.map(|l| l.checked_sub(traversed_count).unwrap()),
+                        f,
+                    )?;
+                    traversed_count += traversed;
+                    if limit.map_or(false, |l| traversed_count >= l) && key.is_some() {
+                        return Ok((traversed_count, key));
+                    }
+                }
+                Pointer::Values(kvs) => {
+                    for kv in kvs {
+                        if limit.map_or(false, |l| traversed_count == l) {
+                            // we have already found all requested items, return the key of the next item
+                            return Ok((traversed_count, Some(kv.0.clone())));
+                        } else if starting_cursor.map_or(false, |(_, key)| key.eq(kv.0.borrow())) {
+                            // mark that we have arrived at the starting cursor
+                            starting_cursor = None
+                        }
+
+                        if starting_cursor.is_none() {
+                            // have already passed the start cursor
+                            f(&kv.0, kv.1.borrow())?;
+                            traversed_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((traversed_count, None))
+    }
+
     /// Search for a key.
     fn search<Q: ?Sized, S: Blockstore>(
         &self,
