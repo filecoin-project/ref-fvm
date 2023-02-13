@@ -76,7 +76,7 @@ fn run() -> anyhow::Result<()> {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("ERROR: {}", e);
+        eprintln!("ERROR: {:?}", e);
         std::process::exit(1);
     }
 }
