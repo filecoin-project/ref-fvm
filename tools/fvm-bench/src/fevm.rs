@@ -19,8 +19,9 @@ pub fn run(
 
     if create_res.msg_receipt.exit_code.value() != 0 {
         return Err(anyhow!(
-            "actor creation failed: {}",
-            create_res.msg_receipt.exit_code
+            "actor creation failed: {} -- {:?}",
+            create_res.msg_receipt.exit_code,
+            create_res.failure_info,
         ));
     }
 
