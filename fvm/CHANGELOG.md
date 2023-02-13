@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0-rc.1 [2022-02-13]
+
+- Removes an incorrect event size limit.
+
 ## 3.0.0-alpha.24 [2022-02-09]
 
 - Add IPLD codecs to the gas trace. I.e., use `IpldBlock` instead of `RawBytes`.

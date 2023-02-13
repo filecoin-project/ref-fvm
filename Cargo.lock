@@ -2398,7 +2398,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "3.0.0-alpha.24"
+version = "3.0.0-rc.1"
 dependencies = [
  "anyhow",
  "arbitrary",
