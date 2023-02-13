@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# BUNDLE varilabl emust be set
+if [ -z "$BUNDLE" ]; then
+    echo "builtin-actors bundle not specified; please set the BUNDLE variable"
+    exit 1
+fi
+
+# fvm-bench tool path; if not user provided try to use the release from current path
+fvm_bench=${FVM_BENCH:-../../target/release/fvm-bench}
+if [ ! -e "$fvm_bench" ]; then
+   echo "fvm-bench executable $fvm_bench does not exist"
+   exit 1
+fi
+
 # Set the output directory to "./contracts-output" and create if it doesn't exist
 output_dir="./contracts-output"
 if [ ! -d "$output_dir" ]; then
@@ -38,8 +51,7 @@ for bin_file in "$output_dir"/*.bin; do
 
   # Run fvm-bench on the compiled file
   # Call the `testEntry()` function, and send no other calldata
-  output=$(./target/release/fvm-bench -b ../builtin-actors/target/debug/build/fil_builtin_actors_bundle-4dcbfc6fcdea3431/out/bundle/bundle.car "$bin_file" c0406226 0000000000000000000000000000000000000000000000000000000000000000)
-  # output=$(./target/release/fvm-bench -d -b ../builtin-actors/target/debug/build/fil_builtin_actors_bundle-4dcbfc6fcdea3431/out/bundle/bundle.car "$bin_file" c0406226 0000000000000000000000000000000000000000000000000000000000000000)
+  output=$("$fvm_bench" -b "$BUNDLE" "$bin_file" c0406226 0000000000000000000000000000000000000000000000000000000000000000)
 
   # echo "$output"
 
