@@ -18,15 +18,6 @@ pub fn emit_event(
     event_off: u32, // ActorEvent
     event_len: u32,
 ) -> Result<()> {
-    // Disable the limits for gas calibration.
-    #[cfg(not(feature = "gas_calibration"))]
-    {
-        const MAX_CBOR_EVENT_LEN: u32 = 1024;
-        if event_len > MAX_CBOR_EVENT_LEN {
-            return Err(crate::syscall_error!(IllegalArgument; "exceeded maximum event length ({} bytes); got {}", MAX_CBOR_EVENT_LEN, event_len).into());
-        }
-    }
-
     let raw = context.memory.try_slice(event_off, event_len)?;
     context.kernel.emit_event(raw)
 }
