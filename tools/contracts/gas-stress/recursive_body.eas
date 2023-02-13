@@ -1,0 +1,35 @@
+main_loop:
+jumpdest
+
+## gas check; 10M for a recursive call
+%push(10000000)
+gas
+gt
+%push(recurse)
+jumpi
+
+## counter for the rest of gas
+%push(0)
+counter_loop:
+jumpdest
+%push(1)
+add
+%push(counter_loop)
+jump
+
+recurse:
+jumpdest
+
+%push(0) ## output
+%push(0)
+%push(0) ## input
+%push(0)
+%push(0) ## value
+address  ## dest -> self
+gas
+call
+pop
+
+## we will run out of gas in the innermost recursion; this shouldn't be reachable.
+%push(main_loop)
+jump

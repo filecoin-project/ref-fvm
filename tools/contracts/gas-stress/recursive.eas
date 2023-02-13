@@ -1,0 +1,15 @@
+## this is a simple contract that infinitely recurses to itself while it has sufficient
+## gas, otherwise just loops incrementing a counter.
+
+# contract code
+%push(body_end - body_begin)
+dup1
+%push(body_begin)
+push1 0x00
+codecopy
+push1 0x00
+return
+
+body_begin:
+%include("recursive_body.eas")
+body_end:
