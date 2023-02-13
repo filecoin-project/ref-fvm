@@ -94,7 +94,7 @@ where
 
         // Initialize state tree
         let init_state = init_actor::State::new_test(&blockstore);
-        let mut state_tree = StateTree::new(blockstore, stv).map_err(anyhow::Error::from)?;
+        let mut state_tree = StateTree::new(blockstore, stv).map_err(|e| anyhow!(e))?;
 
         // Deploy init, sys, and eam actors
         let sys_state = system_actor::State { builtin_actors };
@@ -142,7 +142,8 @@ where
             .ok_or_else(|| anyhow!("Expected state tree in set_account_sequence."))?;
 
         let mut state = state_tree
-            .get_actor(id)?
+            .get_actor(id)
+            .map_err(|e| anyhow!(e))?
             .ok_or_else(|| anyhow!("Can't set sequence of account that doesn't exist."))?;
 
         state.sequence = new_sequence;
@@ -268,7 +269,7 @@ where
         // Calculate the state root.
         let state_root = state_tree
             .flush()
-            .map_err(anyhow::Error::from)
+            .map_err(|e| anyhow!(e))
             .context(FailedToFlushTree)?;
 
         // Consume the state tree and take the blockstore.
