@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
@@ -819,6 +820,12 @@ where
                             method,
                             message,
                             code,
+                            data: res
+                                .as_ref()
+                                .ok()
+                                .map(|ir| ir.value.clone())
+                                .flatten()
+                                .map(|b| IpldBlock::from(&b)),
                         });
                     }
 

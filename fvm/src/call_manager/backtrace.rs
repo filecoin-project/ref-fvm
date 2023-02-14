@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::fmt::Display;
 
+use fvm_ipld_encoding::ipld_block::IpldBlock;
+use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::kernel::SyscallError;
+
+const MAX_BACKTRACE_DATA_LEN: usize = 128;
 
 /// A call backtrace records the actors an error was propagated through, from
 /// the moment it was emitted. The original error is the _cause_. Backtraces are
@@ -82,18 +86,45 @@ pub struct Frame {
     pub code: ExitCode,
     /// The abort message.
     pub message: String,
+    /// The exit data
+    pub data: Option<IpldBlock>,
 }
 
 impl Display for Frame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} (method {}) -- {} ({})",
-            Address::new_id(self.source),
-            self.method,
-            &self.message,
-            self.code,
-        )
+        if let Some(data) = &self.data {
+            let data_repr = if let Ok(BytesDe(bytes)) = data.deserialize() {
+                if let Ok(s) = String::from_utf8(bytes) {
+                    if s.len() > MAX_BACKTRACE_DATA_LEN {
+                        s[..MAX_BACKTRACE_DATA_LEN].to_owned() + "..."
+                    } else {
+                        s
+                    }
+                } else {
+                    "???".to_owned()
+                }
+            } else {
+                "???".to_owned()
+            };
+            write!(
+                f,
+                "{} (method {}) -- {} ({}) [{}]",
+                Address::new_id(self.source),
+                self.method,
+                &self.message,
+                self.code,
+                data_repr,
+            )
+        } else {
+            write!(
+                f,
+                "{} (method {}) -- {} ({})",
+                Address::new_id(self.source),
+                self.method,
+                &self.message,
+                self.code,
+            )
+        }
     }
 }
 
