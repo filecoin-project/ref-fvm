@@ -823,8 +823,7 @@ where
                             data: res
                                 .as_ref()
                                 .ok()
-                                .map(|ir| ir.value.clone())
-                                .flatten()
+                                .and_then(|ir| ir.value.clone())
                                 .map(|b| IpldBlock::from(&b)),
                         });
                     }
