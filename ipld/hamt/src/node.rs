@@ -212,7 +212,7 @@ where
                             f,
                         )?;
                         traversed_count += traversed;
-                        if limit.map_or(false, |l| traversed_count > l) && key.is_some() {
+                        if limit.map_or(false, |l| traversed_count >= l) && key.is_some() {
                             return Ok((traversed_count, key));
                         }
                     } else {
