@@ -10,7 +10,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::kernel::SyscallError;
 
-const MAX_BACKTRACE_DATA_LEN: usize = 128;
+const MAX_MESSAGE_LEN: usize = 128;
 
 /// A call backtrace records the actors an error was propagated through, from
 /// the moment it was emitted. The original error is the _cause_. Backtraces are
@@ -94,14 +94,17 @@ impl Display for Frame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(data) = &self.data {
             let data_repr = if let Ok(BytesDe(bytes)) = data.deserialize() {
-                if let Ok(s) = String::from_utf8(bytes) {
-                    if s.len() > MAX_BACKTRACE_DATA_LEN {
-                        s[..MAX_BACKTRACE_DATA_LEN].to_owned() + "..."
-                    } else {
-                        s
-                    }
+                if bytes.len() > MAX_MESSAGE_LEN {
+                    let prefix = &bytes[..(MAX_MESSAGE_LEN / 2)];
+                    let suffix = &bytes[bytes.len() - (MAX_MESSAGE_LEN / 2)..];
+                    format!(
+                        "{} ... (skipped {} bytes) ... {}",
+                        String::from_utf8_lossy(prefix),
+                        bytes.len() - MAX_MESSAGE_LEN,
+                        String::from_utf8_lossy(suffix)
+                    )
                 } else {
-                    "???".to_owned()
+                    String::from_utf8_lossy(&bytes).into_owned()
                 }
             } else {
                 "???".to_owned()
