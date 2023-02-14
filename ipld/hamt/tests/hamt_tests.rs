@@ -935,6 +935,49 @@ mod test_default {
             // should have used the expected number of iterations
             assert_eq!(iterations, RANGE / PAGE_SIZE);
         }
+
+        // Chain paginated requests over a HAMT with committed nodes
+        hamt.flush().unwrap();
+        {
+            let mut kvs_paginated_requests = Vec::new();
+            let mut iterations = 0;
+            let mut cursor: Option<BytesKey> = None;
+
+            // Request all items in pages of 20 items each
+            const PAGE_SIZE: usize = 20;
+            loop {
+                let (page_size, next) = match cursor {
+                    Some(ref start) => hamt
+                        .for_each_ranged::<BytesKey, _>(Some(start), Some(PAGE_SIZE), |k, v| {
+                            kvs_paginated_requests.push((k.clone(), *v));
+                            Ok(())
+                        })
+                        .unwrap(),
+                    None => hamt
+                        .for_each_ranged::<BytesKey, _>(None, Some(PAGE_SIZE), |k, v| {
+                            kvs_paginated_requests.push((k.clone(), *v));
+                            Ok(())
+                        })
+                        .unwrap(),
+                };
+                iterations += 1;
+                assert_eq!(page_size, PAGE_SIZE);
+                assert_eq!(kvs_paginated_requests.len(), iterations * PAGE_SIZE);
+
+                if next.is_none() {
+                    break;
+                } else {
+                    assert_eq!(next.clone().unwrap(), kvs[(iterations * PAGE_SIZE)].0);
+                    cursor = next;
+                }
+            }
+
+            // should have retrieved all key value pairs in the same order
+            assert_eq!(kvs_paginated_requests.len(), kvs.len(), "{}", iterations);
+            assert_eq!(kvs_paginated_requests, kvs);
+            // should have used the expected number of iterations
+            assert_eq!(iterations, RANGE / PAGE_SIZE);
+        }
     }
 
     #[test]
