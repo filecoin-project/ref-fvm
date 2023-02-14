@@ -1,0 +1,7 @@
+%push(0x68656C6C6F)
+%push(0)
+mstore
+
+%push(5)
+%push(27)
+revert

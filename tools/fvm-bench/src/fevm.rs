@@ -36,6 +36,9 @@ pub fn run(
     let invoke_res = testkit::fevm::invoke_contract(tester, &mut account, actor, &input_data, gas)?;
 
     if !invoke_res.msg_receipt.exit_code.is_success() {
+        if invoke_res.failure_info.is_some() {
+            println!("{}", invoke_res.failure_info.clone().unwrap());
+        }
         return Err(anyhow!(
             "contract invocation failed: {} -- {:?}",
             invoke_res.msg_receipt.exit_code,
