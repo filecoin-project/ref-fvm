@@ -1,12 +1,15 @@
-# Reference Filecoin VM implementation (v2; dev)
+# Reference Filecoin VM implementation (v3; dev)
 
 [![Continuous integration](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml)
 
 This repository contains the reference implementation of the Filecoin VM ([specs](https://github.com/filecoin-project/fvm-project)). It is written in Rust, and intended to be integrated via FFI into non-Rust clients (e.g. Lotus, Fuhon), or directly into Rust clients (e.g. Forest). FFI bindings for Go are provided in-repo, and developers are encouraged to contribute bindings for other languages.
 
+
+See the [Project Website](https://fvm.filecoin.io/) for details.
+
 ## Build requirements
 
-* The current MSRV (Minimum Supported Rust Version) is 1.58.1 (stable). A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
+* The current MSRV (Minimum Supported Rust Version) is nightly-2022-10-03 due to some test build dependencies. A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
 * Install [rustup](https://rustup.rs/).
 
 ## Build instructions
@@ -48,36 +51,6 @@ Here's what you'll find in each directory:
   - See the [instructions](./testing/conformance/README.md#instructions) about how to run the tests and the benchmarks.
   - Disclaimers
     - Benchmarks are currently very slow to run, setup and teardown. This is due to using default WASM cache, and will be fixed soon.
-
-## Maturity roadmap
-
-### v1: FVM running built-in actors (Milestone 1 of the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4))
-
-- Alpha:
-  - Declared when: all test vectors passing, integrated into Lotus via FFI.
-  - Focus: theoretical correctness.
-- Beta:
-  - Declared when: all the above + syncing mainnet consistently, keeping up with chain consistently, i.e. when Phase 0 from the [FVM milestone roadmap](https://filecoin.io/blog/posts/introducing-the-filecoin-virtual-machine/) is reached.
-  - Focus: production-readiness, performance, live consensus correctness.
-- RC:
-  - Declared when: all the above + integrated into a second client (likely Forest), successfully syncing mainnet on all.
-  - Focus: pre-mainnet preparations.
-- Final:
-  - Declared when: FVM v1 is securing mainnet, i.e. when Milestone 1 from the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4) is reached.
-
-### v2: Fully-programmable FVM (Milestone 2 of the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4))
-
-- Alpha:
-  - Declared when: all functionality implemented, 70%+ test coverage, integrated into Lotus via FFI.
-  - Focus: feature completeness.
-- Beta:
-  - Declared when: testnets deployed (user and automatic), running successfully for 1 week.
-  - Focus: testing and hardening.
-- RC:
-  - Declared when: code audited; network-upgrade releases ready for all Filecoin clients.
-  - Focus: pre-mainnet preparations.
-- Final:
-  - Declared when: FVM v2 is operating mainnet, i.e. when Milestone 2 from the [FVM development roadmap](https://fvm.filecoin.io/#roadmap-4) is reached.
 
 ## License
 
