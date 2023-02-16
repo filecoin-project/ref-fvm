@@ -9,6 +9,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_shared::error::ExitCode;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
@@ -21,7 +22,10 @@ use crate::gas::{Gas, GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
-use crate::syscalls::{bind_syscalls, charge_for_init, record_init_time, InvocationData};
+use crate::syscalls::{
+    bind_syscalls, charge_for_exec, charge_for_init, record_init_time, update_gas_available,
+    InvocationData,
+};
 use crate::Kernel;
 
 /// Container managing engines with different consensus-affecting configurations.
@@ -519,10 +523,19 @@ impl Engine {
             // initially. The limits are checked by wasmtime during instantiation, though.
             let t = charge_for_init(store, module).map_err(Abort::from_error_as_fatal)?;
 
-            let inst = cache.linker.instantiate(&mut *store, module).map_err(|e| {
-                // todo try to distinguish resource limit / trap / fatal
-                log::error!("failed to instantiate actor: {:?}", e);
-                Abort::Fatal(e)
+            // _Just_ in case.
+            update_gas_available(store)?;
+            let res = cache.linker.instantiate(&mut *store, module);
+            charge_for_exec(store)?;
+
+            let inst = res.map_err(|e| {
+                // We can't really tell what type of error happened, so we have to assume that we
+                // either ran out of memory or trapped.
+                Abort::Exit(
+                    ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                    format!("failed to instantiate module: {e}"),
+                    0,
+                )
             })?;
 
             // Record the time it took for the linker to instantiate the module.
