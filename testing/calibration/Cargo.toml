@@ -38,7 +38,7 @@ wat = "1.0.52"
 
 
 [dependencies.wasmtime]
-version = "4.0.0"
+version = "5.0.0"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
