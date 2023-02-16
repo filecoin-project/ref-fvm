@@ -1,24 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
+use fvm_ipld_encoding::IPLD_RAW;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
-use serde_tuple::*;
-
-#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
-struct EventPayload1 {
-    a: String,
-    b: String,
-}
-
-#[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
-struct EventPayload2 {
-    c: i32,
-    d: Vec<u64>,
-}
 
 #[no_mangle]
 pub fn invoke(params: u32) -> u32 {
@@ -29,37 +17,30 @@ pub fn invoke(params: u32) -> u32 {
     const EMIT_SUBCALLS: u64 = 4;
     const EMIT_SUBCALLS_REVERT: u64 = 5;
 
-    // Emit a single-entry event.
-    let payload = EventPayload1 {
-        a: String::from("aaa111"),
-        b: String::from("bbb111"),
-    };
+    let payload1 = "abc".as_bytes();
+    let payload2 = "def".as_bytes();
+    let payload3 = "123456789 abcdefg 123456789".as_bytes();
 
+    // Emit a single-entry event.
     let single_entry_evt = vec![Entry {
         flags: Flags::all(),
         key: "foo".to_owned(),
-        value: fvm_ipld_encoding::to_vec(&payload).unwrap().into(),
+        codec: IPLD_RAW,
+        value: payload1.to_owned(),
     }];
-
-    let payload1 = EventPayload1 {
-        a: String::from("aaa222"),
-        b: String::from("bbb222"),
-    };
-    let payload2 = EventPayload2 {
-        c: 42,
-        d: vec![1, 2, 3, 4],
-    };
 
     let multi_entry = vec![
         Entry {
             flags: Flags::all(),
             key: "bar".to_owned(),
-            value: fvm_ipld_encoding::to_vec(&payload1).unwrap().into(),
+            codec: IPLD_RAW,
+            value: payload2.to_owned(),
         },
         Entry {
             flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
             key: "baz".to_string(),
-            value: fvm_ipld_encoding::to_vec(&payload2).unwrap().into(),
+            codec: IPLD_RAW,
+            value: payload3.to_owned(),
         },
     ];
 
@@ -80,7 +61,7 @@ pub fn invoke(params: u32) -> u32 {
         },
         EMIT_SUBCALLS => {
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
 
             let mut counter: u64 = fvm_ipld_encoding::from_slice(msg_params.data.as_slice())
                 .expect("failed to deserialize param");
@@ -107,7 +88,7 @@ pub fn invoke(params: u32) -> u32 {
         }
         EMIT_SUBCALLS_REVERT => {
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::DAG_CBOR);
+            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
 
             let mut counter: u64 =
                 fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();

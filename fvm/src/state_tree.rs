@@ -2,11 +2,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::hash::Hash;
 
 use anyhow::{anyhow, Context as _};
 use cid::{multihash, Cid};
@@ -22,6 +18,7 @@ use num_traits::Zero;
 #[cfg(feature = "arb")]
 use quickcheck::Arbitrary;
 
+use crate::history_map::HistoryMap;
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, ExecutionError, Result};
 use crate::{syscall_error, EMPTY_ARR_CID};
@@ -41,94 +38,10 @@ pub struct StateTree<S> {
     /// Snapshot layers. Each layer contains points in the actor/resolve cache histories to which
     /// said caches will be reverted on revert.
     layers: Vec<StateSnapLayer>,
-    /// Number of read-only layers stacked on top of the "layers". When this number is > 0:
-    /// 1. Modifications are rejected.
-    /// 2. Creating/discarding a layer simply adds/subtracts from this number
-    read_only_layers: u32,
-}
-
-/// A map with an "undo" history. All changes to this map are recorded in the history and can be "reverted" by calling `rollback`. Specifically:
-///
-/// 1. The user can call `history_len` to record the current history length.
-/// 2. The user can _later_ call `rollback(previous_length)` to rollback to the state in step 1.
-struct HistoryMap<K, V> {
-    map: HashMap<K, V>,
-    history: Vec<(K, Option<V>)>,
-}
-
-impl<K, V> Default for HistoryMap<K, V> {
-    fn default() -> Self {
-        Self {
-            map: Default::default(),
-            history: Default::default(),
-        }
-    }
-}
-
-impl<K, V> HistoryMap<K, V>
-where
-    K: Hash + Eq + Clone,
-{
-    /// Insert a k/v pair into the map, recording the previous value in the history.
-    fn insert(&mut self, k: K, v: V) {
-        self.history.push((k.clone(), self.map.insert(k, v)))
-    }
-
-    /// Lookup a value in the map given a key.
-    fn get<Q>(&self, k: &Q) -> Option<&V>
-    where
-        K: Borrow<Q>,
-        Q: Hash + Eq,
-    {
-        self.map.get(k)
-    }
-
-    /// Looks up a value in the map given a key, or initializes the entry with the provided
-    /// function. Any modifications to the map are recorded in the history.
-    fn get_or_try_insert_with<F, E>(&mut self, k: K, f: F) -> std::result::Result<&V, E>
-    where
-        F: FnOnce() -> std::result::Result<V, E>,
-    {
-        match self.map.entry(k) {
-            Entry::Occupied(e) => Ok(e.into_mut()),
-            Entry::Vacant(e) => {
-                let v = f()?;
-                self.history.push((e.key().clone(), None));
-                Ok(e.insert(v))
-            }
-        }
-    }
-
-    /// Rollback to the specified point in history.
-    fn rollback(&mut self, height: usize) {
-        if self.history.len() <= height {
-            return;
-        }
-        for (k, v) in self.history.drain(height..).rev() {
-            match v {
-                Some(v) => self.map.insert(k, v),
-                None => self.map.remove(&k),
-            };
-        }
-    }
-
-    /// Returns the current history length.
-    fn history_len(&self) -> usize {
-        self.history.len()
-    }
-
-    /// Discards all undo history.
-    fn discard_history(&mut self) {
-        self.history.clear();
-    }
-
-    /// Iterate mutably over the current map.
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut V)> {
-        self.map.iter_mut()
-    }
 }
 
 /// An entry in the actor cache.
+#[derive(Eq, PartialEq)]
 struct ActorCacheEntry {
     /// True if this is a change that should be flushed.
     dirty: bool,
@@ -178,7 +91,6 @@ where
             actor_cache: Default::default(),
             resolve_cache: Default::default(),
             layers: Vec::new(),
-            read_only_layers: 0,
         })
     }
 
@@ -228,7 +140,6 @@ where
                     actor_cache: Default::default(),
                     resolve_cache: Default::default(),
                     layers: Vec::new(),
-                    read_only_layers: 0,
                 })
             }
         }
@@ -270,17 +181,14 @@ where
     }
 
     /// Set actor state with an actor ID.
-    pub fn set_actor(&mut self, id: ActorID, actor: ActorState) -> Result<()> {
-        self.assert_writable()?;
-
+    pub fn set_actor(&mut self, id: ActorID, actor: ActorState) {
         self.actor_cache.borrow_mut().insert(
             id,
             ActorCacheEntry {
                 actor: Some(actor),
                 dirty: true,
             },
-        );
-        Ok(())
+        )
     }
 
     /// Get an ID address from any Address
@@ -305,10 +213,8 @@ where
         Ok(Some(a))
     }
 
-    /// Delete actor identified by the supplied ID. Returns no error if the actor doesn't exist.
-    pub fn delete_actor(&mut self, id: ActorID) -> Result<()> {
-        self.assert_writable()?;
-
+    /// Delete actor identified by the supplied ID.
+    pub fn delete_actor(&mut self, id: ActorID) {
         // Record that we've deleted the actor.
         self.actor_cache.borrow_mut().insert(
             id,
@@ -317,7 +223,6 @@ where
                 actor: None,
             },
         );
-        Ok(())
     }
 
     /// Mutate and set actor state identified by the supplied ID. Returns a fatal error if the actor
@@ -350,7 +255,7 @@ where
         // Apply function of actor state
         mutate(&mut act)?;
         // Set the actor
-        self.set_actor(id, act)?;
+        self.set_actor(id, act);
         Ok(true)
     }
 
@@ -358,7 +263,7 @@ where
     pub fn register_new_address(&mut self, addr: &Address) -> Result<ActorID> {
         let (mut state, mut actor) = InitActorState::load(self)?;
 
-        let new_addr = state.map_address_to_new_id(self.store(), addr)?;
+        let new_id = state.map_address_to_new_id(self.store(), addr)?;
 
         // Set state for init actor in store and update root Cid
         actor.state = self
@@ -366,41 +271,34 @@ where
             .put_cbor(&state, multihash::Code::Blake2b256)
             .or_fatal()?;
 
-        self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor)?;
+        self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor);
+        self.resolve_cache.borrow_mut().insert(*addr, new_id);
 
-        Ok(new_addr)
+        Ok(new_id)
     }
 
     /// Begin a new state transaction. Transactions stack.
-    pub fn begin_transaction(&mut self, read_only: bool) {
-        if read_only || self.is_read_only() {
-            self.read_only_layers += 1;
-        } else {
-            self.layers.push(StateSnapLayer {
-                actor_cache_height: self.actor_cache.get_mut().history_len(),
-                resolve_cache_height: self.resolve_cache.get_mut().history_len(),
-            })
-        }
+    pub fn begin_transaction(&mut self) {
+        self.layers.push(StateSnapLayer {
+            actor_cache_height: self.actor_cache.get_mut().history_len(),
+            resolve_cache_height: self.resolve_cache.get_mut().history_len(),
+        })
     }
 
     /// End a transaction, reverting if requested.
     pub fn end_transaction(&mut self, revert: bool) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-        } else {
-            let layer = self
-                .layers
-                .pop()
-                .context("state snapshots empty")
-                .or_fatal()?;
-            if revert {
-                self.actor_cache
-                    .get_mut()
-                    .rollback(layer.actor_cache_height);
-                self.resolve_cache
-                    .get_mut()
-                    .rollback(layer.resolve_cache_height);
-            }
+        let layer = self
+            .layers
+            .pop()
+            .context("state snapshots empty")
+            .or_fatal()?;
+        if revert {
+            self.actor_cache
+                .get_mut()
+                .rollback(layer.actor_cache_height);
+            self.resolve_cache
+                .get_mut()
+                .rollback(layer.resolve_cache_height);
         }
         // When we end the last transaction, discard the undo history.
         if !self.in_transaction() {
@@ -412,7 +310,7 @@ where
 
     /// Returns true if we're inside of a transaction.
     pub fn in_transaction(&self) -> bool {
-        !(self.read_only_layers == 0 && self.layers.is_empty())
+        !self.layers.is_empty()
     }
 
     /// Flush state tree and return Cid root.
@@ -476,18 +374,6 @@ where
             f(addr, v)
         })?;
         Ok(())
-    }
-
-    pub fn is_read_only(&self) -> bool {
-        self.read_only_layers > 0
-    }
-
-    fn assert_writable(&self) -> Result<()> {
-        if self.is_read_only() {
-            Err(syscall_error!(ReadOnly; "cannot mutate state while in read-only mode").into())
-        } else {
-            Ok(())
-        }
     }
 }
 
@@ -663,7 +549,6 @@ mod tests {
     use fvm_shared::{ActorID, IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;
 
-    use super::HistoryMap;
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ID;
     use crate::state_tree::{ActorState, StateTree};
@@ -694,11 +579,11 @@ mod tests {
         // test address not in cache
         assert_eq!(tree.get_actor(actor_id).unwrap(), None);
         // test successful insert
-        assert!(tree.set_actor(actor_id, act_s).is_ok());
+        tree.set_actor(actor_id, act_s);
         // test inserting with different data
-        assert!(tree.set_actor(actor_id, act_a.clone()).is_ok());
-        // Assert insert with same data returns ok
-        assert!(tree.set_actor(actor_id, act_a.clone()).is_ok());
+        tree.set_actor(actor_id, act_a.clone());
+        // Assert insert with same data works
+        tree.set_actor(actor_id, act_a.clone());
         // test getting set item
         assert_eq!(tree.get_actor(actor_id).unwrap().unwrap(), act_a);
     }
@@ -710,9 +595,9 @@ mod tests {
 
         let actor_id = 3;
         let act_s = ActorState::new(empty_cid(), empty_cid(), Default::default(), 1, None);
-        tree.set_actor(actor_id, act_s.clone()).unwrap();
+        tree.set_actor(actor_id, act_s.clone());
         assert_eq!(tree.get_actor(actor_id).unwrap(), Some(act_s));
-        tree.delete_actor(actor_id).unwrap();
+        tree.delete_actor(actor_id);
         assert_eq!(tree.get_actor(actor_id).unwrap(), None);
     }
 
@@ -736,8 +621,8 @@ mod tests {
             None,
         );
 
-        tree.begin_transaction(false);
-        tree.set_actor(INIT_ACTOR_ID, act_s).unwrap();
+        tree.begin_transaction();
+        tree.set_actor(INIT_ACTOR_ID, act_s);
 
         // Test mutate function
         tree.mutate_actor(INIT_ACTOR_ID, |mut actor| {
@@ -771,7 +656,7 @@ mod tests {
 
         let addresses: &[ActorID] = &[101, 102, 103];
 
-        tree.begin_transaction(false);
+        tree.begin_transaction();
         tree.set_actor(
             addresses[0],
             ActorState::new(
@@ -781,8 +666,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
 
         tree.set_actor(
             addresses[1],
@@ -793,8 +677,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.set_actor(
             addresses[2],
             ActorState::new(
@@ -804,8 +687,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.end_transaction(false).unwrap();
         tree.flush().unwrap();
 
@@ -849,7 +731,7 @@ mod tests {
 
         let actor_id: ActorID = 1;
 
-        tree.begin_transaction(false);
+        tree.begin_transaction();
         tree.set_actor(
             actor_id,
             ActorState::new(
@@ -859,8 +741,7 @@ mod tests {
                 1,
                 None,
             ),
-        )
-        .unwrap();
+        );
         tree.end_transaction(true).unwrap();
 
         tree.flush().unwrap();
@@ -883,71 +764,5 @@ mod tests {
             let err = StateTree::new(&store, v).err().unwrap();
             assert!(err.is_fatal());
         }
-    }
-
-    #[test]
-    fn history_map() {
-        let mut map = HistoryMap::<i32, &'static str>::default();
-
-        // Basic history tests.
-        assert_eq!(map.get(&1), None);
-        assert_eq!(map.history_len(), 0);
-        map.insert(1, "foo");
-        assert_eq!(map.history_len(), 1);
-        assert_eq!(map.get(&1), Some(&"foo"));
-        map.insert(2, "bar");
-        assert_eq!(map.history_len(), 2);
-        assert_eq!(map.get(&1), Some(&"foo"));
-        assert_eq!(map.get(&2), Some(&"bar"));
-        map.insert(1, "baz");
-        assert_eq!(map.history_len(), 3);
-        assert_eq!(map.get(&1), Some(&"baz"));
-        map.rollback(4); // doesn't panic.
-        assert_eq!(map.history_len(), 3);
-        map.rollback(3); // no-op.
-        assert_eq!(map.history_len(), 3);
-        assert_eq!(map.get(&1), Some(&"baz"));
-        map.rollback(2); // undoes the insert of 1 -> baz
-        assert_eq!(map.history_len(), 2);
-        assert_eq!(map.get(&1), Some(&"foo"));
-        assert_eq!(map.get(&2), Some(&"bar"));
-        map.rollback(1); // undoes the insert of 2 -> bar
-        assert_eq!(map.history_len(), 1);
-        assert_eq!(map.get(&1), Some(&"foo"));
-        assert_eq!(map.get(&2), None);
-        map.rollback(0); // empties the map
-        assert_eq!(map.history_len(), 0);
-        assert_eq!(map.get(&1), None);
-
-        // Inserts
-        assert_eq!(
-            map.get_or_try_insert_with(1, || -> Result<_, ()> { Ok("foo") })
-                .unwrap(),
-            &"foo",
-        );
-        assert_eq!(map.get(&1), Some(&"foo"));
-        assert_eq!(map.history_len(), 1);
-
-        // Doing it again changes nothing.
-        assert_eq!(
-            map.get_or_try_insert_with(1, || -> Result<_, ()> { panic!() })
-                .unwrap(),
-            &"foo",
-        );
-        assert_eq!(map.history_len(), 1);
-
-        // Bubbles the error and changes nothing.
-        assert_eq!(
-            map.get_or_try_insert_with(2, || { Err("err") })
-                .unwrap_err(),
-            "err",
-        );
-        assert_eq!(map.get(&2), None);
-        assert_eq!(map.history_len(), 1);
-
-        // Undo the first insertion.
-        map.rollback(0); // empties the map
-        assert_eq!(map.history_len(), 0);
-        assert_eq!(map.get(&1), None);
     }
 }

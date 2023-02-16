@@ -4,16 +4,11 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_ipld_amt::Amt;
-use fvm_ipld_blockstore::{Blockstore, Buffered};
-use fvm_ipld_encoding::CborStore;
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::StampedEvent;
+use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
+use fvm_ipld_encoding::{to_vec, CborStore, DAG_CBOR};
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
 use log::debug;
+use multihash::Code::Blake2b256;
 
 use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
@@ -23,11 +18,16 @@ use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Result};
 use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
-use crate::state_tree::{ActorState, StateTree};
-use crate::syscall_error;
+use crate::state_tree::StateTree;
 use crate::system_actor::State as SystemActorState;
+use crate::EMPTY_ARR_CID;
 
-pub const EVENTS_AMT_BITWIDTH: u32 = 5;
+lazy_static::lazy_static! {
+    /// Pre-serialized block containing the empty array
+    pub static ref EMPTY_ARRAY_BLOCK: Block<Vec<u8>> = {
+        Block::new(DAG_CBOR, to_vec::<[(); 0]>(&[]).unwrap())
+    };
+}
 
 pub struct DefaultMachine<B, E> {
     /// The initial execution context for this epoch.
@@ -61,8 +61,13 @@ where
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
+        #[cfg(not(feature = "hyperspace"))]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V18..=NetworkVersion::V18;
+
+        #[cfg(feature = "hyperspace")]
+        const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
+            NetworkVersion::V18..=NetworkVersion::MAX;
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
@@ -86,6 +91,8 @@ where
                 &context.initial_state_root
             ));
         }
+
+        put_empty_blocks(&blockstore)?;
 
         // Create a new state tree from the supplied root.
         let state_tree = {
@@ -171,84 +178,6 @@ where
         Ok(root)
     }
 
-    /// Creates an uninitialized actor.
-    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
-        let state_tree = self.state_tree_mut();
-
-        let addr_id = state_tree.register_new_address(addr)?;
-
-        state_tree.set_actor(addr_id, act)?;
-        Ok(addr_id)
-    }
-
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        if value.is_negative() {
-            return Err(syscall_error!(IllegalArgument;
-                "attempted to transfer negative transfer value {}", value)
-            .into());
-        }
-
-        // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
-        // that and the case where the _receiving_ actor doesn't exist.
-        let mut from_actor = self
-            .state_tree
-            .get_actor(from)?
-            .context("cannot transfer from non-existent sender")
-            .or_error(ErrorNumber::InsufficientFunds)?;
-
-        if &from_actor.balance < value {
-            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
-        }
-
-        if from == to {
-            debug!("attempting to self-transfer: noop (from/to: {})", from);
-            return Ok(());
-        }
-
-        let mut to_actor = self
-            .state_tree
-            .get_actor(to)?
-            .context("cannot transfer to non-existent receiver")
-            .or_error(ErrorNumber::NotFound)?;
-
-        from_actor.deduct_funds(value)?;
-        to_actor.deposit_funds(value);
-
-        self.state_tree.set_actor(from, from_actor)?;
-        self.state_tree.set_actor(to, to_actor)?;
-
-        log::trace!("transferred {} from {} to {}", value, from, to);
-
-        Ok(())
-    }
-
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        if events.is_empty() {
-            return Ok(None);
-        }
-
-        let blockstore = self.blockstore();
-
-        let amt_cid = {
-            let mut amt = Amt::new_with_bit_width(blockstore, EVENTS_AMT_BITWIDTH);
-            // TODO this can be zero-copy if the AMT supports a batch set operation that takes an
-            //  iterator of references and flushes the batch at the end.
-            amt.batch_set(events.iter().cloned())
-                .context("failed to add events to AMT")
-                .or_fatal()?;
-            amt.flush()
-                .context("failed to flush events AMT")
-                .or_fatal()?
-        };
-
-        blockstore
-            .flush(&amt_cid)
-            .context("failed to flush the events AMT root CID through the buffered store")
-            .or_fatal()?;
-
-        Ok(Some(amt_cid))
-    }
-
     fn into_store(self) -> Self::Blockstore {
         self.state_tree.into_store()
     }
@@ -260,4 +189,17 @@ where
     fn new_limiter(&self) -> Self::Limiter {
         DefaultMemoryLimiter::for_network(&self.context().network)
     }
+}
+
+// Helper method that puts certain "empty" types in the blockstore.
+// These types are privileged by some parts of the system (eg. as the default actor state).
+fn put_empty_blocks<B: Blockstore>(blockstore: B) -> anyhow::Result<()> {
+    let empty_arr_cid = blockstore.put(Blake2b256, &EMPTY_ARRAY_BLOCK)?;
+
+    debug_assert!(
+        empty_arr_cid == *EMPTY_ARR_CID,
+        "empty CID sanity check failed",
+    );
+
+    Ok(())
 }

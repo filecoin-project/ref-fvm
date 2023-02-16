@@ -10,7 +10,7 @@ use fvm_ipld_encoding::CborStore;
 use fvm_shared::ActorID;
 use multihash::Code;
 
-use crate::error::Error::{FailedToLoadManifest, FailedToSetActor, FailedToSetState};
+use crate::error::Error::{FailedToLoadManifest, FailedToSetState};
 
 // Retrieve system, init and accounts actors code CID
 pub fn fetch_builtin_code_cid(
@@ -45,10 +45,8 @@ pub fn set_sys_actor(
         balance: Default::default(),
         delegated_address: None,
     };
-    state_tree
-        .set_actor(system_actor::SYSTEM_ACTOR_ID, sys_actor_state)
-        .map_err(anyhow::Error::from)
-        .context(FailedToSetActor("system actor".to_owned()))
+    state_tree.set_actor(system_actor::SYSTEM_ACTOR_ID, sys_actor_state);
+    Ok(())
 }
 
 pub fn set_init_actor(
@@ -69,10 +67,8 @@ pub fn set_init_actor(
         delegated_address: None,
     };
 
-    state_tree
-        .set_actor(init_actor::INIT_ACTOR_ID, init_actor_state)
-        .map_err(anyhow::Error::from)
-        .context(FailedToSetActor("init actor".to_owned()))
+    state_tree.set_actor(init_actor::INIT_ACTOR_ID, init_actor_state);
+    Ok(())
 }
 
 pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: Cid) -> Result<()> {
@@ -91,8 +87,6 @@ pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: 
         delegated_address: None,
     };
 
-    state_tree
-        .set_actor(EAM_ACTOR_ID, eam_actor_state)
-        .map_err(anyhow::Error::from)
-        .context(FailedToSetActor("eam actor".to_owned()))
+    state_tree.set_actor(EAM_ACTOR_ID, eam_actor_state);
+    Ok(())
 }

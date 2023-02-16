@@ -1,0 +1,15 @@
+## this is a stateful counter that recurses while it has enough gas, otherwise acts like an
+## infinite counter
+
+# contract code
+%push(body_end - body_begin)
+dup1
+%push(body_begin)
+push1 0x00
+codecopy
+push1 0x00
+return
+
+body_begin:
+%include("stateful_body.eas")
+body_end:

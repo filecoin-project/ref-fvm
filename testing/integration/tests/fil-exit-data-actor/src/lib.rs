@@ -3,7 +3,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
+use fvm_ipld_encoding::CBOR;
 use fvm_sdk as sdk;
 
 /// Placeholder invoke for testing
@@ -23,7 +24,10 @@ fn invoke_method(_: u32) -> ! {
 
     sdk::vm::exit(
         exit_code,
-        RawBytes::from(vec![1u8, 2u8, 3u8, 3u8, 7u8]),
+        Some(IpldBlock {
+            codec: CBOR,
+            data: vec![1u8, 2u8, 3u8, 3u8, 7u8],
+        }),
         None,
     )
 }

@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
 use cid::multihash::Code;
-use fvm_ipld_encoding::DAG_CBOR;
+use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::event::{ActorEvent, Entry, Flags};
+use fvm_shared::sys::SendFlags;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::de::DeserializeOwned;
@@ -18,6 +21,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// Just doing a few mutations in an array to make the hashes different.
 const MUTATION_COUNT: usize = 10;
+const NOP_ACTOR_ADDRESS: Address = Address::new_id(10001);
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -30,6 +34,10 @@ pub enum Method {
     OnVerifySignature,
     /// Try (and fail) to recovery a public key from a signature, using random data.
     OnRecoverSecpPublicKey,
+    /// Measure sends
+    OnSend,
+    /// Emit events, driven by the selected mode. See EventCalibrationMode for more info.
+    OnEvent,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,6 +77,32 @@ pub struct OnRecoverSecpPublicKeyParams {
     pub size: usize,
     pub signature: Vec<u8>,
     pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum EventCalibrationMode {
+    /// Produce events with the specified shape.
+    Shape((usize, usize, usize)),
+    /// Attempt to reach a target size for the CBOR event.
+    TargetSize(usize),
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnEventParams {
+    pub iterations: usize,
+    pub mode: EventCalibrationMode,
+    /// Number of entries in the event.
+    pub entries: usize,
+    /// Flags to apply to all entries.
+    pub flags: Flags,
+    pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnSendParams {
+    pub iterations: usize,
+    pub value_transfer: bool,
+    pub invoke: bool,
 }
 
 impl OnHashingParams {
@@ -112,6 +146,8 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
         Method::OnBlock => dispatch_to(on_block, params_ptr),
         Method::OnVerifySignature => dispatch_to(on_verify_signature, params_ptr),
         Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
+        Method::OnSend => dispatch_to(on_send, params_ptr),
+        Method::OnEvent => dispatch_to(on_event, params_ptr),
     }
 }
 
@@ -196,6 +232,100 @@ fn on_recover_secp_public_key(p: OnRecoverSecpPublicKeyParams) -> Result<()> {
     Ok(())
 }
 
+fn on_send(p: OnSendParams) -> Result<()> {
+    let value = if p.value_transfer {
+        TokenAmount::from_atto(1)
+    } else {
+        TokenAmount::default()
+    };
+    let method = p.invoke as u64;
+
+    for _i in 0..p.iterations {
+        fvm_sdk::send::send(
+            &NOP_ACTOR_ADDRESS,
+            method,
+            None,
+            value.clone(),
+            None,
+            SendFlags::default(),
+        )
+        .unwrap();
+    }
+    Ok(())
+}
+
+fn on_event(p: OnEventParams) -> Result<()> {
+    match p.mode {
+        EventCalibrationMode::Shape(_) => on_event_shape(p),
+        EventCalibrationMode::TargetSize(_) => on_event_target_size(p),
+    }
+}
+
+fn on_event_shape(p: OnEventParams) -> Result<()> {
+    let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else { panic!() };
+    let mut value = vec![0; value_size];
+    let mut last_value = vec![0; last_value_size];
+
+    for i in 0..p.iterations {
+        random_mutations(&mut value, p.seed + i as u64, MUTATION_COUNT);
+        let key = random_ascii_string(key_size, p.seed + p.iterations as u64 + i as u64); // non-overlapping seed
+        let mut entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
+            flags: p.flags,
+            key: key.clone(),
+            codec: IPLD_RAW,
+            value: value.clone(),
+        })
+        .take(p.entries - 1)
+        .collect();
+
+        random_mutations(&mut last_value, p.seed + i as u64, MUTATION_COUNT);
+        entries.push(Entry {
+            flags: p.flags,
+            key,
+            codec: IPLD_RAW,
+            value: last_value.clone(),
+        });
+
+        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
+    }
+
+    Ok(())
+}
+
+fn on_event_target_size(p: OnEventParams) -> Result<()> {
+    let EventCalibrationMode::TargetSize(target_size) = p.mode else { panic!() };
+
+    // Deduct the approximate overhead of each entry (3 bytes) + flag (1 byte). This
+    // is fuzzy because the size of the encoded CBOR depends on the length of fields, but it's good enough.
+    let size_per_entry = ((target_size.checked_sub(p.entries * 4).unwrap_or(1)) / p.entries).max(1);
+    let mut rand = lcg64(p.seed);
+    for _ in 0..p.iterations {
+        let mut entries = Vec::with_capacity(p.entries);
+        for _ in 0..p.entries {
+            let (r1, r2, r3) = (
+                rand.next().unwrap(),
+                rand.next().unwrap(),
+                rand.next().unwrap(),
+            );
+            // Generate a random key of an arbitrary length that fits within the size per entry.
+            // This will never be equal to size_per_entry, and it might be zero, which is fine
+            // for gas calculation purposes.
+            let key = random_ascii_string((r1 % size_per_entry as u64) as usize, r2);
+            // Generate a value to fill up the remaining bytes.
+            let value = random_bytes(size_per_entry - key.len(), r3);
+            entries.push(Entry {
+                flags: p.flags,
+                codec: IPLD_RAW,
+                key,
+                value,
+            })
+        }
+        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
+    }
+
+    Ok(())
+}
+
 fn random_bytes(size: usize, seed: u64) -> Vec<u8> {
     lcg8(seed).take(size).collect()
 }
@@ -209,13 +339,21 @@ fn random_mutations(data: &mut Vec<u8>, seed: u64, n: usize) {
     }
 }
 
+/// Generates a random string in the 0x20 - 0x7e ASCII character range
+/// (alphanumeric + symbols, excluding the delete symbol).
+fn random_ascii_string(n: usize, seed: u64) -> String {
+    let bytes = lcg64(seed).map(|x| ((x % 95) + 32) as u8).take(n).collect();
+    String::from_utf8(bytes).unwrap()
+}
+
 /// Knuth's quick and dirty random number generator.
 /// https://en.wikipedia.org/wiki/Linear_congruential_generator
-fn lcg64(mut seed: u64) -> impl Iterator<Item = u64> {
-    let a = 6364136223846793005;
-    let c = 1442695040888963407;
+fn lcg64(initial_seed: u64) -> impl Iterator<Item = u64> {
+    let a = 6364136223846793005_u64;
+    let c = 1442695040888963407_u64;
+    let mut seed = initial_seed;
     std::iter::repeat_with(move || {
-        seed = a * seed + c;
+        seed = a.wrapping_mul(seed).wrapping_add(c);
         seed
     })
 }

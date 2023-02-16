@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use bitflags::bitflags;
-use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::strict_bytes;
 use serde::{Deserialize, Serialize};
 use serde_tuple::*;
 
@@ -12,9 +12,9 @@ use crate::ActorID;
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 pub struct StampedEvent {
     /// Carries the ID of the actor that emitted this event.
-    emitter: ActorID,
+    pub emitter: ActorID,
     /// The event as emitted by the actor.
-    event: ActorEvent,
+    pub event: ActorEvent,
 }
 
 impl StampedEvent {
@@ -40,7 +40,7 @@ bitflags! {
     /// Flags associated with an Event entry.
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
-    pub struct Flags: u8 {
+    pub struct Flags: u64 {
         const FLAG_INDEXED_KEY      = 0b00000001;
         const FLAG_INDEXED_VALUE    = 0b00000010;
         const FLAG_INDEXED_ALL      = Self::FLAG_INDEXED_KEY.bits | Self::FLAG_INDEXED_VALUE.bits;
@@ -54,13 +54,9 @@ pub struct Entry {
     pub flags: Flags,
     /// The key of this event.
     pub key: String,
-    /// Any DAG-CBOR encodeable type.
-    pub value: RawBytes,
+    /// The value's codec. Must be IPLD_RAW (0x55) for now according to FIP-0049.
+    pub codec: u64,
+    /// The event's value.
+    #[serde(with = "strict_bytes")]
+    pub value: Vec<u8>,
 }
-
-// TODO write macro
-// event!({
-//     "foo" | indexed1 | indexed2 => value1,
-//     "foo" => value2,
-//     "foo" => value3,
-// })

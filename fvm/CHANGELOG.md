@@ -4,9 +4,71 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 3.0.0-alpha.18 [UNRELEASED]
+## 3.0.0-rc.1 [2022-02-13]
 
+- Removes an incorrect event size limit.
+
+## 3.0.0-alpha.24 [2022-02-09]
+
+- Add IPLD codecs to the gas trace. I.e., use `IpldBlock` instead of `RawBytes`.
+- Finalize gas parameters.
+
+## 3.0.0-alpha.23 [2022-02-06]
+
+- Large update to gas charging:
+    - Change send gas.
+    - Add actor lookup/update gas.
+    - Add address lookup/update gas.
+    - Update IPLD gas fees.
+    - Update event gas.
+    - Add a tipset lookup gas fee.
+- Tweaks to the event syscall parameters (it now takes a codec and accepts raw values).
+
+## 3.0.0-alpha.22 [2022-02-01]
+
+- Align events implementation with FIP-0049 (#1481)
+- feat: explicitly reject placeholder creation (#1568)
+- Integrate fvm-bench and the basics of a testkit (#1493)
+- feat: simplify gas tracking stack (#1526)
+- feat: `CarReader::read_into()` (#1524)
+- feat: normalize transaction signatures (#1525)
+- fix: expose the effective gas premium (#1512)
+
+## 3.0.0-alpha.21 [2022-01-19]
+
+- Machine: Put the Empty Array object in the blockstore on creation
+- Kernel: Restrict `create_actor` to the InitActor
+  - We make an exception for integration tests
+- Deps: Update `derive_builder` to 0.12.0
+- Use CBOR instead of DAG_CBOR for message params
+
+## 3.0.0-alpha.20 [2022-01-17]
+
+- Add `hyperspace` feature to loosen up network version restrictions.
+
+## 3.0.0-alpha.19 [2022-01-13]
+
+- Adjust memory retention gas fees.
+- Add a basic block-size limit of 1MiB.
+- Update wasmtime to v2.0.2
+
+## 3.0.0-alpha.18 [2022-01-10]
+
+- Remove the CBOR trait
+  - the `read_cbor` syscall is implemented over `DeserializeOwned`
+- Executor: Always transform embryo to eth_account if executing message
 - Rename embryo -> placeholder
+- Kernel: remove support for non-key addresses from `verify_signature`
+- Gas: Make the block "read" charge more accurate 
+- StateTree: Rewrite snapshotting to have O(1) lookups
+  - Maintain an undo history instead of true state "layers"
+- Kernel: fix: return `NotFound` from `balance_of`
+- feat: refactor memory limits and apply to tables
+  - Refactors memory limits to remove the per-instance limits from the limiter itself
+  - Removes wasmtime interfaces from the limiter, instead implementing a wrapper\
+- Gas: Finalize write costs
+- Gas: Remove the explicit extern cost
+- CallManager: Change the recursive call limit to 1024
 
 ## 3.0.0-alpha.17 [2022-12-19]
 

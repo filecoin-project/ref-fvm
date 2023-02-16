@@ -1,0 +1,62 @@
+main_loop:
+jumpdest
+
+## gas check; 10M for a recursive call
+%push(10000000)
+gas
+gt
+%push(recurse)
+jumpi
+
+## counter for the rest of gas
+## if we are in a recursive call, only do while enough gas to not bomb the whole stack
+counter_loop:
+jumpdest
+
+%push(1000000)
+gas
+gt
+%push(counter)
+jumpi
+
+## are we in recursive call?
+address
+caller
+eq
+%push(done)
+jumpi
+
+counter:
+jumpdest
+%push(0) ## write offset
+%push(0) ## read offset
+mload    ## read
+%push(1) ## increment
+add      ## add
+mstore   ## write
+%push(counter_loop)
+jump
+
+## recursion
+recurse:
+jumpdest
+
+%push(0) ## output
+%push(0)
+%push(0) ## input
+%push(0)
+%push(0) ## value
+address  ## dest -> self
+gas
+call
+pop
+
+## we will run out of gas in the innermost recursion; this shouldn't be reachable.
+%push(main_loop)
+jump
+
+done:
+jumpdest
+%push(0)
+%push(0)
+return

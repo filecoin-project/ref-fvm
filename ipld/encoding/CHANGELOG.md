@@ -2,6 +2,12 @@
 
 Changes to the FVM's shared encoding utilities.
 
+## 0.3.3 [2023-01-19]
+
+- Add the `CBOR` codec, and support it in `IpldBlock`
+- Add Debug formatting for `IpldBlock`
+- Mark `Cbor` trait as deprecated
+
 ## 0.3.2 [2022-12-17]
 
 - IpldBlock::serialize_cbor returns Option<IpldBlock> instead of IpldBlock

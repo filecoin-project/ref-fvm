@@ -1,14 +1,10 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::event::StampedEvent;
-use fvm_shared::ActorID;
 
 use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
-use crate::state_tree::{ActorState, StateTree};
+use crate::state_tree::StateTree;
 
 type Type = MachineContext;
 
@@ -48,16 +44,6 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
-        (**self).create_actor(addr, act)
-    }
-
-    #[inline(always)]
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        (**self).transfer(from, to, value)
-    }
-
-    #[inline(always)]
     fn flush(&mut self) -> Result<Cid> {
         (**self).flush()
     }
@@ -75,10 +61,5 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn new_limiter(&self) -> Self::Limiter {
         (**self).new_limiter()
-    }
-
-    #[inline(always)]
-    fn commit_events(&self, events: &[StampedEvent]) -> Result<Option<Cid>> {
-        (**self).commit_events(events)
     }
 }

@@ -96,7 +96,9 @@ pub mod vm {
         pub method_number: MethodNum,
         /// The value that was received.
         pub value_received: TokenAmount,
-        /// The current gas premium
+        /// The gas premium being paid by the currently executing message (on top of the base-fee).
+        /// This may be less than the premium specified in the message if the base fee plus the
+        /// premium would exceed the fee cap.
         pub gas_premium: TokenAmount,
         /// Flags pertaining to the currently executing actor's invocation context.
         pub flags: ContextFlags,
@@ -106,6 +108,7 @@ pub mod vm {
 pub mod network {
     use crate::clock::ChainEpoch;
     use crate::sys::TokenAmount;
+    use crate::version::NetworkVersion;
 
     #[derive(Debug, Copy, Clone)]
     #[repr(packed, C)]
@@ -119,6 +122,6 @@ pub mod network {
         /// The Chain ID of the network.
         pub chain_id: u64,
         /// The network version.
-        pub network_version: u32,
+        pub network_version: NetworkVersion,
     }
 }

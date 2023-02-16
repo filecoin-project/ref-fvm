@@ -9,13 +9,14 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::bytes_32;
+use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
+use fvm_shared::event::ActorEvent;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::sys::out::vm::ContextFlags;
@@ -32,6 +33,7 @@ use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
+use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
@@ -46,6 +48,9 @@ const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
 const FINALITY: i64 = 900;
 
+#[cfg(feature = "testing")]
+const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
+
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
@@ -54,6 +59,7 @@ pub struct DefaultKernel<C> {
     actor_id: ActorID,
     method: MethodNum,
     value_received: TokenAmount,
+    read_only: bool,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
@@ -87,6 +93,7 @@ where
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        read_only: bool,
     ) -> Self {
         DefaultKernel {
             call_manager: mgr,
@@ -95,6 +102,7 @@ where
             actor_id,
             method,
             value_received,
+            read_only,
         }
     }
 
@@ -109,29 +117,7 @@ where
 {
     /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
     fn get_self(&self) -> Result<Option<ActorState>> {
-        self.call_manager
-            .state_tree()
-            .get_actor(self.actor_id)
-            .or_fatal()
-            .context("error when finding current actor")
-    }
-
-    /// Mutates this actor's state, returning a syscall error if this actor has been deleted.
-    fn mutate_self<F>(&mut self, mutate: F) -> Result<()>
-    where
-        F: FnOnce(&mut ActorState) -> Result<()>,
-    {
-        self.call_manager
-            .state_tree_mut()
-            .maybe_mutate_actor_id(self.actor_id, mutate)
-            .context("failed to mutate self")
-            .and_then(|found| {
-                if found {
-                    Ok(())
-                } else {
-                    Err(syscall_error!(IllegalOperation; "actor deleted").into())
-                }
-            })
+        self.call_manager.get_actor(self.actor_id)
     }
 }
 
@@ -140,13 +126,9 @@ where
     C: CallManager,
 {
     fn root(&self) -> Result<Cid> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_root())?;
-
         // This can fail during normal operations if the actor has been deleted.
-        let cid = t
-            .record(self.get_self())?
+        let cid = self
+            .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
@@ -155,26 +137,34 @@ where
     }
 
     fn set_root(&mut self, new: Cid) -> Result<()> {
-        let t = self
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
+            );
+        }
+        let mut state = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_set_root())?;
-
-        t.record(self.mutate_self(|actor_state| {
-            actor_state.state = new;
-            Ok(())
-        }))
+            .get_actor(self.actor_id)?
+            .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
+        state.state = new;
+        self.call_manager.set_actor(self.actor_id, state)?;
+        Ok(())
     }
 
     fn current_balance(&self) -> Result<TokenAmount> {
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_current_balance())?;
+            .charge_gas(self.call_manager.price_list().on_self_balance())?;
 
         // If the actor doesn't exist, it has zero balance.
         t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
     }
 
     fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
+        if self.read_only {
+            return Err(syscall_error!(ReadOnly; "cannot self-destruct when read-only").into());
+        }
+
         // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
         let t = self
@@ -195,16 +185,11 @@ where
 
             // Transfer the entirety of funds to beneficiary.
             self.call_manager
-                .machine_mut()
                 .transfer(self.actor_id, beneficiary_id, &balance)?;
         }
 
         // Delete the executing actor
-        t.record(
-            self.call_manager
-                .state_tree_mut()
-                .delete_actor(self.actor_id),
-        )
+        t.record(self.call_manager.delete_actor(self.actor_id))
     }
 }
 
@@ -249,6 +234,10 @@ where
     }
 
     fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
+        if data.len() > self.machine().context().max_block_size {
+            return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
+        }
+
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
@@ -355,7 +344,7 @@ where
                 .try_into()
                 .or_fatal()
                 .context("invalid gas premium")?,
-            flags: if self.call_manager.state_tree().is_read_only() {
+            flags: if self.read_only {
                 ContextFlags::READ_ONLY
             } else {
                 ContextFlags::empty()
@@ -381,6 +370,11 @@ where
         flags: SendFlags,
     ) -> Result<SendResult> {
         let from = self.actor_id;
+        let read_only = self.read_only || flags.read_only();
+
+        if read_only && !value.is_zero() {
+            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
+        }
 
         // Load parameters.
         let params = if params_id == NO_DATA_BLOCK_ID {
@@ -395,11 +389,11 @@ where
         }
 
         // Send.
-        let result = self
-            .call_manager
-            .with_transaction(flags.read_only(), |cm| {
-                cm.send::<Self>(from, *recipient, method, params, value, gas_limit)
-            })?;
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.send::<Self>(
+                from, *recipient, method, params, value, gas_limit, read_only,
+            )
+        })?;
 
         // Store result and return.
         Ok(match result {
@@ -697,7 +691,7 @@ where
         let ctx = NetworkContext {
             chain_id: (*chain_id).into(),
             epoch: *epoch,
-            network_version: *network_version as u32,
+            network_version: *network_version,
             timestamp: *timestamp,
             base_fee: base_fee
                 .try_into()
@@ -710,18 +704,32 @@ where
     }
 
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
+        use std::cmp::Ordering::*;
+
         if epoch < 0 {
             return Err(syscall_error!(IllegalArgument; "epoch is negative").into());
         }
-        // TODO: https://github.com/filecoin-project/ref-fvm/issues/1023
         let offset = self.call_manager.context().epoch - epoch;
-        if offset < 0 {
-            Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into())
-        } else if offset >= FINALITY {
-            Err(syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into())
-        } else {
-            self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
+
+        // Can't lookup the current tipset CID, or a future tipset CID>
+        match offset.cmp(&0) {
+            Less => return Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into()),
+            Equal => return Err(syscall_error!(IllegalArgument; "cannot lookup the tipset cid for the current epoch").into()),
+            Greater => {},
         }
+
+        // Can't lookup tipset CIDs beyond finality.
+        if offset >= FINALITY {
+            return Err(
+                syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into(),
+            );
+        }
+
+        let _ = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset > 1));
+
+        self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
     }
 }
 
@@ -785,8 +793,7 @@ where
 
         t.record(Ok(self
             .call_manager
-            .state_tree()
-            .lookup_id(address)?
+            .resolve_address(address)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?))
     }
 
@@ -797,10 +804,7 @@ where
 
         t.record(Ok(self
             .call_manager
-            .state_tree()
-            .get_actor(id)
-            .context("failed to lookup actor to get code CID")
-            .or_fatal()?
+            .get_actor(id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .code))
     }
@@ -815,6 +819,27 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
+        let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID;
+
+        #[cfg(feature = "testing")]
+        let is_allowed_to_create_actor =
+            is_allowed_to_create_actor || self.actor_id == TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR;
+
+        if !is_allowed_to_create_actor {
+            return Err(syscall_error!(
+                Forbidden,
+                "create_actor is restricted to InitActor. Called by {}",
+                self.actor_id
+            )
+            .into());
+        }
+
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly, "create_actor cannot be called while read-only").into(),
+            );
+        }
+
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
     }
@@ -872,14 +897,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_balance_of())?;
 
-        t.record(
-            self.call_manager
-                .state_tree()
-                .get_actor(actor_id)?
-                .context("actor not found")
-                .or_error(ErrorNumber::NotFound)
-                .map(|a| a.balance),
-        )
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .balance)
     }
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
@@ -887,12 +907,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_lookup_delegated_address())?;
 
-        let address = t
-            .record(self.call_manager.state_tree().get_actor(actor_id))?
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .delegated_address;
-
-        Ok(address)
+            .delegated_address)
     }
 }
 
@@ -974,17 +991,48 @@ impl<C> EventOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn emit_event(&mut self, evt: ActorEvent) -> Result<()> {
+    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+        if self.read_only {
+            return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
+        }
+        let len = raw_evt.len() as usize;
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_actor_event(&evt))?;
+            .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
 
-        // TODO eventually validate entries
-        //  https://github.com/filecoin-project/ref-fvm/issues/1082
+        // This is an over-estimation of the maximum event size, for safety. No valid event can even
+        // get close to this. We check this first so we don't try to decode a large event.
+        const MAX_ENCODED_SIZE: usize = 1 << 20;
+        if raw_evt.len() > MAX_ENCODED_SIZE {
+            return Err(syscall_error!(IllegalArgument; "event WAY too large").into());
+        }
 
-        let evt = StampedEvent::new(self.actor_id, evt);
-        self.call_manager.append_event(evt);
+        let actor_evt = {
+            let res = match panic::catch_unwind(|| {
+                fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
+            }) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("panic when decoding event cbor from actor: {:?}", e);
+                    Err(syscall_error!(IllegalArgument; "panic when decoding event cbor from actor").into())
+                }
+            };
+            t.stop();
+            res
+        }?;
+        validate_actor_event(&actor_evt)?;
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_actor_event_accept(&actor_evt, len),
+        )?;
+
+        let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
+        self.call_manager.append_event(stamped_evt);
+
         t.stop();
+
         Ok(())
     }
 }
@@ -997,6 +1045,35 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
             Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
         }
     }
+}
+
+fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
+    const MAX_ENTRIES: usize = 256;
+    const MAX_DATA: usize = 8 << 10;
+    const MAX_KEY_LEN: usize = 32;
+
+    if evt.entries.len() > MAX_ENTRIES {
+        return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_ENTRIES}", evt.entries.len()).into());
+    }
+    let mut total_value_size: usize = 0;
+    for entry in &evt.entries {
+        if entry.key.len() > MAX_KEY_LEN {
+            return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", entry.key.len()).into());
+        }
+        if entry.codec != IPLD_RAW {
+            return Err(
+                syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", entry.codec)
+                    .into(),
+            );
+        }
+        total_value_size += entry.value.len();
+    }
+    if total_value_size > MAX_DATA {
+        return Err(
+            syscall_error!(IllegalArgument; "event total values exceeded max size: {total_value_size} > {MAX_DATA}").into(),
+        );
+    }
+    Ok(())
 }
 
 /// PoSt proof variants.

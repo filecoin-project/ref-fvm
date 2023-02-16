@@ -32,6 +32,9 @@ pub mod sys;
 pub mod version;
 
 use econ::TokenAmount;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
+
+use crate::error::ExitCode;
 
 lazy_static! {
     /// Total Filecoin available to the network.
@@ -58,7 +61,7 @@ pub type ActorID = u64;
 /// Default bit width for the hamt in the filecoin protocol.
 pub const HAMT_BIT_WIDTH: u32 = 5;
 /// Total gas limit allowed per block. This is shared across networks.
-pub const BLOCK_GAS_LIMIT: i64 = 10_000_000_000;
+pub const BLOCK_GAS_LIMIT: u64 = 10_000_000_000;
 /// Total Filecoin supply.
 pub const TOTAL_FILECOIN_BASE: i64 = 2_000_000_000;
 
@@ -105,3 +108,10 @@ pub type MethodNum = u64;
 pub const METHOD_SEND: MethodNum = 0;
 /// Base actor constructor method.
 pub const METHOD_CONSTRUCTOR: MethodNum = 1;
+
+/// The outcome of a `Send`, covering its ExitCode and optional return data
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Response {
+    pub exit_code: ExitCode,
+    pub return_data: Option<IpldBlock>,
+}

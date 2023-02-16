@@ -11,7 +11,7 @@ pub fn charge_gas(
     context: Context<'_, impl Kernel>,
     name_off: u32,
     name_len: u32,
-    compute: i64,
+    compute: u64,
 ) -> Result<()> {
     let name =
         str::from_utf8(context.memory.try_slice(name_off, name_len)?).or_illegal_argument()?;

@@ -29,7 +29,7 @@ pub mod default;
 pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
-use fvm_shared::event::{ActorEvent, StampedEvent};
+use fvm_shared::event::StampedEvent;
 pub use hash::SupportedHashes;
 use multihash::MultihashGeneric;
 
@@ -90,6 +90,7 @@ pub trait Kernel:
         actor_id: ActorID,
         method: MethodNum,
         value_received: TokenAmount,
+        read_only: bool,
     ) -> Self
     where
         Self: Sized;
@@ -369,5 +370,5 @@ pub trait LimiterOps {
 /// Eventing APIs.
 pub trait EventOps {
     /// Records an event emitted throughout execution.
-    fn emit_event(&mut self, evt: ActorEvent) -> Result<()>;
+    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()>;
 }

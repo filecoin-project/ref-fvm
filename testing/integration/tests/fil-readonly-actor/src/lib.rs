@@ -6,7 +6,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{to_vec, CBOR, DAG_CBOR, IPLD_RAW};
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::econ::TokenAmount;
@@ -112,7 +112,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 &Address::new_id(sdk::message::receiver()),
                 4,
                 Some(IpldBlock {
-                    codec: DAG_CBOR,
+                    codec: CBOR,
                     data: "input".into(),
                 }),
                 Default::default(),
@@ -140,7 +140,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
                 &Address::new_id(sdk::message::receiver()),
                 4,
                 Some(IpldBlock {
-                    codec: DAG_CBOR,
+                    codec: CBOR,
                     data: "input".into(),
                 }),
                 Default::default(),
@@ -151,13 +151,15 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert!(output.exit_code.is_success());
             assert_eq!(output.return_data.unwrap().data, b"output");
 
-            // Should be able to emit events.
+            // Should fail to emit events.
             let evt = vec![Entry {
                 flags: Flags::all(),
                 key: "foo".to_owned(),
-                value: RawBytes::new(empty),
+                codec: IPLD_RAW,
+                value: vec![0, 1, 2],
             }];
-            sdk::event::emit_event(&evt.into()).unwrap();
+            let err = sdk::event::emit_event(&evt.into()).unwrap_err();
+            assert_eq!(err, ErrorNumber::ReadOnly);
 
             // Should not be able to delete self.
             let err =

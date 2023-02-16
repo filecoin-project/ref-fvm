@@ -1,12 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::mem;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
-use fvm_ipld_encoding::{to_vec, RawBytes, DAG_CBOR};
+use fvm_ipld_amt::Amt;
+use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -15,13 +15,17 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
+use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
-use crate::gas::{Gas, GasTimer, GasTracker};
-use crate::kernel::{Block, BlockRegistry, ExecutionError, Kernel, Result, SyscallError};
+use crate::gas::{Gas, GasTracker};
+use crate::kernel::{
+    Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
+};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 use crate::state_tree::ActorState;
@@ -45,6 +49,9 @@ pub struct InnerDefaultCallManager<M: Machine> {
     engine: Rc<Engine>,
     /// The gas tracker.
     gas_tracker: GasTracker,
+    /// The state-access tracker that helps us charge gas for actor-state lookups/updates and actor
+    /// address resolutions.
+    state_access_tracker: StateAccessTracker,
     /// The gas premium paid by this message.
     gas_premium: TokenAmount,
     /// The ActorID and the address of the original sender of the chain message that initiated
@@ -95,15 +102,46 @@ where
     fn new(
         machine: M,
         engine: Engine,
-        gas_limit: i64,
+        gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
+        receiver: Option<ActorID>,
+        receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self {
         let limits = machine.new_limiter();
         let gas_tracker =
             GasTracker::new(Gas::new(gas_limit), Gas::zero(), machine.context().tracing);
+
+        let state_access_tracker =
+            StateAccessTracker::new(&machine.context().price_list.preloaded_actors);
+
+        /* Origin */
+
+        // - We don't charge for looking up the message's origin (assumed to be done ahead of time
+        //   and in parallel.
+        // - We've already charged for updating the message's origin in preflight.
+        state_access_tracker.record_actor_update(origin);
+        // Treat the top-level origin and sender as "already charged".
+        state_access_tracker.record_lookup_address(&origin_address);
+
+        /* Receiver */
+
+        // Treat the top-level as "preloaded", if it exists. The executor will have pre-resolved
+        // this address, if possible.
+        if let Some(receiver_id) = receiver {
+            state_access_tracker.record_actor_read(receiver_id)
+        }
+        // Avoid charging for any subsequent lookups. If the receiver _doesn't_ exist, we'll end up
+        // charging to assign the address (one address lookup + update charge), but that's a
+        // different matter.
+        //
+        // NOTE: Technically, we should be _caching_ the existence of the receiver, so we can skip
+        // this step on `send` and create the target actor immediately. By not doing that, we're not
+        // being perfectly efficient and are technically under-charging gas. HOWEVER, this behavior
+        // cannot be triggered by an actor on-chain, so it's not a concern (for now).
+        state_access_tracker.record_lookup_address(&receiver_address);
 
         DefaultCallManager(Some(Box::new(InnerDefaultCallManager {
             engine: Rc::new(engine),
@@ -120,6 +158,7 @@ where
             invocation_count: 0,
             limits,
             events: Default::default(),
+            state_access_tracker,
         })))
     }
 
@@ -135,6 +174,7 @@ where
         params: Option<Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
@@ -144,52 +184,42 @@ where
                 from,
                 to,
                 method,
-                params: params
-                    .as_ref()
-                    .map(|blk| blk.data().to_owned().into())
-                    .unwrap_or_default(),
+                params: params.as_ref().map(Into::into),
                 value: value.clone(),
             });
         }
 
-        // If a specific gas limit has been requested, create a child GasTracker and use that
-        // one hereon.
-        let prev_gas_tracker = gas_limit
-            .and_then(|limit| self.gas_tracker.new_child(limit))
-            .map(|new| mem::replace(&mut self.gas_tracker, new));
+        // If a specific gas limit has been requested, push a new limit into the gas tracker.
+        if let Some(limit) = gas_limit {
+            self.gas_tracker.push_limit(limit);
+        }
 
-        let mut result =
-            self.with_stack_frame(|s| s.send_unchecked::<K>(from, to, method, params, value));
+        let mut result = self.with_stack_frame(|s| {
+            s.send_unchecked::<K>(from, to, method, params, value, read_only)
+        });
 
-        // Restore the original gas tracker and absorb the child's gas usage and traces into it.
-        if let Some(prev) = prev_gas_tracker {
-            let other = mem::replace(&mut self.gas_tracker, prev);
-            // This is capable of raising an OutOfGas, but it is redundant since send_resolved
-            // would've already raised it, so we ignore it here. We could check and assert that's
-            // true, but send_resolved could also error _fatally_ and mask the OutOfGas, so it's
-            // not safe to do so.
-            let _ = self.gas_tracker.absorb(&other);
-
-            // If we were limiting gas, convert the execution error to an exit.
-            if matches!(result, Err(ExecutionError::OutOfGas)) {
-                result = Ok(InvocationResult {
-                    exit_code: ExitCode::SYS_OUT_OF_GAS,
-                    value: None,
-                })
-            }
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
+        }
+        // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
+        // the error with an explicit exit code.
+        if !self.gas_tracker.gas_available().is_zero()
+            && matches!(result, Err(ExecutionError::OutOfGas))
+        {
+            result = Ok(InvocationResult {
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
+                value: None,
+            })
         }
 
         if self.machine.context().tracing {
             self.trace(match &result {
-                Ok(InvocationResult { exit_code, value }) => ExecutionEvent::CallReturn(
-                    *exit_code,
-                    value
-                        .as_ref()
-                        .map(|blk| RawBytes::from(blk.data().to_vec()))
-                        .unwrap_or_default(),
-                ),
+                Ok(InvocationResult { exit_code, value }) => {
+                    ExecutionEvent::CallReturn(*exit_code, value.as_ref().map(Into::into))
+                }
                 Err(ExecutionError::OutOfGas) => {
-                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, RawBytes::default())
+                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, None)
                 }
                 Err(ExecutionError::Fatal(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
@@ -203,28 +233,25 @@ where
 
     fn with_transaction(
         &mut self,
-        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction(read_only);
-        self.events.create_layer(read_only);
+        self.state_tree_mut().begin_transaction();
+        self.events.begin_transaction();
+        self.state_access_tracker.begin_transaction();
 
         let (revert, res) = match f(self) {
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
-        self.state_tree_mut().end_transaction(revert)?;
 
-        if revert {
-            self.events.discard_last_layer()?;
-        } else {
-            self.events.merge_last_layer()?;
-        }
+        self.state_tree_mut().end_transaction(revert)?;
+        self.events.end_transaction(revert)?;
+        self.state_access_tracker.end_transaction(revert)?;
 
         res
     }
 
-    fn finish(mut self) -> (FinishRet, Self::Machine) {
+    fn finish(mut self) -> (Result<FinishRet>, Self::Machine) {
         let InnerDefaultCallManager {
             machine,
             backtrace,
@@ -234,23 +261,30 @@ where
             ..
         } = *self.0.take().expect("call manager is poisoned");
 
-        // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        let gas_used = gas_tracker.gas_used().max(Gas::zero()).round_up();
+        let gas_used = gas_tracker.gas_used().round_up();
 
         // Finalize any trace events, if we're tracing.
         if machine.context().tracing {
             exec_trace.extend(gas_tracker.drain_trace().map(ExecutionEvent::GasCharge));
         }
 
-        let events = events.finish();
+        let res = events.finish();
+        let Events {
+            events,
+            root: events_root,
+        } = match res {
+            Ok(events) => events,
+            Err(err) => return (Err(err), machine),
+        };
 
         (
-            FinishRet {
+            Ok(FinishRet {
                 gas_used,
                 backtrace,
                 exec_trace,
                 events,
-            },
+                events_root,
+            }),
             machine,
         )
     }
@@ -310,10 +344,16 @@ where
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()> {
-        let start = GasTimer::start();
+        if self.machine.builtin_actors().is_placeholder_actor(&code_id) {
+            return Err(syscall_error!(
+                Forbidden,
+                "cannot explicitly construct a placeholder actor"
+            )
+            .into());
+        }
 
         // Check to make sure the actor doesn't exist, or is a placeholder.
-        let (actor, is_new) = match self.machine.state_tree().get_actor(actor_id)? {
+        let actor = match self.get_actor(actor_id)? {
             // Replace the placeholder
             Some(mut act)
                 if self
@@ -336,19 +376,22 @@ where
                     .into());
                 }
                 act.code = code_id;
-                (act, false)
+                act
             }
             // Don't replace anything else.
             Some(_) => {
                 return Err(syscall_error!(Forbidden; "Actor address already exists").into());
             }
             // Create a new actor.
-            None => (ActorState::new_empty(code_id, delegated_address), true),
+            None => {
+                // We charge for creating the actor (storage) but not for address assignment as the
+                // init actor has already handled that for us.
+                let _ = self.charge_gas(self.price_list().on_create_actor(false))?;
+                ActorState::new_empty(code_id, delegated_address)
+            }
         };
-        let t = self.charge_gas(self.price_list().on_create_actor(is_new))?;
-        self.state_tree_mut().set_actor(actor_id, actor)?;
+        self.set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
-        t.stop_with(start);
         Ok(())
     }
 
@@ -359,6 +402,106 @@ where
     // Helper for creating actors. This really doesn't belong on this trait.
     fn invocation_count(&self) -> u64 {
         self.invocation_count
+    }
+
+    /// Resolve an address and charge for it.
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
+        if let Ok(id) = address.id() {
+            return Ok(Some(id));
+        }
+        if !self.state_access_tracker.get_address_lookup_state(address) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_resolve_address())?;
+        }
+        let id = self.state_tree().lookup_id(address)?;
+        if id.is_some() {
+            self.state_access_tracker.record_lookup_address(address);
+        }
+        Ok(id)
+    }
+
+    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        let actor = self.state_tree().get_actor(id)?;
+        self.state_access_tracker.record_actor_read(id);
+        Ok(actor)
+    }
+
+    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().set_actor(id, state);
+        self.state_access_tracker.record_actor_update(id);
+        Ok(())
+    }
+
+    fn delete_actor(&mut self, id: ActorID) -> Result<()> {
+        let access = self.state_access_tracker.get_actor_access_state(id);
+        if access < Some(ActorAccessState::Read) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_lookup())?;
+        }
+        if access < Some(ActorAccessState::Updated) {
+            let _ = self
+                .gas_tracker
+                .apply_charge(self.price_list().on_actor_update())?;
+        }
+        self.state_tree_mut().delete_actor(id);
+        self.state_access_tracker.record_actor_update(id);
+        Ok(())
+    }
+
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
+        if value.is_negative() {
+            return Err(syscall_error!(IllegalArgument;
+                "attempted to transfer negative transfer value {}", value)
+            .into());
+        }
+
+        // If the from actor doesn't exist, we return "insufficient funds" to distinguish between
+        // that and the case where the _receiving_ actor doesn't exist.
+        let mut from_actor = self
+            .get_actor(from)?
+            .ok_or_else(||syscall_error!(InsufficientFunds; "insufficient funds to transfer {value}FIL from {from} to {to})"))?;
+
+        if &from_actor.balance < value {
+            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
+        }
+
+        if from == to {
+            log::debug!("attempting to self-transfer: noop (from/to: {})", from);
+            return Ok(());
+        }
+
+        let mut to_actor = self.get_actor(to)?.ok_or_else(
+            || syscall_error!(NotFound; "transfer recipient {to} does not exist in state-tree"),
+        )?;
+
+        from_actor.deduct_funds(value)?;
+        to_actor.deposit_funds(value);
+
+        self.set_actor(from, from_actor)?;
+        self.set_actor(to, to_actor)?;
+
+        log::trace!("transferred {} from {} to {}", value, from, to);
+
+        Ok(())
     }
 }
 
@@ -377,12 +520,28 @@ where
         s.exec_trace.push(trace);
     }
 
-    fn create_account_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    /// Helper method to create an uninitialized actor due to a send.
+    fn create_actor_from_send(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
+        // This will charge for the address assignment and the actor storage, but not the actor
+        // lookup/update (charged below in `set_actor`).
+        let _ = self.charge_gas(self.price_list().on_create_actor(true))?;
+        let addr_id = self.state_tree_mut().register_new_address(addr)?;
+        self.state_access_tracker.record_lookup_address(addr);
+
+        // Now we actually set the actor state, charging for reads/writes as necessary and recording
+        // the fact that the actor has been updated.
+        self.set_actor(addr_id, act)?;
+        Ok(addr_id)
+    }
+
+    /// Helper method to create an f1/f3 account actor due to a send. This method:
+    ///
+    /// 1. Creates the actor.
+    /// 2. Initializes it by calling the constructor.
+    fn create_account_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
     {
-        let t = self.charge_gas(self.price_list().on_create_actor(true))?;
-
         if addr.is_bls_zero_address() {
             return Err(
                 syscall_error!(IllegalArgument; "cannot create the bls zero address actor").into(),
@@ -393,7 +552,7 @@ where
         let id = {
             let code_cid = self.builtin_actors().get_account_code();
             let state = ActorState::new_empty(*code_cid, None);
-            self.machine.create_actor(addr, state)?
+            self.create_actor_from_send(addr, state)?
         };
 
         // Now invoke the constructor; first create the parameters, then
@@ -408,31 +567,27 @@ where
             syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
         })?;
 
-        // The cost of sending the message is measured independently.
-        t.stop();
-
         self.send_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            Some(Block::new(DAG_CBOR, params)),
+            Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
+            false,
         )?;
 
         Ok(id)
     }
 
-    fn create_placeholder_actor<K>(&mut self, addr: &Address) -> Result<ActorID>
+    /// Helper method to create a placeholder actor due to a send. This method does not execute any
+    /// constructors.
+    fn create_placeholder_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
         K: Kernel<CallManager = Self>,
     {
-        let t = self.charge_gas(self.price_list().on_create_actor(true))?;
-
-        // Create the actor in the state tree, but don't call any constructor.
         let code_cid = self.builtin_actors().get_placeholder_code();
-
         let state = ActorState::new_empty(*code_cid, Some(*addr));
-        t.record(self.machine.create_actor(addr, state))
+        self.create_actor_from_send(addr, state)
     }
 
     /// Send without checking the call depth.
@@ -443,22 +598,29 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
         // Get the receiver; this will resolve the address.
-        let to = match self.state_tree().lookup_id(&to)? {
+        let to = match self.resolve_address(&to)? {
             Some(addr) => addr,
             None => match to.payload() {
                 Payload::BLS(_) | Payload::Secp256k1(_) => {
+                    if read_only {
+                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                    }
                     // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor::<K>(&to)?
+                    self.create_account_actor_from_send::<K>(&to)?
                 }
                 // Validate that there's an actor at the target ID (we don't care what is there,
                 // just that something is there).
                 Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
-                    self.create_placeholder_actor::<K>(&to)?
+                    if read_only {
+                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                    }
+                    self.create_placeholder_actor_from_send::<K>(&to)?
                 }
                 _ => return Err(
                     syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
@@ -467,7 +629,7 @@ where
             },
         };
 
-        self.send_resolved::<K>(from, to, method, params, value)
+        self.send_resolved::<K>(from, to, method, params, value, read_only)
     }
 
     /// Send with resolved addresses.
@@ -478,22 +640,21 @@ where
         method: MethodNum,
         params: Option<Block>,
         value: &TokenAmount,
+        read_only: bool,
     ) -> Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
         // Lookup the actor.
         let state = self
-            .state_tree()
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
-        // Charge the method gas. Not sure why this comes second, but it does.
-        let _ = self.charge_gas(self.price_list().on_method_invocation(value, method))?;
-
         // Transfer, if necessary.
         if !value.is_zero() {
-            self.machine.transfer(from, to, value)?;
+            let t = self.charge_gas(self.price_list().on_value_transfer())?;
+            self.transfer(from, to, value)?;
+            t.stop();
         }
 
         // Abort early if we have a send.
@@ -501,6 +662,9 @@ where
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::default());
         }
+
+        // Charge the invocation gas.
+        let t = self.charge_gas(self.price_list().on_method_invocation())?;
 
         // Store the parametrs, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
@@ -528,7 +692,15 @@ where
             let engine = cm.engine.clone(); // reference the RC.
 
             // Make the kernel.
-            let kernel = K::new(cm, block_registry, from, to, method, value.clone());
+            let kernel = K::new(
+                cm,
+                block_registry,
+                from,
+                to,
+                method,
+                value.clone(),
+                read_only,
+            );
 
             // Make a store.
             let mut store = engine.new_store(kernel);
@@ -537,13 +709,9 @@ where
             let result: std::result::Result<BlockId, Abort> = (|| {
                 // Instantiate the module.
                 let instance = engine
-                    .get_instance(&mut store, &state.code)
-                    .and_then(|i| i.context("actor code not found"))
-                    .map_err(|e| {
-                        // todo try to distinguish resource limit / trap / fatal
-                        log::error!("failed to instantiate actor: {:?}", e);
-                        Abort::Fatal(e)
-                    })?;
+                    .instantiate(&mut store, &state.code)?
+                    .context("actor not found")
+                    .map_err(Abort::Fatal)?;
 
                 // Resolve and store a reference to the exported memory.
                 let memory = instance
@@ -568,7 +736,8 @@ where
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
-                // Charge for any remaining uncharged execution gas, returning an error if we run out.
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
                 charge_for_exec(&mut store)?;
 
                 // If the invocation failed due to running out of exec_units, we have already
@@ -672,6 +841,7 @@ where
                 }
             }
 
+            t.stop();
             (ret, cm)
         })
     }
@@ -692,20 +862,7 @@ where
     where
         F: FnOnce(&mut Self) -> Result<V>,
     {
-        // We check _then_ set because we don't count the top call. This effectively allows a
-        // call-stack depth of `max_call_depth + 1` (or `max_call_depth` sub-calls). While this is
-        // likely a bug, this is how NV15 behaves so we mimic that behavior here.
-        //
-        // By example:
-        //
-        // 1. If the max depth is 0, call_stack_depth will be 1 and the top-level message won't be
-        //    able to make sub-calls (1 > 0).
-        // 2. If the max depth is 1, the call_stack_depth will be 1 in the top-level message, 2 in
-        //    sub-calls, and said sub-calls will not be able to make further subcalls (2 > 1).
-        //
-        // NOTE: Unlike the FVM, Lotus adds _then_ checks. It does this because the
-        // `call_stack_depth` in lotus is 0 for the top-level call, unlike in the FVM where it's 1.
-        if self.call_stack_depth > self.machine.context().max_call_depth {
+        if self.call_stack_depth >= self.machine.context().max_call_depth {
             let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
             if self.machine.context().tracing {
                 self.trace(ExecutionEvent::CallError(sys_err.clone()));
@@ -733,59 +890,59 @@ where
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
-    read_only_layers: u32,
+}
+
+pub(crate) struct Events {
+    root: Option<Cid>,
+    events: Vec<StampedEvent>,
 }
 
 impl EventsAccumulator {
-    fn is_read_only(&self) -> bool {
-        self.read_only_layers > 0
-    }
-
     fn append_event(&mut self, evt: StampedEvent) {
-        if !self.is_read_only() {
-            self.events.push(evt)
-        }
+        self.events.push(evt)
     }
 
-    fn create_layer(&mut self, read_only: bool) {
-        if read_only || self.is_read_only() {
-            self.read_only_layers += 1;
-        } else {
-            self.idxs.push(self.events.len());
-        }
+    fn begin_transaction(&mut self) {
+        self.idxs.push(self.events.len());
     }
 
-    fn merge_last_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-            Ok(())
-        } else {
-            self.idxs.pop().map(|_| {}).ok_or_else(|| {
-                ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling merge_last_layer"
-                ))
-            })
-        }
-    }
-
-    fn discard_last_layer(&mut self) -> Result<()> {
-        if self.is_read_only() {
-            self.read_only_layers -= 1;
-        } else {
-            let idx = self.idxs.pop().ok_or_else(|| {
-                ExecutionError::Fatal(anyhow!(
-                    "no index in the event accumulator when calling discard_last_layer"
-                ))
-            })?;
+    fn end_transaction(&mut self, revert: bool) -> Result<()> {
+        let idx = self.idxs.pop().ok_or_else(|| {
+            ExecutionError::Fatal(anyhow!(
+                "no index in the event accumulator when ending a transaction"
+            ))
+        })?;
+        if revert {
             self.events.truncate(idx);
         }
         Ok(())
     }
 
-    fn finish(self) -> Vec<StampedEvent> {
-        // Ideally would assert here, but there's risk of poisoning the Machine.
-        // Cannot return a Result because the call site expects infallibility.
-        // assert!(self.idxs.is_empty());
-        self.events
+    fn finish(self) -> Result<Events> {
+        if !self.idxs.is_empty() {
+            return Err(ExecutionError::Fatal(anyhow!(
+                "bad events accumulator state; expected layer indices to be empty, had {} items",
+                self.idxs.len()
+            )));
+        }
+
+        let root = if !self.events.is_empty() {
+            const EVENTS_AMT_BITWIDTH: u32 = 5;
+            let root = Amt::new_from_iter_with_bit_width(
+                DiscardBlockstore,
+                EVENTS_AMT_BITWIDTH,
+                self.events.iter().cloned(),
+            )
+            .context("failed to construct events AMT")
+            .or_fatal()?;
+            Some(root)
+        } else {
+            None
+        };
+
+        Ok(Events {
+            root,
+            events: self.events,
+        })
     }
 }

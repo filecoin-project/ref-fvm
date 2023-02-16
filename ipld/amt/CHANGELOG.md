@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.5.1
+
+Avoid flushing the AMT if nothing has changed.
+
 ## 0.5.0
 
 - Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.

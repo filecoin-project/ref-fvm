@@ -10,10 +10,11 @@ use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
-use crate::state_tree::StateTree;
+use crate::state_tree::ActorState;
 use crate::Kernel;
 
 pub mod backtrace;
+mod state_access_tracker;
 pub use backtrace::Backtrace;
 
 mod default;
@@ -46,18 +47,22 @@ pub trait CallManager: 'static {
     type Machine: Machine;
 
     /// Construct a new call manager.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         machine: Self::Machine,
         engine: Engine,
-        gas_limit: i64,
+        gas_limit: u64,
         origin: ActorID,
         origin_address: Address,
+        receiver: Option<ActorID>,
+        receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
     ) -> Self;
 
     /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
+    #[allow(clippy::too_many_arguments)]
     fn send<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
@@ -66,17 +71,17 @@ pub trait CallManager: 'static {
         params: Option<kernel::Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
+        read_only: bool,
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a send) within a transaction.
     fn with_transaction(
         &mut self,
-        read_only: bool,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
-    fn finish(self) -> (FinishRet, Self::Machine);
+    fn finish(self) -> (Result<FinishRet>, Self::Machine);
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
@@ -103,12 +108,30 @@ pub trait CallManager: 'static {
 
     /// Create a new actor with the given code CID, actor ID, and delegated address. This method
     /// does not register the actor with the init actor. It just creates it in the state-tree.
+    ///
+    /// It handles all appropriate gas charging for creating new actors.
     fn create_actor(
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    /// Resolve an address into an actor ID, charging gas as appropriate.
+    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
+
+    /// Sets an actor in the state-tree, charging gas as appropriate. Use `create_actor` if you want
+    /// to create a new actor.
+    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()>;
+
+    /// Looks up an actor in the state-tree, charging gas as appropriate.
+    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>>;
+
+    /// Deletes an actor from the state-tree, charging gas as appropriate.
+    fn delete_actor(&mut self, id: ActorID) -> Result<()>;
+
+    /// Transfers tokens from one actor to another, charging gas as appropriate.
+    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()>;
 
     /// Getter for message nonce.
     fn nonce(&self) -> u64;
@@ -134,16 +157,6 @@ pub trait CallManager: 'static {
     /// Returns the externs.
     fn externs(&self) -> &<Self::Machine as Machine>::Externs {
         self.machine().externs()
-    }
-
-    /// Returns the state tree.
-    fn state_tree(&self) -> &StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.machine().state_tree()
-    }
-
-    /// Returns a mutable state-tree.
-    fn state_tree_mut(&mut self) -> &mut StateTree<<Self::Machine as Machine>::Blockstore> {
-        self.machine_mut().state_tree_mut()
     }
 
     /// Charge gas.
@@ -178,8 +191,9 @@ impl Default for InvocationResult {
 
 /// The returned values upon finishing a call manager.
 pub struct FinishRet {
-    pub gas_used: i64,
+    pub gas_used: u64,
     pub backtrace: Backtrace,
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,
+    pub events_root: Option<Cid>,
 }

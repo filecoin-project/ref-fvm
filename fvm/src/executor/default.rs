@@ -5,7 +5,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, DAG_CBOR};
+use fvm_ipld_encoding::{RawBytes, CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -73,12 +73,26 @@ where
 
         struct MachineExecRet {
             result: crate::kernel::error::Result<InvocationResult>,
-            gas_used: i64,
+            gas_used: u64,
             backtrace: Backtrace,
             exec_trace: ExecutionTrace,
             events_root: Option<Cid>,
             events: Vec<StampedEvent>, // TODO consider removing if nothing in the client ends up using it.
         }
+
+        // Pre-resolve the message receiver's address, if known.
+        let receiver_id = self
+            .state_tree()
+            .lookup_id(&msg.to)
+            .context("failure when looking up message receiver")?;
+
+        // Filecoin caps the premium plus the base-fee at the fee-cap.
+        // We expose the _effective_ premium to the user.
+        let effective_premium = msg
+            .gas_premium
+            .clone()
+            .min(&msg.gas_fee_cap - &self.context().base_fee)
+            .max(TokenAmount::zero());
 
         // Acquire an engine from the pool. This may block if there are concurrently executing
         // messages inside other executors sharing the same pool.
@@ -93,13 +107,16 @@ where
                 msg.gas_limit,
                 sender_id,
                 msg.from,
+                receiver_id,
+                msg.to,
                 msg.sequence,
-                msg.gas_premium.clone(),
+                effective_premium,
             );
             // This error is fatal because it should have already been accounted for inside
             // preflight_message.
             if let Err(e) = cm.charge_gas(inclusion_cost) {
-                return (Err(e), cm.finish().1);
+                let (_, machine) = cm.finish();
+                return (Err(e), machine);
             }
 
             let params = (!msg.params.is_empty()).then(|| {
@@ -114,18 +131,25 @@ where
                         // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
                         IPLD_RAW
                     } else {
-                        // TODO: This should probably be CBOR
-                        // See #987.
-                        DAG_CBOR
+                        // This is CBOR, not DAG_CBOR, because links sent from off-chain aren't
+                        // reachable.
+                        CBOR
                     },
                     msg.params.bytes(),
                 )
             });
 
-            let result = cm.with_transaction(false, |cm| {
+            let result = cm.with_transaction(|cm| {
                 // Invoke the message.
-                let ret =
-                    cm.send::<K>(sender_id, msg.to, msg.method_num, params, &msg.value, None)?;
+                let ret = cm.send::<K>(
+                    sender_id,
+                    msg.to,
+                    msg.method_num,
+                    params,
+                    &msg.value,
+                    None,
+                    false,
+                )?;
 
                 // Charge for including the result (before we end the transaction).
                 if let Some(value) = &ret.value {
@@ -138,12 +162,10 @@ where
 
                 Ok(ret)
             });
-            let (res, machine) = cm.finish();
 
-            // Flush all events to the store.
-            let events_root = match machine.commit_events(res.events.as_slice()) {
-                Ok(cid) => cid,
-                Err(e) => return (Err(e), machine),
+            let (res, machine) = match cm.finish() {
+                (Ok(res), machine) => (res, machine),
+                (Err(err), machine) => return (Err(err), machine),
             };
 
             (
@@ -152,7 +174,7 @@ where
                     gas_used: res.gas_used,
                     backtrace: res.backtrace,
                     exec_trace: res.exec_trace,
-                    events_root,
+                    events_root: res.events_root,
                     events: res.events,
                 }),
                 machine,
@@ -311,9 +333,9 @@ where
     }
 
     // TODO: The return type here is very strange because we have three cases:
-    //  1. Continue: Return sender ID, & gas).
-    //  2. Short-circuit: Return ApplyRet).
-    //  3. Fail: Return an error).
+    //  1. Continue: Return sender ID, & gas.
+    //  2. Short-circuit: Return ApplyRet.
+    //  3. Fail: Return an error.
     //  We could use custom types, but that would be even more annoying.
     fn preflight_message(
         &mut self,
@@ -443,7 +465,7 @@ where
         sender_state.deduct_funds(&gas_cost)?;
 
         // Update the actor in the state tree
-        self.state_tree_mut().set_actor(sender_id, sender_state)?;
+        self.state_tree_mut().set_actor(sender_id, sender_state);
 
         Ok(Ok((sender_id, gas_cost, inclusion_cost)))
     }

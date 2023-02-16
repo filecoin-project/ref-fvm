@@ -7,7 +7,6 @@ use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -15,7 +14,7 @@ use fvm_shared::sector::{
     SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{MethodNum, METHOD_SEND};
+use fvm_shared::ActorID;
 use fvm_wasm_instrument::gas_metering::{InstructionCost, Operator, Rules};
 use lazy_static::lazy_static;
 use num_traits::Zero;
@@ -68,7 +67,7 @@ lazy_static! {
     static ref HYGGE_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
         on_chain_message_storage: ScalingCost {
-            flat: Gas::new(36),
+            flat: Gas::new(36*1300),
             scale: Gas::new(1300),
         },
 
@@ -78,15 +77,15 @@ lazy_static! {
             scale: Gas::new(1300),
         },
 
-        // TODO(#1332)
-        send_base: Gas::new(29233),
-        send_transfer_funds: Gas::new(27500),
-        send_transfer_only_premium: Gas::new(159672),
-        send_invoke_method: Gas::new(-5377),
+        send_transfer_funds: Gas::new(6000),
+        send_invoke_method: Gas::new(75000),
 
-        create_actor_compute: Gas::new(1108454),
-        create_actor_storage: Gas::new((36 + 40) * 1300),
-        delete_actor: Gas::new(-(36 + 40)*1300),
+        actor_lookup: Gas::new(500_000),
+        actor_update: Gas::new(475_000),
+        actor_create_storage: Gas::new(650_000),
+
+        address_lookup: Gas::new(1_050_000),
+        address_assignment: Gas::new(1_000_000),
 
         sig_cost: total_enum_map!{
             SignatureType {
@@ -125,6 +124,10 @@ lazy_static! {
                 }
             }
         },
+
+        tipset_cid_latest: Gas::new(50_000),
+        tipset_cid_historical: Gas::new(215_000),
+
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -217,9 +220,9 @@ lazy_static! {
             scale: Gas::from_milligas(400),
         },
 
-        block_memory_retention: ScalingCost {
+        block_memory_retention_minimum: ScalingCost {
             flat: Gas::zero(),
-            scale: Gas::new(8),
+            scale: Gas::new(10),
         },
 
         block_open: ScalingCost {
@@ -235,18 +238,14 @@ lazy_static! {
         },
 
         block_persist_storage: ScalingCost {
-            flat: Gas::new(130000), // ~ Assume about 100 bytes of metadata per block.
-            scale: Gas::new(1300),
+            flat: Gas::new(334000), // ~ Assume about 100 bytes of metadata per block.
+            scale: Gas::new(3340),
         },
 
         block_persist_compute: Gas::new(172000),
 
         syscall_cost: Gas::new(14000),
 
-        // TODO(#1279)
-        state_read_base: Zero::zero(),
-        // TODO(#1279)
-        state_write_base: Zero::zero(),
         // TODO(#1279)
         builtin_actor_manifest_lookup: Zero::zero(),
         // TODO(#1279)
@@ -274,18 +273,32 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // NOTE: we currently "flush" events, but we need to stop doing that except when asked.
-        // For now, just charge for the basic costs.
-        // Also: Let's get all the other costs first, then we can work on these.
+        // These parameters are specifically sized for EVM events. They will need
+        // to be revisited before Wasm actors are able to emit arbitrary events.
+        //
+        // Validation costs are dependent on encoded length, but also
+        // co-dependent on the number of entries. The latter is a chicken-and-egg
+        // situation because we can only learn how many entries were emitted once we
+        // decode the CBOR event.
+        //
+        // We will likely need to revisit the ABI of emit_event to remove CBOR
+        // as the exchange format.
+        event_validation_cost: ScalingCost {
+            flat: Gas::new(1750),
+            scale: Gas::new(25),
+        },
 
-        // TODO(#1279)
-        event_emit_base_cost: Zero::zero(),
-        // TODO(#1279)
-        event_per_entry_cost: Zero::zero(),
-        // TODO(#1279)
-        event_entry_index_cost: Zero::zero(),
-        // TODO(#1279)
-        event_per_byte_cost: Zero::zero(),
+        // The protocol does not currently mandate indexing work, so these are
+        // left at zero. Once we start populating and committing indexing data
+        // structures, these costs will need to reflect the computation and
+        // storage costs of such actions.
+        event_accept_per_index_element: ScalingCost {
+            flat: Zero::zero(),
+            scale: Zero::zero(),
+        },
+
+        // Preloaded actor IDs per FIP-0055.
+        preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
     };
 }
 
@@ -326,24 +339,18 @@ pub(crate) struct StepCost(Vec<Step>);
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub(crate) struct Step {
-    start: i64,
+    start: u64,
     cost: Gas,
 }
 
 impl StepCost {
-    pub(crate) fn lookup(&self, x: i64) -> Gas {
-        let mut i: i64 = 0;
-        while i < self.0.len() as i64 {
-            if self.0[i as usize].start > x {
-                break;
-            }
-            i += 1;
-        }
-        i -= 1;
-        if i < 0 {
-            return Gas::zero();
-        }
-        self.0[i as usize].cost
+    pub(crate) fn lookup(&self, x: u64) -> Gas {
+        self.0
+            .iter()
+            .rev() // from the end
+            .find(|s| s.start <= x) // find the first "start" at or before the target.
+            .map(|s| s.cost) // and return the cost
+            .unwrap_or_default() // or zero
     }
 }
 
@@ -366,36 +373,24 @@ pub struct PriceList {
     pub(crate) on_chain_return_compute: ScalingCost,
     pub(crate) on_chain_return_storage: ScalingCost,
 
-    /// Gas cost for any message send execution(including the top-level one
-    /// initiated by an on-chain message).
-    /// This accounts for the cost of loading sender and receiver actors and
-    /// (for top-level messages) incrementing the sender's sequence number.
-    /// Load and store of actor sub-state is charged separately.
-    pub(crate) send_base: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if a message send
-    /// is accompanied by any nonzero currency amount.
-    /// Accounts for writing receiver's new balance (the sender's state is
-    /// already accounted for).
+    /// Gas cost charged for transferring funds to an actor (compute only).
     pub(crate) send_transfer_funds: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if message only transfers funds.
-    pub(crate) send_transfer_only_premium: Gas,
-
-    /// Gas cost charged, in addition to SendBase, if a message invokes
-    /// a method on the receiver.
-    /// Accounts for the cost of loading receiver code and method dispatch.
+    /// Gas cost charged for invoking an actor (compute only).
     pub(crate) send_invoke_method: Gas,
 
-    /// Gas cost for creating a new actor (via InitActor's Exec method).
-    /// Note: this costs assume that the extra will be partially or totally refunded while
-    /// the base is covering for the put.
-    pub(crate) create_actor_compute: Gas,
-    pub(crate) create_actor_storage: Gas,
+    /// Gas cost to lookup an actor by address in the init actor's address table.
+    pub(crate) address_lookup: Gas,
+    /// Gas cost to assign an address to an actor in the init actor's address table.
+    pub(crate) address_assignment: Gas,
 
-    /// Gas cost for deleting an actor.
-    /// Note: this partially refunds the create cost to incentivise the deletion of the actors.
-    pub(crate) delete_actor: Gas,
+    /// Gas cost of looking up an actor in the common state tree.
+    pub(crate) actor_lookup: Gas,
+
+    /// Gas cost of storing an updated actor in the common state tree.
+    pub(crate) actor_update: Gas,
+
+    /// Storage gas cost for adding a new actor to the state tree.
+    pub(crate) actor_create_storage: Gas,
 
     /// Gas cost for verifying a cryptographic signature.
     pub(crate) sig_cost: HashMap<SignatureType, ScalingCost>,
@@ -404,6 +399,11 @@ pub struct PriceList {
     pub(crate) secp256k1_recover_cost: Gas,
 
     pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
+
+    /// Gas cost for looking up the last tipset CID.
+    pub(crate) tipset_cid_latest: Gas,
+    /// Gas cost for looking up older tipset keys.
+    pub(crate) tipset_cid_historical: Gas,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -424,11 +424,12 @@ pub struct PriceList {
     /// Gas cost per byte allocated (computation cost).
     pub(crate) block_allocate: ScalingCost,
 
-    /// Gas cost for every block retained in memory (read and/or written) to ensure we can't retain
-    /// more than 1GiB of memory while executing a block.
+    /// Minimum gas cost for every block retained in memory (read and/or written) to ensure we can't
+    /// retain more than 1GiB of memory while executing a block.
     ///
-    /// This is applied along with `block_allocate` but kept separate so we can benchmark properly.
-    pub(crate) block_memory_retention: ScalingCost,
+    /// This is just a _minimum_. The final per-byte charge of retaining a block is:
+    /// `min(block_memory_retention.scale, compute_costs)`.
+    pub(crate) block_memory_retention_minimum: ScalingCost,
 
     /// Gas cost for opening a block.
     pub(crate) block_open: ScalingCost,
@@ -445,23 +446,12 @@ pub struct PriceList {
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
 
-    // Event-related pricing factors.
-    pub(crate) event_emit_base_cost: Gas,
-    pub(crate) event_per_entry_cost: Gas,
-    pub(crate) event_entry_index_cost: Gas,
-    pub(crate) event_per_byte_cost: Gas,
+    /// Gas cost to validate an ActorEvent as soon as it's received from the actor, and prior
+    /// to it being parsed.
+    pub(crate) event_validation_cost: ScalingCost,
 
-    /// Gas cost of looking up an actor in the common state tree.
-    ///
-    /// The cost varies depending on whether the data is cached, and how big the state tree is,
-    /// but that is independent of the contract in question. Might need periodic repricing.
-    pub(crate) state_read_base: Gas,
-
-    /// Gas cost of storing an updated actor in the common state tree.
-    ///
-    /// The cost varies depending on how big the state tree is, and how many other writes will be
-    /// buffered together by the end of the calls when changes are flushed. Might need periodic repricing.
-    pub(crate) state_write_base: Gas,
+    /// Gas cost of every indexed element, scaling per number of bytes indexed.
+    pub(crate) event_accept_per_index_element: ScalingCost,
 
     /// Gas cost of doing lookups in the builtin actor mappings.
     pub(crate) builtin_actor_manifest_lookup: Gas,
@@ -473,6 +463,9 @@ pub struct PriceList {
 
     /// Gas cost of compiling a Wasm module during install.
     pub(crate) install_wasm_per_byte_cost: Gas,
+
+    /// Actor IDs that can be updated for free.
+    pub(crate) preloaded_actors: Vec<ActorID>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -501,13 +494,14 @@ pub struct WasmGasPrices {
 }
 
 impl PriceList {
-    /// Returns the gas required for storing a message of a given size in the chain.
+    /// Returns the gas required for storing a message of a given size in the chain, plus the cost
+    /// of updating the sending actor's nonce and balance in the state-tree.
     #[inline]
     pub fn on_chain_message(&self, msg_size: usize) -> GasCharge {
         GasCharge::new(
             "OnChainMessage",
             self.on_chain_message_compute.apply(msg_size),
-            self.on_chain_message_storage.apply(msg_size),
+            self.actor_update + self.on_chain_message_storage.apply(msg_size),
         )
     }
 
@@ -523,18 +517,14 @@ impl PriceList {
 
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(&self, value: &TokenAmount, method_num: MethodNum) -> GasCharge {
-        let mut ret = self.send_base;
-        if value != &TokenAmount::zero() {
-            ret += self.send_transfer_funds;
-            if method_num == METHOD_SEND {
-                ret += self.send_transfer_only_premium;
-            }
-        }
-        if method_num != METHOD_SEND {
-            ret += self.send_invoke_method;
-        }
-        GasCharge::new("OnMethodInvocation", ret, Zero::zero())
+    pub fn on_value_transfer(&self) -> GasCharge {
+        GasCharge::new("OnValueTransfer", self.send_transfer_funds, Zero::zero())
+    }
+
+    /// Returns the gas required when invoking a method.
+    #[inline]
+    pub fn on_method_invocation(&self) -> GasCharge {
+        GasCharge::new("OnMethodInvocation", self.send_invoke_method, Zero::zero())
     }
 
     /// Returns the gas cost to be applied on a syscall.
@@ -542,21 +532,21 @@ impl PriceList {
         GasCharge::new("OnSyscall", self.syscall_cost, Zero::zero())
     }
 
-    /// Returns the gas required for creating an actor.
+    /// Returns the gas required for creating an actor. Pass `true` to when explicitly assigning a
+    /// new address.
     #[inline]
-    pub fn on_create_actor(&self, is_new: bool) -> GasCharge {
-        let storage_gas = if is_new {
-            self.create_actor_storage
-        } else {
-            Gas::zero()
-        };
-        GasCharge::new("OnCreateActor", self.create_actor_compute, storage_gas)
+    pub fn on_create_actor(&self, new_address: bool) -> GasCharge {
+        let mut gas = self.actor_create_storage;
+        if new_address {
+            gas += self.address_assignment + self.address_lookup;
+        }
+        GasCharge::new("OnCreateActor", Zero::zero(), gas)
     }
 
     /// Returns the gas required for deleting an actor.
     #[inline]
     pub fn on_delete_actor(&self) -> GasCharge {
-        GasCharge::new("OnDeleteActor", Zero::zero(), self.delete_actor)
+        GasCharge::new("OnDeleteActor", Zero::zero(), Zero::zero())
     }
 
     /// Returns gas required for signature verification.
@@ -632,7 +622,7 @@ impl PriceList {
                     )
             });
         // Should be safe because there is a limit to how much seals get aggregated
-        let num = aggregate.infos.len() as i64;
+        let num = aggregate.infos.len() as u64;
         GasCharge::new(
             "OnVerifyAggregateSeals",
             per_proof * num + step.lookup(num),
@@ -714,10 +704,18 @@ impl PriceList {
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
     pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
+        // These are the actual compute costs involved.
+        let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
+        let block_open = self.block_open.scale * data_size;
+
+        // But we need to make sure we charge at least the memory retention cost.
+        let retention_min = self.block_memory_retention_minimum.apply(data_size);
+        let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
         GasCharge::new(
             "OnBlockOpenPerByte",
-            self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size),
-            self.block_memory_retention.apply(data_size) + (self.block_open.scale * data_size),
+            compute,
+            // We charge the `block_open` fee as "extra" to make sure the FVM benchmarks still work.
+            block_open + retention_surcharge,
         )
     }
 
@@ -734,11 +732,14 @@ impl PriceList {
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
     pub fn on_block_create(&self, data_size: usize) -> GasCharge {
-        GasCharge::new(
-            "OnBlockCreate",
-            self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size),
-            self.block_memory_retention.apply(data_size),
-        )
+        // These are the actual compute costs involved.
+        let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
+
+        // But we need to make sure we charge at least the memory retention cost.
+        let retention_min = self.block_memory_retention_minimum.apply(data_size);
+        let retention_surcharge = (retention_min - compute).max(Gas::zero());
+
+        GasCharge::new("OnBlockCreate", compute, retention_surcharge)
     }
 
     /// Returns the gas required for committing an object to the state blockstore.
@@ -769,34 +770,36 @@ impl PriceList {
         GasCharge::new("OnBlockStat", Zero::zero(), Zero::zero())
     }
 
-    /// Returns the gas required for accessing the actor state root.
+    /// Returns the gas required to lookup an actor in the state-tree.
     #[inline]
-    pub fn on_root(&self) -> GasCharge {
-        GasCharge::new("OnRoot", self.state_read_base, Zero::zero())
+    pub fn on_actor_lookup(&self) -> GasCharge {
+        GasCharge::new("OnActorLookup", Zero::zero(), self.actor_lookup)
     }
 
-    /// Returns the gas required for modifying the actor state root.
+    /// Returns the gas required to update an actor in the state-tree. Assumes that the actor lookup
+    /// fee has already been charged.
     #[inline]
-    pub fn on_set_root(&self) -> GasCharge {
-        // The modification needs a lookup first, then a deferred write via the snapshots,
-        // which might end up being amortized by having other writes buffered till the end.
-        GasCharge::new(
-            "OnSetRoot",
-            self.state_read_base + self.state_write_base,
-            Zero::zero(),
-        )
+    pub fn on_actor_update(&self) -> GasCharge {
+        GasCharge::new("OnActorUpdate", Zero::zero(), self.actor_update)
     }
 
-    /// Returns the gas required for accessing the current balance.
+    /// Returns the gas required to create a new actor in the state-tree. Assumes that the actor
+    /// lookup and update fees have already been charged.
     #[inline]
-    pub fn on_current_balance(&self) -> GasCharge {
-        GasCharge::new("OnCurrentBalance", self.state_read_base, Zero::zero())
+    pub fn on_actor_create(&self) -> GasCharge {
+        GasCharge::new("OnActorCreate", Zero::zero(), self.actor_create_storage)
+    }
+
+    /// Returns the gas required for accessing the balance of the current actor.
+    #[inline]
+    pub fn on_self_balance(&self) -> GasCharge {
+        GasCharge::new("OnSelfBalance", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for accessing the balance of an actor.
     #[inline]
     pub fn on_balance_of(&self) -> GasCharge {
-        GasCharge::new("OnBalanceOf", self.state_read_base, Zero::zero())
+        GasCharge::new("OnBalanceOf", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for resolving an actor address.
@@ -804,13 +807,13 @@ impl PriceList {
     /// Might require lookup in the state tree as well as loading the state of the init actor.
     #[inline]
     pub fn on_resolve_address(&self) -> GasCharge {
-        GasCharge::new("OnResolveAddress", self.state_read_base, Zero::zero())
+        GasCharge::new("OnResolveAddress", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for looking up an actor's delegated address.
     #[inline]
     pub fn on_lookup_delegated_address(&self) -> GasCharge {
-        GasCharge::new("OnLookupAddress", self.state_read_base, Zero::zero())
+        GasCharge::new("OnLookupAddress", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for getting the CID of the code of an actor.
@@ -818,7 +821,7 @@ impl PriceList {
     /// Might require looking up the actor in the state tree.
     #[inline]
     pub fn on_get_actor_code_cid(&self) -> GasCharge {
-        GasCharge::new("OnGetActorCodeCid", self.state_read_base, Zero::zero())
+        GasCharge::new("OnGetActorCodeCid", Zero::zero(), Zero::zero())
     }
 
     /// Returns the gas required for looking up the type of a builtin actor by CID.
@@ -838,6 +841,20 @@ impl PriceList {
             "OnGetCodeCidForType",
             self.builtin_actor_manifest_lookup,
             Zero::zero(),
+        )
+    }
+
+    /// Returns the gas required for looking up a tipset CID with the given lookback.
+    #[inline]
+    pub fn on_tipset_cid(&self, lookback: bool) -> GasCharge {
+        GasCharge::new(
+            "OnTipsetCid",
+            Zero::zero(),
+            if lookback {
+                self.tipset_cid_historical
+            } else {
+                self.tipset_cid_latest
+            },
         )
     }
 
@@ -882,22 +899,59 @@ impl PriceList {
     }
 
     #[inline]
-    pub fn on_actor_event(&self, evt: &ActorEvent) -> GasCharge {
-        let (mut indexed_entries, mut total_bytes) = (0, 0);
-        for evt in evt.entries.iter() {
-            indexed_entries += evt
-                .flags
-                .intersection(Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE)
-                .bits()
-                .count_ones();
-            total_bytes += evt.key.len() + evt.value.bytes().len();
-        }
+    pub fn on_actor_event_validate(&self, data_size: usize) -> GasCharge {
+        let memcpy = self.block_memcpy.apply(data_size);
+        let alloc = self.block_allocate.apply(data_size);
+        let validate = self.event_validation_cost.apply(data_size);
 
         GasCharge::new(
-            "OnActorEvent",
-            self.event_emit_base_cost + (self.event_per_entry_cost * evt.entries.len()),
-            (self.event_entry_index_cost * indexed_entries)
-                + (self.event_per_byte_cost * total_bytes),
+            "OnActorEventValidate",
+            memcpy + alloc + validate,
+            Zero::zero(),
+        )
+    }
+
+    #[inline]
+    pub fn on_actor_event_accept(&self, evt: &ActorEvent, serialized_len: usize) -> GasCharge {
+        let (mut indexed_bytes, mut indexed_elements) = (0usize, 0u32);
+        for evt in evt.entries.iter() {
+            if evt.flags.contains(Flags::FLAG_INDEXED_KEY) {
+                indexed_bytes += evt.key.len();
+                indexed_elements += 1;
+            }
+            if evt.flags.contains(Flags::FLAG_INDEXED_VALUE) {
+                indexed_bytes += evt.value.len();
+                indexed_elements += 1;
+            }
+        }
+
+        // The estimated size of the serialized StampedEvent event, which
+        // includes the ActorEvent + 8 bytes for the actor ID + some bytes
+        // for CBOR framing.
+        const STAMP_EXTRA_SIZE: usize = 12;
+        let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
+
+        // Charge for 3 memory copy operations.
+        // This includes the cost of forming a StampedEvent, copying into the
+        // AMT's buffer on finish, and returning to the client.
+        let memcpy = self.block_memcpy.apply(stamped_event_size);
+
+        // Charge for 2 memory allocations.
+        // This includes the cost of retaining the StampedEvent in the call manager,
+        // and allocaing into the AMT's buffer on finish.
+        let alloc = self.block_allocate.apply(stamped_event_size);
+
+        // Charge for the hashing on AMT insertion.
+        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(stamped_event_size);
+
+        GasCharge::new(
+            "OnActorEventAccept",
+            memcpy + alloc,
+            self.event_accept_per_index_element.flat * indexed_elements
+                + self.event_accept_per_index_element.scale * indexed_bytes
+                + memcpy * 2u32 // deferred cost, placing here to hide from benchmark
+                + alloc // deferred cost, placing here to hide from benchmark
+                + hash, // deferred cost, placing here to hide from benchmark
         )
     }
 }
@@ -906,6 +960,8 @@ impl PriceList {
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
         NetworkVersion::V18 => &HYGGE_PRICES,
+        #[cfg(feature = "hyperspace")]
+        _ if network_version > NetworkVersion::V18 => &HYGGE_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
@@ -919,10 +975,7 @@ impl Rules for WasmGasPrices {
             linear: Gas,
             unit_multiplier: u32,
         ) -> anyhow::Result<InstructionCost> {
-            let base = base
-                .as_milligas()
-                .try_into()
-                .context("base gas exceeds u32")?;
+            let base = base.as_milligas();
             let gas_per_unit = linear * unit_multiplier;
             let expansion_cost: u32 = gas_per_unit
                 .as_milligas()
@@ -1216,4 +1269,55 @@ impl Rules for WasmGasPrices {
     fn linear_calc_cost(&self) -> u64 {
         0
     }
+}
+
+#[test]
+fn test_read_write() {
+    // The math for these operations is complicated, so we explicitly test to make sure we're
+    // getting the expected 10 gas/byte.
+    assert_eq!(
+        HYGGE_PRICES.on_block_open_per_byte(10).total(),
+        Gas::new(100)
+    );
+    assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
+}
+
+#[test]
+fn test_step_cost() {
+    let costs = StepCost(vec![
+        Step {
+            start: 10,
+            cost: Gas::new(1),
+        },
+        Step {
+            start: 20,
+            cost: Gas::new(2),
+        },
+    ]);
+    assert!(costs.lookup(0).is_zero());
+    assert!(costs.lookup(5).is_zero());
+
+    assert_eq!(costs.lookup(10), Gas::new(1));
+    assert_eq!(costs.lookup(11), Gas::new(1));
+    assert_eq!(costs.lookup(19), Gas::new(1));
+
+    assert_eq!(costs.lookup(20), Gas::new(2));
+    assert_eq!(costs.lookup(100), Gas::new(2));
+}
+
+#[test]
+fn test_step_cost_empty() {
+    let costs = StepCost(vec![]);
+    assert!(costs.lookup(0).is_zero());
+    assert!(costs.lookup(10).is_zero());
+}
+
+#[test]
+fn test_step_cost_zero() {
+    let costs = StepCost(vec![Step {
+        start: 0,
+        cost: Gas::new(1),
+    }]);
+    assert_eq!(costs.lookup(0), Gas::new(1));
+    assert_eq!(costs.lookup(10), Gas::new(1));
 }
