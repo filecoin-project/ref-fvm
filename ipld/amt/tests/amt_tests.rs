@@ -483,9 +483,9 @@ fn for_each_ranged() {
     let mut start_cursor = None;
     loop {
         let (num_traversed, next_cursor) = a
-            .for_each_while_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
+            .for_each_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
                 retrieved_values.push(idx);
-                Ok(true)
+                Ok(())
             })
             .unwrap();
 
