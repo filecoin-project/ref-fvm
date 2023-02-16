@@ -553,6 +553,7 @@ where
         Ok((true, did_mutate))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn for_each_while_ranged<S, F>(
         &self,
         bs: &S,
