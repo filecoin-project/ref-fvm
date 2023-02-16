@@ -473,15 +473,40 @@ fn for_each_ranged() {
     }
     assert_eq!(retrieved_values, indexes);
 
-    // assert_eq!(
-    //     *db.stats.borrow(),
-    //     BSStats {
-    //         r: 1431,
-    //         w: 1431,
-    //         br: 88649,
-    //         bw: 88649
-    //     }
-    // );
+    // Flush the AMT and reload it from the blockstore
+    let c = a.flush().unwrap();
+    let a = Amt::load(&c, &db).unwrap();
+    assert_eq!(a.count(), indexes.len() as u64);
+
+    let page_size = 100;
+    let mut retrieved_values = Vec::new();
+    let mut start_cursor = None;
+    loop {
+        let (num_traversed, next_cursor) = a
+            .for_each_while_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
+                retrieved_values.push(idx);
+                Ok(true)
+            })
+            .unwrap();
+
+        assert_eq!(num_traversed, page_size);
+
+        start_cursor = next_cursor;
+        if start_cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(retrieved_values, indexes);
+
+    assert_eq!(
+        *db.stats.borrow(),
+        BSStats {
+            r: 144,
+            w: 144,
+            br: 12875,
+            bw: 12875
+        }
+    );
 }
 
 #[test]
