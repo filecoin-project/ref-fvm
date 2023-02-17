@@ -1,0 +1,12 @@
+[package]
+name = "fil_oom_actor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fvm_sdk = { version = "3.0.0-alpha.24", path = "../../../../sdk" }
+fvm_shared = { version = "3.0.0-alpha.20", path = "../../../../shared" }
+
+[build-dependencies]
+substrate-wasm-builder = "4.0.0"

@@ -2045,6 +2045,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_oom_actor"
+version = "0.1.0"
+dependencies = [
+ "fvm_sdk 3.0.0-alpha.24",
+ "fvm_shared 3.0.0-alpha.20",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "fil_readonly_actor"
 version = "0.1.0"
 dependencies = [
@@ -2580,6 +2589,7 @@ dependencies = [
  "fil_integer_overflow_actor",
  "fil_ipld_actor",
  "fil_malformed_syscall_actor",
+ "fil_oom_actor",
  "fil_readonly_actor",
  "fil_stack_overflow_actor",
  "fil_syscall_actor",
