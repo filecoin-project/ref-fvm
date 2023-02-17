@@ -10,6 +10,7 @@ use fil_create_actor::WASM_BINARY as CREATE_ACTOR_BINARY;
 use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
+use fil_oom_actor::WASM_BINARY as OOM_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
@@ -719,6 +720,98 @@ fn backtraces() {
     };
 
     println!("panic backtrace: {}", res.failure_info.unwrap());
+}
+
+#[test]
+fn test_oom1() {
+    // Test OOM condition 1: one big chunk.
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = OOM_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: i64::MAX as u64,
+        method_num: 1,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
+}
+
+#[test]
+fn test_oom2() {
+    // Test OOM condition 2: many small chunks
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = OOM_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: i64::MAX as u64,
+        method_num: 2,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
 }
 
 #[derive(Default)]
