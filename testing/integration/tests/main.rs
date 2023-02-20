@@ -816,6 +816,8 @@ fn test_oom2() {
 
 #[test]
 fn test_oom3() {
+    // Test Out of Memory Condition 3: Not enough total wasm memory; this uses the hello
+    // actor with the smallest possible limit (1 WASM page).
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
@@ -869,6 +871,9 @@ fn test_oom3() {
 
 #[test]
 fn test_oom4() {
+    // Test Out of Memory Condition 4: Not enough instance wasm memory; this uses the oom
+    // actor with a single allocation that exceeds the instance limit.
+
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
@@ -912,7 +917,7 @@ fn test_oom4() {
         from: sender[0].1,
         to: actor_address,
         gas_limit: 1000000000,
-        method_num: 2,
+        method_num: 3,
         ..Message::default()
     };
 

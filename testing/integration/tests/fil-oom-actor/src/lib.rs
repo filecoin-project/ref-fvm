@@ -22,6 +22,13 @@ fn invoke_method(_: u32) -> ! {
         2 => {
             allocate_many();
         }
+        3 => {
+            allocate_some();
+            sdk::vm::abort(
+                314,
+                Some(format!("not OOM {}", method).as_str()),
+            );
+        }
         _ => {
             sdk::vm::abort(
                 fvm_shared::error::ExitCode::FIRST_USER_EXIT_CODE,
@@ -56,4 +63,10 @@ fn allocate_many() {
         chunk.resize(1024 * 1024, 0);
         chunks.push(chunk);
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn allocate_some() {
+    // 64 WASM pages
+    let _ = Vec::<u8>::with_capacity(64 * 65536);
 }
