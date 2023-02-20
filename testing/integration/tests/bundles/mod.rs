@@ -36,7 +36,7 @@ pub fn new_basic_tester(options: ExecutionOptions) -> anyhow::Result<BasicTester
     let blockstore = MemoryBlockstore::default();
     let bundle = BUNDLES
         .get(&NetworkVersion::V18)
-        .with_context(|| format!("unsupported network version 18"))?;
+        .with_context(|| format!("unsupported network version {}", NetworkVersion::V18))?;
 
     let bundle_cid = bundle::import_bundle(&blockstore, bundle)?;
 
