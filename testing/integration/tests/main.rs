@@ -814,6 +814,58 @@ fn test_oom2() {
     assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
 }
 
+#[test]
+fn test_oom3() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = HELLO_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine_with_config(
+        DummyExterns,
+        //
+        |ncfg| { ncfg.max_memory_bytes = 65536 },
+        |_| {},
+    ).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 1,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
+}
+
+
 #[derive(Default)]
 pub struct FailingBlockstore {
     fail_for: RefCell<HashSet<Cid>>,
