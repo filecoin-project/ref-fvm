@@ -840,12 +840,14 @@ fn test_oom3() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine_with_config(
-        DummyExterns,
-        //
-        |ncfg| { ncfg.max_memory_bytes = 65536 },
-        |_| {},
-    ).unwrap();
+    tester
+        .instantiate_machine_with_config(
+            DummyExterns,
+            //
+            |ncfg| ncfg.max_memory_bytes = 65536,
+            |_| {},
+        )
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -891,15 +893,19 @@ fn test_oom4() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine_with_config(
-        DummyExterns,
-        // the multiplier has to be 17 or larger:
-        // could not prepare actor with code CID {...}
-        // Caused by:
-        //  memory index 0 has a minimum page size of 17 which exceeds the limit of 16
-        |ncfg| { ncfg.max_inst_memory_bytes = 32 * 65536; },
-        |_| {},
-    ).unwrap();
+    tester
+        .instantiate_machine_with_config(
+            DummyExterns,
+            // the multiplier has to be 17 or larger:
+            // could not prepare actor with code CID {...}
+            // Caused by:
+            //  memory index 0 has a minimum page size of 17 which exceeds the limit of 16
+            |ncfg| {
+                ncfg.max_inst_memory_bytes = 32 * 65536;
+            },
+            |_| {},
+        )
+        .unwrap();
 
     // Send message
     let message = Message {
