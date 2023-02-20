@@ -21,13 +21,10 @@ fn test_gasfuzz() {
     let mut charge_points_milligas = Vec::new();
     let mut aggregate_charge = 0u64;
     for tr in trace.iter() {
-        match tr {
-            ExecutionEvent::GasCharge(ch) => {
-                let this_charge = ch.total();
-                aggregate_charge += this_charge.as_milligas();
-                charge_points_milligas.push(aggregate_charge);
-            }
-            _ => {}
+        if let ExecutionEvent::GasCharge(ch) = tr {
+            let this_charge = ch.total();
+            aggregate_charge += this_charge.as_milligas();
+            charge_points_milligas.push(aggregate_charge);
         }
     }
 
