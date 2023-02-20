@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use anyhow::Context;
 use fvm::externs::Externs;
 use fvm_integration_tests::bundle;
-use fvm_integration_tests::tester::{Tester, BasicTester, ExecutionOptions};
+use fvm_integration_tests::tester::{BasicTester, ExecutionOptions, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
