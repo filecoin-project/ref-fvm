@@ -24,10 +24,7 @@ fn invoke_method(_: u32) -> ! {
         }
         3 => {
             allocate_some();
-            sdk::vm::abort(
-                314,
-                Some(format!("not OOM {}", method).as_str()),
-            );
+            sdk::vm::abort(314, Some(format!("not OOM {}", method).as_str()));
         }
         _ => {
             sdk::vm::abort(
