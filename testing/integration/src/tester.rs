@@ -68,7 +68,7 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     pub options: Option<ExecutionOptions>,
 
     // ready if the machine has been instantiated
-    ready: bool,
+    pub ready: bool,
 }
 
 impl<B, E> Tester<B, E>
