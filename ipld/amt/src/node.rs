@@ -553,6 +553,10 @@ where
         Ok((true, did_mutate))
     }
 
+    /// Iterates through the current node in the tree and all subtrees. `start_at` refers to the
+    /// global AMT index, before which no values should be traversed and `limit` is the maximum
+    /// number of leaf nodes that should be traversed in this subtree. `offset` refers the offset
+    /// in the global AMT address space that this subtree is rooted at.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn for_each_while_ranged<S, F>(
         &self,

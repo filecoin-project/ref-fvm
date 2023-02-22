@@ -386,10 +386,11 @@ where
     /// Iterates over values in the Amt and runs a function on the values.
     ///
     /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
-    /// in the Amt. If `start_at` is provided traversal begins at that index, otherwise it begins
-    /// from the first element. If `max` is provided, traversal will stop after `max` elements have
-    /// been traversed. Returns a tuple describing the number of elements iterated over and
-    /// optionally the index of the next element in the AMT if more elements remain.
+    /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
+    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
+    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// iterated over and optionally the index of the next element in the AMT if more elements
+    /// remain.
     ///
     /// # Examples
     ///
@@ -442,10 +443,11 @@ where
     /// function keeps returning true.
     ///
     /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
-    /// in the Amt. If `start_at` is provided traversal begins at that index, otherwise it begins
-    /// from the first element. If `max` is provided, traversal will stop after `max` elements have
-    /// been traversed. Returns a tuple describing the number of elements iterated over and
-    /// optionally the index of the next element in the AMT if more elements remain.
+    /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
+    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
+    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// iterated over and optionally the index of the next element in the AMT if more elements
+    /// remain.
     pub fn for_each_while_ranged<F>(
         &self,
         start_at: Option<u64>,
