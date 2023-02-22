@@ -475,7 +475,7 @@ fn for_each_ranged() {
 
     // Flush the AMT and reload it from the blockstore
     let c = a.flush().unwrap();
-    let a = Amt::load(&c, &db).unwrap();
+    let mut a = Amt::load(&c, &db).unwrap();
     assert_eq!(a.count(), indexes.len() as u64);
 
     let page_size = 100;
@@ -498,13 +498,45 @@ fn for_each_ranged() {
     }
     assert_eq!(retrieved_values, indexes);
 
+    // Now delete alternating blocks of 10 values from the AMT
+    for i in 0..RANGE {
+        if (i / 10) % 2 == 0 {
+            a.delete(i).unwrap();
+        }
+    }
+
+    // Iterate over the amt with dirty cache ignoring gaps in the address space including at the
+    // beginning of the amt, we should only see the values that were not deleted
+    let (num_traversed, next_cursor) = a
+        .for_each_while_ranged(Some(0), Some(501), |i, _v| {
+            assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
+            Ok(true)
+        })
+        .unwrap();
+    assert_eq!(num_traversed, 500); // only 500 values should still be traversed
+    assert_eq!(next_cursor, None); // no next cursor should be returned
+
+    // flush the amt to the blockstore, reload and repeat the test with a clean cache
+    let cid = a.flush().unwrap();
+    let a = Amt::load(&cid, &db).unwrap();
+    let (num_traversed, next_cursor) = a
+        .for_each_while_ranged(Some(0), Some(501), |i, _v: &BytesDe| {
+            assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
+            Ok(true)
+        })
+        .unwrap();
+    assert_eq!(num_traversed, 500); // only 500 values should still be traversed
+    assert_eq!(next_cursor, None); // no next cursor should be returned
+
+    #[rustfmt::skip]
+
     assert_eq!(
         *db.stats.borrow(),
         BSStats {
-            r: 144,
-            w: 144,
-            br: 12875,
-            bw: 12875
+            r: 263,
+            w: 238,
+            br: 21550,
+            bw: 20225
         }
     );
 }
