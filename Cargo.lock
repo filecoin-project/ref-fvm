@@ -1907,8 +1907,8 @@ name = "fil_address_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "serde",
  "substrate-wasm-builder",
 ]
@@ -1945,8 +1945,8 @@ name = "fil_create_actor"
 version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -1955,8 +1955,8 @@ name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "serde",
  "serde_tuple",
  "substrate-wasm-builder",
@@ -1967,8 +1967,8 @@ name = "fil_exit_data_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -1979,8 +1979,8 @@ dependencies = [
  "anyhow",
  "cid",
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "num-derive",
  "num-traits",
  "serde",
@@ -1992,8 +1992,8 @@ name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "log",
  "serde",
  "serde_tuple",
@@ -2004,8 +2004,8 @@ dependencies = [
 name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -2017,8 +2017,8 @@ dependencies = [
  "cid",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "serde",
  "serde_tuple",
  "substrate-wasm-builder",
@@ -2029,8 +2029,8 @@ name = "fil_ipld_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "minicov",
  "substrate-wasm-builder",
 ]
@@ -2039,8 +2039,8 @@ dependencies = [
 name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -2050,8 +2050,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -2059,8 +2059,8 @@ dependencies = [
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -2070,8 +2070,8 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.0.0",
  "minicov",
  "multihash",
  "substrate-wasm-builder",
@@ -2398,7 +2398,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2415,7 +2415,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "lazy_static",
  "log",
  "minstant",
@@ -2449,7 +2449,7 @@ dependencies = [
  "fvm_integration_tests",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "hex",
  "serde",
 ]
@@ -2510,7 +2510,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "itertools 0.10.5",
  "ittapi-rs",
  "lazy_static",
@@ -2548,7 +2548,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "lazy_static",
  "libsecp256k1",
  "multihash",
@@ -2566,7 +2566,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "3.0.0-alpha.3"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "cid",
@@ -2590,7 +2590,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_ipld_hamt 0.6.1",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "lazy_static",
  "libsecp256k1",
  "multihash",
@@ -2883,11 +2883,11 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "3.0.0-alpha.24"
+version = "3.0.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_shared 3.0.0",
  "lazy_static",
  "log",
  "num-traits",
@@ -2954,7 +2954,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "3.0.0-alpha.20"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "arbitrary",

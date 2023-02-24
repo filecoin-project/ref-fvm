@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## 3.0.0 [2022-02-24]
+
+- Final release for NV18.
 
 ## 3.0.0-alpha.20 [2022-02-06]
 

@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.0.0 [2023-02-24]
+
+- Final release for NV18.
+
 ## 3.0.0-rc.1 [2022-02-13]
 
 - Removes an incorrect event size limit.
