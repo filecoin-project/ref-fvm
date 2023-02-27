@@ -30,6 +30,8 @@ pub struct PoStProof {
     pub proof_bytes: Vec<u8>,
 }
 
+type RegisteredPoStProofFVM = <RegisteredPoStProof as Inner>::FVM;
+
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for PoStProof {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
@@ -47,7 +49,10 @@ impl quickcheck::Arbitrary for PoStProof {
                 RegisteredPoStProofFVM::StackedDRGWindow64GiBV1,
             ])
             .unwrap();
-        PoStProof::new((*registered_postproof).into(), Vec::arbitrary(g))
+        PoStProof {
+            post_proof: (*registered_postproof).into(),
+            proof_bytes: Vec::arbitrary(g),
+        }
     }
 }
 
