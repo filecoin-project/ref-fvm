@@ -30,23 +30,21 @@ pub struct PoStProof {
     pub proof_bytes: Vec<u8>,
 }
 
-type RegisteredPoStProofFVM = <RegisteredPoStProof as Inner>::FVM;
-
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for PoStProof {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let registered_postproof = g
             .choose(&[
-                RegisteredPoStProofFVM::StackedDRGWinning2KiBV1,
-                RegisteredPoStProofFVM::StackedDRGWinning8MiBV1,
-                RegisteredPoStProofFVM::StackedDRGWinning512MiBV1,
-                RegisteredPoStProofFVM::StackedDRGWinning32GiBV1,
-                RegisteredPoStProofFVM::StackedDRGWinning64GiBV1,
-                RegisteredPoStProofFVM::StackedDRGWindow2KiBV1,
-                RegisteredPoStProofFVM::StackedDRGWindow8MiBV1,
-                RegisteredPoStProofFVM::StackedDRGWindow512MiBV1,
-                RegisteredPoStProofFVM::StackedDRGWindow32GiBV1,
-                RegisteredPoStProofFVM::StackedDRGWindow64GiBV1,
+                RegisteredPoStProof::StackedDRGWinning2KiBV1,
+                RegisteredPoStProof::StackedDRGWinning8MiBV1,
+                RegisteredPoStProof::StackedDRGWinning512MiBV1,
+                RegisteredPoStProof::StackedDRGWinning32GiBV1,
+                RegisteredPoStProof::StackedDRGWinning64GiBV1,
+                RegisteredPoStProof::StackedDRGWindow2KiBV1,
+                RegisteredPoStProof::StackedDRGWindow8MiBV1,
+                RegisteredPoStProof::StackedDRGWindow512MiBV1,
+                RegisteredPoStProof::StackedDRGWindow32GiBV1,
+                RegisteredPoStProof::StackedDRGWindow64GiBV1,
             ])
             .unwrap();
         PoStProof {
