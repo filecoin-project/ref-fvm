@@ -30,6 +30,30 @@ pub struct PoStProof {
     pub proof_bytes: Vec<u8>,
 }
 
+#[cfg(feature = "arb")]
+impl quickcheck::Arbitrary for PoStProof {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let registered_postproof = g
+            .choose(&[
+                RegisteredPoStProof::StackedDRGWinning2KiBV1,
+                RegisteredPoStProof::StackedDRGWinning8MiBV1,
+                RegisteredPoStProof::StackedDRGWinning512MiBV1,
+                RegisteredPoStProof::StackedDRGWinning32GiBV1,
+                RegisteredPoStProof::StackedDRGWinning64GiBV1,
+                RegisteredPoStProof::StackedDRGWindow2KiBV1,
+                RegisteredPoStProof::StackedDRGWindow8MiBV1,
+                RegisteredPoStProof::StackedDRGWindow512MiBV1,
+                RegisteredPoStProof::StackedDRGWindow32GiBV1,
+                RegisteredPoStProof::StackedDRGWindow64GiBV1,
+            ])
+            .unwrap();
+        PoStProof {
+            post_proof: (*registered_postproof).into(),
+            proof_bytes: Vec::arbitrary(g),
+        }
+    }
+}
+
 /// Information needed to verify a Winning PoSt attached to a block header.
 /// Note: this is not used within the state machine, but by the consensus/election mechanisms.
 #[derive(Debug, PartialEq, Default, Clone, Eq, Serialize_tuple, Deserialize_tuple)]
