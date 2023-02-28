@@ -58,7 +58,11 @@ jobs:
             key: v3-cov
             covname: itest-lcov.info
             command: llvm-cov
-            args: --package fvm_integration_tests --package "*actor" --lcov --output-path itest-lcov.info
+            args: |
+              --coverage-target-only \
+              --package fvm_integration_tests \
+              --package "*actor" \
+              --lcov --output-path itest-lcov.info
           - name: conformance
             key: v3
             command: test
