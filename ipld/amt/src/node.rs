@@ -552,6 +552,96 @@ where
 
         Ok((true, did_mutate))
     }
+
+    /// Iterates through the current node in the tree and all subtrees. `start_at` refers to the
+    /// global AMT index, before which no values should be traversed and `limit` is the maximum
+    /// number of leaf nodes that should be traversed in this subtree. `offset` refers the offset
+    /// in the global AMT address space that this subtree is rooted at.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn for_each_while_ranged<S, F>(
+        &self,
+        bs: &S,
+        start_at: Option<u64>,
+        limit: Option<u64>,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
+        f: &mut F,
+    ) -> Result<(bool, u64, Option<u64>), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<bool>,
+        S: Blockstore,
+    {
+        let mut traversed_count = 0_u64;
+        match self {
+            Node::Leaf { vals } => {
+                let start_idx = start_at.map_or(0, |s| s.saturating_sub(offset));
+                let mut keep_going = true;
+                for (i, v) in (start_idx..).zip(vals[start_idx as usize..].iter()) {
+                    let idx = offset + i;
+                    if let Some(v) = v {
+                        if limit.map_or(false, |l| traversed_count >= l) {
+                            return Ok((keep_going, traversed_count, Some(idx)));
+                        } else if !keep_going {
+                            return Ok((false, traversed_count, Some(idx)));
+                        }
+                        keep_going = f(idx, v)?;
+                        traversed_count += 1;
+                    }
+                }
+            }
+            Node::Link { links } => {
+                let nfh = nodes_for_height(bit_width, height);
+                let idx: usize = ((start_at.map_or(0, |s| s.saturating_sub(offset))) / nfh)
+                    .try_into()
+                    .expect("index overflow");
+                for (i, link) in (idx..).zip(links[idx..].iter()) {
+                    if let Some(l) = link {
+                        let offs = offset + (i as u64 * nfh);
+                        let (keep_going, count, next) = match l {
+                            Link::Dirty(sub) => sub.for_each_while_ranged(
+                                bs,
+                                start_at,
+                                limit.map(|l| l.checked_sub(traversed_count).unwrap()),
+                                height - 1,
+                                bit_width,
+                                offs,
+                                f,
+                            )?,
+                            Link::Cid { cid, cache } => {
+                                let cached_node = cache.get_or_try_init(|| {
+                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
+                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .expand(bit_width)
+                                        .map(Box::new)
+                                })?;
+
+                                cached_node.for_each_while_ranged(
+                                    bs,
+                                    start_at,
+                                    limit.map(|l| l.checked_sub(traversed_count).unwrap()),
+                                    height - 1,
+                                    bit_width,
+                                    offs,
+                                    f,
+                                )?
+                            }
+                        };
+
+                        traversed_count += count;
+
+                        if limit.map_or(false, |l| traversed_count >= l) && next.is_some() {
+                            return Ok((keep_going, traversed_count, next));
+                        } else if !keep_going {
+                            return Ok((false, traversed_count, next));
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok((true, traversed_count, None))
+    }
 }
 
 #[cfg(test)]

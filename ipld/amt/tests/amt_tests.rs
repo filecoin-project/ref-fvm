@@ -394,6 +394,154 @@ fn for_each() {
 }
 
 #[test]
+fn for_each_ranged() {
+    let mem = MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
+    let mut a = Amt::new(&db);
+
+    let mut indexes = Vec::new();
+    const RANGE: u64 = 1000;
+    for i in 0..RANGE {
+        indexes.push(i);
+    }
+
+    // Set all indices in the Amt
+    for i in indexes.iter() {
+        a.set(*i, tbytes(b"value")).unwrap();
+    }
+
+    // Ensure all values were added into the amt
+    for i in indexes.iter() {
+        assert_eq!(a.get(*i).unwrap(), Some(&tbytes(b"value")));
+    }
+
+    assert_eq!(a.count(), indexes.len() as u64);
+
+    // Iterate over amt with dirty cache from different starting values
+    for start_val in 0..RANGE {
+        let mut retrieved_values = Vec::new();
+        let (count, next_key) = a
+            .for_each_while_ranged(Some(start_val), None, |index, _: &BytesDe| {
+                retrieved_values.push(index);
+                Ok(true)
+            })
+            .unwrap();
+
+        // With no max set, next key should be None
+        assert_eq!(next_key, None);
+        assert_eq!(retrieved_values, indexes[start_val as usize..]);
+        assert_eq!(count, retrieved_values.len() as u64);
+    }
+
+    // Iterate over amt with dirty cache with different page sizes
+    for page_size in 1..=RANGE {
+        let mut retrieved_values = Vec::new();
+        let (count, next_key) = a
+            .for_each_while_ranged(None, Some(page_size), |index, _: &BytesDe| {
+                retrieved_values.push(index);
+                Ok(true)
+            })
+            .unwrap();
+
+        assert_eq!(retrieved_values, indexes[..page_size as usize]);
+        assert_eq!(count, retrieved_values.len() as u64);
+        if page_size == RANGE {
+            assert_eq!(next_key, None);
+        } else {
+            assert_eq!(next_key, Some(page_size));
+        }
+    }
+
+    // Chain requests over amt with dirty cache, request all items in pages of 100
+    let page_size = 100;
+    let mut retrieved_values = Vec::new();
+    let mut start_cursor = None;
+    loop {
+        let (num_traversed, next_cursor) = a
+            .for_each_while_ranged(start_cursor, Some(page_size), |idx, _val| {
+                retrieved_values.push(idx);
+                Ok(true)
+            })
+            .unwrap();
+
+        assert_eq!(num_traversed, page_size);
+
+        start_cursor = next_cursor;
+        if start_cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(retrieved_values, indexes);
+
+    // Flush the AMT and reload it from the blockstore
+    let c = a.flush().unwrap();
+    let mut a = Amt::load(&c, &db).unwrap();
+    assert_eq!(a.count(), indexes.len() as u64);
+
+    let page_size = 100;
+    let mut retrieved_values = Vec::new();
+    let mut start_cursor = None;
+    loop {
+        let (num_traversed, next_cursor) = a
+            .for_each_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
+                retrieved_values.push(idx);
+                Ok(())
+            })
+            .unwrap();
+
+        assert_eq!(num_traversed, page_size);
+
+        start_cursor = next_cursor;
+        if start_cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(retrieved_values, indexes);
+
+    // Now delete alternating blocks of 10 values from the AMT
+    for i in 0..RANGE {
+        if (i / 10) % 2 == 0 {
+            a.delete(i).unwrap();
+        }
+    }
+
+    // Iterate over the amt with dirty cache ignoring gaps in the address space including at the
+    // beginning of the amt, we should only see the values that were not deleted
+    let (num_traversed, next_cursor) = a
+        .for_each_while_ranged(Some(0), Some(501), |i, _v| {
+            assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
+            Ok(true)
+        })
+        .unwrap();
+    assert_eq!(num_traversed, 500); // only 500 values should still be traversed
+    assert_eq!(next_cursor, None); // no next cursor should be returned
+
+    // flush the amt to the blockstore, reload and repeat the test with a clean cache
+    let cid = a.flush().unwrap();
+    let a = Amt::load(&cid, &db).unwrap();
+    let (num_traversed, next_cursor) = a
+        .for_each_while_ranged(Some(0), Some(501), |i, _v: &BytesDe| {
+            assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
+            Ok(true)
+        })
+        .unwrap();
+    assert_eq!(num_traversed, 500); // only 500 values should still be traversed
+    assert_eq!(next_cursor, None); // no next cursor should be returned
+
+    #[rustfmt::skip]
+
+    assert_eq!(
+        *db.stats.borrow(),
+        BSStats {
+            r: 263,
+            w: 238,
+            br: 21550,
+            bw: 20225
+        }
+    );
+}
+
+#[test]
 fn for_each_mutate() {
     let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);

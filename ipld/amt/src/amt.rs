@@ -383,6 +383,92 @@ where
             .map(|_| ())
     }
 
+    /// Iterates over values in the Amt and runs a function on the values.
+    ///
+    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
+    /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
+    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
+    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// iterated over and optionally the index of the next element in the AMT if more elements
+    /// remain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_amt::Amt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Amt<String, _> = Amt::new(&store);
+    /// map.set(1, "One".to_owned()).unwrap();
+    /// map.set(4, "Four".to_owned()).unwrap();
+    /// map.set(5, "Five".to_owned()).unwrap();
+    /// map.set(6, "Six".to_owned()).unwrap();
+    /// map.set(10, "Ten".to_owned()).unwrap();
+    ///
+    /// let mut values: Vec<(u64, String)> = Vec::new();
+    /// let (num_traversed, next_idx) = map.for_each_ranged(Some(4), Some(3), |i, v| {
+    ///    values.push((i, v.clone()));
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(&values, &[(4, "Four".to_owned()), (5, "Five".to_owned()), (6, "Six".to_owned())]);
+    /// assert_eq!(num_traversed, 3);
+    /// assert_eq!(next_idx, Some(10));
+    /// ```
+    pub fn for_each_ranged<F>(
+        &self,
+        start_at: Option<u64>,
+        limit: Option<u64>,
+        mut f: F,
+    ) -> Result<(u64, Option<u64>), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+    {
+        let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
+            &self.block_store,
+            start_at,
+            limit,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut |i, v| {
+                f(i, v)?;
+                Ok(true)
+            },
+        )?;
+        Ok((num_traversed, next_index))
+    }
+
+    /// Iterates over values in the Amt and runs a function on the values, for as long as that
+    /// function keeps returning true.
+    ///
+    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
+    /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
+    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
+    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// iterated over and optionally the index of the next element in the AMT if more elements
+    /// remain.
+    pub fn for_each_while_ranged<F>(
+        &self,
+        start_at: Option<u64>,
+        limit: Option<u64>,
+        mut f: F,
+    ) -> Result<(u64, Option<u64>), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<bool>,
+    {
+        let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
+            &self.block_store,
+            start_at,
+            limit,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut f,
+        )?;
+        Ok((num_traversed, next_index))
+    }
+
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
     /// each value.
     pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Error>
