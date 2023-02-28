@@ -418,7 +418,7 @@ where
     pub fn for_each_ranged<F>(
         &self,
         start_at: Option<u64>,
-        max: Option<u64>,
+        limit: Option<u64>,
         mut f: F,
     ) -> Result<(u64, Option<u64>), Error>
     where
@@ -427,7 +427,7 @@ where
         let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
             &self.block_store,
             start_at,
-            max,
+            limit,
             self.height(),
             self.bit_width(),
             0,
@@ -451,7 +451,7 @@ where
     pub fn for_each_while_ranged<F>(
         &self,
         start_at: Option<u64>,
-        max: Option<u64>,
+        limit: Option<u64>,
         mut f: F,
     ) -> Result<(u64, Option<u64>), Error>
     where
@@ -460,7 +460,7 @@ where
         let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
             &self.block_store,
             start_at,
-            max,
+            limit,
             self.height(),
             self.bit_width(),
             0,
