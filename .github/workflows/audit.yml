@@ -8,7 +8,7 @@ jobs:
   security_audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/audit-check@v1
+      - uses: actions/checkout@v3
+      - uses: rustsec/audit-check@bb800784d9c5b0afa352b75dae201bf2e438960a
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
