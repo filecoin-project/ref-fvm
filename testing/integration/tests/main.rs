@@ -38,8 +38,6 @@ pub struct State {
     pub count: u64,
 }
 
-const ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
-
 #[test]
 fn hello_world() {
     // Instantiate tester
@@ -210,6 +208,12 @@ fn create_actor() {
     )
     .unwrap();
 
+    // kernel has a specific actor ID reserved when testing that may create other actors
+    const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
+    // only the init actor (1) and test actor (98) may create other actors, here we just
+    // pick some other random value
+    const TEST_ACTOR_NOT_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 99;
+
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
 
@@ -218,7 +222,7 @@ fn create_actor() {
     // Configure actor allowed to call create_actor
     let actor_state = State::default();
     let state_cid = tester.set_state(&actor_state).unwrap();
-    let actor_allowed_to_create_actor = Address::new_id(ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
+    let actor_allowed_to_create_actor = Address::new_id(TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR);
     tester
         .set_actor_from_bin(
             wasm_bin,
@@ -231,7 +235,8 @@ fn create_actor() {
     // Configure actor not allowed to call create_actor
     let actor_state = State::default();
     let state_cid = tester.set_state(&actor_state).unwrap();
-    let actor_not_allowed_to_create_actor = Address::new_id(99);
+    let actor_not_allowed_to_create_actor =
+        Address::new_id(TEST_ACTOR_NOT_ALLOWED_TO_CALL_CREATE_ACTOR);
     tester
         .set_actor_from_bin(
             wasm_bin,
@@ -261,6 +266,14 @@ fn create_actor() {
             .execute_message(message, ApplyKind::Explicit, 100)
             .unwrap();
 
+        if !res.msg_receipt.exit_code.is_success() {
+            if let Some(info) = res.failure_info {
+                panic!("{}", info)
+            } else {
+                panic!("non-zero exit code {}", res.msg_receipt.exit_code)
+            }
+        }
+
         assert_eq!(res.msg_receipt.exit_code, ExitCode::OK);
     }
 
@@ -269,7 +282,7 @@ fn create_actor() {
             from: sender[0].1,
             to: actor_not_allowed_to_create_actor,
             gas_limit: 1000000000,
-            method_num: 1,
+            method_num: 2,
             sequence: 101,
             ..Message::default()
         };
@@ -281,7 +294,13 @@ fn create_actor() {
             .execute_message(message, ApplyKind::Explicit, 100)
             .unwrap();
 
-        assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
+        if !res.msg_receipt.exit_code.is_success() {
+            if let Some(info) = res.failure_info {
+                panic!("{}", info)
+            } else {
+                panic!("non-zero exit code {}", res.msg_receipt.exit_code)
+            }
+        }
     }
 }
 
