@@ -11,6 +11,7 @@ use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
 use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
 use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
 use fil_oom_actor::WASM_BINARY as OOM_BINARY;
+use fil_sself_actor::WASM_BINARY as SSELF_BINARY;
 use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
@@ -180,6 +181,67 @@ fn syscalls() {
         gas_limit: 1000000000,
         method_num: 1,
         sequence: 100, // sequence == nonce
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    if !res.msg_receipt.exit_code.is_success() {
+        if let Some(info) = res.failure_info {
+            panic!("{}", info)
+        } else {
+            panic!("non-zero exit code {}", res.msg_receipt.exit_code)
+        }
+    }
+}
+
+#[test]
+fn sself() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+    println!("sender: {:?}", sender);
+
+    let wasm_bin = SSELF_BINARY.unwrap();
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+    println!("state_cid: {:?}", state_cid);
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+    println!("actor_address: {:?}", actor_address);
+
+    let actor_code_cid = tester
+        .set_actor_from_bin(
+            wasm_bin,
+            state_cid,
+            actor_address,
+            TokenAmount::from_nano(1_000_000),
+        )
+        .unwrap();
+    println!("actor_code_cid: {:?}", actor_code_cid);
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 1,
         ..Message::default()
     };
 

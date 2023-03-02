@@ -193,7 +193,7 @@ where
         Ok(state_cid)
     }
 
-    /// Set a new at a given address, provided with a given token balance
+    /// Set a new actor at a given address, provided with a given token balance
     /// and returns the CodeCID of the installed actor
     pub fn set_actor_from_bin(
         &mut self,
