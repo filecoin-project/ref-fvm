@@ -177,7 +177,6 @@ mod ipld {
                 "charge_gas should only be called exactly once per block_link"
             );
 
-            let expected_block = Block::new(cid.codec(), block);
             let expected_create_price = call_manager
                 .machine
                 .context()
@@ -190,7 +189,7 @@ mod ipld {
                 .price_list
                 .on_block_link(
                     SupportedHashes::try_from(cid.hash().code()).unwrap(),
-                    expected_block.size() as usize,
+                    block.len(),
                 )
                 .total();
 

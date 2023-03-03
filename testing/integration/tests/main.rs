@@ -961,4 +961,8 @@ impl Blockstore for FailingBlockstore {
     fn put_keyed(&self, k: &Cid, block: &[u8]) -> anyhow::Result<()> {
         self.target.put_keyed(k, block)
     }
+
+    fn put(&self, mh_code: u64, block: &dyn fvm_ipld_blockstore::Block) -> anyhow::Result<Cid> {
+        self.target.put(mh_code, block)
+    }
 }

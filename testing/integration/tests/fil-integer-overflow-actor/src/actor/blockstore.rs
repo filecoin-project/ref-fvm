@@ -1,9 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::convert::TryFrom;
-
 use anyhow::{anyhow, Result};
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Block;
 use fvm_sdk as sdk;
@@ -20,22 +17,18 @@ impl fvm_ipld_blockstore::Blockstore for Blockstore {
     }
 
     fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
-        let code = Code::try_from(k.hash().code()).map_err(|e| anyhow!(e.to_string()))?;
-        let k2 = self.put(code, &Block::new(k.codec(), block))?;
+        let k2 = self.put(k.hash().code(), &(k.codec(), block))?;
         if k != &k2 {
             return Err(anyhow!("put block with cid {} but has cid {}", k, k2));
         }
         Ok(())
     }
 
-    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid>
-    where
-        D: AsRef<[u8]>,
-    {
+    fn put(&self, mh_code: u64, block: &dyn Block) -> Result<Cid> {
         // TODO: Don't hard-code the size. Unfortunately, there's no good way to get it from the
         //  codec at the moment.
         const SIZE: u32 = 32;
-        let k = sdk::ipld::put(code.into(), SIZE, block.codec, block.data.as_ref())
+        let k = sdk::ipld::put(mh_code, SIZE, block.codec(), block.data())
             .map_err(|e| anyhow!("put failed with {:?}", e))?;
         Ok(k)
     }
