@@ -15,12 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v2
-    - name: Running fmt
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: fmt
-        args: -- --check
+      uses: actions/checkout@v3
+    - name: Check Format
+      run: cargo fmt -- --check
     - name: Check license headers
       run: make license
 
@@ -73,14 +70,11 @@ jobs:
           - os: macos-latest
             name: test-fvm
     env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
       CARGO_TERM_COLOR: always
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: ${{ matrix.submodules }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
@@ -90,19 +84,17 @@ jobs:
       with:
         tool: cargo-llvm-cov@0.4.5
     - name: Setting up cache
-      uses: ./.github/actions/rust-sccache
+      uses: pl-strflt/rust-sccache-action@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SCCACHE_CACHE_SIZE: 2G
+        SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+        CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
       with:
         version: v0.2.15
-        platform: ${{ matrix.os }}
         # change this to invalidate sccache for this job
         shared-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: ${{ matrix.command }}
-        args: --locked ${{ matrix.args }}
+      run: cargo ${{ matrix.command }} --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
@@ -111,25 +103,13 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Installing Cargo-Cache
       if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: install
-        args: cargo-cache
+      run: cargo install cargo-cache
     - name: Cleaning Cargo Cache
       if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: --autoclean
+      run: cargo cache --autoclean
     - name: Getting Cargo Cache Size
       if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: -i
+      run: cargo cache -i
     - name: Getting sccache size
       if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: sccache
+      run: cargo cache sccache
