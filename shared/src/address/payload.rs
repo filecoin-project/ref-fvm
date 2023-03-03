@@ -25,10 +25,12 @@ pub struct DelegatedAddress {
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for DelegatedAddress {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let length = usize::arbitrary(g) % (MAX_SUBADDRESS_LEN + 1);
+        let buffer = from_fn(|idx| if idx < length { u8::arbitrary(g) } else { 0u8 });
         Self {
             namespace: ActorID::arbitrary(g),
-            length: usize::arbitrary(g) % (MAX_SUBADDRESS_LEN + 1),
-            buffer: from_fn(|_| u8::arbitrary(g)),
+            length,
+            buffer,
         }
     }
 }
@@ -36,11 +38,17 @@ impl quickcheck::Arbitrary for DelegatedAddress {
 #[cfg(feature = "arb")]
 impl<'a> arbitrary::Arbitrary<'a> for DelegatedAddress {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(DelegatedAddress {
+        let length = u.int_in_range(0usize..=MAX_SUBADDRESS_LEN)?;
+        let mut buffer = [0u8; MAX_SUBADDRESS_LEN];
+        for idx in 0..length {
+            buffer[idx] = arbitrary::Arbitrary::arbitrary(u)?;
+        }
+        let addr = DelegatedAddress {
             namespace: arbitrary::Arbitrary::arbitrary(u)?,
-            length: u.int_in_range(0usize..=MAX_SUBADDRESS_LEN)?,
-            buffer: arbitrary::Arbitrary::arbitrary(u)?,
-        })
+            length,
+            buffer,
+        };
+        Ok(addr)
     }
 }
 
