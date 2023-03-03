@@ -14,5 +14,10 @@ anyhow = "1.0.51"
 # depdendency is needed to enable the features of the re-export.
 multihash = { version = "0.16.1", default-features = false, features = ["multihash-impl"] }
 
+[dev-dependencies.multihash]
+version = "*"
+default-features = false
+features = ["multihash-impl", "blake2b"]
+
 [features]
 default = []
