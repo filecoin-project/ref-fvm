@@ -51,6 +51,9 @@ super::fvm_syscalls! {
     /// Destroys the calling actor, sending its current balance
     /// to the supplied address, which cannot be itself.
     ///
+    /// Fails when calling actor has a non zero balance and the beneficiary doesn't
+    /// exist or is the actor being deleted.
+    ///
     /// # Arguments
     ///
     /// - `addr_off` and `addr_len` specify the location and length of beneficiary's address in wasm

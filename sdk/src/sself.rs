@@ -56,7 +56,8 @@ pub fn current_balance() -> TokenAmount {
 /// Destroys the calling actor, sending its current balance
 /// to the supplied address, which cannot be itself.
 ///
-/// Fails if the beneficiary doesn't exist or is the actor being deleted.
+/// Fails when calling actor has a non zero balance and the beneficiary doesn't
+/// exist or is the actor being deleted.
 pub fn self_destruct(beneficiary: &Address) -> Result<(), ActorDeleteError> {
     let bytes = beneficiary.to_bytes();
     unsafe {

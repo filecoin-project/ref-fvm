@@ -62,9 +62,14 @@ pub fn invoke(_: u32) -> u32 {
     );
     assert_eq!(TokenAmount::from_nano(0), sdk::sself::current_balance());
 
-    // TODO (fridrik): test that self_destruct fails with ActorDeleteError::BeneficiaryDoesNotExist
-    // always returns Ok() since the balance was 0 and it does not resolve beneficiary address in
-    // that case
+    // calling destroy on an already destroyed actor should succeed (since its
+    // balance is 0)
+    //
+    // TODO (fridrik): we should consider changing this behaviour in the future
+    // and disallow destroying actor with non-zero balance)
+    //
+    sdk::sself::self_destruct(&Address::new_id(sdk::message::origin()))
+        .expect("deleting an already deleted actor should succeed since it has zero balance");
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("sself_actor.profraw", minicov::capture_coverage());
