@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
+use fvm_ipld_blockstore::Block;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use serde::de::value;
@@ -30,6 +31,16 @@ impl Debug for IpldBlock {
             .field("codec", &format_args!("{:x}", self.codec))
             .field("data", &HexFmtHelper(&self.data))
             .finish()
+    }
+}
+
+impl Block for IpldBlock {
+    fn codec(&self) -> u64 {
+        self.codec
+    }
+
+    fn data(&self) -> &[u8] {
+        &self.data
     }
 }
 
