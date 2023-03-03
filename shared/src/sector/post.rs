@@ -48,7 +48,7 @@ impl quickcheck::Arbitrary for PoStProof {
             ])
             .unwrap();
         PoStProof {
-            post_proof: (*registered_postproof).into(),
+            post_proof: *registered_postproof,
             proof_bytes: Vec::arbitrary(g),
         }
     }

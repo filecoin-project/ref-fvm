@@ -40,8 +40,8 @@ impl<'a> arbitrary::Arbitrary<'a> for DelegatedAddress {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         let length = u.int_in_range(0usize..=MAX_SUBADDRESS_LEN)?;
         let mut buffer = [0u8; MAX_SUBADDRESS_LEN];
-        for idx in 0..length {
-            buffer[idx] = arbitrary::Arbitrary::arbitrary(u)?;
+        for b in buffer.iter_mut().take(length) {
+            *b = arbitrary::Arbitrary::arbitrary(u)?;
         }
         let addr = DelegatedAddress {
             namespace: arbitrary::Arbitrary::arbitrary(u)?,
