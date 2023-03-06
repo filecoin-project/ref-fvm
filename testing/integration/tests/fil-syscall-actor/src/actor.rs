@@ -169,11 +169,20 @@ fn test_expected_hash() {
 
         assert_eq!(local_digest.digest(), digest.as_slice());
     }
+
+    // hash_owned and hash_into should return the same digest
+    {
+        let digest = sdk::crypto::hash_owned(SharedSupportedHashes::Blake2b512, test_bytes);
+        let mut buffer = [0u8; 64];
+        let len =
+            sdk::crypto::hash_into(SharedSupportedHashes::Blake2b512, test_bytes, &mut buffer);
+        assert_eq!(digest.len(), len);
+        assert_eq!(digest.as_slice(), buffer.as_slice());
+    }
 }
 
 // do funky things with hash syscall directly
 fn test_hash_syscall() {
-    use fvm_shared::error::ErrorNumber;
     use sdk::sys::crypto;
 
     let test_bytes = b"the quick fox jumped over the lazy dog";
