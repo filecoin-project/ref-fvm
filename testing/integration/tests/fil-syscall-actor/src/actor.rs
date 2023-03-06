@@ -6,6 +6,7 @@ use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::crypto::signature::{Signature, SECP_SIG_LEN};
 use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::sector::RegisteredSealProof;
 use multihash::derive::Multihash;
 use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
 
@@ -37,6 +38,7 @@ pub fn invoke(_: u32) -> u32 {
     test_signature();
     test_expected_hash();
     test_hash_syscall();
+    test_compute_unsealed_sector_cid();
     test_network_context();
     test_message_context();
     test_balance();
@@ -295,6 +297,31 @@ fn test_hash_syscall() {
         )
         .expect("Overlapping buffers should be allowed");
         assert_eq!(&buffer[..written as usize], known_digest.as_slice())
+    }
+}
+
+fn test_compute_unsealed_sector_cid() {
+    // test happy path
+    let pieces = Vec::new();
+    sdk::crypto::compute_unsealed_sector_cid(RegisteredSealProof::StackedDRG2KiBV1, &pieces)
+        .unwrap();
+
+    // test that calling sdk::sys::crypto::compute_unsealed_sector_cid with invalid parameters
+    // result in correct error value
+    //
+    unsafe {
+        let piece: Vec<u8> = vec![];
+        let mut cid: Vec<u8> = vec![];
+
+        // should fail for invalid RegisteredSealProof
+        let res = sdk::sys::crypto::compute_unsealed_sector_cid(
+            999,
+            piece.as_ptr(),
+            piece.len() as u32,
+            cid.as_mut_ptr(),
+            cid.len() as u32,
+        );
+        assert_eq!(res, Err(ErrorNumber::IllegalArgument));
     }
 }
 
