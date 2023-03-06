@@ -1,9 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_sdk as sdk;
+use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
-use fvm_shared::error::ExitCode;
+use fvm_shared::crypto::signature::Signature;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use multihash::derive::Multihash;
 use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
 
@@ -32,6 +34,7 @@ pub fn invoke(_: u32) -> u32 {
         )
     }));
 
+    test_verify_signature();
     test_expected_hash();
     test_hash_syscall();
     test_network_context();
@@ -41,6 +44,87 @@ pub fn invoke(_: u32) -> u32 {
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
     0
+}
+
+fn test_verify_signature() {
+    // the following vectors represent a valid secp256k1 signatures for an address and plaintext message
+    //
+    let signature_bytes = vec![
+        80, 210, 71, 248, 219, 226, 85, 142, 143, 235, 164, 155, 239, 68, 193, 23, 191, 215, 35,
+        70, 25, 34, 203, 14, 116, 134, 214, 3, 91, 22, 196, 172, 105, 154, 134, 128, 228, 172, 12,
+        25, 251, 166, 51, 0, 210, 45, 23, 91, 12, 18, 228, 43, 204, 157, 233, 81, 69, 3, 44, 121,
+        167, 31, 168, 52, 0,
+    ];
+    let pub_key_bytes = vec![
+        4, 223, 38, 78, 238, 254, 121, 58, 63, 120, 109, 108, 179, 105, 76, 211, 252, 223, 226, 1,
+        20, 220, 212, 77, 23, 190, 224, 138, 62, 103, 27, 48, 60, 150, 151, 233, 30, 217, 137, 151,
+        208, 24, 212, 117, 32, 94, 44, 118, 125, 40, 25, 31, 67, 154, 106, 97, 110, 32, 209, 62,
+        194, 146, 27, 16, 114,
+    ];
+    let message = vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3];
+
+    // test the happy path
+    //
+    let signature = Signature::new_secp256k1(signature_bytes.clone());
+    let address = Address::new_secp256k1(&pub_key_bytes).unwrap();
+    let res = sdk::crypto::verify_signature(&signature, &address, &message.as_slice());
+    assert_eq!(res, Ok(true));
+
+    // test with invalid signature
+    //
+    let mut invalid_signature_bytes = signature_bytes;
+    invalid_signature_bytes[0] += 1;
+    let invalid_signature = Signature::new_secp256k1(invalid_signature_bytes);
+    let res = sdk::crypto::verify_signature(&invalid_signature, &address, &message.as_slice());
+    assert_eq!(res, Ok(false));
+
+    // test with invalid address
+    //
+    let mut invalid_pub_key_bytes = pub_key_bytes;
+    invalid_pub_key_bytes[0] += 1;
+    let invalid_address = Address::new_secp256k1(&invalid_pub_key_bytes).unwrap();
+    let res = sdk::crypto::verify_signature(&signature, &invalid_address, &message.as_slice());
+    assert_eq!(res, Ok(false));
+
+    // test with invalid message
+    //
+    let mut invalid_message = message.clone();
+    invalid_message[0] += 1;
+    let res = sdk::crypto::verify_signature(&signature, &address, &invalid_message.as_slice());
+    assert_eq!(res, Ok(false));
+
+    // test that calling sdk::sys::crypto::verify_signature with invalid parameters result
+    // in correct error value
+    //
+    unsafe {
+        let sig_type = signature.signature_type();
+        let sig_bytes = signature.bytes();
+        let signer = address.to_bytes();
+
+        // test invalid signature type
+        let res = sdk::sys::crypto::verify_signature(
+            u32::MAX,
+            sig_bytes.as_ptr(),
+            sig_bytes.len() as u32,
+            signer.as_ptr(),
+            signer.len() as u32,
+            message.as_ptr(),
+            message.len() as u32,
+        );
+        assert_eq!(res, Err(ErrorNumber::IllegalArgument));
+
+        // test invalid signature ptr
+        let res = sdk::sys::crypto::verify_signature(
+            sig_type as u32,
+            sig_bytes.as_ptr(),
+            sig_bytes.len() as u32,
+            (u32::MAX) as *const u8,
+            signer.len() as u32,
+            message.as_ptr(),
+            message.len() as u32,
+        );
+        assert_eq!(res, Err(ErrorNumber::IllegalArgument));
+    }
 }
 
 // use SDK methods to hash and compares against locally (inside the actor) hashed digest
