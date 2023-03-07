@@ -106,8 +106,8 @@ impl ExitCode {
     pub const USR_ASSERTION_FAILED: ExitCode = ExitCode::new(24);
     /// The requested operation cannot be performed in "read-only" mode.
     pub const USR_READ_ONLY: ExitCode = ExitCode::new(25);
-    // pub const RESERVED_25: ExitCode = ExitCode::new(25);
-    // pub const RESERVED_26: ExitCode = ExitCode::new(26);
+    /// The method cannot handle a transfer of value.
+    pub const USR_NOT_PAYABLE: ExitCode = ExitCode::new(26);
     // pub const RESERVED_27: ExitCode = ExitCode::new(27);
     // pub const RESERVED_28: ExitCode = ExitCode::new(28);
     // pub const RESERVED_29: ExitCode = ExitCode::new(29);
