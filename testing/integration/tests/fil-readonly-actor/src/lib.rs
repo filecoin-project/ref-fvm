@@ -1,8 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-#[cfg(not(target_arch = "wasm32"))]
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::ipld_block::IpldBlock;

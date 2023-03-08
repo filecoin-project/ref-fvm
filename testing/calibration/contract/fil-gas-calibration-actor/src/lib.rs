@@ -17,8 +17,6 @@ use num_traits::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
 /// Just doing a few mutations in an array to make the hashes different.
 const MUTATION_COUNT: usize = 10;
 const NOP_ACTOR_ADDRESS: Address = Address::new_id(10001);

@@ -13,6 +13,3 @@ num-derive = "0.3"
 num-traits = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0.51"
-
-[build-dependencies]
-substrate-wasm-builder = "4.0.0"

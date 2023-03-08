@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fil_malformed_syscall_actor::WASM_BINARY as MALFORMED_ACTOR_BINARY;
 use fvm::call_manager::backtrace::Cause;
 use fvm::executor::{ApplyFailure, ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
@@ -18,6 +17,7 @@ use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
+mod actor_wasm_path;
 
 const WAT_UNKNOWN_SYSCALL: &str = r#"
     (module
@@ -125,7 +125,7 @@ fn non_existing_syscall() {
 #[test]
 fn malformed_syscall_parameter() {
     // Get wasm bin
-    let wasm_bin = MALFORMED_ACTOR_BINARY.unwrap();
+    let wasm_bin = actor_wasm_path::MALFORMED_SYSCALL_ACTOR_BINARY;
 
     // Instantiate tester
     let (sender, mut tester, actor_address) = instantiate_tester(wasm_bin);

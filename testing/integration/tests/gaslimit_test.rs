@@ -1,7 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use bundles::*;
-use fil_gaslimit_actor::WASM_BINARY as BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -16,6 +15,7 @@ use fvm_shared::version::NetworkVersion;
 use num_traits::Zero;
 use serde_tuple::*;
 
+mod actor_wasm_path;
 mod bundles;
 
 #[test]
@@ -36,7 +36,7 @@ fn gaslimit_test() {
         let addr = Address::new_id(10000);
         let actor_state = [(); 0];
         let state_cid = tester.set_state(&actor_state).unwrap();
-        let wasm_bin = BINARY.unwrap();
+        let wasm_bin = actor_wasm_path::GASLIMIT_ACTOR_BINARY;
         tester
             .set_actor_from_bin(wasm_bin, state_cid, addr, TokenAmount::zero())
             .unwrap();

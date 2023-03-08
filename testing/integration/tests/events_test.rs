@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 use bundles::*;
-use fil_events_actor::WASM_BINARY as EVENTS_BINARY;
+mod actor_wasm_path;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -134,7 +134,7 @@ fn setup() -> (
 
     let [(_sender_id, sender)] = tester.create_accounts().unwrap();
 
-    let wasm_bin = EVENTS_BINARY.unwrap();
+    let wasm_bin = actor_wasm_path::EVENTS_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = [(); 0];

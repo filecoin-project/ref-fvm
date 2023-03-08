@@ -9,5 +9,5 @@ fvm_sdk = { version = "3.0.0", path = "../../../../sdk" }
 fvm_shared = { version = "3.1.0", path = "../../../../shared" }
 actors_v10_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
-[build-dependencies]
-substrate-wasm-builder = "4.0.0"
+[lib]
+crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

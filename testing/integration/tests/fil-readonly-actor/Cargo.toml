@@ -10,5 +10,5 @@ fvm_shared = { version = "3.1.0", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
 cid = { version = "0.8.5", default-features = false }
 
-[build-dependencies]
-substrate-wasm-builder = "4.0.0"
+[lib]
+crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

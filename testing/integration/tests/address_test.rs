@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 use bundles::*;
-use fil_address_actor::WASM_BINARY as ADDRESS_BINARY;
+mod actor_wasm_path;
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_ipld_blockstore::MemoryBlockstore;
@@ -25,7 +25,7 @@ fn basic_address_tests() {
 
     let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
 
-    let wasm_bin = ADDRESS_BINARY.unwrap();
+    let wasm_bin = actor_wasm_path::ADDRESS_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = [(); 0];

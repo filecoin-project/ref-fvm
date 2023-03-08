@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fil_integer_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, Tester};
@@ -17,6 +16,7 @@ use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
+mod actor_wasm_path;
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -43,7 +43,7 @@ fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Add
     let actor_address = Address::new_id(10000);
 
     // Get wasm bin
-    let wasm_bin = OVERFLOW_BINARY.unwrap();
+    let wasm_bin = actor_wasm_path::INTEGER_OVERFLOW_ACTOR_BINARY;
 
     tester
         .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
