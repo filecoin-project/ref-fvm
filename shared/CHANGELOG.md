@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0 [2023-03-09]
+
+Update proofs. Unfortunately, this is a breaking change in a minor release, but we can't cut a v3...
+
 ## 2.0.0 [2022-10-12]
 
 No change.

@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 fvm_sdk = { version = "2.2.0", path = "../../../../sdk" }
-fvm_shared = { version = "2.0.0", path = "../../../../shared" }
+fvm_shared = { version = "2.3.0", path = "../../../../shared" }
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
