@@ -40,10 +40,12 @@ jobs:
             key: v3
             push: true
             command: build
+            args: --no-default-features
           - name: check-clippy
             key: v3
             command: clippy
-            args: --all --all-targets
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            args: --all --all-targets --no-default-features
             components: clippy
           - name: test-fvm
             key: v3-cov
