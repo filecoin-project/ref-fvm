@@ -1070,7 +1070,7 @@ fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
     }
     if total_value_size > MAX_DATA {
         return Err(
-            syscall_error!(IllegalArgument; "event total values exceeded max size: {total_value_size} > {MAX_DATA}").into(),
+            syscall_error!(IllegalArgument; "event total values exceeded max size: {} > {}", total_value_size, MAX_DATA).into(),
         );
     }
     Ok(())
