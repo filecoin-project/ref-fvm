@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.0 [2023-03-09]
+
+Update proofs. Unfortunately, this is a breaking change in a minor release but we need to do the same on the v2 release as well. The correct solution is to introduce two crates, fvm1 and fvm2, but that's a future project.
+
 ## 3.0.0 [2022-02-24]
 
 - Final release for NV18.
