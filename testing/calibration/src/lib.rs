@@ -23,8 +23,10 @@ use lazy_static::lazy_static;
 use num_traits::Zero;
 use serde::Serialize;
 
-pub const WASM_COMPILED_PATH: &str =
-    "../../target/release/wbuild/fil_gas_calibration_actor/fil_gas_calibration_actor.compact.wasm";
+pub const GAS_CALIBRATION_ACTOR_BIN: &[u8] = include_bytes!(concat!(
+    env!("OUT_DIR"),
+    "/bundle/wasm32-unknown-unknown/wasm/fil_gas_calibration_actor.wasm"
+));
 
 pub const ENOUGH_GAS: Gas = Gas::new(1_000_000_000);
 
@@ -129,14 +131,7 @@ pub fn instantiate_tester() -> TestEnv {
     // Set actor
     let actor_address = Address::new_id(10000);
 
-    // Get wasm bin
-    let wasm_path = std::env::current_dir()
-        .unwrap()
-        .join(WASM_COMPILED_PATH)
-        .canonicalize()
-        .unwrap();
-
-    let wasm_bin = std::fs::read(wasm_path).expect("Unable to read file");
+    let wasm_bin = GAS_CALIBRATION_ACTOR_BIN;
 
     tester
         .set_actor_from_bin(
