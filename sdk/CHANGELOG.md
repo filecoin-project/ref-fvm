@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.0.0 [2023-02-24]
+
+- Final release for NV18.
+
 ## 3.0.0-alpha.24 [2023-02-06]
 
 - Update fvm shared for event changes.

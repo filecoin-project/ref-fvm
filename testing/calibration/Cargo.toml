@@ -8,8 +8,8 @@ authors = ["Protocol Labs", "Filecoin Core Devs"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "3.0.0-rc.1", path = "../../fvm", default-features = false, features = ["testing", "gas_calibration"] }
-fvm_shared = { version = "3.0.0-alpha.20", path = "../../shared", features = ["testing"] }
+fvm = { version = "3.0.0", path = "../../fvm", default-features = false, features = ["testing", "gas_calibration"] }
+fvm_shared = { version = "3.0.0", path = "../../shared", features = ["testing"] }
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
