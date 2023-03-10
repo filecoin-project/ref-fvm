@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::{to_vec, BytesSer, DAG_CBOR};
 use fvm_sdk as sdk;
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
 
 fn gen_test_bytes(size: i32) -> Vec<u8> {

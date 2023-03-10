@@ -6,7 +6,6 @@ use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
 use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
 #[no_mangle]
