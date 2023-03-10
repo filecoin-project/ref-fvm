@@ -7,12 +7,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
-    std::panic::set_hook(Box::new(|info| {
-        sdk::vm::abort(
-            ExitCode::USR_ASSERTION_FAILED.value(),
-            Some(&format!("{}", info)),
-        )
-    }));
+    sdk::initialize();
 
     let method = sdk::message::method_number();
 

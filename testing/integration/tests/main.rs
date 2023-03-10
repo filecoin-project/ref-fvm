@@ -335,8 +335,6 @@ fn create_actor() {
                 panic!("non-zero exit code {}", res.msg_receipt.exit_code)
             }
         }
-
-        assert_eq!(res.msg_receipt.exit_code, ExitCode::OK);
     }
 
     {

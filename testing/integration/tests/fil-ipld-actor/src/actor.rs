@@ -14,12 +14,7 @@ fn gen_test_bytes(size: i32) -> Vec<u8> {
 
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
-    std::panic::set_hook(Box::new(|info| {
-        sdk::vm::abort(
-            ExitCode::USR_ASSERTION_FAILED.value(),
-            Some(&format!("{}", info)),
-        )
-    }));
+    sdk::initialize();
 
     test_open_block();
     test_read_block();

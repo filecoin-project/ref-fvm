@@ -2017,8 +2017,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.3.3",
- "fvm_sdk 3.0.0-alpha.24",
- "fvm_shared 3.0.0-alpha.20",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.1.0",
  "minicov",
  "substrate-wasm-builder",
 ]
