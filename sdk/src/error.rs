@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use thiserror::Error;
 
-#[derive(Copy, Clone, Debug, Error)]
+#[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 #[error("actor has been deleted")]
 pub struct StateReadError;
 

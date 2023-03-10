@@ -17,7 +17,7 @@
 // Also, please also read the docs on super::SyscallSafe before modifying any of these types.
 
 pub mod ipld {
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct IpldOpen {
         pub codec: u64,
@@ -25,7 +25,7 @@ pub mod ipld {
         pub size: u32,
     }
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct IpldStat {
         pub codec: u64,
@@ -36,7 +36,7 @@ pub mod ipld {
 pub mod send {
     use crate::sys::BlockId;
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct Send {
         pub exit_code: u32,
@@ -49,7 +49,7 @@ pub mod send {
 pub mod crypto {
     use crate::{ActorID, ChainEpoch};
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct VerifyConsensusFault {
         pub epoch: ChainEpoch,
@@ -81,7 +81,7 @@ pub mod vm {
         }
     }
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct MessageContext {
         /// The current call's origin actor ID.
@@ -110,7 +110,7 @@ pub mod network {
     use crate::sys::TokenAmount;
     use crate::version::NetworkVersion;
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     #[repr(packed, C)]
     pub struct NetworkContext {
         /// The current epoch.

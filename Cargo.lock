@@ -2012,6 +2012,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_sself_actor"
+version = "0.1.0"
+dependencies = [
+ "cid",
+ "fvm_ipld_encoding 0.3.3",
+ "fvm_sdk 3.0.0",
+ "fvm_shared 3.1.0",
+ "minicov",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
@@ -2537,6 +2549,7 @@ dependencies = [
  "fil_malformed_syscall_actor",
  "fil_oom_actor",
  "fil_readonly_actor",
+ "fil_sself_actor",
  "fil_stack_overflow_actor",
  "fil_syscall_actor",
  "futures",

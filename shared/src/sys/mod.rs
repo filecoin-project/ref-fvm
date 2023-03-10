@@ -16,7 +16,7 @@ pub type Codec = u64;
 ///
 /// Internally, this type is a tuple of `u64`s storing the "low" and "high" bits of a little-endian
 /// u128.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(packed, C)]
 pub struct TokenAmount {
     pub lo: u64,

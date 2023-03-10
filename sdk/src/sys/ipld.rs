@@ -113,6 +113,7 @@ super::fvm_syscalls! {
     /// |---------------------|---------------------------------------------------|
     /// | [`InvalidHandle`]   | if the handle isn't known.                        |
     /// | [`IllegalCid`]      | hash code and/or hash length aren't supported.    |
+    /// | [`BufferTooSmall`]  | if the passed buffer is too small                 |
     /// | [`IllegalArgument`] | if the passed buffer isn't valid, in memory, etc. |
     pub fn block_link(
         id: u32,
