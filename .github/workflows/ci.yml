@@ -71,6 +71,7 @@ jobs:
           - os: macos-latest
             name: test-fvm
     env:
+      CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
