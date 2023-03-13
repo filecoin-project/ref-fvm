@@ -44,7 +44,7 @@ pub fn invoke(params_id: u32) -> u32 {
             &params.dest,
             0,
             Default::default(),
-            ten.clone(),
+            ten,
             None,
             Default::default(),
         )
@@ -57,7 +57,7 @@ pub fn invoke(params_id: u32) -> u32 {
                 flags: Flags::all(),
                 key: "foo".to_owned(),
                 codec: IPLD_RAW,
-                value: fvm_ipld_encoding::to_vec(&payload).unwrap().into(),
+                value: fvm_ipld_encoding::to_vec(&payload).unwrap(),
             }]
         };
         sdk::event::emit_event(&single_entry_evt.into()).unwrap();
@@ -78,7 +78,7 @@ pub fn invoke(params_id: u32) -> u32 {
         &params.dest,
         0,
         Default::default(),
-        fifty.clone(),
+        fifty,
         None,
         Default::default(),
     )

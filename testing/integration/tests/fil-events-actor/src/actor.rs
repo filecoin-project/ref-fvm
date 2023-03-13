@@ -70,7 +70,7 @@ pub fn invoke(params: u32) -> u32 {
 
             // emit two events.
             sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
-            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+            sdk::event::emit_event(&single_entry_evt.into()).unwrap();
 
             let our_addr = Address::new_id(sdk::message::receiver());
 
@@ -97,7 +97,7 @@ pub fn invoke(params: u32) -> u32 {
 
             // emit two events.
             sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
-            sdk::event::emit_event(&single_entry_evt.clone().into()).unwrap();
+            sdk::event::emit_event(&single_entry_evt.into()).unwrap();
 
             let our_addr = Address::new_id(sdk::message::receiver());
 

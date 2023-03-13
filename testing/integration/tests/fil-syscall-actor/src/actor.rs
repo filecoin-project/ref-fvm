@@ -64,7 +64,7 @@ fn test_signature() {
     //
     let signature = Signature::new_secp256k1(signature_bytes.clone());
     let address = Address::new_secp256k1(&pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &address, &message.as_slice());
+    let res = sdk::crypto::verify_signature(&signature, &address, message.as_slice());
     assert_eq!(res, Ok(true));
 
     // test with invalid signature
@@ -72,7 +72,7 @@ fn test_signature() {
     let mut invalid_signature_bytes = signature_bytes.clone();
     invalid_signature_bytes[0] += 1;
     let invalid_signature = Signature::new_secp256k1(invalid_signature_bytes.clone());
-    let res = sdk::crypto::verify_signature(&invalid_signature, &address, &message.as_slice());
+    let res = sdk::crypto::verify_signature(&invalid_signature, &address, message.as_slice());
     assert_eq!(res, Ok(false));
 
     // test with invalid address
@@ -80,14 +80,14 @@ fn test_signature() {
     let mut invalid_pub_key_bytes = pub_key_bytes.clone();
     invalid_pub_key_bytes[0] += 1;
     let invalid_address = Address::new_secp256k1(&invalid_pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &invalid_address, &message.as_slice());
+    let res = sdk::crypto::verify_signature(&signature, &invalid_address, message.as_slice());
     assert_eq!(res, Ok(false));
 
     // test with invalid message
     //
     let mut invalid_message = message.clone();
     invalid_message[0] += 1;
-    let res = sdk::crypto::verify_signature(&signature, &address, &invalid_message.as_slice());
+    let res = sdk::crypto::verify_signature(&signature, &address, invalid_message.as_slice());
     assert_eq!(res, Ok(false));
 
     // test that calling sdk::sys::crypto::verify_signature with invalid parameters result
@@ -126,7 +126,7 @@ fn test_signature() {
     // test we can recover the public key from the signature
     //
     let hash = sdk::crypto::hash_blake2b(&message);
-    let sig: [u8; SECP_SIG_LEN] = signature_bytes.clone().try_into().unwrap();
+    let sig: [u8; SECP_SIG_LEN] = signature_bytes.try_into().unwrap();
     let res = sdk::crypto::recover_secp_public_key(&hash, &sig).unwrap();
     assert_eq!(res, pub_key_bytes.as_slice());
 

@@ -135,7 +135,7 @@ pub fn instantiate_tester() -> TestEnv {
 
     tester
         .set_actor_from_bin(
-            &wasm_bin,
+            wasm_bin,
             state_cid,
             actor_address,
             TokenAmount::from_whole(100),
