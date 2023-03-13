@@ -3,10 +3,12 @@
 
 /// Placeholder invoke for testing
 #[no_mangle]
+#[cfg(target_arch = "wasm32")]
 pub fn invoke(blk: u32) -> u32 {
     invoke_method(blk)
 }
 
+#[cfg(target_arch = "wasm32")]
 fn invoke_method(_: u32) -> ! {
     use fvm_sdk as sdk;
     let method = sdk::message::method_number();
@@ -37,6 +39,7 @@ fn invoke_method(_: u32) -> ! {
 }
 
 //  Allocate a single big chunk and keep resizing until OOm
+#[cfg(target_arch = "wasm32")]
 fn allocate_one() {
     let mut mem = Vec::<u8>::new();
     mem.resize(1024 * 1024, 0);
@@ -47,6 +50,7 @@ fn allocate_one() {
 }
 
 // Allocate many small chunks until OOm
+#[cfg(target_arch = "wasm32")]
 fn allocate_many() {
     let mut chunks = Vec::<Vec<u8>>::new();
     for _ in 1.. {
@@ -56,6 +60,7 @@ fn allocate_many() {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 fn allocate_some() {
     // 64 WASM pages
     let _ = Vec::<u8>::with_capacity(64 * 65536);
