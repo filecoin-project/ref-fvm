@@ -20,3 +20,7 @@ overflow-checks = true
 lto = true
 opt-level = "z"
 #strip = true
+
+# so we don't run out of disk space on Github CI
+[profile.dev.package.fvm_gas_calibration]
+strip = true
