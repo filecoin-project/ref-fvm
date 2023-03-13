@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .join("Cargo.toml");
     println!("cargo:warning=manifest_path={:?}", &manifest_path);
 
-    for file in ["Cargo.toml", "Cargo.lock", "src", "build.rs"] {
+    for file in ["Cargo.toml", "Cargo.lock", "src", "tests", "build.rs"] {
         println!("cargo:rerun-if-changed={}", file);
     }
 

@@ -15,7 +15,6 @@ use sdk::sys::ErrorNumber;
 
 /// Placeholder invoke for testing
 #[no_mangle]
-#[cfg(target_arch = "wasm32")]
 pub fn invoke(blk: u32) -> u32 {
     invoke_method(blk, sdk::message::method_number())
 }
