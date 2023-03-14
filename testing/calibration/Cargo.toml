@@ -15,7 +15,7 @@ fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
 fvm_integration_tests = { path = "../integration" }
 
-actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "alex/update-deps" }
 fil_gas_calibration_actor = { path = "contract/fil-gas-calibration-actor" }
 
 anyhow = "1.0.47"
