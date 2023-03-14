@@ -56,7 +56,7 @@ fil_sself_actor ={ path = 'tests/fil-sself-actor' }
 
 hex = "0.4.3"
 
-actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
 
 [features]
 default = []
