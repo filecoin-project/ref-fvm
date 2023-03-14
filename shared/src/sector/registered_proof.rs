@@ -12,7 +12,7 @@ use crate::clock;
 use crate::version::NetworkVersion;
 
 /// Seal proof type which defines the version and sector size.
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[derive(Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum RegisteredSealProof {
     StackedDRG2KiBV1,
     StackedDRG512MiBV1,
@@ -95,7 +95,7 @@ impl Default for RegisteredSealProof {
 }
 
 /// Proof of spacetime type, indicating version and sector size of the proof.
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[derive(Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum RegisteredPoStProof {
     StackedDRGWinning2KiBV1,
