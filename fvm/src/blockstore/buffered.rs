@@ -5,23 +5,25 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek};
+use std::marker::PhantomData;
 
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
-use fvm_ipld_blockstore::{Blockstore, Buffered};
+use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
 use fvm_ipld_encoding::{CBOR, DAG_CBOR};
 use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED};
 
 /// Wrapper around `Blockstore` to limit and have control over when values are written.
 /// This type is not threadsafe and can only be used in synchronous contexts.
 #[derive(Debug)]
-pub struct BufferedBlockstore<BS> {
+pub struct BufferedBlockstore<BS, C = multihash::Code> {
     base: BS,
     write: RefCell<HashMap<Cid, Vec<u8>>>,
+    _marker: PhantomData<fn() -> C>,
 }
 
-impl<BS> BufferedBlockstore<BS>
+impl<BS, C> BufferedBlockstore<BS, C>
 where
     BS: Blockstore,
 {
@@ -29,11 +31,26 @@ where
         Self {
             base,
             write: Default::default(),
+            _marker: Default::default(),
         }
     }
 
     pub fn into_inner(self) -> BS {
         self.base
+    }
+}
+
+impl<BS, C> BufferedBlockstore<BS, C>
+where
+    C: multihash::MultihashDigest<64>,
+    anyhow::Error: From<C::Error>,
+{
+    fn cid_of(&self, mh_code: u64, block: &dyn Block) -> Result<Cid> {
+        let mh_code = C::try_from(mh_code)?;
+        let data = block.data();
+        let codec = block.codec();
+        let digest = mh_code.digest(data);
+        Ok(Cid::new_v1(codec, digest))
     }
 }
 
@@ -229,9 +246,11 @@ fn copy_rec<'a>(
     Ok(())
 }
 
-impl<BS> Blockstore for BufferedBlockstore<BS>
+impl<BS, C> Blockstore for BufferedBlockstore<BS, C>
 where
     BS: Blockstore,
+    C: multihash::MultihashDigest<64>,
+    anyhow::Error: From<C::Error>,
 {
     fn get(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         Ok(if let Some(data) = self.write.borrow().get(cid) {
@@ -239,6 +258,12 @@ where
         } else {
             self.base.get(cid)?
         })
+    }
+
+    fn put(&self, mh_code: u64, block: &dyn fvm_ipld_blockstore::Block) -> Result<Cid> {
+        let k = self.cid_of(mh_code, block)?;
+        self.put_keyed(&k, block.data())?;
+        Ok(k)
     }
 
     fn put_keyed(&self, cid: &Cid, buf: &[u8]) -> Result<()> {

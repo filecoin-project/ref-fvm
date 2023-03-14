@@ -4,7 +4,8 @@ use std::ops::RangeInclusive;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
+use fvm_ipld_blockstore::{Blockstore, Buffered};
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CborStore, DAG_CBOR};
 use fvm_shared::version::NetworkVersion;
 use log::debug;
@@ -24,8 +25,9 @@ use crate::EMPTY_ARR_CID;
 
 lazy_static::lazy_static! {
     /// Pre-serialized block containing the empty array
-    pub static ref EMPTY_ARRAY_BLOCK: Block<Vec<u8>> = {
-        Block::new(DAG_CBOR, to_vec::<[(); 0]>(&[]).unwrap())
+    pub static ref EMPTY_ARRAY_BLOCK: IpldBlock = IpldBlock {
+        codec: DAG_CBOR,
+        data: to_vec::<[(); 0]>(&[]).unwrap(),
     };
 }
 
@@ -194,7 +196,7 @@ where
 // Helper method that puts certain "empty" types in the blockstore.
 // These types are privileged by some parts of the system (eg. as the default actor state).
 fn put_empty_blocks<B: Blockstore>(blockstore: B) -> anyhow::Result<()> {
-    let empty_arr_cid = blockstore.put(Blake2b256, &EMPTY_ARRAY_BLOCK)?;
+    let empty_arr_cid = blockstore.put(Blake2b256.into(), &*EMPTY_ARRAY_BLOCK)?;
 
     debug_assert!(
         empty_arr_cid == *EMPTY_ARR_CID,

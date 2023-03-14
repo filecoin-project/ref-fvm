@@ -5,7 +5,6 @@
 use std::cell::RefCell;
 
 use anyhow::Result;
-use cid::multihash::{self, Code};
 use cid::Cid;
 
 use super::{Block, Blockstore};
@@ -62,13 +61,10 @@ where
         self.base.has(cid)
     }
 
-    fn put<D>(&self, code: Code, block: &Block<D>) -> Result<Cid>
-    where
-        D: AsRef<[u8]>,
-    {
+    fn put(&self, code: u64, block: &dyn Block) -> Result<Cid> {
         let mut stats = self.stats.borrow_mut();
         stats.w += 1;
-        stats.bw += block.as_ref().len();
+        stats.bw += block.data().len();
         self.base.put(code, block)
     }
 
@@ -79,16 +75,16 @@ where
         self.base.put_keyed(k, block)
     }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many<B, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        B: Block,
+        I: IntoIterator<Item = (u64, B)>,
     {
         let mut stats = self.stats.borrow_mut();
         self.base.put_many(blocks.into_iter().inspect(|(_, b)| {
             stats.w += 1;
-            stats.bw += b.as_ref().len();
+            stats.bw += b.data().len();
         }))?;
         Ok(())
     }
@@ -111,6 +107,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use cid::multihash::{Code, MultihashDigest};
+
     use super::*;
     use crate::{Block, MemoryBlockstore};
 
@@ -120,8 +118,10 @@ mod tests {
         let tr_store = TrackingBlockstore::new(&mem);
         assert_eq!(*tr_store.stats.borrow(), BSStats::default());
 
-        let block = Block::new(0x55, &b"foobar"[..]);
-        tr_store.get(&block.cid(Code::Blake2b256)).unwrap();
+        let block = (0x55, &b"foobar"[..]);
+        let mh = Code::Blake2b256.digest(block.data());
+        let k = Cid::new_v1(block.codec(), mh);
+        tr_store.get(&k).unwrap();
         assert_eq!(
             *tr_store.stats.borrow(),
             BSStats {
@@ -130,8 +130,11 @@ mod tests {
             }
         );
 
-        let put_cid = tr_store.put(Code::Blake2b256, &block).unwrap();
-        assert_eq!(tr_store.get(&put_cid).unwrap().as_deref(), Some(block.data));
+        let put_cid = tr_store.put(Code::Blake2b256.into(), &block).unwrap();
+        assert_eq!(
+            tr_store.get(&put_cid).unwrap().as_deref(),
+            Some(block.data())
+        );
         assert_eq!(
             *tr_store.stats.borrow(),
             BSStats {

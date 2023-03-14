@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 // test target
 use fvm::kernel::default::DefaultKernel;
-use fvm::kernel::{Block, BlockRegistry};
+use fvm::kernel::BlockRegistry;
 use fvm::Kernel;
 use multihash::Code;
 use num_traits::Zero;

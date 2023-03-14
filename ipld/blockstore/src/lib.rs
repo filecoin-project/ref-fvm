@@ -3,15 +3,57 @@
 use std::rc::Rc;
 
 use anyhow::Result;
-use cid::{multihash, Cid};
+use cid::Cid;
 
 pub mod tracking;
 
 mod memory;
 pub use memory::MemoryBlockstore;
 
-mod block;
-pub use block::*;
+pub trait Block {
+    fn codec(&self) -> u64;
+    fn data(&self) -> &[u8];
+    fn len(&self) -> usize {
+        self.data().len()
+    }
+}
+
+impl<T: Block> Block for &T {
+    fn codec(&self) -> u64 {
+        (**self).codec()
+    }
+    fn data(&self) -> &[u8] {
+        (**self).data()
+    }
+}
+
+impl<T: Block> Block for Box<T> {
+    fn codec(&self) -> u64 {
+        (**self).codec()
+    }
+    fn data(&self) -> &[u8] {
+        (**self).data()
+    }
+}
+
+impl<T: Block> Block for Rc<T> {
+    fn codec(&self) -> u64 {
+        (**self).codec()
+    }
+    fn data(&self) -> &[u8] {
+        (**self).data()
+    }
+}
+
+impl<D: AsRef<[u8]>> Block for (u64, D) {
+    fn codec(&self) -> u64 {
+        self.0
+    }
+
+    fn data(&self) -> &[u8] {
+        self.1.as_ref()
+    }
+}
 
 /// An IPLD blockstore suitable for injection into the FVM.
 ///
@@ -34,17 +76,7 @@ pub trait Blockstore {
     }
 
     /// Puts the block into the blockstore, computing the hash with the specified multicodec.
-    ///
-    /// By default, this defers to put.
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-    {
-        let k = block.cid(mh_code);
-        self.put_keyed(&k, block.as_ref())?;
-        Ok(k)
-    }
+    fn put(&self, mh_code: u64, block: &dyn Block) -> Result<Cid>;
 
     /// Bulk put blocks into the blockstore.
     ///
@@ -54,16 +86,18 @@ pub trait Blockstore {
     /// use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
-    /// let blocks = vec![Block::new(0x55, vec![0, 1, 2])];
-    /// bs.put_many(blocks.iter().map(|b| (Blake2b256, b.into()))).unwrap();
+    /// let blocks = vec![(0x55, vec![0, 1, 2])];
+    /// bs.put_many(blocks.iter().map(|b| (Blake2b256.into(), b))).unwrap();
     /// ```
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many<B, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        B: Block,
+        I: IntoIterator<Item = (u64, B)>,
     {
-        self.put_many_keyed(blocks.into_iter().map(|(mc, b)| (b.cid(mc), b)))?;
+        for (code, block) in blocks {
+            self.put(code, &block)?;
+        }
         Ok(())
     }
 
@@ -103,19 +137,15 @@ where
         (*self).has(k)
     }
 
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-    {
+    fn put(&self, mh_code: u64, block: &dyn Block) -> Result<Cid> {
         (*self).put(mh_code, block)
     }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many<B, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        B: Block,
+        I: IntoIterator<Item = (u64, B)>,
     {
         (*self).put_many(blocks)
     }
@@ -146,19 +176,15 @@ where
         (**self).has(k)
     }
 
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-    {
+    fn put(&self, mh_code: u64, block: &dyn Block) -> Result<Cid> {
         (**self).put(mh_code, block)
     }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
+    fn put_many<B, I>(&self, blocks: I) -> Result<()>
     where
         Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        B: Block,
+        I: IntoIterator<Item = (u64, B)>,
     {
         (**self).put_many(blocks)
     }

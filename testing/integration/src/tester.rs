@@ -9,7 +9,7 @@ use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
-use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{ser, CborStore};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
@@ -421,12 +421,6 @@ impl BasicTester {
 
 /// Inserts the WASM code for the actor into the blockstore.
 fn put_wasm_code(blockstore: &impl Blockstore, wasm_binary: &[u8]) -> Result<Cid> {
-    let cid = blockstore.put(
-        Code::Blake2b256,
-        &Block {
-            codec: IPLD_RAW,
-            data: wasm_binary,
-        },
-    )?;
+    let cid = blockstore.put(Code::Blake2b256.into(), &(IPLD_RAW, wasm_binary))?;
     Ok(cid)
 }
