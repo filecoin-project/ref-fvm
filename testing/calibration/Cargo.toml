@@ -14,9 +14,8 @@ fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
 fvm_integration_tests = { path = "../integration" }
-
+fvm_gas_calibration_shared = { path = "./shared" }
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
-fil_gas_calibration_actor = { path = "contract/fil-gas-calibration-actor" }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
@@ -29,8 +28,6 @@ rand = "0.8.5"
 rand_chacha = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_tuple = "0.5"
-serde_repr = "0.1"
 thiserror = "1.0.30"
 bls-signatures = { version = "0.13", default-features = false }
 blake2b_simd = "1.0.0"

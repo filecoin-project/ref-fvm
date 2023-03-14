@@ -1865,6 +1865,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cid",
+ "fvm_gas_calibration_shared",
  "fvm_ipld_encoding 0.3.3",
  "fvm_sdk 3.0.0",
  "fvm_shared 3.1.0",
@@ -2452,9 +2453,9 @@ dependencies = [
  "bls-signatures",
  "cid",
  "fil_builtin_actors_bundle",
- "fil_gas_calibration_actor",
  "futures",
  "fvm",
+ "fvm_gas_calibration_shared",
  "fvm_integration_tests",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
@@ -2468,11 +2469,20 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "serde_repr",
- "serde_tuple",
  "thiserror",
  "wasmtime",
  "wat",
+]
+
+[[package]]
+name = "fvm_gas_calibration_shared"
+version = "0.1.0"
+dependencies = [
+ "fvm_shared 3.1.0",
+ "num-derive",
+ "num-traits",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

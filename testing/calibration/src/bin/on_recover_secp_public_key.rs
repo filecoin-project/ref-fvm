@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 #![feature(slice_group_by)]
 
-use fil_gas_calibration_actor::{Method, OnRecoverSecpPublicKeyParams};
 use fvm_gas_calibration::*;
+use fvm_gas_calibration_shared::{Method, OnRecoverSecpPublicKeyParams};
 use rand::{thread_rng, Rng, RngCore};
 
 const CHARGE_NAME: &str = "OnRecoverSecpPublicKey";

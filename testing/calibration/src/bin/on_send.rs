@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 #![feature(slice_group_by)]
 
-use fil_gas_calibration_actor::{Method, OnSendParams};
 use fvm_gas_calibration::*;
+use fvm_gas_calibration_shared::{Method, OnSendParams};
 
 const TRANSFER_CHARGE_NAME: &str = "OnValueTransfer";
 const INVOKE_CHARGE_NAME: &str = "OnMethodInvocation";
