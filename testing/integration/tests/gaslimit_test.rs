@@ -12,10 +12,10 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_wasm_builder::wasm_bin::GASLIMIT_ACTOR_BINARY;
 use num_traits::Zero;
 use serde_tuple::*;
 
-mod actor_wasm_path;
 mod bundles;
 
 #[test]
@@ -36,7 +36,7 @@ fn gaslimit_test() {
         let addr = Address::new_id(10000);
         let actor_state = [(); 0];
         let state_cid = tester.set_state(&actor_state).unwrap();
-        let wasm_bin = actor_wasm_path::GASLIMIT_ACTOR_BINARY;
+        let wasm_bin = GASLIMIT_ACTOR_BINARY;
         tester
             .set_actor_from_bin(wasm_bin, state_cid, addr, TokenAmount::zero())
             .unwrap();

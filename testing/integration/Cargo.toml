@@ -34,6 +34,7 @@ default-features = false
 features = ["cranelift", "parallel-compilation"]
 
 [dev-dependencies]
+fvm_test_wasm_builder = { path = "../wasm_builder" }
 wat = "1.0.51"
 hex = "0.4.3"
 

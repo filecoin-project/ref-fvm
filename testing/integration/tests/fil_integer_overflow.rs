@@ -12,11 +12,11 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_wasm_builder::wasm_bin::INTEGER_OVERFLOW_ACTOR_BINARY;
 use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
-mod actor_wasm_path;
 
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
 pub struct State {
@@ -43,7 +43,7 @@ fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Add
     let actor_address = Address::new_id(10000);
 
     // Get wasm bin
-    let wasm_bin = actor_wasm_path::INTEGER_OVERFLOW_ACTOR_BINARY;
+    let wasm_bin = INTEGER_OVERFLOW_ACTOR_BINARY;
 
     tester
         .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())

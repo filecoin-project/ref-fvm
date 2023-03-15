@@ -2512,6 +2512,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_shared 3.1.0",
+ "fvm_test_wasm_builder",
  "hex",
  "lazy_static",
  "libsecp256k1",
@@ -2907,6 +2908,10 @@ dependencies = [
  "thiserror",
  "unsigned-varint",
 ]
+
+[[package]]
+name = "fvm_test_wasm_builder"
+version = "0.1.0"
 
 [[package]]
 name = "fxhash"

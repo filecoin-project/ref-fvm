@@ -7,6 +7,9 @@ use std::process::{Command, Stdio};
 use std::thread;
 
 const ACTORS: &[&str] = &[
+    // calibration test actors
+    "fil_gas_calibration_actor",
+    // integration test
     "fil_hello_world_actor",
     "fil_stack_overflow_actor",
     "fil_ipld_actor",
@@ -26,7 +29,6 @@ const ACTORS: &[&str] = &[
 fn main() -> Result<(), Box<dyn Error>> {
     // Cargo executable location.
     let cargo = std::env::var_os("CARGO").expect("no CARGO env var");
-    println!("cargo:warning=cargo: {:?}", &cargo);
 
     let out_dir = std::env::var_os("OUT_DIR")
         .as_ref()
@@ -38,9 +40,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let manifest_path =
         Path::new(&std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR unset"))
             .join("Cargo.toml");
-    println!("cargo:warning=manifest_path={:?}", &manifest_path);
 
-    for file in ["Cargo.toml", "Cargo.lock", "src", "tests", "build.rs"] {
+    for file in [
+        "Cargo.toml",
+        "src",
+        "../integration/src",
+        "../integration/tests",
+        "../integration/Cargo.toml",
+        "../calibration/contract",
+        "../calibration/shared",
+        "../calibration/src",
+        "../calibration/Cargo.toml",
+    ] {
         println!("cargo:rerun-if-changed={}", file);
     }
 

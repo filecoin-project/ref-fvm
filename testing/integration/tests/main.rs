@@ -18,11 +18,14 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_wasm_builder::wasm_bin::{
+    CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY,
+    OOM_ACTOR_BINARY, SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+};
 use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
-mod actor_wasm_path;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::ActorID;
 
@@ -44,7 +47,7 @@ fn hello_world() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::HELLO_WORLD_ACTOR_BINARY;
+    let wasm_bin = HELLO_WORLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -90,7 +93,7 @@ fn ipld() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::IPLD_ACTOR_BINARY;
+    let wasm_bin = IPLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -143,7 +146,7 @@ fn syscalls() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
 
-    let wasm_bin = actor_wasm_path::SYSCALL_ACTOR_BINARY;
+    let wasm_bin = SYSCALL_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -205,7 +208,7 @@ fn sself() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     println!("sender: {:?}", sender);
 
-    let wasm_bin = actor_wasm_path::SSELF_ACTOR_BINARY;
+    let wasm_bin = SSELF_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = [(); 0];
@@ -272,7 +275,7 @@ fn create_actor() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
 
-    let wasm_bin = actor_wasm_path::CREATE_ACTOR_BINARY;
+    let wasm_bin = CREATE_ACTOR_BINARY;
 
     // Configure actor allowed to call create_actor
     let actor_state = State::default();
@@ -369,7 +372,7 @@ fn exit_data() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::EXIT_DATA_ACTOR_BINARY;
+    let wasm_bin = EXIT_DATA_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -472,7 +475,7 @@ fn native_stack_overflow() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::STACK_OVERFLOW_ACTOR_BINARY;
+    let wasm_bin = STACK_OVERFLOW_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -806,7 +809,7 @@ fn test_oom1() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::OOM_ACTOR_BINARY;
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -852,7 +855,7 @@ fn test_oom2() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::OOM_ACTOR_BINARY;
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -900,7 +903,7 @@ fn test_oom3() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::HELLO_WORLD_ACTOR_BINARY;
+    let wasm_bin = HELLO_WORLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -956,7 +959,7 @@ fn test_oom4() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = actor_wasm_path::OOM_ACTOR_BINARY;
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();

@@ -15,6 +15,10 @@ macro_rules! wasm_bin {
     };
 }
 
+// calibration test actors
+pub const GAS_CALIBRATION_ACTOR_BIN: &[u8] = include_bytes!(wasm_bin!("fil_gas_calibration_actor"));
+
+// integration test actors
 pub const READONLY_ACTOR_BINARY: &[u8] = include_bytes!(wasm_bin!("fil_readonly_actor"));
 pub const ADDRESS_ACTOR_BINARY: &[u8] = include_bytes!(wasm_bin!("fil_address_actor"));
 pub const HELLO_WORLD_ACTOR_BINARY: &[u8] = include_bytes!(wasm_bin!("fil_hello_world_actor"));
