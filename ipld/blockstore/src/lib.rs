@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::Result;
 use cid::{multihash, Cid};
@@ -87,88 +88,51 @@ pub trait Buffered: Blockstore {
     fn flush(&self, root: &Cid) -> Result<()>;
 }
 
-impl<BS> Blockstore for &BS
-where
-    BS: Blockstore,
-{
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
-        (*self).get(k)
-    }
+macro_rules! impl_blockstore {
+    ($($typ:ty),+) => {
+        $(
+            impl<BS> Blockstore for $typ where
+            BS: Blockstore, {
+                fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
+                    (**self).get(k)
+                }
 
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
-        (*self).put_keyed(k, block)
-    }
+                fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
+                    (**self).put_keyed(k, block)
+                }
 
-    fn has(&self, k: &Cid) -> Result<bool> {
-        (*self).has(k)
-    }
+                fn has(&self, k: &Cid) -> Result<bool> {
+                    (**self).has(k)
+                }
 
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-    {
-        (*self).put(mh_code, block)
-    }
+                fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+                where
+                    Self: Sized,
+                    D: AsRef<[u8]>,
+                {
+                    (**self).put(mh_code, block)
+                }
 
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
-    {
-        (*self).put_many(blocks)
-    }
+                fn put_many<D, I>(&self, blocks: I) -> Result<()>
+                where
+                    Self: Sized,
+                    D: AsRef<[u8]>,
+                    I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+                {
+                    (**self).put_many(blocks)
+                }
 
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
-    {
-        (*self).put_many_keyed(blocks)
+                fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
+                where
+                    Self: Sized,
+                    D: AsRef<[u8]>,
+                    I: IntoIterator<Item = (Cid, D)>,
+                {
+                    (**self).put_many_keyed(blocks)
+                }
+            }
+        )+
     }
 }
 
-impl<BS> Blockstore for Rc<BS>
-where
-    BS: Blockstore,
-{
-    fn get(&self, k: &Cid) -> Result<Option<Vec<u8>>> {
-        (**self).get(k)
-    }
-
-    fn put_keyed(&self, k: &Cid, block: &[u8]) -> Result<()> {
-        (**self).put_keyed(k, block)
-    }
-
-    fn has(&self, k: &Cid) -> Result<bool> {
-        (**self).has(k)
-    }
-
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-    {
-        (**self).put(mh_code, block)
-    }
-
-    fn put_many<D, I>(&self, blocks: I) -> Result<()>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
-    {
-        (**self).put_many(blocks)
-    }
-
-    fn put_many_keyed<D, I>(&self, blocks: I) -> Result<()>
-    where
-        Self: Sized,
-        D: AsRef<[u8]>,
-        I: IntoIterator<Item = (Cid, D)>,
-    {
-        (**self).put_many_keyed(blocks)
-    }
-}
+impl_blockstore!(Arc<BS>, Rc<BS>, &BS);
