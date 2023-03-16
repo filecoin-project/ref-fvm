@@ -10,7 +10,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_test_wasm_builder::wasm_bin::READONLY_ACTOR_BINARY;
+use fvm_test_actors::wasm_bin::READONLY_ACTOR_BINARY;
 use num_traits::Zero;
 
 #[test]

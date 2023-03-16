@@ -19,14 +19,10 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_actors::wasm_bin::GAS_CALIBRATION_ACTOR_BIN;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 use serde::Serialize;
-
-pub const GAS_CALIBRATION_ACTOR_PATH: &str = concat!(
-    env!("OUT_DIR"),
-    "/bundle/wasm32-unknown-unknown/wasm/fil_gas_calibration_actor.wasm"
-);
 
 pub const ENOUGH_GAS: Gas = Gas::new(1_000_000_000);
 
@@ -131,19 +127,9 @@ pub fn instantiate_tester() -> TestEnv {
     // Set actor
     let actor_address = Address::new_id(10000);
 
-    // Get wasm bin
-    let wasm_path = std::env::current_dir()
-        .unwrap()
-        .join(GAS_CALIBRATION_ACTOR_PATH)
-        .canonicalize()
-        .unwrap();
-
-    let wasm_bin = std::fs::read(&wasm_path)
-        .unwrap_or_else(|_| panic!("Unable to read file {:?}", &wasm_path));
-
     tester
         .set_actor_from_bin(
-            &wasm_bin,
+            GAS_CALIBRATION_ACTOR_BIN,
             state_cid,
             actor_address,
             TokenAmount::from_whole(100),

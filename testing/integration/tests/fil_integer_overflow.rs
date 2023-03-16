@@ -12,7 +12,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_test_wasm_builder::wasm_bin::INTEGER_OVERFLOW_ACTOR_BINARY;
+use fvm_test_actors::wasm_bin::INTEGER_OVERFLOW_ACTOR_BINARY;
 use num_traits::Zero;
 
 mod bundles;

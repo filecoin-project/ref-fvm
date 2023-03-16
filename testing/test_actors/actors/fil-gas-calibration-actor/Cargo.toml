@@ -8,7 +8,7 @@ publish = false
 fvm_sdk = { version = "3.0.0", path = "../../../../sdk" }
 fvm_shared = { version = "3.1.0", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
-fvm_gas_calibration_shared = { path = "../../shared" }
+fvm_gas_calibration_shared = { path = "../../../calibration/shared" }
 
 cid = { version = "0.8.2", default-features = false }
 num-derive = "0.3"

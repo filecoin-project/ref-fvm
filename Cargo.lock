@@ -2461,6 +2461,7 @@ dependencies = [
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_shared 3.1.0",
+ "fvm_test_actors",
  "lazy_static",
  "libsecp256k1",
  "multihash",
@@ -2491,28 +2492,14 @@ version = "3.0.0"
 dependencies = [
  "anyhow",
  "cid",
- "fil_address_actor",
  "fil_builtin_actors_bundle",
- "fil_create_actor",
- "fil_events_actor",
- "fil_exit_data_actor",
- "fil_gaslimit_actor",
- "fil_hello_world_actor",
- "fil_integer_overflow_actor",
- "fil_ipld_actor",
- "fil_malformed_syscall_actor",
- "fil_oom_actor",
- "fil_readonly_actor",
- "fil_sself_actor",
- "fil_stack_overflow_actor",
- "fil_syscall_actor",
  "futures",
  "fvm",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
  "fvm_shared 3.1.0",
- "fvm_test_wasm_builder",
+ "fvm_test_actors",
  "hex",
  "lazy_static",
  "libsecp256k1",
@@ -2910,7 +2897,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fvm_test_wasm_builder"
+name = "fvm_test_actors"
 version = "0.1.0"
 
 [[package]]
