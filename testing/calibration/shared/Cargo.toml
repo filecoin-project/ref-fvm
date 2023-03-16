@@ -1,0 +1,15 @@
+[package]
+name = "fvm_gas_calibration_shared"
+description = "Filecoin Virtual Machine gas calibration"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Protocol Labs", "Filecoin Core Devs"]
+repository = "https://github.com/filecoin-project/ref-fvm"
+
+[dependencies]
+fvm_shared = { version = "3.1.0", path = "../../../shared", features = ["testing"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+num-traits = "0.2"
+num-derive = "0.3"

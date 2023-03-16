@@ -3,8 +3,8 @@
 #![feature(slice_group_by)]
 
 use bls_signatures::Serialize;
-use fil_gas_calibration_actor::{Method, OnVerifySignatureParams};
 use fvm_gas_calibration::*;
+use fvm_gas_calibration_shared::{Method, OnVerifySignatureParams};
 use fvm_shared::address::Address;
 use fvm_shared::crypto::signature::SignatureType;
 use rand::{thread_rng, Rng, RngCore};

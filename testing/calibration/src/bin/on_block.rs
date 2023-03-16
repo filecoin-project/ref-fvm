@@ -4,9 +4,9 @@
 
 use std::collections::HashMap;
 
-use fil_gas_calibration_actor::{Method, OnBlockParams};
 use fvm::trace::ExecutionEvent;
 use fvm_gas_calibration::*;
+use fvm_gas_calibration_shared::{Method, OnBlockParams};
 use fvm_shared::error::ExitCode;
 use rand::{thread_rng, Rng};
 

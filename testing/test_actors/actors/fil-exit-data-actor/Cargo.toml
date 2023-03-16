@@ -1,0 +1,13 @@
+[package]
+name = "fil_exit_data_actor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fvm_sdk = { version = "3.0.0", path = "../../../../sdk" }
+fvm_shared = { version = "3.1.0", path = "../../../../shared" }
+fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
+
+[lib]
+crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

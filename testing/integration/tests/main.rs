@@ -6,14 +6,6 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
-use fil_create_actor::WASM_BINARY as CREATE_ACTOR_BINARY;
-use fil_exit_data_actor::WASM_BINARY as EXIT_DATA_BINARY;
-use fil_hello_world_actor::WASM_BINARY as HELLO_BINARY;
-use fil_ipld_actor::WASM_BINARY as IPLD_BINARY;
-use fil_oom_actor::WASM_BINARY as OOM_BINARY;
-use fil_sself_actor::WASM_BINARY as SSELF_BINARY;
-use fil_stack_overflow_actor::WASM_BINARY as OVERFLOW_BINARY;
-use fil_syscall_actor::WASM_BINARY as SYSCALL_BINARY;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
@@ -26,6 +18,10 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_actors::wasm_bin::{
+    CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY,
+    OOM_ACTOR_BINARY, SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+};
 use num_traits::Zero;
 
 mod bundles;
@@ -51,7 +47,7 @@ fn hello_world() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = HELLO_BINARY.unwrap();
+    let wasm_bin = HELLO_WORLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -97,7 +93,7 @@ fn ipld() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = IPLD_BINARY.unwrap();
+    let wasm_bin = IPLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -150,7 +146,7 @@ fn syscalls() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
 
-    let wasm_bin = SYSCALL_BINARY.unwrap();
+    let wasm_bin = SYSCALL_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -212,7 +208,7 @@ fn sself() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     println!("sender: {:?}", sender);
 
-    let wasm_bin = SSELF_BINARY.unwrap();
+    let wasm_bin = SSELF_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = [(); 0];
@@ -279,7 +275,7 @@ fn create_actor() {
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
 
-    let wasm_bin = CREATE_ACTOR_BINARY.unwrap();
+    let wasm_bin = CREATE_ACTOR_BINARY;
 
     // Configure actor allowed to call create_actor
     let actor_state = State::default();
@@ -376,7 +372,7 @@ fn exit_data() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = EXIT_DATA_BINARY.unwrap();
+    let wasm_bin = EXIT_DATA_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -479,7 +475,7 @@ fn native_stack_overflow() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = OVERFLOW_BINARY.unwrap();
+    let wasm_bin = STACK_OVERFLOW_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -813,7 +809,7 @@ fn test_oom1() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = OOM_BINARY.unwrap();
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -859,7 +855,7 @@ fn test_oom2() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = OOM_BINARY.unwrap();
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -907,7 +903,7 @@ fn test_oom3() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = HELLO_BINARY.unwrap();
+    let wasm_bin = HELLO_WORLD_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();
@@ -963,7 +959,7 @@ fn test_oom4() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
-    let wasm_bin = OOM_BINARY.unwrap();
+    let wasm_bin = OOM_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();

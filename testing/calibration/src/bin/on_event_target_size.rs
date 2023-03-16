@@ -4,8 +4,8 @@
 
 use std::usize;
 
-use fil_gas_calibration_actor::{EventCalibrationMode, Method, OnEventParams};
 use fvm_gas_calibration::*;
+use fvm_gas_calibration_shared::{EventCalibrationMode, Method, OnEventParams};
 use fvm_shared::event::Flags;
 use rand::{thread_rng, Rng};
 
