@@ -13,7 +13,6 @@ fvm_shared = { version = "3.1.0", path = "../../shared", features = ["testing"] 
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
-actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
 
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
@@ -34,25 +33,10 @@ default-features = false
 features = ["cranelift", "parallel-compilation"]
 
 [dev-dependencies]
-fvm_test_wasm_builder = { path = "../wasm_builder" }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+fvm_test_actors = { path = "../test_actors" }
 wat = "1.0.51"
 hex = "0.4.3"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-fil_hello_world_actor = { path = 'tests/fil-hello-world-actor' }
-fil_stack_overflow_actor = { path = 'tests/fil-stack-overflow-actor' }
-fil_ipld_actor = { path = 'tests/fil-ipld-actor' }
-fil_malformed_syscall_actor = { path = "tests/fil-malformed-syscall-actor" }
-fil_integer_overflow_actor = { path = "tests/fil-integer-overflow-actor" }
-fil_syscall_actor = { path = "tests/fil-syscall-actor" }
-fil_address_actor = { path = "tests/fil-address-actor" }
-fil_events_actor = { path = "tests/fil-events-actor" }
-fil_exit_data_actor = { path = "tests/fil-exit-data-actor" }
-fil_gaslimit_actor = { path = "tests/fil-gaslimit-actor" }
-fil_readonly_actor = { path = "tests/fil-readonly-actor" }
-fil_create_actor = { path = "tests/fil-create-actor" }
-fil_oom_actor = { path = 'tests/fil-oom-actor' }
-fil_sself_actor ={ path = 'tests/fil-sself-actor' }
 
 [features]
 default = []

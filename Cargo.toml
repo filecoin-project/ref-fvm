@@ -8,8 +8,8 @@ members = [
     "testing/integration",
     "testing/calibration",
     "ipld/*",
-    "testing/integration/tests/*-actor",
-    "testing/calibration/contract/*-actor",
+    "testing/test_actors",
+    "testing/test_actors/actors/*",
     "tools/fvm-bench",
 ]
 

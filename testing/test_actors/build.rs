@@ -41,17 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new(&std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR unset"))
             .join("Cargo.toml");
 
-    for file in [
-        "Cargo.toml",
-        "src",
-        "../integration/src",
-        "../integration/tests",
-        "../integration/Cargo.toml",
-        "../calibration/contract",
-        "../calibration/shared",
-        "../calibration/src",
-        "../calibration/Cargo.toml",
-    ] {
+    for file in ["Cargo.toml", "src", "actors"] {
         println!("cargo:rerun-if-changed={}", file);
     }
 
