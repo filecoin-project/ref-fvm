@@ -33,7 +33,7 @@ default-features = false
 features = ["cranelift", "parallel-compilation"]
 
 [dev-dependencies]
-actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next", features = ["m2-native"] }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
 fvm_test_actors = { path = "../test_actors" }
 wat = "1.0.51"
 hex = "0.4.3"
