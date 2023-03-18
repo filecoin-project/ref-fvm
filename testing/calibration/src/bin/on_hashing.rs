@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-#![feature(slice_group_by)]
-
 use fvm_gas_calibration::*;
 use fvm_gas_calibration_shared::{Method, OnHashingParams};
 use fvm_shared::crypto::hash::SupportedHashes;
@@ -49,10 +47,7 @@ fn main() {
         }
     }
 
-    let regs = obs
-        .group_by(|a, b| a.label == b.label)
-        .map(|g| least_squares(g[0].label.to_owned(), g, 0))
-        .collect::<Vec<_>>();
+    let regression = run_linear_regression(&obs);
 
-    export(CHARGE_NAME, &obs, &regs).unwrap();
+    export(CHARGE_NAME, &obs, &regression).unwrap();
 }

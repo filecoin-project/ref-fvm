@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-#![feature(slice_group_by)]
-
 use fvm_gas_calibration::*;
 use fvm_gas_calibration_shared::{Method, OnRecoverSecpPublicKeyParams};
 use rand::{thread_rng, Rng, RngCore};
