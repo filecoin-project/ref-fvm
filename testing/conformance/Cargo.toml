@@ -10,29 +10,17 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 fvm_shared = { version = "3.1.0", path = "../../shared" }
-fvm_ipld_hamt = { version = "0.6.1", path = "../../ipld/hamt" }
-fvm_ipld_amt = { version = "0.5.1", path = "../../ipld/amt" }
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
-thiserror = "1.0.30"
 num-traits = "0.2"
-derive_builder = "0.12.0"
-ahash = "0.8"
-num-derive = "0.3.3"
 cid = { version = "0.8.5", default-features = false }
 multihash = { version = "0.16.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
-serde_tuple = "0.5"
-serde_repr = "0.1"
 lazy_static = "1.4.0"
-derive-getters = "0.2.0"
-derive_more = "0.99.17"
-replace_with = "0.1.7"
 log = "0.4.14"
-byteorder = "1.4.3"
 futures = "0.3.19"
 async-std = { version = "1.9", features = ["attributes"] }
 wasmtime = { version = "2.0.2", default-features = false }
