@@ -51,7 +51,7 @@ jobs:
             key: v3-cov
             covname: lcov.info
             command: llvm-cov
-            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude fvm_gas_calibration --exclude "*actor" --lcov --output-path lcov.info
+            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
           - name: integration
             key: v3
             command: test

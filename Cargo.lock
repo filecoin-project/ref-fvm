@@ -2396,37 +2396,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fvm_gas_calibration"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake2b_simd",
- "bls-signatures",
- "cid",
- "fil_builtin_actors_bundle",
- "futures",
- "fvm",
- "fvm_gas_calibration_shared",
- "fvm_integration_tests",
- "fvm_ipld_blockstore 0.1.1",
- "fvm_ipld_car 0.6.0",
- "fvm_ipld_encoding 0.3.3",
- "fvm_shared 3.1.0",
- "fvm_test_actors",
- "lazy_static",
- "libsecp256k1",
- "multihash",
- "num-traits",
- "rand",
- "rand_chacha",
- "serde",
- "serde_json",
- "thiserror",
- "wasmtime",
- "wat",
-]
-
-[[package]]
 name = "fvm_gas_calibration_shared"
 version = "0.1.0"
 dependencies = [
@@ -2442,10 +2411,13 @@ name = "fvm_integration_tests"
 version = "3.0.0"
 dependencies = [
  "anyhow",
+ "blake2b_simd",
+ "bls-signatures",
  "cid",
  "fil_builtin_actors_bundle",
  "futures",
  "fvm",
+ "fvm_gas_calibration_shared",
  "fvm_ipld_blockstore 0.1.1",
  "fvm_ipld_car 0.6.0",
  "fvm_ipld_encoding 0.3.3",
@@ -2459,6 +2431,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "serde",
+ "serde_json",
  "serde_tuple",
  "thiserror",
  "wasmtime",

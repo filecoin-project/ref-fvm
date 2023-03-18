@@ -6,8 +6,6 @@ OBS_FIND := find $(OBS_DIR) -type f \( -name "*.jsonline" \)
 OBS_JSON := $(shell $(OBS_FIND))
 OBS_PNG  := $(patsubst $(OUT_DIR)/observations/%.jsonline, $(OUT_DIR)/charts/charges/%.png, $(OBS_JSON))
 
-RUN_BINS := $(patsubst src/bin/%.rs, run/%, $(shell find src/bin -type f))
-
 GAS_MILLIS_PER_NS := 10000
 
 .PHONY: all
@@ -15,12 +13,8 @@ all:
 	$(MAKE) run
 	$(MAKE) visualize
 
-
-.PHONY: run
-run: $(RUN_BINS)
-
-run/%:
-	cargo run --release --bin $*
+run:
+	cargo test --release --test gas_calibration_test --features calibration
 
 
 .PHONY: visualize

@@ -1,5 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+#![allow(dead_code)]
+
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -78,7 +80,7 @@ lazy_static! {
     pub static ref OUTPUT_DIR: PathBuf = std::env::var("OUTPUT_DIR")
         .map(|d| Path::new(&d).to_path_buf())
         .ok().unwrap_or_else(|| {
-          Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf().join("measurements").join("out")
+          Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf().join("../calibration/measurements").join("out")
         });
 }
 
