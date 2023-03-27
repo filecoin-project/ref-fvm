@@ -63,7 +63,7 @@ where
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
         #[cfg(not(feature = "hyperspace"))]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
-            NetworkVersion::V18..=NetworkVersion::V18;
+            NetworkVersion::V18..=NetworkVersion::V20;
 
         #[cfg(feature = "hyperspace")]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
