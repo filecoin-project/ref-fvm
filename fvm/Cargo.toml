@@ -15,8 +15,6 @@ crate-type = ["lib"]
 anyhow = { version = "1.0.47", features = ["backtrace"] }
 thiserror = "1.0.30"
 num-traits = "0.2"
-derive_builder = "0.12.0"
-num-derive = "0.3.3"
 cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
 multihash = { version = "0.16.3", default-features = false }
 fvm_shared = { version = "3.1.0", path = "../shared", features = ["crypto"] }
@@ -26,9 +24,7 @@ fvm_ipld_blockstore = { version = "0.1.1", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../ipld/encoding" }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
-serde_repr = "0.1"
 lazy_static = "1.4.0"
-derive-getters = "0.2.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "13", default-features = false }
@@ -36,7 +32,6 @@ rayon = "1"
 num_cpus = "1.13.0"
 log = "0.4.14"
 byteorder = "1.4.3"
-blake2b_simd = "1.0.0"
 fvm-wasm-instrument = "0.4.0"
 yastl = "0.1.2"
 arbitrary = { version = "1.1.0", optional = true, features = ["derive"] }

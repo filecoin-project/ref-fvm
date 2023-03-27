@@ -8,7 +8,6 @@ publish = false
 fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
 fvm_sdk = { version = "3.0.0", path = "../../../../sdk" }
 fvm_shared = { version = "3.1.0", path = "../../../../shared" }
-serde = "1.0.145"
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

@@ -13,7 +13,6 @@ byteorder = "1.3.2"
 cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
 multihash = { version = "0.16.0", default-features = false }
 thiserror = "1.0"
-sha2 = "0.10"
 once_cell = "1.5"
 forest_hash_utils = "0.1"
 anyhow = "1.0.51"
