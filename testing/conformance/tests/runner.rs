@@ -64,7 +64,7 @@ lazy_static! {
 
 #[async_std::test]
 async fn conformance_test_runner() -> anyhow::Result<()> {
-    pretty_env_logger::init();
+    env_logger::init();
 
     let engines = MultiEngine::new();
 
