@@ -87,7 +87,7 @@ fn bench_500_simple_state_access(
 }
 /// runs overhead benchmarks, using the contents of the environment variable VECTOR as the starting FVM state
 fn bench_conformance_overhead(c: &mut Criterion) {
-    pretty_env_logger::init();
+    env_logger::init();
 
     let path_to_setup = match var("VECTOR") {
         Ok(v) => Path::new(v.as_str()).to_path_buf(),
