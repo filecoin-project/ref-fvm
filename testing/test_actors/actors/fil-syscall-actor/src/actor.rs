@@ -243,7 +243,7 @@ fn test_hash_syscall() {
         let e = crypto::hash(
             hasher,
             test_bytes.as_ptr(),
-            (u32::MAX / 2) as u32, // byte length OOB (2GB)
+            u32::MAX / 2, // byte length OOB (2GB)
             buffer.as_mut_ptr(),
             buffer.len() as u32,
         )
@@ -269,7 +269,7 @@ fn test_hash_syscall() {
             test_bytes.as_ptr(),
             test_bytes.len() as u32,
             buffer.as_mut_ptr(),
-            (u32::MAX / 2) as u32, // byte length OOB (2GB)
+            u32::MAX / 2, // byte length OOB (2GB)
         )
         .expect_err("Expected err, got written bytes");
         assert_eq!(e, ErrorNumber::IllegalArgument)

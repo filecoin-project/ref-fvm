@@ -69,7 +69,7 @@ impl DelegatedAddress {
     /// Returns the delegated address's subaddress .
     #[inline]
     pub fn subaddress(&self) -> &[u8] {
-        &self.buffer[..self.length as usize]
+        &self.buffer[..self.length]
     }
 }
 

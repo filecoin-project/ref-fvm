@@ -15,7 +15,7 @@ pub fn get_chain_randomness(
     entropy: &[u8],
 ) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
     let ret = unsafe {
-        sys::rand::get_chain_randomness(dst, round as i64, entropy.as_ptr(), entropy.len() as u32)?
+        sys::rand::get_chain_randomness(dst, round, entropy.as_ptr(), entropy.len() as u32)?
     };
     Ok(ret)
 }
@@ -30,7 +30,7 @@ pub fn get_beacon_randomness(
     entropy: &[u8],
 ) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
     let ret = unsafe {
-        sys::rand::get_beacon_randomness(dst, round as i64, entropy.as_ptr(), entropy.len() as u32)?
+        sys::rand::get_beacon_randomness(dst, round, entropy.as_ptr(), entropy.len() as u32)?
     };
     Ok(ret)
 }

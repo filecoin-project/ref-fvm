@@ -995,7 +995,7 @@ where
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
         }
-        let len = raw_evt.len() as usize;
+        let len = raw_evt.len();
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;

@@ -414,7 +414,7 @@ where
 
                     // Find the longest common prefix between the new key and the existing keys that fall into the bucket.
                     let ext = Self::find_longest_extension(conf, hashed_key, &hashes)?;
-                    let skipped = ext.len() as u32 / conf.bit_width;
+                    let skipped = ext.len() / conf.bit_width;
 
                     let consumed = hashed_key.consumed;
                     let mut sub = Node::<K, V, H, N>::default();
@@ -594,9 +594,9 @@ where
     /// We found a key that partially matched an extension. We have to insert a new node at the longest
     /// match and replace the existing link with one that points at this new node. The new node should
     /// in turn will have two children: a link to the original extension target, and the new key value pair.
-    fn split_extension<'a, F>(
+    fn split_extension<F>(
         conf: &Config,
-        hashed_key: &'a mut HashBits,
+        hashed_key: &mut HashBits,
         part: &PartialMatch,
         key: K,
         value: V,
@@ -651,16 +651,16 @@ where
 /// Helper method to check if a key matches an extension (if there is one)
 /// and return the number of levels skipped. If the key doesn't match,
 /// this will be the number of levels where the extension has to be split.
-fn match_extension<'a, 'b>(
+fn match_extension<'a>(
     conf: &Config,
-    hashed_key: &'a mut HashBits,
-    ext: &'b Extension,
-) -> Result<ExtensionMatch<'b>, Error> {
+    hashed_key: &mut HashBits,
+    ext: &'a Extension,
+) -> Result<ExtensionMatch<'a>, Error> {
     if ext.is_empty() {
         Ok(ExtensionMatch::Full { skipped: 0 })
     } else {
         let matched = ext.longest_match(hashed_key, conf.bit_width)?;
-        let skipped = matched as u32 / conf.bit_width;
+        let skipped = matched / conf.bit_width;
 
         if matched == ext.len() {
             Ok(ExtensionMatch::Full { skipped })

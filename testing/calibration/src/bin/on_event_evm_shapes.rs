@@ -61,7 +61,7 @@ fn main() {
     }
 
     for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
-        let regression = run_linear_regression(&obs);
+        let regression = run_linear_regression(obs);
 
         export(name, obs, &regression).unwrap();
     }
