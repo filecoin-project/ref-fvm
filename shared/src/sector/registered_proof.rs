@@ -125,30 +125,6 @@ impl RegisteredPoStProof {
         }
     }
 
-    /// RegisteredSealProof produces the seal-specific RegisteredProof corresponding
-    /// to the receiving RegisteredProof.
-    pub fn registered_seal_proof(self) -> Result<RegisteredSealProof, String> {
-        use RegisteredPoStProof::*;
-        match self {
-            StackedDRGWindow64GiBV1 | StackedDRGWinning64GiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG64GiBV1)
-            }
-            StackedDRGWindow32GiBV1 | StackedDRGWinning32GiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG32GiBV1)
-            }
-            StackedDRGWindow2KiBV1 | StackedDRGWinning2KiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG2KiBV1)
-            }
-            StackedDRGWindow8MiBV1 | StackedDRGWinning8MiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG8MiBV1)
-            }
-            StackedDRGWindow512MiBV1 | StackedDRGWinning512MiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG512MiBV1)
-            }
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
-        }
-    }
-
     /// Proof size for each PoStProof type
     pub fn proof_size(self) -> Result<usize, String> {
         use RegisteredPoStProof::*;
