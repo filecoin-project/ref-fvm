@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-#![feature(slice_group_by)]
-
 use std::collections::HashMap;
 
 use fvm::trace::ExecutionEvent;

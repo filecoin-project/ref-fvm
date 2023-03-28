@@ -22,7 +22,7 @@ where
             return Err(Error::Other(e.to_string()));
         }
     };
-    let mut buf = Vec::with_capacity(std::cmp::min(l as usize, MAX_ALLOC));
+    let mut buf = Vec::with_capacity(std::cmp::min(l, MAX_ALLOC));
     let bytes_read = reader
         .take(l as u64)
         .read_to_end(&mut buf)

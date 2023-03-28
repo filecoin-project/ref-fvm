@@ -9,7 +9,6 @@ See the [Project Website](https://fvm.filecoin.io/) for details.
 
 ## Build requirements
 
-* The current MSRV (Minimum Supported Rust Version) is nightly-2022-10-03 due to some test build dependencies. A working version is tracked in `rust-toolchain` (this is picked up by `rustup` automatically).
 * Install [rustup](https://rustup.rs/).
 
 ## Build instructions

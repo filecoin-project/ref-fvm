@@ -15,15 +15,11 @@ static ATOMIC_NETWORK: AtomicU8 = AtomicU8::new(0);
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, FromPrimitive, ToPrimitive)]
 #[repr(u8)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
+#[derive(Default)]
 pub enum Network {
+    #[default]
     Mainnet = 0,
     Testnet = 1,
-}
-
-impl Default for Network {
-    fn default() -> Self {
-        Network::Mainnet
-    }
 }
 
 impl Network {

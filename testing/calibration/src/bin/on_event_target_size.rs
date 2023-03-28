@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-#![feature(slice_group_by)]
-
 use std::usize;
 
 use fvm_gas_calibration::*;
@@ -50,7 +48,7 @@ pub fn run() {
             // number of entries to emit
             entries: *entries,
             // target size of the encoded CBOR; this is approximate.
-            mode: EventCalibrationMode::TargetSize(*target_size as usize),
+            mode: EventCalibrationMode::TargetSize(*target_size),
             flags: Flags::FLAG_INDEXED_ALL,
             seed: rng.gen(),
         };
@@ -58,25 +56,20 @@ pub fn run() {
         let ret = te.execute_or_die(METHOD as u64, &params);
 
         {
-            let mut series =
-                collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, *target_size as usize);
+            let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, *target_size);
             series = eliminate_outliers(series, 0.02, Eliminate::Top);
             validate_obs.extend(series);
         };
 
         {
-            let mut series =
-                collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, *target_size as usize);
+            let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, *target_size);
             series = eliminate_outliers(series, 0.02, Eliminate::Top);
             accept_obs.extend(series);
         };
     }
 
     for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
-        let regression = obs
-            .group_by(|a, b| a.label == b.label)
-            .map(|g| least_squares(g[0].label.to_owned(), g, 0))
-            .collect::<Vec<_>>();
+        let regression = run_linear_regression(obs);
 
         export(name, obs, &regression).unwrap();
     }

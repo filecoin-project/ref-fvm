@@ -117,7 +117,7 @@ impl Extension {
 
     /// Merge two extensions, to undo a prior split.
     pub fn unsplit(ext1: &Self, idx: &Self, ext2: &Self) -> Result<Self, Error> {
-        let bit_width = idx.length as u32;
+        let bit_width = idx.length;
         Self::merge([ext1, idx, ext2], bit_width)
     }
 
@@ -129,7 +129,7 @@ impl Extension {
         let mut builder = ExtensionBuilder::new();
         for ext in exts {
             let mut path = ext.path_bits();
-            let mut bits_left = ext.length as u32;
+            let mut bits_left = ext.length;
             while bits_left > 0 {
                 let i = min(bit_width, bits_left);
                 let n = path.next(i)?;
@@ -146,9 +146,9 @@ impl Extension {
         let mut builder = ExtensionBuilder::new();
         while length > 0 {
             let i = min(length, 8);
-            let n = bits.next(i as u32)? as u8;
+            let n = bits.next(i)? as u8;
             length -= i;
-            builder.add(i as u32, n);
+            builder.add(i, n);
         }
         Ok(builder.build())
     }
@@ -189,7 +189,7 @@ impl ExtensionBuilder {
             let carry = j + i - 8;
             self.out += n >> carry;
             self.path.push(self.out);
-            self.out = n & mkmask(carry as u32) as u8;
+            self.out = n & mkmask(carry) as u8;
             self.out <<= 8 - carry;
         } else {
             // Haven't filled the previous byte yet, so just shift the number to
@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(ext.path[0], 0b00100100);
         assert_eq!(ext.path[1], 0b10101010);
         assert_eq!(ext.path[2], 0b10110000);
-        let total_consumed = 2 * bit_width + ext.length as u32;
+        let total_consumed = 2 * bit_width + ext.length;
         assert_eq!(hb.consumed, total_consumed);
 
         let mut hb = HashBits::new_at_index(&key, 2 * bit_width);
