@@ -201,6 +201,26 @@ lazy_static! {
                     scale: Gas::new(43780),
                 },
             ),
+            (RegisteredPoStProof::StackedDRGWindow512MiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow32GiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow64GiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
         ]
         .iter()
         .copied()
