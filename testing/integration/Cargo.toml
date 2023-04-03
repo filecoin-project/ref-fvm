@@ -35,9 +35,14 @@ features = ["cranelift", "parallel-compilation"]
 [dev-dependencies]
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
 fvm_test_actors = { path = "../test_actors" }
+fvm_gas_calibration_shared = { path = "../calibration/shared" }
+blake2b_simd = "1.0.0"
+serde_json = "1.0"
+bls-signatures = { version = "0.13", default-features = false }
 wat = "1.0.51"
 hex = "0.4.3"
 
 [features]
 default = []
 m2-native = []
+calibration = []
