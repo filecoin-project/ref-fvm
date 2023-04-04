@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-clippy, test-fvm, test, integration, conformance]
+        name: [build, check-m2-native, check-clippy, test-fvm, test, integration, conformance]
         include:
           - name: build
             key: v3
@@ -36,6 +36,12 @@ jobs:
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             command: build
             args: --no-default-features
+          - name: check-m2-native
+            key: v3
+            push: true
+            command: check
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            args: --features=m2-native --no-default-features
           - name: check-clippy
             key: v3
             command: clippy
@@ -62,6 +68,8 @@ jobs:
             args: --package fvm_conformance_tests
             submodules: true
         exclude:
+          - os: macos-latest
+            name: check-m2-native
           - os: macos-latest
             name: check-clippy
           - os: macos-latest
