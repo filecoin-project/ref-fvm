@@ -13,8 +13,6 @@ use multihash::Code::Blake2b256;
 use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
-#[cfg(feature = "m2-native")]
-use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, Result};
 use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
