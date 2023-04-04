@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 3.2.0 [2023-04-04]
+
+- Switch to rust stable.
+- Update shared to 3.2.0 for nv19/nv20.
+
 ## 3.0.0 [2023-02-24]
 
 - Final release for NV18.
