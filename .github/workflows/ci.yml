@@ -59,9 +59,10 @@ jobs:
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
           - name: integration
-            key: v3
-            command: test
-            args: --package fvm_integration_tests --package "*actor"
+            key: v3-cov
+            covname: itest-lcov.info
+            command: llvm-cov
+            args: --package fvm_integration_tests --package "*actor" --lcov --output-path itest-lcov.info
           - name: conformance
             key: v3
             command: test
@@ -111,6 +112,8 @@ jobs:
       with:
         files: ${{ matrix.covname }}
         token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        verbose: true
     - name: Installing Cargo-Cache
       if: ${{ matrix.push }}
       run: cargo install cargo-cache
