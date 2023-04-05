@@ -4,6 +4,13 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.2.0 [2023-04-04]
+
+- Support nv19/nv20
+- Remove unused dependencies.
+- BREAKING: Upgrade proofs to version 14.0.0 (for nv19).
+- Switch build to rust stable (finally).
+
 ## 3.1.0 [2023-03-09]
 
 Update proofs. Unfortunately, this is a breaking change in a minor release but we need to do the same on the v2 release as well. The correct solution is to introduce two crates, fvm1 and fvm2, but that's a future project.
