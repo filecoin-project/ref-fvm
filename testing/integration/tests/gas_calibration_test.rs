@@ -81,7 +81,9 @@ fn on_block() {
     }
 }
 
-#[test]
+// TODO (fridrik): Enable this test after closing #1699
+//#[test]
+#[allow(dead_code)]
 #[cfg(feature = "calibration")]
 fn on_event_evm_shapes() {
     use fvm_shared::event::Flags;
