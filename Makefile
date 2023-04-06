@@ -10,7 +10,7 @@ build:
 clean:
 	cargo clean
 
-lint: license clean
+lint:
 	cargo fmt --all
 	cargo clippy --all -- -D warnings -A clippy::upper_case_acronyms
 
