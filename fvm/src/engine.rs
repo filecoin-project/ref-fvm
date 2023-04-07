@@ -521,14 +521,22 @@ impl Engine {
             // initially. The limits are checked by wasmtime during instantiation, though.
             let t = charge_for_init(store, module).map_err(Abort::from_error_as_fatal)?;
 
-            // _Just_ in case.
+            // Pre-instantiate to catch any linker errors. These are considered fatal as it means
+            // the wasm module wasn't properly validated.
+            let pre_instance = cache
+                .linker
+                .instantiate_pre(module)
+                .context("failed to link actor module")?;
+
+            // Update the gas _just_ in case.
             update_gas_available(store)?;
-            let res = cache.linker.instantiate(&mut *store, module);
+            let res = pre_instance.instantiate(&mut *store);
             charge_for_exec(store)?;
 
             let inst = res.map_err(|e| {
                 // We can't really tell what type of error happened, so we have to assume that we
-                // either ran out of memory or trapped.
+                // either ran out of memory or trapped. Given that we've already type-checked the
+                // module, this is the most likely case anyways. That or there'a a bug in the FVM.
                 Abort::Exit(
                     ExitCode::SYS_ILLEGAL_INSTRUCTION,
                     format!("failed to instantiate module: {e}"),
