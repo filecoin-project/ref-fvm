@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use anyhow::Context;
 use fvm::externs::Externs;
 use fvm_integration_tests::bundle;
-use fvm_integration_tests::tester::Tester;
-use fvm_ipld_blockstore::Blockstore;
+use fvm_integration_tests::tester::{BasicTester, ExecutionOptions, Tester};
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use lazy_static::lazy_static;
@@ -29,4 +29,26 @@ pub fn new_tester<B: Blockstore, E: Externs>(
         .with_context(|| format!("unsupported network version {nv}"))?;
     let root = bundle::import_bundle(&blockstore, bundle)?;
     Tester::new(nv, stv, root, blockstore)
+}
+
+#[allow(dead_code)]
+pub fn new_basic_tester(options: ExecutionOptions) -> anyhow::Result<BasicTester> {
+    let blockstore = MemoryBlockstore::default();
+    let bundle = BUNDLES
+        .get(&NetworkVersion::V18)
+        .with_context(|| format!("unsupported network version {}", NetworkVersion::V18))?;
+
+    let bundle_cid = bundle::import_bundle(&blockstore, bundle)?;
+
+    let mut tester = Tester::new(
+        NetworkVersion::V18,
+        StateTreeVersion::V5,
+        bundle_cid,
+        blockstore,
+    )?;
+
+    tester.options = Some(options);
+    tester.ready = false;
+
+    Ok(tester)
 }

@@ -1,6 +1,6 @@
 # Gas Calibration
 
-The binaries in this crate call `./contract/fil-gas-calibration-actor` with various parameters to exercise certain syscalls,
+This crate calls the `integration/tests/fil-gas-calibration-actor` with various parameters to exercise certain syscalls,
 while collecting gas metrics, on which they runs regressions to estimate coefficients we could use to set gas prices.
 
 The way this is different than the metrics we collect under `conformance` tests in that we also capture the inputs,
@@ -12,7 +12,7 @@ The traces and the regression results are exported to `./measurements/out`, but 
 For example:
 
 ```shell
-cargo run --release --bin on_hashing
+cargo test --release --test gas_calibration_test on_hashing
 ```
 
 The calibration uses the machinery from the integration tests, but it's kept separate from them because to get good results we might want to run them for a long time, and on standardized environment. The reason different model targets are in separate binaries is so we can select which one we want to run.

@@ -18,7 +18,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::ActorEvent;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::SectorInfo;
+use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
@@ -284,7 +284,7 @@ where
         // We perform operations as u64, because we know that the buffer length and offset must fit
         // in a u32.
         let end = i32::try_from((offset as u64) + (buf.len() as u64))
-            .map_err(|_|syscall_error!(IllegalArgument; "offset plus buffer length did not fit into an i32"))?;
+            .map_err(|_| syscall_error!(IllegalArgument; "offset plus buffer length did not fit into an i32"))?;
 
         // Then get the block.
         let block = self.blocks.get(id)?;
@@ -715,7 +715,7 @@ where
         match offset.cmp(&0) {
             Less => return Err(syscall_error!(IllegalArgument; "epoch {} is in the future", epoch).into()),
             Equal => return Err(syscall_error!(IllegalArgument; "cannot lookup the tipset cid for the current epoch").into()),
-            Greater => {},
+            Greater => {}
         }
 
         // Can't lookup tipset CIDs beyond finality.
@@ -995,7 +995,7 @@ where
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
         }
-        let len = raw_evt.len() as usize;
+        let len = raw_evt.len();
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
@@ -1076,13 +1076,6 @@ fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
     Ok(())
 }
 
-/// PoSt proof variants.
-enum ProofType {
-    #[allow(unused)]
-    Winning,
-    Window,
-}
-
 fn prover_id_from_u64(id: u64) -> ProverId {
     let mut prover_id = ProverId::default();
     let prover_bytes = Address::new_id(id).payload().to_raw_bytes();
@@ -1114,24 +1107,51 @@ fn get_required_padding(
 
 fn to_fil_public_replica_infos(
     src: &[SectorInfo],
-    typ: ProofType,
+    typ: RegisteredPoStProof,
 ) -> Result<BTreeMap<SectorId, PublicReplicaInfo>> {
     let replicas = src
         .iter()
         .map::<core::result::Result<(SectorId, PublicReplicaInfo), String>, _>(
             |sector_info: &SectorInfo| {
                 let commr = commcid::cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
-                let proof = match typ {
-                    ProofType::Winning => sector_info.proof.registered_winning_post_proof()?,
-                    ProofType::Window => sector_info.proof.registered_window_post_proof()?,
-                };
-                let replica = PublicReplicaInfo::new(proof.try_into()?, commr);
+                if !check_valid_proof_type(typ, sector_info.proof) {
+                    return Err("invalid proof type".to_string());
+                }
+                let replica = PublicReplicaInfo::new(typ.try_into()?, commr);
                 Ok((SectorId::from(sector_info.sector_number), replica))
             },
         )
         .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
         .or_illegal_argument()?;
     Ok(replicas)
+}
+
+fn check_valid_proof_type(post_type: RegisteredPoStProof, seal_type: RegisteredSealProof) -> bool {
+    let proof_type_v1p1 = seal_type
+        .registered_window_post_proof()
+        .unwrap_or(RegisteredPoStProof::Invalid(-1));
+    let proof_type_v1 = match proof_type_v1p1 {
+        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1
+        }
+        RegisteredPoStProof::StackedDRGWindow8MiBV1P1 => {
+            RegisteredPoStProof::StackedDRGWindow8MiBV1
+        }
+        RegisteredPoStProof::StackedDRGWindow512MiBV1P1 => {
+            RegisteredPoStProof::StackedDRGWindow512MiBV1
+        }
+        RegisteredPoStProof::StackedDRGWindow32GiBV1P1 => {
+            RegisteredPoStProof::StackedDRGWindow32GiBV1
+        }
+        RegisteredPoStProof::StackedDRGWindow64GiBV1P1 => {
+            RegisteredPoStProof::StackedDRGWindow64GiBV1
+        }
+        _ => {
+            return false;
+        }
+    };
+
+    proof_type_v1 == post_type || proof_type_v1p1 == post_type
 }
 
 fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
@@ -1173,8 +1193,18 @@ fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
     // Necessary to be valid bls12 381 element.
     randomness[31] &= 0x3f;
 
+    let proof_type = proofs[0].post_proof;
+
+    for proof in proofs {
+        if proof.post_proof != proof_type {
+            return Err(
+                syscall_error!(IllegalArgument; "all proof types must be the same (found both {:?} and {:?})", proof_type, proof.post_proof)
+                    .into(),
+            );
+        }
+    }
     // Convert sector info into public replica
-    let replicas = to_fil_public_replica_infos(challenged_sectors, ProofType::Window)?;
+    let replicas = to_fil_public_replica_infos(challenged_sectors, proof_type)?;
 
     // Convert PoSt proofs into proofs-api format
     let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs

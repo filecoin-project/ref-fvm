@@ -108,6 +108,11 @@ pub enum RegisteredPoStProof {
     StackedDRGWindow512MiBV1,
     StackedDRGWindow32GiBV1,
     StackedDRGWindow64GiBV1,
+    StackedDRGWindow2KiBV1P1,
+    StackedDRGWindow8MiBV1P1,
+    StackedDRGWindow512MiBV1P1,
+    StackedDRGWindow32GiBV1P1,
+    StackedDRGWindow64GiBV1P1,
     Invalid(i64),
 }
 
@@ -116,34 +121,20 @@ impl RegisteredPoStProof {
     pub fn sector_size(self) -> Result<SectorSize, String> {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1 | StackedDRGWinning2KiBV1 => Ok(SectorSize::_2KiB),
-            StackedDRGWindow8MiBV1 | StackedDRGWinning8MiBV1 => Ok(SectorSize::_8MiB),
-            StackedDRGWindow512MiBV1 | StackedDRGWinning512MiBV1 => Ok(SectorSize::_512MiB),
-            StackedDRGWindow32GiBV1 | StackedDRGWinning32GiBV1 => Ok(SectorSize::_32GiB),
-            StackedDRGWindow64GiBV1 | StackedDRGWinning64GiBV1 => Ok(SectorSize::_64GiB),
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
-        }
-    }
-
-    /// RegisteredSealProof produces the seal-specific RegisteredProof corresponding
-    /// to the receiving RegisteredProof.
-    pub fn registered_seal_proof(self) -> Result<RegisteredSealProof, String> {
-        use RegisteredPoStProof::*;
-        match self {
-            StackedDRGWindow64GiBV1 | StackedDRGWinning64GiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG64GiBV1)
+            StackedDRGWindow2KiBV1P1 | StackedDRGWindow2KiBV1 | StackedDRGWinning2KiBV1 => {
+                Ok(SectorSize::_2KiB)
             }
-            StackedDRGWindow32GiBV1 | StackedDRGWinning32GiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG32GiBV1)
+            StackedDRGWindow8MiBV1P1 | StackedDRGWindow8MiBV1 | StackedDRGWinning8MiBV1 => {
+                Ok(SectorSize::_8MiB)
             }
-            StackedDRGWindow2KiBV1 | StackedDRGWinning2KiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG2KiBV1)
+            StackedDRGWindow512MiBV1P1 | StackedDRGWindow512MiBV1 | StackedDRGWinning512MiBV1 => {
+                Ok(SectorSize::_512MiB)
             }
-            StackedDRGWindow8MiBV1 | StackedDRGWinning8MiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG8MiBV1)
+            StackedDRGWindow32GiBV1P1 | StackedDRGWindow32GiBV1 | StackedDRGWinning32GiBV1 => {
+                Ok(SectorSize::_32GiB)
             }
-            StackedDRGWindow512MiBV1 | StackedDRGWinning512MiBV1 => {
-                Ok(RegisteredSealProof::StackedDRG512MiBV1)
+            StackedDRGWindow64GiBV1P1 | StackedDRGWindow64GiBV1 | StackedDRGWinning64GiBV1 => {
+                Ok(SectorSize::_64GiB)
             }
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
@@ -162,7 +153,12 @@ impl RegisteredPoStProof {
             | StackedDRGWindow8MiBV1
             | StackedDRGWindow512MiBV1
             | StackedDRGWindow32GiBV1
-            | StackedDRGWindow64GiBV1 => Ok(192),
+            | StackedDRGWindow64GiBV1
+            | StackedDRGWindow2KiBV1P1
+            | StackedDRGWindow8MiBV1P1
+            | StackedDRGWindow512MiBV1P1
+            | StackedDRGWindow32GiBV1P1
+            | StackedDRGWindow64GiBV1P1 => Ok(192),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -172,11 +168,17 @@ impl RegisteredPoStProof {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWinning64GiBV1 | StackedDRGWindow64GiBV1 => Ok(2300),
-            StackedDRGWinning32GiBV1 | StackedDRGWindow32GiBV1 => Ok(2349),
-            StackedDRGWinning2KiBV1 | StackedDRGWindow2KiBV1 => Ok(2),
-            StackedDRGWinning8MiBV1 | StackedDRGWindow8MiBV1 => Ok(2),
-            StackedDRGWinning512MiBV1 | StackedDRGWindow512MiBV1 => Ok(2),
+            StackedDRGWinning64GiBV1 | StackedDRGWindow64GiBV1 | StackedDRGWindow64GiBV1P1 => {
+                Ok(2300)
+            }
+            StackedDRGWinning32GiBV1 | StackedDRGWindow32GiBV1 | StackedDRGWindow32GiBV1P1 => {
+                Ok(2349)
+            }
+            StackedDRGWinning2KiBV1 | StackedDRGWindow2KiBV1 | StackedDRGWindow2KiBV1P1 => Ok(2),
+            StackedDRGWinning8MiBV1 | StackedDRGWindow8MiBV1 | StackedDRGWindow8MiBV1P1 => Ok(2),
+            StackedDRGWinning512MiBV1 | StackedDRGWindow512MiBV1 | StackedDRGWindow512MiBV1P1 => {
+                Ok(2)
+            }
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -233,11 +235,11 @@ impl RegisteredSealProof {
     pub fn registered_window_post_proof(self) -> Result<RegisteredPoStProof, String> {
         use RegisteredPoStProof::*;
         match self {
-            Self::StackedDRG64GiBV1 | Self::StackedDRG64GiBV1P1 => Ok(StackedDRGWindow64GiBV1),
-            Self::StackedDRG32GiBV1 | Self::StackedDRG32GiBV1P1 => Ok(StackedDRGWindow32GiBV1),
-            Self::StackedDRG2KiBV1 | Self::StackedDRG2KiBV1P1 => Ok(StackedDRGWindow2KiBV1),
-            Self::StackedDRG8MiBV1 | Self::StackedDRG8MiBV1P1 => Ok(StackedDRGWindow8MiBV1),
-            Self::StackedDRG512MiBV1 | Self::StackedDRG512MiBV1P1 => Ok(StackedDRGWindow512MiBV1),
+            Self::StackedDRG64GiBV1 | Self::StackedDRG64GiBV1P1 => Ok(StackedDRGWindow64GiBV1P1),
+            Self::StackedDRG32GiBV1 | Self::StackedDRG32GiBV1P1 => Ok(StackedDRGWindow32GiBV1P1),
+            Self::StackedDRG2KiBV1 | Self::StackedDRG2KiBV1P1 => Ok(StackedDRGWindow2KiBV1P1),
+            Self::StackedDRG8MiBV1 | Self::StackedDRG8MiBV1P1 => Ok(StackedDRGWindow8MiBV1P1),
+            Self::StackedDRG512MiBV1 | Self::StackedDRG512MiBV1P1 => Ok(StackedDRGWindow512MiBV1P1),
             Self::Invalid(_) => Err(format!(
                 "Unsupported mapping from {:?} to PoSt-window RegisteredProof",
                 self
@@ -314,6 +316,11 @@ i64_conversion! {
     StackedDRGWindow512MiBV1 => 7,
     StackedDRGWindow32GiBV1 => 8,
     StackedDRGWindow64GiBV1 => 9,
+    StackedDRGWindow2KiBV1P1 => 10,
+    StackedDRGWindow8MiBV1P1 => 11,
+    StackedDRGWindow512MiBV1P1 => 12,
+    StackedDRGWindow32GiBV1P1 => 13,
+    StackedDRGWindow64GiBV1P1 => 14,
 }
 
 i64_conversion! {
@@ -395,6 +402,11 @@ impl TryFrom<RegisteredPoStProof> for filecoin_proofs_api::RegisteredPoStProof {
             StackedDRGWindow512MiBV1 => Ok(Self::StackedDrgWindow512MiBV1),
             StackedDRGWindow32GiBV1 => Ok(Self::StackedDrgWindow32GiBV1),
             StackedDRGWindow64GiBV1 => Ok(Self::StackedDrgWindow64GiBV1),
+            StackedDRGWindow2KiBV1P1 => Ok(Self::StackedDrgWindow2KiBV1),
+            StackedDRGWindow8MiBV1P1 => Ok(Self::StackedDrgWindow8MiBV1),
+            StackedDRGWindow512MiBV1P1 => Ok(Self::StackedDrgWindow512MiBV1),
+            StackedDRGWindow32GiBV1P1 => Ok(Self::StackedDrgWindow32GiBV1),
+            StackedDRGWindow64GiBV1P1 => Ok(Self::StackedDrgWindow64GiBV1),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }

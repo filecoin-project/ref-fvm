@@ -6,10 +6,10 @@ members = [
     "shared",
     "testing/conformance",
     "testing/integration",
-    "testing/calibration",
+    "testing/calibration/shared",
     "ipld/*",
-    "testing/integration/tests/*-actor",
-    "testing/calibration/contract/*-actor",
+    "testing/test_actors",
+    "testing/test_actors/actors/*",
     "tools/fvm-bench",
 ]
 
@@ -20,3 +20,13 @@ overflow-checks = true
 lto = true
 opt-level = "z"
 #strip = true
+
+[profile.wasm]
+inherits = "release"
+panic = "abort"
+overflow-checks = false
+lto = true
+opt-level = "z"
+strip = true
+codegen-units = 1
+incremental = false

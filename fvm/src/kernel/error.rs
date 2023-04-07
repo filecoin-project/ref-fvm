@@ -11,13 +11,13 @@ pub type Result<T> = std::result::Result<T, ExecutionError>;
 /// Convenience macro for generating Actor Errors
 #[macro_export]
 macro_rules! syscall_error {
-    // Error with only one stringable expression
-    ( $code:ident; $msg:expr ) => { $crate::kernel::SyscallError::new(fvm_shared::error::ErrorNumber::$code, $msg) };
-
     // String with positional arguments
-    ( $code:ident; $msg:literal $(, $ex:expr)+ ) => {
+    ( $code:ident; $msg:literal $(, $ex:expr)* ) => {
         $crate::kernel::SyscallError::new(fvm_shared::error::ErrorNumber::$code, format_args!($msg, $($ex,)*))
     };
+
+    // Error with only one stringable expression
+    ( $code:ident; $msg:expr ) => { $crate::kernel::SyscallError::new(fvm_shared::error::ErrorNumber::$code, $msg) };
 
     // Error with only one stringable expression, with comma separator
     ( $code:ident, $msg:expr ) => { $crate::syscall_error!($code; $msg) };
@@ -185,4 +185,22 @@ impl SyscallError {
     pub fn new<D: Display>(c: ErrorNumber, d: D) -> Self {
         SyscallError(d.to_string(), c)
     }
+}
+
+#[test]
+fn test_syscall_error_formatting() {
+    let test_value = 1;
+    assert_eq!(
+        syscall_error!(IllegalArgument; "msg: {test_value}").0,
+        "msg: 1"
+    );
+    assert_eq!(
+        syscall_error!(IllegalArgument; "msg: {}", test_value).0,
+        "msg: 1"
+    );
+    assert_eq!(syscall_error!(IllegalArgument; "msg").0, "msg");
+    assert_eq!(
+        syscall_error!(IllegalArgument; String::from("msg")).0,
+        "msg"
+    );
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
 use bundles::*;
-use fil_events_actor::WASM_BINARY as EVENTS_BINARY;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -15,6 +14,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
+use fvm_test_actors::wasm_bin::EVENTS_ACTOR_BINARY;
 use num_traits::Zero;
 
 #[test]
@@ -134,7 +134,7 @@ fn setup() -> (
 
     let [(_sender_id, sender)] = tester.create_accounts().unwrap();
 
-    let wasm_bin = EVENTS_BINARY.unwrap();
+    let wasm_bin = EVENTS_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = [(); 0];

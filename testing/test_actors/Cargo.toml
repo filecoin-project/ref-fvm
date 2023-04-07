@@ -1,0 +1,9 @@
+[package]
+name = "fvm_test_actors"
+description = "Filecoin Virtual Machine WASM actor builder"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Protocol Labs", "Filecoin Core Devs"]
+repository = "https://github.com/filecoin-project/ref-fvm"
+publish = false

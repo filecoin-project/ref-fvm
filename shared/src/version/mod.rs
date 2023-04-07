@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct NetworkVersion(u32);
+
 impl NetworkVersion {
     /// genesis (specs-actors v0.9.3)
     pub const V0: Self = Self(0);
@@ -50,6 +51,10 @@ impl NetworkVersion {
     pub const V17: Self = Self(17);
     /// Hygge (builtin-actors v10)
     pub const V18: Self = Self(18);
+    /// Lightning (builtin-actors v11)
+    pub const V19: Self = Self(19);
+    /// Thunder (builtin-actors v11)
+    pub const V20: Self = Self(20);
 
     pub const MAX: Self = Self(u32::MAX);
 

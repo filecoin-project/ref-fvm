@@ -201,6 +201,26 @@ lazy_static! {
                     scale: Gas::new(43780),
                 },
             ),
+            (RegisteredPoStProof::StackedDRGWindow512MiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow32GiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
+            (
+                RegisteredPoStProof::StackedDRGWindow64GiBV1P1,
+                ScalingCost {
+                    flat: Gas::new(117680921),
+                    scale: Gas::new(43780),
+                },
+            ),
         ]
         .iter()
         .copied()
@@ -681,10 +701,10 @@ impl PriceList {
         const RAND_INITIAL_HASH: u64 =
             // domain separation tag, u64
             8 +
-            // vrf digest
-            32 +
-            // round
-            8;
+                // vrf digest
+                32 +
+                // round
+                8;
 
         GasCharge::new(
             "OnGetRandomness",
@@ -959,7 +979,7 @@ impl PriceList {
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V18 => &HYGGE_PRICES,
+        NetworkVersion::V18 | NetworkVersion::V19 | NetworkVersion::V20 => &HYGGE_PRICES,
         #[cfg(feature = "hyperspace")]
         _ if network_version > NetworkVersion::V18 => &HYGGE_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),

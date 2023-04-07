@@ -29,9 +29,9 @@ pub(crate) enum Pointer<K, V, H> {
 impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (&Pointer::Values(ref a), &Pointer::Values(ref b)) => a == b,
-            (&Pointer::Link { cid: ref a, .. }, &Pointer::Link { cid: ref b, .. }) => a == b,
-            (&Pointer::Dirty(ref a), &Pointer::Dirty(ref b)) => a == b,
+            (Pointer::Values(a), Pointer::Values(b)) => a == b,
+            (Pointer::Link { cid: a, .. }, Pointer::Link { cid: b, .. }) => a == b,
+            (Pointer::Dirty(a), Pointer::Dirty(b)) => a == b,
             _ => false,
         }
     }

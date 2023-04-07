@@ -86,7 +86,7 @@ pub fn hash_owned(hasher: SupportedHashes, data: &[u8]) -> Vec<u8> {
             as usize;
         assert!(written <= ret.capacity());
         // SAFETY: hash syscall should've written _exactly_ the number of bytes it wrote to the buffer
-        ret.set_len(written as usize);
+        ret.set_len(written);
     }
 
     ret

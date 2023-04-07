@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 3.2.0 [2023-04-04]
+
+- Remove unused dependencies.
+- Remove unused dependencies.
+- BREAKING: Drop unused `registered_seal_proof` method. This appears to have been unused by anyone.
+
+## 3.1.0 [2023-03-09]
+
+Update proofs. Unfortunately, this is a breaking change in a minor release but we need to do the same on the v2 release as well. The correct solution is to introduce two crates, fvm1 and fvm2, but that's a future project.
+
+## 3.0.0 [2022-02-24]
+
+- Final release for NV18.
+
 ## 3.0.0-alpha.20 [2022-02-06]
 
 - Change the `BLOCK_GAS_LIMIT` constant to a `u64` to match all the other gas values.

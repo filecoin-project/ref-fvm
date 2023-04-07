@@ -23,7 +23,7 @@ const MAX_HEIGHT: u32 = 64;
 
 /// MaxIndex is the maximum index for elements in the AMT. This u64::MAX-1 so we
 /// don't overflow u64::MAX when computing the length.
-pub const MAX_INDEX: u64 = (std::u64::MAX - 1) as u64;
+pub const MAX_INDEX: u64 = std::u64::MAX - 1;
 
 fn nodes_for_height(bit_width: u32, height: u32) -> u64 {
     let height_log_two = bit_width as u64 * height as u64;
