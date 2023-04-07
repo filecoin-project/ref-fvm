@@ -163,9 +163,18 @@ fn on_event(p: OnEventParams) -> Result<()> {
 }
 
 fn on_event_shape(p: OnEventParams) -> Result<()> {
+    const MAX_DATA: usize = 8 << 10;
+
     let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else { panic!() };
     let mut value = vec![0; value_size];
-    let mut last_value = vec![0; last_value_size];
+
+    // the last entry may not exceed total event values over MAX_DATA
+    let total_entry_size = (p.entries - 1) * value_size;
+    let mut tmp_size = last_value_size;
+    if tmp_size + total_entry_size > MAX_DATA {
+        tmp_size = MAX_DATA - total_entry_size;
+    }
+    let mut last_value = vec![0; tmp_size];
 
     for i in 0..p.iterations {
         random_mutations(&mut value, p.seed + i as u64, MUTATION_COUNT);
