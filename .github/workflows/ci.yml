@@ -102,15 +102,11 @@ jobs:
       with:
         tool: cargo-llvm-cov@0.4.5
     - name: Setting up cache
-      uses: pl-strflt/rust-sccache-action@v1
-      env:
-        SCCACHE_CACHE_SIZE: 2G
-        SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-        CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f
       with:
-        version: v0.2.15
+        save-if: ${{ matrix.push == 'true' }}
         # change this to invalidate sccache for this job
-        shared-key: ${{ matrix.key }}
+        prefix-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}
       run: cargo ${{ matrix.command }} --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
@@ -121,15 +117,3 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
         verbose: true
-    - name: Installing Cargo-Cache
-      if: ${{ matrix.push }}
-      run: cargo install cargo-cache
-    - name: Cleaning Cargo Cache
-      if: ${{ matrix.push }}
-      run: cargo cache --autoclean
-    - name: Getting Cargo Cache Size
-      if: ${{ matrix.push }}
-      run: cargo cache -i
-    - name: Getting sccache size
-      if: ${{ matrix.push }}
-      run: cargo cache sccache
