@@ -15,7 +15,7 @@ use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability,
-    PoolingAllocationStrategy, Val, ValType,
+    Val, ValType,
 };
 
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
@@ -110,7 +110,6 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
 
     let mut alloc_strat_cfg = wasmtime::PoolingAllocationConfig::default();
-    alloc_strat_cfg.strategy(PoolingAllocationStrategy::ReuseAffinity);
     alloc_strat_cfg.instance_count(instance_count);
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
@@ -506,9 +505,10 @@ impl Engine {
                 .downcast_mut()
                 .expect("invalid instance cache entry"),
         };
+        let gas_global = store.data_mut().avail_gas_global;
         cache
             .linker
-            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)
+            .define(&store, "gas", GAS_COUNTER_NAME, gas_global)
             .context("failed to define gas counter")
             .map_err(Abort::Fatal)?;
 
