@@ -104,7 +104,7 @@ jobs:
     - name: Setting up cache
       uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f
       with:
-        save-if: ${{ matrix.push == 'true' }}
+        save-if: ${{ matrix.push == true }}
         # change this to invalidate sccache for this job
         prefix-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}
