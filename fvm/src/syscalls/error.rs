@@ -1,10 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! This module contains code used to convert errors to and from wasmtime traps.
-use std::sync::Mutex;
-
 use anyhow::anyhow;
-use derive_more::Display;
 use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
@@ -12,13 +9,16 @@ use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{BlockId, ExecutionError};
 
 /// Represents an actor "abort".
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Abort {
     /// The actor explicitly aborted with the given exit code (or panicked).
+    #[error("exit with code {0} ({2})")]
     Exit(ExitCode, String, BlockId),
     /// The actor ran out of gas.
+    #[error("out of gas")]
     OutOfGas,
     /// The system failed with a fatal error.
+    #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
 }
 
@@ -50,59 +50,37 @@ impl Abort {
     }
 }
 
-/// Wraps an execution error in a Trap.
-impl From<Abort> for Trap {
-    fn from(a: Abort) -> Self {
-        Trap::from(Box::new(Envelope::wrap(a)) as Box<dyn std::error::Error + Send + Sync + 'static>)
-    }
-}
-
 /// Unwraps a trap error from an actor into an "abort".
-impl From<Trap> for Abort {
-    fn from(t: Trap) -> Self {
-        use std::error::Error;
+impl From<anyhow::Error> for Abort {
+    fn from(e: anyhow::Error) -> Self {
+        if let Some(trap) = e.downcast_ref::<Trap>() {
+            return match trap {
+                | Trap::MemoryOutOfBounds
+                | Trap::TableOutOfBounds
+                | Trap::IndirectCallToNull
+                | Trap::BadSignature
+                | Trap::IntegerOverflow
+                | Trap::IntegerDivisionByZero
+                | Trap::BadConversionToInteger
+                | Trap::UnreachableCodeReached
 
-        // Actor panic/wasm error.
-        if let Some(code) = t.trap_code() {
-            return Abort::Exit(
-                ExitCode::SYS_ILLEGAL_INSTRUCTION,
-                code.to_string(),
-                NO_DATA_BLOCK_ID,
-            );
+                // Should require the atomic feature to be enabled, but we might as well just
+                // handle this.
+                | Trap::HeapMisaligned
+                | Trap::AtomicWaitNonSharedMemory
+
+                // I think this is fatal? But I'm not sure.
+                | Trap::StackOverflow => Abort::Exit(
+                    ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                    trap.to_string(),
+                    NO_DATA_BLOCK_ID,
+                ),
+                _ => Abort::Fatal(anyhow!("unexpected wasmtime trap: {}", trap)),
+            };
+        };
+        match e.downcast::<Abort>() {
+            Ok(abort) => abort,
+            Err(e) => Abort::Fatal(e),
         }
-
-        // Try to get a smuggled error back.
-        t.source()
-            .and_then(|e| e.downcast_ref::<Envelope>())
-            .and_then(|e| e.take())
-            // Otherwise, treat this as a fatal error.
-            .unwrap_or_else(|| Abort::Fatal(t.into()))
-    }
-}
-
-/// A super special secret error type for stapling an error to a trap in a way that allows us to
-/// pull it back out.
-///
-/// BE VERY CAREFUL WITH THIS ERROR TYPE: Its source is self-referential.
-#[derive(Display, Debug)]
-#[display(fmt = "wrapping error")]
-struct Envelope {
-    inner: Mutex<Option<Abort>>,
-}
-
-impl Envelope {
-    fn wrap(a: Abort) -> Self {
-        Self {
-            inner: Mutex::new(Some(a)),
-        }
-    }
-    fn take(&self) -> Option<Abort> {
-        self.inner.lock().ok().and_then(|mut a| a.take()).take()
-    }
-}
-
-impl std::error::Error for Envelope {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self)
     }
 }

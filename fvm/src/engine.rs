@@ -14,17 +14,18 @@ use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
-    Global, GlobalType, InstanceAllocationStrategy, InstanceLimits, Linker, Memory, MemoryType,
-    Module, Mutability, PoolingAllocationStrategy, Val, ValType,
+    Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability,
+    Val, ValType,
 };
-use wasmtime_runtime::InstantiationError;
 
-use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
-use crate::syscalls::{bind_syscalls, charge_for_init, record_init_time, InvocationData};
+use crate::syscalls::{
+    bind_syscalls, charge_for_exec, charge_for_init, record_init_time, update_gas_available,
+    InvocationData,
+};
 use crate::Kernel;
 
 /// Container managing engines with different consensus-affecting configurations.
@@ -107,16 +108,16 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: OnDemand
     // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
-    c.allocation_strategy(InstanceAllocationStrategy::Pooling {
-        strategy: PoolingAllocationStrategy::ReuseAffinity,
-        instance_limits: InstanceLimits {
-            count: instance_count,
-            // Adjust the maximum amount of host memory that can be committed to an instance to
-            // match the static linear memory size we reserve for each slot.
-            memory_pages: instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
-            ..Default::default()
-        },
-    });
+
+    let mut alloc_strat_cfg = wasmtime::PoolingAllocationConfig::default();
+    alloc_strat_cfg.instance_count(instance_count);
+
+    // Adjust the maximum amount of host memory that can be committed to an instance to
+    // match the static linear memory size we reserve for each slot.
+    alloc_strat_cfg.instance_memory_pages(
+        instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
+    );
+    c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
     // wasmtime default: true
     // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
@@ -504,9 +505,10 @@ impl Engine {
                 .downcast_mut()
                 .expect("invalid instance cache entry"),
         };
+        let gas_global = store.data_mut().avail_gas_global;
         cache
             .linker
-            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)
+            .define(&store, "gas", GAS_COUNTER_NAME, gas_global)
             .context("failed to define gas counter")
             .map_err(Abort::Fatal)?;
 
@@ -519,31 +521,27 @@ impl Engine {
             // initially. The limits are checked by wasmtime during instantiation, though.
             let t = charge_for_init(store, module).map_err(Abort::from_error_as_fatal)?;
 
-            let inst = cache.linker.instantiate(&mut *store, module).map_err(|e| {
-                match e.downcast::<InstantiationError>() {
-                    // This will be handled in validation.
-                    Ok(InstantiationError::Link(e)) => Abort::Fatal(anyhow!(e)),
-                    // TODO: We may want a separate OOM exit code? However, normal ooms will usually
-                    // exit with SYS_ILLEGAL_INSTRUCTION.
-                    Ok(InstantiationError::Resource(e)) => Abort::Exit(
-                        ExitCode::SYS_ILLEGAL_INSTRUCTION,
-                        e.to_string(),
-                        NO_DATA_BLOCK_ID,
-                    ),
-                    // TODO: we probably shouldn't hit this unless we're running code? We
-                    // should check if we can "validate away" this case.
-                    Ok(InstantiationError::Trap(e)) => Abort::Exit(
-                        ExitCode::SYS_ILLEGAL_INSTRUCTION,
-                        format!("actor initialization failed: {:?}", e),
-                        0,
-                    ),
-                    // TODO: Consider using the instance limit instead of an explicit stack depth?
-                    Ok(InstantiationError::Limit(limit)) => Abort::Fatal(anyhow!(
-                        "did not expect to hit wasmtime instance limit: {}",
-                        limit
-                    )),
-                    Err(e) => Abort::Fatal(e),
-                }
+            // Pre-instantiate to catch any linker errors. These are considered fatal as it means
+            // the wasm module wasn't properly validated.
+            let pre_instance = cache
+                .linker
+                .instantiate_pre(module)
+                .context("failed to link actor module")?;
+
+            // Update the gas _just_ in case.
+            update_gas_available(store)?;
+            let res = pre_instance.instantiate(&mut *store);
+            charge_for_exec(store)?;
+
+            let inst = res.map_err(|e| {
+                // We can't really tell what type of error happened, so we have to assume that we
+                // either ran out of memory or trapped. Given that we've already type-checked the
+                // module, this is the most likely case anyways. That or there'a a bug in the FVM.
+                Abort::Exit(
+                    ExitCode::SYS_ILLEGAL_INSTRUCTION,
+                    format!("failed to instantiate module: {e}"),
+                    0,
+                )
             })?;
 
             // Record the time it took for the linker to instantiate the module.
