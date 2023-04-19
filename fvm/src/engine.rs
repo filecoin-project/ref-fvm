@@ -29,6 +29,8 @@ use crate::syscalls::{
 };
 use crate::Kernel;
 
+const EFFECTIVE_STACK_DEPTH: u32 = 20;
+
 /// Container managing engines with different consensus-affecting configurations.
 pub struct MultiEngine {
     engines: Mutex<HashMap<EngineConfig, EnginePool>>,
@@ -95,7 +97,7 @@ impl Default for MultiEngine {
 }
 
 fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
-    let instance_count = (1 + ec.max_call_depth) * ec.concurrency;
+    let instance_count = ec.max_call_depth + EFFECTIVE_STACK_DEPTH * ec.concurrency;
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
     if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
@@ -207,6 +209,7 @@ struct EngineInner {
     condv: Condvar,
 
     engine: wasmtime::Engine,
+    pool: Arc<InstancePool>,
 
     /// These two fields are used used in the store constructor to avoid resolve a chicken & egg
     /// situation: We need the store before we can get the real values, but we need to create the
@@ -277,6 +280,10 @@ impl EnginePool {
             limit: Mutex::new(ec.concurrency),
             condv: Condvar::new(),
             engine,
+            pool: Arc::new(InstancePool::new(
+                ec.max_call_depth + EFFECTIVE_STACK_DEPTH * ec.concurrency,
+                ec.max_call_depth,
+            )),
             dummy_memory,
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
@@ -485,7 +492,7 @@ impl Engine {
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
-    ) -> Result<Option<wasmtime::Instance>, Abort> {
+    ) -> Result<Option<WasmInstance>, Abort> {
         let k = self.with_redirect(k);
         let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
 
@@ -529,12 +536,20 @@ impl Engine {
                 .instantiate_pre(module)
                 .context("failed to link actor module")?;
 
+            // acquire resources for the instance
+            self.0.pool.get()?;
+
             // Update the gas _just_ in case.
             update_gas_available(store)?;
             let res = pre_instance.instantiate(&mut *store);
-            charge_for_exec(store)?;
+
+            if let Err(e) = charge_for_exec(store) {
+                self.0.pool.put();
+                return Err(e);
+            }
 
             let inst = res.map_err(|e| {
+                self.0.pool.put();
                 // We can't really tell what type of error happened, so we have to assume that we
                 // either ran out of memory or trapped. Given that we've already type-checked the
                 // module, this is the most likely case anyways. That or there'a a bug in the FVM.
@@ -551,7 +566,10 @@ impl Engine {
             // which could have been cached already.
             record_init_time(store, t);
 
-            Ok(Some(inst))
+            Ok(Some(WasmInstance {
+                instance: inst,
+                pool: self.0.pool.clone(),
+            }))
         };
 
         match module_cache.entry(*k) {
@@ -620,17 +638,36 @@ impl Engine {
     }
 }
 
+pub struct WasmInstance {
+    instance: wasmtime::Instance,
+    pool: Arc<InstancePool>,
+}
+
+impl Deref for WasmInstance {
+    type Target = wasmtime::Instance;
+
+    fn deref(&self) -> &Self::Target {
+        &self.instance
+    }
+}
+
+impl Drop for WasmInstance {
+    fn drop(&mut self) {
+        self.pool.put()
+    }
+}
+
 struct InstancePoolInner {
     // available resources
-    avail: i32,
+    avail: u32,
     // resource reservation limit; if avail < rsvp, the resource pool will boost one thread
     // to receive as many resources as it needs, while avail > 0.
     // if avail reaches 0, the resource reservation will fail.
-    rsvp: i32,
+    rsvp: u32,
     // thread id of currently boosted thread, if any
     boost: Option<thread::ThreadId>,
     // active boosts for currently boosted threads
-    boosting: i32,
+    boosting: u32,
 }
 
 struct InstancePool {
@@ -641,7 +678,7 @@ struct InstancePool {
 // temporarily allow dead_code
 #[allow(dead_code)]
 impl InstancePool {
-    fn new(avail: i32, rsvp: i32) -> InstancePool {
+    fn new(avail: u32, rsvp: u32) -> InstancePool {
         InstancePool {
             mx: Mutex::new(InstancePoolInner {
                 avail,
