@@ -644,8 +644,8 @@ impl InstancePool {
     fn new(avail: i32, rsvp: i32) -> InstancePool {
         InstancePool {
             mx: Mutex::new(InstancePoolInner {
-                avail: avail,
-                rsvp: rsvp,
+                avail,
+                rsvp,
                 boost: None,
                 boosting: 0,
             }),
