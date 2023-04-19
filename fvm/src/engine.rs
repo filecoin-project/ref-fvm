@@ -5,6 +5,7 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
@@ -616,6 +617,95 @@ impl Engine {
         store.limiter(as_wasmtime_limiter);
 
         store
+    }
+}
+
+struct InstancePoolInner {
+    // available resources
+    avail: i32,
+    // resource reservation limit; if avail < rsvp, the resource pool will boost one thread
+    // to receive as many resources as it needs, while avail > 0.
+    // if avail reaches 0, the resource reservation will fail.
+    rsvp: i32,
+    // thread id of currently boosted thread, if any
+    boost: Option<thread::ThreadId>,
+    // active boosts for currently boosted threads
+    boosting: i32,
+}
+
+struct InstancePool {
+    mx: Mutex<InstancePoolInner>,
+    cv: Condvar,
+}
+
+// temporarily allow dead_code
+#[allow(dead_code)]
+impl InstancePool {
+    fn new(avail: i32, rsvp: i32) -> InstancePool {
+        InstancePool {
+            mx: Mutex::new(InstancePoolInner {
+                avail: avail,
+                rsvp: rsvp,
+                boost: None,
+                boosting: 0,
+            }),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn get(&self) -> Result<(), Abort> {
+        let mut guard = self.mx.lock().unwrap();
+
+        // are we above the reserveation limit? Just acquire if that's the case.
+        if guard.avail > guard.rsvp {
+            if guard.boost == Some(thread::current().id()) {
+                guard.boosting += 1;
+            }
+            guard.avail -= 1;
+            return Ok(());
+        }
+
+        // is there any resource still available? boost or wait.
+        if guard.avail > 0 {
+            match guard.boost {
+                None => {
+                    guard.boost = Some(thread::current().id());
+                    guard.boosting += 1;
+                    guard.avail -= 1;
+                    return Ok(());
+                }
+                Some(tid) => {
+                    if tid == thread::current().id() {
+                        guard.boosting += 1;
+                        guard.avail -= 1;
+                        return Ok(());
+                    }
+
+                    let mut reguard = self.cv.wait_while(guard, |rc| rc.avail <= rc.rsvp).unwrap();
+                    reguard.avail -= 1;
+                    return Ok(());
+                }
+            }
+        }
+
+        // we've run out of resources, bail.
+        Err(Abort::Fatal(anyhow!("instance pool resources exceeded")))
+    }
+
+    fn put(&self) {
+        let mut guard = self.mx.lock().unwrap();
+
+        if guard.boost == Some(thread::current().id()) {
+            guard.boosting -= 1;
+            if guard.boosting == 0 {
+                guard.boost = None;
+            }
+        }
+
+        guard.avail += 1;
+        if guard.avail > guard.rsvp {
+            self.cv.notify_one();
+        }
     }
 }
 
