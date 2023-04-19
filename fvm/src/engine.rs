@@ -675,8 +675,6 @@ struct InstancePool {
     cv: Condvar,
 }
 
-// temporarily allow dead_code
-#[allow(dead_code)]
 impl InstancePool {
     fn new(avail: u32, rsvp: u32) -> InstancePool {
         InstancePool {
