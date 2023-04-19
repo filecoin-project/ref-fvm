@@ -692,41 +692,41 @@ impl InstancePool {
 
     fn get(&self) -> Result<(), Abort> {
         let mut guard = self.mx.lock().unwrap();
-
-        // are we above the reserveation limit? Just acquire if that's the case.
-        if guard.avail > guard.rsvp {
-            if guard.boost == Some(thread::current().id()) {
-                guard.boosting += 1;
-            }
-            guard.avail -= 1;
-            return Ok(());
-        }
-
-        // is there any resource still available? boost or wait.
-        if guard.avail > 0 {
-            match guard.boost {
-                None => {
-                    guard.boost = Some(thread::current().id());
+        loop {
+            // are we above the reserveation limit? Just acquire if that's the case.
+            if guard.avail > guard.rsvp {
+                if guard.boost == Some(thread::current().id()) {
                     guard.boosting += 1;
-                    guard.avail -= 1;
-                    return Ok(());
                 }
-                Some(tid) => {
-                    if tid == thread::current().id() {
+                guard.avail -= 1;
+                return Ok(());
+            }
+
+            // is there any resource still available? boost or wait.
+            if guard.avail > 0 {
+                match guard.boost {
+                    None => {
+                        guard.boost = Some(thread::current().id());
                         guard.boosting += 1;
                         guard.avail -= 1;
                         return Ok(());
                     }
+                    Some(tid) => {
+                        if tid == thread::current().id() {
+                            guard.boosting += 1;
+                            guard.avail -= 1;
+                            return Ok(());
+                        }
 
-                    let mut reguard = self.cv.wait_while(guard, |rc| rc.avail <= rc.rsvp).unwrap();
-                    reguard.avail -= 1;
-                    return Ok(());
+                        guard = self.cv.wait_while(guard, |rc| rc.avail < rc.rsvp).unwrap();
+                        continue;
+                    }
                 }
             }
-        }
 
-        // we've run out of resources, bail.
-        Err(Abort::Fatal(anyhow!("instance pool resources exceeded")))
+            // we've run out of resources, bail.
+            return Err(Abort::Fatal(anyhow!("instance pool resources exceeded")));
+        }
     }
 
     fn put(&self) {
@@ -740,7 +740,7 @@ impl InstancePool {
         }
 
         guard.avail += 1;
-        if guard.avail > guard.rsvp {
+        if guard.avail >= guard.rsvp {
             self.cv.notify_one();
         }
     }
