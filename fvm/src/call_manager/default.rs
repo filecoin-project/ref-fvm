@@ -581,10 +581,7 @@ where
 
     /// Helper method to create a placeholder actor due to a send. This method does not execute any
     /// constructors.
-    fn create_placeholder_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
-    where
-        K: Kernel<CallManager = Self>,
-    {
+    fn create_placeholder_actor_from_send(&mut self, addr: &Address) -> Result<ActorID> {
         let code_cid = self.builtin_actors().get_placeholder_code();
         let state = ActorState::new_empty(*code_cid, Some(*addr));
         self.create_actor_from_send(addr, state)
@@ -620,7 +617,7 @@ where
                     if read_only {
                         return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
                     }
-                    self.create_placeholder_actor_from_send::<K>(&to)?
+                    self.create_placeholder_actor_from_send(&to)?
                 }
                 _ => return Err(
                     syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)

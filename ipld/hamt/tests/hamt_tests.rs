@@ -482,7 +482,7 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
             if next.is_none() {
                 break;
             } else {
-                assert_eq!(next.clone().unwrap(), kvs[(iterations * PAGE_SIZE)].0);
+                assert_eq!(next.clone().unwrap(), kvs[iterations * PAGE_SIZE].0);
                 cursor = next;
             }
         }
@@ -528,7 +528,7 @@ fn for_each_ranged(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCh
             if next.is_none() {
                 break;
             } else {
-                assert_eq!(next.clone().unwrap(), kvs[(iterations * PAGE_SIZE)].0);
+                assert_eq!(next.clone().unwrap(), kvs[iterations * PAGE_SIZE].0);
                 cursor = next;
             }
         }
