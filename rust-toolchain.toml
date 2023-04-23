@@ -1,4 +1,4 @@
 [toolchain]
-channel = "stable"
+channel = "1.68.2"
 components = ["clippy", "llvm-tools-preview", "rustfmt"]
 targets = ["wasm32-unknown-unknown"]
