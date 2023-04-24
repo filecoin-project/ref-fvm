@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.3.0 [2023-04-23]
+
+- Fixes an issue with proof bindings.
+
 ## 3.2.0 [2023-04-04]
 
 - Support nv19/nv20
