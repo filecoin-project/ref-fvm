@@ -882,7 +882,8 @@ where
             .call_manager
             .engine()
             .preload(self.call_manager.blockstore(), &[code_id])
-            .map_err(|_| syscall_error!(IllegalArgument; "failed to load actor code"))?;
+            .context("failed to install actor")
+            .or_illegal_argument()?;
 
         let t = self
             .call_manager
