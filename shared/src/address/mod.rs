@@ -46,7 +46,7 @@ pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
 
 lazy_static::lazy_static! {
     static ref BLS_ZERO_ADDR_BYTES: [u8; BLS_PUB_LEN] = {
-        let bz_addr = Address::from_str("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
+        let bz_addr = Network::Mainnet.parse_address("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
         if let Ok(Address {payload: Payload::BLS(pubkey), ..}) = bz_addr {
             pubkey
         } else {
