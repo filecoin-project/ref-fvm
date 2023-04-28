@@ -4,6 +4,11 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.3.1 [2023-04-26]
+
+This release contains a small hack for calibrationnet and is optional for users who only want to
+sync mainnet.
+
 ## 3.3.0 [2023-04-23]
 
 - Fixes an issue with proof bindings.
