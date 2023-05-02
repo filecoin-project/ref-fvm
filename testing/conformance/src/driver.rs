@@ -29,14 +29,12 @@ use crate::vm::{TestKernel, TestMachine, TestStatsRef};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
-        // TestMachine::import_actors no longer loads V6 bundle required for NetworkVersion 15
-        ".*/specs_actors_v6/.*",
-        ".*/fil_6_.*",
-        // SYS_FORBIDDEN instead of USR_FORBIDDEN. Fixed in newer versions.
-        ".*/specs_actors_v7/TestAggregateBadSender/6f9aa4df047387cdb61f7328f3697c99e53d6151045880902595ca1ac60d334e.*",
-        // USR_ILLEGAL_ARGUMENT instead of USR_NOT_FOUND. Not sure why; disabled so other errors can be seen in CI.
-        ".*/specs_actors_v7/TestWrongPartitionIndexFailure/b4e5b1bb610305fc8cf81bfb859c76b9acdacb109a591354e7a6b43bb8e7b61f.*",
-    ].into_iter().map(|re| Regex::new(re).unwrap()).collect();
+        "0001-shark-01/.*", // nv17
+        ".*/DisputeWindowedPoSt/Ok/.*", // we treat all posts as valid (fake proofs).
+    ]
+    .into_iter()
+    .map(|re| Regex::new(re).unwrap())
+    .collect();
 }
 
 lazy_static! {

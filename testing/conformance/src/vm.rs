@@ -1,12 +1,10 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
-use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::gas::{price_list_by_network_version, Gas, GasTimer, GasTracker, PriceList};
@@ -16,7 +14,6 @@ use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkCon
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_car::load_car_unchecked;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -101,16 +98,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
-        // Load the builtin actors bundles into the blockstore.
-        let nv_actors = TestMachine::import_actors(&blockstore);
-
-        // Get the builtin actors index for the concrete network version.
-        let builtin_actors = *nv_actors
-            .get(&network_version)
-            .ok_or_else(|| anyhow!("no builtin actors index for NV {network_version}"))?;
-
         let mut nc = NetworkConfig::new(network_version);
-        nc.override_actors(builtin_actors);
         let mut mc = nc.for_epoch(epoch, (epoch * 30) as u64, state_root);
         // Allow overriding prices to some other network version.
         if let Some(nv) = price_network_version {
@@ -137,18 +125,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         };
 
         Ok(machine)
-    }
-
-    pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V18, actors_v10::BUNDLE_CAR)];
-        bundles
-            .into_iter()
-            .map(|(nv, car)| {
-                let roots = block_on(async { load_car_unchecked(blockstore, car).await.unwrap() });
-                assert_eq!(roots.len(), 1);
-                (nv, roots[0])
-            })
-            .collect()
     }
 }
 

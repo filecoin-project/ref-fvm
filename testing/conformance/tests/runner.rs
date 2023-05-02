@@ -1,8 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-#![cfg(ignore)]
-
 use std::collections::HashMap;
 use std::env::var;
 use std::fs::File;
@@ -15,7 +13,7 @@ use anyhow::{anyhow, Context as _};
 use async_std::{stream, sync, task};
 use colored::*;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
-use fvm::machine::MultiEngine;
+use fvm::engine::MultiEngine;
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::report;
 use fvm_conformance_tests::tracing::{TestTraceExporter, TestTraceExporterRef};
@@ -44,15 +42,13 @@ impl FromStr for ErrorAction {
 }
 
 lazy_static! {
-    /// The maximum parallelism when processing test vectors.
+    /// The maximum parallelism when processing test vectors. Capped at 48.
     static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
         .map(|s| {
             let s = s.to_str().unwrap();
             s.parse().expect("parallelism must be an integer")
-        }).unwrap_or_else(num_cpus::get);
-}
+        }).unwrap_or_else(num_cpus::get).min(48);
 
-lazy_static! {
     /// By default a post-condition error is fatal and stops all testing. We can use this env var to relax that
     /// and let the test carry on (optionally with a warning); there's a correctness check against the post condition anyway.
     static ref TEST_VECTOR_POSTCONDITION_MISSING_ACTION: ErrorAction = std::env::var_os("TEST_VECTOR_POSTCONDITION_MISSING_ACTION")
@@ -60,13 +56,13 @@ lazy_static! {
             let s = s.to_str().unwrap();
             s.parse().expect("unexpected post condition error action")
         }).unwrap_or(ErrorAction::Warn);
+
+    static ref ENGINES: MultiEngine = MultiEngine::new(*TEST_VECTOR_PARALLELISM as u32);
 }
 
 #[async_std::test]
 async fn conformance_test_runner() -> anyhow::Result<()> {
     env_logger::init();
-
-    let engines = MultiEngine::new();
 
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
@@ -82,7 +78,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
         let tracer = tracer.clone();
         either::Either::Left(
             iter::once(async move {
-                let res = run_vector(path.clone(), engines, stats, tracer)
+                let res = run_vector(path.clone(), stats, tracer)
                     .await
                     .with_context(|| format!("failed to run vector: {}", path.display()))?;
                 anyhow::Ok((path, res))
@@ -95,12 +91,11 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 .into_iter()
                 .filter_ok(is_runnable)
                 .map(|e| {
-                    let engines = engines.clone();
                     let stats = stats.clone();
                     let tracer = tracer.clone();
                     async move {
                         let path = e?.path().to_path_buf();
-                        let res = run_vector(path.clone(), engines, stats, tracer)
+                        let res = run_vector(path.clone(), stats, tracer)
                             .await
                             .with_context(|| format!("failed to run vector: {}", path.display()))?;
                         Ok((path, res))
@@ -169,10 +164,10 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
             "{}",
             format!(
                 "memory stats:\n init.min: {}\n init.max: {}\n exec.min: {}\n exec.max: {}\n",
-                stats.init.min_desired_memory_bytes,
-                stats.init.max_desired_memory_bytes,
-                stats.exec.min_desired_memory_bytes,
-                stats.exec.max_desired_memory_bytes,
+                stats.init.min_instance_memory_bytes,
+                stats.init.max_instance_memory_bytes,
+                stats.exec.min_instance_memory_bytes,
+                stats.exec.max_instance_memory_bytes,
             )
             .bold()
         );
@@ -193,7 +188,6 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
 /// one per variant.
 async fn run_vector(
     path: PathBuf,
-    engines: MultiEngine,
     stats: TestStatsRef,
     tracer: TestTraceExporterRef,
 ) -> anyhow::Result<impl Iterator<Item = impl Future<Output = anyhow::Result<VariantResult>>>> {
@@ -276,7 +270,6 @@ async fn run_vector(
                     (0..v.preconditions.variants.len()).map(move |i| {
                         let v = v.clone();
                         let bs = bs.clone();
-                        let engines = engines.clone();
                         let path = path.clone();
                         let variant_id = v.preconditions.variants[i].id.clone();
                         let name = format!("{} | {}", path.display(), variant_id);
@@ -290,7 +283,7 @@ async fn run_vector(
                                         bs,
                                         &v,
                                         &v.preconditions.variants[i],
-                                        &engines,
+                                        &ENGINES,
                                         true,
                                         stats,
                                         tracer.map(|t| t.export_fun(path, variant_id)),
