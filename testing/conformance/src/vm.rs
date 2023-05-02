@@ -1,8 +1,6 @@
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use cid::Cid;
-use futures::executor::block_on;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasTracker, PriceList};
 use fvm::kernel::*;
@@ -13,7 +11,6 @@ use fvm::state_tree::{ActorState, StateTree};
 use fvm::trace::ExecutionEvent;
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_car::load_car_unchecked;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
@@ -66,16 +63,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
-        // Load the builtin actors bundles into the blockstore.
-        let nv_actors = TestMachine::import_actors(&blockstore);
-
-        // Get the builtin actors index for the concrete network version.
-        let builtin_actors = *nv_actors
-            .get(&network_version)
-            .expect("no builtin actors index for nv");
-
-        let mut nc = NetworkConfig::new(network_version);
-        nc.override_actors(builtin_actors);
+        let nc = NetworkConfig::new(network_version);
         let mut mc = nc.for_epoch(epoch, state_root);
         mc.set_base_fee(base_fee);
 
@@ -105,18 +93,6 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 price_list,
             },
         }
-    }
-
-    pub fn import_actors(blockstore: &MemoryBlockstore) -> BTreeMap<NetworkVersion, Cid> {
-        let bundles = [(NetworkVersion::V15, actors_v7::BUNDLE_CAR)];
-        bundles
-            .into_iter()
-            .map(|(nv, car)| {
-                let roots = block_on(async { load_car_unchecked(blockstore, car).await.unwrap() });
-                assert_eq!(roots.len(), 1);
-                (nv, roots[0])
-            })
-            .collect()
     }
 }
 
