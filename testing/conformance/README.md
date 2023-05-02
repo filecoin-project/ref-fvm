@@ -17,7 +17,7 @@ For a single vector:
 
 ```shell
 CARGO_PROFILE_BENCH_DEBUG=true \
-  VECTOR=testing/conformance/test-vectors/corpus/specs_actors_v6/TestMeasurePreCommitGas/ff3438ebc9c42d99d23a8654c4a5d5c8408f575950c05e504be9de58aa521167-t0100-t0101-storageminer-25.json \
+  VECTOR=testing/conformance/test-vectors/corpus/extracted/0001-shark-01/fil_9_storageminer/PreCommitSector/Ok/ext-0001-fil_9_storageminer-PreCommitSector-Ok-1.json \
   ./target/release/perf-conformance
 ```
 
@@ -27,7 +27,7 @@ For a single vector:
 
 ```shell
 CARGO_PROFILE_BENCH_DEBUG=true \
-  VECTOR=testing/conformance/test-vectors/corpus/specs_actors_v6/TestMeasurePreCommitGas/ff3438ebc9c42d99d23a8654c4a5d5c8408f575950c05e504be9de58aa521167-t0100-t0101-storageminer-25.json \
+  VECTOR=testing/conformance/test-vectors/corpus/extracted/0001-shark-01/fil_9_storageminer/PreCommitSector/Ok/ext-0001-fil_9_storageminer-PreCommitSector-Ok-1.json \
   perf record -k mono ./target/release/perf-conformance
 ```
 
@@ -44,3 +44,7 @@ perf inject --jit --input perf.data --output perf.jit.data
 ```shell
 perf report --input perf.jit.data --hierarchy
 ```
+
+## Adding new actor bundles
+
+To add support for new actors releases, take the bundle [tar file from lotus](https://github.com/filecoin-project/lotus/tree/master/build/actors), add it to `testing/conformance/actors/`, and register it in `testing/conformance/src/actors.rs`.

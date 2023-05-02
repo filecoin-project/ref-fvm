@@ -23,8 +23,11 @@ use crate::vm::{TestKernel, TestMachine};
 
 lazy_static! {
     static ref SKIP_TESTS: Vec<Regex> = vec![
-        // currently empty.
-    ];
+        // skip actors v10+
+        ".*/fil_[1-9][0-9]+_.*",
+    ] .into_iter()
+    .map(|re| Regex::new(re).unwrap())
+    .collect();
 }
 
 /// Checks if the file is a runnable vector.

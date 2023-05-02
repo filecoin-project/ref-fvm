@@ -19,6 +19,8 @@ use fvm_shared::clock::ChainEpoch;
 use fvm_shared::receipt::Receipt;
 use serde::{Deserialize, Deserializer};
 
+use crate::actors::load_actors;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct StateTreeVector {
     #[serde(with = "super::cidjson")]
@@ -180,10 +182,12 @@ impl MessageVector {
 }
 
 impl MessageVector {
-    /// Seeds a new blockstore with the CAR encoded in the test vector, and
-    /// returns the blockstore and the root CID.
+    /// Seeds a new blockstore with the CAR encoded in the test vector and all available bundled
+    /// actors. Returns the blockstore and the root CID.
     pub async fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
         let blockstore = MemoryBlockstore::new();
+        load_actors(&blockstore)?;
+
         let bytes = self.car.as_slice();
         let decoder = GzipDecoder(GzDecoder::new(bytes));
         let cid = load_car(&blockstore, decoder).await?;
