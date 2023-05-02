@@ -11,6 +11,11 @@ use lazy_static::lazy_static;
 static V10_BUNDLE: &[u8] = include_bytes!("../actors/v10.tar.zst");
 static V11_BUNDLE: &[u8] = include_bytes!("../actors/v11.tar.zst");
 
+lazy_static! {
+    static ref ACTORS: Mutex<MemoryBlockstore> =
+        Mutex::new(load_bundles(&[V10_BUNDLE, V11_BUNDLE]).expect("failed to load bundles"));
+}
+
 fn load_bundles(bundles: &[&[u8]]) -> anyhow::Result<MemoryBlockstore> {
     let bs = MemoryBlockstore::new();
     for bundle in bundles {
@@ -23,11 +28,6 @@ fn load_bundles(bundles: &[&[u8]]) -> anyhow::Result<MemoryBlockstore> {
         }
     }
     Ok(bs)
-}
-
-lazy_static! {
-    static ref ACTORS: Mutex<MemoryBlockstore> =
-        Mutex::new(load_bundles(&[V10_BUNDLE, V11_BUNDLE]).expect("failed to load bundles"));
 }
 
 /// Load the bundled actors into the specified blockstore.
