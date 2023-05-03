@@ -131,7 +131,7 @@ where
             id: format!(
                 "{}-{}",
                 context.epoch,
-                cid::multibase::encode(cid::multibase::Base::Base32Lower, &randomness)
+                cid::multibase::encode(cid::multibase::Base::Base32Lower, randomness)
             ),
         })
     }

@@ -15,47 +15,47 @@ impl<M: Machine> Machine for Box<M> {
 
     #[inline(always)]
     fn engine(&self) -> &Engine {
-        (&**self).engine()
+        (**self).engine()
     }
 
     #[inline(always)]
     fn blockstore(&self) -> &Self::Blockstore {
-        (&**self).blockstore()
+        (**self).blockstore()
     }
 
     #[inline(always)]
     fn context(&self) -> &Type {
-        (&**self).context()
+        (**self).context()
     }
 
     #[inline(always)]
     fn externs(&self) -> &Self::Externs {
-        (&**self).externs()
+        (**self).externs()
     }
 
     #[inline(always)]
     fn builtin_actors(&self) -> &Manifest {
-        (&**self).builtin_actors()
+        (**self).builtin_actors()
     }
 
     #[inline(always)]
     fn state_tree(&self) -> &StateTree<Self::Blockstore> {
-        (&**self).state_tree()
+        (**self).state_tree()
     }
 
     #[inline(always)]
     fn state_tree_mut(&mut self) -> &mut StateTree<Self::Blockstore> {
-        (&mut **self).state_tree_mut()
+        (**self).state_tree_mut()
     }
 
     #[inline(always)]
     fn create_actor(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
-        (&mut **self).create_actor(addr, act)
+        (**self).create_actor(addr, act)
     }
 
     #[inline(always)]
     fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        (&mut **self).transfer(from, to, value)
+        (**self).transfer(from, to, value)
     }
 
     #[inline(always)]
@@ -70,6 +70,6 @@ impl<M: Machine> Machine for Box<M> {
 
     #[inline(always)]
     fn machine_id(&self) -> &str {
-        (&**self).machine_id()
+        (**self).machine_id()
     }
 }

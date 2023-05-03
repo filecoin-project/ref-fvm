@@ -102,7 +102,7 @@ mod ipld {
                 .machine
                 .context()
                 .price_list
-                .on_block_create(block.len() as usize)
+                .on_block_create(block.len())
                 .total();
             assert_eq!(
                 call_manager.gas_tracker.gas_used(),
@@ -180,7 +180,7 @@ mod ipld {
                 .machine
                 .context()
                 .price_list
-                .on_block_create(block.len() as usize)
+                .on_block_create(block.len())
                 .total();
             let expected_link_price = call_manager
                 .machine
@@ -327,8 +327,8 @@ mod ipld {
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
-            let expected_create_price = price_list.on_block_create(block.len() as usize).total();
-            let expected_read_price = price_list.on_block_read(block.len() as usize).total();
+            let expected_create_price = price_list.on_block_create(block.len()).total();
+            let expected_read_price = price_list.on_block_read(block.len()).total();
 
             assert_eq!(
                 call_manager.test_data.borrow().charge_gas_calls - 1,
@@ -393,7 +393,7 @@ mod ipld {
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
-            let expected_create_price = price_list.on_block_create(block.len() as usize).total();
+            let expected_create_price = price_list.on_block_create(block.len()).total();
             let expected_stat_price = price_list.on_block_stat().total();
 
             assert_eq!(
