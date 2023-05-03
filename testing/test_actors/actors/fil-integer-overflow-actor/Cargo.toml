@@ -8,7 +8,7 @@ publish = false
 fvm_sdk = { version = "3.2.0", path = "../../../../sdk" }
 fvm_shared = { version = "3.3.0", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
-fvm_ipld_blockstore = { version = "0.1.1", path = "../../../../ipld/blockstore" }
+fvm_ipld_blockstore = { version = "0.1.2", path = "../../../../ipld/blockstore" }
 
 anyhow = "1.0.57"
 cid = { version = "0.8.2", default-features = false }
