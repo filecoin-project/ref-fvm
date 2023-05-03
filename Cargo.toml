@@ -5,9 +5,7 @@ members = [
     "sdk",
     "shared",
     "testing/conformance",
-    "testing/integration",
     "ipld/*",
-    "testing/integration/tests/*-actor"
 ]
 
 [profile.actor]

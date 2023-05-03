@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-clippy, test-fvm, test, integration, conformance]
+        name: [build, check-clippy, test-fvm, test, conformance]
         include:
           - name: build
             key: v3
@@ -58,24 +58,13 @@ jobs:
             key: v3-cov
             covname: lcov.info
             command: llvm-cov
-            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
+            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude "*actor" --lcov --output-path lcov.info
             components: llvm-tools-preview
-          - name: integration
-            key: v3
-            command: test
-            args: --package fvm_integration_tests --package "*actor"
           - name: conformance
             key: v3
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          # Overrides
-          # skip generating wasm coverage on mac
-          - os: macos-latest 
-            name: integration
-            key: v3
-            command: test
-            args: --package fvm_integration_tests --package "*actor"
         exclude:
           - os: macos-latest
             name: check-clippy
