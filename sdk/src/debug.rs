@@ -6,11 +6,14 @@ mod inner {
     pub fn init_logging() {}
 
     #[inline(always)]
-    pub fn enabled() {
+    pub fn enabled() -> bool {
         false
     }
     #[inline(always)]
     pub fn log(_: String) {}
+
+    #[inline(always)]
+    pub fn store_artifact(_: impl AsRef<str>, _: impl AsRef<[u8]>) {}
 }
 
 #[cfg(feature = "debug")]
