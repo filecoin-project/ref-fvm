@@ -11,7 +11,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 fvm_shared = { version = "3.3.0", path = "../../shared" }
 fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
-fvm_ipld_blockstore = { version = "0.1.1", path = "../../ipld/blockstore" }
+fvm_ipld_blockstore = { version = "0.1.2", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
 
 anyhow = "1.0.47"
