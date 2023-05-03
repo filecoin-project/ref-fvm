@@ -22,8 +22,8 @@ cid = { version = "0.8.5", default-features = false, features = ["serde-codec", 
 multihash = { version = "0.16.3", default-features = false, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
 unsigned-varint = "0.7.1"
 anyhow = "1.0.51"
-fvm_ipld_blockstore = { version = "0.1", path = "../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.2", path = "../ipld/encoding" }
+fvm_ipld_blockstore = { version = "0.1.2" }
+fvm_ipld_encoding = { version = "0.2" }
 serde = { version = "1", default-features = false }
 serde_tuple = "0.5"
 serde_repr = "0.1"
