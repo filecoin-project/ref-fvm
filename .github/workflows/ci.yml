@@ -15,18 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v2
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        profile: minimal
-        override: true
-        components: rustfmt
-    - name: Running fmt
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: fmt
-        args: -- --check
+      uses: actions/checkout@v3
+    - name: Check Format
+      run: cargo fmt -- --check
+
   cargo:
     needs: [rustfmt]
     runs-on: ${{ matrix.os }}
@@ -39,6 +31,7 @@ jobs:
           - name: build
             key: v3
             push: true
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             command: build
             args: --no-default-features
           - name: check-clippy
@@ -46,20 +39,17 @@ jobs:
             command: clippy
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             args: --all --all-targets --no-default-features
-            components: clippy
           - name: test-fvm
             key: v3-cov
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
-            components: llvm-tools-preview
           - name: test
             key: v3-cov
             covname: lcov.info
             command: llvm-cov
             args: --all --exclude fvm --exclude fvm_conformance_tests --exclude "*actor" --lcov --output-path lcov.info
-            components: llvm-tools-preview
           - name: conformance
             key: v3
             command: test
@@ -68,75 +58,40 @@ jobs:
         exclude:
           - os: macos-latest
             name: check-clippy
+          - os: macos-latest
+            name: conformance
+          - os: macos-latest
+            name: test
+          - os: macos-latest
+            name: test-fvm
     env:
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-      CACHE_SKIP_SAVE: ${{ matrix.push == '' || matrix.push == 'false' }}
+      CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: ${{ matrix.submodules }}
-    - name: Installing Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
-      with:
-        profile: minimal
-        target: wasm32-unknown-unknown
-        override: true
-        components: ${{ matrix.components }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
-    - name: Generating Cargo.lock
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: generate-lockfile
     - name: Installing Cargo llvm-cov
       if: ${{ matrix.covname }}
       uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
       with:
         tool: cargo-llvm-cov@0.4.5
     - name: Setting up cache
-      uses: ./.github/actions/rust-sccache
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f
       with:
-        version: v0.2.15
-        platform: ${{ matrix.os }}
+        save-if: ${{ matrix.push == true }}
         # change this to invalidate sccache for this job
-        shared-key: ${{ matrix.key }}
+        prefix-key: ${{ matrix.key }}
     - name: Running ${{ matrix.command }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: ${{ matrix.command }}
-        args: ${{ matrix.args }}
+      run: cargo ${{ matrix.command }} --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
-      uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
         files: ${{ matrix.covname }}
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
-    - name: Installing Cargo-Cache
-      if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: install
-        args: cargo-cache
-    - name: Cleaning Cargo Cache
-      if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: --autoclean  
-    - name: Getting Cargo Cache Size
-      if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: -i
-    - name: Getting sccache size
-      if: ${{ matrix.push }}
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: cache
-        args: sccache
+        verbose: true
