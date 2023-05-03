@@ -14,6 +14,7 @@ use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutabilit
 
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
+use crate::syscalls::error::Abort;
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
 
@@ -351,16 +352,24 @@ impl Engine {
                 .downcast_mut()
                 .expect("invalid instance cache entry"),
         };
+        let gas_global = store.data_mut().avail_gas_global;
         cache
             .linker
-            .define("gas", GAS_COUNTER_NAME, store.data_mut().avail_gas_global)?;
+            .define(&store, "gas", GAS_COUNTER_NAME, gas_global)
+            .context("failed to define gas counter")
+            .map_err(Abort::Fatal)?;
 
         let module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
         let module = match module_cache.get(k) {
             Some(module) => module,
             None => return Ok(None),
         };
-        let instance = cache.linker.instantiate(&mut *store, module)?;
+
+        let pre_instance = cache
+            .linker
+            .instantiate_pre(module)
+            .context("failed to link actor module")?;
+        let instance = pre_instance.instantiate(&mut *store)?;
 
         Ok(Some(instance))
     }
