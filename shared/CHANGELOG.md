@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0 [2023-05-03]
+
+- Update proofs to v14.
+- Misc clippy fixes.
+
 ## 2.3.0 [2023-03-09]
 
 Update proofs. Unfortunately, this is a breaking change in a minor release, but we can't cut a v3...

@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.3.0 [2023-05-03]
+
+- Update proofs to v14.
+- Update wasmtime to 8.0.1
+- Misc clippy fixes.
+
 ## 2.3.0 [2023-03-09]
 
 Update proofs. Unfortunately, this is a breaking change in a minor release, but we can't cut a v3...

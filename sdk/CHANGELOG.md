@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0 [2023-05-03]
+
+Clippy fixes & non-debug build fixes. This release is optional.
+
 ## 2.2.0 [2023-01-05]
 
 Refactor: `send` uses `Option<IpldBlock>` for return value
