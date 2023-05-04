@@ -1326,9 +1326,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-hashers"
-version = "8.0.0"
+version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04ac783ebbc0fa47fa3f4491a83ee46e7a5909384b5786dfd5319722b173a50f"
+checksum = "66d7e656d4f01d7772ef2dd0f59854c8f904370a946053cf37ef420c854d9a35"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1346,9 +1346,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59bfd144962260633b7b5151f1cf38a93c26a53238f52dae8baf414e0b329a00"
+checksum = "e00449c0e89be0922127e7e927e578247825450abdaf0da2fc30b733cb0e535b"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1378,9 +1378,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs-api"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e5b3d55a6acea686b5c7c908de9388a4d1812fa993f2060fd969b609225bdd7"
+checksum = "347a43603e12b147cc3d8285fee27771e1e9702d90f1f8e5018b8dd96b5da467"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1452,9 +1452,9 @@ dependencies = [
 
 [[package]]
 name = "fr32"
-version = "6.0.0"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54886e6035e8df26591853a500ad8024709aaec78948f080496fbd8477618690"
+checksum = "a4f07b8a600b8c699f8ddc5f520231bc2aac03e944c64055eccfd9a959c3fd60"
 dependencies = [
  "anyhow",
  "blstrs",
@@ -3096,9 +3096,9 @@ dependencies = [
 
 [[package]]
 name = "sha2raw"
-version = "8.0.0"
+version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b391e41e31b302788683ab67b5e2ec4f25040dc52f24e625fdd9cd3809f41cc3"
+checksum = "d1ec45c74ebb91d25e61e14cfc1925e7571723ae14a38fc6c8bd0b2e516db101"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -3173,9 +3173,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-proofs-core"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e7bf5cd6d0a2f85914de385c09b9939b7ac894f1c3b628f216f8c13b7d22f04"
+checksum = "f756ef2dd06efda2eb30bf6806399d493072d8469b0a724f1905dc051fea59c1"
 dependencies = [
  "aes",
  "anyhow",
@@ -3208,9 +3208,9 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-porep"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15ac4c7b0628871b76588ff15bde6f1e61e380e844cb2dac4d5882aae284d2d7"
+checksum = "2450a62eb009602a4a4d697a027ab1025657cd76b325a99dfeb8d263d44b1c5c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3236,6 +3236,7 @@ dependencies = [
  "num_cpus",
  "pretty_assertions",
  "rayon",
+ "rustversion",
  "serde",
  "serde_json",
  "sha2 0.10.6",
@@ -3246,9 +3247,9 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-post"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "207fd9dbdf2791a46c5fba617b39c623e7081a8b6608ad42b26d9d982073c104"
+checksum = "51e034a55f3c5137120c4cd1abb717cd397c660447c4393c2550be3ee5b070c4"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3269,9 +3270,9 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-update"
-version = "13.0.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e31b37ab1ff191ea20ede4141dfb9b87cc861a36888a20c5ddeeb68b47cfd04"
+checksum = "3433b2832153e2744bfa87176dcb0b587392b57fd1bd770804d366c98822285a"
 dependencies = [
  "anyhow",
  "bellperson",
