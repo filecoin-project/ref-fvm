@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.4.0 [2023-05-04]
+
+Update wasmtime to 8.0.1. This is a breaking change if you use any other wasmtime version.
+
 ## 3.3.1 [2023-04-26]
 
 This release contains a small hack for calibrationnet and is optional for users who only want to

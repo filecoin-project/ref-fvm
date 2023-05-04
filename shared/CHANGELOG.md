@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.3.1 [2023-05-04]
+
+Fix some address constants (lazy statics, to be precise) when the current network is set to "testnet". Previously, if said constants were evaluated _after_ switching to testnet mode (calling `address::set_current_network`), they'd fail to parse and crash the program when dereferenced.
+
 ## 3.3.0 [2023-04-23]
 
 - Fixes an issue with proof bindings.
