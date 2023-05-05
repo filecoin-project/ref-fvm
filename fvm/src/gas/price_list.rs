@@ -266,11 +266,11 @@ lazy_static! {
 
         syscall_cost: Gas::new(14000),
 
-        // TODO(#1279)
+        // TODO(#1347)
         builtin_actor_manifest_lookup: Zero::zero(),
-        // TODO(#1279)
+        // TODO(#1347)
         network_context: Zero::zero(),
-        // TODO(#1279)
+        // TODO(#1347)
         message_context: Zero::zero(),
 
         install_wasm_per_byte_cost: Zero::zero(),
@@ -288,7 +288,7 @@ lazy_static! {
             memory_fill_base_cost: Gas::zero(),
             memory_access_cost: Gas::zero(),
 
-            // Don't yet charge anything for copying.
+            // Charge 0.4gas/byte for copying/fill.
             memory_copy_per_byte_cost: Gas::from_milligas(400),
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
