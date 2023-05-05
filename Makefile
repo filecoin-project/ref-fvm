@@ -12,7 +12,7 @@ clean:
 
 lint:
 	cargo fmt --all
-	cargo clippy --all -- -D warnings -A clippy::upper_case_acronyms
+	cargo clippy --all --all-targets -- -D warnings -A clippy::upper_case_acronyms
 
 license:
 	./scripts/add_license.sh

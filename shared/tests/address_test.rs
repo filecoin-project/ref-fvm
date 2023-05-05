@@ -10,6 +10,7 @@ use fvm_ipld_encoding::{from_slice, to_vec};
 use fvm_shared::address::{
     Address, Error, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN, SECP_PUB_LEN,
 };
+use quickcheck_macros::quickcheck;
 
 #[test]
 fn bytes() {
@@ -607,4 +608,15 @@ fn invalid_strings_tests() {
         let st = unsafe { std::str::from_utf8_unchecked(s) };
         assert!(Address::from_str(st).is_err());
     }
+}
+
+#[quickcheck]
+fn prop_address_roundtrip(addr0: Address) -> Result<(), String> {
+    let bz = addr0.to_bytes();
+    let addr1 =
+        Address::from_bytes(&bz).map_err(|e| format!("error deserializing address: {e}"))?;
+    if addr1 != addr0 {
+        return Err("address differs after roundtrip".to_owned());
+    }
+    Ok(())
 }
