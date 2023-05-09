@@ -34,3 +34,7 @@ opt-level = "z"
 strip = true
 codegen-units = 1
 incremental = false
+
+[patch.crates-io]
+filecoin-proofs-api = { git = "https://github.com/filecoin-project/rust-filecoin-proofs-api", branch = "synthetic-porep" }
+#actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/cryptonemo/builtin-actors", branch = "synthetic-porep" }

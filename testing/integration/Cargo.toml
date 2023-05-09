@@ -38,8 +38,9 @@ fvm_test_actors = { path = "../test_actors" }
 fvm_gas_calibration_shared = { path = "../calibration/shared" }
 blake2b_simd = "1.0.1"
 serde_json = "1.0"
-bls-signatures = { version = "0.13", default-features = false }
 wat = "1.0.66"
+bls-signatures = { version = "0.14", default-features = false }
+#wat = "1.0.51"
 hex = "0.4.3"
 
 [features]
