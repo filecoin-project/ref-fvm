@@ -1,16 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "fvm",
     "sdk",
     "shared",
-    "testing/conformance",
-    "testing/integration",
-    "testing/calibration/shared",
-    "ipld/*",
-    "testing/test_actors",
-    "testing/test_actors/actors/*",
-    "tools/fvm-bench",
+    "ipld/encoding",
 ]
 
 [profile.actor]

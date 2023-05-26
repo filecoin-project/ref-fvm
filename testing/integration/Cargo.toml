@@ -17,7 +17,7 @@ fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
 anyhow = "1.0.47"
 cid = { version = "0.8.5", default-features = false }
 futures = "0.3.19"
-multihash = { version = "0.16.1", default-features = false }
+multihash = { version = "=0.16.2", default-features = false }
 num-traits = "0.2"
 lazy_static = "1.4.0"
 libsecp256k1 = "0.7.0"
