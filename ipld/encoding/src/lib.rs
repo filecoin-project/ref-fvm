@@ -4,7 +4,7 @@
 
 mod bytes;
 mod cbor;
-mod cbor_store;
+
 mod errors;
 pub mod ipld_block;
 mod raw;
@@ -15,7 +15,6 @@ pub use serde::{self, de, ser};
 
 pub use self::bytes::*;
 pub use self::cbor::*;
-pub use self::cbor_store::CborStore;
 pub use self::errors::*;
 pub use self::vec::*;
 
