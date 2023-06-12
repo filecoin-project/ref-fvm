@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 2.3.0 [2023-05-03]
+## 2.4.0 [2023-05-03]
 
 - Update proofs to v14.
 - Update wasmtime to 8.0.1
