@@ -11,12 +11,14 @@ use crate::node::CollapsedNode;
 
 use super::*;
 
+#[derive(Eq, PartialEq)]
 pub enum ChangeType {
     Add,
     Remove,
     Modify,
 }
 
+#[derive(Eq, PartialEq)]
 pub struct Change<V> {
     pub change_type: ChangeType,
     pub key: u64,
