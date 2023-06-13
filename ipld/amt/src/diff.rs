@@ -11,14 +11,14 @@ use crate::node::CollapsedNode;
 
 use super::*;
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ChangeType {
     Add,
     Remove,
     Modify,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Change<V> {
     pub change_type: ChangeType,
     pub key: u64,
@@ -113,8 +113,8 @@ where
         changes.push(Change {
             change_type: ChangeType::Remove,
             key: i,
-            before: None,
-            after: Some(x.clone()),
+            before: Some(x.clone()),
+            after: None,
         });
         Ok(true)
     })?;

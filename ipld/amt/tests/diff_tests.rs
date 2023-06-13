@@ -29,7 +29,9 @@ fn test_simple_equals(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     ensure!(changes.is_empty());
 
     a.set(2, "foo".into())?;
+    a.flush()?;
     b.set(2, "foo".into())?;
+    b.flush()?;
 
     let changes = diff(&a, &b)?;
     ensure!(changes.is_empty());
@@ -79,14 +81,78 @@ fn test_simple_remove(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let changes = diff(&a, &b)?;
     ensure!(changes.len() == 1);
     ensure!(
-        changes
-            == vec![Change {
+        changes[0]
+            == Change {
                 change_type: ChangeType::Remove,
                 key: 5,
                 before: Some("bar".into()),
                 after: None,
+            }
+    );
+
+    Ok(())
+}
+
+#[quickcheck]
+fn test_simple_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
+    let prev_store = MemoryBlockstore::new();
+    let curr_store = MemoryBlockstore::new();
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
+    a.set(2, "foo".into())?;
+    a.flush()?;
+    b.set(2, "bar".into())?;
+    b.flush()?;
+
+    let changes = diff(&a, &b)?;
+    ensure!(changes.len() == 1);
+    ensure!(
+        changes
+            == vec![Change {
+                change_type: ChangeType::Modify,
+                key: 2,
+                before: Some("foo".into()),
+                after: Some("bar".into()),
             }]
     );
+
+    Ok(())
+}
+
+#[quickcheck]
+fn test_large_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
+    let prev_store = MemoryBlockstore::new();
+    let curr_store = MemoryBlockstore::new();
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
+    for i in 0..100 {
+        a.set(i, format!("foo{i}"))?;
+    }
+    a.flush()?;
+
+    let mut expected_changes = vec![];
+    for i in (0..100).step_by(2) {
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Modify,
+            key: i,
+            before: Some(format!("foo{i}")),
+            after: Some(format!("bar{i}")),
+        });
+        expected_changes.push(Change {
+            change_type: ChangeType::Remove,
+            key: i + 1,
+            before: Some(format!("foo{}", i + 1)),
+            after: None,
+        });
+    }
+    b.flush()?;
+
+    let mut changes = diff(&a, &b)?;
+    ensure!(changes.len() == 100);
+    changes.sort_by(|a, b| a.key.cmp(&b.key));
+
+    ensure!(changes == expected_changes);
 
     Ok(())
 }
