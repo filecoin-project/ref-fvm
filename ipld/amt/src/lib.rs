@@ -8,12 +8,14 @@
 //! https://github.com/ipld/specs/blob/51fab05b4fe4930d3d851d50cc1e5f1a02092deb/data-structures/vector.md
 
 mod amt;
+mod diff;
 mod error;
 mod node;
 mod root;
 mod value_mut;
 
 pub use self::amt::{Amt, Amtv0};
+pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;
 pub(crate) use self::node::Node;
 pub use self::value_mut::ValueMut;
