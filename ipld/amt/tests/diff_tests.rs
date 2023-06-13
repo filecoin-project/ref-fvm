@@ -156,3 +156,118 @@ fn test_large_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
 
     Ok(())
 }
+
+#[quickcheck]
+fn test_large_additions(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
+    let prev_store = MemoryBlockstore::new();
+    let curr_store = MemoryBlockstore::new();
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
+    for i in 0..100 {
+        a.set(i, format!("foo{i}"))?;
+        b.set(i, format!("foo{i}"))?;
+    }
+
+    let mut expected_changes = vec![];
+    for i in 2000..2500 {
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Add,
+            key: i,
+            before: None,
+            after: Some(format!("bar{i}")),
+        });
+    }
+
+    a.flush()?;
+    b.flush()?;
+
+    let mut changes = diff(&a, &b)?;
+    ensure!(changes.len() == 500);
+    changes.sort_by(|a, b| a.key.cmp(&b.key));
+
+    ensure!(changes == expected_changes);
+
+    Ok(())
+}
+
+#[quickcheck]
+fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
+    let prev_store = MemoryBlockstore::new();
+    let curr_store = MemoryBlockstore::new();
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
+    for i in 0..100 {
+        a.set(i, format!("foo{i}"))?;
+    }
+
+    let mut expected_changes = vec![];
+    for i in (0..100).step_by(2) {
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Modify,
+            key: i,
+            before: Some(format!("foo{i}")),
+            after: Some(format!("bar{i}")),
+        });
+        expected_changes.push(Change {
+            change_type: ChangeType::Remove,
+            key: i + 1,
+            before: Some(format!("foo{}", i + 1)),
+            after: None,
+        });
+    }
+
+    for i in 1000..1500 {
+        a.set(i, format!("foo{i}"))?;
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Modify,
+            key: i,
+            before: Some(format!("foo{i}")),
+            after: Some(format!("bar{i}")),
+        });
+    }
+
+    for i in 2000..2500 {
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Add,
+            key: i,
+            before: None,
+            after: Some(format!("bar{i}")),
+        });
+    }
+
+    for i in 10000..10250 {
+        a.set(i, format!("foo{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Remove,
+            key: i,
+            before: Some(format!("foo{i}")),
+            after: None,
+        });
+    }
+
+    for i in 10250..10500 {
+        a.set(i, format!("foo{i}"))?;
+        b.set(i, format!("bar{i}"))?;
+        expected_changes.push(Change {
+            change_type: ChangeType::Modify,
+            key: i,
+            before: Some(format!("foo{i}")),
+            after: Some(format!("bar{i}")),
+        });
+    }
+
+    a.flush()?;
+    b.flush()?;
+
+    let mut changes = diff(&a, &b)?;
+    ensure!(changes.len() == 1600);
+    changes.sort_by(|a, b| a.key.cmp(&b.key));
+
+    ensure!(changes == expected_changes);
+
+    Ok(())
+}
