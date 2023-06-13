@@ -271,3 +271,31 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
 
     Ok(())
 }
+
+#[quickcheck]
+fn test_diff_empty_state_with_non_empty_state(
+    BitWidth2to18(bit_width): BitWidth2to18,
+) -> Result<()> {
+    let prev_store = MemoryBlockstore::new();
+    let curr_store = MemoryBlockstore::new();
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
+
+    a.set(2, "foo".into())?;
+    a.flush()?;
+    b.flush()?;
+
+    let changes = diff(&a, &b)?;
+    ensure!(changes.len() == 1);
+    ensure!(
+        changes[0]
+            == Change {
+                change_type: ChangeType::Remove,
+                key: 2,
+                before: Some("foo".into()),
+                after: None,
+            }
+    );
+
+    Ok(())
+}
