@@ -165,12 +165,16 @@ where
                 before: Some(prev_val.clone()),
                 after: None,
             }),
-            (Some(prev_val), Some(curr_val)) => changes.push(Change {
-                change_type: ChangeType::Modify,
-                key: index,
-                before: Some(prev_val.clone()),
-                after: Some(curr_val.clone()),
-            }),
+            (Some(prev_val), Some(curr_val)) => {
+                if fvm_ipld_encoding::to_vec(&prev_val)? != fvm_ipld_encoding::to_vec(&curr_val)? {
+                    changes.push(Change {
+                        change_type: ChangeType::Modify,
+                        key: index,
+                        before: Some(prev_val.clone()),
+                        after: Some(curr_val.clone()),
+                    });
+                }
+            }
         }
     }
 

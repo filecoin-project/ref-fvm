@@ -22,6 +22,8 @@ go-interop = []
 
 [dev-dependencies]
 criterion = "0.4.0"
+quickcheck = "1"
+quickcheck_macros = "1"
 
 [[bench]]
 name = "amt_benchmark"
