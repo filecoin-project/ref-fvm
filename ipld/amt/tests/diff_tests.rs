@@ -9,6 +9,8 @@ use itertools::Itertools;
 use quickcheck::Arbitrary;
 use quickcheck_macros::quickcheck;
 
+/// Tests are ported from <https://github.com/filecoin-project/go-amt-ipld/blob/master/diff_test.go>
+
 #[derive(Debug, Clone)]
 struct BitWidth2to18(u32);
 

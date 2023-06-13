@@ -48,6 +48,8 @@ impl<'bs, V, BS> From<&'bs Amt<V, BS>> for NodeContext<'bs, BS> {
     }
 }
 
+/// Returns a set of changes that transform node 'a' into node 'b'.
+/// Ported from <https://github.com/filecoin-project/go-amt-ipld/blob/master/diff.go#L41>
 pub fn diff<V, BS>(prev_amt: &Amt<V, BS>, curr_amt: &Amt<V, BS>) -> anyhow::Result<Vec<Change<V>>>
 where
     V: Serialize + DeserializeOwned + Clone,
