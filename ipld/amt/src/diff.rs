@@ -24,22 +24,24 @@ pub struct Change<V> {
     pub after: Option<V>,
 }
 
-struct NodeContext {
+struct NodeContext<'bs, BS> {
     pub height: u32,
     pub bit_width: u32,
+    pub store: &'bs BS,
 }
 
-impl NodeContext {
+impl<'bs, BS> NodeContext<'bs, BS> {
     fn nodes_at_height(&self) -> u64 {
         nodes_for_height(self.bit_width, self.height)
     }
 }
 
-impl<V, BS> From<&Amt<V, BS>> for NodeContext {
-    fn from(value: &Amt<V, BS>) -> Self {
+impl<'bs, V, BS> From<&'bs Amt<V, BS>> for NodeContext<'bs, BS> {
+    fn from(value: &'bs Amt<V, BS>) -> Self {
         Self {
             height: value.height(),
             bit_width: value.bit_width(),
+            store: &value.block_store,
         }
     }
 }
@@ -58,22 +60,11 @@ where
     }
 
     if prev_amt.count() == 0 && curr_amt.count() != 0 {
-        add_all(
-            &curr_amt.block_store,
-            &curr_amt.into(),
-            &curr_amt.root.node,
-            0,
-        )
+        add_all(&curr_amt.into(), &curr_amt.root.node, 0)
     } else if prev_amt.count() != 0 && curr_amt.count() == 0 {
-        remove_all(
-            &prev_amt.block_store,
-            &prev_amt.into(),
-            &prev_amt.root.node,
-            0,
-        )
+        remove_all(&prev_amt.into(), &prev_amt.root.node, 0)
     } else {
         diff_node(
-            &curr_amt.block_store,
             &prev_amt.into(),
             &prev_amt.root.node,
             &curr_amt.into(),
@@ -84,8 +75,7 @@ where
 }
 
 fn add_all<V, BS>(
-    store: &BS,
-    ctx: &NodeContext,
+    ctx: &NodeContext<BS>,
     node: &Node<V>,
     offset: u64,
 ) -> anyhow::Result<Vec<Change<V>>>
@@ -94,7 +84,7 @@ where
     BS: Blockstore,
 {
     let mut changes = vec![];
-    node.for_each_while(store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
+    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
             change_type: ChangeType::Add,
             key: i,
@@ -108,8 +98,7 @@ where
 }
 
 fn remove_all<V, BS>(
-    store: &BS,
-    ctx: &NodeContext,
+    ctx: &NodeContext<BS>,
     node: &Node<V>,
     offset: u64,
 ) -> anyhow::Result<Vec<Change<V>>>
@@ -118,7 +107,7 @@ where
     BS: Blockstore,
 {
     let mut changes = vec![];
-    node.for_each_while(store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
+    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
             change_type: ChangeType::Remove,
             key: i,
@@ -189,10 +178,9 @@ where
 }
 
 fn diff_node<V, BS>(
-    store: &BS,
-    prev_ctx: &NodeContext,
+    prev_ctx: &NodeContext<BS>,
     prev_node: &Node<V>,
-    curr_ctx: &NodeContext,
+    curr_ctx: &NodeContext<BS>,
     curr_node: &Node<V>,
     offset: u64,
 ) -> anyhow::Result<Vec<Change<V>>>
@@ -211,8 +199,14 @@ where
         };
         for (i, link) in links.iter().enumerate() {
             if let Some(link) = link {
+                let sub_ctx = NodeContext {
+                    height: curr_ctx.height - 1,
+                    bit_width: curr_ctx.bit_width,
+                    store: curr_ctx.store,
+                };
                 let sub_node = match link {
-                    node::Link::Cid { cid, .. } => store
+                    node::Link::Cid { cid, .. } => sub_ctx
+                        .store
                         .get_cbor::<CollapsedNode<V>>(cid)?
                         .context("Failed to get collapsed node from block store")?
                         .expand(curr_ctx.bit_width)?,
@@ -221,15 +215,11 @@ where
                     }
                 };
                 let new_offset = offset + sub_count * i as u64;
-                let sub_ctx = NodeContext {
-                    height: curr_ctx.height - 1,
-                    bit_width: curr_ctx.bit_width,
-                };
 
                 changes.append(&mut if i == 0 {
-                    diff_node(store, prev_ctx, prev_node, &sub_ctx, &sub_node, new_offset)?
+                    diff_node(prev_ctx, prev_node, &sub_ctx, &sub_node, new_offset)?
                 } else {
-                    add_all(store, &sub_ctx, &sub_node, new_offset)?
+                    add_all(&sub_ctx, &sub_node, new_offset)?
                 });
             }
         }
@@ -244,8 +234,14 @@ where
         };
         for (i, link) in links.iter().enumerate() {
             if let Some(link) = link {
+                let sub_ctx = NodeContext {
+                    height: prev_ctx.height - 1,
+                    bit_width: prev_ctx.bit_width,
+                    store: prev_ctx.store,
+                };
                 let sub_node = match link {
-                    node::Link::Cid { cid, .. } => store
+                    node::Link::Cid { cid, .. } => sub_ctx
+                        .store
                         .get_cbor::<CollapsedNode<V>>(cid)?
                         .context("Failed to get collapsed node from block store")?
                         .expand(prev_ctx.bit_width)?,
@@ -254,15 +250,11 @@ where
                     }
                 };
                 let new_offset = offset + sub_count * i as u64;
-                let sub_ctx = NodeContext {
-                    height: prev_ctx.height - 1,
-                    bit_width: prev_ctx.bit_width,
-                };
 
                 changes.append(&mut if i == 0 {
-                    diff_node(store, &sub_ctx, &sub_node, curr_ctx, curr_node, new_offset)?
+                    diff_node(&sub_ctx, &sub_node, curr_ctx, curr_node, new_offset)?
                 } else {
-                    remove_all(store, &sub_ctx, &sub_node, new_offset)?
+                    remove_all(&sub_ctx, &sub_node, new_offset)?
                 });
             }
         }
@@ -293,9 +285,11 @@ where
                             let sub_ctx = NodeContext {
                                 bit_width: prev_ctx.bit_width,
                                 height: prev_ctx.height - 1,
+                                store: prev_ctx.store,
                             };
                             let sub_node = match prev_link {
-                                node::Link::Cid { cid, .. } => store
+                                node::Link::Cid { cid, .. } => sub_ctx
+                                    .store
                                     .get_cbor::<CollapsedNode<V>>(cid)?
                                     .context("Failed to get collapsed node from block store")?
                                     .expand(prev_ctx.bit_width)?,
@@ -304,16 +298,17 @@ where
                                 }
                             };
                             let new_offset = offset + sub_count * i as u64;
-                            changes
-                                .append(&mut remove_all(store, &sub_ctx, &sub_node, new_offset)?);
+                            changes.append(&mut remove_all(&sub_ctx, &sub_node, new_offset)?);
                         }
                         (None, Some(curr_link)) => {
                             let sub_ctx = NodeContext {
                                 bit_width: curr_ctx.bit_width,
                                 height: curr_ctx.height - 1,
+                                store: curr_ctx.store,
                             };
                             let sub_node = match curr_link {
-                                node::Link::Cid { cid, .. } => store
+                                node::Link::Cid { cid, .. } => sub_ctx
+                                    .store
                                     .get_cbor::<CollapsedNode<V>>(cid)?
                                     .context("Failed to get collapsed node from block store")?
                                     .expand(curr_ctx.bit_width)?,
@@ -322,7 +317,7 @@ where
                                 }
                             };
                             let new_offset = offset + sub_count * i as u64;
-                            changes.append(&mut add_all(store, &sub_ctx, &sub_node, new_offset)?);
+                            changes.append(&mut add_all(&sub_ctx, &sub_node, new_offset)?);
                         }
                         (Some(prev_link), Some(curr_link)) => {
                             let prev_cid = match prev_link {
@@ -345,22 +340,25 @@ where
                             let prev_sub_ctx = NodeContext {
                                 bit_width: prev_ctx.bit_width,
                                 height: prev_ctx.height - 1,
+                                store: prev_ctx.store,
                             };
-                            let prev_sub_node = store
+                            let prev_sub_node = prev_sub_ctx
+                                .store
                                 .get_cbor::<CollapsedNode<V>>(prev_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(prev_sub_ctx.bit_width)?;
                             let curr_sub_ctx = NodeContext {
                                 bit_width: curr_ctx.bit_width,
                                 height: curr_ctx.height - 1,
+                                store: curr_ctx.store,
                             };
-                            let curr_sub_node = store
+                            let curr_sub_node = curr_sub_ctx
+                                .store
                                 .get_cbor::<CollapsedNode<V>>(curr_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(curr_sub_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
                             changes.append(&mut diff_node(
-                                store,
                                 &prev_sub_ctx,
                                 &prev_sub_node,
                                 &curr_sub_ctx,
