@@ -5,7 +5,6 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Condvar, Mutex};
-use std::thread;
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
@@ -46,6 +45,18 @@ pub struct EngineConfig {
     pub concurrency: u32,
     pub wasm_prices: &'static WasmGasPrices,
     pub actor_redirect: Vec<(Cid, Cid)>,
+}
+
+impl EngineConfig {
+    fn instance_pool_size(&self) -> u32 {
+        std::cmp::min(
+            // Allocate at leat one full call depth worth of stack, plus some per concurrent call we allow.
+            self.max_call_depth + EFFECTIVE_STACK_DEPTH * self.concurrency.saturating_sub(1),
+            // Most machines simply can't handle any more than 48k instances (fails to allocate address
+            // space).
+            48 * 1024,
+        )
+    }
 }
 
 impl From<&NetworkConfig> for EngineConfig {
@@ -97,7 +108,11 @@ impl Default for MultiEngine {
 }
 
 fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
-    let instance_count = ec.max_call_depth + EFFECTIVE_STACK_DEPTH * ec.concurrency;
+    if ec.concurrency < 1 {
+        return Err(anyhow!("concurrency limit must not be 0"));
+    }
+
+    let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
     if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
@@ -205,11 +220,10 @@ struct ModuleRecord {
 }
 
 struct EngineInner {
-    limit: Mutex<u32>,
-    condv: Condvar,
+    concurrency_limit: EngineConcurrency,
+    instance_limit: InstancePool,
 
     engine: wasmtime::Engine,
-    pool: Arc<InstancePool>,
 
     /// These two fields are used used in the store constructor to avoid resolve a chicken & egg
     /// situation: We need the store before we can get the real values, but we need to create the
@@ -234,28 +248,10 @@ impl EnginePool {
     /// Acquire an [`Engine`]. This method will block until an [`Engine`] is available, and will
     /// release the engine on drop.
     pub fn acquire(&self) -> Engine {
-        *self
-            .0
-            .condv
-            .wait_while(self.0.limit.lock().unwrap(), |limit| *limit == 0)
-            .unwrap() -= 1;
-        Engine(self.0.clone())
-    }
-
-    /// Try to acquire an [`Engine`]. Returns `None` if the call would block, or if the lock is
-    /// poisoned.
-    ///
-    /// The [`Engine`] is released on drop.
-    pub fn try_acquire(&self) -> Option<Engine> {
-        self.0
-            .limit
-            .try_lock()
-            .ok()
-            .filter(|limit| **limit > 0)
-            .map(|mut limit| {
-                *limit -= 1;
-                Engine(self.0.clone())
-            })
+        Engine {
+            id: self.0.concurrency_limit.acquire().unwrap(),
+            inner: self.0.clone(),
+        }
     }
 
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
@@ -277,13 +273,9 @@ impl EnginePool {
         let actor_redirect = ec.actor_redirect.iter().cloned().collect();
 
         Ok(EnginePool(Arc::new(EngineInner {
-            limit: Mutex::new(ec.concurrency),
-            condv: Condvar::new(),
+            concurrency_limit: EngineConcurrency::new(ec.concurrency),
+            instance_limit: InstancePool::new(ec.instance_pool_size(), ec.max_call_depth),
             engine,
-            pool: Arc::new(InstancePool::new(
-                ec.max_call_depth + EFFECTIVE_STACK_DEPTH * ec.concurrency,
-                ec.max_call_depth,
-            )),
             dummy_memory,
             dummy_gas_global: dummy_gg,
             module_cache: Default::default(),
@@ -302,21 +294,22 @@ struct Cache<K> {
 /// call stacks.
 ///
 /// The `Engine` will be returned to the [`EnginePool`] on drop.
-pub struct Engine(Arc<EngineInner>);
+pub struct Engine {
+    id: u64,
+    inner: Arc<EngineInner>,
+}
 
 impl Deref for Engine {
     type Target = wasmtime::Engine;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.engine
+        &self.inner.engine
     }
 }
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let mut limit = self.0.limit.lock().unwrap();
-        *limit += 1;
-        self.0.condv.notify_one();
+        let _ = self.inner.concurrency_limit.release();
     }
 }
 
@@ -333,7 +326,7 @@ impl Engine {
     ) -> anyhow::Result<usize> {
         let code_cid = self.with_redirect(code_cid);
         if let Some(item) = self
-            .0
+            .inner
             .module_cache
             .lock()
             .expect("module_cache poisoned")
@@ -374,7 +367,7 @@ impl Engine {
     }
 
     fn with_redirect<'a>(&'a self, k: &'a Cid) -> &'a Cid {
-        match &self.0.actor_redirect.get(k) {
+        match &self.inner.actor_redirect.get(k) {
             Some(cid) => cid,
             None => k,
         }
@@ -383,7 +376,11 @@ impl Engine {
     /// Loads some Wasm code into the engine and prepares it for execution.
     pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<usize> {
         let k = self.with_redirect(k);
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
         let size = match cache.get(k) {
             Some(item) => item.size,
             None => {
@@ -398,7 +395,7 @@ impl Engine {
 
     fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<ModuleRecord> {
         // First make sure that non-instrumented wasm is valid
-        Module::validate(&self.0.engine, raw_wasm)
+        Module::validate(&self.inner.engine, raw_wasm)
             .map_err(anyhow::Error::msg)
             .with_context(|| "failed to validate actor wasm")?;
 
@@ -410,7 +407,7 @@ impl Engine {
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let raw_wasm = stack_limiter::inject(raw_wasm, self.0.config.max_wasm_stack)
+        let raw_wasm = stack_limiter::inject(raw_wasm, self.inner.config.max_wasm_stack)
             .map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
@@ -425,10 +422,10 @@ impl Engine {
         //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
         //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
         //   parity-wasm module parser, so the contract cannot grow the tables.
-        let raw_wasm = gas_metering::inject(&raw_wasm, self.0.config.wasm_prices, "gas")
+        let raw_wasm = gas_metering::inject(&raw_wasm, self.inner.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
-        let module = Module::from_binary(&self.0.engine, &raw_wasm)?;
+        let module = Module::from_binary(&self.inner.engine, &raw_wasm)?;
 
         Ok(ModuleRecord {
             module,
@@ -443,11 +440,15 @@ impl Engine {
     /// See [`wasmtime::Module::deserialize`] for safety information.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
         let k = self.with_redirect(k);
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(m) => m.module.clone(),
             None => {
-                let module = Module::deserialize(&self.0.engine, compiled)?;
+                let module = Module::deserialize(&self.inner.engine, compiled)?;
                 cache.insert(
                     *k,
                     ModuleRecord {
@@ -469,7 +470,7 @@ impl Engine {
     ) -> anyhow::Result<Option<Module>> {
         let k = self.with_redirect(k);
         match self
-            .0
+            .inner
             .module_cache
             .lock()
             .expect("module_cache poisoned")
@@ -492,9 +493,9 @@ impl Engine {
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
-    ) -> Result<Option<WasmInstance>, Abort> {
+    ) -> Result<Option<wasmtime::Instance>, Abort> {
         let k = self.with_redirect(k);
-        let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
+        let mut instance_cache = self.inner.instance_cache.lock().expect("cache poisoned");
 
         let type_id = TypeId::of::<K>();
         let cache: &mut Cache<K> = match instance_cache.entry(type_id) {
@@ -504,7 +505,7 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.0.engine);
+                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
 
                     bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
@@ -520,7 +521,11 @@ impl Engine {
             .context("failed to define gas counter")
             .map_err(Abort::Fatal)?;
 
-        let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut module_cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
 
         let instantiate = |store: &mut wasmtime::Store<InvocationData<K>>, module| {
             // Before we instantiate the module, we should make sure the user has sufficient gas to
@@ -536,20 +541,13 @@ impl Engine {
                 .instantiate_pre(module)
                 .context("failed to link actor module")?;
 
-            // acquire resources for the instance
-            self.0.pool.get()?;
-
             // Update the gas _just_ in case.
             update_gas_available(store)?;
             let res = pre_instance.instantiate(&mut *store);
 
-            if let Err(e) = charge_for_exec(store) {
-                self.0.pool.put();
-                return Err(e);
-            }
+            charge_for_exec(store)?;
 
             let inst = res.map_err(|e| {
-                self.0.pool.put();
                 // We can't really tell what type of error happened, so we have to assume that we
                 // either ran out of memory or trapped. Given that we've already type-checked the
                 // module, this is the most likely case anyways. That or there'a a bug in the FVM.
@@ -566,10 +564,7 @@ impl Engine {
             // which could have been cached already.
             record_init_time(store, t);
 
-            Ok(Some(WasmInstance {
-                instance: inst,
-                pool: self.0.pool.clone(),
-            }))
+            Ok(Some(inst))
         };
 
         match module_cache.entry(*k) {
@@ -595,27 +590,30 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
+        let reservation = self.reserve_instance();
         let memory_bytes = kernel.limiter_mut().memory_used();
 
         let id = InvocationData {
             kernel,
             last_error: None,
-            avail_gas_global: self.0.dummy_gas_global,
+            avail_gas_global: self.inner.dummy_gas_global,
             last_gas_available: Gas::zero(),
             last_memory_bytes: memory_bytes,
             last_charge_time: GasTimer::start(),
-            memory: self.0.dummy_memory,
+            memory: self.inner.dummy_memory,
         };
 
-        let mut store = wasmtime::Store::new(&self.0.engine, id);
+        let mut store = wasmtime::Store::new(&self.inner.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
         let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
 
-        fn as_wasmtime_limiter<K: Kernel>(
-            data: &mut InvocationData<K>,
-        ) -> &mut dyn wasmtime::ResourceLimiter {
+        store.limiter(move |data| {
+            // Keep the reservation alive as long as the limiter is alive. The limiter limits the
+            // store to one instance and one memory, which is covered by the reservation.
+            let _ = &reservation;
+
             // SAFETY: This is safe because WasmtimeLimiter is `repr(transparent)`.
             // Unfortunately, we can't simply wrap the limiter as we need to return a reference.
             let limiter: &mut WasmtimeLimiter<K::Limiter> = unsafe {
@@ -630,117 +628,138 @@ impl Engine {
                 &mut *(limiter_ref as *mut K::Limiter as *mut WasmtimeLimiter<K::Limiter>)
             };
             limiter as &mut dyn wasmtime::ResourceLimiter
-        }
-
-        store.limiter(as_wasmtime_limiter);
+        });
 
         store
     }
-}
 
-pub struct WasmInstance {
-    instance: wasmtime::Instance,
-    pool: Arc<InstancePool>,
-}
-
-impl Deref for WasmInstance {
-    type Target = wasmtime::Instance;
-
-    fn deref(&self) -> &Self::Target {
-        &self.instance
+    fn reserve_instance(&self) -> Result<InstanceReservation, Abort> {
+        self.inner
+            .instance_limit
+            .get(self.id)
+            .map(|_| InstanceReservation(self.inner.clone()))
     }
 }
 
-impl Drop for WasmInstance {
+struct InstanceReservation(Arc<EngineInner>);
+
+impl Drop for InstanceReservation {
     fn drop(&mut self) {
-        self.pool.put()
+        let _ = self.0.instance_limit.put();
     }
 }
 
-struct InstancePoolInner {
-    // available resources
-    avail: u32,
-    // resource reservation limit; if avail < rsvp, the resource pool will boost one thread
-    // to receive as many resources as it needs, while avail > 0.
-    // if avail reaches 0, the resource reservation will fail.
-    rsvp: u32,
-    // thread id of currently boosted thread, if any
-    boost: Option<thread::ThreadId>,
-    // active boosts for currently boosted threads
-    boosting: u32,
+struct EngineConcurrency {
+    inner: Mutex<EngineConcurrencyInner>,
+    condv: Condvar,
+}
+
+struct EngineConcurrencyInner {
+    engine_count: u64,
+    limit: u32,
+}
+
+impl EngineConcurrency {
+    fn new(concurrency: u32) -> Self {
+        EngineConcurrency {
+            inner: Mutex::new(EngineConcurrencyInner {
+                engine_count: 0,
+                limit: concurrency,
+            }),
+            condv: Condvar::new(),
+        }
+    }
+
+    pub fn acquire(&self) -> anyhow::Result<u64> {
+        let mut guard = self
+            .condv
+            .wait_while(self.inner.lock().unwrap(), |inner| inner.limit == 0)
+            .map_err(|e| anyhow!("failed to acquire an engine: {}", e))?;
+        let id = guard.engine_count;
+
+        guard.limit -= 1;
+        guard.engine_count += 1;
+
+        Ok(id)
+    }
+
+    pub fn release(&self) -> anyhow::Result<()> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|e| anyhow!("failed to release an engine: {}", e))?;
+        guard.limit += 1;
+        self.condv.notify_one();
+        Ok(())
+    }
 }
 
 struct InstancePool {
-    mx: Mutex<InstancePoolInner>,
-    cv: Condvar,
+    inner: Mutex<InstancePoolInner>,
+    condv: Condvar,
+}
+
+struct InstancePoolInner {
+    // The number of instances available in the pool.
+    available: u32,
+    // The number of instances reserved. If we hit this limit, we'll "lock" the pool to the current
+    // executor and refuse to lend out any more instances to any _other_ executor until we go back
+    // above this limit.
+    reserved: u32,
+    // The ID of the engine currently "locking" the instance pool.
+    locked: Option<u64>,
 }
 
 impl InstancePool {
-    fn new(avail: u32, rsvp: u32) -> InstancePool {
+    fn new(available: u32, reserved: u32) -> InstancePool {
         InstancePool {
-            mx: Mutex::new(InstancePoolInner {
-                avail,
-                rsvp,
-                boost: None,
-                boosting: 0,
+            inner: Mutex::new(InstancePoolInner {
+                available,
+                reserved,
+                locked: None,
             }),
-            cv: Condvar::new(),
+            condv: Condvar::new(),
         }
     }
 
-    fn get(&self) -> Result<(), Abort> {
-        let mut guard = self.mx.lock().unwrap();
-        loop {
-            // are we above the reserveation limit? Just acquire if that's the case.
-            if guard.avail > guard.rsvp {
-                if guard.boost == Some(thread::current().id()) {
-                    guard.boosting += 1;
-                }
-                guard.avail -= 1;
-                return Ok(());
-            }
+    fn get(&self, id: u64) -> Result<(), Abort> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|e| Abort::Fatal(anyhow!("instance pool lock poisoned: {}", e)))?;
 
-            // is there any resource still available? boost or wait.
-            if guard.avail > 0 {
-                match guard.boost {
-                    None => {
-                        guard.boost = Some(thread::current().id());
-                        guard.boosting += 1;
-                        guard.avail -= 1;
-                        return Ok(());
-                    }
-                    Some(tid) => {
-                        if tid == thread::current().id() {
-                            guard.boosting += 1;
-                            guard.avail -= 1;
-                            return Ok(());
-                        }
+        // Wait until we have an instance available. Either:
+        // 1. We own the executor lock.
+        // 2. We _could_ own the executor lock.
+        guard = self
+            .condv
+            .wait_while(guard, |p| p.locked.unwrap_or(id) != id)
+            .map_err(|e| Abort::Fatal(anyhow!("instance pool lock poisoned: {}", e)))?;
 
-                        guard = self.cv.wait_while(guard, |rc| rc.avail < rc.rsvp).unwrap();
-                        continue;
-                    }
-                }
-            }
-
+        // We either have, or could, lock the executor. So there should be instances available.
+        if guard.available == 0 {
             // we've run out of resources, bail.
             return Err(Abort::Fatal(anyhow!("instance pool resources exceeded")));
         }
+
+        // Reserve our instance and lock the executor if we're below the reservation limit.
+        guard.available -= 1;
+        if guard.available < guard.reserved {
+            guard.locked = Some(id);
+        }
+        Ok(())
     }
 
     fn put(&self) {
-        let mut guard = self.mx.lock().unwrap();
-
-        if guard.boost == Some(thread::current().id()) {
-            guard.boosting -= 1;
-            if guard.boosting == 0 {
-                guard.boost = None;
-            }
+        let mut guard = self.inner.lock().unwrap();
+        guard.available += 1;
+        if guard.available < guard.reserved {
+            return;
         }
 
-        guard.avail += 1;
-        if guard.avail >= guard.rsvp {
-            self.cv.notify_one();
-        }
+        // If we're above the limit, unlock and notify one.
+        guard.locked = None;
+        self.condv.notify_one();
     }
 }
 
@@ -771,6 +790,16 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
             return Ok(false);
         }
         Ok(self.0.grow_instance_table(current, desired))
+    }
+
+    // The FVM allows one instance & one memory per store/kernel (for now).
+
+    fn instances(&self) -> usize {
+        1
+    }
+
+    fn memories(&self) -> usize {
+        1
     }
 }
 
