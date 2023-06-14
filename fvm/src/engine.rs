@@ -726,7 +726,7 @@ impl InstancePool {
         let mut guard = self
             .inner
             .lock()
-            .map_err(|e| Abort::Fatal(anyhow!("instance pool lock poisoned: {}", e)))?;
+            .map_err(|e| Abort::Fatal(anyhow!("failed to acquire instance from pool: {}", e)))?;
 
         // Wait until we have an instance available. Either:
         // 1. We own the executor lock.
@@ -750,16 +750,20 @@ impl InstancePool {
         Ok(())
     }
 
-    fn put(&self) {
-        let mut guard = self.inner.lock().unwrap();
+    fn put(&self) -> Result<(), Abort> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|e| Abort::Fatal(anyhow!("failed to return instance to pool: {}", e)))?;
         guard.available += 1;
-        if guard.available < guard.reserved {
-            return;
-        }
 
         // If we're above the limit, unlock and notify one.
-        guard.locked = None;
-        self.condv.notify_one();
+        if guard.available >= guard.reserved {
+            guard.locked = None;
+            self.condv.notify_one();
+        }
+
+        Ok(())
     }
 }
 
