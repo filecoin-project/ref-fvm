@@ -1,10 +1,13 @@
+mod concurrency;
+mod instance_pool;
+
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
@@ -27,6 +30,9 @@ use crate::syscalls::{
     InvocationData,
 };
 use crate::Kernel;
+
+use self::concurrency::EngineConcurrency;
+use self::instance_pool::InstancePool;
 
 const EFFECTIVE_STACK_DEPTH: u32 = 20;
 
@@ -589,7 +595,20 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        let reservation = self.reserve_instance();
+        // Reserve a new instance and put it into a drop-guard that removes the reservation when
+        // we're done.
+        #[must_use]
+        struct InstanceReservation(Arc<EngineInner>);
+
+        impl Drop for InstanceReservation {
+            fn drop(&mut self) {
+                self.0.instance_limit.put();
+            }
+        }
+
+        self.inner.instance_limit.take(self.id);
+        let reservation = InstanceReservation(self.inner.clone());
+
         let memory_bytes = kernel.limiter_mut().memory_used();
 
         let id = InvocationData {
@@ -630,152 +649,6 @@ impl Engine {
         });
 
         store
-    }
-
-    /// Reserve an instance and return a guard that returns said instance on drop.
-    fn reserve_instance(&self) -> Result<InstanceReservation, Abort> {
-        self.inner
-            .instance_limit
-            .take(self.id)
-            .map(|_| InstanceReservation(self.inner.clone()))
-    }
-}
-
-/// An instance reservation represents a single reserved instance & memory from the engine. It'll
-/// return it to the pool on drop.
-struct InstanceReservation(Arc<EngineInner>);
-
-impl Drop for InstanceReservation {
-    fn drop(&mut self) {
-        self.0.instance_limit.put();
-    }
-}
-
-/// An engine concurrency manages the concurrency available for a single engine. It's basically a
-/// semaphore that also assigns IDs to new engines.
-struct EngineConcurrency {
-    inner: Mutex<EngineConcurrencyInner>,
-    condv: Condvar,
-}
-
-struct EngineConcurrencyInner {
-    engine_count: u64,
-    limit: u32,
-}
-
-impl EngineConcurrency {
-    fn new(concurrency: u32) -> Self {
-        EngineConcurrency {
-            inner: Mutex::new(EngineConcurrencyInner {
-                engine_count: 0,
-                limit: concurrency,
-            }),
-            condv: Condvar::new(),
-        }
-    }
-
-    /// Acquire a new engine (well, an engine ID). This function blocks until we're below the
-    /// maximum engine concurrency limit.
-    fn acquire(&self) -> u64 {
-        let mut guard = self
-            .condv
-            .wait_while(self.inner.lock().unwrap(), |inner| inner.limit == 0)
-            .unwrap();
-        let id = guard.engine_count;
-
-        guard.limit -= 1;
-        guard.engine_count += 1;
-
-        id
-    }
-
-    /// Release the engine. After this is called, the caller should not allocate any more instances
-    /// or continue to use their engine ID.
-    fn release(&self) {
-        let mut guard = self.inner.lock().unwrap();
-        guard.limit += 1;
-        self.condv.notify_one();
-    }
-}
-
-/// An instance pool manages the available pool of engine instances.
-///
-/// - When there are enough instances to execute an entire message (a full call stack), requests to
-///   reserve an instance will succeed immediately.
-/// - When the number of available instances drops below the number required to execute a single
-///   message, the executor that reserved that last instance will get an exclusive "lock" on the
-///   instance pool. This lock will be released when enough instances become available to execute an
-///   entire message.
-struct InstancePool {
-    inner: Mutex<InstancePoolInner>,
-    condv: Condvar,
-}
-
-struct InstancePoolInner {
-    /// The number of instances available in the pool.
-    available: u32,
-    /// The number of instances reserved. If we hit this limit, we'll "lock" the pool to the current
-    /// executor and refuse to lend out any more instances to any _other_ executor until we go back
-    /// above this limit.
-    reserved: u32,
-    /// The ID of the engine currently "locking" the instance pool.
-    locked: Option<u64>,
-}
-
-impl InstancePool {
-    /// Create a new instance pool.
-    fn new(available: u32, reserved: u32) -> InstancePool {
-        InstancePool {
-            inner: Mutex::new(InstancePoolInner {
-                available,
-                reserved,
-                locked: None,
-            }),
-            condv: Condvar::new(),
-        }
-    }
-
-    /// Take an instance out of the instance pool (where `id` is the engine's ID). This function:
-    ///
-    /// - Will block if the instance pool is locked to another engine.
-    /// - Will return a fatal error if the instance pool is not locked to another engine and there
-    ///   are no instances available. This means we didn't allocate enough instances.
-    fn take(&self, id: u64) -> Result<(), Abort> {
-        let mut guard = self.inner.lock().unwrap();
-
-        // Wait until we have an instance available. Either:
-        // 1. We own the executor lock.
-        // 2. We _could_ own the executor lock.
-        guard = self
-            .condv
-            .wait_while(guard, |p| p.locked.unwrap_or(id) != id)
-            .unwrap();
-
-        // We either have, or could, lock the executor. So there should be instances available.
-        if guard.available == 0 {
-            // we've run out of resources, bail.
-            return Err(Abort::Fatal(anyhow!("instance pool resources exceeded")));
-        }
-
-        // Reserve our instance and lock the executor if we're below the reservation limit.
-        guard.available -= 1;
-        if guard.available < guard.reserved {
-            guard.locked = Some(id);
-        }
-        Ok(())
-    }
-
-    /// Put back an instance into the pool, signaling any engines waiting on an instance if
-    /// applicable.
-    fn put(&self) {
-        let mut guard = self.inner.lock().unwrap();
-        guard.available += 1;
-
-        // If we're above the limit, unlock and notify one.
-        if guard.available >= guard.reserved {
-            guard.locked = None;
-            self.condv.notify_one();
-        }
     }
 }
 
