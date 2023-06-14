@@ -249,7 +249,7 @@ impl EnginePool {
     /// release the engine on drop.
     pub fn acquire(&self) -> Engine {
         Engine {
-            id: self.0.concurrency_limit.acquire().unwrap(),
+            id: self.0.concurrency_limit.acquire(),
             inner: self.0.clone(),
         }
     }
@@ -309,7 +309,7 @@ impl Deref for Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let _ = self.inner.concurrency_limit.release();
+        self.inner.concurrency_limit.release();
     }
 }
 
@@ -647,7 +647,7 @@ struct InstanceReservation(Arc<EngineInner>);
 
 impl Drop for InstanceReservation {
     fn drop(&mut self) {
-        let _ = self.0.instance_limit.put();
+        self.0.instance_limit.put();
     }
 }
 
@@ -676,29 +676,25 @@ impl EngineConcurrency {
 
     /// Acquire a new engine (well, an engine ID). This function blocks until we're below the
     /// maximum engine concurrency limit.
-    fn acquire(&self) -> anyhow::Result<u64> {
+    fn acquire(&self) -> u64 {
         let mut guard = self
             .condv
             .wait_while(self.inner.lock().unwrap(), |inner| inner.limit == 0)
-            .map_err(|e| anyhow!("failed to acquire an engine: {}", e))?;
+            .unwrap();
         let id = guard.engine_count;
 
         guard.limit -= 1;
         guard.engine_count += 1;
 
-        Ok(id)
+        id
     }
 
     /// Release the engine. After this is called, the caller should not allocate any more instances
     /// or continue to use their engine ID.
-    fn release(&self) -> anyhow::Result<()> {
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|e| anyhow!("failed to release an engine: {}", e))?;
+    fn release(&self) {
+        let mut guard = self.inner.lock().unwrap();
         guard.limit += 1;
         self.condv.notify_one();
-        Ok(())
     }
 }
 
@@ -744,12 +740,8 @@ impl InstancePool {
     /// - Will block if the instance pool is locked to another engine.
     /// - Will return a fatal error if the instance pool is not locked to another engine and there
     ///   are no instances available. This means we didn't allocate enough instances.
-    /// - Will return a fatal error if the lock is poisoned.
     fn take(&self, id: u64) -> Result<(), Abort> {
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|e| Abort::Fatal(anyhow!("failed to acquire instance from pool: {}", e)))?;
+        let mut guard = self.inner.lock().unwrap();
 
         // Wait until we have an instance available. Either:
         // 1. We own the executor lock.
@@ -757,7 +749,7 @@ impl InstancePool {
         guard = self
             .condv
             .wait_while(guard, |p| p.locked.unwrap_or(id) != id)
-            .map_err(|e| Abort::Fatal(anyhow!("instance pool lock poisoned: {}", e)))?;
+            .unwrap();
 
         // We either have, or could, lock the executor. So there should be instances available.
         if guard.available == 0 {
@@ -775,11 +767,8 @@ impl InstancePool {
 
     /// Put back an instance into the pool, signaling any engines waiting on an instance if
     /// applicable.
-    fn put(&self) -> Result<(), Abort> {
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|e| Abort::Fatal(anyhow!("failed to return instance to pool: {}", e)))?;
+    fn put(&self) {
+        let mut guard = self.inner.lock().unwrap();
         guard.available += 1;
 
         // If we're above the limit, unlock and notify one.
@@ -787,8 +776,6 @@ impl InstancePool {
             guard.locked = None;
             self.condv.notify_one();
         }
-
-        Ok(())
     }
 }
 
