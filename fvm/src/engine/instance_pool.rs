@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::sync::{Condvar, Mutex};
 
 /// An instance pool manages the available pool of engine instances.
