@@ -544,7 +544,6 @@ impl Engine {
             // Update the gas _just_ in case.
             update_gas_available(store)?;
             let res = pre_instance.instantiate(&mut *store);
-
             charge_for_exec(store)?;
 
             let inst = res.map_err(|e| {
@@ -633,14 +632,17 @@ impl Engine {
         store
     }
 
+    /// Reserve an instance and return a guard that returns said instance on drop.
     fn reserve_instance(&self) -> Result<InstanceReservation, Abort> {
         self.inner
             .instance_limit
-            .get(self.id)
+            .take(self.id)
             .map(|_| InstanceReservation(self.inner.clone()))
     }
 }
 
+/// An instance reservation represents a single reserved instance & memory from the engine. It'll
+/// return it to the pool on drop.
 struct InstanceReservation(Arc<EngineInner>);
 
 impl Drop for InstanceReservation {
@@ -649,6 +651,8 @@ impl Drop for InstanceReservation {
     }
 }
 
+/// An engine concurrency manages the concurrency available for a single engine. It's basically a
+/// semaphore that also assigns IDs to new engines.
 struct EngineConcurrency {
     inner: Mutex<EngineConcurrencyInner>,
     condv: Condvar,
@@ -670,7 +674,9 @@ impl EngineConcurrency {
         }
     }
 
-    pub fn acquire(&self) -> anyhow::Result<u64> {
+    /// Acquire a new engine (well, an engine ID). This function blocks until we're below the
+    /// maximum engine concurrency limit.
+    fn acquire(&self) -> anyhow::Result<u64> {
         let mut guard = self
             .condv
             .wait_while(self.inner.lock().unwrap(), |inner| inner.limit == 0)
@@ -683,7 +689,9 @@ impl EngineConcurrency {
         Ok(id)
     }
 
-    pub fn release(&self) -> anyhow::Result<()> {
+    /// Release the engine. After this is called, the caller should not allocate any more instances
+    /// or continue to use their engine ID.
+    fn release(&self) -> anyhow::Result<()> {
         let mut guard = self
             .inner
             .lock()
@@ -694,23 +702,32 @@ impl EngineConcurrency {
     }
 }
 
+/// An instance pool manages the available pool of engine instances.
+///
+/// - When there are enough instances to execute an entire message (a full call stack), requests to
+///   reserve an instance will succeed immediately.
+/// - When the number of available instances drops below the number required to execute a single
+///   message, the executor that reserved that last instance will get an exclusive "lock" on the
+///   instance pool. This lock will be released when enough instances become available to execute an
+///   entire message.
 struct InstancePool {
     inner: Mutex<InstancePoolInner>,
     condv: Condvar,
 }
 
 struct InstancePoolInner {
-    // The number of instances available in the pool.
+    /// The number of instances available in the pool.
     available: u32,
-    // The number of instances reserved. If we hit this limit, we'll "lock" the pool to the current
-    // executor and refuse to lend out any more instances to any _other_ executor until we go back
-    // above this limit.
+    /// The number of instances reserved. If we hit this limit, we'll "lock" the pool to the current
+    /// executor and refuse to lend out any more instances to any _other_ executor until we go back
+    /// above this limit.
     reserved: u32,
-    // The ID of the engine currently "locking" the instance pool.
+    /// The ID of the engine currently "locking" the instance pool.
     locked: Option<u64>,
 }
 
 impl InstancePool {
+    /// Create a new instance pool.
     fn new(available: u32, reserved: u32) -> InstancePool {
         InstancePool {
             inner: Mutex::new(InstancePoolInner {
@@ -722,7 +739,13 @@ impl InstancePool {
         }
     }
 
-    fn get(&self, id: u64) -> Result<(), Abort> {
+    /// Take an instance out of the instance pool (where `id` is the engine's ID). This function:
+    ///
+    /// - Will block if the instance pool is locked to another engine.
+    /// - Will return a fatal error if the instance pool is not locked to another engine and there
+    ///   are no instances available. This means we didn't allocate enough instances.
+    /// - Will return a fatal error if the lock is poisoned.
+    fn take(&self, id: u64) -> Result<(), Abort> {
         let mut guard = self
             .inner
             .lock()
@@ -750,6 +773,8 @@ impl InstancePool {
         Ok(())
     }
 
+    /// Put back an instance into the pool, signaling any engines waiting on an instance if
+    /// applicable.
     fn put(&self) -> Result<(), Abort> {
         let mut guard = self
             .inner
