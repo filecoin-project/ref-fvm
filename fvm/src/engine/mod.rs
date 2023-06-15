@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 mod concurrency;
-mod instance_pool;
+mod shared_resource_limiter;
 
 use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
@@ -33,7 +33,7 @@ use crate::syscalls::{
 use crate::Kernel;
 
 use self::concurrency::EngineConcurrency;
-use self::instance_pool::InstancePool;
+use self::shared_resource_limiter::SharedResourceLimiter;
 
 const EFFECTIVE_STACK_DEPTH: u32 = 20;
 
@@ -228,7 +228,7 @@ struct ModuleRecord {
 
 struct EngineInner {
     concurrency_limit: EngineConcurrency,
-    instance_limit: InstancePool,
+    resource_limiter: SharedResourceLimiter,
 
     engine: wasmtime::Engine,
 
@@ -281,7 +281,10 @@ impl EnginePool {
 
         Ok(EnginePool(Arc::new(EngineInner {
             concurrency_limit: EngineConcurrency::new(ec.concurrency),
-            instance_limit: InstancePool::new(ec.instance_pool_size(), ec.max_call_depth),
+            resource_limiter: SharedResourceLimiter::new(
+                ec.instance_pool_size(),
+                ec.max_call_depth,
+            ),
             engine,
             dummy_memory,
             dummy_gas_global: dummy_gg,
