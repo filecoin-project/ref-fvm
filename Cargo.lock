@@ -366,6 +366,7 @@ dependencies = [
  "rustversion",
  "serde",
  "sha2 0.10.7",
+ "supraseal-c2",
  "thiserror",
 ]
 
@@ -482,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "bls-signatures"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edceb821f01a1c93593fbbe47786e01c69c3141baa8e349366f15472b9252bc9"
+checksum = "ecc7fce0356b52c2483bb6188cc8bdc11add526bce75d1a44e5e5d889a6ab008"
 dependencies = [
  "bls12_381",
  "blst",
@@ -515,14 +516,13 @@ dependencies = [
 
 [[package]]
 name = "blst"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
+checksum = "c94087b935a822949d3291a9989ad2b2051ea141eda0fd4e478a75f6aa3e604b"
 dependencies = [
  "cc",
  "glob",
  "threadpool",
- "which",
  "zeroize",
 ]
 
@@ -4365,6 +4365,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sppark"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba7a6d98937866ea8917015cd4a72d56d6e7feee8979dbccf83fc0c870053c46"
+dependencies = [
+ "cc",
+ "which",
+]
+
+[[package]]
 name = "sptr"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4529,6 +4539,17 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "supraseal-c2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd636fe8d238305b3022c399f9973c88f58d75212ef36d2ff1ebd51e20285d5b"
+dependencies = [
+ "blst",
+ "cc",
+ "sppark",
+]
 
 [[package]]
 name = "syn"
