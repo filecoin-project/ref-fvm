@@ -5,13 +5,14 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
-use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
-use fvm::engine::Engine;
-use fvm::gas::{price_list_by_network_version, Gas, GasTimer, GasTracker, PriceList};
+use multihash::MultihashGeneric;
+
+use fvm::call_manager::{CallManager, DefaultCallManager};
+use fvm::gas::{price_list_by_network_version, Gas, GasTimer, PriceList};
 use fvm::kernel::*;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
-use fvm::state_tree::{ActorState, StateTree};
+use fvm::state_tree::StateTree;
 use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
@@ -21,7 +22,6 @@ use fvm_shared::crypto::signature::{
     SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::event::StampedEvent;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
@@ -31,7 +31,6 @@ use fvm_shared::sector::{
 use fvm_shared::sys::SendFlags;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
-use multihash::MultihashGeneric;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -181,189 +180,24 @@ where
     }
 }
 
-/// A CallManager that wraps kernels in an InterceptKernel.
-// NOTE: For now, this _must_ be transparent because we transmute a pointer.
-#[repr(transparent)]
-pub struct TestCallManager<C: CallManager = DefaultCallManager<TestMachine>>(pub C);
-
-impl<M, C> CallManager for TestCallManager<C>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-{
-    type Machine = C::Machine;
-
-    fn new(
-        machine: Self::Machine,
-        engine: Engine,
-        gas_limit: u64,
-        origin: ActorID,
-        origin_address: Address,
-        receiver: Option<ActorID>,
-        receiver_address: Address,
-        nonce: u64,
-        gas_premium: TokenAmount,
-    ) -> Self {
-        TestCallManager(C::new(
-            machine,
-            engine,
-            gas_limit,
-            origin,
-            origin_address,
-            receiver,
-            receiver_address,
-            nonce,
-            gas_premium,
-        ))
-    }
-
-    fn send<K: Kernel<CallManager = Self>>(
-        &mut self,
-        from: ActorID,
-        to: Address,
-        method: MethodNum,
-        params: Option<Block>,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        read_only: bool,
-    ) -> Result<InvocationResult> {
-        // K is the kernel specified by the non intercepted kernel.
-        // We wrap that here.
-        self.0
-            .send::<TestKernel<K>>(from, to, method, params, value, gas_limit, read_only)
-    }
-
-    fn with_transaction(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
-    ) -> Result<InvocationResult> {
-        // This transmute is _safe_ because this type is "repr transparent".
-        let inner_ptr = &mut self.0 as *mut C;
-        self.0.with_transaction(|inner: &mut C| unsafe {
-            // Make sure that we've got the right pointer. Otherwise, this cast definitely isn't
-            // safe.
-            assert_eq!(inner_ptr, inner as *mut C);
-
-            // Ok, we got the pointer we expected, casting back to the interceptor is safe.
-            f(&mut *(inner as *mut C as *mut Self))
-        })
-    }
-
-    fn finish(self) -> (Result<FinishRet>, Self::Machine) {
-        self.0.finish()
-    }
-
-    fn machine(&self) -> &Self::Machine {
-        self.0.machine()
-    }
-
-    fn machine_mut(&mut self) -> &mut Self::Machine {
-        self.0.machine_mut()
-    }
-
-    fn engine(&self) -> &Engine {
-        self.0.engine()
-    }
-
-    fn gas_tracker(&self) -> &GasTracker {
-        self.0.gas_tracker()
-    }
-
-    fn gas_premium(&self) -> &TokenAmount {
-        self.0.gas_premium()
-    }
-
-    fn origin(&self) -> ActorID {
-        self.0.origin()
-    }
-
-    fn nonce(&self) -> u64 {
-        self.0.nonce()
-    }
-
-    fn next_actor_address(&self) -> Address {
-        self.0.next_actor_address()
-    }
-
-    fn create_actor(
-        &mut self,
-        code_id: Cid,
-        actor_id: ActorID,
-        delegated_address: Option<Address>,
-    ) -> Result<()> {
-        self.0.create_actor(code_id, actor_id, delegated_address)
-    }
-
-    fn price_list(&self) -> &fvm::gas::PriceList {
-        self.0.price_list()
-    }
-
-    fn context(&self) -> &MachineContext {
-        self.0.context()
-    }
-
-    fn blockstore(&self) -> &<Self::Machine as Machine>::Blockstore {
-        self.0.blockstore()
-    }
-
-    fn externs(&self) -> &<Self::Machine as Machine>::Externs {
-        self.0.externs()
-    }
-
-    fn charge_gas(&self, charge: fvm::gas::GasCharge) -> Result<GasTimer> {
-        self.0.charge_gas(charge)
-    }
-
-    fn invocation_count(&self) -> u64 {
-        self.0.invocation_count()
-    }
-
-    fn limiter_mut(&mut self) -> &mut <Self::Machine as Machine>::Limiter {
-        self.0.limiter_mut()
-    }
-
-    fn append_event(&mut self, evt: StampedEvent) {
-        self.0.append_event(evt)
-    }
-
-    fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>> {
-        self.0.resolve_address(address)
-    }
-
-    fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
-        self.0.get_actor(id)
-    }
-
-    fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
-        self.0.set_actor(id, state)
-    }
-
-    fn delete_actor(&mut self, id: ActorID) -> Result<()> {
-        self.0.delete_actor(id)
-    }
-
-    fn transfer(&mut self, from: ActorID, to: ActorID, value: &TokenAmount) -> Result<()> {
-        self.0.transfer(from, to, value)
-    }
-}
-
 /// A kernel for intercepting syscalls.
-pub struct TestKernel<K = DefaultKernel<TestCallManager>>(pub K, pub TestData);
+// TestKernel is coupled to TestMachine because it needs to use that to plumb the
+// TestData through when it's destroyed into a CallManager then recreated by that CallManager.
+pub struct TestKernel<K = DefaultKernel<DefaultCallManager<TestMachine>>>(pub K, pub TestData);
 
 impl<M, C, K> Kernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
-    type CallManager = C;
+    type CallManager = K::CallManager;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
-        let (cm, br) = self.0.into_inner();
-        (cm.0, br)
+        self.0.into_inner()
     }
 
     fn new(
@@ -383,7 +217,7 @@ where
 
         TestKernel(
             K::new(
-                TestCallManager(mgr),
+                mgr,
                 blocks,
                 caller,
                 actor_id,
@@ -398,13 +232,30 @@ where
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.0.machine()
     }
+
+    fn send<KK>(
+        &mut self,
+        recipient: &Address,
+        method: u64,
+        params: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<SendResult> {
+        // Note that KK, the type of the kernel to crate for the receiving actor, is ignored,
+        // and Self is passed as the type parameter for the nested call.
+        // If we could find the correct bound to specify KK for the call, we would.
+        // This restricts the ability for the TestKernel to itself be wrapped by another kernel type.
+        self.0
+            .send::<Self>(recipient, method, params, value, gas_limit, flags)
+    }
 }
 
 impl<M, C, K> ActorOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn resolve_address(&self, address: &Address) -> Result<ActorID> {
         self.0.resolve_address(address)
@@ -453,7 +304,7 @@ impl<M, C, K> IpldBlockOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         self.0.block_open(cid)
@@ -480,7 +331,7 @@ impl<M, C, K> CircSupplyOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     // Not forwarded. Circulating supply is taken from the TestData.
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
@@ -492,7 +343,7 @@ impl<M, C, K> CryptoOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     // forwarded
     fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
@@ -582,7 +433,7 @@ impl<M, C, K> DebugOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn log(&self, msg: String) {
         self.0.log(msg)
@@ -601,7 +452,7 @@ impl<M, C, K> GasOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn gas_used(&self) -> Gas {
         self.0.gas_used()
@@ -624,7 +475,7 @@ impl<M, C, K> MessageOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn msg_context(&self) -> Result<fvm_shared::sys::out::vm::MessageContext> {
         self.0.msg_context()
@@ -635,7 +486,7 @@ impl<M, C, K> NetworkOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn network_context(&self) -> Result<fvm_shared::sys::out::network::NetworkContext> {
         self.0.network_context()
@@ -650,7 +501,7 @@ impl<M, C, K> RandomnessOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn get_randomness_from_tickets(
         &self,
@@ -677,7 +528,7 @@ impl<M, C, K> SelfOps for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
+    K: Kernel<CallManager = C>,
 {
     fn root(&self) -> Result<Cid> {
         self.0.root()
@@ -696,26 +547,6 @@ where
     }
 }
 
-impl<M, C, K> SendOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
-{
-    fn send(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<SendResult> {
-        self.0
-            .send(recipient, method, params, value, gas_limit, flags)
-    }
-}
-
 impl<K> LimiterOps for TestKernel<K>
 where
     K: LimiterOps,
@@ -729,9 +560,9 @@ where
 
 impl<M, C, K> EventOps for TestKernel<K>
 where
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = TestCallManager<C>>,
     M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
 {
     fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
         self.0.emit_event(raw_evt)
