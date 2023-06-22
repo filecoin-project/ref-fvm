@@ -48,3 +48,28 @@ impl EngineConcurrency {
         self.condv.notify_one();
     }
 }
+
+#[test]
+fn test_engine_concurrency() {
+    let concurrency = EngineConcurrency::new(2);
+    std::thread::scope(|scope| {
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 2);
+        assert_eq!(concurrency.acquire(), 0);
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 1);
+        assert_eq!(concurrency.acquire(), 1);
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 0);
+        let threads: Vec<_> = std::iter::repeat_with(|| scope.spawn(|| concurrency.acquire()))
+            .take(10)
+            .collect();
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 0);
+        for _ in &threads {
+            concurrency.release();
+        }
+        let mut ids: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+        ids.sort();
+        assert_eq!(ids, (2..12).collect::<Vec<_>>());
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 0);
+        concurrency.release();
+        assert_eq!(concurrency.inner.lock().unwrap().limit, 1);
+    });
+}

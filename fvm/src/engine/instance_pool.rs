@@ -80,3 +80,45 @@ impl InstancePool {
         }
     }
 }
+
+#[test]
+fn test_instance_pool() {
+    let pool = InstancePool::new(12, 10);
+    std::thread::scope(|scope| {
+        pool.take(1);
+        pool.take(2);
+        assert_eq!(pool.inner.lock().unwrap().locked, None);
+        pool.take(1);
+        assert_eq!(pool.inner.lock().unwrap().locked, Some(1));
+        let t1 = scope.spawn(|| {
+            // Take 9 more for engine 2.
+            for _ in 0..9 {
+                pool.take(2)
+            }
+        });
+        // give the other thread a chance...
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        // Take the remaining 8 for engine 1 (we're allowed 10).
+        // If this is working, we should make progress.
+        for _ in 0..8 {
+            pool.take(1);
+        }
+        assert_eq!(pool.inner.lock().unwrap().available, 1);
+        assert_eq!(pool.inner.lock().unwrap().locked, Some(1));
+        // Put them all back for engine 1.
+        for _ in 0..10 {
+            pool.put();
+        }
+        t1.join().unwrap();
+        assert_eq!(pool.inner.lock().unwrap().locked, Some(2));
+
+        // We should have two available.
+        assert_eq!(pool.inner.lock().unwrap().available, 2);
+
+        // Put back enough to unlock.
+        for _ in 0..8 {
+            pool.put();
+        }
+        assert_eq!(pool.inner.lock().unwrap().locked, None);
+    });
+}
