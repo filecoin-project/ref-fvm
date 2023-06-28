@@ -61,7 +61,7 @@ impl EngineConfig {
         std::cmp::min(
             // Allocate at least one full call depth worth of stack, plus some per concurrent call
             // we allow.
-            self.max_call_depth + EXPECTED_MAX_STACK_DEPTH * self.concurrency.saturating_sub(1),
+            self.max_call_depth + EXPECTED_MAX_STACK_DEPTH * self.concurrency,
             // Most machines simply can't handle any more than 48k instances (fails to allocate
             // address space).
             48 * 1024,
