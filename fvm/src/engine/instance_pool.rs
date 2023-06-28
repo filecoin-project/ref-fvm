@@ -5,9 +5,9 @@ use std::sync::{Condvar, Mutex};
 /// An instance pool manages the available pool of engine instances.
 ///
 /// - When there are enough instances to execute an entire message (a full call stack), requests to
-///   reserve an instance will succeed immediately.
+///   take an instance will succeed immediately.
 /// - When the number of available instances drops below the number required to execute a single
-///   message, the executor that reserved that last instance will get an exclusive "lock" on the
+///   message, the executor that took that last instance will get an exclusive "lock" on the
 ///   instance pool. This lock will be released when enough instances become available to execute an
 ///   entire message.
 pub(super) struct InstancePool {
@@ -73,7 +73,7 @@ impl InstancePool {
             "no instances available: we must have exceeded our stack depth"
         );
 
-        // Reserve our instance and lock the executor if we're below the reservation limit.
+        // Take our instance and lock the executor if we're below the reservation limit.
         guard.available -= 1;
         if guard.available < guard.per_engine_limit {
             guard.locked = Some(id);

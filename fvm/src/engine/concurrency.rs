@@ -10,7 +10,7 @@ pub(super) struct EngineConcurrency {
 }
 
 struct EngineConcurrencyInner {
-    engine_count: u64,
+    next_id: u64,
     limit: u32,
 }
 
@@ -18,7 +18,7 @@ impl EngineConcurrency {
     pub fn new(concurrency: u32) -> Self {
         EngineConcurrency {
             inner: Mutex::new(EngineConcurrencyInner {
-                engine_count: 0,
+                next_id: 0,
                 limit: concurrency,
             }),
             condv: Condvar::new(),
@@ -32,10 +32,10 @@ impl EngineConcurrency {
             .condv
             .wait_while(self.inner.lock().unwrap(), |inner| inner.limit == 0)
             .unwrap();
-        let id = guard.engine_count;
+        let id = guard.next_id;
 
         guard.limit -= 1;
-        guard.engine_count += 1;
+        guard.next_id += 1;
 
         id
     }

@@ -57,10 +57,11 @@ pub struct EngineConfig {
 impl EngineConfig {
     fn instance_pool_size(&self) -> u32 {
         std::cmp::min(
-            // Allocate at leat one full call depth worth of stack, plus some per concurrent call we allow.
+            // Allocate at least one full call depth worth of stack, plus some per concurrent call
+            // we allow.
             self.max_call_depth + EFFECTIVE_STACK_DEPTH * self.concurrency.saturating_sub(1),
-            // Most machines simply can't handle any more than 48k instances (fails to allocate address
-            // space).
+            // Most machines simply can't handle any more than 48k instances (fails to allocate
+            // address space).
             48 * 1024,
         )
     }
@@ -596,7 +597,7 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
-        // Reserve a new instance and put it into a drop-guard that removes the reservation when
+        // Take a new instance and put it into a drop-guard that removes the reservation when
         // we're done.
         #[must_use]
         struct InstanceReservation(Arc<EngineInner>);
