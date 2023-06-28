@@ -9,7 +9,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde_ipld_dagcbor = "0.2.2"
+serde_ipld_dagcbor = "0.4.0"
 serde_tuple = "0.5"
 serde_repr = "0.1"
 cid = { workspace = true, features = ["serde-codec", "std"] }
