@@ -623,19 +623,29 @@ impl Engine {
 struct WasmtimeLimiter<L>(L);
 
 impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
-    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+    fn memory_growing(
+        &mut self,
+        current: usize,
+        desired: usize,
+        maximum: Option<usize>,
+    ) -> anyhow::Result<bool> {
         if maximum.map_or(false, |m| desired > m) {
-            return false;
+            return Ok(false);
         }
 
-        self.0.grow_instance_memory(current, desired)
+        Ok(self.0.grow_instance_memory(current, desired))
     }
 
-    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
+    fn table_growing(
+        &mut self,
+        current: u32,
+        desired: u32,
+        maximum: Option<u32>,
+    ) -> anyhow::Result<bool> {
         if maximum.map_or(false, |m| desired > m) {
-            return false;
+            return Ok(false);
         }
-        self.0.grow_instance_table(current, desired)
+        Ok(self.0.grow_instance_table(current, desired))
     }
 }
 
@@ -672,30 +682,30 @@ mod tests {
     #[test]
     fn memory() {
         let mut limits = WasmtimeLimiter(Limiter::default());
-        assert!(limits.memory_growing(0, 3, None));
+        assert!(limits.memory_growing(0, 3, None).unwrap());
         assert_eq!(limits.0.memory, 3);
 
         // The maximum in the args takes precedence.
-        assert!(!limits.memory_growing(3, 4, Some(2)));
+        assert!(!limits.memory_growing(3, 4, Some(2)).unwrap());
         assert_eq!(limits.0.memory, 3);
 
         // Increase by 2.
-        assert!(limits.memory_growing(2, 4, None));
+        assert!(limits.memory_growing(2, 4, None).unwrap());
         assert_eq!(limits.0.memory, 5);
     }
 
     #[test]
     fn table() {
         let mut limits = WasmtimeLimiter(Limiter::default());
-        assert!(limits.table_growing(0, 3, None));
+        assert!(limits.table_growing(0, 3, None).unwrap());
         assert_eq!(limits.0.memory, 3 * 8);
 
         // The maximum in the args takes precedence.
-        assert!(!limits.table_growing(3, 4, Some(2)));
+        assert!(!limits.table_growing(3, 4, Some(2)).unwrap());
         assert_eq!(limits.0.memory, 3 * 8);
 
         // Increase by 2.
-        assert!(limits.table_growing(2, 4, None));
+        assert!(limits.table_growing(2, 4, None).unwrap());
         assert_eq!(limits.0.memory, 5 * 8);
     }
 }
