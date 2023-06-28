@@ -14,7 +14,7 @@ serde_tuple = "0.5"
 serde_repr = "0.1"
 cid = { workspace = true, features = ["serde-codec", "std"] }
 thiserror = "1.0"
-anyhow = "1.0.56"
+anyhow = "1.0.71"
 fvm_ipld_blockstore = { version = "0.1", path = "../blockstore" }
 # multihash is also re-exported by `cid`. Having `multihash` here as a
 # depdendency is needed to enable the features of the re-export.
@@ -24,4 +24,4 @@ multihash = { workspace = true, features = ["blake2b", "multihash-impl"] }
 default = []
 
 [dev-dependencies]
-serde_json = "1.0.79"
+serde_json = "1.0.99"

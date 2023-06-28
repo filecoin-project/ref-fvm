@@ -10,9 +10,9 @@ fvm_shared = { version = "3.3.1", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.3.3", path = "../../../../ipld/encoding" }
 fvm_ipld_blockstore = { version = "0.1.2", path = "../../../../ipld/blockstore" }
 
-anyhow = "1.0.57"
+anyhow = "1.0.71"
 cid = { workspace = true }
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.164", features = ["derive"] }
 serde_tuple = "0.5"
 
 [lib]

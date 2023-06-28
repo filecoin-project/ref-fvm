@@ -7,6 +7,6 @@ edition = "2021"
 fvm_integration_tests = { path = "../../testing/integration" }
 fvm_ipld_encoding = { path = "../../ipld/encoding" }
 fvm_shared = { path = "../../shared" }
-anyhow = "1.0.47"
-clap = { version = "4.1.13", features = ["derive"] }
+anyhow = "1.0.71"
+clap = { version = "4.3.9", features = ["derive"] }
 hex = "0.4.3"
