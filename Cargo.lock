@@ -326,18 +326,18 @@ checksum = "d1a8623f815c0b1fd89efd9b5f4afbb937f91f51c1ebe3f6dda399c69fa938f3"
 dependencies = [
  "bincode",
  "blake2s_simd 1.0.1",
- "blstrs 0.6.1",
+ "blstrs",
  "byteorder",
  "crossbeam-channel",
  "digest 0.10.7",
  "ec-gpu",
  "ec-gpu-gen",
- "ff 0.12.1",
+ "ff",
  "fs2",
- "group 0.12.1",
+ "group",
  "log",
  "memmap2",
- "pairing 0.22.0",
+ "pairing",
  "rand",
  "rand_core",
  "rayon",
@@ -473,17 +473,17 @@ dependencies = [
 
 [[package]]
 name = "bls-signatures"
-version = "0.14.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edceb821f01a1c93593fbbe47786e01c69c3141baa8e349366f15472b9252bc9"
+checksum = "9fcead733e20b9afbf3784a3f33cc6d728e0f11a593a35bd6c5c4503db19e06e"
 dependencies = [
  "bls12_381",
  "blst",
- "blstrs 0.7.0",
- "ff 0.13.0",
- "group 0.13.0",
+ "blstrs",
+ "ff",
+ "group",
  "hkdf",
- "pairing 0.23.0",
+ "pairing",
  "rand_core",
  "sha2 0.9.9",
  "subtle",
@@ -492,14 +492,14 @@ dependencies = [
 
 [[package]]
 name = "bls12_381"
-version = "0.8.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7bc6d6292be3a19e6379786dac800f551e5865a5bb51ebbe3064ab80433f403"
+checksum = "62250ece575fa9b22068b3a8d59586f01d426dd7785522efd97632959e71c986"
 dependencies = [
  "digest 0.9.0",
- "ff 0.13.0",
- "group 0.13.0",
- "pairing 0.23.0",
+ "ff",
+ "group",
+ "pairing",
  "rand_core",
  "subtle",
 ]
@@ -526,25 +526,9 @@ dependencies = [
  "blst",
  "byte-slice-cast",
  "ec-gpu",
- "ff 0.12.1",
- "group 0.12.1",
- "pairing 0.22.0",
- "rand_core",
- "serde",
- "subtle",
-]
-
-[[package]]
-name = "blstrs"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33149fccb7f93271f0192614b884430cf274e880506bbd171cbc8918dcc95b14"
-dependencies = [
- "blst",
- "byte-slice-cast",
- "ff 0.13.0",
- "group 0.13.0",
- "pairing 0.23.0",
+ "ff",
+ "group",
+ "pairing",
  "rand_core",
  "serde",
  "subtle",
@@ -1290,8 +1274,8 @@ dependencies = [
  "crossbeam-channel",
  "ec-gpu",
  "execute",
- "ff 0.12.1",
- "group 0.12.1",
+ "ff",
+ "group",
  "hex",
  "log",
  "num_cpus",
@@ -1441,17 +1425,6 @@ name = "ff"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d013fc25338cc558c5c2cfbad646908fb23591e2404481826742b651c9af7160"
-dependencies = [
- "bitvec",
- "rand_core",
- "subtle",
-]
-
-[[package]]
-name = "ff"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
  "bitvec",
  "rand_core",
@@ -1984,8 +1957,8 @@ checksum = "3303ea3c462ab949ab95b49f6e6d255d8d9396ebd4f1626ccb34c7037615aa8f"
 dependencies = [
  "blake2b_simd",
  "ec-gpu",
- "ff 0.12.1",
- "group 0.12.1",
+ "ff",
+ "group",
  "lazy_static",
  "rand",
  "static_assertions",
@@ -2040,8 +2013,8 @@ checksum = "66d7e656d4f01d7772ef2dd0f59854c8f904370a946053cf37ef420c854d9a35"
 dependencies = [
  "anyhow",
  "bellperson",
- "blstrs 0.6.1",
- "ff 0.12.1",
+ "blstrs",
+ "ff",
  "generic-array",
  "hex",
  "lazy_static",
@@ -2062,7 +2035,7 @@ dependencies = [
  "bellperson",
  "bincode",
  "blake2b_simd",
- "blstrs 0.6.1",
+ "blstrs",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -2093,7 +2066,7 @@ dependencies = [
  "anyhow",
  "bellperson",
  "bincode",
- "blstrs 0.6.1",
+ "blstrs",
  "filecoin-hashers",
  "filecoin-proofs",
  "fr32",
@@ -2159,10 +2132,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4f07b8a600b8c699f8ddc5f520231bc2aac03e944c64055eccfd9a959c3fd60"
 dependencies = [
  "anyhow",
- "blstrs 0.6.1",
+ "blstrs",
  "byte-slice-cast",
  "byteorder",
- "ff 0.12.1",
+ "ff",
  "thiserror",
 ]
 
@@ -2912,20 +2885,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dfbfb3a6cfbd390d5c9564ab283a0349b9b9fcd46a706c1eb10e0db70bfbac7"
 dependencies = [
- "ff 0.12.1",
- "rand",
- "rand_core",
- "rand_xorshift",
- "subtle",
-]
-
-[[package]]
-name = "group"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
-dependencies = [
- "ff 0.13.0",
+ "ff",
  "rand",
  "rand_core",
  "rand_xorshift",
@@ -3539,11 +3499,11 @@ checksum = "9dedb261f1b35ddfd867295eacbc25eb78b4b5b63b08b1c0dc4c1b5ef0e5b2c2"
 dependencies = [
  "bellperson",
  "blake2s_simd 0.5.11",
- "blstrs 0.6.1",
+ "blstrs",
  "byteorder",
  "ec-gpu",
  "ec-gpu-gen",
- "ff 0.12.1",
+ "ff",
  "fil_pasta_curves",
  "generic-array",
  "itertools 0.8.2",
@@ -3724,16 +3684,7 @@ version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "135590d8bdba2b31346f9cd1fb2a912329f5135e832a4f422942eb6ead8b6b3b"
 dependencies = [
- "group 0.12.1",
-]
-
-[[package]]
-name = "pairing"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
-dependencies = [
- "group 0.13.0",
+ "group",
 ]
 
 [[package]]
@@ -4432,11 +4383,11 @@ dependencies = [
  "anyhow",
  "bellperson",
  "blake2b_simd",
- "blstrs 0.6.1",
+ "blstrs",
  "byteorder",
  "cbc",
  "config",
- "ff 0.12.1",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "fs2",
@@ -4466,12 +4417,12 @@ dependencies = [
  "anyhow",
  "bellperson",
  "bincode",
- "blstrs 0.6.1",
+ "blstrs",
  "byte-slice-cast",
  "byteorder",
  "crossbeam",
  "fdlimit",
- "ff 0.12.1",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -4505,9 +4456,9 @@ dependencies = [
  "anyhow",
  "bellperson",
  "blake2b_simd",
- "blstrs 0.6.1",
+ "blstrs",
  "byteorder",
- "ff 0.12.1",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -4527,8 +4478,8 @@ checksum = "3433b2832153e2744bfa87176dcb0b587392b57fd1bd770804d366c98822285a"
 dependencies = [
  "anyhow",
  "bellperson",
- "blstrs 0.6.1",
- "ff 0.12.1",
+ "blstrs",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
