@@ -1,3 +1,6 @@
+// This is legacy code, so we don't want to have to deal with deprecation warnings.
+#![allow(deprecated)]
+
 pub mod actor;
 pub mod crypto;
 pub mod debug;

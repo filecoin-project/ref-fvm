@@ -6,6 +6,9 @@
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
 
+// This is legacy code, so we don't want to have to deal with deprecation warnings.
+#![allow(deprecated)]
+
 pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
 
