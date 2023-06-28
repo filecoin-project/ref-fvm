@@ -4,6 +4,18 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.5.0 [2023-06-27]
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+- Make `Kernel::send` generic over the kernel that will be used by the called actor. This significantly simplifies testing.
+- Upgrade wasmtime to v10.
+
+Other Changes:
+
+- This version allows over-subscription on the instance pool when executing multiple messages in parallel. This means the number of parallel execution lanes is no longer limited by the address space (or no longer _as_ limited).
+
 ## 3.4.0 [2023-05-04]
 
 Update wasmtime to 8.0.1. This is a breaking change if you use any other wasmtime version.
