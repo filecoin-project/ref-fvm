@@ -634,9 +634,12 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd94671561e36e4e7de75f753f577edafb0e7c05d6e4547229fdf7938fbcd2c3"
 dependencies = [
+ "arbitrary",
  "core2",
  "multibase",
  "multihash 0.18.1",
+ "quickcheck",
+ "rand",
  "serde",
  "serde_bytes",
  "unsigned-varint",
@@ -3401,10 +3404,13 @@ version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfd8a792c1694c6da4f68db0a9d707c72bd260994da179e6030a5dcee00bb815"
 dependencies = [
+ "arbitrary",
  "blake2b_simd",
  "core2",
  "digest 0.10.6",
  "multihash-derive",
+ "quickcheck",
+ "rand",
  "ripemd",
  "serde",
  "serde-big-array",
