@@ -12,7 +12,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1.1", features = ["derive"] }
 rand = "0.8.5"
-cid = { version = "0.8.4", default-features = false, features = ["serde-codec", "arb", "std"] }
+cid = { workspace = true, features = ["serde-codec", "arb", "std"] }
 fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbitrary"] }
 fvm_ipld_encoding = { path = "../../../ipld/encoding" }
 fvm_shared = { path = "../../../shared", features = ["arb"] }
@@ -22,6 +22,9 @@ serde = { version = "1", features = ["derive"] }
 [workspace]
 members = ["."]
 
+[workspace.dependencies]
+cid = "0.10.1"
+multihash = "0.18.1"
 
 [[bin]]
 name = "rle_ops"

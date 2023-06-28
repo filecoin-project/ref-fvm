@@ -15,8 +15,8 @@ crate-type = ["lib"]
 anyhow = { version = "1.0.47", features = ["backtrace"] }
 thiserror = "1.0.30"
 num-traits = "0.2"
-cid = { version = "0.8.5", default-features = false, features = ["serde-codec"] }
-multihash = { version = "0.16.3", default-features = false }
+cid = { workspace = true, features = ["serde-codec"] }
+multihash = { workspace = true }
 fvm_shared = { version = "3.3.1", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.6.1", path = "../ipld/hamt" }
 fvm_ipld_amt = { version = "0.5.1", path = "../ipld/amt" }
