@@ -4,6 +4,12 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.7.0 [2023-06-28)
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+
 ## 0.6.0 [2022-10-11]
 
 - Bumps `fvm_ipld_encoding` and switches from `cs_serde_bytes` to `fvm_ipld_encoding::strict_bytes`.

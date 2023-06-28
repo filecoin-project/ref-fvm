@@ -1,7 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## 0.7.0 [2023-06-28)
 
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
 - Add `min_data_depth` option to reserve the top levels of the HAMT for links, free of key-value pairs.
 
 ## 0.6.1 [2022-11-14]

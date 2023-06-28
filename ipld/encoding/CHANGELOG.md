@@ -2,6 +2,14 @@
 
 Changes to the FVM's shared encoding utilities.
 
+## [Unreleased]
+
+## 0.4.0 [2023-06-28)
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+
 ## 0.3.3 [2023-01-19]
 
 - Add the `CBOR` codec, and support it in `IpldBlock`

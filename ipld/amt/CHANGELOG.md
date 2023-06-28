@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.6.0 [2023-06-28)
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+
 ## 0.5.1
 
 Avoid flushing the AMT if nothing has changed.

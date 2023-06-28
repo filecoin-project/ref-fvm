@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.4.0 [2023-06-27]
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+
 ## 3.3.1 [2023-05-04]
 
 Fix some address constants (lazy statics, to be precise) when the current network is set to "testnet". Previously, if said constants were evaluated _after_ switching to testnet mode (calling `address::set_current_network`), they'd fail to parse and crash the program when dereferenced.
