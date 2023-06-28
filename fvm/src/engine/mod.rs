@@ -35,7 +35,9 @@ use crate::Kernel;
 use self::concurrency::EngineConcurrency;
 use self::instance_pool::InstancePool;
 
-const EFFECTIVE_STACK_DEPTH: u32 = 20;
+/// The expected max stack depth used to determine the number of instances needed for a given
+/// concurrency level.
+const EXPECTED_MAX_STACK_DEPTH: u32 = 20;
 
 /// Container managing engines with different consensus-affecting configurations.
 pub struct MultiEngine {
@@ -59,7 +61,7 @@ impl EngineConfig {
         std::cmp::min(
             // Allocate at least one full call depth worth of stack, plus some per concurrent call
             // we allow.
-            self.max_call_depth + EFFECTIVE_STACK_DEPTH * self.concurrency.saturating_sub(1),
+            self.max_call_depth + EXPECTED_MAX_STACK_DEPTH * self.concurrency.saturating_sub(1),
             // Most machines simply can't handle any more than 48k instances (fails to allocate
             // address space).
             48 * 1024,
