@@ -17,8 +17,8 @@ num-integer = "0.1"
 data-encoding = "2.3.2"
 data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
-cid = { version = "0.8.5", default-features = false, features = ["serde-codec", "std"] }
-multihash = { version = "0.16.3", default-features = false, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+cid = { workspace = true, features = ["serde-codec", "std"] }
+multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
 unsigned-varint = "0.7.1"
 anyhow = "1.0.51"
 fvm_ipld_encoding = { version = "0.3", path = "../ipld/encoding" }
@@ -39,7 +39,7 @@ bls-signatures = { version = "0.13", default-features = false, optional = true }
 rand = "0.8"
 rand_chacha = "0.3"
 serde_json = "1.0.56"
-multihash = { version = "0.16.3", default-features = false, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
 quickcheck_macros = "1"
 
 fvm_shared = { path = ".", features = ["arb"] }
