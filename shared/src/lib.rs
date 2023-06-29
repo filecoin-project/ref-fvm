@@ -1,6 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+// This is legacy code, so we don't want to have to deal with deprecation warnings.
+#![allow(deprecated)]
+
 #[macro_use]
 extern crate lazy_static;
 
