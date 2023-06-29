@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0 (2023-06-28)
+
+Breaking Changes:
+
+- Update all IPLD crates, including cid & multihash.
+
 ## 2.3.0 [2023-05-03]
 
 Clippy fixes & non-debug build fixes. This release is optional.

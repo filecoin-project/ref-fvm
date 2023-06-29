@@ -4,6 +4,13 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.5.0 (2023-06-28)
+
+Breaking Changes:
+
+- Update all IPLD crates, including cid & multihash.
+- Update wasmtime to v10.
+
 ## 2.4.0 [2023-05-03]
 
 - Update proofs to v14.
