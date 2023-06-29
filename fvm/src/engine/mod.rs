@@ -1,10 +1,14 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+
+mod concurrency;
+mod instance_pool;
+
 use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use cid::Cid;
@@ -28,6 +32,13 @@ use crate::syscalls::{
 };
 use crate::Kernel;
 
+use self::concurrency::EngineConcurrency;
+use self::instance_pool::InstancePool;
+
+/// The expected max stack depth used to determine the number of instances needed for a given
+/// concurrency level.
+const EXPECTED_MAX_STACK_DEPTH: u32 = 20;
+
 /// Container managing engines with different consensus-affecting configurations.
 pub struct MultiEngine {
     engines: Mutex<HashMap<EngineConfig, EnginePool>>,
@@ -43,6 +54,19 @@ pub struct EngineConfig {
     pub concurrency: u32,
     pub wasm_prices: &'static WasmGasPrices,
     pub actor_redirect: Vec<(Cid, Cid)>,
+}
+
+impl EngineConfig {
+    fn instance_pool_size(&self) -> u32 {
+        std::cmp::min(
+            // Allocate at least one full call depth worth of stack, plus some per concurrent call
+            // we allow.
+            self.max_call_depth + EXPECTED_MAX_STACK_DEPTH * self.concurrency,
+            // Most machines simply can't handle any more than 48k instances (fails to allocate
+            // address space).
+            48 * 1024,
+        )
+    }
 }
 
 impl From<&NetworkConfig> for EngineConfig {
@@ -94,7 +118,11 @@ impl Default for MultiEngine {
 }
 
 fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
-    let instance_count = (1 + ec.max_call_depth) * ec.concurrency;
+    if ec.concurrency < 1 {
+        return Err(anyhow!("concurrency limit must not be 0"));
+    }
+
+    let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
     if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
@@ -202,8 +230,8 @@ struct ModuleRecord {
 }
 
 struct EngineInner {
-    limit: Mutex<u32>,
-    condv: Condvar,
+    concurrency_limit: EngineConcurrency,
+    instance_limit: InstancePool,
 
     engine: wasmtime::Engine,
 
@@ -230,28 +258,10 @@ impl EnginePool {
     /// Acquire an [`Engine`]. This method will block until an [`Engine`] is available, and will
     /// release the engine on drop.
     pub fn acquire(&self) -> Engine {
-        *self
-            .0
-            .condv
-            .wait_while(self.0.limit.lock().unwrap(), |limit| *limit == 0)
-            .unwrap() -= 1;
-        Engine(self.0.clone())
-    }
-
-    /// Try to acquire an [`Engine`]. Returns `None` if the call would block, or if the lock is
-    /// poisoned.
-    ///
-    /// The [`Engine`] is released on drop.
-    pub fn try_acquire(&self) -> Option<Engine> {
-        self.0
-            .limit
-            .try_lock()
-            .ok()
-            .filter(|limit| **limit > 0)
-            .map(|mut limit| {
-                *limit -= 1;
-                Engine(self.0.clone())
-            })
+        Engine {
+            id: self.0.concurrency_limit.acquire(),
+            inner: self.0.clone(),
+        }
     }
 
     pub fn new_default(ec: EngineConfig) -> anyhow::Result<Self> {
@@ -273,8 +283,8 @@ impl EnginePool {
         let actor_redirect = ec.actor_redirect.iter().cloned().collect();
 
         Ok(EnginePool(Arc::new(EngineInner {
-            limit: Mutex::new(ec.concurrency),
-            condv: Condvar::new(),
+            concurrency_limit: EngineConcurrency::new(ec.concurrency),
+            instance_limit: InstancePool::new(ec.instance_pool_size(), ec.max_call_depth),
             engine,
             dummy_memory,
             dummy_gas_global: dummy_gg,
@@ -294,21 +304,22 @@ struct Cache<K> {
 /// call stacks.
 ///
 /// The `Engine` will be returned to the [`EnginePool`] on drop.
-pub struct Engine(Arc<EngineInner>);
+pub struct Engine {
+    id: u64,
+    inner: Arc<EngineInner>,
+}
 
 impl Deref for Engine {
     type Target = wasmtime::Engine;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.engine
+        &self.inner.engine
     }
 }
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let mut limit = self.0.limit.lock().unwrap();
-        *limit += 1;
-        self.0.condv.notify_one();
+        self.inner.concurrency_limit.release();
     }
 }
 
@@ -325,7 +336,7 @@ impl Engine {
     ) -> anyhow::Result<usize> {
         let code_cid = self.with_redirect(code_cid);
         if let Some(item) = self
-            .0
+            .inner
             .module_cache
             .lock()
             .expect("module_cache poisoned")
@@ -366,7 +377,7 @@ impl Engine {
     }
 
     fn with_redirect<'a>(&'a self, k: &'a Cid) -> &'a Cid {
-        match &self.0.actor_redirect.get(k) {
+        match &self.inner.actor_redirect.get(k) {
             Some(cid) => cid,
             None => k,
         }
@@ -375,7 +386,11 @@ impl Engine {
     /// Loads some Wasm code into the engine and prepares it for execution.
     pub fn prepare_wasm_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<usize> {
         let k = self.with_redirect(k);
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
         let size = match cache.get(k) {
             Some(item) => item.size,
             None => {
@@ -390,7 +405,7 @@ impl Engine {
 
     fn load_raw(&self, raw_wasm: &[u8]) -> anyhow::Result<ModuleRecord> {
         // First make sure that non-instrumented wasm is valid
-        Module::validate(&self.0.engine, raw_wasm)
+        Module::validate(&self.inner.engine, raw_wasm)
             .map_err(anyhow::Error::msg)
             .with_context(|| "failed to validate actor wasm")?;
 
@@ -402,7 +417,7 @@ impl Engine {
         // stack limiter adds post/pre-ambles to call instructions; We want to do that
         // before injecting gas accounting calls to avoid this overhead in every single
         // block of code.
-        let raw_wasm = stack_limiter::inject(raw_wasm, self.0.config.max_wasm_stack)
+        let raw_wasm = stack_limiter::inject(raw_wasm, self.inner.config.max_wasm_stack)
             .map_err(anyhow::Error::msg)?;
 
         // inject gas metering based on a price list. This function will
@@ -417,10 +432,10 @@ impl Engine {
         //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
         //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
         //   parity-wasm module parser, so the contract cannot grow the tables.
-        let raw_wasm = gas_metering::inject(&raw_wasm, self.0.config.wasm_prices, "gas")
+        let raw_wasm = gas_metering::inject(&raw_wasm, self.inner.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
-        let module = Module::from_binary(&self.0.engine, &raw_wasm)?;
+        let module = Module::from_binary(&self.inner.engine, &raw_wasm)?;
 
         Ok(ModuleRecord {
             module,
@@ -435,11 +450,15 @@ impl Engine {
     /// See [`wasmtime::Module::deserialize`] for safety information.
     pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
         let k = self.with_redirect(k);
-        let mut cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
         let module = match cache.get(k) {
             Some(m) => m.module.clone(),
             None => {
-                let module = Module::deserialize(&self.0.engine, compiled)?;
+                let module = Module::deserialize(&self.inner.engine, compiled)?;
                 cache.insert(
                     *k,
                     ModuleRecord {
@@ -461,7 +480,7 @@ impl Engine {
     ) -> anyhow::Result<Option<Module>> {
         let k = self.with_redirect(k);
         match self
-            .0
+            .inner
             .module_cache
             .lock()
             .expect("module_cache poisoned")
@@ -486,7 +505,7 @@ impl Engine {
         k: &Cid,
     ) -> Result<Option<wasmtime::Instance>, Abort> {
         let k = self.with_redirect(k);
-        let mut instance_cache = self.0.instance_cache.lock().expect("cache poisoned");
+        let mut instance_cache = self.inner.instance_cache.lock().expect("cache poisoned");
 
         let type_id = TypeId::of::<K>();
         let cache: &mut Cache<K> = match instance_cache.entry(type_id) {
@@ -496,7 +515,7 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.0.engine);
+                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
 
                     bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
@@ -512,7 +531,11 @@ impl Engine {
             .context("failed to define gas counter")
             .map_err(Abort::Fatal)?;
 
-        let mut module_cache = self.0.module_cache.lock().expect("module_cache poisoned");
+        let mut module_cache = self
+            .inner
+            .module_cache
+            .lock()
+            .expect("module_cache poisoned");
 
         let instantiate = |store: &mut wasmtime::Store<InvocationData<K>>, module| {
             // Before we instantiate the module, we should make sure the user has sufficient gas to
@@ -576,27 +599,43 @@ impl Engine {
 
     /// Construct a new wasmtime "store" from the given kernel.
     pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
+        // Take a new instance and put it into a drop-guard that removes the reservation when
+        // we're done.
+        #[must_use]
+        struct InstanceReservation(Arc<EngineInner>);
+
+        impl Drop for InstanceReservation {
+            fn drop(&mut self) {
+                self.0.instance_limit.put();
+            }
+        }
+
+        self.inner.instance_limit.take(self.id);
+        let reservation = InstanceReservation(self.inner.clone());
+
         let memory_bytes = kernel.limiter_mut().memory_used();
 
         let id = InvocationData {
             kernel,
             last_error: None,
-            avail_gas_global: self.0.dummy_gas_global,
+            avail_gas_global: self.inner.dummy_gas_global,
             last_gas_available: Gas::zero(),
             last_memory_bytes: memory_bytes,
             last_charge_time: GasTimer::start(),
-            memory: self.0.dummy_memory,
+            memory: self.inner.dummy_memory,
         };
 
-        let mut store = wasmtime::Store::new(&self.0.engine, id);
+        let mut store = wasmtime::Store::new(&self.inner.engine, id);
         let ggtype = GlobalType::new(ValType::I64, Mutability::Var);
         let gg = Global::new(&mut store, ggtype, Val::I64(0))
             .expect("failed to create available_gas global");
         store.data_mut().avail_gas_global = gg;
 
-        fn as_wasmtime_limiter<K: Kernel>(
-            data: &mut InvocationData<K>,
-        ) -> &mut dyn wasmtime::ResourceLimiter {
+        store.limiter(move |data| {
+            // Keep the reservation alive as long as the limiter is alive. The limiter limits the
+            // store to one instance and one memory, which is covered by the reservation.
+            let _ = &reservation;
+
             // SAFETY: This is safe because WasmtimeLimiter is `repr(transparent)`.
             // Unfortunately, we can't simply wrap the limiter as we need to return a reference.
             let limiter: &mut WasmtimeLimiter<K::Limiter> = unsafe {
@@ -611,9 +650,7 @@ impl Engine {
                 &mut *(limiter_ref as *mut K::Limiter as *mut WasmtimeLimiter<K::Limiter>)
             };
             limiter as &mut dyn wasmtime::ResourceLimiter
-        }
-
-        store.limiter(as_wasmtime_limiter);
+        });
 
         store
     }
@@ -623,19 +660,39 @@ impl Engine {
 struct WasmtimeLimiter<L>(L);
 
 impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
-    fn memory_growing(&mut self, current: usize, desired: usize, maximum: Option<usize>) -> bool {
+    fn memory_growing(
+        &mut self,
+        current: usize,
+        desired: usize,
+        maximum: Option<usize>,
+    ) -> anyhow::Result<bool> {
         if maximum.map_or(false, |m| desired > m) {
-            return false;
+            return Ok(false);
         }
 
-        self.0.grow_instance_memory(current, desired)
+        Ok(self.0.grow_instance_memory(current, desired))
     }
 
-    fn table_growing(&mut self, current: u32, desired: u32, maximum: Option<u32>) -> bool {
+    fn table_growing(
+        &mut self,
+        current: u32,
+        desired: u32,
+        maximum: Option<u32>,
+    ) -> anyhow::Result<bool> {
         if maximum.map_or(false, |m| desired > m) {
-            return false;
+            return Ok(false);
         }
-        self.0.grow_instance_table(current, desired)
+        Ok(self.0.grow_instance_table(current, desired))
+    }
+
+    // The FVM allows one instance & one memory per store/kernel (for now).
+
+    fn instances(&self) -> usize {
+        1
+    }
+
+    fn memories(&self) -> usize {
+        1
     }
 }
 
@@ -672,30 +729,30 @@ mod tests {
     #[test]
     fn memory() {
         let mut limits = WasmtimeLimiter(Limiter::default());
-        assert!(limits.memory_growing(0, 3, None));
+        assert!(limits.memory_growing(0, 3, None).unwrap());
         assert_eq!(limits.0.memory, 3);
 
         // The maximum in the args takes precedence.
-        assert!(!limits.memory_growing(3, 4, Some(2)));
+        assert!(!limits.memory_growing(3, 4, Some(2)).unwrap());
         assert_eq!(limits.0.memory, 3);
 
         // Increase by 2.
-        assert!(limits.memory_growing(2, 4, None));
+        assert!(limits.memory_growing(2, 4, None).unwrap());
         assert_eq!(limits.0.memory, 5);
     }
 
     #[test]
     fn table() {
         let mut limits = WasmtimeLimiter(Limiter::default());
-        assert!(limits.table_growing(0, 3, None));
+        assert!(limits.table_growing(0, 3, None).unwrap());
         assert_eq!(limits.0.memory, 3 * 8);
 
         // The maximum in the args takes precedence.
-        assert!(!limits.table_growing(3, 4, Some(2)));
+        assert!(!limits.table_growing(3, 4, Some(2)).unwrap());
         assert_eq!(limits.0.memory, 3 * 8);
 
         // Increase by 2.
-        assert!(limits.table_growing(2, 4, None));
+        assert!(limits.table_growing(2, 4, None).unwrap());
         assert_eq!(limits.0.memory, 5 * 8);
     }
 }

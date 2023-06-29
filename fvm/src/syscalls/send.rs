@@ -13,8 +13,8 @@ use crate::Kernel;
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.
 #[allow(clippy::too_many_arguments)]
-pub fn send(
-    context: Context<'_, impl Kernel>,
+pub fn send<K: Kernel>(
+    context: Context<'_, K>,
     recipient_off: u32,
     recipient_len: u32,
     method: u64,
@@ -43,7 +43,7 @@ pub fn send(
         exit_code,
     } = context
         .kernel
-        .send(&recipient, method, params_id, &value, gas_limit, flags)?;
+        .send::<K>(&recipient, method, params_id, &value, gas_limit, flags)?;
 
     Ok(sys::out::send::Send {
         exit_code: exit_code.value(),

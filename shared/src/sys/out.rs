@@ -66,7 +66,7 @@ pub mod vm {
 
     bitflags! {
         /// Invocation flags pertaining to the currently executing actor.
-        #[derive(Default)]
+        #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
         #[repr(transparent)]
         pub struct ContextFlags: u64 {
             /// Invocation is in "read-only" mode. Any balance transfers, sends that would create

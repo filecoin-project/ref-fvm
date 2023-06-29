@@ -21,6 +21,9 @@ fvm_ipld_blockstore = { path = "../../blockstore" }
 [workspace]
 members = ["."]
 
+[workspace.dependencies]
+cid = "0.10.1"
+
 [[bin]]
 name = "simple"
 path = "fuzz_targets/simple.rs"

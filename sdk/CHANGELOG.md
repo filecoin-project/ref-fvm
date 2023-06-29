@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.3.0 [2023-06-28]
+
+Breaking Changes:
+
+- Update cid/multihash. This is a breaking change as it affects the API.
+
 ## 3.2.0 [2023-04-04]
 
 - Switch to rust stable.

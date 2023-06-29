@@ -1,34 +1,34 @@
 [package]
 name = "fvm_integration_tests"
 description = "Filecoin Virtual Machine integration tests framework"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "3.4.0", path = "../../fvm", default-features = false, features = ["testing"] }
-fvm_shared = { version = "3.3.1", path = "../../shared", features = ["testing"] }
-fvm_ipld_car = { version = "0.6.0", path = "../../ipld/car" }
-fvm_ipld_blockstore = { version = "0.1.2", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.3.3", path = "../../ipld/encoding" }
+fvm = { version = "3.5.0", path = "../../fvm", default-features = false, features = ["testing"] }
+fvm_shared = { version = "3.4.0", path = "../../shared", features = ["testing"] }
+fvm_ipld_car = { version = "0.7.0", path = "../../ipld/car" }
+fvm_ipld_blockstore = { version = "0.2.0", path = "../../ipld/blockstore" }
+fvm_ipld_encoding = { version = "0.4.0", path = "../../ipld/encoding" }
 
-anyhow = "1.0.47"
-cid = { version = "0.8.5", default-features = false }
-futures = "0.3.19"
-multihash = { version = "0.16.1", default-features = false }
+anyhow = "1.0.71"
+cid = { workspace = true }
+futures = "0.3.28"
+multihash = { workspace = true }
 num-traits = "0.2"
 lazy_static = "1.4.0"
-libsecp256k1 = "0.7.0"
+libsecp256k1 = "0.7.1"
 rand = "0.8.5"
 rand_chacha = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
-thiserror = "1.0.30"
+thiserror = "1.0.40"
 
 [dependencies.wasmtime]
-version = "8.0.1"
+version = "10.0.1"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
@@ -36,10 +36,10 @@ features = ["cranelift", "parallel-compilation"]
 actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
 fvm_test_actors = { path = "../test_actors" }
 fvm_gas_calibration_shared = { path = "../calibration/shared" }
-blake2b_simd = "1.0.0"
+blake2b_simd = "1.0.1"
 serde_json = "1.0"
 bls-signatures = { version = "0.13", default-features = false }
-wat = "1.0.51"
+wat = "1.0.66"
 hex = "0.4.3"
 
 [features]

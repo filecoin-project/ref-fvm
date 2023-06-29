@@ -14,13 +14,16 @@ arbitrary = { version = "1.1", features = ["derive"] }
 ahash = "0.7.6"
 itertools = "0.10.3"
 
-cid = { version = "0.8.2", default-features = false, features = ["serde-codec", "arb", "std"] }
+cid = { workspace = true, features = ["serde-codec", "arb", "std"] }
 fvm_ipld_amt = { path = ".."}
 fvm_ipld_blockstore = { path = "../../blockstore" }
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
+
+[workspace.dependencies]
+cid = "0.10.1"
 
 [[bin]]
 name = "equivalence"

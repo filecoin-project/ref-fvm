@@ -13,6 +13,10 @@ members = [
     "tools/fvm-bench",
 ]
 
+[workspace.dependencies]
+cid = { version = "0.10.1", default-features = false }
+multihash = { version = "0.18.1", default-features = false }
+
 [profile.actor]
 inherits = "release"
 panic = "abort"

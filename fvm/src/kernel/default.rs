@@ -111,6 +111,70 @@ where
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.call_manager.machine()
     }
+
+    fn send<K: Kernel<CallManager = C>>(
+        &mut self,
+        recipient: &Address,
+        method: MethodNum,
+        params_id: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<SendResult> {
+        let from = self.actor_id;
+        let read_only = self.read_only || flags.read_only();
+
+        if read_only && !value.is_zero() {
+            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
+        }
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        // Send.
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.send::<K>(
+                from, *recipient, method, params, value, gas_limit, read_only,
+            )
+        })?;
+
+        // Store result and return.
+        Ok(match result {
+            InvocationResult {
+                exit_code,
+                value: Some(blk),
+            } => {
+                let block_stat = blk.stat();
+                let block_id = self
+                    .blocks
+                    .put(blk)
+                    .or_fatal()
+                    .context("failed to store a valid return value")?;
+                SendResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
+                }
+            }
+            InvocationResult {
+                exit_code,
+                value: None,
+            } => SendResult {
+                block_id: NO_DATA_BLOCK_ID,
+                block_stat: BlockStat { codec: 0, size: 0 },
+                exit_code,
+            },
+        })
+    }
 }
 
 impl<C> DefaultKernel<C>
@@ -355,75 +419,6 @@ where
         };
         t.stop();
         Ok(ctx)
-    }
-}
-
-impl<C> SendOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn send(
-        &mut self,
-        recipient: &Address,
-        method: MethodNum,
-        params_id: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<SendResult> {
-        let from = self.actor_id;
-        let read_only = self.read_only || flags.read_only();
-
-        if read_only && !value.is_zero() {
-            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
-        }
-
-        // Load parameters.
-        let params = if params_id == NO_DATA_BLOCK_ID {
-            None
-        } else {
-            Some(self.blocks.get(params_id)?.clone())
-        };
-
-        // Make sure we can actually store the return block.
-        if self.blocks.is_full() {
-            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
-        }
-
-        // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.send::<Self>(
-                from, *recipient, method, params, value, gas_limit, read_only,
-            )
-        })?;
-
-        // Store result and return.
-        Ok(match result {
-            InvocationResult {
-                exit_code,
-                value: Some(blk),
-            } => {
-                let block_stat = blk.stat();
-                let block_id = self
-                    .blocks
-                    .put(blk)
-                    .or_fatal()
-                    .context("failed to store a valid return value")?;
-                SendResult {
-                    block_id,
-                    block_stat,
-                    exit_code,
-                }
-            }
-            InvocationResult {
-                exit_code,
-                value: None,
-            } => SendResult {
-                block_id: NO_DATA_BLOCK_ID,
-                block_stat: BlockStat { codec: 0, size: 0 },
-                exit_code,
-            },
-        })
     }
 }
 
