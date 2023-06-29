@@ -19,13 +19,13 @@ pub enum ChangeType {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Change<V> {
+pub struct Change<Old, New> {
     pub key: u64,
-    pub before: Option<V>,
-    pub after: Option<V>,
+    pub before: Option<Old>,
+    pub after: Option<New>,
 }
 
-impl<V> Change<V> {
+impl<Old, New> Change<Old, New> {
     pub fn change_type(&self) -> ChangeType {
         match (&self.before, &self.after) {
             (Some(_), Some(_)) => ChangeType::Modify,
@@ -60,9 +60,13 @@ impl<'bs, V, BS> From<&'bs Amt<V, BS>> for NodeContext<'bs, BS> {
 
 /// Returns a set of changes that transform node 'a' into node 'b'.
 /// Ported from <https://github.com/filecoin-project/go-amt-ipld/blob/master/diff.go#L41>
-pub fn diff<V, BS>(prev_amt: &Amt<V, BS>, curr_amt: &Amt<V, BS>) -> anyhow::Result<Vec<Change<V>>>
+pub fn diff<Old, New, BS>(
+    prev_amt: &Amt<Old, BS>,
+    curr_amt: &Amt<New, BS>,
+) -> anyhow::Result<Vec<Change<Old, New>>>
 where
-    V: Serialize + DeserializeOwned + Clone,
+    Old: Serialize + DeserializeOwned + Clone,
+    New: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
     if prev_amt.bit_width() != curr_amt.bit_width() {
@@ -88,13 +92,13 @@ where
     }
 }
 
-fn add_all<V, BS>(
+fn add_all<Old, New, BS>(
     ctx: &NodeContext<BS>,
-    node: &Node<V>,
+    node: &Node<New>,
     offset: u64,
-) -> anyhow::Result<Vec<Change<V>>>
+) -> anyhow::Result<Vec<Change<Old, New>>>
 where
-    V: Serialize + DeserializeOwned + Clone,
+    New: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
     let mut changes = vec![];
@@ -110,13 +114,13 @@ where
     Ok(changes)
 }
 
-fn remove_all<V, BS>(
+fn remove_all<Old, New, BS>(
     ctx: &NodeContext<BS>,
-    node: &Node<V>,
+    node: &Node<Old>,
     offset: u64,
-) -> anyhow::Result<Vec<Change<V>>>
+) -> anyhow::Result<Vec<Change<Old, New>>>
 where
-    V: Serialize + DeserializeOwned + Clone,
+    Old: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
     let mut changes = vec![];
@@ -132,13 +136,14 @@ where
     Ok(changes)
 }
 
-fn diff_leaves<V>(
-    prev_node: &Node<V>,
-    curr_node: &Node<V>,
+fn diff_leaves<Old, New>(
+    prev_node: &Node<Old>,
+    curr_node: &Node<New>,
     offset: u64,
-) -> anyhow::Result<Vec<Change<V>>>
+) -> anyhow::Result<Vec<Change<Old, New>>>
 where
-    V: Serialize + DeserializeOwned + Clone,
+    Old: Serialize + DeserializeOwned + Clone,
+    New: Serialize + DeserializeOwned + Clone,
 {
     let prev_vals = match prev_node {
         Node::Leaf { vals } => vals,
@@ -190,15 +195,16 @@ where
     Ok(changes)
 }
 
-fn diff_node<V, BS>(
+fn diff_node<Old, New, BS>(
     prev_ctx: &NodeContext<BS>,
-    prev_node: &Node<V>,
+    prev_node: &Node<Old>,
     curr_ctx: &NodeContext<BS>,
-    curr_node: &Node<V>,
+    curr_node: &Node<New>,
     offset: u64,
-) -> anyhow::Result<Vec<Change<V>>>
+) -> anyhow::Result<Vec<Change<Old, New>>>
 where
-    V: Serialize + DeserializeOwned + Clone,
+    Old: Serialize + DeserializeOwned + Clone,
+    New: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
     if prev_ctx.height == 0 && curr_ctx.height == 0 {
@@ -220,7 +226,7 @@ where
                 let sub_node = match link {
                     node::Link::Cid { cid, .. } => sub_ctx
                         .store
-                        .get_cbor::<CollapsedNode<V>>(cid)?
+                        .get_cbor::<CollapsedNode<_>>(cid)?
                         .context("Failed to get collapsed node from block store")?
                         .expand(curr_ctx.bit_width)?,
                     _ => {
@@ -255,7 +261,7 @@ where
                 let sub_node = match link {
                     node::Link::Cid { cid, .. } => sub_ctx
                         .store
-                        .get_cbor::<CollapsedNode<V>>(cid)?
+                        .get_cbor::<CollapsedNode<_>>(cid)?
                         .context("Failed to get collapsed node from block store")?
                         .expand(prev_ctx.bit_width)?,
                     _ => {
@@ -303,7 +309,7 @@ where
                             let sub_node = match prev_link {
                                 node::Link::Cid { cid, .. } => sub_ctx
                                     .store
-                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .get_cbor::<CollapsedNode<_>>(cid)?
                                     .context("Failed to get collapsed node from block store")?
                                     .expand(prev_ctx.bit_width)?,
                                 _ => {
@@ -322,7 +328,7 @@ where
                             let sub_node = match curr_link {
                                 node::Link::Cid { cid, .. } => sub_ctx
                                     .store
-                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .get_cbor::<CollapsedNode<_>>(cid)?
                                     .context("Failed to get collapsed node from block store")?
                                     .expand(curr_ctx.bit_width)?,
                                 _ => {
@@ -357,7 +363,7 @@ where
                             };
                             let prev_sub_node = prev_sub_ctx
                                 .store
-                                .get_cbor::<CollapsedNode<V>>(prev_cid)?
+                                .get_cbor::<CollapsedNode<_>>(prev_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(prev_sub_ctx.bit_width)?;
                             let curr_sub_ctx = NodeContext {
@@ -367,7 +373,7 @@ where
                             };
                             let curr_sub_node = curr_sub_ctx
                                 .store
-                                .get_cbor::<CollapsedNode<V>>(curr_cid)?
+                                .get_cbor::<CollapsedNode<_>>(curr_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(curr_sub_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
