@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::*;
-use fvm_ipld_amt::{diff, Amt, Change, ChangeType};
+use fvm_ipld_amt::{diff, Amt, Change};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use itertools::Itertools;
 use quickcheck::Arbitrary;
@@ -58,7 +58,6 @@ fn test_simple_add(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     ensure!(
         changes
             == vec![Change {
-                change_type: ChangeType::Add,
                 key: 5,
                 before: None,
                 after: Some("bar".into())
@@ -85,7 +84,6 @@ fn test_simple_remove(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     ensure!(
         changes[0]
             == Change {
-                change_type: ChangeType::Remove,
                 key: 5,
                 before: Some("bar".into()),
                 after: None,
@@ -111,7 +109,6 @@ fn test_simple_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     ensure!(
         changes
             == vec![Change {
-                change_type: ChangeType::Modify,
                 key: 2,
                 before: Some("foo".into()),
                 after: Some("bar".into()),
@@ -136,13 +133,11 @@ fn test_large_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     for i in (0..100).step_by(2) {
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Modify,
             key: i,
             before: Some(format!("foo{i}")),
             after: Some(format!("bar{i}")),
         });
         expected_changes.push(Change {
-            change_type: ChangeType::Remove,
             key: i + 1,
             before: Some(format!("foo{}", i + 1)),
             after: None,
@@ -174,7 +169,6 @@ fn test_large_additions(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     for i in 2000..2500 {
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Add,
             key: i,
             before: None,
             after: Some(format!("bar{i}")),
@@ -207,13 +201,11 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     for i in (0..100).step_by(2) {
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Modify,
             key: i,
             before: Some(format!("foo{i}")),
             after: Some(format!("bar{i}")),
         });
         expected_changes.push(Change {
-            change_type: ChangeType::Remove,
             key: i + 1,
             before: Some(format!("foo{}", i + 1)),
             after: None,
@@ -224,7 +216,6 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
         a.set(i, format!("foo{i}"))?;
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Modify,
             key: i,
             before: Some(format!("foo{i}")),
             after: Some(format!("bar{i}")),
@@ -234,7 +225,6 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     for i in 2000..2500 {
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Add,
             key: i,
             before: None,
             after: Some(format!("bar{i}")),
@@ -244,7 +234,6 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     for i in 10000..10250 {
         a.set(i, format!("foo{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Remove,
             key: i,
             before: Some(format!("foo{i}")),
             after: None,
@@ -255,7 +244,6 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
         a.set(i, format!("foo{i}"))?;
         b.set(i, format!("bar{i}"))?;
         expected_changes.push(Change {
-            change_type: ChangeType::Modify,
             key: i,
             before: Some(format!("foo{i}")),
             after: Some(format!("bar{i}")),
@@ -292,7 +280,6 @@ fn test_diff_empty_state_with_non_empty_state(
     ensure!(
         changes[0]
             == Change {
-                change_type: ChangeType::Remove,
                 key: 2,
                 before: Some("foo".into()),
                 after: None,

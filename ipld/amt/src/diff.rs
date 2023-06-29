@@ -20,10 +20,20 @@ pub enum ChangeType {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Change<V> {
-    pub change_type: ChangeType,
     pub key: u64,
     pub before: Option<V>,
     pub after: Option<V>,
+}
+
+impl<V> Change<V> {
+    pub fn change_type(&self) -> ChangeType {
+        match (&self.before, &self.after) {
+            (Some(_), Some(_)) => ChangeType::Modify,
+            (Some(_), None) => ChangeType::Remove,
+            (None, Some(_)) => ChangeType::Add,
+            (None, None) => panic!("Invalid change type, before and after cannot be both None"),
+        }
+    }
 }
 
 struct NodeContext<'bs, BS> {
@@ -90,7 +100,6 @@ where
     let mut changes = vec![];
     node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
-            change_type: ChangeType::Add,
             key: i,
             before: None,
             after: Some(x.clone()),
@@ -113,7 +122,6 @@ where
     let mut changes = vec![];
     node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
-            change_type: ChangeType::Remove,
             key: i,
             before: Some(x.clone()),
             after: None,
@@ -158,13 +166,11 @@ where
         match (prev_val, curr_val) {
             (None, None) => continue,
             (None, Some(curr_val)) => changes.push(Change {
-                change_type: ChangeType::Add,
                 key: index,
                 before: None,
                 after: Some(curr_val.clone()),
             }),
             (Some(prev_val), None) => changes.push(Change {
-                change_type: ChangeType::Remove,
                 key: index,
                 before: Some(prev_val.clone()),
                 after: None,
@@ -172,7 +178,6 @@ where
             (Some(prev_val), Some(curr_val)) => {
                 if fvm_ipld_encoding::to_vec(&prev_val)? != fvm_ipld_encoding::to_vec(&curr_val)? {
                     changes.push(Change {
-                        change_type: ChangeType::Modify,
                         key: index,
                         before: Some(prev_val.clone()),
                         after: Some(curr_val.clone()),
