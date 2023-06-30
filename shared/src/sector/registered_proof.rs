@@ -164,7 +164,7 @@ impl RegisteredPoStProof {
     }
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub fn window_post_partitions_sector(self) -> Result<u64, String> {
+    pub fn window_post_partition_sectors(self) -> Result<u64, String> {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
         match self {
@@ -200,7 +200,7 @@ impl RegisteredSealProof {
 
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub fn window_post_partitions_sector(self) -> Result<u64, String> {
+    pub fn window_post_partition_sectors(self) -> Result<u64, String> {
         // Resolve to seal proof and then compute size from that.
         use RegisteredSealProof::*;
         match self {
