@@ -133,8 +133,12 @@ impl FromIterator<u64> for MaybeBitField {
 
 impl BitField {
     /// Creates an empty bit field.
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {
+            ranges: Vec::new(),
+            set: BTreeSet::new(),
+            unset: BTreeSet::new(),
+        }
     }
 
     /// Creates a new bit field from a `RangeIterator`.
