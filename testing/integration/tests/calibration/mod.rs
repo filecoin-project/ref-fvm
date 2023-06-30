@@ -21,7 +21,7 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_test_actors::wasm_bin::GAS_CALIBRATION_ACTOR_BIN;
+use fvm_test_actors::wasm_bin::GAS_CALIBRATION_ACTOR_BINARY;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 use serde::Serialize;
@@ -131,7 +131,7 @@ pub fn instantiate_tester() -> TestEnv {
 
     tester
         .set_actor_from_bin(
-            GAS_CALIBRATION_ACTOR_BIN,
+            GAS_CALIBRATION_ACTOR_BINARY,
             state_cid,
             actor_address,
             TokenAmount::from_whole(100),
