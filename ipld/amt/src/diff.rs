@@ -19,7 +19,7 @@ pub enum ChangeType {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Change<Old, New=Old> {
+pub struct Change<Old, New = Old> {
     pub key: u64,
     pub before: Option<Old>,
     pub after: Option<New>,
@@ -67,7 +67,8 @@ pub fn diff<Old, New, OldBS, NewBS>(
 where
     Old: Serialize + DeserializeOwned + Clone,
     New: Serialize + DeserializeOwned + Clone,
-    BS: Blockstore,
+    OldBS: Blockstore,
+    NewBS: Blockstore,
 {
     if prev_amt.bit_width() != curr_amt.bit_width() {
         anyhow::bail!(
@@ -170,11 +171,10 @@ where
         let index = offset + i as u64;
         match (prev_val, curr_val) {
             (None, None) => continue,
-            (None, Some(_))|(Some(_), None) => changes.push(Change {
+            (None, Some(_)) | (Some(_), None) => changes.push(Change {
                 key: index,
-                before: prev_val.cloned(),
-                after: curr_val.cloned(),
-            }),
+                before: prev_val.clone(),
+                after: curr_val.clone(),
             }),
             (Some(prev_val), Some(curr_val)) => {
                 if fvm_ipld_encoding::to_vec(&prev_val)? != fvm_ipld_encoding::to_vec(&curr_val)? {
@@ -191,17 +191,18 @@ where
     Ok(changes)
 }
 
-fn diff_node<Old, New, BS>(
-    prev_ctx: &NodeContext<BS>,
+fn diff_node<Old, New, OldBS, NewBS>(
+    prev_ctx: &NodeContext<OldBS>,
     prev_node: &Node<Old>,
-    curr_ctx: &NodeContext<BS>,
+    curr_ctx: &NodeContext<NewBS>,
     curr_node: &Node<New>,
     offset: u64,
 ) -> anyhow::Result<Vec<Change<Old, New>>>
 where
     Old: Serialize + DeserializeOwned + Clone,
     New: Serialize + DeserializeOwned + Clone,
-    BS: Blockstore,
+    OldBS: Blockstore,
+    NewBS: Blockstore,
 {
     if prev_ctx.height == 0 && curr_ctx.height == 0 {
         diff_leaves(prev_node, curr_node, offset)
