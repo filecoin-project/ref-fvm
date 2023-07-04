@@ -19,7 +19,7 @@ pub enum ChangeType {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Change<Old, New> {
+pub struct Change<Old, New=Old> {
     pub key: u64,
     pub before: Option<Old>,
     pub after: Option<New>,
@@ -60,9 +60,9 @@ impl<'bs, V, BS> From<&'bs Amt<V, BS>> for NodeContext<'bs, BS> {
 
 /// Returns a set of changes that transform node 'a' into node 'b'.
 /// Ported from <https://github.com/filecoin-project/go-amt-ipld/blob/master/diff.go#L41>
-pub fn diff<Old, New, BS>(
-    prev_amt: &Amt<Old, BS>,
-    curr_amt: &Amt<New, BS>,
+pub fn diff<Old, New, OldBS, NewBS>(
+    prev_amt: &Amt<Old, OldBS>,
+    curr_amt: &Amt<New, NewBS>,
 ) -> anyhow::Result<Vec<Change<Old, New>>>
 where
     Old: Serialize + DeserializeOwned + Clone,
@@ -170,15 +170,11 @@ where
         let index = offset + i as u64;
         match (prev_val, curr_val) {
             (None, None) => continue,
-            (None, Some(curr_val)) => changes.push(Change {
+            (None, Some(_))|(Some(_), None) => changes.push(Change {
                 key: index,
-                before: None,
-                after: Some(curr_val.clone()),
+                before: prev_val.cloned(),
+                after: curr_val.cloned(),
             }),
-            (Some(prev_val), None) => changes.push(Change {
-                key: index,
-                before: Some(prev_val.clone()),
-                after: None,
             }),
             (Some(prev_val), Some(curr_val)) => {
                 if fvm_ipld_encoding::to_vec(&prev_val)? != fvm_ipld_encoding::to_vec(&curr_val)? {
