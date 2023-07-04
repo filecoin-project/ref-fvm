@@ -11,6 +11,9 @@ use crate::node::{CollapsedNode, Link};
 
 use super::*;
 
+const DIRTY_NODE_ERR_MSG: &str =
+    "Unchanged link expected. Please call `flush` on dirty nodes before calling diff function.";
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum ChangeType {
     Add,
@@ -235,7 +238,7 @@ where
                         .context("Failed to get collapsed node from block store")?
                         .expand(curr_ctx.bit_width)?,
                     _ => {
-                        anyhow::bail!("Unchanged link expected")
+                        anyhow::bail!(DIRTY_NODE_ERR_MSG)
                     }
                 };
                 let new_offset = offset + sub_count * i as u64;
@@ -270,7 +273,7 @@ where
                         .context("Failed to get collapsed node from block store")?
                         .expand(prev_ctx.bit_width)?,
                     _ => {
-                        anyhow::bail!("Unchanged link expected")
+                        anyhow::bail!(DIRTY_NODE_ERR_MSG)
                     }
                 };
                 let new_offset = offset + sub_count * i as u64;
@@ -329,13 +332,13 @@ where
                             let prev_cid = match prev_link {
                                 node::Link::Cid { cid, .. } => cid,
                                 _ => {
-                                    anyhow::bail!("Unchanged link expected")
+                                    anyhow::bail!(DIRTY_NODE_ERR_MSG)
                                 }
                             };
                             let curr_cid = match curr_link {
                                 node::Link::Cid { cid, .. } => cid,
                                 _ => {
-                                    anyhow::bail!("Unchanged link expected")
+                                    anyhow::bail!(DIRTY_NODE_ERR_MSG)
                                 }
                             };
 
@@ -400,7 +403,7 @@ where
             .context("Failed to get collapsed node from block store")?
             .expand(bit_width)?,
         _ => {
-            anyhow::bail!("Unchanged link expected")
+            anyhow::bail!(DIRTY_NODE_ERR_MSG)
         }
     })
 }
