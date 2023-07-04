@@ -7,7 +7,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::node::CollapsedNode;
+use crate::node::{CollapsedNode, Link};
 
 use super::*;
 
@@ -311,16 +311,7 @@ where
                                 height: prev_ctx.height - 1,
                                 store: prev_ctx.store,
                             };
-                            let sub_node = match prev_link {
-                                node::Link::Cid { cid, .. } => sub_ctx
-                                    .store
-                                    .get_cbor::<CollapsedNode<_>>(cid)?
-                                    .context("Failed to get collapsed node from block store")?
-                                    .expand(prev_ctx.bit_width)?,
-                                _ => {
-                                    anyhow::bail!("Unchanged link expected")
-                                }
-                            };
+                            let sub_node = get_sub_node(prev_link, &sub_ctx, prev_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
                             changes.append(&mut remove_all(&sub_ctx, &sub_node, new_offset)?);
                         }
@@ -330,16 +321,7 @@ where
                                 height: curr_ctx.height - 1,
                                 store: curr_ctx.store,
                             };
-                            let sub_node = match curr_link {
-                                node::Link::Cid { cid, .. } => sub_ctx
-                                    .store
-                                    .get_cbor::<CollapsedNode<_>>(cid)?
-                                    .context("Failed to get collapsed node from block store")?
-                                    .expand(curr_ctx.bit_width)?,
-                                _ => {
-                                    anyhow::bail!("Unchanged link expected")
-                                }
-                            };
+                            let sub_node = get_sub_node(curr_link, &sub_ctx, curr_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
                             changes.append(&mut add_all(&sub_ctx, &sub_node, new_offset)?);
                         }
@@ -400,4 +382,25 @@ where
             }
         }
     }
+}
+
+fn get_sub_node<V, BS>(
+    link: &Link<V>,
+    sub_ctx: &NodeContext<BS>,
+    bit_width: u32,
+) -> anyhow::Result<Node<V>>
+where
+    V: DeserializeOwned,
+    BS: Blockstore,
+{
+    Ok(match link {
+        node::Link::Cid { cid, .. } => sub_ctx
+            .store
+            .get_cbor::<CollapsedNode<_>>(cid)?
+            .context("Failed to get collapsed node from block store")?
+            .expand(bit_width)?,
+        _ => {
+            anyhow::bail!("Unchanged link expected")
+        }
+    })
 }
