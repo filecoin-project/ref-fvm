@@ -102,7 +102,10 @@ where
     New: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
-    let mut changes = vec![];
+    let mut changes = Vec::with_capacity(match &node {
+        Node::Leaf { vals } => vals.len(),
+        Node::Link { links } => links.len(),
+    });
     node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
             key: i,
@@ -124,7 +127,10 @@ where
     Old: Serialize + DeserializeOwned + Clone,
     BS: Blockstore,
 {
-    let mut changes = vec![];
+    let mut changes = Vec::with_capacity(match &node {
+        Node::Leaf { vals } => vals.len(),
+        Node::Link { links } => links.len(),
+    });
     node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
         changes.push(Change {
             key: i,
@@ -165,7 +171,7 @@ where
         "node leaves have different numbers of values"
     );
 
-    let mut changes = vec![];
+    let mut changes = Vec::with_capacity(prev_vals.len());
 
     for (i, (prev_val, curr_val)) in prev_vals.iter().zip(curr_vals.iter()).enumerate() {
         let index = offset + i as u64;
@@ -207,12 +213,12 @@ where
     if prev_ctx.height == 0 && curr_ctx.height == 0 {
         diff_leaves(prev_node, curr_node, offset)
     } else if curr_ctx.height > prev_ctx.height {
-        let mut changes = vec![];
         let sub_count = curr_ctx.nodes_at_height();
         let links = match curr_node {
             Node::Link { links } => links,
             _ => anyhow::bail!("Node::Link expected"),
         };
+        let mut changes = Vec::with_capacity(links.len());
         for (i, link) in links.iter().enumerate() {
             if let Some(link) = link {
                 let sub_ctx = NodeContext {
@@ -242,12 +248,12 @@ where
 
         Ok(changes)
     } else if curr_ctx.height < prev_ctx.height {
-        let mut changes = vec![];
         let sub_count = nodes_for_height(prev_ctx.bit_width, prev_ctx.height);
         let links = match prev_node {
             Node::Link { links } => links,
             _ => anyhow::bail!("Node::Link expected"),
         };
+        let mut changes = Vec::with_capacity(links.len());
         for (i, link) in links.iter().enumerate() {
             if let Some(link) = link {
                 let sub_ctx = NodeContext {
@@ -289,7 +295,7 @@ where
                     "nodes have different numbers of links"
                 );
 
-                let mut changes = vec![];
+                let mut changes = Vec::with_capacity(prev_links.len());
                 let sub_count = prev_ctx.nodes_at_height();
 
                 for (i, (prev_link, curr_link)) in
