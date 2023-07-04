@@ -155,20 +155,22 @@ where
     let prev_vals = match prev_node {
         Node::Leaf { vals } => vals,
         _ => {
-            anyhow::bail!("Leaf expected")
+            anyhow::bail!("The previous node is expected to be a leaf node, offset: {offset}")
         }
     };
 
     let curr_vals = match curr_node {
         Node::Leaf { vals } => vals,
         _ => {
-            anyhow::bail!("Leaf expected")
+            anyhow::bail!("The current node is expected to be a leaf node, offset: {offset}")
         }
     };
 
     anyhow::ensure!(
         prev_vals.len() == curr_vals.len(),
-        "node leaves have different numbers of values"
+        "node leaves have different numbers of values, prev: {}, curr: {}",
+        prev_vals.len(),
+        curr_vals.len()
     );
 
     let mut changes = Vec::with_capacity(prev_vals.len());
