@@ -55,7 +55,15 @@ pub fn invoke(params: u32) -> u32 {
             serialized[1] = 0xff;
 
             assert!(
-                sdk::sys::event::emit_event(serialized.as_ptr(), serialized.len() as u32).is_err(),
+                sdk::sys::event::emit_event(
+                    serialized.as_ptr(),
+                    serialized.len() as u32,
+                    0 as *const u8,
+                    0,
+                    0 as *const u8,
+                    0,
+                )
+                .is_err(),
                 "expected failed syscall"
             );
         },
