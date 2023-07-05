@@ -23,7 +23,7 @@ pub use forest_hash_utils::{BytesKey, Hash};
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
-pub use self::hamt::Hamt;
+pub use self::hamt::{Hamt, Hamtv0};
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
 pub use self::pointer::version;
