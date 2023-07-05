@@ -1,5 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use byteorder::{BigEndian, ByteOrder};
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
@@ -17,7 +18,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::ActorEvent;
+use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
@@ -1006,41 +1007,102 @@ impl<C> EventOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+    fn emit_event(&mut self, raw_evt: &[u8], raw_key: &[u8], raw_val: &[u8]) -> Result<()> {
+        const MAX_NR_ENTRIES: usize = 256;
+        const MAX_KEY_LEN: usize = 32;
+        const MAX_VALUE_LEN: usize = 8 << 10;
+
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
         }
-        let len = raw_evt.len();
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
 
-        // This is an over-estimation of the maximum event size, for safety. No valid event can even
-        // get close to this. We check this first so we don't try to decode a large event.
-        const MAX_ENCODED_SIZE: usize = 1 << 20;
-        if raw_evt.len() > MAX_ENCODED_SIZE {
-            return Err(syscall_error!(IllegalArgument; "event WAY too large").into());
+        if raw_val.len() > MAX_VALUE_LEN {
+            return Err(
+                syscall_error!(IllegalArgument; "event total values exceeded max size: {} > {MAX_VALUE_LEN}", raw_val.len()).into(),
+            );
         }
 
-        let actor_evt = {
-            let res = match panic::catch_unwind(|| {
-                fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
-            }) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("panic when decoding event cbor from actor: {:?}", e);
-                    Err(syscall_error!(IllegalArgument; "panic when decoding event cbor from actor").into())
-                }
+        let total_buf_len = raw_evt.len() + raw_key.len() + raw_val.len();
+
+        let _t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_actor_event_validate(total_buf_len),
+        )?;
+
+        const BYTES_PER_ENTRY: usize = 24;
+        if raw_evt.len() % BYTES_PER_ENTRY != 0 {
+            return Err(syscall_error!(IllegalArgument; "event not divisible by 24 bytes").into());
+        }
+        let nr_entries = raw_evt.len() / BYTES_PER_ENTRY;
+
+        if nr_entries > MAX_NR_ENTRIES {
+            return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", nr_entries).into());
+        }
+
+        let mut key_offset: usize = 0;
+        let mut val_offset: usize = 0;
+
+        let mut entries: Vec<Entry> = Vec::with_capacity(nr_entries);
+        for i in 0..nr_entries {
+            let offset = i * BYTES_PER_ENTRY;
+            let view = &raw_evt[offset..offset + BYTES_PER_ENTRY];
+
+            // parse the fixed sized fields from the raw_evt buffer
+            //
+            let flags = match Flags::from_bits(BigEndian::read_u64(&view[..8])) {
+                Some(f) => f,
+                None => return Err(syscall_error!(IllegalArgument, "invalid flag").into()),
             };
-            t.stop();
-            res
-        }?;
-        validate_actor_event(&actor_evt)?;
+            let key_len = BigEndian::read_u32(&view[8..12]);
+            let codec = BigEndian::read_u64(&view[12..20]);
+            let val_len = BigEndian::read_u32(&view[20..24]);
+
+            // make sure that the fixed parsed values are within bounds before we do any allocation
+            //
+            if key_len > MAX_KEY_LEN as u32 {
+                return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", key_len).into());
+            }
+            if val_len > MAX_VALUE_LEN as u32 {
+                return Err(syscall_error!(IllegalArgument; "event value exceeded max size: {} > {MAX_VALUE_LEN}", val_len).into());
+            }
+            if codec != IPLD_RAW {
+                return Err(
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", codec)
+                        .into(),
+                );
+            }
+
+            // parse the variable sized fields from the raw_key/raw_val buffers
+            //
+            let key = match std::str::from_utf8(&raw_key[key_offset..key_offset + key_len as usize])
+            {
+                Ok(s) => s,
+                Err(_) => return Err(syscall_error!(IllegalArgument, "event key").into()),
+            };
+            let value = &raw_val[val_offset..val_offset + val_len as usize];
+
+            // we have all we need to construct a new Entry
+            let entry = Entry {
+                flags,
+                key: key.to_string(),
+                codec,
+                value: value.to_vec(),
+            };
+
+            // shift the key/value offsets
+            key_offset += key_len as usize;
+            val_offset += val_len as usize;
+
+            entries.push(entry);
+        }
+
+        let actor_evt = ActorEvent::from(entries);
 
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_actor_event_accept(&actor_evt, len),
+                .on_actor_event_accept(&actor_evt, total_buf_len),
         )?;
 
         let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
@@ -1060,35 +1122,6 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
             Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
         }
     }
-}
-
-fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
-    const MAX_ENTRIES: usize = 256;
-    const MAX_DATA: usize = 8 << 10;
-    const MAX_KEY_LEN: usize = 32;
-
-    if evt.entries.len() > MAX_ENTRIES {
-        return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_ENTRIES}", evt.entries.len()).into());
-    }
-    let mut total_value_size: usize = 0;
-    for entry in &evt.entries {
-        if entry.key.len() > MAX_KEY_LEN {
-            return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", entry.key.len()).into());
-        }
-        if entry.codec != IPLD_RAW {
-            return Err(
-                syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", entry.codec)
-                    .into(),
-            );
-        }
-        total_value_size += entry.value.len();
-    }
-    if total_value_size > MAX_DATA {
-        return Err(
-            syscall_error!(IllegalArgument; "event total values exceeded max size: {total_value_size} > {MAX_DATA}").into(),
-        );
-    }
-    Ok(())
 }
 
 fn prover_id_from_u64(id: u64) -> ProverId {

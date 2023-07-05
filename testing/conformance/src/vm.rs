@@ -564,8 +564,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
-        self.0.emit_event(raw_evt)
+    fn emit_event(&mut self, raw_evt: &[u8], key_evt: &[u8], val_evt: &[u8]) -> Result<()> {
+        self.0.emit_event(raw_evt, key_evt, val_evt)
     }
 }
 

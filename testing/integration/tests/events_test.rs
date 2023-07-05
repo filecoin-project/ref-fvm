@@ -36,7 +36,11 @@ fn events_test() {
         .execute_message(message.clone(), ApplyKind::Explicit, 100)
         .unwrap();
 
-    assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+    assert!(
+        res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        res.failure_info
+    );
 
     let gas_used = res.msg_receipt.gas_used;
 

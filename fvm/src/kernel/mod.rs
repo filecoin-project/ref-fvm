@@ -373,5 +373,5 @@ pub trait LimiterOps {
 /// Eventing APIs.
 pub trait EventOps {
     /// Records an event emitted throughout execution.
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()>;
+    fn emit_event(&mut self, raw_evt: &[u8], raw_key: &[u8], raw_val: &[u8]) -> Result<()>;
 }

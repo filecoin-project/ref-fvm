@@ -946,9 +946,8 @@ impl PriceList {
         }
 
         // The estimated size of the serialized StampedEvent event, which
-        // includes the ActorEvent + 8 bytes for the actor ID + some bytes
-        // for CBOR framing.
-        const STAMP_EXTRA_SIZE: usize = 12;
+        // includes the ActorEvent + 8 bytes for the actor ID
+        const STAMP_EXTRA_SIZE: usize = 8;
         let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
 
         // Charge for 3 memory copy operations.
