@@ -2,17 +2,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::borrow::Borrow;
+
 use anyhow::Context;
+use cid::{
+    multihash::{self, MultihashDigest},
+    Cid,
+};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::node::{CollapsedNode, Link};
 
 use super::*;
-
-const DIRTY_NODE_ERR_MSG: &str =
-    "Unchanged link expected. Please call `flush` on dirty nodes before calling diff function.";
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ChangeType {
@@ -231,22 +234,13 @@ where
                     bit_width: curr_ctx.bit_width,
                     store: curr_ctx.store,
                 };
-                let sub_node = match link {
-                    node::Link::Cid { cid, .. } => sub_ctx
-                        .store
-                        .get_cbor::<CollapsedNode<_>>(cid)?
-                        .context("Failed to get collapsed node from block store")?
-                        .expand(curr_ctx.bit_width)?,
-                    _ => {
-                        anyhow::bail!(DIRTY_NODE_ERR_MSG)
-                    }
-                };
+                let sub_node = get_sub_node(link, &sub_ctx, curr_ctx.bit_width)?;
                 let new_offset = offset + sub_count * i as u64;
 
                 changes.append(&mut if i == 0 {
-                    diff_node(prev_ctx, prev_node, &sub_ctx, &sub_node, new_offset)?
+                    diff_node(prev_ctx, prev_node, &sub_ctx, sub_node.borrow(), new_offset)?
                 } else {
-                    add_all(&sub_ctx, &sub_node, new_offset)?
+                    add_all(&sub_ctx, sub_node.borrow(), new_offset)?
                 });
             }
         }
@@ -266,22 +260,13 @@ where
                     bit_width: prev_ctx.bit_width,
                     store: prev_ctx.store,
                 };
-                let sub_node = match link {
-                    node::Link::Cid { cid, .. } => sub_ctx
-                        .store
-                        .get_cbor::<CollapsedNode<_>>(cid)?
-                        .context("Failed to get collapsed node from block store")?
-                        .expand(prev_ctx.bit_width)?,
-                    _ => {
-                        anyhow::bail!(DIRTY_NODE_ERR_MSG)
-                    }
-                };
+                let sub_node = get_sub_node(link, &sub_ctx, prev_ctx.bit_width)?;
                 let new_offset = offset + sub_count * i as u64;
 
                 changes.append(&mut if i == 0 {
-                    diff_node(&sub_ctx, &sub_node, curr_ctx, curr_node, new_offset)?
+                    diff_node(&sub_ctx, sub_node.borrow(), curr_ctx, curr_node, new_offset)?
                 } else {
-                    remove_all(&sub_ctx, &sub_node, new_offset)?
+                    remove_all(&sub_ctx, sub_node.borrow(), new_offset)?
                 });
             }
         }
@@ -316,7 +301,11 @@ where
                             };
                             let sub_node = get_sub_node(prev_link, &sub_ctx, prev_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
-                            changes.append(&mut remove_all(&sub_ctx, &sub_node, new_offset)?);
+                            changes.append(&mut remove_all(
+                                &sub_ctx,
+                                sub_node.borrow(),
+                                new_offset,
+                            )?);
                         }
                         (None, Some(curr_link)) => {
                             let sub_ctx = NodeContext {
@@ -326,20 +315,24 @@ where
                             };
                             let sub_node = get_sub_node(curr_link, &sub_ctx, curr_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
-                            changes.append(&mut add_all(&sub_ctx, &sub_node, new_offset)?);
+                            changes.append(&mut add_all(&sub_ctx, sub_node.borrow(), new_offset)?);
                         }
                         (Some(prev_link), Some(curr_link)) => {
                             let prev_cid = match prev_link {
-                                node::Link::Cid { cid, .. } => cid,
-                                _ => {
-                                    anyhow::bail!(DIRTY_NODE_ERR_MSG)
-                                }
+                                node::Link::Cid { cid, .. } => *cid,
+                                node::Link::Dirty(node) => Cid::new_v1(
+                                    DAG_CBOR,
+                                    multihash::Code::Blake2b256
+                                        .digest(&fvm_ipld_encoding::to_vec(node)?),
+                                ),
                             };
                             let curr_cid = match curr_link {
-                                node::Link::Cid { cid, .. } => cid,
-                                _ => {
-                                    anyhow::bail!(DIRTY_NODE_ERR_MSG)
-                                }
+                                node::Link::Cid { cid, .. } => *cid,
+                                node::Link::Dirty(node) => Cid::new_v1(
+                                    DAG_CBOR,
+                                    multihash::Code::Blake2b256
+                                        .digest(&fvm_ipld_encoding::to_vec(node)?),
+                                ),
                             };
 
                             if prev_cid == curr_cid {
@@ -353,7 +346,7 @@ where
                             };
                             let prev_sub_node = prev_sub_ctx
                                 .store
-                                .get_cbor::<CollapsedNode<_>>(prev_cid)?
+                                .get_cbor::<CollapsedNode<_>>(&prev_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(prev_sub_ctx.bit_width)?;
                             let curr_sub_ctx = NodeContext {
@@ -363,7 +356,7 @@ where
                             };
                             let curr_sub_node = curr_sub_ctx
                                 .store
-                                .get_cbor::<CollapsedNode<_>>(curr_cid)?
+                                .get_cbor::<CollapsedNode<_>>(&curr_cid)?
                                 .context("Failed to get collapsed node from block store")?
                                 .expand(curr_sub_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
@@ -387,23 +380,42 @@ where
     }
 }
 
-fn get_sub_node<V, BS>(
-    link: &Link<V>,
+fn get_sub_node<'a, V, BS>(
+    link: &'a Link<V>,
     sub_ctx: &NodeContext<BS>,
     bit_width: u32,
-) -> anyhow::Result<Node<V>>
+) -> anyhow::Result<Either<'a, Node<V>>>
 where
     V: DeserializeOwned,
     BS: Blockstore,
 {
     Ok(match link {
-        node::Link::Cid { cid, .. } => sub_ctx
-            .store
-            .get_cbor::<CollapsedNode<_>>(cid)?
-            .context("Failed to get collapsed node from block store")?
-            .expand(bit_width)?,
-        _ => {
-            anyhow::bail!(DIRTY_NODE_ERR_MSG)
+        node::Link::Cid { cid, cache } => {
+            if let Some(node) = cache.get() {
+                Either::Borrowed(node)
+            } else {
+                let node = sub_ctx
+                    .store
+                    .get_cbor::<CollapsedNode<V>>(cid)?
+                    .context("Failed to get collapsed node from block store")?
+                    .expand(bit_width)?;
+                Either::Owned(node)
+            }
         }
+        node::Link::Dirty(node) => Either::Borrowed(node),
     })
+}
+
+enum Either<'a, B: Sized + 'a> {
+    Borrowed(&'a B),
+    Owned(B),
+}
+
+impl<'a, B: Sized + 'a> Borrow<B> for Either<'a, B> {
+    fn borrow(&self) -> &B {
+        match self {
+            Either::Borrowed(b) => b,
+            Either::Owned(b) => b,
+        }
+    }
 }
