@@ -18,29 +18,6 @@ use crate::node::Node;
 use crate::pointer::version::Version;
 use crate::{version, Config, Error, Hash, HashAlgorithm, Sha256};
 
-// pub mod version {
-//     #[derive(PartialEq, Eq, Debug)]
-//     pub struct V0;
-//     #[derive(PartialEq, Eq, Debug)]
-//     pub struct V3;
-
-//     pub trait Version {
-//         const NUMBER: usize;
-//     }
-
-//     impl Version for V0 {
-//         const NUMBER: usize = 0;
-//     }
-
-//     impl Version for V3 {
-//         const NUMBER: usize = 3;
-//     }
-// }
-
-pub type Hamt<BS, V, K = BytesKey> = HamtImpl<BS, V, version::V3, K, Sha256>;
-/// Legacy amt V0
-pub type Hamtv0<BS, V, K> = HamtImpl<V, BS, version::V0, K, Sha256>;
-
 /// Implementation of the HAMT data structure for IPLD.
 ///
 /// # Examples
@@ -57,6 +34,10 @@ pub type Hamtv0<BS, V, K> = HamtImpl<V, BS, version::V0, K, Sha256>;
 /// assert_eq!(map.get::<_>(&1).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
+pub type Hamt<BS, V, K = BytesKey> = HamtImpl<BS, V, version::V3, K, Sha256>;
+/// Legacy amt V0
+pub type Hamtv0<BS, V, K> = HamtImpl<V, BS, version::V0, K, Sha256>;
+
 #[derive(Debug)]
 pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
     root: Node<K, V, Ver, H>,

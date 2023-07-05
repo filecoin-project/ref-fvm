@@ -36,7 +36,7 @@ pub mod version {
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
-pub(crate) enum PointerImpl<K, V, Ver, H> {
+pub(crate) enum Pointer<K, V, Ver, H> {
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
@@ -46,19 +46,19 @@ pub(crate) enum PointerImpl<K, V, Ver, H> {
     Phantom(std::marker::PhantomData<Ver>),
 }
 
-impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for PointerImpl<K, V, H, Ver> {
+impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (PointerImpl::Values(a), PointerImpl::Values(b)) => a == b,
-            (PointerImpl::Link { cid: a, .. }, PointerImpl::Link { cid: b, .. }) => a == b,
-            (PointerImpl::Dirty(a), PointerImpl::Dirty(b)) => a == b,
+            (Pointer::Values(a), Pointer::Values(b)) => a == b,
+            (Pointer::Link { cid: a, .. }, Pointer::Link { cid: b, .. }) => a == b,
+            (Pointer::Dirty(a), Pointer::Dirty(b)) => a == b,
             _ => false,
         }
     }
 }
 
 /// Serialize the Pointer like an untagged enum.
-impl<K, V, H, Ver> Serialize for PointerImpl<K, V, H, Ver>
+impl<K, V, H, Ver> Serialize for Pointer<K, V, H, Ver>
 where
     K: Serialize,
     V: Serialize,
@@ -68,15 +68,15 @@ where
         S: Serializer,
     {
         match self {
-            PointerImpl::Values(vals) => vals.serialize(serializer),
-            PointerImpl::Link { cid, .. } => cid.serialize(serializer),
-            PointerImpl::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
-            PointerImpl::Phantom(_) => unreachable!(),
+            Pointer::Values(vals) => vals.serialize(serializer),
+            Pointer::Link { cid, .. } => cid.serialize(serializer),
+            Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
+            Pointer::Phantom(_) => unreachable!(),
         }
     }
 }
 
-impl<K, V, H, Ver> TryFrom<Ipld> for PointerImpl<K, V, H, Ver>
+impl<K, V, H, Ver> TryFrom<Ipld> for Pointer<K, V, H, Ver>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -102,7 +102,7 @@ where
 }
 
 /// Deserialize the Pointer like an untagged enum.
-impl<'de, K, V, Ver, H> Deserialize<'de> for PointerImpl<K, V, Ver, H>
+impl<'de, K, V, Ver, H> Deserialize<'de> for Pointer<K, V, Ver, H>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -146,27 +146,27 @@ where
     }
 }
 
-impl<K, V, H, Ver> Default for PointerImpl<K, V, H, Ver> {
+impl<K, V, H, Ver> Default for Pointer<K, V, H, Ver> {
     fn default() -> Self {
-        PointerImpl::Values(Vec::new())
+        Pointer::Values(Vec::new())
     }
 }
 
-impl<K, V, Ver, H> PointerImpl<K, V, Ver, H>
+impl<K, V, Ver, H> Pointer<K, V, Ver, H>
 where
     K: Serialize + DeserializeOwned + Hash + PartialOrd,
     V: Serialize + DeserializeOwned,
     H: HashAlgorithm,
 {
     pub(crate) fn from_key_value(key: K, value: V) -> Self {
-        PointerImpl::Values(vec![KeyValuePair::new(key, value)])
+        Pointer::Values(vec![KeyValuePair::new(key, value)])
     }
 
     /// Internal method to cleanup children, to ensure consistent tree representation
     /// after deletes.
     pub(crate) fn clean(&mut self, conf: &Config, depth: u32) -> Result<(), Error> {
         match self {
-            PointerImpl::Dirty(n) => match n.pointers.len() {
+            Pointer::Dirty(n) => match n.pointers.len() {
                 0 => Err(Error::ZeroPointers),
                 _ if depth < conf.min_data_depth => {
                     // We are in the shallows where we don't want key-value pairs, just links,
@@ -176,12 +176,12 @@ where
                 }
                 1 => {
                     // Node has only one pointer, swap with parent node
-                    if let PointerImpl::Values(vals) = &mut n.pointers[0] {
+                    if let Pointer::Values(vals) = &mut n.pointers[0] {
                         // Take child values, to ensure canonical ordering
                         let values = std::mem::take(vals);
 
                         // move parent node up
-                        *self = PointerImpl::Values(values)
+                        *self = Pointer::Values(values)
                     }
                     Ok(())
                 }
@@ -189,7 +189,7 @@ where
                     // If more child values than max width, nothing to change.
                     let mut children_len = 0;
                     for c in n.pointers.iter() {
-                        if let PointerImpl::Values(vals) = c {
+                        if let Pointer::Values(vals) = c {
                             children_len += vals.len();
                         } else {
                             return Ok(());
@@ -204,7 +204,7 @@ where
                         .pointers
                         .iter_mut()
                         .filter_map(|p| {
-                            if let PointerImpl::Values(kvs) = p {
+                            if let Pointer::Values(kvs) = p {
                                 Some(std::mem::take(kvs))
                             } else {
                                 None
@@ -220,7 +220,7 @@ where
                     });
 
                     // Replace link node with child values
-                    *self = PointerImpl::Values(child_vals);
+                    *self = Pointer::Values(child_vals);
                     Ok(())
                 }
                 _ => Ok(()),

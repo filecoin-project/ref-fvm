@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
-use super::pointer::PointerImpl;
+use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::pointer::version::Version;
 use crate::Config;
@@ -24,7 +24,7 @@ use crate::Config;
 #[derive(Debug)]
 pub(crate) struct Node<K, V, Ver, H> {
     pub(crate) bitfield: Bitfield,
-    pub(crate) pointers: Vec<PointerImpl<K, V, Ver, H>>,
+    pub(crate) pointers: Vec<Pointer<K, V, Ver, H>>,
     hash: PhantomData<H>,
 }
 
@@ -147,7 +147,7 @@ where
     {
         for p in &self.pointers {
             match p {
-                PointerImpl::Link { cid, cache } => {
+                Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
                         cached_node.for_each(store, f)?
                     } else {
@@ -166,13 +166,13 @@ where
                         cache_node.for_each(store, f)?
                     }
                 }
-                PointerImpl::Dirty(node) => node.for_each(store, f)?,
-                PointerImpl::Values(kvs) => {
+                Pointer::Dirty(node) => node.for_each(store, f)?,
+                Pointer::Values(kvs) => {
                     for kv in kvs {
                         f(kv.0.borrow(), kv.1.borrow())?;
                     }
                 }
-                PointerImpl::Phantom(_) => unreachable!(),
+                Pointer::Phantom(_) => unreachable!(),
             }
         }
         Ok(())
@@ -206,7 +206,7 @@ where
         // skip exploration of subtrees that are before the subtree which contains the cursor
         for p in &self.pointers[cindex..] {
             match p {
-                PointerImpl::Link { cid, cache } => {
+                Pointer::Link { cid, cache } => {
                     if let Some(cached_node) = cache.get() {
                         let (traversed, key) = cached_node.for_each_ranged(
                             store,
@@ -245,7 +245,7 @@ where
                         }
                     }
                 }
-                PointerImpl::Dirty(node) => {
+                Pointer::Dirty(node) => {
                     let (traversed, key) = node.for_each_ranged(
                         store,
                         conf,
@@ -258,7 +258,7 @@ where
                         return Ok((traversed_count, key));
                     }
                 }
-                PointerImpl::Values(kvs) => {
+                Pointer::Values(kvs) => {
                     for kv in kvs {
                         if limit.map_or(false, |l| traversed_count == l) {
                             // we have already found all requested items, return the key of the next item
@@ -275,7 +275,7 @@ where
                         }
                     }
                 }
-                PointerImpl::Phantom(_) => unreachable!(),
+                Pointer::Phantom(_) => unreachable!(),
             }
         }
 
@@ -318,7 +318,7 @@ where
         let child = self.get_child(cindex);
 
         let node = match child {
-            PointerImpl::Link { cid, cache } => {
+            Pointer::Link { cid, cache } => {
                 if let Some(cached_node) = cache.get() {
                     // Link node is cached
                     cached_node
@@ -336,11 +336,11 @@ where
                     cache.get_or_init(|| node)
                 }
             }
-            PointerImpl::Dirty(node) => node,
-            PointerImpl::Values(vals) => {
+            Pointer::Dirty(node) => node,
+            Pointer::Values(vals) => {
                 return Ok(vals.iter().find(|kv| key.eq(kv.key().borrow())));
             }
-            PointerImpl::Phantom(_) => unreachable!(),
+            Pointer::Phantom(_) => unreachable!(),
         };
 
         node.get_value(hashed_key, conf, key, store)
@@ -384,7 +384,7 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            PointerImpl::Link { cid, cache } => {
+            Pointer::Link { cid, cache } => {
                 cache.get_or_try_init(|| {
                     store
                         .get_cbor(cid)?
@@ -402,15 +402,15 @@ where
                     overwrite,
                 )?;
                 if modified {
-                    *child = PointerImpl::Dirty(std::mem::take(child_node));
+                    *child = Pointer::Dirty(std::mem::take(child_node));
                 }
                 Ok((old, modified))
             }
-            PointerImpl::Dirty(node) => {
+            Pointer::Dirty(node) => {
                 node.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)
             }
-            PointerImpl::Phantom(_) => unreachable!(),
-            PointerImpl::Values(vals) => {
+            Pointer::Phantom(_) => unreachable!(),
+            Pointer::Values(vals) => {
                 // Update, if the key already exists.
                 if let Some(i) = vals.iter().position(|p| p.key() == &key) {
                     if overwrite {
@@ -463,7 +463,7 @@ where
                         )?;
                     }
 
-                    *child = PointerImpl::Dirty(Box::new(sub));
+                    *child = Pointer::Dirty(Box::new(sub));
 
                     return Ok(modified);
                 }
@@ -504,7 +504,7 @@ where
         let child = self.get_child_mut(cindex);
 
         match child {
-            PointerImpl::Link { cid, cache } => {
+            Pointer::Link { cid, cache } => {
                 cache.get_or_try_init(|| {
                     store
                         .get_cbor(cid)?
@@ -515,7 +515,7 @@ where
                 let deleted = child_node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
                 if deleted.is_some() {
-                    *child = PointerImpl::Dirty(std::mem::take(child_node));
+                    *child = Pointer::Dirty(std::mem::take(child_node));
                     if Self::clean(child, conf, depth)? {
                         self.rm_child(cindex, idx);
                     }
@@ -523,7 +523,7 @@ where
 
                 Ok(deleted)
             }
-            PointerImpl::Dirty(node) => {
+            Pointer::Dirty(node) => {
                 // Delete value and return deleted value
                 let deleted = node.rm_value(hashed_key, conf, depth + 1, key, store)?;
 
@@ -533,12 +533,12 @@ where
 
                 Ok(deleted)
             }
-            PointerImpl::Values(vals) => {
+            Pointer::Values(vals) => {
                 // Delete value
                 for (i, p) in vals.iter().enumerate() {
                     if key.eq(p.key().borrow()) {
                         let old = if vals.len() == 1 {
-                            if let PointerImpl::Values(new_v) = self.rm_child(cindex, idx) {
+                            if let Pointer::Values(new_v) = self.rm_child(cindex, idx) {
                                 new_v.into_iter().next().unwrap()
                             } else {
                                 unreachable!()
@@ -552,13 +552,13 @@ where
 
                 Ok(None)
             }
-            PointerImpl::Phantom(_) => unreachable!(),
+            Pointer::Phantom(_) => unreachable!(),
         }
     }
 
     pub fn flush<S: Blockstore>(&mut self, store: &S) -> Result<(), Error> {
         for pointer in &mut self.pointers {
-            if let PointerImpl::Dirty(node) = pointer {
+            if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
                 node.flush(store)?;
 
@@ -569,14 +569,14 @@ where
                 let cache = OnceCell::from(std::mem::take(node));
 
                 // Replace cached node with Cid link
-                *pointer = PointerImpl::Link { cid, cache };
+                *pointer = Pointer::Link { cid, cache };
             }
         }
 
         Ok(())
     }
 
-    fn rm_child(&mut self, i: usize, idx: u32) -> PointerImpl<K, V, Ver, H> {
+    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, Ver, H> {
         self.bitfield.clear_bit(idx);
         self.pointers.remove(i)
     }
@@ -584,14 +584,13 @@ where
     fn insert_child(&mut self, idx: u32, key: K, value: V) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers
-            .insert(i, PointerImpl::from_key_value(key, value))
+        self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
     fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, Ver, H>>) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers.insert(i, PointerImpl::Dirty(node))
+        self.pointers.insert(i, Pointer::Dirty(node))
     }
 
     fn index_for_bit_pos(&self, bp: u32) -> usize {
@@ -600,11 +599,11 @@ where
         mask.and(&self.bitfield).count_ones()
     }
 
-    fn get_child_mut(&mut self, i: usize) -> &mut PointerImpl<K, V, Ver, H> {
+    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, Ver, H> {
         &mut self.pointers[i]
     }
 
-    fn get_child(&self, i: usize) -> &PointerImpl<K, V, Ver, H> {
+    fn get_child(&self, i: usize) -> &Pointer<K, V, Ver, H> {
         &self.pointers[i]
     }
 
@@ -612,11 +611,7 @@ where
     ///
     /// Returns true if the child pointer is completely empty and can be removed,
     /// which can happen if we artificially inserted nodes during insertion.
-    fn clean(
-        child: &mut PointerImpl<K, V, Ver, H>,
-        conf: &Config,
-        depth: u32,
-    ) -> Result<bool, Error> {
+    fn clean(child: &mut Pointer<K, V, Ver, H>, conf: &Config, depth: u32) -> Result<bool, Error> {
         match child.clean(conf, depth) {
             Ok(()) => Ok(false),
             Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
