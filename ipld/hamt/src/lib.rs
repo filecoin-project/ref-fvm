@@ -26,6 +26,7 @@ pub use self::error::Error;
 pub use self::hamt::Hamt;
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
+pub use self::pointer::version;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
