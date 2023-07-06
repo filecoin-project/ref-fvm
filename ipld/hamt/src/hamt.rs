@@ -4,6 +4,7 @@
 
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::str::Bytes;
 
 use cid::Cid;
 use forest_hash_utils::BytesKey;
@@ -36,7 +37,7 @@ use crate::{version, Config, Error, Hash, HashAlgorithm, Sha256};
 /// ```
 pub type Hamt<BS, V, K = BytesKey> = HamtImpl<BS, V, version::V3, K, Sha256>;
 /// Legacy amt V0
-pub type Hamtv0<BS, V, K> = HamtImpl<V, BS, version::V0, K, Sha256>;
+pub type Hamtv0<BS, V, K = BytesKey> = HamtImpl<V, BS, version::V0, K, Sha256>;
 
 #[derive(Debug)]
 pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
