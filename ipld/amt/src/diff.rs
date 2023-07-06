@@ -5,12 +5,8 @@
 use std::borrow::Borrow;
 
 use anyhow::Context;
-use cid::{
-    multihash::{self, MultihashDigest},
-    Cid,
-};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{CborStore, DAG_CBOR};
+use fvm_ipld_encoding::CborStore;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::node::{CollapsedNode, Link};
@@ -318,25 +314,49 @@ where
                             changes.append(&mut add_all(&sub_ctx, sub_node.borrow(), new_offset)?);
                         }
                         (Some(prev_link), Some(curr_link)) => {
-                            let prev_cid = match prev_link {
-                                node::Link::Cid { cid, .. } => *cid,
-                                node::Link::Dirty(node) => Cid::new_v1(
-                                    DAG_CBOR,
-                                    multihash::Code::Blake2b256
-                                        .digest(&fvm_ipld_encoding::to_vec(node)?),
+                            let (prev_cid, prev_sub_node) = match prev_link {
+                                node::Link::Cid { cid, cache } => (
+                                    Some(cid),
+                                    match cache.get() {
+                                        Some(n) => Either::Borrowed(n.borrow()),
+                                        None => Either::Owned(
+                                            prev_ctx
+                                                .store
+                                                .get_cbor::<CollapsedNode<_>>(cid)?
+                                                .context(
+                                                    "Failed to get collapsed node from block store",
+                                                )?
+                                                .expand(prev_ctx.bit_width)?,
+                                        ),
+                                    },
                                 ),
+                                node::Link::Dirty(n) => (None, Either::Borrowed(n.borrow())),
                             };
-                            let curr_cid = match curr_link {
-                                node::Link::Cid { cid, .. } => *cid,
-                                node::Link::Dirty(node) => Cid::new_v1(
-                                    DAG_CBOR,
-                                    multihash::Code::Blake2b256
-                                        .digest(&fvm_ipld_encoding::to_vec(node)?),
+                            let (curr_cid, curr_sub_node) = match curr_link {
+                                node::Link::Cid { cid, cache } => (
+                                    Some(cid),
+                                    match cache.get() {
+                                        Some(n) => Either::Borrowed(n.borrow()),
+                                        None => Either::Owned(
+                                            curr_ctx
+                                                .store
+                                                .get_cbor::<CollapsedNode<_>>(cid)?
+                                                .context(
+                                                    "Failed to get collapsed node from block store",
+                                                )?
+                                                .expand(curr_ctx.bit_width)?,
+                                        ),
+                                    },
                                 ),
+                                node::Link::Dirty(n) => (None, Either::Borrowed(n.borrow())),
                             };
 
-                            if prev_cid == curr_cid {
-                                continue;
+                            if let Some(prev_cid) = &prev_cid {
+                                if let Some(curr_cid) = &curr_cid {
+                                    if prev_cid == curr_cid {
+                                        continue;
+                                    }
+                                }
                             }
 
                             let prev_sub_ctx = NodeContext {
@@ -344,27 +364,18 @@ where
                                 height: prev_ctx.height - 1,
                                 store: prev_ctx.store,
                             };
-                            let prev_sub_node = prev_sub_ctx
-                                .store
-                                .get_cbor::<CollapsedNode<_>>(&prev_cid)?
-                                .context("Failed to get collapsed node from block store")?
-                                .expand(prev_sub_ctx.bit_width)?;
                             let curr_sub_ctx = NodeContext {
                                 bit_width: curr_ctx.bit_width,
                                 height: curr_ctx.height - 1,
                                 store: curr_ctx.store,
                             };
-                            let curr_sub_node = curr_sub_ctx
-                                .store
-                                .get_cbor::<CollapsedNode<_>>(&curr_cid)?
-                                .context("Failed to get collapsed node from block store")?
-                                .expand(curr_sub_ctx.bit_width)?;
                             let new_offset = offset + sub_count * i as u64;
+
                             changes.append(&mut diff_node(
                                 &prev_sub_ctx,
-                                &prev_sub_node,
+                                prev_sub_node.borrow(),
                                 &curr_sub_ctx,
-                                &curr_sub_node,
+                                curr_sub_node.borrow(),
                                 new_offset,
                             )?);
                         }

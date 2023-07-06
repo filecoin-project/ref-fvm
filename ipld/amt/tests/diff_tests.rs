@@ -188,7 +188,11 @@ fn test_large_additions(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
 }
 
 #[quickcheck]
-fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
+fn test_big_diff(
+    BitWidth2to18(bit_width): BitWidth2to18,
+    flush_a: bool,
+    flush_b: bool,
+) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
     let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
@@ -250,8 +254,12 @@ fn test_big_diff(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
         });
     }
 
-    a.flush()?;
-    b.flush()?;
+    if flush_a {
+        a.flush()?;
+    }
+    if flush_b {
+        b.flush()?;
+    }
 
     let mut changes = diff(&a, &b)?;
     ensure!(changes.len() == 1600);
