@@ -2507,6 +2507,8 @@ dependencies = [
  "fvm_ipld_encoding 0.4.0",
  "itertools 0.11.0",
  "once_cell",
+ "quickcheck",
+ "quickcheck_macros",
  "serde",
  "thiserror",
 ]

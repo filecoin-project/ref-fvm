@@ -23,8 +23,8 @@ use crate::{
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct AmtImpl<V, BS, Ver> {
-    root: RootImpl<V, Ver>,
-    block_store: BS,
+    pub(super) root: RootImpl<V, Ver>,
+    pub(super) block_store: BS,
     /// Remember the last flushed CID until it changes.
     flushed_cid: Option<Cid>,
 }
@@ -78,7 +78,7 @@ where
         }
     }
 
-    fn bit_width(&self) -> u32 {
+    pub(super) fn bit_width(&self) -> u32 {
         self.root.bit_width
     }
 
