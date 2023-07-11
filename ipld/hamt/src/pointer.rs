@@ -43,7 +43,6 @@ pub(crate) enum Pointer<K, V, Ver, H> {
         cache: OnceCell<Box<Node<K, V, Ver, H>>>,
     },
     Dirty(Box<Node<K, V, Ver, H>>),
-    Phantom(std::marker::PhantomData<Ver>),
 }
 
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
@@ -71,7 +70,6 @@ where
             Pointer::Values(vals) => vals.serialize(serializer),
             Pointer::Link { cid, .. } => cid.serialize(serializer),
             Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
-            Pointer::Phantom(_) => unreachable!(),
         }
     }
 }

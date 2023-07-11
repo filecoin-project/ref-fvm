@@ -172,7 +172,6 @@ where
                         f(kv.0.borrow(), kv.1.borrow())?;
                     }
                 }
-                Pointer::Phantom(_) => unreachable!(),
             }
         }
         Ok(())
@@ -275,7 +274,6 @@ where
                         }
                     }
                 }
-                Pointer::Phantom(_) => unreachable!(),
             }
         }
 
@@ -340,7 +338,6 @@ where
             Pointer::Values(vals) => {
                 return Ok(vals.iter().find(|kv| key.eq(kv.key().borrow())));
             }
-            Pointer::Phantom(_) => unreachable!(),
         };
 
         node.get_value(hashed_key, conf, key, store)
@@ -409,7 +406,6 @@ where
             Pointer::Dirty(node) => {
                 node.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)
             }
-            Pointer::Phantom(_) => unreachable!(),
             Pointer::Values(vals) => {
                 // Update, if the key already exists.
                 if let Some(i) = vals.iter().position(|p| p.key() == &key) {
@@ -552,7 +548,6 @@ where
 
                 Ok(None)
             }
-            Pointer::Phantom(_) => unreachable!(),
         }
     }
 
