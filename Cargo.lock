@@ -2331,7 +2331,7 @@ dependencies = [
  "filecoin-proofs-api",
  "fvm",
  "fvm-wasm-instrument",
- "fvm_ipld_amt 0.6.0",
+ "fvm_ipld_amt 0.6.1",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_encoding 0.4.0",
  "fvm_ipld_hamt 0.7.0",
@@ -2497,7 +2497,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_amt"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
