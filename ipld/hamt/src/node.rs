@@ -38,6 +38,7 @@ impl<K, V, Ver, H> Serialize for Node<K, V, Ver, H>
 where
     K: Serialize,
     V: Serialize,
+    Ver: self::Version,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

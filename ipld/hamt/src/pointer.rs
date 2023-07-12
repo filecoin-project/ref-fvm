@@ -56,25 +56,59 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
     }
 }
 
+mod pointer_v0 {
+    use cid::Cid;
+    use serde::Serialize;
+
+    use crate::KeyValuePair;
+
+    use super::Pointer;
+
+    #[derive(Serialize)]
+    #[serde(untagged)]
+    pub(super) enum PointerSer<'a, K, V> {
+        Vals(&'a [KeyValuePair<K, V>]),
+        Link(&'a Cid),
+    }
+
+    impl<'a, K, V, Ver, H> TryFrom<&'a Pointer<K, V, Ver, H>> for PointerSer<'a, K, V> {
+        type Error = &'static str;
+
+        fn try_from(pointer: &'a Pointer<K, V, Ver, H>) -> Result<Self, Self::Error> {
+            match pointer {
+                Pointer::Values(vals) => Ok(PointerSer::Vals(vals.as_ref())),
+                Pointer::Link { cid, .. } => Ok(PointerSer::Link(cid)),
+                Pointer::Dirty(_) => Err("Cannot serialize cached values"),
+            }
+        }
+    }
+}
+
 /// Serialize the Pointer like an untagged enum.
-impl<K, V, H, Ver> Serialize for Pointer<K, V, H, Ver>
+impl<K, V, Ver, H> Serialize for Pointer<K, V, Ver, H>
 where
     K: Serialize,
     V: Serialize,
+    Ver: self::version::Version,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        match self {
-            Pointer::Values(vals) => vals.serialize(serializer),
-            Pointer::Link { cid, .. } => cid.serialize(serializer),
-            Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
+        match Ver::NUMBER {
+            0 => pointer_v0::PointerSer::try_from(self)
+                .map_err(ser::Error::custom)?
+                .serialize(serializer),
+            _ => match self {
+                Pointer::Values(vals) => vals.serialize(serializer),
+                Pointer::Link { cid, .. } => cid.serialize(serializer),
+                Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
+            },
         }
     }
 }
 
-impl<K, V, H, Ver> TryFrom<Ipld> for Pointer<K, V, H, Ver>
+impl<K, V, Ver, H> TryFrom<Ipld> for Pointer<K, V, Ver, H>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
