@@ -1,56 +1,50 @@
+use std::mem::size_of;
+
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::{sys, SyscallResult};
-use byteorder::{BigEndian, ByteOrder};
-use fvm_shared::event::ActorEvent;
+use fvm_shared::event::{ActorEvent, EntryFixed};
 
 pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {
     // we manually serialize the ActorEvent (not using CBOR) into three byte arrays so
     // we can accurately charge gas without needing to parse anything inside the FVM
-    const BYTES_PER_ENTRY: usize = 24;
-
     let mut total_key_len: usize = 0;
     let mut total_val_len: usize = 0;
 
-    let mut v = vec![0u8; evt.entries.len() * BYTES_PER_ENTRY];
+    let mut fixed_entries = Vec::with_capacity(evt.entries.len());
     for i in 0..evt.entries.len() {
         let e = &evt.entries[i];
-        let offset = i * BYTES_PER_ENTRY;
 
-        let view = &mut v[offset..offset + BYTES_PER_ENTRY];
-        BigEndian::write_u64(&mut view[..8], e.flags.bits());
-        BigEndian::write_u32(&mut view[8..12], e.key.len() as u32);
-        BigEndian::write_u64(&mut view[12..20], e.codec);
-        BigEndian::write_u32(&mut view[20..24], e.value.len() as u32);
+        fixed_entries.push(EntryFixed {
+            flags: e.flags,
+            codec: e.codec,
+            key_len: e.key.len() as u32,
+            val_len: e.value.len() as u32,
+        });
 
         total_key_len += e.key.len();
         total_val_len += e.value.len();
     }
 
-    let mut keys = vec![0u8; total_key_len];
-    let mut offset: usize = 0;
+    let mut keys = Vec::with_capacity(total_key_len);
     for i in 0..evt.entries.len() {
-        let e = &evt.entries[i];
-        keys[offset..offset + e.key.len()].copy_from_slice(e.key.as_bytes());
-        offset += e.key.len();
+        keys.extend_from_slice(evt.entries[i].key.as_bytes());
     }
 
-    let mut values = vec![0u8; total_val_len];
-    let mut offset: usize = 0;
+    let mut values = Vec::with_capacity(total_val_len);
     for i in 0..evt.entries.len() {
-        let e = &evt.entries[i];
-        values[offset..offset + e.value.len()].copy_from_slice(e.value.as_slice());
-        offset += e.value.len();
+        values.extend_from_slice(evt.entries[i].value.as_slice());
     }
 
     unsafe {
+        let fixed_size_in_bytes = fixed_entries.len() * size_of::<EntryFixed>();
         sys::event::emit_event(
-            v.as_slice().as_ptr(),
-            v.as_slice().len() as u32,
-            keys.as_slice().as_ptr(),
-            keys.as_slice().len() as u32,
-            values.as_slice().as_ptr(),
-            values.as_slice().len() as u32,
+            fixed_entries.as_ptr() as *const u8,
+            fixed_size_in_bytes as u32,
+            keys.as_ptr(),
+            keys.len() as u32,
+            values.as_ptr(),
+            values.len() as u32,
         )
     }
 }
