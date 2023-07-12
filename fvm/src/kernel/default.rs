@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use byteorder::{BigEndian, ByteOrder};
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
@@ -18,7 +17,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::{ActorEvent, Entry, Flags};
+use fvm_shared::event::{ActorEvent, Entry, EntryFixed, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
@@ -1050,49 +1049,58 @@ where
 
             // parse the fixed sized fields from the raw_evt buffer
             //
-            let flags = match Flags::from_bits(BigEndian::read_u64(&view[..8])) {
-                Some(f) => f,
-                None => return Err(syscall_error!(IllegalArgument, "invalid flag").into()),
+            let entry_fixed: EntryFixed = unsafe {
+                std::mem::transmute::<[u8; BYTES_PER_ENTRY], EntryFixed>(view.try_into().unwrap())
             };
-            let key_len = BigEndian::read_u32(&view[8..12]);
-            let codec = BigEndian::read_u64(&view[12..20]);
-            let val_len = BigEndian::read_u32(&view[20..24]);
 
             // make sure that the fixed parsed values are within bounds before we do any allocation
             //
-            if key_len > MAX_KEY_LEN as u32 {
-                return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", key_len).into());
-            }
-            if val_len > MAX_VALUE_LEN as u32 {
-                return Err(syscall_error!(IllegalArgument; "event value exceeded max size: {} > {MAX_VALUE_LEN}", val_len).into());
-            }
-            if codec != IPLD_RAW {
+            let flags = entry_fixed.flags;
+            if Flags::from_bits(flags.bits()).is_none() {
                 return Err(
-                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", codec)
+                    syscall_error!(IllegalArgument; "event flags are invalid: {}", flags.bits())
+                        .into(),
+                );
+            }
+            if entry_fixed.key_len > MAX_KEY_LEN as u32 {
+                let tmp = entry_fixed.key_len;
+                return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
+            }
+            if entry_fixed.val_len > MAX_VALUE_LEN as u32 {
+                let tmp = entry_fixed.val_len;
+                return Err(syscall_error!(IllegalArgument; "event value exceeded max size: {} > {MAX_VALUE_LEN}", tmp).into());
+            }
+            if entry_fixed.codec != IPLD_RAW {
+                let tmp = entry_fixed.codec;
+                return Err(
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
                         .into(),
                 );
             }
 
             // parse the variable sized fields from the raw_key/raw_val buffers
             //
-            let key = match std::str::from_utf8(&raw_key[key_offset..key_offset + key_len as usize])
-            {
+            let key = match std::str::from_utf8(
+                &raw_key[key_offset..key_offset + entry_fixed.key_len as usize],
+            ) {
                 Ok(s) => s,
-                Err(_) => return Err(syscall_error!(IllegalArgument, "event key").into()),
+                Err(e) => {
+                    return Err(syscall_error!(IllegalArgument, "invalid event key: {}", e).into())
+                }
             };
-            let value = &raw_val[val_offset..val_offset + val_len as usize];
+            let value = &raw_val[val_offset..val_offset + entry_fixed.val_len as usize];
 
             // we have all we need to construct a new Entry
             let entry = Entry {
-                flags,
+                flags: entry_fixed.flags,
                 key: key.to_string(),
-                codec,
+                codec: entry_fixed.codec,
                 value: value.to_vec(),
             };
 
             // shift the key/value offsets
-            key_offset += key_len as usize;
-            val_offset += val_len as usize;
+            key_offset += entry_fixed.key_len as usize;
+            val_offset += entry_fixed.val_len as usize;
 
             entries.push(entry);
         }

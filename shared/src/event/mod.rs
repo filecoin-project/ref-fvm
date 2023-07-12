@@ -60,3 +60,12 @@ pub struct Entry {
     #[serde(with = "strict_bytes")]
     pub value: Vec<u8>,
 }
+
+// A fixed sized struct for serializing Entry separately from the key/value bytes.
+#[repr(C, packed)]
+pub struct EntryFixed {
+    pub flags: Flags,
+    pub codec: u64,
+    pub key_len: u32,
+    pub val_len: u32,
+}
