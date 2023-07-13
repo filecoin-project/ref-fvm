@@ -58,7 +58,7 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
 
 mod pointer_v0 {
     use cid::Cid;
-    use serde::{Deserialize, Serialize};
+    use serde::Serialize;
 
     use crate::KeyValuePair;
 
