@@ -58,7 +58,7 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
 
 mod pointer_v0 {
     use cid::Cid;
-    use serde::Serialize;
+    use serde::{Deserialize, Serialize};
 
     use crate::KeyValuePair;
 
@@ -146,31 +146,33 @@ where
     {
         match Ver::NUMBER {
             0 => {
-                let ipld = Ipld::deserialize(deserializer)?;
-                let (_key, value) = match ipld {
-                    Ipld::Map(map) => map
+                let ipld = Ipld::deserialize(deserializer);
+                if let Ok(Ipld::Map(map)) = ipld {
+                    let (_key, value) = map
                         .into_iter()
                         .next()
-                        .ok_or("Expected at least one element".to_string()),
-                    other => Err(format!("Expected `Ipld::Map`, got {:#?}", other)),
-                }
-                .map_err(de::Error::custom)?;
-                match value {
-                    ipld_list @ Ipld::List(_) => {
-                        let values: Vec<KeyValuePair<K, V>> =
-                            Deserialize::deserialize(ipld_list).map_err(de::Error::custom)?;
-                        Ok(Self::Values(values))
+                        .ok_or("Expected at least one element in Ipld::Map".to_string())
+                        .map_err(de::Error::custom)?;
+
+                    match value {
+                        ipld_list @ Ipld::List(_) => {
+                            let values: Vec<KeyValuePair<K, V>> =
+                                Deserialize::deserialize(ipld_list).map_err(de::Error::custom)?;
+                            Ok(Self::Values(values))
+                        }
+                        Ipld::Link(cid) => Ok(Self::Link {
+                            cid,
+                            cache: Default::default(),
+                        }),
+                        other => Err(format!(
+                            "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
+                            other
+                        )),
                     }
-                    Ipld::Link(cid) => Ok(Self::Link {
-                        cid,
-                        cache: Default::default(),
-                    }),
-                    other => Err(format!(
-                        "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
-                        other
-                    )),
+                    .map_err(de::Error::custom)
+                } else {
+                    ipld.and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
                 }
-                .map_err(de::Error::custom)
             }
             _ => Ipld::deserialize(deserializer)
                 .and_then(|ipld| ipld.try_into().map_err(de::Error::custom)),
