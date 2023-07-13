@@ -157,7 +157,7 @@ fn malformed_syscall_parameter() {
     // Actor should panic
     assert_eq!(res.msg_receipt.exit_code.value(), 4);
 
-    // Should be unknown import
+    // Should have failed with an invalid proof type message.
     match res.failure_info.as_ref().unwrap() {
         ApplyFailure::MessageBacktrace(backtrace) => match backtrace.cause.as_ref().unwrap() {
             Cause::Syscall { error, message, .. } => {
