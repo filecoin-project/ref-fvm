@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_sdk as sdk;
+use fvm_sdk::sys::network::{context, NetworkContext};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
@@ -9,6 +10,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::RegisteredSealProof;
 use multihash::derive::Multihash;
 use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+use std::ptr;
 
 #[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
 #[mh(alloc_size = 64)]
@@ -37,6 +39,7 @@ pub fn invoke(_: u32) -> u32 {
     test_network_context();
     test_message_context();
     test_balance();
+    test_unaligned();
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
@@ -349,4 +352,28 @@ fn test_balance() {
         sdk::actor::balance_of(sdk::message::receiver()),
         Some(sdk::sself::current_balance())
     );
+}
+
+/// Test to make sure we can return into unaligned pointers. Technically, we use repr-packed
+/// everywhere so this should always work, but we should test anyways.
+fn test_unaligned() {
+    unsafe {
+        #[link(wasm_import_module = "network")]
+        extern "C" {
+            #[link_name = "context"]
+            fn context_raw(out: *mut NetworkContext) -> u32;
+        }
+
+        #[repr(packed, C)]
+        struct Unaligned {
+            _padding: u8,
+            ctx: NetworkContext,
+        }
+        let mut unaligned: Unaligned = std::mem::zeroed();
+        assert_eq!(context_raw(ptr::addr_of_mut!(unaligned.ctx)), 0);
+        let out_ptr = ptr::addr_of!(unaligned.ctx);
+        let actual: NetworkContext = ptr::read_unaligned(out_ptr);
+        let expected = context().unwrap();
+        assert_eq!(expected, actual);
+    }
 }
