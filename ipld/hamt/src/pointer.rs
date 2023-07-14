@@ -170,9 +170,6 @@ where
                     )),
                 }
                 .map_err(de::Error::custom)
-                // } else {
-                //     ipld.and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
-                // }
             }
             _ => Ipld::deserialize(deserializer)
                 .and_then(|ipld| ipld.try_into().map_err(de::Error::custom)),
