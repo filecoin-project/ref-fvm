@@ -7,6 +7,7 @@ use std::rc::Rc;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
+use fvm::trace::ExecutionEvent;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -155,7 +156,7 @@ fn syscalls() {
     // Set actor
     let actor_address = Address::new_id(10000);
 
-    tester
+    let code_cid = tester
         .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
@@ -193,6 +194,60 @@ fn syscalls() {
             panic!("non-zero exit code {}", res.msg_receipt.exit_code)
         }
     }
+
+    // Ensure that the span tracing syscalls emitted the correct events.
+    let spans: Vec<_> = res
+        .exec_trace
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                ExecutionEvent::SpanBegin(..) | ExecutionEvent::SpanEnd(..)
+            )
+        })
+        .collect();
+
+    assert_eq!(spans.len(), 4);
+
+    let span = match spans[0] {
+        ExecutionEvent::SpanBegin(ref span) => span,
+        other => panic!("expected SpanBegin, got {other:?}"),
+    };
+    assert_eq!(span.label, "parent label");
+    assert_eq!(span.tag, "parent tag");
+    assert_eq!(span.parent, 0);
+    assert_eq!(span.code, code_cid);
+    assert_eq!(span.method, 1);
+    // TODO Do this correctly
+    assert_eq!(span.timestamp, 0);
+
+    let span = match spans[1] {
+        ExecutionEvent::SpanBegin(ref span) => span,
+        other => panic!("expected SpanBegin, got {other:?}"),
+    };
+    assert_eq!(span.label, "child label");
+    assert_eq!(span.tag, "child tag");
+    assert_eq!(span.parent, 1);
+    assert_eq!(span.code, code_cid);
+    assert_eq!(span.method, 1);
+    // TODO Do this correctly
+    assert_eq!(span.timestamp, 0);
+
+    let span = match spans[2] {
+        ExecutionEvent::SpanEnd(ref span) => span,
+        other => panic!("expected SpanEnd, got {other:?}"),
+    };
+    assert_eq!(span.id, 2);
+    // TODO Do this correctly
+    assert_eq!(span.timestamp, 0);
+
+    let span = match spans[3] {
+        ExecutionEvent::SpanEnd(ref span) => span,
+        other => panic!("expected SpanEnd, got {other:?}"),
+    };
+    assert_eq!(span.id, 1);
+    // TODO Do this correctly
+    assert_eq!(span.timestamp, 0);
 }
 
 #[test]

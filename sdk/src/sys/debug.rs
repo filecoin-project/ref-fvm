@@ -12,6 +12,12 @@ super::fvm_syscalls! {
     /// Logs a message on the node.
     pub fn log(message: *const u8, message_len: u32) -> Result<()>;
 
+    // TODO Docs
+    pub fn span_begin(label: *const u8, label_len: u32, tag: *const u8, tag_len: u32, parent: u64) -> Result<u64>;
+
+    // TODO Docs
+    pub fn span_end(parent: u64) -> Result<()>;
+
     /// Save data as a debug artifact on the node.
     pub fn store_artifact(name_off: *const u8, name_len: u32, data_off: *const u8, data_len: u32) -> Result<()>;
 }

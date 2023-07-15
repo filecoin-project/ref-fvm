@@ -12,7 +12,8 @@ lazy_static! {
 
 /// Logs a message on the node.
 #[inline]
-pub fn log(msg: String) {
+pub fn log(msg: impl AsRef<str>) {
+    let msg = msg.as_ref();
     unsafe {
         sys::debug::log(msg.as_ptr(), msg.len() as u32).unwrap();
     }
@@ -24,6 +25,27 @@ pub fn init_logging() {
         log::set_logger(&Logger).expect("failed to enable logging");
         log::set_max_level(LevelFilter::Trace);
     }
+}
+
+// TODO Docs
+pub fn span_begin(label: impl AsRef<str>, tag: impl AsRef<str>, parent: u64) -> u64 {
+    let label = label.as_ref();
+    let tag = tag.as_ref();
+    unsafe {
+        sys::debug::span_begin(
+            label.as_ptr(),
+            label.len() as u32,
+            tag.as_ptr(),
+            tag.len() as u32,
+            parent,
+        )
+        .unwrap()
+    }
+}
+
+// TODO Docs
+pub fn span_end(id: u64) {
+    unsafe { sys::debug::span_end(id).unwrap() }
 }
 
 /// Saves an artifact to the host env. New artifacts with the same name will overwrite old ones
