@@ -39,7 +39,7 @@ use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
-use crate::trace::{SpanBegin, SpanEnd, TraceClock};
+use crate::trace::{SpanBegin, SpanEnd, SpanId, TraceClock};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -937,7 +937,6 @@ where
         println!("{}", msg)
     }
 
-    /// Begin a new span.
     fn span_begin(&mut self, label: String, tag: String, parent: SpanId) -> Result<SpanId> {
         let actor = self
             .get_self()?
@@ -958,7 +957,6 @@ where
         Ok(self.call_manager.machine_mut().next_span_id())
     }
 
-    /// End a span.
     fn span_end(&mut self, id: SpanId) {
         let timestamp = self
             .call_manager

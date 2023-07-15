@@ -170,10 +170,10 @@ pub trait CallManager: 'static {
     /// Appends an event to the event accumulator.
     fn append_event(&mut self, evt: StampedEvent);
 
-    // TODO Docs
+    /// Begin a new tracing span.
     fn trace_span_begin(&mut self, begin: SpanBegin);
 
-    // TODO Docs
+    /// End a tracing span.
     fn trace_span_end(&mut self, end: SpanEnd);
 }
 

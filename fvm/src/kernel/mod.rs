@@ -37,10 +37,7 @@ use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
-
-// TODO Still not sure what the best place to define this is
-// TODO Document that the value zero means global span
-pub type SpanId = u64;
+use crate::trace::SpanId;
 
 pub struct SendResult {
     pub block_id: BlockId,
@@ -355,12 +352,12 @@ pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
 
-    // TODO More docs, e.g. parent is not checked, what this actually does (produce a trace)
-    /// Begin a new span.
+    /// Begin a new span. The parent span ID is not checked. This produces a new execution trace
+    /// event of type SpanBegin. The returned SpanId uniquely identifies the span.
     fn span_begin(&mut self, label: String, tag: String, parent: SpanId) -> Result<SpanId>;
 
-    // TODO More docs, e.g. parent is not checked, what this actually does (produce a trace)
-    /// End a span.
+    /// End a span. The span ID is not checked in any way. This produces a new execution trace event
+    /// of type SpanEnd.
     fn span_end(&mut self, id: SpanId);
 
     /// Returns whether debug mode is enabled.

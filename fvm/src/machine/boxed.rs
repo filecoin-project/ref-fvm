@@ -5,6 +5,7 @@ use cid::Cid;
 use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
 use crate::state_tree::StateTree;
+use crate::trace::SpanId;
 
 type Type = MachineContext;
 
@@ -69,7 +70,7 @@ impl<M: Machine> Machine for Box<M> {
     }
 
     #[inline(always)]
-    fn next_span_id(&mut self) -> crate::kernel::SpanId {
+    fn next_span_id(&mut self) -> SpanId {
         (**self).next_span_id()
     }
 }

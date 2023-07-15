@@ -8,7 +8,10 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::GasCharge;
-use crate::kernel::{SpanId, SyscallError};
+use crate::kernel::SyscallError;
+
+/// A unique identifier for a tracing span. The value zero is reserved for the global span.
+pub type SpanId = u64;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
@@ -17,7 +20,6 @@ pub type ExecutionTrace = Vec<ExecutionEvent>;
 ///
 /// This is marked as `non_exhaustive` so we can introduce additional event types later.
 #[derive(Clone, Debug)]
-// TODO This might be a mistake
 #[non_exhaustive]
 pub enum ExecutionEvent {
     GasCharge(GasCharge),

@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::trace::SpanId;
 use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};

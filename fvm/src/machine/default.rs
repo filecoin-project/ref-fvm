@@ -13,11 +13,12 @@ use multihash::Code::Blake2b256;
 use super::{Machine, MachineContext, TraceClock};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
-use crate::kernel::{ClassifyResult, Result, SpanId};
+use crate::kernel::{ClassifyResult, Result};
 use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::StateTree;
 use crate::system_actor::State as SystemActorState;
+use crate::trace::SpanId;
 use crate::EMPTY_ARR_CID;
 
 lazy_static::lazy_static! {
@@ -44,7 +45,7 @@ pub struct DefaultMachine<B, E, T> {
     /// Somewhat unique ID of the machine consisting of (epoch, randomness)
     /// randomness is generated with `initial_state_root`
     id: String,
-    span_id: SpanId,
+    span_counter: SpanId,
 }
 
 impl<B, E, T> DefaultMachine<B, E, T>
@@ -132,7 +133,7 @@ where
                 context.epoch,
                 cid::multibase::encode(cid::multibase::Base::Base32Lower, randomness)
             ),
-            span_id: 0,
+            span_counter: 0,
         })
     }
 }
@@ -200,8 +201,8 @@ where
     }
 
     fn next_span_id(&mut self) -> SpanId {
-        self.span_id += 1;
-        self.span_id
+        self.span_counter += 1;
+        self.span_counter
     }
 }
 

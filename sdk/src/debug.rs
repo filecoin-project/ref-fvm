@@ -27,7 +27,10 @@ pub fn init_logging() {
     }
 }
 
-// TODO Docs
+/// Begins a new tracing span. Tracing spans are used for debugging. The label and tag are user
+/// supplied and can be used by humans to identify the span. The parent is the id of the parent span.
+/// The value 0 is reserved for the global span, and should be passed if the span has no explicit parent.
+/// Returns the id of the newly created span.
 pub fn span_begin(label: impl AsRef<str>, tag: impl AsRef<str>, parent: u64) -> u64 {
     let label = label.as_ref();
     let tag = tag.as_ref();
@@ -43,7 +46,7 @@ pub fn span_begin(label: impl AsRef<str>, tag: impl AsRef<str>, parent: u64) -> 
     }
 }
 
-// TODO Docs
+/// Ends a tracing span previously created with [`span_begin`].
 pub fn span_end(id: u64) {
     unsafe { sys::debug::span_end(id).unwrap() }
 }

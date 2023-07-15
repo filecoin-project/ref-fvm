@@ -564,10 +564,10 @@ fn native_stack_overflow() {
         )
         .unwrap();
 
-    let exec_test = |exec: &mut ThreadedExecutor<
+    type Exec<'a> = &'a mut ThreadedExecutor<
         IntegrationExecutor<MemoryBlockstore, DummyExterns, DummyTraceClock>,
-    >,
-                     method| {
+    >;
+    let exec_test = |exec: Exec<'_>, method| {
         // Send message
         let message = Message {
             from: sender[0].1,

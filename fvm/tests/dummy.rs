@@ -10,11 +10,10 @@ use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
-use fvm::kernel::SpanId;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
-use fvm::trace::TraceClock;
+use fvm::trace::{SpanId, TraceClock};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -116,8 +115,8 @@ pub struct DummyMachine {
     pub state_tree: StateTree<MemoryBlockstore>,
     pub ctx: MachineContext,
     pub builtin_actors: Manifest,
-    trace_clock: DummyTraceClock,
-    span_id: SpanId,
+    pub trace_clock: DummyTraceClock,
+    pub span_counter: SpanId,
 }
 
 impl DummyMachine {
@@ -155,7 +154,7 @@ impl DummyMachine {
             state_tree,
             builtin_actors: manifest,
             trace_clock: DummyTraceClock,
-            span_id: 0,
+            span_counter: 0,
         })
     }
 }
@@ -207,8 +206,8 @@ impl Machine for DummyMachine {
     }
 
     fn next_span_id(&mut self) -> SpanId {
-        self.span_id += 1;
-        self.span_id
+        self.span_counter += 1;
+        self.span_counter
     }
 }
 
