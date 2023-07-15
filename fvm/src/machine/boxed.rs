@@ -12,6 +12,7 @@ impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
     type Limiter = M::Limiter;
+    type TraceClock = M::TraceClock;
 
     #[inline(always)]
     fn blockstore(&self) -> &Self::Blockstore {
@@ -26,6 +27,10 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn externs(&self) -> &Self::Externs {
         (**self).externs()
+    }
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock {
+        (**self).trace_clock_mut()
     }
 
     #[inline(always)]

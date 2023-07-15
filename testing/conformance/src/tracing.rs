@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use fvm::executor::ApplyRet;
-use fvm::trace::ExecutionEvent;
+use fvm::trace::{ExecutionEvent, TraceClock};
 use serde::{Deserialize, Serialize};
 
 /// Timing and result of a message execution.
@@ -155,3 +155,12 @@ impl TestTraceExporter {
 }
 
 pub type TestTraceExporterRef = Option<Arc<TestTraceExporter>>;
+
+#[derive(Debug, Default)]
+pub struct TestTraceClock;
+
+impl TraceClock for TestTraceClock {
+    fn timestamp(&mut self) -> u64 {
+        0
+    }
+}

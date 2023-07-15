@@ -1,3 +1,5 @@
+use fvm_integration_tests::dummy::DummyTraceClock;
+
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
@@ -36,7 +38,9 @@ fn placeholder_as_sender() {
         .expect("failed to instantiate placeholder");
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     let executor = tester.executor.as_mut().unwrap();
 

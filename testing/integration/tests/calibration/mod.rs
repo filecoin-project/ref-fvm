@@ -9,7 +9,7 @@ use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm::gas::Gas;
 use fvm::trace::ExecutionEvent;
 use fvm_integration_tests::bundle;
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -34,7 +34,7 @@ pub struct State {
 }
 
 pub struct TestEnv {
-    pub tester: Tester<MemoryBlockstore, DummyExterns>,
+    pub tester: Tester<MemoryBlockstore, DummyExterns, DummyTraceClock>,
     pub sender: Account,
     pub actor_address: Address,
     pub actor_sequence: u64,
@@ -153,6 +153,7 @@ pub fn instantiate_tester() -> TestEnv {
     tester
         .instantiate_machine_with_config(
             DummyExterns,
+            DummyTraceClock::default(),
             |_| (),
             |mc| {
                 mc.enable_tracing();

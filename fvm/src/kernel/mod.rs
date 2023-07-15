@@ -39,6 +39,7 @@ use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 
 // TODO Still not sure what the best place to define this is
+// TODO Document that the value zero means global span
 pub type SpanId = u64;
 
 pub struct SendResult {

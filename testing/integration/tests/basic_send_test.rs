@@ -7,7 +7,7 @@ use bundles::*;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::gas::GasCharge;
 use fvm::machine::Machine;
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -30,7 +30,9 @@ fn basic_send() {
     // Send to an f4 to create a placeholder. Otherwise, we end up invoking a constructor.
     let receiver = Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
 
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
     let executor = tester.executor.as_mut().unwrap();
 
     struct Case {

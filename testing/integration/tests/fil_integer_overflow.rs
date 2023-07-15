@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -24,7 +24,11 @@ pub struct State {
 }
 
 // Utility function to instantiation integration tester
-fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
+fn instantiate_tester() -> (
+    Account,
+    Tester<MemoryBlockstore, DummyExterns, DummyTraceClock>,
+    Address,
+) {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
@@ -58,7 +62,9 @@ fn integer_overflow() {
     let (sender, mut tester, actor_address) = instantiate_tester();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Params setup
     let x: i64 = 10000000000;

@@ -57,3 +57,28 @@ pub struct SpanEnd {
     /// The timestamp when this event ocurred, in nanoseconds.
     pub timestamp: u64,
 }
+
+/// A monotonic clock used for generating nanosecond timestamps during tracing.
+pub trait TraceClock {
+    fn timestamp(&mut self) -> u64;
+}
+
+pub struct DefaultTraceClock(std::time::Instant);
+
+impl DefaultTraceClock {
+    pub fn new() -> Self {
+        Self(std::time::Instant::now())
+    }
+}
+
+impl Default for DefaultTraceClock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TraceClock for DefaultTraceClock {
+    fn timestamp(&mut self) -> u64 {
+        self.0.elapsed().as_nanos() as u64
+    }
+}

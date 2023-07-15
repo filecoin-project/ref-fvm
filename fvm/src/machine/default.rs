@@ -10,7 +10,7 @@ use fvm_shared::version::NetworkVersion;
 use log::debug;
 use multihash::Code::Blake2b256;
 
-use super::{Machine, MachineContext};
+use super::{Machine, MachineContext, TraceClock};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Result, SpanId};
@@ -27,12 +27,13 @@ lazy_static::lazy_static! {
     };
 }
 
-pub struct DefaultMachine<B, E> {
+pub struct DefaultMachine<B, E, T> {
     /// The initial execution context for this epoch.
     context: MachineContext,
     /// Boundary A calls are handled through externs. These are calls from the
     /// FVM to the Filecoin client.
     externs: E,
+    trace_clock: T,
     /// The state tree. It is updated with the results from every message
     /// execution as the call stack for every message concludes.
     ///
@@ -46,10 +47,11 @@ pub struct DefaultMachine<B, E> {
     span_id: SpanId,
 }
 
-impl<B, E> DefaultMachine<B, E>
+impl<B, E, T> DefaultMachine<B, E, T>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
+    T: TraceClock + 'static,
 {
     /// Create a new [`DefaultMachine`].
     ///
@@ -59,7 +61,12 @@ where
     ///    version, etc.).
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
-    pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
+    pub fn new(
+        context: &MachineContext,
+        blockstore: B,
+        externs: E,
+        trace_clock: T,
+    ) -> anyhow::Result<Self> {
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V18..=NetworkVersion::V20;
 
@@ -118,6 +125,7 @@ where
             context: context.clone(),
             externs,
             state_tree,
+            trace_clock,
             builtin_actors,
             id: format!(
                 "{}-{}",
@@ -129,14 +137,16 @@ where
     }
 }
 
-impl<B, E> Machine for DefaultMachine<B, E>
+impl<B, E, T> Machine for DefaultMachine<B, E, T>
 where
     B: Blockstore + 'static,
     E: Externs + 'static,
+    T: TraceClock + 'static,
 {
     type Blockstore = BufferedBlockstore<B>;
     type Externs = E;
     type Limiter = DefaultMemoryLimiter;
+    type TraceClock = T;
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.state_tree.store()
@@ -148,6 +158,10 @@ where
 
     fn externs(&self) -> &Self::Externs {
         &self.externs
+    }
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock {
+        &mut self.trace_clock
     }
 
     fn builtin_actors(&self) -> &Manifest {

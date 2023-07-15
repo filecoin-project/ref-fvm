@@ -68,6 +68,7 @@ mod test {
     use crate::externs::{Chain, Consensus, Externs, Rand};
     use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
+    use crate::trace::TraceClock;
     use crate::{executor, DefaultKernel};
 
     struct DummyExterns;
@@ -118,6 +119,14 @@ mod test {
         }
     }
 
+    struct DummyTraceClock;
+
+    impl TraceClock for DummyTraceClock {
+        fn timestamp(&mut self) -> u64 {
+            0
+        }
+    }
+
     #[test]
     fn test_constructor() {
         let mut bs = MemoryBlockstore::default();
@@ -137,7 +146,7 @@ mod test {
             .override_actors(actors_cid)
             .for_epoch(0, 0, root);
 
-        let machine = DefaultMachine::new(&mc, bs, DummyExterns).unwrap();
+        let machine = DefaultMachine::new(&mc, bs, DummyExterns, DummyTraceClock).unwrap();
         let engine = EnginePool::new_default((&mc.network).into()).unwrap();
         let _ = executor::DefaultExecutor::<DefaultKernel<DefaultCallManager<_>>>::new(
             engine,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
+use fvm::trace::TraceClock;
 use fvm_ipld_encoding::DAG_CBOR;
 use fvm_shared::IDENTITY_HASH;
 use multihash::Multihash;
@@ -60,5 +61,15 @@ impl Chain for DummyExterns {
             DAG_CBOR,
             Multihash::wrap(IDENTITY_HASH, &epoch.to_be_bytes()).unwrap(),
         ))
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct DummyTraceClock(u64);
+
+impl TraceClock for DummyTraceClock {
+    fn timestamp(&mut self) -> u64 {
+        self.0 += 1;
+        self.0
     }
 }
