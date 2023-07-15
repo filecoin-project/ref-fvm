@@ -73,6 +73,7 @@ pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
     pub data: TestData,
     stats: TestStatsRef,
+    span_id: SpanId,
 }
 
 impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
@@ -121,6 +122,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 price_list,
             },
             stats,
+            span_id: 0,
         };
 
         Ok(machine)
@@ -177,6 +179,11 @@ where
             global_stats: self.stats.clone(),
             local_stats: TestStats::default(),
         }
+    }
+
+    fn next_span_id(&mut self) -> SpanId {
+        self.span_id += 1;
+        self.span_id
     }
 }
 
@@ -438,6 +445,12 @@ where
     fn log(&self, msg: String) {
         self.0.log(msg)
     }
+
+    fn span_begin(&mut self, _label: String, _tag: String, _parent: SpanId) -> Result<SpanId> {
+        Ok(0)
+    }
+
+    fn span_end(&mut self, _id: SpanId) {}
 
     fn debug_enabled(&self) -> bool {
         self.0.debug_enabled()

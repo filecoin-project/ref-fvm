@@ -10,6 +10,7 @@ use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
+use fvm::kernel::SpanId;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
@@ -105,6 +106,7 @@ pub struct DummyMachine {
     pub state_tree: StateTree<MemoryBlockstore>,
     pub ctx: MachineContext,
     pub builtin_actors: Manifest,
+    span_id: SpanId,
 }
 
 impl DummyMachine {
@@ -141,6 +143,7 @@ impl DummyMachine {
             ctx,
             state_tree,
             builtin_actors: manifest,
+            span_id: 0,
         })
     }
 }
@@ -184,6 +187,11 @@ impl Machine for DummyMachine {
 
     fn new_limiter(&self) -> Self::Limiter {
         DummyLimiter::default()
+    }
+
+    fn next_span_id(&mut self) -> SpanId {
+        self.span_id += 1;
+        self.span_id
     }
 }
 
@@ -404,4 +412,8 @@ impl CallManager for DummyCallManager {
     ) -> fvm::kernel::Result<()> {
         todo!()
     }
+
+    fn trace_span_begin(&mut self, _begin: fvm::trace::SpanBegin) {}
+
+    fn trace_span_end(&mut self, _end: fvm::trace::SpanEnd) {}
 }

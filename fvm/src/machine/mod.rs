@@ -11,7 +11,7 @@ use num_traits::Zero;
 
 use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
-use crate::kernel::Result;
+use crate::kernel::{Result, SpanId};
 use crate::state_tree::StateTree;
 
 mod default;
@@ -33,6 +33,9 @@ pub const REWARD_ACTOR_ID: ActorID = 2;
 /// Distinguished Account actor that is the destination of all burnt funds.
 pub const BURNT_FUNDS_ACTOR_ID: ActorID = 99;
 
+// TODO Could add a Clock trait here, that will probably also need to be mocked, but let's get back
+// TODO How about TraceClock?
+// to that
 /// The Machine is the top-level object of the FVM.
 ///
 /// The Machine operates at a concrete network version and epoch, over an
@@ -81,6 +84,8 @@ pub trait Machine: 'static {
 
     /// Creates a new limiter to track the resources of a message execution.
     fn new_limiter(&self) -> Self::Limiter;
+
+    fn next_span_id(&mut self) -> SpanId;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

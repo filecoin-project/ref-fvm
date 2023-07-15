@@ -31,7 +31,7 @@ use crate::machine::Machine;
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
-use crate::trace::{ExecutionEvent, ExecutionTrace};
+use crate::trace::{ExecutionEvent, ExecutionTrace, SpanBegin, SpanEnd};
 use crate::{syscall_error, system_actor};
 
 /// The default [`CallManager`] implementation.
@@ -502,6 +502,14 @@ where
         log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
+    }
+
+    fn trace_span_begin(&mut self, begin: SpanBegin) {
+        self.trace(ExecutionEvent::SpanBegin(begin));
+    }
+
+    fn trace_span_end(&mut self, end: SpanEnd) {
+        self.trace(ExecutionEvent::SpanEnd(end));
     }
 }
 

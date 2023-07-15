@@ -13,7 +13,7 @@ use multihash::Code::Blake2b256;
 use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::{ClassifyResult, Result, SpanId};
 use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::StateTree;
@@ -43,6 +43,7 @@ pub struct DefaultMachine<B, E> {
     /// Somewhat unique ID of the machine consisting of (epoch, randomness)
     /// randomness is generated with `initial_state_root`
     id: String,
+    span_id: SpanId,
 }
 
 impl<B, E> DefaultMachine<B, E>
@@ -123,6 +124,7 @@ where
                 context.epoch,
                 cid::multibase::encode(cid::multibase::Base::Base32Lower, randomness)
             ),
+            span_id: 0,
         })
     }
 }
@@ -181,6 +183,11 @@ where
 
     fn new_limiter(&self) -> Self::Limiter {
         DefaultMemoryLimiter::for_network(&self.context().network)
+    }
+
+    fn next_span_id(&mut self) -> SpanId {
+        self.span_id += 1;
+        self.span_id
     }
 }
 

@@ -38,6 +38,9 @@ use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 
+// TODO Still not sure what the best place to define this is
+pub type SpanId = u64;
+
 pub struct SendResult {
     pub block_id: BlockId,
     pub block_stat: BlockStat,
@@ -350,6 +353,14 @@ pub trait RandomnessOps {
 pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
+
+    // TODO More docs, e.g. parent is not checked, what this actually does (produce a trace)
+    /// Begin a new span.
+    fn span_begin(&mut self, label: String, tag: String, parent: SpanId) -> Result<SpanId>;
+
+    // TODO More docs, e.g. parent is not checked, what this actually does (produce a trace)
+    /// End a span.
+    fn span_end(&mut self, id: SpanId);
 
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;

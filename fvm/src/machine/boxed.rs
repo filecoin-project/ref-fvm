@@ -62,4 +62,9 @@ impl<M: Machine> Machine for Box<M> {
     fn new_limiter(&self) -> Self::Limiter {
         (**self).new_limiter()
     }
+
+    #[inline(always)]
+    fn next_span_id(&mut self) -> crate::kernel::SpanId {
+        (**self).next_span_id()
+    }
 }
