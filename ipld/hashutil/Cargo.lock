@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "forest_hash_utils"
+name = "hashutil"
 version = "0.1.0"
 dependencies = [
  "cs_serde_bytes",

@@ -1,11 +1,11 @@
 [package]
-name = "forest_hash_utils"
+name = "hashutil"
 description = "Shared hashing utilities used in Ipld Hamt and shared references of it."
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
-authors = ["ChainSafe Systems <info@chainsafe.io>"]
+authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs"]
 edition = "2018"
-repository = "https://github.com/ChainSafe/forest"
+repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

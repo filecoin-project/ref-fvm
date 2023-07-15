@@ -19,7 +19,7 @@ mod hash_bits;
 mod node;
 mod pointer;
 
-pub use forest_hash_utils::{BytesKey, Hash};
+pub use hashutil::{BytesKey, Hash};
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
