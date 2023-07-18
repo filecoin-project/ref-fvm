@@ -74,7 +74,7 @@ pub trait CallManager: 'static {
         read_only: bool,
     ) -> Result<InvocationResult>;
 
-    /// Execute some operation (usually a send) within a transaction.
+    /// Execute some operation (usually a send or an actor creation) within a transaction.
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
@@ -107,15 +107,21 @@ pub trait CallManager: 'static {
     fn next_actor_address(&self) -> Address;
 
     /// Create a new actor with the given code CID, actor ID, and delegated address. This method
-    /// does not register the actor with the init actor. It just creates it in the state-tree.
+    /// does not register the actor with the init actor. It just creates it in the state-tree and
+    /// calls the method constructor.
     ///
     /// It handles all appropriate gas charging for creating new actors.
-    fn create_actor(
+    ///
+    /// Returns the invocation result of the constructor method.
+    fn create_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
-    ) -> Result<()>;
+        value: &TokenAmount,
+        params: Option<kernel::Block>,
+        gas_limit: Option<Gas>,
+    ) -> Result<InvocationResult>;
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
@@ -196,4 +202,22 @@ pub struct FinishRet {
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,
     pub events_root: Option<Cid>,
+}
+
+/// The WASM module entrypoint to call.
+#[derive(Debug, Clone, Copy)]
+pub enum Entrypoint {
+    /// Call the create function. The method number will be fixed to 1.
+    Create,
+    /// Call the invoke function with the given method number.
+    Invoke(MethodNum),
+}
+
+impl std::fmt::Display for Entrypoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Entrypoint::Create => write!(f, "create"),
+            Entrypoint::Invoke(num) => write!(f, "invoke({})", num),
+        }
+    }
 }

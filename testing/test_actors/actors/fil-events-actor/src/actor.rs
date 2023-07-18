@@ -9,6 +9,11 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 
 #[no_mangle]
+pub fn create(_: u32) -> u32 {
+    0
+}
+
+#[no_mangle]
 pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 

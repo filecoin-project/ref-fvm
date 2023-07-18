@@ -7,20 +7,24 @@ use fvm_shared::error::ExitCode;
 use sdk::sys::ErrorNumber;
 
 #[no_mangle]
-pub fn invoke(params: u32) -> u32 {
+pub fn create(params: u32) -> u32 {
+    sdk::initialize();
+    assert_eq!(sdk::message::method_number(), 1);
+    // Check our address.
+    let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
+    assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
+    let expected_address: Option<Address> =
+        fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();
+    let actual_address = sdk::actor::lookup_delegated_address(sdk::message::receiver());
+    assert_eq!(expected_address, actual_address, "addresses did not match");
+    0
+}
+
+#[no_mangle]
+pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
     match sdk::message::method_number() {
-        // on construction, make sure the address matches the expected one.`
-        1 => {
-            // Check our address.
-            let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
-            assert_eq!(msg_params.codec, fvm_ipld_encoding::CBOR);
-            let expected_address: Option<Address> =
-                fvm_ipld_encoding::from_slice(msg_params.data.as_slice()).unwrap();
-            let actual_address = sdk::actor::lookup_delegated_address(sdk::message::receiver());
-            assert_eq!(expected_address, actual_address, "addresses did not match");
-        }
         // send to an f1, then resolve.
         2 => {
             // Create an account.

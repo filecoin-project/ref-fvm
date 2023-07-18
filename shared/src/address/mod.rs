@@ -380,6 +380,33 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
     Ok(id)
 }
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MaybeResolvedAddress {
+    Unresolved(Address),
+    Resolved(ActorID),
+}
+
+impl std::fmt::Display for MaybeResolvedAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MaybeResolvedAddress::Unresolved(addr) => addr.fmt(f),
+            MaybeResolvedAddress::Resolved(id) => write!(f, "resolved({id})"),
+        }
+    }
+}
+
+impl From<Address> for MaybeResolvedAddress {
+    fn from(value: Address) -> Self {
+        Self::Unresolved(value)
+    }
+}
+
+impl From<ActorID> for MaybeResolvedAddress {
+    fn from(value: ActorID) -> Self {
+        Self::Resolved(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134

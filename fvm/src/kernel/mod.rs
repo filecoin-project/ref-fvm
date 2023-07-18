@@ -209,7 +209,10 @@ pub trait ActorOps {
         code_cid: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
-    ) -> Result<()>;
+        value: &TokenAmount,
+        params_id: BlockId,
+        gas_limit: Option<Gas>,
+    ) -> Result<SendResult>;
 
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]

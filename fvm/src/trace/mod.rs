@@ -1,11 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_shared::address::Address;
+use fvm_shared::address::MaybeResolvedAddress;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::ActorID;
 
+use crate::call_manager::Entrypoint;
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
 
@@ -21,8 +22,8 @@ pub enum ExecutionEvent {
     GasCharge(GasCharge),
     Call {
         from: ActorID,
-        to: Address,
-        method: MethodNum,
+        to: MaybeResolvedAddress,
+        entrypoint: Entrypoint,
         params: Option<IpldBlock>,
         value: TokenAmount,
     },

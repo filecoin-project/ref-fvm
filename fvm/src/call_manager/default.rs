@@ -7,7 +7,7 @@ use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
 use fvm_ipld_encoding::{to_vec, CBOR};
-use fvm_shared::address::{Address, Payload};
+use fvm_shared::address::{Address, MaybeResolvedAddress, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
@@ -16,13 +16,14 @@ use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
+use crate::init_actor::INIT_ACTOR_ID;
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
 };
@@ -179,56 +180,15 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        if self.machine.context().tracing {
-            self.trace(ExecutionEvent::Call {
-                from,
-                to,
-                method,
-                params: params.as_ref().map(Into::into),
-                value: value.clone(),
-            });
-        }
-
-        // If a specific gas limit has been requested, push a new limit into the gas tracker.
-        if let Some(limit) = gas_limit {
-            self.gas_tracker.push_limit(limit);
-        }
-
-        let mut result = self.with_stack_frame(|s| {
-            s.send_unchecked::<K>(from, to, method, params, value, read_only)
-        });
-
-        // If we pushed a limit, pop it.
-        if gas_limit.is_some() {
-            self.gas_tracker.pop_limit()?;
-        }
-        // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
-        // the error with an explicit exit code.
-        if !self.gas_tracker.gas_available().is_zero()
-            && matches!(result, Err(ExecutionError::OutOfGas))
-        {
-            result = Ok(InvocationResult {
-                exit_code: ExitCode::SYS_OUT_OF_GAS,
-                value: None,
-            })
-        }
-
-        if self.machine.context().tracing {
-            self.trace(match &result {
-                Ok(InvocationResult { exit_code, value }) => {
-                    ExecutionEvent::CallReturn(*exit_code, value.as_ref().map(Into::into))
-                }
-                Err(ExecutionError::OutOfGas) => {
-                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, None)
-                }
-                Err(ExecutionError::Fatal(_)) => {
-                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
-                }
-                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
-            });
-        }
-
-        result
+        self.send_maybe_resolved::<K>(
+            from,
+            to.into(),
+            Entrypoint::Invoke(method),
+            params,
+            value,
+            gas_limit,
+            read_only,
+        )
     }
 
     fn with_transaction(
@@ -338,12 +298,18 @@ where
         Address::new_actor(&b)
     }
 
-    fn create_actor(
+    fn create_actor<K>(
         &mut self,
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
-    ) -> Result<()> {
+        value: &TokenAmount,
+        params: Option<Block>,
+        gas_limit: Option<Gas>,
+    ) -> Result<InvocationResult>
+    where
+        K: Kernel<CallManager = Self>,
+    {
         if self.machine.builtin_actors().is_placeholder_actor(&code_id) {
             return Err(syscall_error!(
                 Forbidden,
@@ -392,7 +358,20 @@ where
         };
         self.set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
-        Ok(())
+
+        // Invoke the constructor and return its result.
+        self.send_maybe_resolved::<K>(
+            // TODO For now, this must be the init actor. In the future, this should be the actor
+            // ID that called the init actor. That ID can be passed as a param to the
+            // create_actor syscall in the init actor, which should be fairly easy to do.
+            INIT_ACTOR_ID,
+            actor_id.into(),
+            Entrypoint::Create,
+            params,
+            value,
+            gas_limit,
+            false,
+        )
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
@@ -499,7 +478,7 @@ where
         self.set_actor(from, from_actor)?;
         self.set_actor(to, to_actor)?;
 
-        log::trace!("transferred {} from {} to {}", value, from, to);
+        log::trace!("transferred {value} from {from} to {to}");
 
         Ok(())
     }
@@ -570,7 +549,7 @@ where
         self.send_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
-            fvm_shared::METHOD_CONSTRUCTOR,
+            Entrypoint::Create,
             Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
             false,
@@ -587,12 +566,77 @@ where
         self.create_actor_from_send(addr, state)
     }
 
+    fn send_maybe_resolved<K>(
+        &mut self,
+        from: ActorID,
+        to: MaybeResolvedAddress,
+        entrypoint: Entrypoint,
+        params: Option<Block>,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        read_only: bool,
+    ) -> Result<InvocationResult>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        if self.machine.context().tracing {
+            self.trace(ExecutionEvent::Call {
+                from,
+                to,
+                entrypoint,
+                params: params.as_ref().map(Into::into),
+                value: value.clone(),
+            });
+        }
+
+        // If a specific gas limit has been requested, push a new limit into the gas tracker.
+        if let Some(limit) = gas_limit {
+            self.gas_tracker.push_limit(limit);
+        }
+
+        let mut result = self.with_stack_frame(|s| {
+            s.send_unchecked::<K>(from, to, entrypoint, params, value, read_only)
+        });
+
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
+        }
+        // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
+        // the error with an explicit exit code.
+        if !self.gas_tracker.gas_available().is_zero()
+            && matches!(result, Err(ExecutionError::OutOfGas))
+        {
+            result = Ok(InvocationResult {
+                exit_code: ExitCode::SYS_OUT_OF_GAS,
+                value: None,
+            })
+        }
+
+        if self.machine.context().tracing {
+            self.trace(match &result {
+                Ok(InvocationResult { exit_code, value }) => {
+                    ExecutionEvent::CallReturn(*exit_code, value.as_ref().map(Into::into))
+                }
+                Err(ExecutionError::OutOfGas) => {
+                    ExecutionEvent::CallReturn(ExitCode::SYS_OUT_OF_GAS, None)
+                }
+                Err(ExecutionError::Fatal(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
+                }
+                Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+            });
+        }
+
+        result
+    }
+
     /// Send without checking the call depth.
     fn send_unchecked<K>(
         &mut self,
         from: ActorID,
-        to: Address,
-        method: MethodNum,
+        to: MaybeResolvedAddress,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -600,33 +644,38 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        // Get the receiver; this will resolve the address.
-        let to = match self.resolve_address(&to)? {
-            Some(addr) => addr,
-            None => match to.payload() {
-                Payload::BLS(_) | Payload::Secp256k1(_) => {
-                    if read_only {
-                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
-                    }
-                    // Try to create an account actor if the receiver is a key address.
-                    self.create_account_actor_from_send::<K>(&to)?
+        let to = match to {
+            MaybeResolvedAddress::Unresolved(to) => {
+                // Get the receiver; this will resolve the address.
+                match self.resolve_address(&to)? {
+                    Some(addr) => addr,
+                    None => match to.payload() {
+                        Payload::BLS(_) | Payload::Secp256k1(_) => {
+                            if read_only {
+                                return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                            }
+                            // Try to create an account actor if the receiver is a key address.
+                            self.create_account_actor_from_send::<K>(&to)?
+                        }
+                        // Validate that there's an actor at the target ID (we don't care what is there,
+                        // just that something is there).
+                        Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
+                            if read_only {
+                                return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
+                            }
+                            self.create_placeholder_actor_from_send(&to)?
+                        }
+                        _ => return Err(
+                            syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
+                                .into(),
+                        ),
+                    },
                 }
-                // Validate that there's an actor at the target ID (we don't care what is there,
-                // just that something is there).
-                Payload::Delegated(da) if da.namespace() == EAM_ACTOR_ID => {
-                    if read_only {
-                        return Err(syscall_error!(ReadOnly; "cannot auto-create account {to} in read-only calls").into());
-                    }
-                    self.create_placeholder_actor_from_send(&to)?
-                }
-                _ => return Err(
-                    syscall_error!(NotFound; "actor does not exist or cannot be created: {}", to)
-                        .into(),
-                ),
-            },
+            }
+            MaybeResolvedAddress::Resolved(to) => to,
         };
 
-        self.send_resolved::<K>(from, to, method, params, value, read_only)
+        self.send_resolved::<K>(from, to, entrypoint, params, value, read_only)
     }
 
     /// Send with resolved addresses.
@@ -634,7 +683,7 @@ where
         &mut self,
         from: ActorID,
         to: ActorID,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -655,15 +704,15 @@ where
         }
 
         // Abort early if we have a send.
-        if method == METHOD_SEND {
-            log::trace!("sent {} -> {}: {}", from, to, &value);
+        if let Entrypoint::Invoke(METHOD_SEND) = entrypoint {
+            log::trace!("sent {from} -> {to}: {value}");
             return Ok(InvocationResult::default());
         }
 
         // Charge the invocation gas.
         let t = self.charge_gas(self.price_list().on_method_invocation())?;
 
-        // Store the parametrs, and initialize the block registry for the target actor.
+        // Store the parameters, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
         let params_id = if let Some(blk) = params {
             block_registry.put(blk)?
@@ -684,7 +733,7 @@ where
                 |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
             )?;
 
-        log::trace!("calling {} -> {}::{}", from, to, method);
+        log::trace!("calling {from} -> {to}::{entrypoint}");
         self.map_mut(|cm| {
             let engine = cm.engine.clone(); // reference the RC.
 
@@ -694,7 +743,7 @@ where
                 block_registry,
                 from,
                 to,
-                method,
+                entrypoint.method_num(),
                 value.clone(),
                 read_only,
             );
@@ -718,10 +767,10 @@ where
 
                 store.data_mut().memory = memory;
 
-                // Lookup the invoke method.
-                let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
-                    .get_typed_func(&mut store, "invoke")
-                    // All actors will have an invoke method.
+                // Lookup the entrypoint.
+                let func: wasmtime::TypedFunc<(u32,), u32> = instance
+                    .get_typed_func(&mut store, entrypoint.func_name())
+                    // All actors must have the entrypoint functions.
                     .map_err(Abort::Fatal)?;
 
                 // Set the available gas.
@@ -729,7 +778,7 @@ where
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id,))
+                    func.call(&mut store, (params_id,))
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
@@ -814,7 +863,7 @@ where
 
                         cm.backtrace.push_frame(Frame {
                             source: to,
-                            method,
+                            entrypoint,
                             message,
                             code,
                         });
@@ -827,14 +876,10 @@ where
             // Log the results if tracing is enabled.
             if log::log_enabled!(log::Level::Trace) {
                 match &ret {
-                    Ok(val) => log::trace!(
-                        "returning {}::{} -> {} ({})",
-                        to,
-                        method,
-                        from,
-                        val.exit_code
-                    ),
-                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+                    Ok(val) => {
+                        log::trace!("returning {to}::{entrypoint} -> {from} ({})", val.exit_code)
+                    }
+                    Err(e) => log::trace!("failing {to}::{entrypoint} -> {from} (err:{e})"),
                 }
             }
 
@@ -941,5 +986,21 @@ impl EventsAccumulator {
             root,
             events: self.events,
         })
+    }
+}
+
+impl Entrypoint {
+    fn method_num(&self) -> MethodNum {
+        match self {
+            Entrypoint::Create => fvm_shared::METHOD_CONSTRUCTOR,
+            Entrypoint::Invoke(num) => *num,
+        }
+    }
+
+    fn func_name(&self) -> &'static str {
+        match self {
+            Entrypoint::Create => "create",
+            Entrypoint::Invoke(_) => "invoke",
+        }
     }
 }

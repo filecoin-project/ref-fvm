@@ -274,8 +274,18 @@ where
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
-    ) -> Result<()> {
-        self.0.create_actor(code_id, actor_id, delegated_address)
+        value: &TokenAmount,
+        params_id: BlockId,
+        gas_limit: Option<Gas>,
+    ) -> Result<SendResult> {
+        self.0.create_actor(
+            code_id,
+            actor_id,
+            delegated_address,
+            value,
+            params_id,
+            gas_limit,
+        )
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {

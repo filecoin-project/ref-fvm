@@ -148,6 +148,21 @@ where
         })?;
 
         // Store result and return.
+        self.store_result(result)
+    }
+}
+
+impl<C> DefaultKernel<C>
+where
+    C: CallManager,
+{
+    /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
+    fn get_self(&self) -> Result<Option<ActorState>> {
+        self.call_manager.get_actor(self.actor_id)
+    }
+
+    /// Store the result of an invocation.
+    fn store_result(&mut self, result: InvocationResult) -> Result<SendResult> {
         Ok(match result {
             InvocationResult {
                 exit_code,
@@ -174,16 +189,6 @@ where
                 exit_code,
             },
         })
-    }
-}
-
-impl<C> DefaultKernel<C>
-where
-    C: CallManager,
-{
-    /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
-    fn get_self(&self) -> Result<Option<ActorState>> {
-        self.call_manager.get_actor(self.actor_id)
     }
 }
 
@@ -832,7 +837,10 @@ where
         code_id: Cid,
         actor_id: ActorID,
         delegated_address: Option<Address>,
-    ) -> Result<()> {
+        value: &TokenAmount,
+        params_id: BlockId,
+        gas_limit: Option<Gas>,
+    ) -> Result<SendResult> {
         let is_allowed_to_create_actor = self.actor_id == INIT_ACTOR_ID;
 
         #[cfg(feature = "testing")]
@@ -854,8 +862,30 @@ where
             );
         }
 
-        self.call_manager
-            .create_actor(code_id, actor_id, delegated_address)
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.create_actor::<Self>(
+                code_id,
+                actor_id,
+                delegated_address,
+                value,
+                params,
+                gas_limit,
+            )
+        })?;
+
+        self.store_result(result)
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {

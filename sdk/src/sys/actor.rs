@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for creating and resolving actors.
 
+use fvm_shared::sys;
+
 // for documentation links
 #[cfg(doc)]
 use crate::sys::ErrorNumber::*;
@@ -126,7 +128,11 @@ super::fvm_syscalls! {
         typ_off: *const u8,
         delegated_addr_off: *const u8,
         delegated_addr_len: u32,
-    ) -> Result<()>;
+        params_id: u32,
+        value_hi: u64,
+        value_lo: u64,
+        gas_limit: u64,
+    ) -> Result<sys::out::send::Send>;
 
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.
