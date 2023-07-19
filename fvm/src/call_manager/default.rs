@@ -928,7 +928,7 @@ impl EventsAccumulator {
             let root = Amt::new_from_iter_with_bit_width(
                 DiscardBlockstore,
                 EVENTS_AMT_BITWIDTH,
-                self.events.iter().cloned(),
+                self.events.iter(),
             )
             .context("failed to construct events AMT")
             .or_fatal()?;
