@@ -2350,6 +2350,7 @@ dependencies = [
  "replace_with",
  "serde",
  "serde_tuple",
+ "static_assertions",
  "thiserror",
  "wasmtime",
  "wasmtime-environ",

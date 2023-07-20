@@ -7,7 +7,6 @@ use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::crypto::signature::SignatureType;
-use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
@@ -26,6 +25,21 @@ use crate::kernel::SupportedHashes;
 // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
 const TABLE_ELEMENT_SIZE: u32 = 8;
+
+// The maximum overhead (in bytes) of a single event when encoded into CBOR.
+//
+// 1: CBOR tuple with 2 fields (StampedEvent)
+//   9: Emitter ID
+//   2: Entry array overhead (max size 255)
+const EVENT_OVERHEAD: u64 = 12;
+// The maximum overhead (in bytes) of a single event entry when encoded into CBOR.
+//
+// 1: CBOR tuple with 4 fields
+//   1: Flags (will adjust as more flags are added)
+//   2: Key major type + length (up to 255 bytes)
+//   2: Codec major type + value (codec should be <= 255)
+//   3: Value major type + length (up to 8192 bytes)
+const EVENT_ENTRY_OVERHEAD: u64 = 9;
 
 /// Create a mapping from enum items to values in a way that guarantees at compile
 /// time that we did not miss any member, in any of the prices, even if the enum
@@ -293,26 +307,15 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // These parameters are specifically sized for EVM events. They will need
-        // to be revisited before Wasm actors are able to emit arbitrary events.
-        //
-        // Validation costs are dependent on encoded length, but also
-        // co-dependent on the number of entries. The latter is a chicken-and-egg
-        // situation because we can only learn how many entries were emitted once we
-        // decode the CBOR event.
-        //
-        // We will likely need to revisit the ABI of emit_event to remove CBOR
-        // as the exchange format.
-        event_validation_cost: ScalingCost {
+        // TODO(#1817): Per-entry event validation cost. These parameters were benchmarked for the
+        // EVM but haven't been revisited since revising the API.
+        event_per_entry: ScalingCost {
             flat: Gas::new(1750),
             scale: Gas::new(25),
         },
 
-        // The protocol does not currently mandate indexing work, so these are
-        // left at zero. Once we start populating and committing indexing data
-        // structures, these costs will need to reflect the computation and
-        // storage costs of such actions.
-        event_accept_per_index_element: ScalingCost {
+        // TODO(#1817): Cost of validating utf8 (used in event parsing).
+        utf8_validation: ScalingCost {
             flat: Zero::zero(),
             scale: Zero::zero(),
         },
@@ -468,13 +471,13 @@ pub struct PriceList {
 
     /// Gas cost to validate an ActorEvent as soon as it's received from the actor, and prior
     /// to it being parsed.
-    pub(crate) event_validation_cost: ScalingCost,
-
-    /// Gas cost of every indexed element, scaling per number of bytes indexed.
-    pub(crate) event_accept_per_index_element: ScalingCost,
+    pub(crate) event_per_entry: ScalingCost,
 
     /// Gas cost of doing lookups in the builtin actor mappings.
     pub(crate) builtin_actor_manifest_lookup: Gas,
+
+    /// Gas cost of utf8 parsing.
+    pub(crate) utf8_validation: ScalingCost,
 
     /// Gas cost of accessing the network context.
     pub(crate) network_context: Gas,
@@ -919,58 +922,33 @@ impl PriceList {
     }
 
     #[inline]
-    pub fn on_actor_event_validate(&self, data_size: usize) -> GasCharge {
-        let memcpy = self.block_memcpy.apply(data_size);
-        let alloc = self.block_allocate.apply(data_size);
-        let validate = self.event_validation_cost.apply(data_size);
+    pub fn on_actor_event(&self, entries: usize, keysize: usize, valuesize: usize) -> GasCharge {
+        // Here we estimate per-event overhead given the constraints on event values.
 
-        GasCharge::new(
-            "OnActorEventValidate",
-            memcpy + alloc + validate,
-            Zero::zero(),
-        )
-    }
+        let validate_entries = self.event_per_entry.apply(entries);
+        let validate_utf8 = self.utf8_validation.apply(keysize);
 
-    #[inline]
-    pub fn on_actor_event_accept(&self, evt: &ActorEvent, serialized_len: usize) -> GasCharge {
-        let (mut indexed_bytes, mut indexed_elements) = (0usize, 0u32);
-        for evt in evt.entries.iter() {
-            if evt.flags.contains(Flags::FLAG_INDEXED_KEY) {
-                indexed_bytes += evt.key.len();
-                indexed_elements += 1;
-            }
-            if evt.flags.contains(Flags::FLAG_INDEXED_VALUE) {
-                indexed_bytes += evt.value.len();
-                indexed_elements += 1;
-            }
-        }
+        // Estimate the size, saturating at max-u64. Given how we calculate gas, this will saturate
+        // the gas maximum at max-u64 milligas.
+        let estimated_size = EVENT_OVERHEAD
+            .saturating_add(EVENT_ENTRY_OVERHEAD.saturating_mul(entries as u64))
+            .saturating_add(keysize as u64)
+            .saturating_add(valuesize as u64);
 
-        // The estimated size of the serialized StampedEvent event, which
-        // includes the ActorEvent + 8 bytes for the actor ID
-        const STAMP_EXTRA_SIZE: usize = 8;
-        let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
-
-        // Charge for 3 memory copy operations.
-        // This includes the cost of forming a StampedEvent, copying into the
-        // AMT's buffer on finish, and returning to the client.
-        let memcpy = self.block_memcpy.apply(stamped_event_size);
-
-        // Charge for 2 memory allocations.
-        // This includes the cost of retaining the StampedEvent in the call manager,
-        // and allocaing into the AMT's buffer on finish.
-        let alloc = self.block_allocate.apply(stamped_event_size);
+        // Calculate the cost per copy (one memcpy + one allocation).
+        let mem =
+            self.block_memcpy.apply(estimated_size) + self.block_allocate.apply(estimated_size);
 
         // Charge for the hashing on AMT insertion.
-        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(stamped_event_size);
+        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(estimated_size);
 
         GasCharge::new(
-            "OnActorEventAccept",
-            memcpy + alloc,
-            self.event_accept_per_index_element.flat * indexed_elements
-                + self.event_accept_per_index_element.scale * indexed_bytes
-                + memcpy * 2u32 // deferred cost, placing here to hide from benchmark
-                + alloc // deferred cost, placing here to hide from benchmark
-                + hash, // deferred cost, placing here to hide from benchmark
+            "OnActorEvent",
+            // Charge for validation/storing events.
+            mem + validate_entries + validate_utf8,
+            // Charge for forming the AMT and returning the events to the client.
+            // one copy into the AMT, one copy to the client.
+            hash + (mem * 2u32),
         )
     }
 }

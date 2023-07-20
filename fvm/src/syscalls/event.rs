@@ -1,14 +1,15 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use anyhow::Context as _;
+
 use super::Context;
-use crate::kernel::Result;
+use crate::kernel::{ClassifyResult, Result};
 use crate::Kernel;
 
 /// Emits an actor event. The event is split into three raw byte buffers that have
 /// been written to Wasm memory. This is done so that the FVM can accurately charge
 /// for gas without needing to parse anything inside the FVM.
-///
 /// The buffers are serialized as follows:
 ///  - event_off/event_len: The offset and length tuple of all the event entries
 ///       flags:u64,key_len:u32,codec:u64,value_len:u32)
@@ -32,8 +33,21 @@ pub fn emit_event(
     val_off: u32,
     val_len: u32,
 ) -> Result<()> {
-    let raw_event = context.memory.try_slice(event_off, event_len)?;
+    let event_headers = unsafe {
+        const EVENT_SIZE: u32 = std::mem::size_of::<fvm_shared::sys::EventEntry>() as u32;
+        // assert the alignment so we can safely cast from a byte-slice
+        static_assertions::assert_eq_align!(fvm_shared::sys::EventEntry, u8);
+        let size = event_len
+            .checked_mul(EVENT_SIZE)
+            .context("events index out of bounds")
+            .or_illegal_argument()?;
+        let buf = context.memory.try_slice(event_off, size)?;
+        std::slice::from_raw_parts(
+            buf.as_ptr() as *const fvm_shared::sys::EventEntry,
+            event_len as usize,
+        )
+    };
     let raw_key = context.memory.try_slice(key_off, key_len)?;
     let raw_val = context.memory.try_slice(val_off, val_len)?;
-    context.kernel.emit_event(raw_event, raw_key, raw_val)
+    context.kernel.emit_event(event_headers, raw_key, raw_val)
 }

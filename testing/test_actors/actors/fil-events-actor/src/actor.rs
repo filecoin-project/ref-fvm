@@ -50,16 +50,19 @@ pub fn invoke(params: u32) -> u32 {
             sdk::event::emit_event(&multi_entry.into()).unwrap();
         }
         EMIT_MALFORMED => unsafe {
-            // mangle an event.
-            let mut serialized = fvm_ipld_encoding::to_vec(&single_entry_evt).unwrap();
-            serialized[1] = 0xff;
-
+            // Trigger an out of bounds.
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 5,
+                val_len: 0,
+            };
             assert!(
                 sdk::sys::event::emit_event(
-                    serialized.as_ptr(),
-                    serialized.len() as u32,
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
                     0 as *const u8,
-                    0,
+                    4,
                     0 as *const u8,
                     0,
                 )
