@@ -1,6 +1,8 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use cid::multihash::Multihash;
 use cid::Cid;
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
 
 use crate::{sys, SyscallResult};
@@ -11,6 +13,20 @@ pub const UNIT: u32 = sys::ipld::UNIT;
 /// Store a block. The block will only be persisted in the state-tree if the CID is "linked in" to
 /// the actor's state-tree before the end of the current invocation.
 pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult<Cid> {
+    // Short-circuit for identity hashes.
+    if mh_code == fvm_shared::IDENTITY_HASH {
+        // XXX: Check codec? Could cause future problems?
+        // No point from a security perspective as the system will check at the very end anyways.
+        if mh_size as usize != data.len() {
+            // TODO: Bikeshed on error.
+            return Err(ErrorNumber::IllegalCid);
+        }
+        return Ok(Cid::new_v1(
+            codec,
+            Multihash::wrap(mh_code, data).map_err(|_| ErrorNumber::IllegalCid)?,
+        ));
+    }
+
     unsafe {
         let id = sys::ipld::block_create(codec, data.as_ptr(), data.len() as u32)?;
 
@@ -28,6 +44,12 @@ pub fn put(mh_code: u64, mh_size: u32, codec: u64, data: &[u8]) -> SyscallResult
 ///
 /// ...during the current invocation.
 pub fn get(cid: &Cid) -> SyscallResult<Vec<u8>> {
+    // Short-circuit for identity hashes.
+    if cid.hash().code() == fvm_shared::IDENTITY_HASH {
+        // XXX: Check codec? See above.
+        return Ok(cid.hash().digest().into());
+    }
+
     unsafe {
         let mut cid_buf = [0u8; MAX_CID_LEN];
         cid.write_bytes(&mut cid_buf[..])

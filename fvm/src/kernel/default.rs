@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
+use fvm_ipld_encoding::{bytes_32, DAG_CBOR, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
@@ -153,7 +153,7 @@ where
                 let block_stat = blk.stat();
                 let block_id = self
                     .blocks
-                    .put(blk)
+                    .put_assert_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
                 SendResult {
@@ -188,13 +188,15 @@ impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&self) -> Result<Cid> {
+    fn root(&mut self) -> Result<Cid> {
         // This can fail during normal operations if the actor has been deleted.
         let cid = self
             .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
+
+        self.blocks.mark_reachable(&cid);
 
         Ok(cid)
     }
@@ -205,6 +207,11 @@ where
                 syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
             );
         }
+
+        if !self.blocks.is_reachable(&new) {
+            return Err(syscall_error!(NotFound; "new root cid not reachable: {new}").into());
+        }
+
         let mut state = self
             .call_manager
             .get_actor(self.actor_id)?
@@ -261,12 +268,14 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        // TODO(M2): Check for reachability here.
-
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
         let start = GasTimer::start();
+
+        if !self.blocks.is_reachable(cid) {
+            return Err(syscall_error!(NotFound; "block not reachable: {cid}").into());
+        }
 
         let data = self
             .call_manager
@@ -275,13 +284,22 @@ where
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?
-            .ok_or_else(|| anyhow!("missing state: {}", cid))
+            .ok_or_else(|| anyhow!("missing reachable state: {}", cid))
             // Missing state is a fatal error because it means we have a bug. Once we do
             // reachability checking (for user actors) we won't get here unless the block is known
             // to be in the state-tree.
             .or_fatal()?;
 
-        let block = Block::new(cid.codec(), data);
+        let children = if cid.codec() == DAG_CBOR {
+            cbor::scan_for_reachable_links(
+                &data,
+                self.call_manager.price_list(),
+                self.call_manager.gas_tracker(),
+            )?
+        } else {
+            Vec::new()
+        };
+        let block = Block::new(cid.codec(), data, children);
 
         let t = self.call_manager.charge_gas(
             self.call_manager
@@ -290,7 +308,7 @@ where
         )?;
 
         let stat = block.stat();
-        let id = self.blocks.put(block)?;
+        let id = self.blocks.put_assert_reachable(block)?;
         t.stop_with(start);
         Ok((id, stat))
     }
@@ -300,11 +318,27 @@ where
             return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
         }
 
+        if !ALLOWED_CODECS.contains(&codec) {
+            return Err(syscall_error!(IllegalCodec; "codec {} not allowed", codec).into());
+        }
+
+        let children = if codec == DAG_CBOR {
+            cbor::scan_for_reachable_links(
+                data,
+                self.call_manager.price_list(),
+                self.call_manager.gas_tracker(),
+            )?
+        } else {
+            Vec::new()
+        };
+
+        let blk = Block::new(codec, data, children);
+
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
 
-        t.record(Ok(self.blocks.put(Block::new(codec, data))?))
+        t.record(Ok(self.blocks.put_check_reachable(blk)?))
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
@@ -327,13 +361,14 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO(M2): Add the block to the reachable set.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        self.blocks.mark_reachable(&k);
+
         t.stop_with(start);
         Ok(k)
     }

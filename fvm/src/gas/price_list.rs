@@ -324,6 +324,9 @@ lazy_static! {
 
         // Preloaded actor IDs per FIP-0055.
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
+
+        ipld_cbor_scan_per_cid: Gas::zero(),
+        ipld_cbor_scan_per_item: Gas::zero(),
     };
 }
 
@@ -486,6 +489,9 @@ pub struct PriceList {
 
     /// Actor IDs that can be updated for free.
     pub(crate) preloaded_actors: Vec<ActorID>,
+
+    pub(crate) ipld_cbor_scan_per_item: Gas,
+    pub(crate) ipld_cbor_scan_per_cid: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

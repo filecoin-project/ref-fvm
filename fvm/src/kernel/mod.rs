@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
 use cid::Cid;
+use fvm_ipld_encoding::{CBOR, DAG_CBOR, IPLD_RAW};
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
+use fvm_shared::commcid::{FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED};
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
     SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
@@ -26,6 +28,7 @@ mod hash;
 mod blocks;
 pub mod default;
 
+mod cbor;
 pub(crate) mod error;
 
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
@@ -37,6 +40,11 @@ use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+
+/// Codecs allowed by the IPLD subsystem.
+pub const ALLOWED_CODECS: &[u64] = &[CBOR, DAG_CBOR, IPLD_RAW];
+/// Codecs ignored by the IPLD subsystem.
+pub const IGNORED_CODECS: &[u64] = &[FIL_COMMITMENT_UNSEALED, FIL_COMMITMENT_SEALED];
 
 pub struct SendResult {
     pub block_id: BlockId,
@@ -166,7 +174,7 @@ pub trait IpldBlockOps {
 /// Depends on BlockOps to read and write blocks in the state tree.
 pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
-    fn root(&self) -> Result<Cid>;
+    fn root(&mut self) -> Result<Cid>;
 
     /// Update the state-root.
     ///
