@@ -88,7 +88,11 @@ fn gasfuzz_get_exec_trace() -> ExecutionTrace {
         .unwrap();
 
     let create_res = testkit::fevm::create_contract(&mut tester, &mut account, &contract).unwrap();
-    assert!(create_res.msg_receipt.exit_code.is_success());
+    assert!(
+        create_res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        create_res.failure_info
+    );
 
     let create_return: testkit::fevm::CreateReturn =
         create_res.msg_receipt.return_data.deserialize().unwrap();
