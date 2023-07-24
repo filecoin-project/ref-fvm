@@ -67,6 +67,16 @@ impl SendFlags {
     }
 }
 
+/// A fixed sized struct for serializing an [event `Entry`](crate::event::Entry) separately from the
+/// key/value bytes.
+#[repr(C, packed)]
+pub struct EventEntry {
+    pub flags: crate::event::Flags,
+    pub codec: u64,
+    pub key_len: u32,
+    pub val_len: u32,
+}
+
 /// An unsafe trait to mark "syscall safe" types. These types must be safe to memcpy to and from
 /// WASM. This means:
 ///

@@ -39,6 +39,7 @@ impl From<Vec<Entry>> for ActorEvent {
 bitflags! {
     /// Flags associated with an Event entry.
     #[derive(Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Debug)]
+    #[repr(transparent)] // we pass this type through a syscall
     #[serde(transparent)]
     pub struct Flags: u64 {
         const FLAG_INDEXED_KEY      = 0b00000001;
@@ -59,13 +60,4 @@ pub struct Entry {
     /// The event's value.
     #[serde(with = "strict_bytes")]
     pub value: Vec<u8>,
-}
-
-// A fixed sized struct for serializing Entry separately from the key/value bytes.
-#[repr(C, packed)]
-pub struct EntryFixed {
-    pub flags: Flags,
-    pub codec: u64,
-    pub key_len: u32,
-    pub val_len: u32,
 }

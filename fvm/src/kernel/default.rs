@@ -17,7 +17,7 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::{ActorEvent, Entry, EntryFixed, Flags};
+use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
@@ -1006,72 +1006,62 @@ impl<C> EventOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn emit_event(&mut self, raw_evt: &[u8], raw_key: &[u8], raw_val: &[u8]) -> Result<()> {
-        const MAX_NR_ENTRIES: usize = 256;
-        const MAX_KEY_LEN: usize = 32;
-        const MAX_VALUE_LEN: usize = 8 << 10;
+    fn emit_event(
+        &mut self,
+        event_headers: &[fvm_shared::sys::EventEntry],
+        event_keys: &[u8],
+        event_values: &[u8],
+    ) -> Result<()> {
+        const MAX_NR_ENTRIES: usize = 255;
+        const MAX_KEY_LEN: usize = 31;
+        const MAX_TOTAL_VALUES_LEN: usize = 8 << 10;
 
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
         }
 
-        if raw_val.len() > MAX_VALUE_LEN {
-            return Err(
-                syscall_error!(IllegalArgument; "event total values exceeded max size: {} > {MAX_VALUE_LEN}", raw_val.len()).into(),
-            );
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_actor_event(
+                event_headers.len(),
+                event_keys.len(),
+                event_values.len(),
+            ))?;
+
+        if event_headers.len() > MAX_NR_ENTRIES {
+            return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
         }
 
-        let total_buf_len = raw_evt.len() + raw_key.len() + raw_val.len();
-
-        let _t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_actor_event_validate(total_buf_len),
-        )?;
-
-        const BYTES_PER_ENTRY: usize = 24;
-        if raw_evt.len() % BYTES_PER_ENTRY != 0 {
-            return Err(syscall_error!(IllegalArgument; "event not divisible by 24 bytes").into());
-        }
-        let nr_entries = raw_evt.len() / BYTES_PER_ENTRY;
-
-        if nr_entries > MAX_NR_ENTRIES {
-            return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", nr_entries).into());
+        // We check this here purely to detect/prevent integer overflows.
+        if event_values.len() > MAX_TOTAL_VALUES_LEN {
+            return Err(syscall_error!(IllegalArgument; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
         }
 
         let mut key_offset: usize = 0;
         let mut val_offset: usize = 0;
 
-        let mut entries: Vec<Entry> = Vec::with_capacity(nr_entries);
-        for i in 0..nr_entries {
-            let offset = i * BYTES_PER_ENTRY;
-            let view = &raw_evt[offset..offset + BYTES_PER_ENTRY];
-
-            // parse the fixed sized fields from the raw_evt buffer
-            //
-            let entry_fixed: EntryFixed = unsafe {
-                std::mem::transmute::<[u8; BYTES_PER_ENTRY], EntryFixed>(view.try_into().unwrap())
-            };
-
+        let mut entries: Vec<Entry> = Vec::with_capacity(event_headers.len());
+        for header in event_headers {
             // make sure that the fixed parsed values are within bounds before we do any allocation
-            //
-            let flags = entry_fixed.flags;
+            let flags = header.flags;
             if Flags::from_bits(flags.bits()).is_none() {
                 return Err(
                     syscall_error!(IllegalArgument; "event flags are invalid: {}", flags.bits())
                         .into(),
                 );
             }
-            if entry_fixed.key_len > MAX_KEY_LEN as u32 {
-                let tmp = entry_fixed.key_len;
+            if header.key_len > MAX_KEY_LEN as u32 {
+                let tmp = header.key_len;
                 return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
             }
-            if entry_fixed.val_len > MAX_VALUE_LEN as u32 {
-                let tmp = entry_fixed.val_len;
-                return Err(syscall_error!(IllegalArgument; "event value exceeded max size: {} > {MAX_VALUE_LEN}", tmp).into());
+            // We check this here purely to detect/prevent integer overflows.
+            if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
+                return Err(
+                    syscall_error!(IllegalArgument; "event entry value out of range").into(),
+                );
             }
-            if entry_fixed.codec != IPLD_RAW {
-                let tmp = entry_fixed.codec;
+            if header.codec != IPLD_RAW {
+                let tmp = header.codec;
                 return Err(
                     syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
                         .into(),
@@ -1079,39 +1069,36 @@ where
             }
 
             // parse the variable sized fields from the raw_key/raw_val buffers
-            //
-            let key = match std::str::from_utf8(
-                &raw_key[key_offset..key_offset + entry_fixed.key_len as usize],
-            ) {
-                Ok(s) => s,
-                Err(e) => {
-                    return Err(syscall_error!(IllegalArgument, "invalid event key: {}", e).into())
-                }
-            };
-            let value = &raw_val[val_offset..val_offset + entry_fixed.val_len as usize];
+            let key = &event_keys
+                .get(key_offset..key_offset + header.key_len as usize)
+                .context("event entry key out of range")
+                .or_illegal_argument()?;
+
+            let key = std::str::from_utf8(key)
+                .context("invalid event key")
+                .or_illegal_argument()?;
+
+            let value = &event_values
+                .get(val_offset..val_offset + header.val_len as usize)
+                .context("event entry value out of range")
+                .or_illegal_argument()?;
 
             // we have all we need to construct a new Entry
             let entry = Entry {
-                flags: entry_fixed.flags,
+                flags: header.flags,
                 key: key.to_string(),
-                codec: entry_fixed.codec,
+                codec: header.codec,
                 value: value.to_vec(),
             };
 
             // shift the key/value offsets
-            key_offset += entry_fixed.key_len as usize;
-            val_offset += entry_fixed.val_len as usize;
+            key_offset += header.key_len as usize;
+            val_offset += header.val_len as usize;
 
             entries.push(entry);
         }
 
         let actor_evt = ActorEvent::from(entries);
-
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_actor_event_accept(&actor_evt, total_buf_len),
-        )?;
 
         let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
         self.call_manager.append_event(stamped_evt);

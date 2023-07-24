@@ -1,9 +1,7 @@
-use std::mem::size_of;
-
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::{sys, SyscallResult};
-use fvm_shared::event::{ActorEvent, EntryFixed};
+use fvm_shared::event::ActorEvent;
 
 pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {
     // we manually serialize the ActorEvent (not using CBOR) into three byte arrays so
@@ -15,7 +13,7 @@ pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {
     for i in 0..evt.entries.len() {
         let e = &evt.entries[i];
 
-        fixed_entries.push(EntryFixed {
+        fixed_entries.push(fvm_shared::sys::EventEntry {
             flags: e.flags,
             codec: e.codec,
             key_len: e.key.len() as u32,
@@ -37,10 +35,9 @@ pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {
     }
 
     unsafe {
-        let fixed_size_in_bytes = fixed_entries.len() * size_of::<EntryFixed>();
         sys::event::emit_event(
-            fixed_entries.as_ptr() as *const u8,
-            fixed_size_in_bytes as u32,
+            fixed_entries.as_ptr(),
+            fixed_entries.len() as u32,
             keys.as_ptr(),
             keys.len() as u32,
             values.as_ptr(),
