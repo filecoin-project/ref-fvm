@@ -1014,7 +1014,7 @@ where
     ) -> Result<()> {
         const MAX_NR_ENTRIES: usize = 255;
         const MAX_KEY_LEN: usize = 31;
-        const MAX_VALUE_LEN: usize = 8 << 10;
+        const MAX_TOTAL_VALUES_LEN: usize = 8 << 10;
 
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
@@ -1030,6 +1030,11 @@ where
 
         if event_headers.len() > MAX_NR_ENTRIES {
             return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
+        }
+
+        // We check this here purely to detect/prevent integer overflows.
+        if event_values.len() > MAX_TOTAL_VALUES_LEN {
+            return Err(syscall_error!(IllegalArgument; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
         }
 
         let mut key_offset: usize = 0;
@@ -1049,9 +1054,11 @@ where
                 let tmp = header.key_len;
                 return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
             }
-            if header.val_len > MAX_VALUE_LEN as u32 {
-                let tmp = header.val_len;
-                return Err(syscall_error!(IllegalArgument; "event value exceeded max size: {} > {MAX_VALUE_LEN}", tmp).into());
+            // We check this here purely to detect/prevent integer overflows.
+            if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
+                return Err(
+                    syscall_error!(IllegalArgument; "event entry value out of range").into(),
+                );
             }
             if header.codec != IPLD_RAW {
                 let tmp = header.codec;
