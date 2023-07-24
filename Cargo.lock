@@ -2350,6 +2350,7 @@ dependencies = [
  "replace_with",
  "serde",
  "serde_tuple",
+ "static_assertions",
  "thiserror",
  "wasmtime",
  "wasmtime-environ",
@@ -2738,6 +2739,7 @@ dependencies = [
 name = "fvm_sdk"
 version = "3.3.0"
 dependencies = [
+ "byteorder",
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
  "fvm_shared 3.4.0",

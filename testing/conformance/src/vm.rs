@@ -28,7 +28,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::sys::SendFlags;
+use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 
@@ -564,8 +564,13 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
-        self.0.emit_event(raw_evt)
+    fn emit_event(
+        &mut self,
+        event_headers: &[EventEntry],
+        key_evt: &[u8],
+        val_evt: &[u8],
+    ) -> Result<()> {
+        self.0.emit_event(event_headers, key_evt, val_evt)
     }
 }
 
