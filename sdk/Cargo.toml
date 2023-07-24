@@ -19,6 +19,7 @@ lazy_static = { version = "1.4.0" }
 log = "0.4.19"
 thiserror = "1.0.40"
 fvm_ipld_encoding = { version = "0.4", path = "../ipld/encoding" }
+byteorder = "1.4.3"
 
 [features]
 default = []
