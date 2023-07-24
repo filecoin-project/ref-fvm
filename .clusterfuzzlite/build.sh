@@ -17,10 +17,11 @@
 
 cd "$SRC"
 
-declare -a PROJECTS=(amt hamt common)
+declare -a PROJECTS=(amt hamt kamt common)
 declare -A PROJECT_PATHS=(
 	[amt]="ref-fvm/ipld/amt/fuzz"
 	[hamt]="ref-fvm/ipld/hamt/fuzz"
+	[kamt]="ref-fvm/ipld/kamt/fuzz"
 	[common]="ref-fvm/testing/common_fuzz/fuzz"
 )
 
