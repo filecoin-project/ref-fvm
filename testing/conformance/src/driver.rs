@@ -148,22 +148,32 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
         return Ok(());
     }
 
-    let actual_st =
-        StateTree::new_from_root(bs, root).context("failed to load actual state tree")?;
+    let actual_st = StateTree::new_from_root(bs, root)
+        .context("failed to load actual state tree")
+        .map_err(|e| anyhow!(e))?;
     let expected_st = StateTree::new_from_root(bs, &vector.postconditions.state_tree.root_cid)
-        .context("failed to load expected state tree")?;
+        .context("failed to load expected state tree")
+        .map_err(|e| anyhow!(e))?;
 
     // We only compare system actors and the send/receiver actor as we don't know what other actors
     // might exist in the state-tree (it's usually incomplete).
 
     for m in &vector.apply_messages {
         let msg: Message = from_slice(&m.bytes)?;
-        let actual_actor = actual_st.get_actor_by_address(&msg.from)?;
-        let expected_actor = expected_st.get_actor_by_address(&msg.from)?;
+        let actual_actor = actual_st
+            .get_actor_by_address(&msg.from)
+            .map_err(|e| anyhow!(e))?;
+        let expected_actor = expected_st
+            .get_actor_by_address(&msg.from)
+            .map_err(|e| anyhow!(e))?;
         compare_actors(bs, "sender", actual_actor, expected_actor)?;
 
-        let actual_actor = actual_st.get_actor_by_address(&msg.to)?;
-        let expected_actor = expected_st.get_actor_by_address(&msg.to)?;
+        let actual_actor = actual_st
+            .get_actor_by_address(&msg.to)
+            .map_err(|e| anyhow!(e))?;
+        let expected_actor = expected_st
+            .get_actor_by_address(&msg.to)
+            .map_err(|e| anyhow!(e))?;
         compare_actors(bs, "receiver", actual_actor, expected_actor)?;
     }
 
@@ -173,7 +183,7 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
             Ok(act) => act,
             Err(_) => continue, // we don't expect it anyways.
         };
-        let actual_actor = actual_st.get_actor(id)?;
+        let actual_actor = actual_st.get_actor(id).map_err(|e| anyhow!(e))?;
         compare_actors(
             bs,
             format_args!("builtin {}", id),
@@ -287,7 +297,7 @@ pub fn run_variant(
             return Ok(VariantResult::Failed {
                 id,
                 reason: anyhow!("machine poisoned"),
-            })
+            });
         }
     };
     if check_correctness {

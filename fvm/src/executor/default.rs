@@ -20,7 +20,7 @@ use crate::call_manager::{backtrace, Backtrace, CallManager, InvocationResult};
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
-use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
+use crate::kernel::{Block, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::trace::ExecutionTrace;
 
@@ -84,7 +84,8 @@ where
         let receiver_id = self
             .state_tree()
             .lookup_id(&msg.to)
-            .context("failure when looking up message receiver")?;
+            .context("failure when looking up message receiver")
+            .map_err(|e| anyhow!(e))?;
 
         // Filecoin caps the premium plus the base-fee at the fee-cap.
         // We expose the _effective_ premium to the user.
@@ -99,87 +100,89 @@ where
         let engine = self.engine_pool.acquire();
 
         // Apply the message.
-        let ret = self.map_machine(|machine| {
-            // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm = K::CallManager::new(
-                machine,
-                engine,
-                msg.gas_limit,
-                sender_id,
-                msg.from,
-                receiver_id,
-                msg.to,
-                msg.sequence,
-                effective_premium,
-            );
-            // This error is fatal because it should have already been accounted for inside
-            // preflight_message.
-            if let Err(e) = cm.charge_gas(inclusion_cost) {
-                let (_, machine) = cm.finish();
-                return (Err(e), machine);
-            }
-
-            let params = (!msg.params.is_empty()).then(|| {
-                Block::new(
-                    if msg.method_num == METHOD_SEND {
-                        // Method zero params are "arbitrary bytes", so we'll just count them as
-                        // raw.
-                        //
-                        // This won't actually affect anything (because no code will see these
-                        // parameters), but it's more correct and makes me happier.
-                        //
-                        // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
-                        IPLD_RAW
-                    } else {
-                        // This is CBOR, not DAG_CBOR, because links sent from off-chain aren't
-                        // reachable.
-                        CBOR
-                    },
-                    msg.params.bytes(),
-                )
-            });
-
-            let result = cm.with_transaction(|cm| {
-                // Invoke the message.
-                let ret = cm.send::<K>(
+        let ret = self
+            .map_machine(|machine| {
+                // We're processing a chain message, so the sender is the origin of the call stack.
+                let mut cm = K::CallManager::new(
+                    machine,
+                    engine,
+                    msg.gas_limit,
                     sender_id,
+                    msg.from,
+                    receiver_id,
                     msg.to,
-                    msg.method_num,
-                    params,
-                    &msg.value,
-                    None,
-                    false,
-                )?;
-
-                // Charge for including the result (before we end the transaction).
-                if let Some(value) = &ret.value {
-                    let _ = cm.charge_gas(
-                        cm.context()
-                            .price_list
-                            .on_chain_return_value(value.size() as usize),
-                    )?;
+                    msg.sequence,
+                    effective_premium,
+                );
+                // This error is fatal because it should have already been accounted for inside
+                // preflight_message.
+                if let Err(e) = cm.charge_gas(inclusion_cost) {
+                    let (_, machine) = cm.finish();
+                    return (Err(e), machine);
                 }
 
-                Ok(ret)
-            });
+                let params = (!msg.params.is_empty()).then(|| {
+                    Block::new(
+                        if msg.method_num == METHOD_SEND {
+                            // Method zero params are "arbitrary bytes", so we'll just count them as
+                            // raw.
+                            //
+                            // This won't actually affect anything (because no code will see these
+                            // parameters), but it's more correct and makes me happier.
+                            //
+                            // NOTE: this _may_ start to matter once we start _validating_ ipld (m2.2).
+                            IPLD_RAW
+                        } else {
+                            // This is CBOR, not DAG_CBOR, because links sent from off-chain aren't
+                            // reachable.
+                            CBOR
+                        },
+                        msg.params.bytes(),
+                    )
+                });
 
-            let (res, machine) = match cm.finish() {
-                (Ok(res), machine) => (res, machine),
-                (Err(err), machine) => return (Err(err), machine),
-            };
+                let result = cm.with_transaction(|cm| {
+                    // Invoke the message.
+                    let ret = cm.send::<K>(
+                        sender_id,
+                        msg.to,
+                        msg.method_num,
+                        params,
+                        &msg.value,
+                        None,
+                        false,
+                    )?;
 
-            (
-                Ok(MachineExecRet {
-                    result,
-                    gas_used: res.gas_used,
-                    backtrace: res.backtrace,
-                    exec_trace: res.exec_trace,
-                    events_root: res.events_root,
-                    events: res.events,
-                }),
-                machine,
-            )
-        })?;
+                    // Charge for including the result (before we end the transaction).
+                    if let Some(value) = &ret.value {
+                        let _ = cm.charge_gas(
+                            cm.context()
+                                .price_list
+                                .on_chain_return_value(value.size() as usize),
+                        )?;
+                    }
+
+                    Ok(ret)
+                });
+
+                let (res, machine) = match cm.finish() {
+                    (Ok(res), machine) => (res, machine),
+                    (Err(err), machine) => return (Err(err), machine),
+                };
+
+                (
+                    Ok(MachineExecRet {
+                        result,
+                        gas_used: res.gas_used,
+                        backtrace: res.backtrace,
+                        exec_trace: res.exec_trace,
+                        events_root: res.events_root,
+                        events: res.events,
+                    }),
+                    machine,
+                )
+            })
+            .map_err(|e| anyhow!(e))?;
 
         let MachineExecRet {
             result: res,
@@ -294,8 +297,7 @@ where
 
     /// Flush the state-tree to the underlying blockstore.
     fn flush(&mut self) -> anyhow::Result<Cid> {
-        let k = (**self).flush()?;
-        Ok(k)
+        (**self).flush().map_err(|e| anyhow!(e))
     }
 }
 
@@ -343,7 +345,7 @@ where
         apply_kind: ApplyKind,
         raw_length: usize,
     ) -> Result<StdResult<(ActorID, TokenAmount, GasCharge), ApplyRet>> {
-        msg.check().or_fatal()?;
+        msg.check()?;
 
         // TODO We don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
@@ -376,7 +378,8 @@ where
         let sender_id = match self
             .state_tree()
             .lookup_id(&msg.from)
-            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))
+            .map_err(|e| anyhow!(e))?
         {
             Some(id) => id,
             None => {
@@ -395,7 +398,8 @@ where
         let mut sender_state = match self
             .state_tree()
             .get_actor(sender_id)
-            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+            .with_context(|| format!("failed to lookup actor {}", &msg.from))
+            .map_err(|e| anyhow!(e))?
         {
             Some(act) => act,
             None => {
@@ -462,7 +466,10 @@ where
             )));
         }
 
-        sender_state.deduct_funds(&gas_cost)?;
+        sender_state
+            .deduct_funds(&gas_cost)
+            .context("already checked actor balance")
+            .map_err(|e| anyhow!(e))?;
 
         // Update the actor in the state tree
         self.state_tree_mut().set_actor(sender_id, sender_state);
@@ -511,8 +518,8 @@ where
                     act.deposit_funds(amt);
                     Ok(())
                 })
-                .context("failed to lookup actor for transfer")?;
-            Ok(())
+                .context("failed to lookup actor for transfer")
+                .map_err(|e| anyhow!(e))
         };
 
         transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;

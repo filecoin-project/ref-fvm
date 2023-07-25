@@ -90,7 +90,7 @@ where
         // Create a new state tree from the supplied root.
         let state_tree = {
             let bstore = BufferedBlockstore::new(blockstore);
-            StateTree::new_from_root(bstore, &context.initial_state_root)?
+            StateTree::new_from_root(bstore, &context.initial_state_root).map_err(|e| anyhow!(e))?
         };
 
         // Load the built-in actors manifest.
@@ -103,7 +103,7 @@ where
                 (cid, version)
             }
             None => {
-                let (state, _) = SystemActorState::load(&state_tree)?;
+                let (state, _) = SystemActorState::load(&state_tree).map_err(|e| anyhow!(e))?;
                 (state.builtin_actors, 1)
             }
         };

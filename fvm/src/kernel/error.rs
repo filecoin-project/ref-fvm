@@ -160,18 +160,6 @@ impl Context for ExecutionError {
     }
 }
 
-// We only use this when converting to a fatal error, so we throw away the error code.
-impl From<ExecutionError> for anyhow::Error {
-    fn from(e: ExecutionError) -> Self {
-        use ExecutionError::*;
-        match e {
-            OutOfGas => anyhow::anyhow!("out of gas"),
-            Syscall(err) => anyhow::anyhow!(err.0),
-            Fatal(err) => err,
-        }
-    }
-}
-
 /// Represents an error from a syscall. It can optionally contain a
 /// syscall-advised exit code for the kind of error that was raised.
 /// We may want to add an optional source error here.
