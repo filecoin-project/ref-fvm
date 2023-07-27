@@ -186,6 +186,13 @@ where
                 method,
                 params: params.as_ref().map(Into::into),
                 value: value.clone(),
+                gas_limit: std::cmp::min(
+                    gas_limit
+                        .unwrap_or(Gas::from_milligas(u64::MAX))
+                        .as_milligas(),
+                    self.gas_tracker.gas_available().as_milligas(),
+                ),
+                read_only,
             });
         }
 

@@ -25,6 +25,8 @@ pub enum ExecutionEvent {
         method: MethodNum,
         params: Option<IpldBlock>,
         value: TokenAmount,
+        gas_limit: u64,
+        read_only: bool,
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
