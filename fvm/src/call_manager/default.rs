@@ -661,6 +661,10 @@ where
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
+        if self.machine.context().tracing {
+            self.trace(ExecutionEvent::InvokeActor(state.code));
+        }
+
         // Transfer, if necessary.
         if !value.is_zero() {
             let t = self.charge_gas(self.price_list().on_value_transfer())?;

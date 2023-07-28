@@ -31,5 +31,5 @@ pub enum ExecutionEvent {
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
-    Invoke(Cid),
+    InvokeActor(Cid),
 }
