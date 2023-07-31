@@ -4,9 +4,11 @@ use std::fmt::Display;
 
 use fvm_shared::address::Address;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::ActorID;
 
 use crate::kernel::SyscallError;
+
+use super::Entrypoint;
 
 /// A call backtrace records the actors an error was propagated through, from
 /// the moment it was emitted. The original error is the _cause_. Backtraces are
@@ -76,8 +78,8 @@ impl Backtrace {
 pub struct Frame {
     /// The actor that exited with this code.
     pub source: ActorID,
-    /// The method that was invoked.
-    pub method: MethodNum,
+    /// The entrypoint that was invoked.
+    pub entrypoint: Entrypoint,
     /// The exit code.
     pub code: ExitCode,
     /// The abort message.
@@ -90,7 +92,7 @@ impl Display for Frame {
             f,
             "{} (method {}) -- {} ({})",
             Address::new_id(self.source),
-            self.method,
+            self.entrypoint,
             &self.message,
             self.code,
         )

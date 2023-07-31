@@ -353,12 +353,15 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn create_actor(
+    fn create_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         _code_id: Cid,
         _actor_id: ActorID,
         _delegated_address: Option<Address>,
-    ) -> kernel::Result<()> {
+        _value: &TokenAmount,
+        _params: Option<kernel::Block>,
+        _gas_limit: Option<Gas>,
+    ) -> kernel::Result<InvocationResult> {
         todo!()
     }
 

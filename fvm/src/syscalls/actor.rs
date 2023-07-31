@@ -1,10 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context as _};
+use fvm_shared::econ::TokenAmount;
 use fvm_shared::{sys, ActorID};
 
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
+use crate::gas::Gas;
+use crate::kernel::{ClassifyResult, Result, SendResult};
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
@@ -90,13 +92,18 @@ pub fn next_actor_address(
     Ok(len as u32)
 }
 
-pub fn create_actor(
-    context: Context<'_, impl Kernel>,
+#[allow(clippy::too_many_arguments)]
+pub fn create_actor<K: Kernel>(
+    context: Context<'_, K>,
     actor_id: u64, // ID
     typ_off: u32,  // Cid
     delegated_addr_off: u32,
     delegated_addr_len: u32,
-) -> Result<()> {
+    params_id: u32,
+    value_hi: u64,
+    value_lo: u64,
+    gas_limit: u64,
+) -> Result<sys::out::send::Send> {
     let typ = context.memory.read_cid(typ_off)?;
     let addr = (delegated_addr_len > 0)
         .then(|| {
@@ -106,7 +113,26 @@ pub fn create_actor(
         })
         .transpose()?;
 
-    context.kernel.create_actor(typ, actor_id, addr)
+    let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
+
+    // If the gas is u64::MAX, treat it as "all gas". Although really, this doesn't matter. Any gas
+    // exceeding the current gas available is treated as "all remaining gas".
+    let gas_limit = (gas_limit < u64::MAX).then(|| Gas::new(gas_limit));
+
+    let SendResult {
+        block_id,
+        block_stat,
+        exit_code,
+    } = context
+        .kernel
+        .create_actor(typ, actor_id, addr, &value, params_id, gas_limit)?;
+
+    Ok(sys::out::send::Send {
+        exit_code: exit_code.value(),
+        return_id: block_id,
+        return_codec: block_stat.codec,
+        return_size: block_stat.size,
+    })
 }
 
 pub fn get_builtin_actor_type(
