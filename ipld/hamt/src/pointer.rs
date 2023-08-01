@@ -11,10 +11,13 @@ use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
+use self::pointer_v0::PointerDe;
+
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::Config;
 
+#[doc(hidden)]
 pub mod version {
     #[derive(PartialEq, Eq, Debug)]
     pub struct V0;
@@ -58,7 +61,7 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
 
 mod pointer_v0 {
     use cid::Cid;
-    use serde::Serialize;
+    use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 
     use crate::KeyValuePair;
 
@@ -66,8 +69,18 @@ mod pointer_v0 {
 
     #[derive(Serialize)]
     pub(super) enum PointerSer<'a, K, V> {
+        #[serde(rename = "0")]
         Vals(&'a [KeyValuePair<K, V>]),
+        #[serde(rename = "1")]
         Link(&'a Cid),
+    }
+
+    #[derive(Deserialize, Serialize)]
+    pub enum PointerDe<K, V> {
+        #[serde(rename = "0")]
+        Link(Cid),
+        #[serde(rename = "1")]
+        Vals(Vec<KeyValuePair<K, V>>),
     }
 
     impl<'a, K, V, Ver, H> TryFrom<&'a Pointer<K, V, Ver, H>> for PointerSer<'a, K, V> {
@@ -78,6 +91,18 @@ mod pointer_v0 {
                 Pointer::Values(vals) => Ok(PointerSer::Vals(vals.as_ref())),
                 Pointer::Link { cid, .. } => Ok(PointerSer::Link(cid)),
                 Pointer::Dirty(_) => Err("Cannot serialize cached values"),
+            }
+        }
+    }
+
+    impl<K, V, Ver, H> From<PointerDe<K, V>> for Pointer<K, V, Ver, H> {
+        fn from(pointer: PointerDe<K, V>) -> Self {
+            match pointer {
+                PointerDe::Link(cid) => Pointer::Link {
+                    cid,
+                    cache: Default::default(),
+                },
+                PointerDe::Vals(vals) => Pointer::Values(vals),
             }
         }
     }
@@ -145,31 +170,33 @@ where
     {
         match Ver::NUMBER {
             0 => {
-                let ipld = Ipld::deserialize(deserializer)?;
-                let (_key, value) = match ipld {
-                    Ipld::Map(map) => map
-                        .into_iter()
-                        .next()
-                        .ok_or("Expected at least one element".to_string()),
-                    other => Err(format!("Expected `Ipld::Map`, got {:#?}", other)),
-                }
-                .map_err(de::Error::custom)?;
-                match value {
-                    ipld_list @ Ipld::List(_) => {
-                        let values: Vec<KeyValuePair<K, V>> =
-                            Deserialize::deserialize(ipld_list).map_err(de::Error::custom)?;
-                        Ok(Self::Values(values))
-                    }
-                    Ipld::Link(cid) => Ok(Self::Link {
-                        cid,
-                        cache: Default::default(),
-                    }),
-                    other => Err(format!(
-                        "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
-                        other
-                    )),
-                }
-                .map_err(de::Error::custom)
+                let pointer_de: PointerDe<K, V> = Deserialize::deserialize(deserializer)?;
+                Ok(Pointer::from(pointer_de))
+                // let ipld = Ipld::deserialize(deserializer)?;
+                // let (_key, value) = match ipld {
+                //     Ipld::Map(map) => map
+                //         .into_iter()
+                //         .next()
+                //         .ok_or("Expected at least one element".to_string()),
+                //     other => Err(format!("Expected `Ipld::Map`, got {:#?}", other)),
+                // }
+                // .map_err(de::Error::custom)?;
+                // match value {
+                //     ipld_list @ Ipld::List(_) => {
+                //         let values: Vec<KeyValuePair<K, V>> =
+                //             Deserialize::deserialize(ipld_list).map_err(de::Error::custom)?;
+                //         Ok(Self::Values(values))
+                //     }
+                //     Ipld::Link(cid) => Ok(Self::Link {
+                //         cid,
+                //         cache: Default::default(),
+                //     }),
+                //     other => Err(format!(
+                //         "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
+                //         other
+                //     )),
+                // }
+                // .map_err(de::Error::custom)
             }
             _ => Ipld::deserialize(deserializer)
                 .and_then(|ipld| ipld.try_into().map_err(de::Error::custom)),

@@ -26,7 +26,6 @@ pub use self::error::Error;
 pub use self::hamt::{Hamt, Hamtv0};
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
-pub use self::pointer::version;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
@@ -76,7 +75,7 @@ impl Default for Config {
 type HashedKey = [u8; 32];
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-struct KeyValuePair<K, V>(K, V);
+pub struct KeyValuePair<K, V>(K, V);
 
 impl<K, V> KeyValuePair<K, V> {
     pub fn key(&self) -> &K {

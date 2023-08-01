@@ -16,7 +16,7 @@ use serde::{Serialize, Serializer};
 use crate::hash_bits::HashBits;
 use crate::node::Node;
 use crate::pointer::version::Version;
-use crate::{version, Config, Error, Hash, HashAlgorithm, Sha256};
+use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -34,11 +34,12 @@ use crate::{version, Config, Error, Hash, HashAlgorithm, Sha256};
 /// assert_eq!(map.get::<_>(&1).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
-pub type Hamt<BS, V, K = BytesKey> = HamtImpl<BS, V, version::V3, K, Sha256>;
+pub type Hamt<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V3, K, H>;
 /// Legacy amt V0
-pub type Hamtv0<BS, V, K = BytesKey> = HamtImpl<BS, V, version::V0, K, Sha256>;
+pub type Hamtv0<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V0, K, H>;
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
     root: Node<K, V, Ver, H>,
     store: BS,
