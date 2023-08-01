@@ -61,7 +61,7 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
 
 mod pointer_v0 {
     use cid::Cid;
-    use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+    use serde::{Deserialize, Serialize};
 
     use crate::KeyValuePair;
 
@@ -172,31 +172,6 @@ where
             0 => {
                 let pointer_de: PointerDe<K, V> = Deserialize::deserialize(deserializer)?;
                 Ok(Pointer::from(pointer_de))
-                // let ipld = Ipld::deserialize(deserializer)?;
-                // let (_key, value) = match ipld {
-                //     Ipld::Map(map) => map
-                //         .into_iter()
-                //         .next()
-                //         .ok_or("Expected at least one element".to_string()),
-                //     other => Err(format!("Expected `Ipld::Map`, got {:#?}", other)),
-                // }
-                // .map_err(de::Error::custom)?;
-                // match value {
-                //     ipld_list @ Ipld::List(_) => {
-                //         let values: Vec<KeyValuePair<K, V>> =
-                //             Deserialize::deserialize(ipld_list).map_err(de::Error::custom)?;
-                //         Ok(Self::Values(values))
-                //     }
-                //     Ipld::Link(cid) => Ok(Self::Link {
-                //         cid,
-                //         cache: Default::default(),
-                //     }),
-                //     other => Err(format!(
-                //         "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
-                //         other
-                //     )),
-                // }
-                // .map_err(de::Error::custom)
             }
             _ => Ipld::deserialize(deserializer)
                 .and_then(|ipld| ipld.try_into().map_err(de::Error::custom)),
