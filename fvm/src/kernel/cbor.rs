@@ -66,11 +66,11 @@ pub(super) fn scan_for_reachable_links(
         let mut remaining: u64 = 1;
         while remaining > 0 {
             remaining -= 1;
-            if *gas_available < price_list.ipld_cbor_scan_per_item {
+            if *gas_available < price_list.ipld_cbor_scan_per_field {
                 *gas_available = Gas::zero();
                 return Err(ExecutionError::OutOfGas);
             }
-            *gas_available -= price_list.ipld_cbor_scan_per_item;
+            *gas_available -= price_list.ipld_cbor_scan_per_field;
             let (maj, extra) = cbor_read_header_buf(&mut buf)?;
             match maj {
                 // MajUnsignedInt, MajNegativeInt, MajOther
@@ -168,6 +168,8 @@ pub(super) fn scan_for_reachable_links(
                             );
                     }
 
+                    // TODO: Charge a memory retention fee here? Or bundle that into the CID charge
+                    // above?
                     out.push(cid);
                 }
                 // MajArray

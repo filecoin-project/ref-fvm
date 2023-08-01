@@ -326,7 +326,8 @@ lazy_static! {
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
 
         ipld_cbor_scan_per_cid: Gas::zero(),
-        ipld_cbor_scan_per_item: Gas::zero(),
+        ipld_cbor_scan_per_field: Gas::zero(),
+        ipld_links_tracked: ScalingCost::zero(),
     };
 }
 
@@ -490,8 +491,14 @@ pub struct PriceList {
     /// Actor IDs that can be updated for free.
     pub(crate) preloaded_actors: Vec<ActorID>,
 
-    pub(crate) ipld_cbor_scan_per_item: Gas,
+    /// Gas cost per field encountered when parsing CBOR.
+    pub(crate) ipld_cbor_scan_per_field: Gas,
+
+    /// Gas cost per CID encountered when parsing CBOR.
     pub(crate) ipld_cbor_scan_per_cid: Gas,
+
+    /// Gas cost for tracking new reachable links.
+    pub(crate) ipld_links_tracked: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -539,20 +546,33 @@ impl PriceList {
 
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(&self) -> GasCharge {
-        GasCharge::new("OnMethodInvocation", self.send_invoke_method, Zero::zero())
+    pub fn on_method_invocation(&self, _param_size: u32, param_links: usize) -> GasCharge {
+        let charge = self.send_invoke_method + self.ipld_links_tracked * param_links;
+        GasCharge::new("OnMethodInvocation", charge, Zero::zero())
     }
 
-    /// Returns the gas required for storing the response of a message in the chain.
+    /// Returns the gas required for returning a value from a method. At the top-level, this charges
+    /// for storing the block on-chain. Everywhere else, it charges for tracking IPLD links.
     #[inline]
-    pub fn on_method_return(&self, call_depth: u32, data_size: u32) -> Option<GasCharge> {
-        (call_depth == 1).then(|| {
+    pub fn on_method_return(
+        &self,
+        call_depth: u32,
+        return_size: u32,
+        return_links: usize,
+    ) -> GasCharge {
+        if call_depth == 1 {
             GasCharge::new(
                 "OnChainReturnValue",
-                self.on_chain_return_compute.apply(data_size),
-                self.on_chain_return_storage.apply(data_size),
+                self.on_chain_return_compute.apply(return_size),
+                self.on_chain_return_storage.apply(return_size),
             )
-        })
+        } else {
+            GasCharge::new(
+                "OnIpldLinksTracked",
+                self.ipld_links_tracked * return_links,
+                Zero::zero(),
+            )
+        }
     }
 
     /// Returns the gas cost to be applied on a syscall.
@@ -720,7 +740,8 @@ impl PriceList {
 
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
-    pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
+    pub fn on_block_opened(&self, data_size: usize, _links: usize) -> GasCharge {
+        // TODO: charge for links
         // These are the actual compute costs involved.
         let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
         let block_open = self.block_open.scale * data_size;
@@ -748,7 +769,8 @@ impl PriceList {
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self, data_size: usize) -> GasCharge {
+    pub fn on_block_create(&self, data_size: u32, _links: usize) -> GasCharge {
+        // TODO: charge for links
         // These are the actual compute costs involved.
         let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
 
@@ -1260,10 +1282,7 @@ impl Rules for WasmGasPrices {
 fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
     // getting the expected 10 gas/byte.
-    assert_eq!(
-        WATERMELON_PRICES.on_block_open_per_byte(10).total(),
-        Gas::new(100)
-    );
+    assert_eq!(WATERMELON_PRICES.on_block_opened(10).total(), Gas::new(100));
     assert_eq!(WATERMELON_PRICES.on_block_create(10).total(), Gas::new(100));
 }
 

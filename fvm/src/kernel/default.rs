@@ -308,7 +308,7 @@ where
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open_per_byte(block.size() as usize),
+                .on_block_opened(block.size() as usize, block.links().len()),
         )?;
 
         let stat = block.stat();
@@ -338,9 +338,11 @@ where
 
         let blk = Block::new(codec, data, children);
 
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_block_create(blk.size(), blk.links().len()),
+        )?;
 
         t.record(Ok(self.blocks.put_check_reachable(blk)?))
     }
