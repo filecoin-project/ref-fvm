@@ -141,11 +141,9 @@ where
         }
 
         // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.send::<K>(
-                from, *recipient, method, params, value, gas_limit, read_only,
-            )
-        })?;
+        let result = self.call_manager.send::<K>(
+            from, *recipient, method, params, value, gas_limit, read_only,
+        )?;
 
         // Store result and return.
         Ok(match result {

@@ -74,12 +74,6 @@ pub trait CallManager: 'static {
         read_only: bool,
     ) -> Result<InvocationResult>;
 
-    /// Execute some operation (usually a send) within a transaction.
-    fn with_transaction(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
-    ) -> Result<InvocationResult>;
-
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
     fn finish(self) -> (Result<FinishRet>, Self::Machine);
 

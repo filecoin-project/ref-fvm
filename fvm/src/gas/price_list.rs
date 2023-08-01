@@ -525,16 +525,6 @@ impl PriceList {
         )
     }
 
-    /// Returns the gas required for storing the response of a message in the chain.
-    #[inline]
-    pub fn on_chain_return_value(&self, data_size: usize) -> GasCharge {
-        GasCharge::new(
-            "OnChainReturnValue",
-            self.on_chain_return_compute.apply(data_size),
-            self.on_chain_return_storage.apply(data_size),
-        )
-    }
-
     /// Returns the gas required when invoking a method.
     #[inline]
     pub fn on_value_transfer(&self) -> GasCharge {
@@ -545,6 +535,18 @@ impl PriceList {
     #[inline]
     pub fn on_method_invocation(&self) -> GasCharge {
         GasCharge::new("OnMethodInvocation", self.send_invoke_method, Zero::zero())
+    }
+
+    /// Returns the gas required for storing the response of a message in the chain.
+    #[inline]
+    pub fn on_method_return(&self, call_depth: u32, data_size: u32) -> Option<GasCharge> {
+        (call_depth == 1).then(|| {
+            GasCharge::new(
+                "OnChainReturnValue",
+                self.on_chain_return_compute.apply(data_size),
+                self.on_chain_return_storage.apply(data_size),
+            )
+        })
     }
 
     /// Returns the gas cost to be applied on a syscall.

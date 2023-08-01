@@ -194,14 +194,46 @@ where
             self.gas_tracker.push_limit(limit);
         }
 
-        let mut result = self.with_stack_frame(|s| {
-            s.send_unchecked::<K>(from, to, method, params, value, read_only)
-        });
-
-        // If we pushed a limit, pop it.
-        if gas_limit.is_some() {
-            self.gas_tracker.pop_limit()?;
+        if self.call_stack_depth >= self.machine.context().max_call_depth {
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
+            }
+            return Err(sys_err.into());
         }
+
+        self.state_tree_mut().begin_transaction();
+        self.events.begin_transaction();
+        self.state_access_tracker.begin_transaction();
+        self.call_stack_depth += 1;
+
+        let (revert, mut result) = match <<Self::Machine as Machine>::Limiter>::with_stack_frame(
+            self,
+            |s| s.limiter_mut(),
+            |s| s.send_unchecked::<K>(from, to, method, params, value, read_only),
+        ) {
+            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+
+        self.call_stack_depth -= 1;
+        // Return the _first_ error (if any). We don't expect any errors here anyways as all error
+        // cases are fatal.
+        if let Some(err) = [
+            // End all transactions
+            self.state_access_tracker.end_transaction(revert).err(),
+            self.events.end_transaction(revert).err(),
+            self.state_tree_mut().end_transaction(revert).err(),
+            // If we pushed a gas limit, pop it.
+            gas_limit.and_then(|_| self.gas_tracker.pop_limit().err()),
+        ]
+        .into_iter()
+        .flatten() // Iterator<Option<Error>> -> Iterator<Error>
+        .next()
+        {
+            return Err(err);
+        }
+
         // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
         // the error with an explicit exit code.
         if !self.gas_tracker.gas_available().is_zero()
@@ -229,26 +261,6 @@ where
         }
 
         result
-    }
-
-    fn with_transaction(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
-    ) -> Result<InvocationResult> {
-        self.state_tree_mut().begin_transaction();
-        self.events.begin_transaction();
-        self.state_access_tracker.begin_transaction();
-
-        let (revert, res) = match f(self) {
-            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
-            Err(e) => (true, Err(e)),
-        };
-
-        self.state_tree_mut().end_transaction(revert)?;
-        self.events.end_transaction(revert)?;
-        self.state_access_tracker.end_transaction(revert)?;
-
-        res
     }
 
     fn finish(mut self) -> (Result<FinishRet>, Self::Machine) {
@@ -587,7 +599,8 @@ where
         self.create_actor_from_send(addr, state)
     }
 
-    /// Send without checking the call depth.
+    /// Send without checking the call depth and/or dealing with transactions. This must _only_ be
+    /// called from `send`.
     fn send_unchecked<K>(
         &mut self,
         from: ActorID,
@@ -824,6 +837,24 @@ where
                 }
             };
 
+            // Charge for the return value if we're returning to the chain itself. In the (near)
+            // future, we'll charge for internal returns as well (to charge for link tracking).
+            // Unfortunately, we have to do this _here_ instead of in the caller as we need to apply
+            // the call's gas limit.
+            if let Some(ret_size) = ret
+                .as_ref()
+                .ok()
+                .and_then(|r| r.value.as_ref())
+                .map(|v| v.size())
+            {
+                if let Some(charge) = cm
+                    .price_list()
+                    .on_method_return(cm.call_stack_depth, ret_size)
+                {
+                    let _ = cm.charge_gas(charge);
+                }
+            }
+
             // Log the results if tracing is enabled.
             if log::log_enabled!(log::Level::Trace) {
                 match &ret {
@@ -851,30 +882,6 @@ where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
-    }
-
-    /// Check that we're not violating the call stack depth, then envelope a call
-    /// with an increase/decrease of the depth to make sure none of them are missed.
-    fn with_stack_frame<F, V>(&mut self, f: F) -> Result<V>
-    where
-        F: FnOnce(&mut Self) -> Result<V>,
-    {
-        if self.call_stack_depth >= self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
-        }
-
-        self.call_stack_depth += 1;
-        let res = <<<DefaultCallManager<M> as CallManager>::Machine as Machine>::Limiter>::with_stack_frame(
-            self,
-            |s| s.limiter_mut(),
-            f,
-        );
-        self.call_stack_depth -= 1;
-        res
     }
 }
 

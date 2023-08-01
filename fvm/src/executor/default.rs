@@ -139,29 +139,17 @@ where
                 )
             });
 
-            let result = cm.with_transaction(|cm| {
-                // Invoke the message.
-                let ret = cm.send::<K>(
-                    sender_id,
-                    msg.to,
-                    msg.method_num,
-                    params,
-                    &msg.value,
-                    None,
-                    false,
-                )?;
-
-                // Charge for including the result (before we end the transaction).
-                if let Some(value) = &ret.value {
-                    let _ = cm.charge_gas(
-                        cm.context()
-                            .price_list
-                            .on_chain_return_value(value.size() as usize),
-                    )?;
-                }
-
-                Ok(ret)
-            });
+            // Invoke the message. We charge for the return value internally if the call-stack depth
+            // is 1.
+            let result = cm.send::<K>(
+                sender_id,
+                msg.to,
+                msg.method_num,
+                params,
+                &msg.value,
+                None,
+                false,
+            );
 
             let (res, machine) = match cm.finish() {
                 (Ok(res), machine) => (res, machine),
