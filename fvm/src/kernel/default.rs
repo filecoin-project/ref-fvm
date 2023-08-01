@@ -291,11 +291,15 @@ where
             .or_fatal()?;
 
         let children = if cid.codec() == DAG_CBOR {
+            // Failure in scanning here is fatal as we're reading a reachable block from the
+            // datastore. If something goes wrong here, our datastore is corrupted.
+            // TODO: We should also make this "super fatal" (fail the block).
             cbor::scan_for_reachable_links(
                 &data,
                 self.call_manager.price_list(),
                 self.call_manager.gas_tracker(),
-            )?
+            )
+            .or_fatal()?
         } else {
             Vec::new()
         };

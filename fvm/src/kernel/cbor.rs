@@ -117,42 +117,58 @@ pub(super) fn scan_for_reachable_links(
                                     .into(),
                             );
                     }
-                    let cid_buf;
-                    (cid_buf, buf) = buf.split_at(extra as usize);
-                    // TODO: Validate that there's nothing remaining!
-                    let cid = Cid::try_from(&cid_buf[1..])
+
+                    // Read the CID and validate it. The CID type itself validates that.
+                    let mut cid_buf;
+                    (cid_buf, buf) = buf[1..].split_at(extra as usize);
+                    let cid = Cid::read_bytes(&mut cid_buf)
                         .map_err(|e| syscall_error!(Serialization; "invalid cid: {e}"))?;
+                    if !cid_buf.is_empty() {
+                        return Err(syscall_error!(Serialization; "cid has trailing bytes").into());
+                    }
+
+                    // Then handle it...
+
                     let codec = cid.codec();
 
-                    // TODO: EW! We need to make this less absolutely crappy.
                     if IGNORED_CODECS.contains(&codec) {
-                        // skip
-                        // TODO: Check length/hash function? Doesn't really matter, I guess.
-                    } else if !ALLOWED_CODECS.contains(&codec) {
-                        // The error is NotFound because the child statically could not be
-                        // found.
-                        // TODO: A better error in this case? E_CHILD_NOT_FOUND?
+                        // NOTE: We don't check multihash codecs here and allow arbitrary hash
+                        // digests (assuming the digest is <= 64 bytes).
+                        continue;
+                    }
+
+                    if !ALLOWED_CODECS.contains(&codec) {
+                        // NOTE: We could get away without doing this here _except_ for
+                        // identity-hash CIDs. Because, unfortunately, those _don't_ go through the
+                        // `ipld::block_create` API.
+
+                        // The error is NotFound because the child is statically "unfindable"
+                        // because blocks with this CID cannot exist.
                         return Err(
                                 syscall_error!(NotFound; "block links to CID with forbidden codec {codec}")
                                     .into(),
                             );
-                    } else if cid.hash().code() == fvm_shared::IDENTITY_HASH {
+                    }
+
+                    if cid.hash().code() == fvm_shared::IDENTITY_HASH {
                         if cid.codec() == DAG_CBOR {
                             // TODO: Test max recursion depth. Each level should take 6-7 bytes
                             // leaving at most 11 (likely less) recursive calls (max of a 64
                             // byte digest). We need to make sure this isn't going to be a
-                            // problem, or rewite this to be non-recursive.
+                            // problem, or rewrite this to be non-recursive.
                             inner(cid.hash().digest(), price_list, gas_available, out)?;
                         }
-                    } else if cid.hash().code() != BLAKE2B_256 || cid.hash().size() != 32 {
+                        continue;
+                    }
+
+                    if cid.hash().code() != BLAKE2B_256 || cid.hash().size() != 32 {
                         return Err(
                                 syscall_error!(NotFound; "block links to CID with forbidden multihash type (code: {}, len: {})", cid.hash().code(), cid.hash().size())
                                     .into(),
                             );
-                    } else {
-                        // TODO: Charge a memory retention fee?
-                        out.push(cid);
                     }
+
+                    out.push(cid);
                 }
                 // MajArray
                 4 => {
