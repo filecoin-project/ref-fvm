@@ -292,14 +292,6 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn with_transaction(
-        &mut self,
-        _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
-    ) -> kernel::Result<InvocationResult> {
-        // Ok(InvocationResult::Return(None))
-        todo!()
-    }
-
     fn finish(self) -> (kernel::Result<FinishRet>, Self::Machine) {
         (
             Ok(FinishRet {
