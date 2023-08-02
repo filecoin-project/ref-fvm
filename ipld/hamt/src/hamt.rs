@@ -80,6 +80,7 @@ where
     Ver: Version,
     H: HashAlgorithm,
 {
+    #[deprecated = "specify a bit-width explicitly"]
     pub fn new(store: BS) -> Self {
         Self::new_with_config(store, Config::default())
     }
@@ -106,6 +107,7 @@ where
     }
 
     /// Lazily instantiate a hamt from this root Cid.
+    #[deprecated = "specify a bit-width explicitly"]
     pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
         Self::load_with_config(cid, store, Config::default())
     }
