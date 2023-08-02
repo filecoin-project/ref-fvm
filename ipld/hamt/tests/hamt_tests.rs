@@ -894,7 +894,7 @@ fn tstring(v: impl Display) -> BytesKey {
 
 mod test_default {
     use fvm_ipld_blockstore::{tracking::BSStats, MemoryBlockstore};
-    use fvm_ipld_hamt::{Config, Hamtv0, DEFAULT_BIT_WIDTH_V0};
+    use fvm_ipld_hamt::{Config, Hamtv0};
     use quickcheck_macros::quickcheck;
 
     use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
@@ -1011,7 +1011,7 @@ mod test_default {
     #[test]
     fn test_hamtv0() {
         let config = Config {
-            bit_width: DEFAULT_BIT_WIDTH_V0,
+            bit_width: 5,
             ..Default::default()
         };
         let store = MemoryBlockstore::default();

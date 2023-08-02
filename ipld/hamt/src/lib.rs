@@ -29,8 +29,6 @@ pub use self::hash_algorithm::*;
 
 /// Default bit width for indexing a hash at each depth level
 const DEFAULT_BIT_WIDTH: u32 = 8;
-/// Default bit width for indexing a hash at each depth level for Hamt v0
-pub const DEFAULT_BIT_WIDTH_V0: u32 = 5;
 
 /// Configuration options for a HAMT instance.
 #[derive(Debug, Clone)]
