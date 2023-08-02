@@ -327,7 +327,8 @@ lazy_static! {
 
         ipld_cbor_scan_per_cid: Gas::zero(),
         ipld_cbor_scan_per_field: Gas::zero(),
-        ipld_links_tracked: ScalingCost::zero(),
+        ipld_link_tracked: Gas::zero(),
+        ipld_link_checked: Gas::zero(),
     };
 }
 
@@ -498,7 +499,10 @@ pub struct PriceList {
     pub(crate) ipld_cbor_scan_per_cid: Gas,
 
     /// Gas cost for tracking new reachable links.
-    pub(crate) ipld_links_tracked: Gas,
+    pub(crate) ipld_link_tracked: Gas,
+
+    /// Gas cost for checking if CID is reachable.
+    pub(crate) ipld_link_checked: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -547,7 +551,7 @@ impl PriceList {
     /// Returns the gas required when invoking a method.
     #[inline]
     pub fn on_method_invocation(&self, _param_size: u32, param_links: usize) -> GasCharge {
-        let charge = self.send_invoke_method + self.ipld_links_tracked * param_links;
+        let charge = self.send_invoke_method + self.ipld_link_tracked * param_links;
         GasCharge::new("OnMethodInvocation", charge, Zero::zero())
     }
 
@@ -569,7 +573,7 @@ impl PriceList {
         } else {
             GasCharge::new(
                 "OnIpldLinksTracked",
-                self.ipld_links_tracked * return_links,
+                self.ipld_link_tracked * return_links,
                 Zero::zero(),
             )
         }
@@ -735,15 +739,20 @@ impl PriceList {
     /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
     pub fn on_block_open_base(&self) -> GasCharge {
-        GasCharge::new("OnBlockOpenBase", Zero::zero(), self.block_open.flat)
+        GasCharge::new(
+            "OnBlockOpenBase",
+            Zero::zero(),
+            self.block_open.flat + self.ipld_link_checked,
+        )
     }
 
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
-    pub fn on_block_opened(&self, data_size: usize, _links: usize) -> GasCharge {
-        // TODO: charge for links
+    pub fn on_block_opened(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
-        let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
+        let compute = self.block_allocate.apply(data_size)
+            + self.block_memcpy.apply(data_size)
+            + self.ipld_link_tracked * links;
         let block_open = self.block_open.scale * data_size;
 
         // But we need to make sure we charge at least the memory retention cost.
@@ -769,10 +778,11 @@ impl PriceList {
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self, data_size: u32, _links: usize) -> GasCharge {
-        // TODO: charge for links
+    pub fn on_block_create(&self, data_size: u32, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
-        let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
+        let compute = self.block_memcpy.apply(data_size)
+            + self.block_allocate.apply(data_size)
+            + self.ipld_link_checked * links;
 
         // But we need to make sure we charge at least the memory retention cost.
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
@@ -790,7 +800,7 @@ impl PriceList {
         let alloc = self.block_allocate.apply(data_size);
         let hashing = self.hashing_cost[&hash_code].apply(data_size);
 
-        let initial_compute = memcpy + alloc + hashing;
+        let initial_compute = memcpy + alloc + hashing + self.ipld_link_tracked;
 
         // We also have to charge for storage...
         let storage = self.block_persist_storage.apply(data_size);
@@ -962,6 +972,16 @@ impl PriceList {
             // one copy into the AMT, one copy to the client.
             hash + (mem * 2u32),
         )
+    }
+
+    #[inline]
+    pub fn on_get_root(&self) -> GasCharge {
+        GasCharge::new("OnActorGetRoot", self.ipld_link_tracked, Gas::zero())
+    }
+
+    #[inline]
+    pub fn on_set_root(&self) -> GasCharge {
+        GasCharge::new("OnActorSetRoot", self.ipld_link_checked, Gas::zero())
     }
 }
 
@@ -1282,8 +1302,14 @@ impl Rules for WasmGasPrices {
 fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
     // getting the expected 10 gas/byte.
-    assert_eq!(WATERMELON_PRICES.on_block_opened(10).total(), Gas::new(100));
-    assert_eq!(WATERMELON_PRICES.on_block_create(10).total(), Gas::new(100));
+    assert_eq!(
+        WATERMELON_PRICES.on_block_opened(10, 0).total(),
+        Gas::new(100)
+    );
+    assert_eq!(
+        WATERMELON_PRICES.on_block_create(10, 0).total(),
+        Gas::new(100)
+    );
 }
 
 #[test]

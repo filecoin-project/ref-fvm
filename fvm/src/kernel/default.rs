@@ -189,6 +189,10 @@ where
     C: CallManager,
 {
     fn root(&mut self) -> Result<Cid> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_root())?;
+
         // This can fail during normal operations if the actor has been deleted.
         let cid = self
             .get_self()?
@@ -197,6 +201,8 @@ where
             .state;
 
         self.blocks.mark_reachable(&cid);
+
+        t.stop();
 
         Ok(cid)
     }
@@ -207,6 +213,10 @@ where
                 syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
             );
         }
+
+        let _ = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_set_root())?;
 
         if !self.blocks.is_reachable(&new) {
             return Err(syscall_error!(NotFound; "new root cid not reachable: {new}").into());
