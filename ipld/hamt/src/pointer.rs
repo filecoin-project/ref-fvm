@@ -11,8 +11,6 @@ use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
-use self::pointer_v0::PointerDe;
-
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::Config;
@@ -70,9 +68,9 @@ mod pointer_v0 {
     #[derive(Serialize)]
     pub(super) enum PointerSer<'a, K, V> {
         #[serde(rename = "0")]
-        Vals(&'a [KeyValuePair<K, V>]),
-        #[serde(rename = "1")]
         Link(&'a Cid),
+        #[serde(rename = "1")]
+        Vals(&'a [KeyValuePair<K, V>]),
     }
 
     #[derive(Deserialize, Serialize)]
@@ -170,7 +168,8 @@ where
     {
         match Ver::NUMBER {
             0 => {
-                let pointer_de: PointerDe<K, V> = Deserialize::deserialize(deserializer)?;
+                let pointer_de: pointer_v0::PointerDe<K, V> =
+                    Deserialize::deserialize(deserializer)?;
                 Ok(Pointer::from(pointer_de))
             }
             _ => Ipld::deserialize(deserializer)
