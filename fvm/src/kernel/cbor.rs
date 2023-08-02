@@ -124,7 +124,10 @@ pub(super) fn scan_for_reachable_links(
                     let cid = Cid::read_bytes(&mut cid_buf)
                         .map_err(|e| syscall_error!(Serialization; "invalid cid: {e}"))?;
                     if !cid_buf.is_empty() {
-                        return Err(syscall_error!(Serialization; "cid has trailing bytes").into());
+                        return Err(
+                            syscall_error!(Serialization; "cid has {} trailing bytes", cid_buf.len())
+                                .into(),
+                        );
                     }
 
                     // Then handle it...
