@@ -73,7 +73,7 @@ impl Default for Config {
 type HashedKey = [u8; 32];
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct KeyValuePair<K, V>(K, V);
+struct KeyValuePair<K, V>(K, V);
 
 impl<K, V> KeyValuePair<K, V> {
     pub fn key(&self) -> &K {

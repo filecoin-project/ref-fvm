@@ -74,7 +74,7 @@ mod pointer_v0 {
     }
 
     #[derive(Deserialize, Serialize)]
-    pub enum PointerDe<K, V> {
+    pub(super) enum PointerDe<K, V> {
         #[serde(rename = "0")]
         Link(Cid),
         #[serde(rename = "1")]
