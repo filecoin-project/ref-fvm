@@ -15,7 +15,8 @@ use serde::{Serialize, Serializer};
 
 use crate::hash_bits::HashBits;
 use crate::node::Node;
-use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
+use crate::pointer::version::Version;
+use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -33,9 +34,14 @@ use crate::{Config, Error, Hash, HashAlgorithm, Sha256};
 /// assert_eq!(map.get::<_>(&1).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
+pub type Hamt<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V3, K, H>;
+/// Legacy amt V0
+pub type Hamtv0<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V0, K, H>;
+
 #[derive(Debug)]
-pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
-    root: Node<K, V, H>,
+#[doc(hidden)]
+pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
+    root: Node<K, V, Ver, H>,
     store: BS,
     conf: Config,
     hash: PhantomData<H>,
@@ -43,11 +49,12 @@ pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
     flushed_cid: Option<Cid>,
 }
 
-impl<BS, V, K, H> Serialize for Hamt<BS, V, K, H>
+impl<BS, V, Ver, K, H> Serialize for HamtImpl<BS, V, Ver, K, H>
 where
     K: Serialize,
     V: Serialize,
     H: HashAlgorithm,
+    Ver: Version,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -57,17 +64,20 @@ where
     }
 }
 
-impl<K: PartialEq, V: PartialEq, S: Blockstore, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
+impl<K: PartialEq, V: PartialEq, S: Blockstore, H: HashAlgorithm, Ver> PartialEq
+    for HamtImpl<S, V, Ver, K, H>
+{
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<BS, V, K, H> Hamt<BS, V, K, H>
+impl<BS, V, Ver, K, H> HamtImpl<BS, V, Ver, K, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
     BS: Blockstore,
+    Ver: Version,
     H: HashAlgorithm,
 {
     pub fn new(store: BS) -> Self {

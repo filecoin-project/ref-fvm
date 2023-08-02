@@ -893,7 +893,8 @@ fn tstring(v: impl Display) -> BytesKey {
 }
 
 mod test_default {
-    use fvm_ipld_blockstore::tracking::BSStats;
+    use fvm_ipld_blockstore::{tracking::BSStats, MemoryBlockstore};
+    use fvm_ipld_hamt::{Config, Hamtv0};
     use quickcheck_macros::quickcheck;
 
     use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
@@ -1005,6 +1006,21 @@ mod test_default {
             "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6",
         ]);
         super::clean_child_ordering(HamtFactory::default(), Some(stats), cids);
+    }
+
+    #[test]
+    fn test_hamtv0() {
+        let config = Config {
+            bit_width: 5,
+            ..Default::default()
+        };
+        let store = MemoryBlockstore::default();
+        let mut hamtv0: Hamtv0<_, _, usize> = Hamtv0::new_with_config(&store, config.clone());
+        hamtv0.set(1, "world".to_string()).unwrap();
+        assert_eq!(hamtv0.get(&1).unwrap(), Some(&"world".to_string()));
+        let c = hamtv0.flush().unwrap();
+        let new_hamt = Hamtv0::load_with_config(&c, &store, config).unwrap();
+        assert_eq!(hamtv0, new_hamt);
     }
 
     #[quickcheck]

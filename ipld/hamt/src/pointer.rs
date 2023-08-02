@@ -15,18 +15,38 @@ use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
 use crate::Config;
 
+#[doc(hidden)]
+pub mod version {
+    #[derive(PartialEq, Eq, Debug)]
+    pub struct V0;
+    #[derive(PartialEq, Eq, Debug)]
+    pub struct V3;
+
+    pub trait Version {
+        const NUMBER: usize;
+    }
+
+    impl Version for V0 {
+        const NUMBER: usize = 0;
+    }
+
+    impl Version for V3 {
+        const NUMBER: usize = 3;
+    }
+}
+
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
-pub(crate) enum Pointer<K, V, H> {
+pub(crate) enum Pointer<K, V, Ver, H> {
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
-        cache: OnceCell<Box<Node<K, V, H>>>,
+        cache: OnceCell<Box<Node<K, V, Ver, H>>>,
     },
-    Dirty(Box<Node<K, V, H>>),
+    Dirty(Box<Node<K, V, Ver, H>>),
 }
 
-impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
+impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Pointer::Values(a), Pointer::Values(b)) => a == b,
@@ -37,25 +57,80 @@ impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
     }
 }
 
+mod pointer_v0 {
+    use cid::Cid;
+    use serde::{Deserialize, Serialize};
+
+    use crate::KeyValuePair;
+
+    use super::Pointer;
+
+    #[derive(Serialize)]
+    pub(super) enum PointerSer<'a, K, V> {
+        #[serde(rename = "0")]
+        Link(&'a Cid),
+        #[serde(rename = "1")]
+        Vals(&'a [KeyValuePair<K, V>]),
+    }
+
+    #[derive(Deserialize, Serialize)]
+    pub(super) enum PointerDe<K, V> {
+        #[serde(rename = "0")]
+        Link(Cid),
+        #[serde(rename = "1")]
+        Vals(Vec<KeyValuePair<K, V>>),
+    }
+
+    impl<'a, K, V, Ver, H> TryFrom<&'a Pointer<K, V, Ver, H>> for PointerSer<'a, K, V> {
+        type Error = &'static str;
+
+        fn try_from(pointer: &'a Pointer<K, V, Ver, H>) -> Result<Self, Self::Error> {
+            match pointer {
+                Pointer::Values(vals) => Ok(PointerSer::Vals(vals.as_ref())),
+                Pointer::Link { cid, .. } => Ok(PointerSer::Link(cid)),
+                Pointer::Dirty(_) => Err("Cannot serialize cached values"),
+            }
+        }
+    }
+
+    impl<K, V, Ver, H> From<PointerDe<K, V>> for Pointer<K, V, Ver, H> {
+        fn from(pointer: PointerDe<K, V>) -> Self {
+            match pointer {
+                PointerDe::Link(cid) => Pointer::Link {
+                    cid,
+                    cache: Default::default(),
+                },
+                PointerDe::Vals(vals) => Pointer::Values(vals),
+            }
+        }
+    }
+}
+
 /// Serialize the Pointer like an untagged enum.
-impl<K, V, H> Serialize for Pointer<K, V, H>
+impl<K, V, Ver, H> Serialize for Pointer<K, V, Ver, H>
 where
     K: Serialize,
     V: Serialize,
+    Ver: self::version::Version,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        match self {
-            Pointer::Values(vals) => vals.serialize(serializer),
-            Pointer::Link { cid, .. } => cid.serialize(serializer),
-            Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
+        match Ver::NUMBER {
+            0 => pointer_v0::PointerSer::try_from(self)
+                .map_err(ser::Error::custom)?
+                .serialize(serializer),
+            _ => match self {
+                Pointer::Values(vals) => vals.serialize(serializer),
+                Pointer::Link { cid, .. } => cid.serialize(serializer),
+                Pointer::Dirty(_) => Err(ser::Error::custom("Cannot serialize cached values")),
+            },
         }
     }
 }
 
-impl<K, V, H> TryFrom<Ipld> for Pointer<K, V, H>
+impl<K, V, Ver, H> TryFrom<Ipld> for Pointer<K, V, Ver, H>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -81,26 +156,35 @@ where
 }
 
 /// Deserialize the Pointer like an untagged enum.
-impl<'de, K, V, H> Deserialize<'de> for Pointer<K, V, H>
+impl<'de, K, V, Ver, H> Deserialize<'de> for Pointer<K, V, Ver, H>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
+    Ver: self::version::Version,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ipld::deserialize(deserializer).and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
+        match Ver::NUMBER {
+            0 => {
+                let pointer_de: pointer_v0::PointerDe<K, V> =
+                    Deserialize::deserialize(deserializer)?;
+                Ok(Pointer::from(pointer_de))
+            }
+            _ => Ipld::deserialize(deserializer)
+                .and_then(|ipld| ipld.try_into().map_err(de::Error::custom)),
+        }
     }
 }
 
-impl<K, V, H> Default for Pointer<K, V, H> {
+impl<K, V, H, Ver> Default for Pointer<K, V, H, Ver> {
     fn default() -> Self {
         Pointer::Values(Vec::new())
     }
 }
 
-impl<K, V, H> Pointer<K, V, H>
+impl<K, V, Ver, H> Pointer<K, V, Ver, H>
 where
     K: Serialize + DeserializeOwned + Hash + PartialOrd,
     V: Serialize + DeserializeOwned,
