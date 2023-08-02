@@ -111,7 +111,7 @@ pub(super) fn scan_for_reachable_links(
                             syscall_error!(Serialization; "unexpected end of cbor stream").into(),
                         );
                     }
-                    if buf.first() != Some(&0u8) {
+                    if extra < 1 || buf.first() != Some(&0u8) {
                         return Err(
                                 syscall_error!(Serialization; "DagCBOR CID does not start with a 0x byte")
                                     .into(),
@@ -120,7 +120,7 @@ pub(super) fn scan_for_reachable_links(
 
                     // Read the CID and validate it. The CID type itself validates that.
                     let mut cid_buf;
-                    (cid_buf, buf) = buf[1..].split_at(extra as usize);
+                    (cid_buf, buf) = buf[1..].split_at(extra as usize - 1);
                     let cid = Cid::read_bytes(&mut cid_buf)
                         .map_err(|e| syscall_error!(Serialization; "invalid cid: {e}"))?;
                     if !cid_buf.is_empty() {
