@@ -28,6 +28,7 @@ pub use self::hash::*;
 pub use self::hash_algorithm::*;
 
 /// Default bit width for indexing a hash at each depth level
+#[deprecated]
 const DEFAULT_BIT_WIDTH: u32 = 8;
 
 /// Configuration options for a HAMT instance.
@@ -63,6 +64,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            #[allow(deprecated)]
             bit_width: DEFAULT_BIT_WIDTH,
             min_data_depth: 0,
             max_array_width: 3,

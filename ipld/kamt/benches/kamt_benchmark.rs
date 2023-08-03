@@ -9,9 +9,15 @@ use std::borrow::Cow;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_kamt::{AsHashedKey, HashedKey, Kamt};
+use fvm_ipld_kamt::{AsHashedKey, Config, HashedKey, Kamt};
 
 const ITEM_COUNT: u8 = 40;
+
+const TEST_CONFIG: Config = Config {
+    bit_width: 5,
+    min_data_depth: 0,
+    max_array_width: 3,
+};
 
 // Struct to simulate a reasonable amount of data per value into the amt
 #[derive(Clone, Serialize_tuple, Deserialize_tuple, PartialEq)]
@@ -56,7 +62,7 @@ fn insert(c: &mut Criterion) {
     c.bench_function("KAMT bulk insert (no flush)", |b| {
         b.iter(|| {
             let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-            let mut a = BKamt::new(&db);
+            let mut a = BKamt::new_with_config(&db, TEST_CONFIG);
 
             for i in 0..black_box(ITEM_COUNT) {
                 a.set(black_box(vec![i; 20]), black_box(BenchData::new(i)))
@@ -70,11 +76,11 @@ fn insert_load_flush(c: &mut Criterion) {
     c.bench_function("KAMT bulk insert with flushing and loading", |b| {
         b.iter(|| {
             let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-            let mut empt = BKamt::new(&db);
+            let mut empt = BKamt::new_with_config(&db, TEST_CONFIG);
             let mut cid = empt.flush().unwrap();
 
             for i in 0..black_box(ITEM_COUNT) {
-                let mut a = BKamt::load(&cid, &db).unwrap();
+                let mut a = BKamt::load_with_config(&cid, &db, TEST_CONFIG).unwrap();
                 a.set(black_box(vec![i; 20]), black_box(BenchData::new(i)))
                     .unwrap();
                 cid = a.flush().unwrap();
@@ -85,7 +91,7 @@ fn insert_load_flush(c: &mut Criterion) {
 
 fn delete(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    let mut a = BKamt::new(&db);
+    let mut a = BKamt::new_with_config(&db, TEST_CONFIG);
     for i in 0..black_box(ITEM_COUNT) {
         a.set(vec![i; 20], BenchData::new(i)).unwrap();
     }
@@ -93,7 +99,7 @@ fn delete(c: &mut Criterion) {
 
     c.bench_function("KAMT deleting all nodes", |b| {
         b.iter(|| {
-            let mut a = BKamt::load(&cid, &db).unwrap();
+            let mut a = BKamt::load_with_config(&cid, &db, TEST_CONFIG).unwrap();
             for i in 0..black_box(ITEM_COUNT) {
                 a.delete(black_box(vec![i; 20].as_ref())).unwrap();
             }
@@ -103,7 +109,7 @@ fn delete(c: &mut Criterion) {
 
 fn for_each(c: &mut Criterion) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    let mut a = BKamt::new(&db);
+    let mut a = BKamt::new_with_config(&db, TEST_CONFIG);
     for i in 0..black_box(ITEM_COUNT) {
         a.set(vec![i; 20], BenchData::new(i)).unwrap();
     }
@@ -111,7 +117,7 @@ fn for_each(c: &mut Criterion) {
 
     c.bench_function("KAMT for_each function", |b| {
         b.iter(|| {
-            let a = BKamt::load(&cid, &db).unwrap();
+            let a = BKamt::load_with_config(&cid, &db, TEST_CONFIG).unwrap();
             black_box(a).for_each(|_k, _v: &BenchData| Ok(())).unwrap();
         })
     });

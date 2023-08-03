@@ -67,6 +67,7 @@ where
     V: Serialize + DeserializeOwned,
     BS: Blockstore,
 {
+    #[deprecated = "specify  config with an explicit bit-width"]
     pub fn new(store: BS) -> Self {
         Self::new_with_config(store, Config::default())
     }
@@ -81,6 +82,7 @@ where
     }
 
     /// Lazily instantiate a Kamt from this root Cid.
+    #[deprecated = "specify  config with an explicit bit-width"]
     pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
         Self::load_with_config(cid, store, Config::default())
     }
