@@ -34,14 +34,14 @@ use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
 /// assert_eq!(map.get::<_>(&1).unwrap(), None);
 /// let cid = map.flush().unwrap();
 /// ```
-pub type Hamt<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V3, K, H>;
+pub type Hamt<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, K, H, version::V3>;
 /// Legacy amt V0
-pub type Hamtv0<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, version::V0, K, H>;
+pub type Hamtv0<BS, V, K = BytesKey, H = Sha256> = HamtImpl<BS, V, K, H, version::V0>;
 
 #[derive(Debug)]
 #[doc(hidden)]
-pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
-    root: Node<K, V, Ver, H>,
+pub struct HamtImpl<BS, V, K = BytesKey, H = Sha256, Ver = version::V3> {
+    root: Node<K, V, H, Ver>,
     store: BS,
     conf: Config,
     hash: PhantomData<H>,
@@ -49,7 +49,7 @@ pub struct HamtImpl<BS, V, Ver, K = BytesKey, H = Sha256> {
     flushed_cid: Option<Cid>,
 }
 
-impl<BS, V, Ver, K, H> Serialize for HamtImpl<BS, V, Ver, K, H>
+impl<BS, V, K, H, Ver> Serialize for HamtImpl<BS, V, K, H, Ver>
 where
     K: Serialize,
     V: Serialize,
@@ -65,14 +65,14 @@ where
 }
 
 impl<K: PartialEq, V: PartialEq, S: Blockstore, H: HashAlgorithm, Ver> PartialEq
-    for HamtImpl<S, V, Ver, K, H>
+    for HamtImpl<S, V, K, H, Ver>
 {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl<BS, V, Ver, K, H> HamtImpl<BS, V, Ver, K, H>
+impl<BS, V, K, H, Ver> HamtImpl<BS, V, K, H, Ver>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
