@@ -62,7 +62,7 @@ fn insert(c: &mut Criterion) {
     c.bench_function("KAMT bulk insert (no flush)", |b| {
         b.iter(|| {
             let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-            let mut a = BKamt::new_with_config(&db, Config::default());
+            let mut a = BKamt::new_with_config(&db, TEST_CONFIG);
 
             for i in 0..black_box(ITEM_COUNT) {
                 a.set(black_box(vec![i; 20]), black_box(BenchData::new(i)))
