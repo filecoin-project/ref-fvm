@@ -741,8 +741,8 @@ impl PriceList {
     pub fn on_block_open_base(&self) -> GasCharge {
         GasCharge::new(
             "OnBlockOpenBase",
-            Zero::zero(),
-            self.block_open.flat + self.ipld_link_checked,
+            self.ipld_link_checked,
+            self.block_open.flat,
         )
     }
 
