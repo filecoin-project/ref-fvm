@@ -113,6 +113,10 @@ impl CidChecker {
 
 impl Drop for CidChecker {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            // Already failed, don't double-panic.
+            return;
+        }
         if let Some(cids) = &self.cids {
             assert_eq!(self.checked, cids.len())
         }

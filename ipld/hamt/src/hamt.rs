@@ -13,7 +13,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
-use crate::hash_bits::HashBits;
+use crate::iter::IterImpl;
 use crate::node::Node;
 use crate::pointer::version::Version;
 use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
@@ -372,7 +372,11 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        self.root.for_each(self.store.borrow(), &mut f)
+        for res in self {
+            let (k, v) = res?;
+            (f)(k, v)?;
+        }
+        Ok(())
     }
 
     /// Iterates over each KV in the Hamt and runs a function on the values. If starting key is
@@ -426,25 +430,60 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        match starting_key {
-            Some(key) => {
-                let hash = H::hash(key);
-                self.root.for_each_ranged(
-                    self.store.borrow(),
-                    &self.conf,
-                    Some((HashBits::new(&hash), key)),
-                    max,
-                    &mut f,
-                )
-            }
-            None => self
-                .root
-                .for_each_ranged(self.store.borrow(), &self.conf, None, max, &mut f),
+        let mut iter = match &starting_key {
+            Some(key) => self.iter_from(key)?,
+            None => self.iter(),
         }
+        .fuse();
+        let mut traversed = 0usize;
+        for res in iter.by_ref().take(max.unwrap_or(usize::MAX)) {
+            let (k, v) = res?;
+            (f)(k, v)?;
+            traversed += 1;
+        }
+        let next = iter.next().transpose()?.map(|kv| kv.0).cloned();
+        Ok((traversed, next))
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.
     pub fn into_store(self) -> BS {
         self.store
+    }
+}
+
+impl<BS, V, K, H, Ver> HamtImpl<BS, V, K, H, Ver>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+    Ver: Version,
+    BS: Blockstore,
+{
+    pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
+        IterImpl::new(&self.store, &self.root)
+    }
+
+    pub fn iter_from<Q: ?Sized>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    where
+        H: HashAlgorithm,
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+        K: PartialEq,
+    {
+        IterImpl::new_from(&self.store, &self.root, key, &self.conf)
+    }
+}
+
+impl<'a, BS, V, K, H, Ver> IntoIterator for &'a HamtImpl<BS, V, K, H, Ver>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+    Ver: Version,
+    BS: Blockstore,
+{
+    type Item = Result<(&'a K, &'a V), Error>;
+    type IntoIter = IterImpl<'a, BS, V, K, H, Ver>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
