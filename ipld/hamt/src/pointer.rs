@@ -37,13 +37,13 @@ pub mod version {
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
-pub(crate) enum Pointer<K, V, Ver, H> {
+pub(crate) enum Pointer<K, V, H, Ver = version::V3> {
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
-        cache: OnceCell<Box<Node<K, V, Ver, H>>>,
+        cache: OnceCell<Box<Node<K, V, H, Ver>>>,
     },
-    Dirty(Box<Node<K, V, Ver, H>>),
+    Dirty(Box<Node<K, V, H, Ver>>),
 }
 
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
@@ -81,10 +81,10 @@ mod pointer_v0 {
         Vals(Vec<KeyValuePair<K, V>>),
     }
 
-    impl<'a, K, V, Ver, H> TryFrom<&'a Pointer<K, V, Ver, H>> for PointerSer<'a, K, V> {
+    impl<'a, K, V, H, Ver> TryFrom<&'a Pointer<K, V, H, Ver>> for PointerSer<'a, K, V> {
         type Error = &'static str;
 
-        fn try_from(pointer: &'a Pointer<K, V, Ver, H>) -> Result<Self, Self::Error> {
+        fn try_from(pointer: &'a Pointer<K, V, H, Ver>) -> Result<Self, Self::Error> {
             match pointer {
                 Pointer::Values(vals) => Ok(PointerSer::Vals(vals.as_ref())),
                 Pointer::Link { cid, .. } => Ok(PointerSer::Link(cid)),
@@ -93,7 +93,7 @@ mod pointer_v0 {
         }
     }
 
-    impl<K, V, Ver, H> From<PointerDe<K, V>> for Pointer<K, V, Ver, H> {
+    impl<K, V, H, Ver> From<PointerDe<K, V>> for Pointer<K, V, H, Ver> {
         fn from(pointer: PointerDe<K, V>) -> Self {
             match pointer {
                 PointerDe::Link(cid) => Pointer::Link {
@@ -107,7 +107,7 @@ mod pointer_v0 {
 }
 
 /// Serialize the Pointer like an untagged enum.
-impl<K, V, Ver, H> Serialize for Pointer<K, V, Ver, H>
+impl<K, V, H, Ver> Serialize for Pointer<K, V, H, Ver>
 where
     K: Serialize,
     V: Serialize,
@@ -130,7 +130,7 @@ where
     }
 }
 
-impl<K, V, Ver, H> TryFrom<Ipld> for Pointer<K, V, Ver, H>
+impl<K, V, H, Ver> TryFrom<Ipld> for Pointer<K, V, H, Ver>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -156,7 +156,7 @@ where
 }
 
 /// Deserialize the Pointer like an untagged enum.
-impl<'de, K, V, Ver, H> Deserialize<'de> for Pointer<K, V, Ver, H>
+impl<'de, K, V, H, Ver> Deserialize<'de> for Pointer<K, V, H, Ver>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -184,7 +184,7 @@ impl<K, V, H, Ver> Default for Pointer<K, V, H, Ver> {
     }
 }
 
-impl<K, V, Ver, H> Pointer<K, V, Ver, H>
+impl<K, V, H, Ver> Pointer<K, V, H, Ver>
 where
     K: Serialize + DeserializeOwned + Hash + PartialOrd,
     V: Serialize + DeserializeOwned,

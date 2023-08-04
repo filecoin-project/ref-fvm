@@ -17,14 +17,14 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
-use crate::pointer::version::Version;
+use crate::pointer::version::{self, Version};
 use crate::Config;
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]
-pub(crate) struct Node<K, V, Ver, H> {
+pub(crate) struct Node<K, V, H, Ver = version::V3> {
     pub(crate) bitfield: Bitfield,
-    pub(crate) pointers: Vec<Pointer<K, V, Ver, H>>,
+    pub(crate) pointers: Vec<Pointer<K, V, H, Ver>>,
     hash: PhantomData<H>,
 }
 
@@ -34,7 +34,7 @@ impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Node<K, V, H, Ver> {
     }
 }
 
-impl<K, V, Ver, H> Serialize for Node<K, V, Ver, H>
+impl<K, V, H, Ver> Serialize for Node<K, V, H, Ver>
 where
     K: Serialize,
     V: Serialize,
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<'de, K, V, Ver, H> Deserialize<'de> for Node<K, V, Ver, H>
+impl<'de, K, V, H, Ver> Deserialize<'de> for Node<K, V, H, Ver>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -77,7 +77,7 @@ impl<K, V, H, Ver> Default for Node<K, V, H, Ver> {
     }
 }
 
-impl<K, V, Ver, H> Node<K, V, Ver, H>
+impl<K, V, H, Ver> Node<K, V, H, Ver>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
     H: HashAlgorithm,
@@ -322,7 +322,7 @@ where
                     // Link node is cached
                     cached_node
                 } else {
-                    let node: Box<Node<K, V, Ver, H>> = if let Some(node) = store.get_cbor(cid)? {
+                    let node: Box<Node<K, V, H, Ver>> = if let Some(node) = store.get_cbor(cid)? {
                         node
                     } else {
                         #[cfg(not(feature = "ignore-dead-links"))]
@@ -371,7 +371,7 @@ where
                 self.insert_child(idx, key, value);
             } else {
                 // Need to insert some empty nodes reserved for links.
-                let mut sub = Node::<K, V, Ver, H>::default();
+                let mut sub = Node::<K, V, H, Ver>::default();
                 sub.modify_value(hashed_key, conf, depth + 1, key, value, store, overwrite)?;
                 self.insert_child_dirty(idx, Box::new(sub));
             }
@@ -437,7 +437,7 @@ where
                     });
 
                     let consumed = hashed_key.consumed;
-                    let mut sub = Node::<K, V, Ver, H>::default();
+                    let mut sub = Node::<K, V, H, Ver>::default();
                     let modified = sub.modify_value(
                         hashed_key,
                         conf,
@@ -572,7 +572,7 @@ where
         Ok(())
     }
 
-    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, Ver, H> {
+    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, H, Ver> {
         self.bitfield.clear_bit(idx);
         self.pointers.remove(i)
     }
@@ -583,7 +583,7 @@ where
         self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
-    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, Ver, H>>) {
+    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H, Ver>>) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Dirty(node))
@@ -595,11 +595,11 @@ where
         mask.and(&self.bitfield).count_ones()
     }
 
-    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, Ver, H> {
+    fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, H, Ver> {
         &mut self.pointers[i]
     }
 
-    fn get_child(&self, i: usize) -> &Pointer<K, V, Ver, H> {
+    fn get_child(&self, i: usize) -> &Pointer<K, V, H, Ver> {
         &self.pointers[i]
     }
 
@@ -607,7 +607,7 @@ where
     ///
     /// Returns true if the child pointer is completely empty and can be removed,
     /// which can happen if we artificially inserted nodes during insertion.
-    fn clean(child: &mut Pointer<K, V, Ver, H>, conf: &Config, depth: u32) -> Result<bool, Error> {
+    fn clean(child: &mut Pointer<K, V, H, Ver>, conf: &Config, depth: u32) -> Result<bool, Error> {
         match child.clean(conf, depth) {
             Ok(()) => Ok(false),
             Err(Error::ZeroPointers) if depth < conf.min_data_depth => Ok(true),
