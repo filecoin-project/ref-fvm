@@ -3,7 +3,6 @@
 use std::borrow::Borrow;
 use std::iter::FusedIterator;
 
-use anyhow::anyhow;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
@@ -91,7 +90,7 @@ where
                                 stack,
                                 current: values[offset..].iter(),
                             }),
-                            None => Err(anyhow!("key not found").into()),
+                            None => Err(Error::StartKeyNotFound),
                         }
                     }
                 },
