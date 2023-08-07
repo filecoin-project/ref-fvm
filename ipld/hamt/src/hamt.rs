@@ -458,10 +458,40 @@ where
     Ver: Version,
     BS: Blockstore,
 {
+    /// Iterate over the HAMT. Alternatively, you can directly iterate over the HAMT without calling
+    /// this method:
+    ///
+    /// ```rust
+    /// use hamt::Hamt;
+    ///
+    /// let hamt = Hamt::new_with_bit_width(5);
+    ///
+    /// // ...
+    ///
+    /// for kv in &my_hamt {
+    ///     let (k, v) = kv?;
+    ///     println!("{k}: {v}");
+    /// }
+    /// ```
     pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
         IterImpl::new(&self.store, &self.root)
     }
 
+    /// Iterate over the HAMT starting at the given key. This can be used to implement "ranged"
+    /// iteration:
+    ///
+    /// ```rust
+    /// use hamt::Hamt;
+    ///
+    /// let hamt = Hamt::new_with_bit_width(5);
+    ///
+    /// // ...
+    ///
+    /// for kv in my_hamt.iter_from("start_key").take(5) {
+    ///     let (k, v) = kv?;
+    ///     println!("{k}: {v}");
+    /// }
+    /// ```
     pub fn iter_from<Q: ?Sized>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
     where
         H: HashAlgorithm,

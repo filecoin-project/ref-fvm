@@ -22,7 +22,10 @@ pub struct IterImpl<'a, BS, V, K = BytesKey, H = Sha256, Ver = version::V3> {
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
 
+/// Iterator over HAMT Key/Value tuples (hamt v0).
 pub type Iterv0<'a, BS, V, K = BytesKey, H = Sha256> = IterImpl<'a, BS, V, K, H, version::V0>;
+
+/// Iterator over HAMT Key/Value tuples.
 pub type Iter<'a, BS, V, K = BytesKey, H = Sha256> = IterImpl<'a, BS, V, K, H, version::V3>;
 
 impl<'a, K, V, BS, H, Ver> IterImpl<'a, BS, V, K, H, Ver>
