@@ -113,36 +113,36 @@ where
             return Some(Ok((v.key(), v.value())));
         }
         loop {
-            if let Some(next) = self.stack.last_mut()?.next() {
-                match next {
-                    Pointer::Link { cid, cache } => {
-                        let node = if let Some(cached_node) = cache.get() {
-                            cached_node
-                        } else {
-                            let node = match self.store.get_cbor::<Node<K, V, H, Ver>>(cid) {
-                                Ok(Some(node)) => node,
-                                #[cfg(not(feature = "ignore-dead-links"))]
-                                Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
-                                #[cfg(feature = "ignore-dead-links")]
-                                Ok(None) => continue,
-                                Err(err) => return Some(Err(err.into())),
-                            };
-
-                            // Ignore error intentionally, the cache value will always be the same
-                            cache.get_or_init(|| Box::new(node))
+            let Some(next) = self.stack.last_mut()?.next() else {
+                self.stack.pop();
+                continue;
+            };
+            match next {
+                Pointer::Link { cid, cache } => {
+                    let node = if let Some(cached_node) = cache.get() {
+                        cached_node
+                    } else {
+                        let node = match self.store.get_cbor::<Node<K, V, H, Ver>>(cid) {
+                            Ok(Some(node)) => node,
+                            #[cfg(not(feature = "ignore-dead-links"))]
+                            Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
+                            #[cfg(feature = "ignore-dead-links")]
+                            Ok(None) => continue,
+                            Err(err) => return Some(Err(err.into())),
                         };
-                        self.stack.push(node.pointers.iter())
-                    }
-                    Pointer::Dirty(node) => self.stack.push(node.pointers.iter()),
-                    Pointer::Values(kvs) => {
-                        self.current = kvs.iter();
-                        if let Some(v) = self.current.next() {
-                            return Some(Ok((v.key(), v.value())));
-                        }
+
+                        // Ignore error intentionally, the cache value will always be the same
+                        cache.get_or_init(|| Box::new(node))
+                    };
+                    self.stack.push(node.pointers.iter())
+                }
+                Pointer::Dirty(node) => self.stack.push(node.pointers.iter()),
+                Pointer::Values(kvs) => {
+                    self.current = kvs.iter();
+                    if let Some(v) = self.current.next() {
+                        return Some(Ok((v.key(), v.value())));
                     }
                 }
-            } else {
-                self.stack.pop();
             }
         }
     }
