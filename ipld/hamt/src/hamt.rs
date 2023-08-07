@@ -462,16 +462,21 @@ where
     /// this method:
     ///
     /// ```rust
-    /// use hamt::Hamt;
+    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
     ///
-    /// let hamt = Hamt::new_with_bit_width(5);
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let hamt: Hamt<_, String> = Hamt::new_with_bit_width(store, 5);
     ///
     /// // ...
     ///
-    /// for kv in &my_hamt {
+    /// for kv in &hamt {
     ///     let (k, v) = kv?;
-    ///     println!("{k}: {v}");
+    ///     println!("{k:?}: {v}");
     /// }
+    ///
+    /// # anyhow::Ok(())
     /// ```
     pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
         IterImpl::new(&self.store, &self.root)
@@ -481,16 +486,37 @@ where
     /// iteration:
     ///
     /// ```rust
-    /// use hamt::Hamt;
+    /// use fvm_ipld_hamt::{Hamt, BytesKey};
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
     ///
-    /// let hamt = Hamt::new_with_bit_width(5);
+    /// let store = MemoryBlockstore::default();
     ///
-    /// // ...
+    /// // Create a HAMT with 5 keys, a-e.
+    /// let mut hamt: Hamt<_, String> = Hamt::new_with_bit_width(store, 5);
+    /// let kvs: Vec<(BytesKey, String)> = ["a", "b", "c", "d", "e"]
+    ///     .into_iter()
+    ///     .map(|k|(BytesKey(k.as_bytes().to_owned()), k.to_owned()))
+    ///     .collect();
+    /// kvs.iter()
+    ///     .map(|(k, v)| hamt.set(k.clone(), v.clone())
+    ///     .map(|_|()))
+    ///     .collect::<Result<(), _>>()?;
     ///
-    /// for kv in my_hamt.iter_from("start_key").take(5) {
-    ///     let (k, v) = kv?;
-    ///     println!("{k}: {v}");
+    /// // Read 2 elements.
+    /// let mut results = hamt.iter().take(2).collect::<Result<Vec<_>, _>>()?;
+    /// assert_eq!(results.len(), 2);
+    ///
+    /// // Read the rest then sort.
+    /// for res in hamt.iter_from(results.last().unwrap().0)?.skip(1) {
+    ///     results.push((res?));
     /// }
+    /// results.sort_by_key(|kv| kv.1);
+    ///
+    /// // Assert that we got out what we put in.
+    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.clone())).collect();
+    /// assert_eq!(kvs, results);
+    ///
+    /// # anyhow::Ok(())
     /// ```
     pub fn iter_from<Q: ?Sized>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
     where
