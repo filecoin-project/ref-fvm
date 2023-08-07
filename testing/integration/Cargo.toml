@@ -33,7 +33,7 @@ default-features = false
 features = ["cranelift", "parallel-compilation"]
 
 [dev-dependencies]
-actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "next" }
+actors-v10 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "experimental/fvm-m2" }
 fvm_test_actors = { path = "../test_actors" }
 fvm_gas_calibration_shared = { path = "../calibration/shared" }
 blake2b_simd = "1.0.1"
