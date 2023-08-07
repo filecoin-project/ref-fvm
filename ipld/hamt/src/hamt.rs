@@ -497,7 +497,6 @@ where
         H: HashAlgorithm,
         K: Borrow<Q>,
         Q: Hash + Eq,
-        K: PartialEq,
     {
         IterImpl::new_from(&self.store, &self.root, key, &self.conf)
     }

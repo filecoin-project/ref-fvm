@@ -52,7 +52,6 @@ where
         H: HashAlgorithm,
         K: Borrow<Q>,
         Q: Hash + Eq,
-        K: PartialEq,
     {
         let hashed_key = H::hash(key);
         let mut hash = HashBits::new(&hashed_key);
