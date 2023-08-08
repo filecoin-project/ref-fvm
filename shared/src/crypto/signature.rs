@@ -17,6 +17,8 @@ use crate::address::Error as AddressError;
 pub const BLS_SIG_LEN: usize = 96;
 /// BLS Public key length in bytes.
 pub const BLS_PUB_LEN: usize = 48;
+/// BLS message digest length in bytes (a compressed G2 affine point).
+pub const BLS_DIGEST_LEN: usize = 96;
 
 /// Secp256k1 signature length in bytes.
 pub const SECP_SIG_LEN: usize = 65;
@@ -231,15 +233,15 @@ pub mod ops {
 
     /// Aggregates and verifies bls signatures collectively.
     pub fn verify_bls_aggregate(
-        data: &[&[u8]],
+        digests: &[&[u8]],
         pub_keys: &[&[u8]],
         aggregate_sig: &Signature,
     ) -> bool {
         // If the number of public keys and data does not match, then return false
-        if data.len() != pub_keys.len() {
+        if digests.len() != pub_keys.len() {
             return false;
         }
-        if data.is_empty() {
+        if digests.is_empty() {
             return true;
         }
 
@@ -256,8 +258,26 @@ pub mod ops {
             Err(_) => return false,
         };
 
+        let digests = {
+            // BLS digests and signatures are each a G2 point. The `bls_signatures` crate does not
+            // expose explicit functionality for deserializing a digest's bytes into a G2 point,
+            // however it does expose serialization for its signature type `Signature`. Thus, we can
+            // use the signature type to convert digest bytes into a G2 point.
+            use bls_signatures::Signature as Digest;
+
+            let deser_res = digests
+                .iter()
+                .map(|digest| Digest::from_bytes(digest).map(Into::into))
+                .collect::<Result<Vec<_>, _>>();
+
+            match deser_res {
+                Ok(digests) => digests,
+                Err(_) => return false,
+            }
+        };
+
         // Does the aggregate verification
-        verify_messages(&sig, data, &pks[..])
+        bls_signatures::verify(&sig, &digests, &pks[..])
     }
 
     /// Return the public key used for signing a message given it's signing bytes hash and signature.
@@ -319,6 +339,11 @@ mod tests {
 
         let msg = (0..message_length).map(|_| rng.gen()).collect::<Vec<u8>>();
         let data: Vec<&[u8]> = (0..num_sigs).map(|x| &msg[x * 64..(x + 1) * 64]).collect();
+        let digests: Vec<[u8; BLS_DIGEST_LEN]> = data
+            .iter()
+            .map(|msg| bls_signatures::hash(msg).to_compressed())
+            .collect();
+        let digests: Vec<&[u8]> = digests.iter().map(AsRef::as_ref).collect();
 
         let private_keys: Vec<PrivateKey> =
             (0..num_sigs).map(|_| PrivateKey::generate(rng)).collect();
@@ -336,7 +361,7 @@ mod tests {
         let calculated_bls_agg =
             Signature::new_bls(bls_signatures::aggregate(&signatures).unwrap().as_bytes());
         assert!(verify_bls_aggregate(
-            &data,
+            &digests,
             &public_keys_slice,
             &calculated_bls_agg
         ),);

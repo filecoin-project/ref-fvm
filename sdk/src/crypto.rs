@@ -6,7 +6,8 @@ use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{
-    Signature, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    Signature, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -38,6 +39,22 @@ pub fn verify_signature(
             signer.len() as u32,
             plaintext.as_ptr(),
             plaintext.len() as u32,
+        )
+        .map(status_code_to_bool)
+    }
+}
+
+pub fn verify_bls_aggregate(
+    sig: &[u8; BLS_SIG_LEN],
+    pub_keys: &[[u8; BLS_PUB_LEN]],
+    digests: &[[u8; BLS_DIGEST_LEN]],
+) -> SyscallResult<bool> {
+    unsafe {
+        sys::crypto::verify_bls_aggregate(
+            pub_keys.len() as u32,
+            sig.as_ptr() as *const u8,
+            pub_keys.as_ptr() as *const u8,
+            digests.as_ptr() as *const u8,
         )
         .map(status_code_to_bool)
     }
