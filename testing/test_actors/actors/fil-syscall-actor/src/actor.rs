@@ -5,7 +5,9 @@ use fvm_sdk::sys::network::{context, NetworkContext};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
-use fvm_shared::crypto::signature::{Signature, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{
+    Signature, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN,
+};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::RegisteredSealProof;
 use multihash::derive::Multihash;
@@ -33,6 +35,7 @@ pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
     test_signature();
+    test_bls_aggregate();
     test_expected_hash();
     test_hash_syscall();
     test_compute_unsealed_sector_cid();
@@ -139,6 +142,83 @@ fn test_signature() {
         let res = sdk::sys::crypto::recover_secp_public_key(hash.as_ptr(), (u32::MAX) as *const u8);
         assert_eq!(res, Err(ErrorNumber::IllegalArgument));
     }
+}
+
+fn test_bls_aggregate() {
+    let pub_keys: [[u8; BLS_PUB_LEN]; 3] = [
+        [
+            177, 126, 78, 182, 93, 122, 198, 81, 5, 240, 226, 238, 241, 247, 37, 183, 171, 231,
+            237, 71, 215, 84, 120, 150, 238, 23, 45, 109, 96, 19, 169, 23, 115, 147, 70, 45, 36,
+            87, 177, 103, 43, 231, 60, 58, 127, 63, 232, 225,
+        ],
+        [
+            129, 103, 1, 32, 207, 243, 63, 21, 153, 244, 175, 228, 198, 117, 233, 143, 194, 93, 2,
+            243, 0, 76, 118, 90, 253, 135, 217, 156, 253, 206, 122, 235, 193, 127, 106, 30, 20,
+            236, 34, 250, 33, 137, 153, 105, 188, 93, 23, 120,
+        ],
+        [
+            185, 119, 106, 3, 95, 233, 17, 93, 47, 218, 127, 209, 128, 81, 141, 173, 58, 128, 118,
+            65, 28, 115, 204, 155, 166, 63, 44, 14, 155, 166, 46, 29, 219, 18, 74, 105, 64, 99, 91,
+            18, 197, 99, 30, 190, 173, 166, 184, 37,
+        ],
+    ];
+
+    let digests: [[u8; BLS_DIGEST_LEN]; 3] = [
+        [
+            132, 82, 107, 94, 117, 95, 20, 70, 162, 244, 52, 179, 230, 89, 249, 67, 73, 78, 87,
+            226, 38, 245, 100, 202, 82, 71, 23, 200, 52, 77, 119, 142, 88, 10, 205, 242, 168, 220,
+            124, 205, 106, 17, 42, 70, 2, 101, 152, 48, 15, 25, 137, 194, 234, 252, 168, 123, 104,
+            115, 245, 134, 52, 82, 98, 112, 175, 60, 187, 114, 41, 174, 236, 80, 81, 228, 213, 190,
+            255, 219, 192, 89, 45, 107, 57, 106, 204, 173, 182, 193, 253, 166, 111, 153, 49, 157,
+            241, 6,
+        ],
+        [
+            143, 83, 122, 171, 144, 138, 124, 244, 188, 64, 75, 200, 113, 60, 60, 182, 192, 214,
+            12, 12, 63, 206, 4, 124, 2, 108, 161, 168, 153, 189, 219, 8, 62, 210, 53, 85, 237, 69,
+            53, 245, 205, 202, 165, 227, 14, 251, 125, 189, 12, 238, 220, 232, 99, 108, 163, 170,
+            237, 54, 156, 235, 93, 234, 120, 69, 251, 2, 214, 176, 180, 57, 176, 247, 147, 4, 130,
+            50, 203, 205, 99, 208, 158, 104, 82, 2, 29, 145, 68, 153, 158, 62, 77, 46, 99, 168,
+            218, 147,
+        ],
+        [
+            183, 110, 18, 193, 253, 70, 141, 158, 111, 99, 127, 135, 254, 94, 113, 208, 219, 94,
+            98, 226, 54, 46, 38, 89, 132, 6, 122, 192, 196, 25, 94, 185, 81, 176, 216, 236, 184,
+            224, 222, 126, 225, 205, 75, 81, 57, 156, 168, 112, 1, 109, 221, 94, 59, 78, 130, 195,
+            175, 210, 115, 174, 241, 30, 214, 253, 79, 241, 187, 103, 250, 55, 12, 147, 187, 82,
+            214, 122, 160, 45, 116, 173, 113, 125, 122, 55, 190, 74, 147, 10, 94, 149, 245, 44,
+            165, 3, 191, 73,
+        ],
+    ];
+
+    let sig: [u8; BLS_SIG_LEN] = [
+        128, 121, 139, 21, 70, 47, 71, 10, 140, 249, 105, 241, 123, 149, 1, 141, 216, 30, 74, 215,
+        132, 241, 187, 65, 237, 199, 167, 94, 31, 222, 223, 109, 14, 145, 159, 98, 109, 133, 213,
+        252, 118, 140, 128, 179, 91, 117, 217, 229, 19, 56, 230, 44, 62, 175, 161, 136, 223, 139,
+        169, 161, 204, 104, 192, 74, 124, 45, 91, 136, 11, 191, 53, 202, 210, 135, 41, 160, 199,
+        255, 107, 98, 100, 207, 63, 75, 188, 34, 162, 170, 237, 188, 68, 170, 53, 11, 200, 124,
+    ];
+
+    // Assert that signature validation succeeds.
+    let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &digests);
+    assert_eq!(res, Ok(true));
+
+    // Both BLS signatures and digests are a G2 point, thus we can use a valid digest's bytes as the
+    // G2 bytes for an invalid signature (and vice versa).
+    let invalid_sig = digests[0];
+    let invalid_digests = [sig, digests[1], digests[2]];
+
+    // Assert that validation fails for an invalid aggregate signature.
+    let res = sdk::crypto::verify_bls_aggregate(&invalid_sig, &pub_keys, &digests);
+    assert_eq!(res, Ok(false));
+
+    // Assert that signature validation fails for an invalid message digest.
+    let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &invalid_digests);
+    assert_eq!(res, Ok(false));
+
+    // Assert that signature validation fails for an invalid public key.
+    let invalid_pub_keys = [pub_keys[0], pub_keys[0], pub_keys[2]];
+    let res = sdk::crypto::verify_bls_aggregate(&sig, &invalid_pub_keys, &digests);
+    assert_eq!(res, Ok(false));
 }
 
 // use SDK methods to hash and compares against locally (inside the actor) hashed digest
