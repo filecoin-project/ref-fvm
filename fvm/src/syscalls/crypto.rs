@@ -4,7 +4,8 @@ use std::cmp;
 
 use anyhow::{anyhow, Context as _};
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    SignatureType, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -44,6 +45,50 @@ pub fn verify_signature(
     context
         .kernel
         .verify_signature(sig_type, sig_bytes, &addr, plaintext)
+        .map(|v| if v { 0 } else { -1 })
+}
+
+pub fn verify_bls_aggregate(
+    context: Context<'_, impl Kernel>,
+    num_signers: u32,
+    sig_off: u32,
+    pub_keys_off: u32,
+    digests_off: u32,
+) -> Result<i32> {
+    let pub_keys_len = num_signers * BLS_PUB_LEN as u32;
+    let digests_len = num_signers * BLS_DIGEST_LEN as u32;
+
+    let sig: [u8; BLS_SIG_LEN] = context
+        .memory
+        .try_slice(sig_off, BLS_SIG_LEN as u32)?
+        .try_into()
+        .expect("bls signature bytes slice-to-array conversion should not fail");
+
+    let pub_keys: Vec<[u8; BLS_PUB_LEN]> = context
+        .memory
+        .try_slice(pub_keys_off, pub_keys_len)?
+        .chunks(BLS_PUB_LEN)
+        .map(|pub_key_bytes| {
+            pub_key_bytes
+                .try_into()
+                .expect("bls public key bytes slice-to-array conversion should not fail")
+        })
+        .collect();
+
+    let digests: Vec<[u8; BLS_DIGEST_LEN]> = context
+        .memory
+        .try_slice(digests_off, digests_len)?
+        .chunks(BLS_DIGEST_LEN)
+        .map(|digest_bytes| {
+            digest_bytes
+                .try_into()
+                .expect("bls digest bytes slice-to-array conversion should not fail")
+        })
+        .collect();
+
+    context
+        .kernel
+        .verify_bls_aggregate(&sig, &pub_keys, &digests)
         .map(|v| if v { 0 } else { -1 })
 }
 

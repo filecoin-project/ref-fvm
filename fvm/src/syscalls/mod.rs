@@ -289,6 +289,11 @@ pub fn bind_syscalls(
     linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
     linker.bind(
         "crypto",
+        "verify_bls_aggregate",
+        crypto::verify_bls_aggregate,
+    )?;
+    linker.bind(
+        "crypto",
         "recover_secp_public_key",
         crypto::recover_secp_public_key,
     )?;

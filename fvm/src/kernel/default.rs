@@ -14,7 +14,7 @@ use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature;
+use fvm_shared::crypto::signature::{self, Signature};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
@@ -34,7 +34,7 @@ use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
-use crate::gas::GasTimer;
+use crate::gas::{GasCharge, GasTimer};
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
@@ -464,6 +464,37 @@ where
         t.record(catch_and_log_panic("verifying signature", || {
             Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
         }))
+    }
+
+    fn verify_bls_aggregate(
+        &self,
+        aggregate_signature: &[u8; BLS_SIG_LEN],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        digests: &[[u8; BLS_DIGEST_LEN]],
+    ) -> Result<bool> {
+        let sig = Signature::new_bls(aggregate_signature.to_vec());
+        let pub_keys: Vec<&[u8]> = pub_keys.iter().map(AsRef::as_ref).collect();
+        let digests: Vec<&[u8]> = digests.iter().map(AsRef::as_ref).collect();
+
+        let gas_required = {
+            let gas_two_pairings = self.call_manager.price_list().sig_cost[&SignatureType::BLS]
+                .flat
+                .as_milligas();
+            let gas_one_pairing = gas_two_pairings / 2;
+            let num_pairings = digests.len() as u64 + 1;
+            let gas_required = Gas::from_milligas(num_pairings * gas_one_pairing);
+            GasCharge::new("OnVerifySignature", gas_required, Zero::zero())
+        };
+
+        let t = self.call_manager.charge_gas(gas_required)?;
+        t.record(catch_and_log_panic(
+            "verifying bls aggregate signature",
+            || {
+                Ok(signature::ops::verify_bls_aggregate(
+                    &digests, &pub_keys, &sig,
+                ))
+            },
+        ))
     }
 
     fn recover_secp_public_key(
