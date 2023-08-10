@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm::call_manager::backtrace::Cause;
 use fvm::executor::{ApplyFailure, ApplyKind, Executor};
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_integration_tests::tester::{Account, Tester};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
@@ -41,7 +41,11 @@ pub struct State {
 // Utility function to instantiation integration tester
 fn instantiate_tester(
     wasm_bin: &[u8],
-) -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
+) -> (
+    Account,
+    Tester<MemoryBlockstore, DummyExterns, DummyTraceClock>,
+    Address,
+) {
     // Instantiate tester
     let mut tester = new_tester(
         NetworkVersion::V18,
@@ -75,7 +79,9 @@ fn non_existing_syscall() {
     let (sender, mut tester, actor_address) = instantiate_tester(&wasm_bin);
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Params setup
     let params = RawBytes::new(Vec::<u8>::new());
@@ -131,7 +137,9 @@ fn malformed_syscall_parameter() {
     let (sender, mut tester, actor_address) = instantiate_tester(wasm_bin);
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Params setup
     let params = RawBytes::new(Vec::<u8>::new());

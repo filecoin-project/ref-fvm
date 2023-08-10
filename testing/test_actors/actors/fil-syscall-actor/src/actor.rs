@@ -40,6 +40,7 @@ pub fn invoke(_: u32) -> u32 {
     test_message_context();
     test_balance();
     test_unaligned();
+    test_spans();
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("syscall_actor.profraw", minicov::capture_coverage());
@@ -376,4 +377,12 @@ fn test_unaligned() {
         let expected = context().unwrap();
         assert_eq!(expected, actual);
     }
+}
+
+/// Test that span debug syscalls can be made.
+fn test_spans() {
+    let parent = sdk::debug::span_begin("parent label", "parent tag", 0);
+    let child = sdk::debug::span_begin("child label", "child tag", parent);
+    sdk::debug::span_end(child);
+    sdk::debug::span_end(parent);
 }

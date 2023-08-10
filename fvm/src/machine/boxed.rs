@@ -5,6 +5,7 @@ use cid::Cid;
 use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
 use crate::state_tree::StateTree;
+use crate::trace::SpanId;
 
 type Type = MachineContext;
 
@@ -12,6 +13,7 @@ impl<M: Machine> Machine for Box<M> {
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
     type Limiter = M::Limiter;
+    type TraceClock = M::TraceClock;
 
     #[inline(always)]
     fn blockstore(&self) -> &Self::Blockstore {
@@ -26,6 +28,10 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn externs(&self) -> &Self::Externs {
         (**self).externs()
+    }
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock {
+        (**self).trace_clock_mut()
     }
 
     #[inline(always)]
@@ -61,5 +67,10 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn new_limiter(&self) -> Self::Limiter {
         (**self).new_limiter()
+    }
+
+    #[inline(always)]
+    fn next_span_id(&mut self) -> SpanId {
+        (**self).next_span_id()
     }
 }

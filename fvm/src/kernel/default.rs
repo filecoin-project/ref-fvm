@@ -39,6 +39,7 @@ use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::syscall_error;
+use crate::trace::{SpanBegin, SpanEnd, SpanId, TraceClock};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -932,6 +933,35 @@ where
 {
     fn log(&self, msg: String) {
         println!("{}", msg)
+    }
+
+    fn span_begin(&mut self, label: String, tag: String, parent: SpanId) -> Result<SpanId> {
+        let actor = self
+            .get_self()?
+            .expect("actor cannot be deleted while executing syscall");
+        let timestamp = self
+            .call_manager
+            .machine_mut()
+            .trace_clock_mut()
+            .timestamp();
+        self.call_manager.trace_span_begin(SpanBegin {
+            label,
+            tag,
+            parent,
+            code: actor.code,
+            method: self.method,
+            timestamp,
+        });
+        Ok(self.call_manager.machine_mut().next_span_id())
+    }
+
+    fn span_end(&mut self, id: SpanId) {
+        let timestamp = self
+            .call_manager
+            .machine_mut()
+            .trace_clock_mut()
+            .timestamp();
+        self.call_manager.trace_span_end(SpanEnd { id, timestamp });
     }
 
     fn debug_enabled(&self) -> bool {

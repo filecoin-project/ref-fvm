@@ -37,6 +37,7 @@ use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::trace::SpanId;
 
 pub struct SendResult {
     pub block_id: BlockId,
@@ -350,6 +351,14 @@ pub trait RandomnessOps {
 pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
+
+    /// Begin a new span. The parent span ID is not checked. This produces a new execution trace
+    /// event of type SpanBegin. The returned SpanId uniquely identifies the span.
+    fn span_begin(&mut self, label: String, tag: String, parent: SpanId) -> Result<SpanId>;
+
+    /// End a span. The span ID is not checked in any way. This produces a new execution trace event
+    /// of type SpanEnd.
+    fn span_end(&mut self, id: SpanId);
 
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;

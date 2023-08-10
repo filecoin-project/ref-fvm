@@ -22,7 +22,7 @@ mod default;
 pub use default::DefaultCallManager;
 use fvm_shared::event::StampedEvent;
 
-use crate::trace::ExecutionTrace;
+use crate::trace::{ExecutionTrace, SpanBegin, SpanEnd};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -163,6 +163,12 @@ pub trait CallManager: 'static {
 
     /// Appends an event to the event accumulator.
     fn append_event(&mut self, evt: StampedEvent);
+
+    /// Begin a new tracing span.
+    fn trace_span_begin(&mut self, begin: SpanBegin);
+
+    /// End a tracing span.
+    fn trace_span_end(&mut self, end: SpanEnd);
 }
 
 /// The result of a method invocation.

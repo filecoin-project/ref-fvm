@@ -4,7 +4,7 @@ mod bundles;
 use bundles::*;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_integration_tests::tester::IntegrationExecutor;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::to_vec;
@@ -120,7 +120,7 @@ fn events_test() {
 }
 
 fn setup() -> (
-    IntegrationExecutor<MemoryBlockstore, DummyExterns>,
+    IntegrationExecutor<MemoryBlockstore, DummyExterns, DummyTraceClock>,
     Address,
     Address,
 ) {
@@ -148,7 +148,9 @@ fn setup() -> (
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     let executor = tester.executor.unwrap();
     (executor, sender, actor)

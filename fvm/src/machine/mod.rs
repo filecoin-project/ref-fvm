@@ -13,6 +13,7 @@ use crate::externs::Externs;
 use crate::gas::{price_list_by_network_version, PriceList};
 use crate::kernel::Result;
 use crate::state_tree::StateTree;
+use crate::trace::{SpanId, TraceClock};
 
 mod default;
 
@@ -48,6 +49,7 @@ pub trait Machine: 'static {
     type Blockstore: Blockstore;
     type Externs: Externs;
     type Limiter: MemoryLimiter;
+    type TraceClock: TraceClock;
 
     /// Returns a reference to the machine's blockstore.
     fn blockstore(&self) -> &Self::Blockstore;
@@ -58,6 +60,8 @@ pub trait Machine: 'static {
 
     /// Returns a reference to all "node" supplied APIs.
     fn externs(&self) -> &Self::Externs;
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock;
 
     /// Returns the builtin actor index.
     fn builtin_actors(&self) -> &Manifest;
@@ -81,6 +85,8 @@ pub trait Machine: 'static {
 
     /// Creates a new limiter to track the resources of a message execution.
     fn new_limiter(&self) -> Self::Limiter;
+
+    fn next_span_id(&mut self) -> SpanId;
 }
 
 /// Network-level settings. Except when testing locally, changing any of these likely requires a

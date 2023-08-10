@@ -3,7 +3,7 @@
 use bundles::*;
 use fvm::executor::{ApplyKind, Executor};
 use fvm::machine::Machine;
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
@@ -44,7 +44,9 @@ fn gaslimit_test() {
     };
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     let executor = tester.executor.as_mut().unwrap();
 

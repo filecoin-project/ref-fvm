@@ -8,6 +8,7 @@ use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::trace::TraceClock;
 use fvm::{init_actor, system_actor, DefaultKernel};
 use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{ser, CborStore};
@@ -21,7 +22,7 @@ use libsecp256k1::{PublicKey, SecretKey};
 use multihash::Code;
 
 use crate::builtin::{fetch_builtin_code_cid, set_eam_actor, set_init_actor, set_sys_actor};
-use crate::dummy::DummyExterns;
+use crate::dummy::{DummyExterns, DummyTraceClock};
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -32,8 +33,8 @@ lazy_static! {
 
 pub trait Store: Blockstore + Sized + 'static {}
 
-pub type IntegrationExecutor<B, E> =
-    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
+pub type IntegrationExecutor<B, E, T> =
+    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E, T>>>>;
 
 pub type Account = (ActorID, Address);
 
@@ -48,7 +49,7 @@ pub struct ExecutionOptions {
     pub events: bool,
 }
 
-pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
+pub struct Tester<B: Blockstore + 'static, E: Externs + 'static, T: TraceClock + 'static> {
     // Network version used in the test
     nv: NetworkVersion,
     // Builtin actors root Cid used in the Machine
@@ -60,7 +61,7 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     // Custom code cid deployed by developer
     code_cids: Vec<Cid>,
     // Executor used to interact with deployed actors.
-    pub executor: Option<IntegrationExecutor<B, E>>,
+    pub executor: Option<IntegrationExecutor<B, E, T>>,
     // State tree constructed before instantiating the Machine
     pub state_tree: Option<StateTree<B>>,
 
@@ -71,10 +72,11 @@ pub struct Tester<B: Blockstore + 'static, E: Externs + 'static> {
     pub ready: bool,
 }
 
-impl<B, E> Tester<B, E>
+impl<B, E, T> Tester<B, E, T>
 where
     B: Blockstore,
     E: Externs,
+    T: TraceClock,
 {
     pub fn new(
         nv: NetworkVersion,
@@ -241,8 +243,8 @@ where
     }
 
     /// Sets the Machine and the Executor in our Tester structure.
-    pub fn instantiate_machine(&mut self, externs: E) -> Result<()> {
-        self.instantiate_machine_with_config(externs, |_| (), |_| ())?;
+    pub fn instantiate_machine(&mut self, externs: E, trace_clock: T) -> Result<()> {
+        self.instantiate_machine_with_config(externs, trace_clock, |_| (), |_| ())?;
         self.ready = true;
         Ok(())
     }
@@ -255,6 +257,7 @@ where
     pub fn instantiate_machine_with_config<F, G>(
         &mut self,
         externs: E,
+        trace_clock: T,
         configure_nc: F,
         configure_mc: G,
     ) -> Result<()>
@@ -291,10 +294,10 @@ where
         let engine = EnginePool::new_default((&mc.network.clone()).into())?;
         engine.acquire().preload(&blockstore, &self.code_cids)?;
 
-        let machine = DefaultMachine::new(&mc, blockstore, externs)?;
+        let machine = DefaultMachine::new(&mc, blockstore, externs, trace_clock)?;
 
         let executor =
-            DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>::new(
+            DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E, T>>>>::new(
                 engine, machine,
             )?;
 
@@ -346,8 +349,8 @@ where
     }
 }
 
-pub type BasicTester = Tester<MemoryBlockstore, DummyExterns>;
-pub type BasicExecutor = IntegrationExecutor<MemoryBlockstore, DummyExterns>;
+pub type BasicTester = Tester<MemoryBlockstore, DummyExterns, DummyTraceClock>;
+pub type BasicExecutor = IntegrationExecutor<MemoryBlockstore, DummyExterns, DummyTraceClock>;
 
 // TODO refactor base Account type to include the seqno;
 // requires refactoring all over the place hpwever.
@@ -407,11 +410,12 @@ impl BasicTester {
             if let Some(options) = self.options.clone() {
                 self.instantiate_machine_with_config(
                     DummyExterns,
+                    DummyTraceClock::default(),
                     |cfg| cfg.actor_debugging = options.debug,
                     |mc| mc.tracing = options.trace,
                 )?;
             } else {
-                self.instantiate_machine(DummyExterns)?;
+                self.instantiate_machine(DummyExterns, DummyTraceClock::default())?;
             }
             self.ready = true
         }

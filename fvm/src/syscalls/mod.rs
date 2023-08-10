@@ -329,6 +329,8 @@ pub fn bind_syscalls(
     linker.bind("send", "send", send::send)?;
 
     linker.bind("debug", "log", debug::log)?;
+    linker.bind("debug", "span_begin", debug::span_begin)?;
+    linker.bind("debug", "span_end", debug::span_end)?;
     linker.bind("debug", "enabled", debug::enabled)?;
     linker.bind("debug", "store_artifact", debug::store_artifact)?;
 

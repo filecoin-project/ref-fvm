@@ -7,7 +7,8 @@ use std::rc::Rc;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm::trace::ExecutionEvent;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_integration_tests::tester::{Account, IntegrationExecutor};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
@@ -61,7 +62,9 @@ fn hello_world() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -107,7 +110,9 @@ fn ipld() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -155,7 +160,7 @@ fn syscalls() {
     // Set actor
     let actor_address = Address::new_id(10000);
 
-    tester
+    let code_cid = tester
         .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
         .unwrap();
 
@@ -163,6 +168,7 @@ fn syscalls() {
     tester
         .instantiate_machine_with_config(
             DummyExterns,
+            DummyTraceClock::default(),
             |nc| {
                 nc.chain_id = ChainID::from(1);
             },
@@ -193,6 +199,56 @@ fn syscalls() {
             panic!("non-zero exit code {}", res.msg_receipt.exit_code)
         }
     }
+
+    // Ensure that the span tracing syscalls emitted the correct events.
+    let spans: Vec<_> = res
+        .exec_trace
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                ExecutionEvent::SpanBegin(..) | ExecutionEvent::SpanEnd(..)
+            )
+        })
+        .collect();
+
+    assert_eq!(spans.len(), 4);
+
+    let span = match spans[0] {
+        ExecutionEvent::SpanBegin(ref span) => span,
+        other => panic!("expected SpanBegin, got {other:?}"),
+    };
+    assert_eq!(span.label, "parent label");
+    assert_eq!(span.tag, "parent tag");
+    assert_eq!(span.parent, 0);
+    assert_eq!(span.code, code_cid);
+    assert_eq!(span.method, 1);
+    assert_eq!(span.timestamp, 1);
+
+    let span = match spans[1] {
+        ExecutionEvent::SpanBegin(ref span) => span,
+        other => panic!("expected SpanBegin, got {other:?}"),
+    };
+    assert_eq!(span.label, "child label");
+    assert_eq!(span.tag, "child tag");
+    assert_eq!(span.parent, 1);
+    assert_eq!(span.code, code_cid);
+    assert_eq!(span.method, 1);
+    assert_eq!(span.timestamp, 2);
+
+    let span = match spans[2] {
+        ExecutionEvent::SpanEnd(ref span) => span,
+        other => panic!("expected SpanEnd, got {other:?}"),
+    };
+    assert_eq!(span.id, 2);
+    assert_eq!(span.timestamp, 3);
+
+    let span = match spans[3] {
+        ExecutionEvent::SpanEnd(ref span) => span,
+        other => panic!("expected SpanEnd, got {other:?}"),
+    };
+    assert_eq!(span.id, 1);
+    assert_eq!(span.timestamp, 4);
 }
 
 #[test]
@@ -230,7 +286,9 @@ fn sself() {
     println!("actor_code_cid: {:?}", actor_code_cid);
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -305,7 +363,9 @@ fn create_actor() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     {
         let message = Message {
@@ -386,7 +446,9 @@ fn exit_data() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     {
         // Send constructor message
@@ -492,6 +554,7 @@ fn native_stack_overflow() {
     tester
         .instantiate_machine_with_config(
             DummyExterns,
+            DummyTraceClock::default(),
             |nc| {
                 // The stack overflow test consumed the default 512MiB before it hit the recursion limit.
                 nc.max_memory_bytes = 4 * (1 << 30);
@@ -501,27 +564,28 @@ fn native_stack_overflow() {
         )
         .unwrap();
 
-    let exec_test =
-        |exec: &mut ThreadedExecutor<IntegrationExecutor<MemoryBlockstore, DummyExterns>>,
-         method| {
-            // Send message
-            let message = Message {
-                from: sender[0].1,
-                to: actor_address,
-                gas_limit: 10_000_000_000,
-                method_num: method,
-                sequence: method - 1,
-                ..Message::default()
-            };
-
-            let res = exec
-                .execute_message(message, ApplyKind::Explicit, 100)
-                .unwrap();
-
-            eprintln!("STACKOVERFLOW RESULT = {:?}", res);
-
-            res.msg_receipt.exit_code.value()
+    type Exec<'a> = &'a mut ThreadedExecutor<
+        IntegrationExecutor<MemoryBlockstore, DummyExterns, DummyTraceClock>,
+    >;
+    let exec_test = |exec: Exec<'_>, method| {
+        // Send message
+        let message = Message {
+            from: sender[0].1,
+            to: actor_address,
+            gas_limit: 10_000_000_000,
+            method_num: method,
+            sequence: method - 1,
+            ..Message::default()
         };
+
+        let res = exec
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        eprintln!("STACKOVERFLOW RESULT = {:?}", res);
+
+        res.msg_receipt.exit_code.value()
+    };
 
     let mut executor = ThreadedExecutor(tester.executor.unwrap());
 
@@ -567,7 +631,9 @@ fn test_exitcode(wat: &str, code: ExitCode) {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -744,7 +810,9 @@ fn backtraces() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     let executor = tester.executor.as_mut().unwrap();
 
@@ -823,7 +891,9 @@ fn test_oom1() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -869,7 +939,9 @@ fn test_oom2() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     // Send message
     let message = Message {
@@ -920,6 +992,7 @@ fn test_oom3() {
     tester
         .instantiate_machine_with_config(
             DummyExterns,
+            DummyTraceClock::default(),
             //
             |ncfg| ncfg.max_memory_bytes = 65536,
             |_| {},
@@ -976,6 +1049,7 @@ fn test_oom4() {
     tester
         .instantiate_machine_with_config(
             DummyExterns,
+            DummyTraceClock::default(),
             // the multiplier has to be 17 or larger:
             // could not prepare actor with code CID {...}
             // Caused by:

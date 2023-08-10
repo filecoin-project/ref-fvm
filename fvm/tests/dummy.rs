@@ -13,6 +13,7 @@ use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
+use fvm::trace::{SpanId, TraceClock};
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -73,6 +74,15 @@ impl Chain for DummyExterns {
     }
 }
 
+/// Empty TraceClock impl.
+pub struct DummyTraceClock;
+
+impl TraceClock for DummyTraceClock {
+    fn timestamp(&mut self) -> u64 {
+        0
+    }
+}
+
 #[derive(Default)]
 pub struct DummyLimiter {
     curr_exec_memory_bytes: usize,
@@ -105,6 +115,8 @@ pub struct DummyMachine {
     pub state_tree: StateTree<MemoryBlockstore>,
     pub ctx: MachineContext,
     pub builtin_actors: Manifest,
+    pub trace_clock: DummyTraceClock,
+    pub span_counter: SpanId,
 }
 
 impl DummyMachine {
@@ -141,6 +153,8 @@ impl DummyMachine {
             ctx,
             state_tree,
             builtin_actors: manifest,
+            trace_clock: DummyTraceClock,
+            span_counter: 0,
         })
     }
 }
@@ -149,6 +163,7 @@ impl Machine for DummyMachine {
     type Blockstore = MemoryBlockstore;
     type Externs = DummyExterns;
     type Limiter = DummyLimiter;
+    type TraceClock = DummyTraceClock;
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.state_tree.store()
@@ -160,6 +175,10 @@ impl Machine for DummyMachine {
 
     fn externs(&self) -> &Self::Externs {
         &DummyExterns
+    }
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock {
+        &mut self.trace_clock
     }
 
     fn builtin_actors(&self) -> &Manifest {
@@ -184,6 +203,11 @@ impl Machine for DummyMachine {
 
     fn new_limiter(&self) -> Self::Limiter {
         DummyLimiter::default()
+    }
+
+    fn next_span_id(&mut self) -> SpanId {
+        self.span_counter += 1;
+        self.span_counter
     }
 }
 
@@ -396,4 +420,8 @@ impl CallManager for DummyCallManager {
     ) -> fvm::kernel::Result<()> {
         todo!()
     }
+
+    fn trace_span_begin(&mut self, _begin: fvm::trace::SpanBegin) {}
+
+    fn trace_span_end(&mut self, _end: fvm::trace::SpanEnd) {}
 }

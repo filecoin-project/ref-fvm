@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::trace::SpanId;
 use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
@@ -33,6 +34,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 
 use crate::externs::TestExterns;
+use crate::tracing::TestTraceClock;
 use crate::vector::{MessageVector, Variant};
 
 const DEFAULT_BASE_FEE: u64 = 100;
@@ -69,13 +71,14 @@ impl TestStatsGlobal {
 /// Global statistics about all test vector executions.
 pub type TestStatsRef = Option<Arc<Mutex<TestStatsGlobal>>>;
 
-pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
+pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns, TestTraceClock>>> {
     pub machine: M,
     pub data: TestData,
     stats: TestStatsRef,
+    span_id: SpanId,
 }
 
-impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
+impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns, TestTraceClock>>> {
     pub fn new_for_vector(
         v: &MessageVector,
         variant: &Variant,
@@ -83,7 +86,9 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         stats: TestStatsRef,
         tracing: bool,
         price_network_version: Option<NetworkVersion>,
-    ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
+    ) -> anyhow::Result<
+        TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns, TestTraceClock>>>,
+    > {
         let network_version = NetworkVersion::try_from(variant.nv)
             .map_err(|_| anyhow!("unrecognized network version"))?;
 
@@ -106,11 +111,12 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         mc.set_base_fee(base_fee);
         mc.tracing = tracing;
 
-        let machine = DefaultMachine::new(&mc, blockstore, externs).unwrap();
+        let machine =
+            DefaultMachine::new(&mc, blockstore, externs, TestTraceClock::default()).unwrap();
 
         let price_list = machine.context().price_list.clone();
 
-        let machine = TestMachine::<Box<DefaultMachine<_, _>>> {
+        let machine = TestMachine::<Box<DefaultMachine<_, _, _>>> {
             machine: Box::new(machine),
             data: TestData {
                 circ_supply: v
@@ -121,6 +127,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
                 price_list,
             },
             stats,
+            span_id: 0,
         };
 
         Ok(machine)
@@ -134,6 +141,7 @@ where
     type Blockstore = M::Blockstore;
     type Externs = M::Externs;
     type Limiter = TestLimiter<M::Limiter>;
+    type TraceClock = M::TraceClock;
 
     fn blockstore(&self) -> &Self::Blockstore {
         self.machine.blockstore()
@@ -145,6 +153,10 @@ where
 
     fn externs(&self) -> &Self::Externs {
         self.machine.externs()
+    }
+
+    fn trace_clock_mut(&mut self) -> &mut Self::TraceClock {
+        self.machine.trace_clock_mut()
     }
 
     fn builtin_actors(&self) -> &Manifest {
@@ -177,6 +189,11 @@ where
             global_stats: self.stats.clone(),
             local_stats: TestStats::default(),
         }
+    }
+
+    fn next_span_id(&mut self) -> SpanId {
+        self.span_id += 1;
+        self.span_id
     }
 }
 
@@ -438,6 +455,12 @@ where
     fn log(&self, msg: String) {
         self.0.log(msg)
     }
+
+    fn span_begin(&mut self, _label: String, _tag: String, _parent: SpanId) -> Result<SpanId> {
+        Ok(0)
+    }
+
+    fn span_end(&mut self, _id: SpanId) {}
 
     fn debug_enabled(&self) -> bool {
         self.0.debug_enabled()

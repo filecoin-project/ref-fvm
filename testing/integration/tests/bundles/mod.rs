@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Context;
 use fvm::externs::Externs;
+use fvm::trace::TraceClock;
 use fvm_integration_tests::bundle;
 use fvm_integration_tests::tester::{BasicTester, ExecutionOptions, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -19,11 +20,11 @@ lazy_static! {
 }
 
 #[allow(dead_code)]
-pub fn new_tester<B: Blockstore, E: Externs>(
+pub fn new_tester<B: Blockstore, E: Externs, T: TraceClock>(
     nv: NetworkVersion,
     stv: StateTreeVersion,
     blockstore: B,
-) -> anyhow::Result<Tester<B, E>> {
+) -> anyhow::Result<Tester<B, E, T>> {
     let bundle = BUNDLES
         .get(&nv)
         .with_context(|| format!("unsupported network version {nv}"))?;

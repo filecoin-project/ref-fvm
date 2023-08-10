@@ -3,7 +3,7 @@
 mod bundles;
 use bundles::*;
 use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::dummy::{DummyExterns, DummyTraceClock};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -39,7 +39,9 @@ fn readonly_actor_tests() {
         .unwrap();
 
     // Instantiate machine
-    tester.instantiate_machine(DummyExterns).unwrap();
+    tester
+        .instantiate_machine(DummyExterns, DummyTraceClock::default())
+        .unwrap();
 
     let executor = tester.executor.as_mut().unwrap();
 
