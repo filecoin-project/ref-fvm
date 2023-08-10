@@ -176,10 +176,8 @@ pub trait SelfOps: IpldBlockOps {
     /// The balance of the receiver.
     fn current_balance(&self) -> Result<TokenAmount>;
 
-    /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
-    /// Aborts if the beneficiary does not exist.
-    /// May only be called by the actor itself.
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()>;
+    /// Deletes the executing actor from the state tree, burning any remaining balance.
+    fn self_destruct(&mut self) -> Result<()>;
 }
 
 /// Actors operations whose scope of action is actors other than the calling

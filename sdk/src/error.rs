@@ -15,14 +15,8 @@ pub enum StateUpdateError {
 }
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
-pub enum ActorDeleteError {
-    #[error("deletion beneficiary is the current actor")]
-    BeneficiaryIsSelf,
-    #[error("deletion beneficiary does not exist")]
-    BeneficiaryDoesNotExist,
-    #[error("current execution context is read-only")]
-    ReadOnly,
-}
+#[error("current execution context is read-only")]
+pub struct ActorDeleteError;
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 pub enum EpochBoundsError {

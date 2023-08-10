@@ -10,7 +10,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{Entry, Flags};
 use fvm_shared::sys::SendFlags;
 use fvm_shared::METHOD_SEND;
-use sdk::error::{ActorDeleteError, StateUpdateError};
+use sdk::error::StateUpdateError;
 use sdk::sys::ErrorNumber;
 
 /// Placeholder invoke for testing
@@ -159,9 +159,7 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert_eq!(err, ErrorNumber::ReadOnly);
 
             // Should not be able to delete self.
-            let err =
-                sdk::sself::self_destruct(&Address::new_id(sdk::message::origin())).unwrap_err();
-            assert_eq!(err, ActorDeleteError::ReadOnly);
+            sdk::sself::self_destruct().expect_err("deleted self while read-only");
         }
         4 => {
             assert!(sdk::vm::read_only());

@@ -33,12 +33,7 @@ pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAm
         .or_fatal()
 }
 
-pub fn self_destruct(
-    context: Context<'_, impl Kernel>,
-    addr_off: u32,
-    addr_len: u32,
-) -> Result<()> {
-    let addr = context.memory.read_address(addr_off, addr_len)?;
-    context.kernel.self_destruct(&addr)?;
+pub fn self_destruct(context: Context<'_, impl Kernel>) -> Result<()> {
+    context.kernel.self_destruct()?;
     Ok(())
 }

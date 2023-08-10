@@ -38,6 +38,7 @@ super::fvm_syscalls! {
     /// | Error                | Reason                                         |
     /// |----------------------|------------------------------------------------|
     /// | [`IllegalOperation`] | actor has been deleted                         |
+    /// | [`ReadOnly`]         | the actor is executing in read-only mode       |
     /// | [`NotFound`]         | specified root CID is not in the reachable set |
     pub fn set_root(cid: *const u8) -> Result<()>;
 
@@ -61,10 +62,8 @@ super::fvm_syscalls! {
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                                                         |
-    /// |---------------------|----------------------------------------------------------------|
-    /// | [`NotFound`]        | beneficiary isn't found                                        |
-    /// | [`Forbidden`]       | beneficiary is not allowed (usually means beneficiary is self) |
-    /// | [`IllegalArgument`] | if the passed address buffer isn't valid, in memory, etc.      |
-    pub fn self_destruct(addr_off: *const u8, addr_len: u32) -> Result<()>;
+    /// | Error         | Reason                                    |
+    /// |---------------|-------------------------------------------|
+    /// | [`ReadOnly`]  | the actor is executing in read-only mode  |
+    pub fn self_destruct() -> Result<()>;
 }
