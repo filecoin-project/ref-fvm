@@ -27,7 +27,7 @@ pub struct State {
 fn instantiate_tester() -> (Account, Tester<MemoryBlockstore, DummyExterns>, Address) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

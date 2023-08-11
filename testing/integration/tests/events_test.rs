@@ -126,7 +126,7 @@ fn setup() -> (
 ) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

@@ -9,7 +9,7 @@ fvm_ipld_encoding = { version = "0.4.0", path = "../../../../ipld/encoding" }
 fvm_sdk = { version = "4.0.0-alpha.1", path = "../../../../sdk" }
 fvm_shared = { version = "4.0.0-alpha.1", path = "../../../../shared" }
 minicov = {version = "0.3", optional = true}
-actors_v10_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
+actors_v12_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "fvm-next" }
 multihash = { workspace = true }
 
 [lib]
