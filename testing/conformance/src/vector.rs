@@ -114,10 +114,7 @@ pub enum RandomnessKind {
 #[derive(Debug, Deserialize_tuple, PartialEq, Clone)]
 pub struct RandomnessRule {
     pub kind: RandomnessKind,
-    pub dst: i64,
     pub epoch: ChainEpoch,
-    #[serde(with = "base64_bytes")]
-    pub entropy: Vec<u8>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
