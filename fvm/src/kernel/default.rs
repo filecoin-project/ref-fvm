@@ -6,6 +6,8 @@ use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
+use blake2b_simd::Params;
+use byteorder::WriteBytesExt;
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
@@ -27,6 +29,7 @@ use lazy_static::lazy_static;
 use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelDrainRange;
+use std::io::Write;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -745,6 +748,22 @@ where
     }
 }
 
+fn draw_randomness(
+    rbase: &[u8; RANDOMNESS_LENGTH],
+    pers: i64,
+    round: ChainEpoch,
+    entropy: &[u8],
+) -> anyhow::Result<[u8; RANDOMNESS_LENGTH]> {
+    let mut state = Params::new().hash_length(32).to_state();
+    state.write_i64::<byteorder::BigEndian>(pers)?;
+    state.write_all(rbase)?;
+    state.write_i64::<byteorder::BigEndian>(round)?;
+    state.write_all(entropy)?;
+    let mut ret = [0u8; 32];
+    ret.clone_from_slice(state.finalize().as_bytes());
+    Ok(ret)
+}
+
 impl<C> RandomnessOps for DefaultKernel<C>
 where
     C: CallManager,
@@ -763,12 +782,17 @@ where
 
         // TODO(M2): Check error code
         // Specifically, lookback length?
-        t.record(
+
+        let digest = t.record(
             self.call_manager
                 .externs()
-                .get_chain_randomness(personalization, rand_epoch, entropy)
+                .get_chain_randomness(rand_epoch)
                 .or_illegal_argument(),
-        )
+        )?;
+
+        draw_randomness(&digest, personalization, rand_epoch, entropy).map_err(|e| {
+            syscall_error!(IllegalArgument; "failed to draw chain randmness {}", e).into()
+        })
     }
 
     fn get_randomness_from_beacon(
@@ -785,12 +809,16 @@ where
 
         // TODO(M2): Check error code
         // Specifically, lookback length?
-        t.record(
+        let digest = t.record(
             self.call_manager
                 .externs()
-                .get_beacon_randomness(personalization, rand_epoch, entropy)
+                .get_beacon_randomness(rand_epoch)
                 .or_illegal_argument(),
-        )
+        )?;
+
+        draw_randomness(&digest, personalization, rand_epoch, entropy).map_err(|e| {
+            syscall_error!(IllegalArgument; "failed to draw beacon randmness {}", e).into()
+        })
     }
 }
 

@@ -2326,6 +2326,8 @@ version = "3.5.0"
 dependencies = [
  "anyhow",
  "arbitrary",
+ "blake2b_simd",
+ "byteorder",
  "cid 0.10.1",
  "derive_more",
  "filecoin-proofs-api",

@@ -20,11 +20,11 @@ pub struct ReplayingRand {
 pub struct TestFallbackRand;
 
 impl Rand for TestFallbackRand {
-    fn get_chain_randomness(&self, _: i64, _: ChainEpoch, _: &[u8]) -> anyhow::Result<[u8; 32]> {
+    fn get_chain_randomness(&self, _: ChainEpoch) -> anyhow::Result<[u8; 32]> {
         Ok(*b"i_am_random_____i_am_random_____")
     }
 
-    fn get_beacon_randomness(&self, _: i64, _: ChainEpoch, _: &[u8]) -> anyhow::Result<[u8; 32]> {
+    fn get_beacon_randomness(&self, _: ChainEpoch) -> anyhow::Result<[u8; 32]> {
         Ok(*b"i_am_random_____i_am_random_____")
     }
 }
@@ -50,40 +50,26 @@ impl ReplayingRand {
 }
 
 impl Rand for ReplayingRand {
-    fn get_chain_randomness(
-        &self,
-        dst: i64,
-        epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
+    fn get_chain_randomness(&self, epoch: ChainEpoch) -> anyhow::Result<[u8; 32]> {
         let rule = RandomnessRule {
             kind: RandomnessKind::Chain,
-            dst,
             epoch,
-            entropy: entropy.to_vec(),
         };
         if let Some(bz) = self.matches(rule) {
             Ok(bz)
         } else {
-            self.fallback.get_chain_randomness(dst, epoch, entropy)
+            self.fallback.get_chain_randomness(epoch)
         }
     }
-    fn get_beacon_randomness(
-        &self,
-        dst: i64,
-        epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
+    fn get_beacon_randomness(&self, epoch: ChainEpoch) -> anyhow::Result<[u8; 32]> {
         let rule = RandomnessRule {
             kind: RandomnessKind::Beacon,
-            dst,
             epoch,
-            entropy: entropy.to_vec(),
         };
         if let Some(bz) = self.matches(rule) {
             Ok(bz)
         } else {
-            self.fallback.get_beacon_randomness(dst, epoch, entropy)
+            self.fallback.get_beacon_randomness(epoch)
         }
     }
 }
