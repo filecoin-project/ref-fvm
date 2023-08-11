@@ -33,7 +33,7 @@ pub fn current_balance(context: Context<'_, impl Kernel>) -> Result<sys::TokenAm
         .or_fatal()
 }
 
-pub fn self_destruct(context: Context<'_, impl Kernel>) -> Result<()> {
-    context.kernel.self_destruct()?;
+pub fn self_destruct(context: Context<'_, impl Kernel>, burn_unspent: u32) -> Result<()> {
+    context.kernel.self_destruct(burn_unspent > 0)?;
     Ok(())
 }

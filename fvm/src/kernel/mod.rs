@@ -176,8 +176,8 @@ pub trait SelfOps: IpldBlockOps {
     /// The balance of the receiver.
     fn current_balance(&self) -> Result<TokenAmount>;
 
-    /// Deletes the executing actor from the state tree, burning any remaining balance.
-    fn self_destruct(&mut self) -> Result<()>;
+    /// Deletes the executing actor from the state tree, burning any remaining balance if requested.
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()>;
 }
 
 /// Actors operations whose scope of action is actors other than the calling

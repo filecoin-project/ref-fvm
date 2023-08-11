@@ -5,7 +5,7 @@ use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::econ::TokenAmount;
-use sdk::error::{StateReadError, StateUpdateError};
+use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
 #[no_mangle]
 pub fn invoke(_: u32) -> u32 {
@@ -30,8 +30,14 @@ pub fn invoke(_: u32) -> u32 {
     let balance = sdk::sself::current_balance();
     assert_eq!(TokenAmount::from_nano(1_000_000), balance);
 
-    // now lets destroy the actor, burning the funds.
-    sdk::sself::self_destruct().unwrap();
+    // Now destroy the actor without burning funds. This should fail because we have unspent funds.
+    assert_eq!(
+        sdk::sself::self_destruct(false).unwrap_err(),
+        ActorDeleteError::UnspentFunds
+    );
+
+    // Now lets destroy the actor, burning the funds.
+    sdk::sself::self_destruct(true).unwrap();
 
     // test that root/set_root/self_destruct fail when the actor has been deleted
     // and balance is 0
@@ -43,7 +49,7 @@ pub fn invoke(_: u32) -> u32 {
     assert_eq!(TokenAmount::from_nano(0), sdk::sself::current_balance());
 
     // calling destroy on an already destroyed actor should succeed (no-op)
-    sdk::sself::self_destruct().expect("deleting an already deleted actor should succeed");
+    sdk::sself::self_destruct(false).expect("deleting an already deleted actor should succeed");
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("sself_actor.profraw", minicov::capture_coverage());

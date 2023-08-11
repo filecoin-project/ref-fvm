@@ -15,8 +15,12 @@ pub enum StateUpdateError {
 }
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
-#[error("current execution context is read-only")]
-pub struct ActorDeleteError;
+pub enum ActorDeleteError {
+    #[error("cannot self-destruct when read-only")]
+    ReadOnly,
+    #[error("actor did not request unspent funds to be burnt")]
+    UnspentFunds,
+}
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 pub enum EpochBoundsError {

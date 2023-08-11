@@ -49,21 +49,19 @@ super::fvm_syscalls! {
     /// None.
     pub fn current_balance() -> Result<super::TokenAmount>;
 
-    /// Destroys the calling actor, sending its current balance
-    /// to the supplied address, which cannot be itself.
-    ///
-    /// Fails when calling actor has a non zero balance and the beneficiary doesn't
-    /// exist or is the actor being deleted.
+    /// Destroys the calling actor. If `burn_funds` is true, any unspent balance will be burnt
+    /// (destroyed). Otherwise, if `burnt_funds` is false and there are unspent funds, this syscall
+    /// will fail.
     ///
     /// # Arguments
     ///
-    /// - `addr_off` and `addr_len` specify the location and length of beneficiary's address in wasm
-    ///   memory.
+    /// - `burn_funds` must be true to delete an actor with unspent funds.
     ///
     /// # Errors
     ///
-    /// | Error         | Reason                                    |
-    /// |---------------|-------------------------------------------|
-    /// | [`ReadOnly`]  | the actor is executing in read-only mode  |
-    pub fn self_destruct() -> Result<()>;
+    /// | Error                 | Reason                                    |
+    /// |-----------------------|-------------------------------------------|
+    /// | [`IllegalOperation`]  | the actor has unspent funds               |
+    /// | [`ReadOnly`]          | the actor is executing in read-only mode  |
+    pub fn self_destruct(burn_funds: bool) -> Result<()>;
 }

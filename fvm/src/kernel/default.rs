@@ -11,7 +11,6 @@ use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId}
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
-use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
@@ -244,7 +243,7 @@ where
         t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
     }
 
-    fn self_destruct(&mut self) -> Result<()> {
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot self-destruct when read-only").into());
         }
@@ -263,7 +262,12 @@ where
         // 2. If we ever decide to allow code on method 0, allowing transfers here would be
         //    unfortunate.
         let balance = self.current_balance()?;
-        if balance != TokenAmount::zero() {
+        if !balance.is_zero() {
+            if !burn_unspent {
+                return Err(
+                    syscall_error!(IllegalOperation; "self-destruct with unspent funds").into(),
+                );
+            }
             self.call_manager
                 .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)
                 .or_fatal()?;

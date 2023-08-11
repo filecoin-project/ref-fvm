@@ -53,10 +53,11 @@ pub fn current_balance() -> TokenAmount {
 }
 
 /// Destroys the calling actor, burning any remaining balance.
-pub fn self_destruct() -> Result<(), ActorDeleteError> {
+pub fn self_destruct(burn_funds: bool) -> Result<(), ActorDeleteError> {
     unsafe {
-        sys::sself::self_destruct().map_err(|e| match e {
-            ErrorNumber::ReadOnly => ActorDeleteError,
+        sys::sself::self_destruct(burn_funds).map_err(|e| match e {
+            ErrorNumber::IllegalOperation => ActorDeleteError::UnspentFunds,
+            ErrorNumber::ReadOnly => ActorDeleteError::ReadOnly,
             _ => panic!("unexpected error from `self::self_destruct` syscall: {}", e),
         })
     }
