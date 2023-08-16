@@ -6,7 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
     SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
@@ -257,20 +257,11 @@ pub trait GasOps {
 
 /// Cryptographic primitives provided by the kernel.
 pub trait CryptoOps {
-    /// Verifies that a signature is valid for an address and plaintext.
-    fn verify_signature(
-        &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
-    ) -> Result<bool>;
-
     fn verify_bls_aggregate(
         &self,
-        aggregate_signature: &[u8; BLS_SIG_LEN],
-        pub_keys: &[[u8; BLS_PUB_LEN]],
-        digests: &[[u8; BLS_DIGEST_LEN]],
+        aggregate_sig: &[u8; BLS_SIG_LEN],
+        pub_keys: &[&[u8; BLS_PUB_LEN]],
+        digests: &[&[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.

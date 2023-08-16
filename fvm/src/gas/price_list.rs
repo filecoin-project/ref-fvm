@@ -582,6 +582,22 @@ impl PriceList {
         GasCharge::new("OnVerifySignature", gas, Zero::zero())
     }
 
+    /// Returns gas required for BLS aggregate signature verification.
+    pub fn on_verify_aggregate_signature(&self, num_sigs: usize) -> GasCharge {
+        // When `num_sigs` BLS signatures are aggregated into a single signature, the aggregate
+        // signature verifier must perform `num_sigs + 1` expensive pairing operations (one
+        // pairing on the aggregate signature, and one pairing for each signed plaintext's digest).
+        //
+        // Note that `bls_signatures` rearranges the textbook verifier equation (containing
+        // `num_sigs + 1` full pairings) into a more efficient equation containing `num_sigs + 1`
+        // Miller loops and one final exponentiation.
+        let num_pairings = num_sigs as u64 + 1;
+        let gas_two_pairings = self.sig_cost[&SignatureType::BLS].flat.as_milligas();
+        let gas_one_pairing = gas_two_pairings / 2;
+        let gas = Gas::from_milligas(num_pairings * gas_one_pairing);
+        GasCharge::new("OnVerifySignature", gas, Zero::zero())
+    }
+
     /// Returns gas required for recovering signer pubkey from signature
     #[inline]
     pub fn on_recover_secp_public_key(&self) -> GasCharge {

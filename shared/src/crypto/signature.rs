@@ -131,8 +131,8 @@ impl quickcheck::Arbitrary for Signature {
 #[cfg(feature = "crypto")]
 impl Signature {
     /// Checks if a signature is valid given data and address.
-    pub fn verify(&self, data: &[u8], addr: &crate::address::Address) -> Result<(), String> {
-        verify(self.sig_type, &self.bytes, data, addr)
+    pub fn verify(&self, digest: &[u8], addr: &crate::address::Address) -> Result<(), String> {
+        verify(self.sig_type, &self.bytes, digest, addr)
     }
 }
 
@@ -140,60 +140,111 @@ impl Signature {
 pub fn verify(
     sig_type: SignatureType,
     sig_data: &[u8],
-    data: &[u8],
+    digest: &[u8],
     addr: &crate::address::Address,
 ) -> Result<(), String> {
+    use crate::address::{Payload, Protocol};
+
     match sig_type {
-        SignatureType::BLS => self::ops::verify_bls_sig(sig_data, data, addr),
-        SignatureType::Secp256k1 => self::ops::verify_secp256k1_sig(sig_data, data, addr),
+        SignatureType::BLS => {
+            let sig: &[u8; BLS_SIG_LEN] = sig_data.try_into().map_err(|_| {
+                format!(
+                    "invalid bls signature length {} (expected {BLS_SIG_LEN})",
+                    sig_data.len()
+                )
+            })?;
+
+            let pub_key = match addr.payload() {
+                Payload::BLS(pub_key) => pub_key,
+                addr_type => {
+                    return Err(format!(
+                        "cannot validate a BLS signature against a {} address",
+                        Protocol::from(addr_type),
+                    ))
+                }
+            };
+
+            let digest: &[u8; BLS_DIGEST_LEN] = digest.try_into().map_err(|_| {
+                format!(
+                    "invalid bls digest length {} (expected {BLS_DIGEST_LEN})",
+                    digest.len()
+                )
+            })?;
+
+            if self::ops::verify_bls_aggregate(sig, &[pub_key], &[digest])? {
+                Ok(())
+            } else {
+                Err(format!(
+                    "bls signature verification failed for addr: {addr}"
+                ))
+            }
+        }
+        SignatureType::Secp256k1 => self::ops::verify_secp256k1_sig(sig_data, digest, addr),
     }
 }
 
 #[cfg(feature = "crypto")]
 pub mod ops {
-    use bls_signatures::{
-        verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
-    };
+    use bls_signatures::{PublicKey as BlsPubKey, Serialize, Signature as BlsSignature};
     use libsecp256k1::{
         recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{Error, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
+    use super::{
+        Error, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    };
     use crate::address::{Address, Protocol};
-    use crate::crypto::signature::Signature;
 
-    /// Returns `String` error if a bls signature is invalid.
-    pub fn verify_bls_sig(signature: &[u8], data: &[u8], addr: &Address) -> Result<(), String> {
-        if addr.protocol() != Protocol::BLS {
+    /// Verifies an aggregated BLS signature. Returns `Ok(false)` if signature verification fails
+    /// and `String` error if arguments are invalid.
+    pub fn verify_bls_aggregate(
+        aggregate_sig: &[u8; BLS_SIG_LEN],
+        pub_keys: &[&[u8; BLS_PUB_LEN]],
+        digests: &[&[u8; BLS_DIGEST_LEN]],
+    ) -> Result<bool, String> {
+        // If the number of public keys and data does not match, return false;
+        let (num_pub_keys, num_digests) = (pub_keys.len(), digests.len());
+        if num_pub_keys != num_digests {
             return Err(format!(
-                "cannot validate a BLS signature against a {} address",
-                addr.protocol()
+                "unequal numbers of public keys ({num_pub_keys}) and digests ({num_digests})",
             ));
         }
-
-        let pub_k = addr.payload_bytes();
-
-        // generate public key object from bytes
-        let pk = BlsPubKey::from_bytes(&pub_k).map_err(|e| e.to_string())?;
-
-        // generate signature struct from bytes
-        let sig = BlsSignature::from_bytes(signature).map_err(|e| e.to_string())?;
-
-        // BLS verify hash against key
-        if verify_messages(&sig, &[data], &[pk]) {
-            Ok(())
-        } else {
-            Err(format!(
-                "bls signature verification failed for addr: {}",
-                addr
-            ))
+        if num_pub_keys == 0 {
+            return Ok(true);
         }
+
+        // Deserialize signature bytes into a curve point.
+        let sig = BlsSignature::from_bytes(aggregate_sig)
+            .map_err(|_| "bls aggregate signature bytes are invalid G2 curve point".to_string())?;
+
+        // Deserialize each public key's bytes into a curve point.
+        let pub_keys = pub_keys
+            .iter()
+            .map(|pub_key| BlsPubKey::from_bytes(pub_key.as_slice()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "bls public key bytes are invalid G2 curve point".to_string())?;
+
+        // Deserialize each digest's bytes into a curve point.
+        //
+        // BLS digests and signatures are each a G2 point. The `bls_signatures` crate does not
+        // expose functionality for deserializing digest bytes into a G2 point, however it does
+        // expose this serialization for its signature type `Signature`.
+        let digests = {
+            use bls_signatures::Signature as Digest;
+            digests
+                .iter()
+                .map(|digest| Digest::from_bytes(digest.as_slice()).map(Into::into))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| "bls digest bytes are invalid G2 curve point".to_string())?
+        };
+
+        Ok(bls_signatures::verify(&sig, &digests, &pub_keys))
     }
 
     /// Returns `String` error if a secp256k1 signature is invalid.
     pub fn verify_secp256k1_sig(
         signature: &[u8],
-        data: &[u8],
+        hash: &[u8],
         addr: &Address,
     ) -> Result<(), String> {
         if addr.protocol() != Protocol::Secp256k1 {
@@ -210,17 +261,10 @@ pub mod ops {
             ));
         }
 
-        // blake2b 256 hash
-        let hash = blake2b_simd::Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(data)
-            .finalize();
-
         // Ecrecover with hash and signature
         let mut sig = [0u8; SECP_SIG_LEN];
         sig[..].copy_from_slice(signature);
-        let rec_addr = ecrecover(hash.as_bytes().try_into().expect("fixed array size"), &sig)
+        let rec_addr = ecrecover(hash.try_into().expect("fixed array size"), &sig)
             .map_err(|e| e.to_string())?;
 
         // check address against recovered address
@@ -229,55 +273,6 @@ pub mod ops {
         } else {
             Err("Secp signature verification failed".to_owned())
         }
-    }
-
-    /// Aggregates and verifies bls signatures collectively.
-    pub fn verify_bls_aggregate(
-        digests: &[&[u8]],
-        pub_keys: &[&[u8]],
-        aggregate_sig: &Signature,
-    ) -> bool {
-        // If the number of public keys and data does not match, then return false
-        if digests.len() != pub_keys.len() {
-            return false;
-        }
-        if digests.is_empty() {
-            return true;
-        }
-
-        let sig = match BlsSignature::from_bytes(aggregate_sig.bytes()) {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-
-        let pk_map_results: Result<Vec<_>, _> =
-            pub_keys.iter().map(|x| BlsPubKey::from_bytes(x)).collect();
-
-        let pks = match pk_map_results {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-
-        let digests = {
-            // BLS digests and signatures are each a G2 point. The `bls_signatures` crate does not
-            // expose explicit functionality for deserializing a digest's bytes into a G2 point,
-            // however it does expose serialization for its signature type `Signature`. Thus, we can
-            // use the signature type to convert digest bytes into a G2 point.
-            use bls_signatures::Signature as Digest;
-
-            let deser_res = digests
-                .iter()
-                .map(|digest| Digest::from_bytes(digest).map(Into::into))
-                .collect::<Result<Vec<_>, _>>();
-
-            match deser_res {
-                Ok(digests) => digests,
-                Err(_) => return false,
-            }
-        };
-
-        // Does the aggregate verification
-        bls_signatures::verify(&sig, &digests, &pks[..])
     }
 
     /// Return the public key used for signing a message given it's signing bytes hash and signature.
@@ -315,6 +310,23 @@ pub mod ops {
             }
         }
     }
+
+    /// Hashes the plaintext of a Secp256k1 signature using the default hash function.
+    pub fn hash_secp(data: &[u8]) -> [u8; SECP_SIG_MESSAGE_HASH_SIZE] {
+        blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(data)
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .expect("blake2b digest-to-array conversion should not fail")
+    }
+
+    /// Hashes the plaintext of a BLS signature using the default hash function.
+    pub fn hash_bls(data: &[u8]) -> [u8; BLS_DIGEST_LEN] {
+        bls_signatures::hash(data).to_compressed()
+    }
 }
 
 #[cfg(all(test, feature = "crypto"))]
@@ -343,7 +355,7 @@ mod tests {
             .iter()
             .map(|msg| bls_signatures::hash(msg).to_compressed())
             .collect();
-        let digests: Vec<&[u8]> = digests.iter().map(AsRef::as_ref).collect();
+        let digests: Vec<&[u8; BLS_DIGEST_LEN]> = digests.iter().collect();
 
         let private_keys: Vec<PrivateKey> =
             (0..num_sigs).map(|_| PrivateKey::generate(rng)).collect();
@@ -356,15 +368,26 @@ mod tests {
             .map(|x| private_keys[x].sign(data[x]))
             .collect();
 
-        let public_keys_slice: Vec<&[u8]> = public_keys.iter().map(|x| &**x).collect();
+        let public_keys_slice: Vec<&[u8; BLS_PUB_LEN]> = public_keys
+            .iter()
+            .map(|pub_key| {
+                pub_key
+                    .as_slice()
+                    .try_into()
+                    .expect("bls public key slice to array reference conversion should not fail")
+            })
+            .collect();
 
-        let calculated_bls_agg =
-            Signature::new_bls(bls_signatures::aggregate(&signatures).unwrap().as_bytes());
-        assert!(verify_bls_aggregate(
-            &digests,
-            &public_keys_slice,
-            &calculated_bls_agg
-        ),);
+        let calculated_bls_agg = bls_signatures::aggregate(&signatures).unwrap().as_bytes();
+        let agg_sig: &[u8; BLS_SIG_LEN] = calculated_bls_agg
+            .as_slice()
+            .try_into()
+            .expect("bls signature slice to array reference conversion should not fail");
+
+        assert_eq!(
+            verify_bls_aggregate(agg_sig, &public_keys_slice, &digests),
+            Ok(true)
+        );
     }
 
     #[test]
@@ -374,14 +397,7 @@ mod tests {
         let privkey = SecretKey::random(rng);
         let pubkey = PublicKey::from_secret_key(&privkey);
 
-        let hash: [u8; 32] = blake2b_simd::Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(&[42, 43])
-            .finalize()
-            .as_bytes()
-            .try_into()
-            .expect("fixed array size");
+        let hash: [u8; 32] = crate::crypto::signature::ops::hash_secp(&[42, 43]);
 
         // Generate signature
         let (sig, recovery_id) = sign(&Message::parse(&hash), &privkey);

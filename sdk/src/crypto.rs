@@ -6,7 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{
-    Signature, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    Signature, SignatureType, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
     SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::piece::PieceInfo;
@@ -24,30 +24,103 @@ use crate::{status_code_to_bool, sys, SyscallResult};
 /// NOTE: This only supports f1 and f3 addresses.
 pub fn verify_signature(
     signature: &Signature,
-    signer: &Address,
-    plaintext: &[u8],
+    signers: &[Address],
+    digests: &[&[u8]],
 ) -> SyscallResult<bool> {
+    use fvm_shared::address::{Payload, Protocol};
+
+    let num_signers = signers.len();
+    assert_ne!(
+        num_signers, 0,
+        "no signing addresses were provided for signature verification"
+    );
+    assert_eq!(
+        num_signers,
+        digests.len(),
+        "unequal numbers of signers and digests"
+    );
     let sig_type = signature.signature_type();
-    let sig_bytes = signature.bytes();
-    let signer = signer.to_bytes();
-    unsafe {
-        sys::crypto::verify_signature(
-            sig_type as u32,
-            sig_bytes.as_ptr(),
-            sig_bytes.len() as u32,
-            signer.as_ptr(),
-            signer.len() as u32,
-            plaintext.as_ptr(),
-            plaintext.len() as u32,
-        )
-        .map(status_code_to_bool)
+    let sig = signature.bytes();
+
+    match sig_type {
+        SignatureType::BLS => {
+            let pub_keys: Vec<&[u8; BLS_PUB_LEN]> = signers
+                .iter()
+                .map(|addr| match addr.payload() {
+                    Payload::BLS(pub_key) => pub_key,
+                    addr_type => panic!(
+                        "cannot validate a BLS signature against a {} address",
+                        Protocol::from(addr_type),
+                    ),
+                })
+                .collect();
+
+            let sig: &[u8; BLS_SIG_LEN] = sig.try_into().unwrap_or_else(|_| {
+                panic!(
+                    "invalid bls signature length: {} (expected {BLS_SIG_LEN})",
+                    sig.len(),
+                )
+            });
+
+            let digests: Vec<&[u8; BLS_DIGEST_LEN]> = digests
+                .iter()
+                .map(|&digest| {
+                    digest.try_into().unwrap_or_else(|_| {
+                        panic!(
+                            "invalid bls digest length: {} (expected {BLS_DIGEST_LEN})",
+                            digest.len(),
+                        )
+                    })
+                })
+                .collect();
+
+            verify_bls_aggregate(sig, &pub_keys, &digests)
+        }
+        SignatureType::Secp256k1 => {
+            assert_eq!(
+                num_signers, 1,
+                "cannot provide multiple signers for Secp256k1 signature"
+            );
+            let (addr, digest) = (&signers[0], digests[0]);
+
+            let addr_type = addr.protocol();
+            assert_eq!(
+                addr_type,
+                Protocol::Secp256k1,
+                "cannot validate a secp256k1 signature against a {addr} address",
+            );
+
+            let sig: &[u8; SECP_SIG_LEN] = sig.try_into().unwrap_or_else(|_| {
+                panic!(
+                    "invalid secp signature length: {} (expected {SECP_SIG_LEN})",
+                    sig.len(),
+                )
+            });
+
+            let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] =
+                digest.try_into().unwrap_or_else(|_| {
+                    panic!(
+                        "invalid secp digest length: {} (expected {SECP_SIG_MESSAGE_HASH_SIZE})",
+                        digest.len(),
+                    )
+                });
+
+            let addr_recovered = {
+                let pub_key = recover_secp_public_key(digest, sig)?;
+                Address::new_secp256k1(&pub_key).unwrap_or_else(|_| panic!(
+                    "recovered secp256k1 public key to address conversion should never fail",
+                ))
+            };
+
+            Ok(addr == &addr_recovered)
+        }
     }
 }
 
 pub fn verify_bls_aggregate(
     sig: &[u8; BLS_SIG_LEN],
-    pub_keys: &[[u8; BLS_PUB_LEN]],
-    digests: &[[u8; BLS_DIGEST_LEN]],
+    pub_keys: &[&[u8; BLS_PUB_LEN]],
+    digests: &[&[u8; BLS_DIGEST_LEN]],
 ) -> SyscallResult<bool> {
     unsafe {
         sys::crypto::verify_bls_aggregate(
