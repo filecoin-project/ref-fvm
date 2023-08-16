@@ -4,7 +4,7 @@ use std::cmp;
 
 use anyhow::{anyhow, Context as _};
 use fvm_shared::crypto::signature::{
-    SignatureType, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
     SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::piece::PieceInfo;
@@ -13,41 +13,17 @@ use fvm_shared::sector::{
     WindowPoStVerifyInfo,
 };
 use fvm_shared::sys;
-use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
-/// Verifies that a signature is valid for an address and plaintext.
+/// Verifies that a bls aggregate signature is valid for a list of public keys and plaintext
+/// digests.
 ///
 /// The return i32 indicates the status code of the verification:
 ///  - 0: verification ok.
 ///  - -1: verification failed.
-#[allow(clippy::too_many_arguments)]
-pub fn verify_signature(
-    context: Context<'_, impl Kernel>,
-    sig_type: u32,
-    sig_off: u32,
-    sig_len: u32,
-    addr_off: u32,
-    addr_len: u32,
-    plaintext_off: u32,
-    plaintext_len: u32,
-) -> Result<i32> {
-    let sig_type = SignatureType::from_u32(sig_type)
-        .with_context(|| format!("unknown signature type {}", sig_type))
-        .or_illegal_argument()?;
-    let sig_bytes = context.memory.try_slice(sig_off, sig_len)?;
-    let addr = context.memory.read_address(addr_off, addr_len)?;
-    let plaintext = context.memory.try_slice(plaintext_off, plaintext_len)?;
-
-    context
-        .kernel
-        .verify_signature(sig_type, sig_bytes, &addr, plaintext)
-        .map(|v| if v { 0 } else { -1 })
-}
-
 pub fn verify_bls_aggregate(
     context: Context<'_, impl Kernel>,
     num_signers: u32,
@@ -55,40 +31,49 @@ pub fn verify_bls_aggregate(
     pub_keys_off: u32,
     digests_off: u32,
 ) -> Result<i32> {
-    let pub_keys_len = num_signers * BLS_PUB_LEN as u32;
-    let digests_len = num_signers * BLS_DIGEST_LEN as u32;
+    let pub_key_ref_len = std::mem::size_of::<&[u8; BLS_PUB_LEN]>();
+    let digest_ref_len = std::mem::size_of::<&[u8; BLS_DIGEST_LEN]>();
 
-    let sig: [u8; BLS_SIG_LEN] = context
+    // Check that the provided number of signatures aggregated does not cause `u32` overflow.
+    let (pub_key_refs_len, digest_refs_len) = num_signers
+        .checked_mul(pub_key_ref_len as u32)
+        .zip(num_signers.checked_mul(digest_ref_len as u32))
+        .ok_or(syscall_error!(
+            IllegalArgument;
+            "number of signatures aggregated ({}) exceeds limit",
+            num_signers
+        ))?;
+
+    let sig: &[u8; BLS_SIG_LEN] = context
         .memory
         .try_slice(sig_off, BLS_SIG_LEN as u32)?
         .try_into()
         .expect("bls signature bytes slice-to-array conversion should not fail");
 
-    let pub_keys: Vec<[u8; BLS_PUB_LEN]> = context
+    // Avoid copying each key/digest by casting each's bytes slice to a bytes array reference.
+    let pub_keys: Vec<&[u8; BLS_PUB_LEN]> = context
         .memory
-        .try_slice(pub_keys_off, pub_keys_len)?
-        .chunks(BLS_PUB_LEN)
-        .map(|pub_key_bytes| {
-            pub_key_bytes
-                .try_into()
-                .expect("bls public key bytes slice-to-array conversion should not fail")
+        .try_slice(pub_keys_off, pub_key_refs_len)?
+        .chunks(pub_key_ref_len)
+        .map(|ref_bytes| {
+            let ref_ptr = ref_bytes.as_ptr() as *const &[u8; BLS_PUB_LEN];
+            unsafe { *ref_ptr }
         })
         .collect();
 
-    let digests: Vec<[u8; BLS_DIGEST_LEN]> = context
+    let digests: Vec<&[u8; BLS_DIGEST_LEN]> = context
         .memory
-        .try_slice(digests_off, digests_len)?
-        .chunks(BLS_DIGEST_LEN)
-        .map(|digest_bytes| {
-            digest_bytes
-                .try_into()
-                .expect("bls digest bytes slice-to-array conversion should not fail")
+        .try_slice(digests_off, digest_refs_len)?
+        .chunks(digest_ref_len)
+        .map(|ref_bytes| {
+            let ref_ptr = ref_bytes.as_ptr() as *const &[u8; BLS_DIGEST_LEN];
+            unsafe { *ref_ptr }
         })
         .collect();
 
     context
         .kernel
-        .verify_bls_aggregate(&sig, &pub_keys, &digests)
+        .verify_bls_aggregate(sig, &pub_keys, &digests)
         .map(|v| if v { 0 } else { -1 })
 }
 

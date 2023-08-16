@@ -6,7 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::crypto::signature::{
-    Signature, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN,
+    Signature, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::RegisteredSealProof;
@@ -34,7 +34,7 @@ pub enum SupportedHashes {
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
-    test_signature();
+    test_secp_signature();
     test_bls_aggregate();
     test_expected_hash();
     test_hash_syscall();
@@ -50,7 +50,7 @@ pub fn invoke(_: u32) -> u32 {
     0
 }
 
-fn test_signature() {
+fn test_secp_signature() {
     // the following vectors represent a valid secp256k1 signatures for an address and plaintext message
     //
     let signature_bytes: Vec<u8> = vec![
@@ -66,12 +66,13 @@ fn test_signature() {
         194, 146, 27, 16, 114,
     ];
     let message: Vec<u8> = vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3];
+    let digest = sdk::crypto::hash_blake2b(&message);
 
     // test the happy path
     //
     let signature = Signature::new_secp256k1(signature_bytes.clone());
     let address = Address::new_secp256k1(&pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &address, message.as_slice());
+    let res = sdk::crypto::verify_signature(&signature, &[address], &[&digest]);
     assert_eq!(res, Ok(true));
 
     // test with invalid signature
@@ -79,7 +80,7 @@ fn test_signature() {
     let mut invalid_signature_bytes = signature_bytes.clone();
     invalid_signature_bytes[0] += 1;
     let invalid_signature = Signature::new_secp256k1(invalid_signature_bytes.clone());
-    let res = sdk::crypto::verify_signature(&invalid_signature, &address, message.as_slice());
+    let res = sdk::crypto::verify_signature(&invalid_signature, &[address], &[&digest]);
     assert_eq!(res, Ok(false));
 
     // test with invalid address
@@ -87,60 +88,28 @@ fn test_signature() {
     let mut invalid_pub_key_bytes = pub_key_bytes.clone();
     invalid_pub_key_bytes[0] += 1;
     let invalid_address = Address::new_secp256k1(&invalid_pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &invalid_address, message.as_slice());
+    let res = sdk::crypto::verify_signature(&signature, &[invalid_address], &[&digest]);
     assert_eq!(res, Ok(false));
 
-    // test with invalid message
+    // test with invalid digest
     //
-    let mut invalid_message = message.clone();
-    invalid_message[0] += 1;
-    let res = sdk::crypto::verify_signature(&signature, &address, invalid_message.as_slice());
+    let mut invalid_digest = digest;
+    invalid_digest[0] += 1;
+    let res = sdk::crypto::verify_signature(&signature, &[address], &[&invalid_digest]);
     assert_eq!(res, Ok(false));
-
-    // test that calling sdk::sys::crypto::verify_signature with invalid parameters result
-    // in correct error value
-    //
-    unsafe {
-        let sig_type = signature.signature_type();
-        let sig_bytes = signature.bytes();
-        let signer = address.to_bytes();
-
-        // test invalid signature type
-        let res = sdk::sys::crypto::verify_signature(
-            u32::MAX,
-            sig_bytes.as_ptr(),
-            sig_bytes.len() as u32,
-            signer.as_ptr(),
-            signer.len() as u32,
-            message.as_ptr(),
-            message.len() as u32,
-        );
-        assert_eq!(res, Err(ErrorNumber::IllegalArgument));
-
-        // test invalid signature ptr
-        let res = sdk::sys::crypto::verify_signature(
-            sig_type as u32,
-            sig_bytes.as_ptr(),
-            sig_bytes.len() as u32,
-            (u32::MAX) as *const u8,
-            signer.len() as u32,
-            message.as_ptr(),
-            message.len() as u32,
-        );
-        assert_eq!(res, Err(ErrorNumber::IllegalArgument));
-    }
 
     // test we can recover the public key from the signature
     //
-    let hash = sdk::crypto::hash_blake2b(&message);
-    let sig: [u8; SECP_SIG_LEN] = signature_bytes.try_into().unwrap();
-    let res = sdk::crypto::recover_secp_public_key(&hash, &sig).unwrap();
+    let sig: &[u8; SECP_SIG_LEN] = signature_bytes.as_slice().try_into().unwrap();
+    let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] = digest.as_slice().try_into().unwrap();
+    let res = sdk::crypto::recover_secp_public_key(digest, sig).unwrap();
     assert_eq!(res, pub_key_bytes.as_slice());
 
     // test that passing an invalid hash buffer results in IllegalArgument
     //
     unsafe {
-        let res = sdk::sys::crypto::recover_secp_public_key(hash.as_ptr(), (u32::MAX) as *const u8);
+        let res =
+            sdk::sys::crypto::recover_secp_public_key(digest.as_ptr(), (u32::MAX) as *const u8);
         assert_eq!(res, Err(ErrorNumber::IllegalArgument));
     }
 }
@@ -199,24 +168,40 @@ fn test_bls_aggregate() {
         255, 107, 98, 100, 207, 63, 75, 188, 34, 162, 170, 237, 188, 68, 170, 53, 11, 200, 124,
     ];
 
-    // Assert that signature validation succeeds.
+    // Assert that `sdk::crypto::verify_signature` succeeds for BLS signatures.
+    let res = {
+        let sig = Signature::new_bls(sig.to_vec());
+        let addrs: Vec<Address> = pub_keys
+            .iter()
+            .map(|pub_key| Address::new_bls(pub_key).unwrap())
+            .collect();
+        let digests: Vec<&[u8]> = digests.iter().map(|digest| digest.as_slice()).collect();
+        sdk::crypto::verify_signature(&sig, &addrs, &digests)
+    };
+    assert_eq!(res, Ok(true));
+
+    // Test SDK's bls aggregate signature validation syscall.
+    let pub_keys = [&pub_keys[0], &pub_keys[1], &pub_keys[2]];
+    let digests = [&digests[0], &digests[1], &digests[2]];
+
+    // Assert that signature validation syscall succeeds.
     let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &digests);
     assert_eq!(res, Ok(true));
 
     // Both BLS signatures and digests are a G2 point, thus we can use a valid digest's bytes as the
-    // G2 bytes for an invalid signature (and vice versa).
+    // G2 bytes for an incorrect signature (and vice versa).
     let invalid_sig = digests[0];
-    let invalid_digests = [sig, digests[1], digests[2]];
+    let invalid_digests = [&sig, digests[1], digests[2]];
 
-    // Assert that validation fails for an invalid aggregate signature.
-    let res = sdk::crypto::verify_bls_aggregate(&invalid_sig, &pub_keys, &digests);
+    // Assert that syscall validation fails for an invalid aggregate signature.
+    let res = sdk::crypto::verify_bls_aggregate(invalid_sig, &pub_keys, &digests);
     assert_eq!(res, Ok(false));
 
-    // Assert that signature validation fails for an invalid message digest.
+    // Assert that syscall validation fails for an invalid message digest.
     let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &invalid_digests);
     assert_eq!(res, Ok(false));
 
-    // Assert that signature validation fails for an invalid public key.
+    // Assert that syscall validation fails for an invalid public key.
     let invalid_pub_keys = [pub_keys[0], pub_keys[0], pub_keys[2]];
     let res = sdk::crypto::verify_bls_aggregate(&sig, &invalid_pub_keys, &digests);
     assert_eq!(res, Ok(false));

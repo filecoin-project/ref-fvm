@@ -13,31 +13,6 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "crypto";
 
-    /// Verifies that a signature is valid for an f1 or f3 address and plaintext.
-    ///
-    /// Returns 0 on success, or -1 if the signature fails to validate.
-    ///
-    /// # Arguments
-    ///
-    /// - `sig_off` and `sig_len` specify location and length of the signature.
-    /// - `addr_off` and `addr_len` specify location and length of expected signer's address.
-    /// - `plaintext_off` and `plaintext_len` specify location and length of the signed data.
-    ///
-    /// # Errors
-    ///
-    /// | Error               | Reason                                               |
-    /// |---------------------|------------------------------------------------------|
-    /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
-    pub fn verify_signature(
-        sig_type: u32,
-        sig_off: *const u8,
-        sig_len: u32,
-        addr_off: *const u8,
-        addr_len: u32,
-        plaintext_off: *const u8,
-        plaintext_len: u32,
-    ) -> Result<i32>;
-
     /// Verifies that a BLS aggregate signature is valid for a list of signers' BLS public keys and
     /// and the digest of each signer's plaintext.
     ///

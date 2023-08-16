@@ -10,9 +10,8 @@ use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
-use fvm_shared::address::Payload;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::{self, Signature};
+use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
@@ -35,7 +34,7 @@ use crate::call_manager::{
     UPGRADE_FUNC_NAME,
 };
 use crate::externs::{Chain, Consensus, Rand};
-use crate::gas::{GasCharge, GasTimer};
+use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
 use crate::state_tree::ActorState;
@@ -489,65 +488,28 @@ impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn verify_signature(
+    fn verify_bls_aggregate(
         &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
+        aggregate_sig: &[u8; BLS_SIG_LEN],
+        pub_keys: &[&[u8; BLS_PUB_LEN]],
+        digests: &[&[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool> {
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_verify_signature(sig_type, plaintext.len()),
+                .on_verify_aggregate_signature(pub_keys.len()),
         )?;
 
-        // We only support key addresses (f1/f3). This change does not require a FIP, because no
-        // actors invoke this method with non-key addresses.
-        let signing_addr = match signer.payload() {
-            Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
-            // Not a key address.
-            _ => {
-                return Err(syscall_error!(IllegalArgument; "address protocol {} not supported", signer.protocol()).into());
-            }
-        };
-
-        // Verify signature, catching errors. Signature verification can include some complicated
-        // math.
-        t.record(catch_and_log_panic("verifying signature", || {
-            Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
-        }))
-    }
-
-    fn verify_bls_aggregate(
-        &self,
-        aggregate_signature: &[u8; BLS_SIG_LEN],
-        pub_keys: &[[u8; BLS_PUB_LEN]],
-        digests: &[[u8; BLS_DIGEST_LEN]],
-    ) -> Result<bool> {
-        let sig = Signature::new_bls(aggregate_signature.to_vec());
-        let pub_keys: Vec<&[u8]> = pub_keys.iter().map(AsRef::as_ref).collect();
-        let digests: Vec<&[u8]> = digests.iter().map(AsRef::as_ref).collect();
-
-        let gas_required = {
-            let gas_two_pairings = self.call_manager.price_list().sig_cost[&SignatureType::BLS]
-                .flat
-                .as_milligas();
-            let gas_one_pairing = gas_two_pairings / 2;
-            let num_pairings = digests.len() as u64 + 1;
-            let gas_required = Gas::from_milligas(num_pairings * gas_one_pairing);
-            GasCharge::new("OnVerifySignature", gas_required, Zero::zero())
-        };
-
-        let t = self.call_manager.charge_gas(gas_required)?;
-        t.record(catch_and_log_panic(
-            "verifying bls aggregate signature",
-            || {
-                Ok(signature::ops::verify_bls_aggregate(
-                    &digests, &pub_keys, &sig,
-                ))
-            },
-        ))
+        t.record(
+            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, digests).map_err(|e| {
+                syscall_error!(
+                    IllegalArgument;
+                    "bls signature verification failed: {}",
+                    e
+                )
+                .into()
+            }),
+        )
     }
 
     fn recover_secp_public_key(
