@@ -4,6 +4,16 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.6.0 (2023-08-16)
+
+Breaking Changes:
+- Perform randomness hashing in the kernel
+  - The FVM no longer supplies a DST and entropy to the client extern when requesting randomness
+  - It expects the client to return the "digest", from which the kernel then draws the randomness
+  - Clients integrating this change should:
+    - no longer expect the DST and entropy parameters for the `get_chain_randomness` and `get_beacon_randomness` externs
+    - omit the last step they currently perform when drawing randomness; that is, return the hashed digest after looking up the randomness source
+
 ## 2.5.0 (2023-06-28)
 
 Breaking Changes:
