@@ -14,9 +14,7 @@ impl Externs for DummyExterns {}
 impl Rand for DummyExterns {
     fn get_chain_randomness(
         &self,
-        _pers: i64,
         _round: fvm_shared::clock::ChainEpoch,
-        _entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
         let rng: String = thread_rng()
             .sample_iter(&Alphanumeric)
@@ -29,9 +27,7 @@ impl Rand for DummyExterns {
 
     fn get_beacon_randomness(
         &self,
-        _pers: i64,
         _round: fvm_shared::clock::ChainEpoch,
-        _entropy: &[u8],
     ) -> anyhow::Result<[u8; 32]> {
         let rng: String = thread_rng()
             .sample_iter(&Alphanumeric)
