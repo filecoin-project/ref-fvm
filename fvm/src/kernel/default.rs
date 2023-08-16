@@ -759,9 +759,11 @@ fn draw_randomness(
     state.write_all(rbase)?;
     state.write_i64::<byteorder::BigEndian>(round)?;
     state.write_all(entropy)?;
-    let mut ret = [0u8; 32];
-    ret.clone_from_slice(state.finalize().as_bytes());
-    Ok(ret)
+    state
+        .finalize()
+        .as_bytes()
+        .try_into()
+        .map_err(anyhow::Error::from)
 }
 
 impl<C> RandomnessOps for DefaultKernel<C>
