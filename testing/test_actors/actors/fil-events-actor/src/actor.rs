@@ -1,5 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use std::ptr;
+
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::IPLD_RAW;
 use fvm_sdk as sdk;
@@ -61,9 +63,9 @@ pub fn invoke(params: u32) -> u32 {
                 sdk::sys::event::emit_event(
                     &entry as *const fvm_shared::sys::EventEntry,
                     1,
-                    0 as *const u8,
+                    ptr::null(),
                     4,
-                    0 as *const u8,
+                    ptr::null(),
                     0,
                 )
                 .is_err(),
