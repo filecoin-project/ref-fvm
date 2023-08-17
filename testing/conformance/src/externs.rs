@@ -25,22 +25,12 @@ impl TestExterns {
 impl Externs for TestExterns {}
 
 impl Rand for TestExterns {
-    fn get_chain_randomness(
-        &self,
-        pers: i64,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        self.rand.get_chain_randomness(pers, round, entropy)
+    fn get_chain_randomness(&self, round: ChainEpoch) -> anyhow::Result<[u8; 32]> {
+        self.rand.get_chain_randomness(round)
     }
 
-    fn get_beacon_randomness(
-        &self,
-        pers: i64,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]> {
-        self.rand.get_beacon_randomness(pers, round, entropy)
+    fn get_beacon_randomness(&self, round: ChainEpoch) -> anyhow::Result<[u8; 32]> {
+        self.rand.get_beacon_randomness(round)
     }
 }
 

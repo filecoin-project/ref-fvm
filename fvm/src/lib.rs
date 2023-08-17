@@ -77,9 +77,7 @@ mod test {
     impl Rand for DummyExterns {
         fn get_chain_randomness(
             &self,
-            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
-            _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {
             let msg = "mel was here".as_bytes();
             let mut out = [0u8; 32];
@@ -89,9 +87,7 @@ mod test {
 
         fn get_beacon_randomness(
             &self,
-            _pers: i64,
             _round: fvm_shared::clock::ChainEpoch,
-            _entropy: &[u8],
         ) -> anyhow::Result<[u8; 32]> {
             todo!()
         }

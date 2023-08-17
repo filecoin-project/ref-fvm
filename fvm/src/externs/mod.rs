@@ -23,21 +23,11 @@ pub trait Consensus {
 pub trait Rand {
     /// Gets 32 bytes of randomness for ChainRand paramaterized by the DomainSeparationTag,
     /// ChainEpoch, Entropy from the ticket chain.
-    fn get_chain_randomness(
-        &self,
-        pers: i64,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]>;
+    fn get_chain_randomness(&self, round: ChainEpoch) -> anyhow::Result<[u8; 32]>;
 
     /// Gets 32 bytes of randomness for ChainRand paramaterized by the DomainSeparationTag,
     /// ChainEpoch, Entropy from the latest beacon entry.
-    fn get_beacon_randomness(
-        &self,
-        pers: i64,
-        round: ChainEpoch,
-        entropy: &[u8],
-    ) -> anyhow::Result<[u8; 32]>;
+    fn get_beacon_randomness(&self, round: ChainEpoch) -> anyhow::Result<[u8; 32]>;
 }
 
 /// Chain information provider.
