@@ -1,7 +1,7 @@
 [package]
 name = "fvm_conformance_tests"
 description = "Filecoin Virtual Machine conformance tests"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
 exclude = ["/test-vectors"]
@@ -9,7 +9,7 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm_shared = { version = "2.5.0", path = "../../shared" }
+fvm_shared = { version = "2.6.0", path = "../../shared" }
 fvm_ipld_hamt = { workspace = true }
 fvm_ipld_amt = { workspace = true }
 fvm_ipld_car = { workspace = true }
@@ -51,7 +51,7 @@ tar = { version = "0.4.38", default-features = false }
 zstd = { version = "0.12.3", default-features = false }
 
 [dependencies.fvm]
-version = "2.5.0"
+version = "2.6.0"
 path = "../../fvm"
 default-features = false
 features = ["testing"]
