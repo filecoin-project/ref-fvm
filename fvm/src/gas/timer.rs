@@ -27,7 +27,6 @@ pub type GasInstant = Instant;
 
 /// A handle returned by `charge_gas` which must be used to mark the end of
 /// the execution associated with that gas.
-#[must_use]
 #[derive(Debug)]
 pub struct GasTimer(Option<GasTimerInner>);
 

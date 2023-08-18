@@ -267,8 +267,7 @@ where
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
         // TODO(M2): Check for reachability here.
 
-        let _ = self
-            .call_manager
+        self.call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
         let start = GasTimer::start();
@@ -740,9 +739,8 @@ where
             );
         }
 
-        let _ = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset > 1));
+        self.call_manager
+            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset > 1))?;
 
         self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
     }
