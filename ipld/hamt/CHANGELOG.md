@@ -10,7 +10,7 @@ Breaking Changes:
 
 - Deprecate default bitwidths in the HAMT
   - Users must now always specify the bitwidth
-- TODO: Something about #1808?
+- Add support for the Hamt version 0 datastructure, for historical purposes.
 
 ## 0.7.0 [2023-06-28)
 
