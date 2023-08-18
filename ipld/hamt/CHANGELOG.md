@@ -1,5 +1,17 @@
 # Changelog
 
+Changes to the reference FVM's HAMT implementation.
+
+## [Unreleased]
+
+## 0.8.0 [2023-08-18)
+
+Breaking Changes:
+
+- Deprecate default bitwidths in the HAMT
+  - Users must now always specify the bitwidth
+- TODO: Something about #1808?
+
 ## 0.7.0 [2023-06-28)
 
 Breaking Changes:

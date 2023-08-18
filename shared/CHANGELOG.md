@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+TODO: Can this be a patch release?
+## 3.5.0 [2023-08-18]
+
+- Add the V21 network version constant
+
 ## 3.4.0 [2023-06-27]
 
 Breaking Changes:
