@@ -118,7 +118,8 @@ pub(super) fn scan_for_reachable_links(
                             );
                     }
 
-                    // Read the CID and validate it. The CID type itself validates that.
+                    // Read the CID and validate it. The CID type itself validates the CID structure
+                    // and that the digest is less than 64 bytes.
                     let mut cid_buf;
                     (cid_buf, buf) = buf[1..].split_at(extra as usize - 1);
                     let cid = Cid::read_bytes(&mut cid_buf)
