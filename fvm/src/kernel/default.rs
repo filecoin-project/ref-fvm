@@ -153,7 +153,7 @@ where
                 let block_stat = blk.stat();
                 let block_id = self
                     .blocks
-                    .put_assert_reachable(blk)
+                    .put_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
                 SendResult {
@@ -322,7 +322,7 @@ where
         )?;
 
         let stat = block.stat();
-        let id = self.blocks.put_assert_reachable(block)?;
+        let id = self.blocks.put_reachable(block)?;
         t.stop_with(start);
         Ok((id, stat))
     }

@@ -98,7 +98,7 @@ impl BlockRegistry {
 impl BlockRegistry {
     /// Adds a new block to the registry, marking all children as reachable, returning a handle to
     /// refer to it. Use this when adding a block known to be reachable.
-    pub fn put_assert_reachable(&mut self, block: Block) -> Result<BlockId> {
+    pub fn put_reachable(&mut self, block: Block) -> Result<BlockId> {
         self.put_inner(block, false)
     }
 

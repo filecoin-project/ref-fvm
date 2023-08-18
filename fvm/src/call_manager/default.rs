@@ -689,7 +689,7 @@ where
         // Store the parametrs, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
         let params_id = if let Some(blk) = params {
-            block_registry.put_assert_reachable(blk)?
+            block_registry.put_reachable(blk)?
         } else {
             NO_DATA_BLOCK_ID
         };
