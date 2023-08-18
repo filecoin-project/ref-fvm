@@ -398,7 +398,7 @@ where
             None => {
                 // We charge for creating the actor (storage) but not for address assignment as the
                 // init actor has already handled that for us.
-                let _ = self.charge_gas(self.price_list().on_create_actor(false))?;
+                self.charge_gas(self.price_list().on_create_actor(false))?;
                 ActorState::new_empty(code_id, delegated_address)
             }
         };
@@ -422,8 +422,7 @@ where
             return Ok(Some(id));
         }
         if !self.state_access_tracker.get_address_lookup_state(address) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_resolve_address())?;
         }
         let id = self.state_tree().lookup_id(address)?;
@@ -436,8 +435,7 @@ where
     fn get_actor(&self, id: ActorID) -> Result<Option<ActorState>> {
         let access = self.state_access_tracker.get_actor_access_state(id);
         if access < Some(ActorAccessState::Read) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_actor_lookup())?;
         }
         let actor = self.state_tree().get_actor(id)?;
@@ -448,13 +446,11 @@ where
     fn set_actor(&mut self, id: ActorID, state: ActorState) -> Result<()> {
         let access = self.state_access_tracker.get_actor_access_state(id);
         if access < Some(ActorAccessState::Read) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_actor_lookup())?;
         }
         if access < Some(ActorAccessState::Updated) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_actor_update())?;
         }
         self.state_tree_mut().set_actor(id, state);
@@ -465,13 +461,11 @@ where
     fn delete_actor(&mut self, id: ActorID) -> Result<()> {
         let access = self.state_access_tracker.get_actor_access_state(id);
         if access < Some(ActorAccessState::Read) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_actor_lookup())?;
         }
         if access < Some(ActorAccessState::Updated) {
-            let _ = self
-                .gas_tracker
+            self.gas_tracker
                 .apply_charge(self.price_list().on_actor_update())?;
         }
         self.state_tree_mut().delete_actor(id);
@@ -536,7 +530,7 @@ where
     fn create_actor_from_send(&mut self, addr: &Address, act: ActorState) -> Result<ActorID> {
         // This will charge for the address assignment and the actor storage, but not the actor
         // lookup/update (charged below in `set_actor`).
-        let _ = self.charge_gas(self.price_list().on_create_actor(true))?;
+        self.charge_gas(self.price_list().on_create_actor(true))?;
         let addr_id = self.state_tree_mut().register_new_address(addr)?;
         self.state_access_tracker.record_lookup_address(addr);
 
@@ -778,7 +772,7 @@ where
             });
 
             // Process the result, updating the backtrace if necessary.
-            let ret = match result {
+            let mut ret = match result {
                 Ok(ret) => Ok(InvocationResult {
                     exit_code: ExitCode::OK,
                     value: ret.cloned(),
@@ -851,7 +845,9 @@ where
                     .price_list()
                     .on_method_return(cm.call_stack_depth, ret_size)
                 {
-                    let _ = cm.charge_gas(charge);
+                    if let Err(e) = cm.charge_gas(charge) {
+                        ret = Err(e);
+                    }
                 }
             }
 

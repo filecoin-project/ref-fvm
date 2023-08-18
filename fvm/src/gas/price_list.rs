@@ -959,6 +959,8 @@ impl PriceList {
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
         NetworkVersion::V18 | NetworkVersion::V19 | NetworkVersion::V20 => &HYGGE_PRICES,
+        #[cfg(feature = "nv21-dev")]
+        _ if network_version == NetworkVersion::V21 => &HYGGE_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }

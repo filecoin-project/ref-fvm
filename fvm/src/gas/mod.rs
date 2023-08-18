@@ -298,9 +298,9 @@ mod tests {
     #[allow(clippy::identity_op)]
     fn basic_gas_tracker() -> Result<()> {
         let t = GasTracker::new(Gas::new(20), Gas::new(10), false);
-        let _ = t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
+        t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(15));
-        let _ = t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
+        t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(20));
         assert!(t
             .apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))

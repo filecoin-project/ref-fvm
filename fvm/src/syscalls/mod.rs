@@ -151,8 +151,7 @@ pub fn charge_for_exec<K: Kernel>(
         // Only recording time for the execution, not for the memory part, which is unknown. But we
         // could perform stomething like a multi-variate linear regression to see if the amount of
         // memory explains any of the exectuion time.
-        let _ = data
-            .kernel
+        data.kernel
             .charge_gas("wasm_memory_grow", memory_gas_charge)
             .map_err(Abort::from_error_as_fatal)?;
     }
@@ -179,7 +178,7 @@ pub fn charge_for_init<K: Kernel>(
 
     if let Some(min_table_elements) = min_table_elements(module) {
         let table_gas = data.kernel.price_list().init_table_gas(min_table_elements);
-        let _ = data.kernel.charge_gas("wasm_table_init", table_gas)?;
+        data.kernel.charge_gas("wasm_table_init", table_gas)?;
     }
 
     data.kernel.charge_gas("wasm_memory_init", memory_gas)
