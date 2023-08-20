@@ -364,8 +364,8 @@ where
     fn verify_bls_aggregate(
         &self,
         aggregate_signature: &[u8; BLS_SIG_LEN],
-        pub_keys: &[&[u8; BLS_PUB_LEN]],
-        digests: &[&[u8; BLS_DIGEST_LEN]],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        digests: &[[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool> {
         self.0
             .verify_bls_aggregate(aggregate_signature, pub_keys, digests)

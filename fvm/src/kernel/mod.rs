@@ -257,11 +257,18 @@ pub trait GasOps {
 
 /// Cryptographic primitives provided by the kernel.
 pub trait CryptoOps {
+    /// Verifies a BLS aggregate signature. In the case where there is one signer/signed plaintext,
+    /// this is equivalent to verifying a non-aggregated BLS signature.
+    ///
+    /// Returns:
+    /// - `Ok(true)` on a valid signature.
+    /// - `Ok(false)` on an invalid signature or if any arguments represent an invalid curve point.
+    /// - `Err(IllegalArgument)` if `pub_keys.len() != digests.len()`.
     fn verify_bls_aggregate(
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
-        pub_keys: &[&[u8; BLS_PUB_LEN]],
-        digests: &[&[u8; BLS_DIGEST_LEN]],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        digests: &[[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.

@@ -99,8 +99,8 @@ fn test_secp_signature() {
 
     // test we can recover the public key from the signature
     //
-    let sig: &[u8; SECP_SIG_LEN] = signature_bytes.as_slice().try_into().unwrap();
     let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] = digest.as_slice().try_into().unwrap();
+    let sig: &[u8; SECP_SIG_LEN] = signature_bytes.as_slice().try_into().unwrap();
     let res = sdk::crypto::recover_secp_public_key(digest, sig).unwrap();
     assert_eq!(res, pub_key_bytes.as_slice());
 
@@ -179,28 +179,24 @@ fn test_bls_aggregate() {
     };
     assert_eq!(res, Ok(true));
 
-    // Test SDK's bls aggregate signature validation syscall.
-    let pub_keys = [&pub_keys[0], &pub_keys[1], &pub_keys[2]];
-    let digests = [&digests[0], &digests[1], &digests[2]];
-
-    // Assert that signature validation syscall succeeds.
+    // Assert that bls validation syscall succeeds.
     let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &digests);
     assert_eq!(res, Ok(true));
 
     // Both BLS signatures and digests are a G2 point, thus we can use a valid digest's bytes as the
     // G2 bytes for an incorrect signature (and vice versa).
     let invalid_sig = digests[0];
-    let invalid_digests = [&sig, digests[1], digests[2]];
+    let invalid_digests = [sig, digests[1], digests[2]];
 
-    // Assert that syscall validation fails for an invalid aggregate signature.
-    let res = sdk::crypto::verify_bls_aggregate(invalid_sig, &pub_keys, &digests);
+    // Assert that bls validation syscall fails for an invalid aggregate signature.
+    let res = sdk::crypto::verify_bls_aggregate(&invalid_sig, &pub_keys, &digests);
     assert_eq!(res, Ok(false));
 
-    // Assert that syscall validation fails for an invalid message digest.
+    // Assert that bls validation syscall fails for an invalid message digest.
     let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &invalid_digests);
     assert_eq!(res, Ok(false));
 
-    // Assert that syscall validation fails for an invalid public key.
+    // Assert that bls validation syscall fails for an invalid public key.
     let invalid_pub_keys = [pub_keys[0], pub_keys[0], pub_keys[2]];
     let res = sdk::crypto::verify_bls_aggregate(&sig, &invalid_pub_keys, &digests);
     assert_eq!(res, Ok(false));

@@ -31,17 +31,13 @@ pub fn verify_bls_aggregate(
     pub_keys_off: u32,
     digests_off: u32,
 ) -> Result<i32> {
-    let pub_key_ref_len = std::mem::size_of::<&[u8; BLS_PUB_LEN]>();
-    let digest_ref_len = std::mem::size_of::<&[u8; BLS_DIGEST_LEN]>();
-
     // Check that the provided number of signatures aggregated does not cause `u32` overflow.
-    let (pub_key_refs_len, digest_refs_len) = num_signers
-        .checked_mul(pub_key_ref_len as u32)
-        .zip(num_signers.checked_mul(digest_ref_len as u32))
+    let (pub_keys_len, digests_len) = num_signers
+        .checked_mul(BLS_PUB_LEN as u32)
+        .zip(num_signers.checked_mul(BLS_DIGEST_LEN as u32))
         .ok_or(syscall_error!(
             IllegalArgument;
-            "number of signatures aggregated ({}) exceeds limit",
-            num_signers
+            "number of signatures aggregated ({num_signers}) exceeds limit"
         ))?;
 
     let sig: &[u8; BLS_SIG_LEN] = context
@@ -50,30 +46,13 @@ pub fn verify_bls_aggregate(
         .try_into()
         .expect("bls signature bytes slice-to-array conversion should not fail");
 
-    // Avoid copying each key/digest by casting each's bytes slice to a bytes array reference.
-    let pub_keys: Vec<&[u8; BLS_PUB_LEN]> = context
-        .memory
-        .try_slice(pub_keys_off, pub_key_refs_len)?
-        .chunks(pub_key_ref_len)
-        .map(|ref_bytes| {
-            let ref_ptr = ref_bytes.as_ptr() as *const &[u8; BLS_PUB_LEN];
-            unsafe { *ref_ptr }
-        })
-        .collect();
+    let pub_keys: &[[u8; BLS_PUB_LEN]] = context.memory.try_chunks(pub_keys_off, pub_keys_len)?;
 
-    let digests: Vec<&[u8; BLS_DIGEST_LEN]> = context
-        .memory
-        .try_slice(digests_off, digest_refs_len)?
-        .chunks(digest_ref_len)
-        .map(|ref_bytes| {
-            let ref_ptr = ref_bytes.as_ptr() as *const &[u8; BLS_DIGEST_LEN];
-            unsafe { *ref_ptr }
-        })
-        .collect();
+    let digests: &[[u8; BLS_DIGEST_LEN]] = context.memory.try_chunks(digests_off, digests_len)?;
 
     context
         .kernel
-        .verify_bls_aggregate(sig, &pub_keys, &digests)
+        .verify_bls_aggregate(sig, pub_keys, digests)
         .map(|v| if v { 0 } else { -1 })
 }
 
