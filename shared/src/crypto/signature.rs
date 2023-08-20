@@ -154,8 +154,11 @@ pub fn verify(
                 )
             })?;
 
-            let pub_key = match addr.payload() {
-                Payload::BLS(pub_key) => pub_key,
+            let pub_key: &[[u8; BLS_PUB_LEN]] = match addr.payload() {
+                Payload::BLS(pub_key) => {
+                    let arr_ptr = pub_key as *const [u8; BLS_PUB_LEN];
+                    unsafe { std::slice::from_raw_parts(arr_ptr, 1) }
+                }
                 addr_type => {
                     return Err(format!(
                         "cannot validate a BLS signature against a {} address",
@@ -164,14 +167,20 @@ pub fn verify(
                 }
             };
 
-            let digest: &[u8; BLS_DIGEST_LEN] = digest.try_into().map_err(|_| {
-                format!(
-                    "invalid bls digest length {} (expected {BLS_DIGEST_LEN})",
-                    digest.len()
-                )
-            })?;
+            let digest: &[[u8; BLS_DIGEST_LEN]] = match <&[u8; BLS_DIGEST_LEN]>::try_from(digest) {
+                Ok(digest) => {
+                    let arr_ptr = digest as *const [u8; BLS_DIGEST_LEN];
+                    unsafe { std::slice::from_raw_parts(arr_ptr, 1) }
+                }
+                Err(_) => {
+                    return Err(format!(
+                        "invalid bls digest length {} (expected {BLS_DIGEST_LEN})",
+                        digest.len()
+                    ));
+                }
+            };
 
-            if self::ops::verify_bls_aggregate(sig, &[pub_key], &[digest])? {
+            if self::ops::verify_bls_aggregate(sig, pub_key, digest)? {
                 Ok(())
             } else {
                 Err(format!(
@@ -199,8 +208,8 @@ pub mod ops {
     /// and `String` error if arguments are invalid.
     pub fn verify_bls_aggregate(
         aggregate_sig: &[u8; BLS_SIG_LEN],
-        pub_keys: &[&[u8; BLS_PUB_LEN]],
-        digests: &[&[u8; BLS_DIGEST_LEN]],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        digests: &[[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool, String> {
         // If the number of public keys and data does not match, return false;
         let (num_pub_keys, num_digests) = (pub_keys.len(), digests.len());
@@ -228,7 +237,7 @@ pub mod ops {
         //
         // BLS digests and signatures are each a G2 point. The `bls_signatures` crate does not
         // expose functionality for deserializing digest bytes into a G2 point, however it does
-        // expose this serialization for its signature type `Signature`.
+        // expose bytes-to-G2 deserialization for its signature type `Signature`.
         let digests = {
             use bls_signatures::Signature as Digest;
             digests
@@ -310,23 +319,6 @@ pub mod ops {
             }
         }
     }
-
-    /// Hashes the plaintext of a Secp256k1 signature using the default hash function.
-    pub fn hash_secp(data: &[u8]) -> [u8; SECP_SIG_MESSAGE_HASH_SIZE] {
-        blake2b_simd::Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(data)
-            .finalize()
-            .as_bytes()
-            .try_into()
-            .expect("blake2b digest-to-array conversion should not fail")
-    }
-
-    /// Hashes the plaintext of a BLS signature using the default hash function.
-    pub fn hash_bls(data: &[u8]) -> [u8; BLS_DIGEST_LEN] {
-        bls_signatures::hash(data).to_compressed()
-    }
 }
 
 #[cfg(all(test, feature = "crypto"))]
@@ -355,27 +347,22 @@ mod tests {
             .iter()
             .map(|msg| bls_signatures::hash(msg).to_compressed())
             .collect();
-        let digests: Vec<&[u8; BLS_DIGEST_LEN]> = digests.iter().collect();
 
         let private_keys: Vec<PrivateKey> =
             (0..num_sigs).map(|_| PrivateKey::generate(rng)).collect();
-        let public_keys: Vec<_> = private_keys
+        let public_keys: Vec<[u8; BLS_PUB_LEN]> = private_keys
             .iter()
-            .map(|x| x.public_key().as_bytes())
+            .map(|priv_key| {
+                priv_key
+                    .public_key()
+                    .as_bytes()
+                    .try_into()
+                    .expect("public key bytes to array conversion should not fail")
+            })
             .collect();
 
         let signatures: Vec<BlsSignature> = (0..num_sigs)
             .map(|x| private_keys[x].sign(data[x]))
-            .collect();
-
-        let public_keys_slice: Vec<&[u8; BLS_PUB_LEN]> = public_keys
-            .iter()
-            .map(|pub_key| {
-                pub_key
-                    .as_slice()
-                    .try_into()
-                    .expect("bls public key slice to array reference conversion should not fail")
-            })
             .collect();
 
         let calculated_bls_agg = bls_signatures::aggregate(&signatures).unwrap().as_bytes();
@@ -385,7 +372,7 @@ mod tests {
             .expect("bls signature slice to array reference conversion should not fail");
 
         assert_eq!(
-            verify_bls_aggregate(agg_sig, &public_keys_slice, &digests),
+            verify_bls_aggregate(agg_sig, &public_keys, &digests),
             Ok(true)
         );
     }
@@ -397,7 +384,14 @@ mod tests {
         let privkey = SecretKey::random(rng);
         let pubkey = PublicKey::from_secret_key(&privkey);
 
-        let hash: [u8; 32] = crate::crypto::signature::ops::hash_secp(&[42, 43]);
+        let hash: [u8; 32] = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&[42, 43])
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .expect("fixed array size");
 
         // Generate signature
         let (sig, recovery_id) = sign(&Message::parse(&hash), &privkey);

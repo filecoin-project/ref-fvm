@@ -27,90 +27,58 @@ pub fn verify_signature(
     signers: &[Address],
     digests: &[&[u8]],
 ) -> SyscallResult<bool> {
-    use fvm_shared::address::{Payload, Protocol};
+    use fvm_shared::{
+        address::{Payload, Protocol},
+        error::ErrorNumber,
+    };
 
     let num_signers = signers.len();
-    assert_ne!(
-        num_signers, 0,
-        "no signing addresses were provided for signature verification"
-    );
-    assert_eq!(
-        num_signers,
-        digests.len(),
-        "unequal numbers of signers and digests"
-    );
+    if num_signers == 0 || num_signers != digests.len() {
+        return Err(ErrorNumber::IllegalArgument);
+    }
+
     let sig_type = signature.signature_type();
     let sig = signature.bytes();
 
     match sig_type {
         SignatureType::BLS => {
-            let pub_keys: Vec<&[u8; BLS_PUB_LEN]> = signers
+            let sig: &[u8; BLS_SIG_LEN] =
+                sig.try_into().map_err(|_| ErrorNumber::IllegalArgument)?;
+
+            let pub_keys = signers
                 .iter()
                 .map(|addr| match addr.payload() {
-                    Payload::BLS(pub_key) => pub_key,
-                    addr_type => panic!(
-                        "cannot validate a BLS signature against a {} address",
-                        Protocol::from(addr_type),
-                    ),
+                    Payload::BLS(pub_key) => Ok(*pub_key),
+                    _ => Err(ErrorNumber::IllegalArgument),
                 })
-                .collect();
+                .collect::<Result<Vec<[u8; BLS_PUB_LEN]>, ErrorNumber>>()?;
 
-            let sig: &[u8; BLS_SIG_LEN] = sig.try_into().unwrap_or_else(|_| {
-                panic!(
-                    "invalid bls signature length: {} (expected {BLS_SIG_LEN})",
-                    sig.len(),
-                )
-            });
-
-            let digests: Vec<&[u8; BLS_DIGEST_LEN]> = digests
+            let digests = digests
                 .iter()
-                .map(|&digest| {
-                    digest.try_into().unwrap_or_else(|_| {
-                        panic!(
-                            "invalid bls digest length: {} (expected {BLS_DIGEST_LEN})",
-                            digest.len(),
-                        )
-                    })
-                })
-                .collect();
+                .map(|&digest| digest.try_into().map_err(|_| ErrorNumber::IllegalArgument))
+                .collect::<Result<Vec<[u8; BLS_DIGEST_LEN]>, ErrorNumber>>()?;
 
             verify_bls_aggregate(sig, &pub_keys, &digests)
         }
         SignatureType::Secp256k1 => {
-            assert_eq!(
-                num_signers, 1,
-                "cannot provide multiple signers for Secp256k1 signature"
-            );
+            if num_signers != 1 || signers[0].protocol() != Protocol::Secp256k1 {
+                return Err(ErrorNumber::IllegalArgument);
+            }
+
             let (addr, digest) = (&signers[0], digests[0]);
 
-            let addr_type = addr.protocol();
-            assert_eq!(
-                addr_type,
-                Protocol::Secp256k1,
-                "cannot validate a secp256k1 signature against a {addr} address",
-            );
+            let sig: &[u8; SECP_SIG_LEN] =
+                sig.try_into().map_err(|_| ErrorNumber::IllegalArgument)?;
 
-            let sig: &[u8; SECP_SIG_LEN] = sig.try_into().unwrap_or_else(|_| {
-                panic!(
-                    "invalid secp signature length: {} (expected {SECP_SIG_LEN})",
-                    sig.len(),
+            let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] = digest
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
+
+            let addr_recovered = recover_secp_public_key(digest, sig).map(|pub_key| {
+                Address::new_secp256k1(&pub_key).expect(
+                    "recovered secp256k1 public key should always be a valid secp256k1 address",
                 )
-            });
-
-            let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] =
-                digest.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "invalid secp digest length: {} (expected {SECP_SIG_MESSAGE_HASH_SIZE})",
-                        digest.len(),
-                    )
-                });
-
-            let addr_recovered = {
-                let pub_key = recover_secp_public_key(digest, sig)?;
-                Address::new_secp256k1(&pub_key).unwrap_or_else(|_| panic!(
-                    "recovered secp256k1 public key to address conversion should never fail",
-                ))
-            };
+            })?;
 
             Ok(addr == &addr_recovered)
         }
@@ -119,8 +87,8 @@ pub fn verify_signature(
 
 pub fn verify_bls_aggregate(
     sig: &[u8; BLS_SIG_LEN],
-    pub_keys: &[&[u8; BLS_PUB_LEN]],
-    digests: &[&[u8; BLS_DIGEST_LEN]],
+    pub_keys: &[[u8; BLS_PUB_LEN]],
+    digests: &[[u8; BLS_DIGEST_LEN]],
 ) -> SyscallResult<bool> {
     unsafe {
         sys::crypto::verify_bls_aggregate(

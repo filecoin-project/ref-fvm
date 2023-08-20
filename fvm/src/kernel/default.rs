@@ -491,24 +491,27 @@ where
     fn verify_bls_aggregate(
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
-        pub_keys: &[&[u8; BLS_PUB_LEN]],
-        digests: &[&[u8; BLS_DIGEST_LEN]],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        digests: &[[u8; BLS_DIGEST_LEN]],
     ) -> Result<bool> {
+        let num_signers = pub_keys.len();
+
+        if num_signers != digests.len() {
+            return Err(syscall_error!(
+                IllegalArgument;
+                "unequal numbers of bls public keys and digests"
+            )
+            .into());
+        }
+
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_verify_aggregate_signature(pub_keys.len()),
+                .on_verify_aggregate_signature(num_signers),
         )?;
 
         t.record(
-            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, digests).map_err(|e| {
-                syscall_error!(
-                    IllegalArgument;
-                    "bls signature verification failed: {}",
-                    e
-                )
-                .into()
-            }),
+            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, digests).or(Ok(false)),
         )
     }
 
