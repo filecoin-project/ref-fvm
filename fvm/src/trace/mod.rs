@@ -20,6 +20,8 @@ pub type ExecutionTrace = Vec<ExecutionEvent>;
 #[non_exhaustive]
 pub enum ExecutionEvent {
     GasCharge(GasCharge),
+    /// Emitted on each send call regardless whether we actually end up invoking the
+    /// actor or not (e.g. if we don't have enough gas or if the actor does not exist)
     Call {
         from: ActorID,
         to: Address,
@@ -31,5 +33,6 @@ pub enum ExecutionEvent {
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
+    /// Emitted every time we successfully invoke an actor
     InvokeActor(Cid),
 }
