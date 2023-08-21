@@ -12,15 +12,9 @@ use crate::Kernel;
 /// supplied offset.
 pub fn get_chain_randomness(
     context: Context<'_, impl Kernel>,
-    pers: i64,  // DomainSeparationTag
     round: i64, // ChainEpoch
-    entropy_off: u32,
-    entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-    let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
-    context
-        .kernel
-        .get_randomness_from_tickets(pers, round, entropy)
+    context.kernel.get_randomness_from_tickets(round)
 }
 
 /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -29,13 +23,7 @@ pub fn get_chain_randomness(
 /// supplied offset.
 pub fn get_beacon_randomness(
     context: Context<'_, impl Kernel>,
-    pers: i64,  // DomainSeparationTag
     round: i64, // ChainEpoch
-    entropy_off: u32,
-    entropy_len: u32,
 ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-    let entropy = context.memory.try_slice(entropy_off, entropy_len)?;
-    context
-        .kernel
-        .get_randomness_from_beacon(pers, round, entropy)
+    context.kernel.get_randomness_from_beacon(round)
 }

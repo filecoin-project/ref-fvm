@@ -1446,10 +1446,10 @@ dependencies = [
 [[package]]
 name = "fil_actor_account"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_actor_utils",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1482,9 +1482,9 @@ dependencies = [
 [[package]]
 name = "fil_actor_cron"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1497,10 +1497,10 @@ dependencies = [
 [[package]]
 name = "fil_actor_datacap"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "frc46_token",
  "fvm_actor_utils",
@@ -1518,12 +1518,12 @@ dependencies = [
 [[package]]
 name = "fil_actor_eam"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
  "fil_actors_evm_shared",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1539,9 +1539,9 @@ dependencies = [
 [[package]]
 name = "fil_actor_ethaccount"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_actor_utils",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1555,12 +1555,12 @@ dependencies = [
 [[package]]
 name = "fil_actor_evm"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
  "fil_actors_evm_shared",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1579,11 +1579,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_init"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1598,11 +1598,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_market"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "frc46_token",
  "fvm_ipld_bitfield 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1621,12 +1621,12 @@ dependencies = [
 [[package]]
 name = "fil_actor_miner"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "byteorder",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_ipld_amt 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_bitfield 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1646,11 +1646,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_multisig"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_actor_utils",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1667,11 +1667,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_paych"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1684,16 +1684,16 @@ dependencies = [
 [[package]]
 name = "fil_actor_placeholder"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 
 [[package]]
 name = "fil_actor_power"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1711,9 +1711,9 @@ dependencies = [
 [[package]]
 name = "fil_actor_reward"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1727,11 +1727,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_system"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1743,11 +1743,11 @@ dependencies = [
 [[package]]
 name = "fil_actor_verifreg"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "frc42_dispatch",
  "frc46_token",
  "fvm_actor_utils",
@@ -1765,9 +1765,9 @@ dependencies = [
 [[package]]
 name = "fil_actors_evm_shared"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex",
@@ -1778,9 +1778,10 @@ dependencies = [
 [[package]]
 name = "fil_actors_runtime"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "anyhow",
+ "base64 0.21.2",
  "byteorder",
  "castaway",
  "cid 0.10.1",
@@ -1805,7 +1806,39 @@ dependencies = [
  "sha2 0.10.7",
  "thiserror",
  "unsigned-varint",
- "vm_api",
+ "vm_api 1.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
+]
+
+[[package]]
+name = "fil_actors_runtime"
+version = "12.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "castaway",
+ "cid 0.10.1",
+ "fvm_ipld_amt 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_bitfield 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_hamt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "integer-encoding",
+ "itertools 0.10.5",
+ "log",
+ "multihash 0.18.1",
+ "num",
+ "num-derive",
+ "num-traits",
+ "paste",
+ "regex",
+ "serde",
+ "serde_repr",
+ "sha2 0.10.7",
+ "thiserror",
+ "unsigned-varint",
+ "vm_api 1.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next)",
 ]
 
 [[package]]
@@ -1820,7 +1853,7 @@ dependencies = [
 [[package]]
 name = "fil_builtin_actors_bundle"
 version = "12.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
 dependencies = [
  "cid 0.10.1",
  "clap 3.2.25",
@@ -1841,7 +1874,7 @@ dependencies = [
  "fil_actor_reward",
  "fil_actor_system",
  "fil_actor_verifreg",
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness)",
  "num-traits",
 ]
 
@@ -1849,7 +1882,7 @@ dependencies = [
 name = "fil_create_actor"
 version = "0.1.0"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next)",
  "fvm_sdk 3.3.0",
  "fvm_shared 3.4.0",
 ]
@@ -1997,7 +2030,7 @@ dependencies = [
 name = "fil_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fil_actors_runtime",
+ "fil_actors_runtime 12.0.0 (git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next)",
  "fvm_ipld_encoding 0.4.0",
  "fvm_sdk 3.3.0",
  "fvm_shared 3.4.0",
@@ -4791,6 +4824,24 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vm_api"
+version = "1.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=asr/stop-hashing-randomness#ce83ed75f3ee7df87b8d0bc05d0bf1d82e69a5ba"
+dependencies = [
+ "anyhow",
+ "cid 0.10.1",
+ "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_hamt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_shared 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-derive",
+ "num-traits",
+ "rand",
+ "rand_chacha",
+ "serde",
+]
 
 [[package]]
 name = "vm_api"
