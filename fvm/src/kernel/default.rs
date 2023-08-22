@@ -27,8 +27,7 @@ use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use rayon::prelude::ParallelDrainRange;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::io::Write;
 
 use super::blocks::{Block, BlockRegistry};
@@ -575,53 +574,34 @@ where
     }
 
     fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
-        // NOTE: gas has already been charged by the power actor when the batch verify was enqueued.
-        // Lotus charges "virtual" gas here for tracing only.
-        let mut items = Vec::new();
-        for vi in vis {
-            let t = self
-                .call_manager
-                .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
-            items.push((vi, t));
-        }
-        log::debug!("batch verify seals start");
-        let out = items.par_drain(..)
-            .with_min_len(vis.len() / *NUM_CPUS)
-            .map(|(seal, timer)| {
-                let start = GasTimer::start();
-                let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));
-                let ok = match verify_seal_result {
-                    Ok(res) => {
-                        match res {
-                            Ok(correct) => {
-                                if !correct {
-                                    log::debug!(
-                                        "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
-                                        seal.sector_id.miner
-                                    );
-                                }
-                                correct // all ok
-                            }
-                            Err(err) => {
-                                log::debug!(
-                                    "seal verify in batch failed (miner: {}) (err: {})",
-                                    seal.sector_id.miner,
-                                    err
-                                );
-                                false
-                            }
-                        }
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_batch_verify_seal(vis))?;
+
+        // TODO: consider optimizing for one proof (i.e., don't charge a batch overhead?)
+        let out = vis
+            .par_iter()
+            .map(|seal| {
+                match catch_and_log_panic("verifying seals", || verify_seal(seal)) {
+                    Ok(true) => return true,
+                    Ok(false) => {
+                        log::debug!(
+                            "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                            seal.sector_id.miner
+                        );
                     }
-                    Err(e) => {
-                        log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
-                        false
+                    Err(err) => {
+                        log::debug!(
+                            "seal verify in batch failed (miner: {}) (err: {})",
+                            seal.sector_id.miner,
+                            err
+                        );
                     }
-                };
-                timer.stop_with(start);
-                ok
+                }
+                false
             })
             .collect();
-        log::debug!("batch verify seals end");
+        t.stop();
         Ok(out)
     }
 

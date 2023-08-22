@@ -27,6 +27,9 @@ use crate::kernel::SupportedHashes;
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
 const TABLE_ELEMENT_SIZE: u32 = 8;
 
+// Parallelism for batch seal verification.
+const BATCH_SEAL_PARALLELISM: usize = 8;
+
 /// Create a mapping from enum items to values in a way that guarantees at compile
 /// time that we did not miss any member, in any of the prices, even if the enum
 /// gets a new member later.
@@ -129,7 +132,10 @@ lazy_static! {
         tipset_cid_historical: Gas::new(215_000),
 
         compute_unsealed_sector_cid_base: Gas::new(98647),
-        verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
+        verify_seal_batch: ScalingCost {
+            flat: Gas::zero(), // TODO: Determine startup overhead.
+            scale: Gas::new(34721049), // TODO: Maybe re-benchmark?
+        },
 
         verify_aggregate_seal_per: [
             (
@@ -426,7 +432,7 @@ pub struct PriceList {
     pub(crate) tipset_cid_historical: Gas,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
-    pub(crate) verify_seal_base: Gas,
+    pub(crate) verify_seal_batch: ScalingCost,
     pub(crate) verify_aggregate_seal_per: HashMap<RegisteredSealProof, Gas>,
     pub(crate) verify_aggregate_seal_steps: HashMap<RegisteredSealProof, StepCost>,
 
@@ -613,9 +619,20 @@ impl PriceList {
 
     /// Returns gas required for seal verification.
     #[inline]
-    pub fn on_verify_seal(&self, _info: &SealVerifyInfo) -> GasCharge {
-        GasCharge::new("OnVerifySeal", self.verify_seal_base, Zero::zero())
+    pub fn on_batch_verify_seal(&self, vis: &[SealVerifyInfo]) -> GasCharge {
+        // Charge based on the expected parallelism, rounding up.
+        let mut count = vis.len();
+        let remainder = count % BATCH_SEAL_PARALLELISM;
+        if remainder > 0 {
+            count += BATCH_SEAL_PARALLELISM - remainder;
+        }
+        GasCharge::new(
+            "OnBatchVerifySeal",
+            self.verify_seal_batch.apply(count),
+            Zero::zero(),
+        )
     }
+
     #[inline]
     pub fn on_verify_aggregate_seals(
         &self,
