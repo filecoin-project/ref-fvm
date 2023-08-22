@@ -132,12 +132,6 @@ pub fn compute_unsealed_sector_cid(
     }
 }
 
-/// Verifies a sector seal proof.
-pub fn verify_seal(info: &SealVerifyInfo) -> SyscallResult<bool> {
-    let info = to_vec(info).expect("failed to marshal seal verification input");
-    unsafe { sys::crypto::verify_seal(info.as_ptr(), info.len() as u32).map(status_code_to_bool) }
-}
-
 /// Verifies a window proof of spacetime.
 pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
     let info = to_vec(info).expect("failed to marshal PoSt verification input");

@@ -292,7 +292,6 @@ pub fn bind_syscalls(
         crypto::recover_secp_public_key,
     )?;
     linker.bind("crypto", "hash", crypto::hash)?;
-    linker.bind("crypto", "verify_seal", crypto::verify_seal)?;
     linker.bind("crypto", "verify_post", crypto::verify_post)?;
     linker.bind(
         "crypto",
