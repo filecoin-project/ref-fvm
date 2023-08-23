@@ -104,6 +104,8 @@ impl BlockRegistry {
 
     /// Adds a new block to the registry, checking that all children are currently reachable,
     /// returning a handle to refer to it. Use this when creating a _new_ block.
+    //
+    //  Returns a `NotFound` error if `block` references any unreachable CIDs.
     pub fn put_check_reachable(&mut self, block: Block) -> Result<BlockId> {
         self.put_inner(block, true)
     }

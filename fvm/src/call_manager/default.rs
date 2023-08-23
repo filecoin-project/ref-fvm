@@ -677,13 +677,13 @@ where
         }
 
         // Charge the invocation gas.
-        let (param_size, param_links) = params
+        let (param_size, param_link_count) = params
             .as_ref()
             .map(|p| (p.size(), p.links().len()))
             .unwrap_or_default();
         let t = self.charge_gas(
             self.price_list()
-                .on_method_invocation(param_size, param_links),
+                .on_method_invocation(param_size, param_link_count),
         )?;
 
         // Store the parametrs, and initialize the block registry for the target actor.

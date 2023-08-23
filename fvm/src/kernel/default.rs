@@ -291,13 +291,10 @@ where
             .call_manager
             .blockstore()
             .get(cid)
-            // TODO: This is really "super fatal". It means we failed to store state, and should
-            // probably abort the entire block.
-            .or_fatal()?
-            .ok_or_else(|| anyhow!("missing reachable state: {}", cid))
-            // Missing state is a fatal error because it means we have a bug. Once we do
-            // reachability checking (for user actors) we won't get here unless the block is known
-            // to be in the state-tree.
+            // Treat missing blocks as errors as well.
+            .and_then(|b| b.ok_or_else(|| anyhow!("missing reachable state: {}", cid)))
+            // TODO Any failures here should really be considered "super fatal". It means we're
+            // missing state and/or have a corrupted store.
             .or_fatal()?;
 
         let children = if cid.codec() == DAG_CBOR {
@@ -318,7 +315,7 @@ where
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_opened(block.size() as usize, block.links().len()),
+                .on_block_open(block.size() as usize, block.links().len()),
         )?;
 
         let stat = block.stat();

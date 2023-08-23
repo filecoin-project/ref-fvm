@@ -325,10 +325,10 @@ lazy_static! {
         // Preloaded actor IDs per FIP-0055.
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
 
-        ipld_cbor_scan_per_cid: Gas::zero(),
-        ipld_cbor_scan_per_field: Gas::zero(),
-        ipld_link_tracked: Gas::zero(),
-        ipld_link_checked: Gas::zero(),
+        ipld_cbor_scan_per_cid: Gas::zero(), // TODO(#1855)
+        ipld_cbor_scan_per_field: Gas::zero(), // TODO(#1855)
+        ipld_link_tracked: Gas::zero(), // TODO(#1855)
+        ipld_link_checked: Gas::zero(), // TODO(#1855)
     };
 }
 
@@ -748,7 +748,7 @@ impl PriceList {
 
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
-    pub fn on_block_opened(&self, data_size: usize, links: usize) -> GasCharge {
+    pub fn on_block_open(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
         let compute = self.block_allocate.apply(data_size)
             + self.block_memcpy.apply(data_size)
@@ -1303,7 +1303,7 @@ fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
     // getting the expected 10 gas/byte.
     assert_eq!(
-        WATERMELON_PRICES.on_block_opened(10, 0).total(),
+        WATERMELON_PRICES.on_block_open(10, 0).total(),
         Gas::new(100)
     );
     assert_eq!(
