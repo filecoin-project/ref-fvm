@@ -24,61 +24,53 @@ use crate::{status_code_to_bool, sys, SyscallResult};
 /// NOTE: This only supports f1 and f3 addresses.
 pub fn verify_signature(
     signature: &Signature,
-    signers: &[Address],
-    digests: &[&[u8]],
+    addr: &Address,
+    digest: &[u8],
 ) -> SyscallResult<bool> {
     use fvm_shared::{
         address::{Payload, Protocol},
         error::ErrorNumber,
     };
 
-    let num_signers = signers.len();
-    if num_signers == 0 || num_signers != digests.len() {
-        return Err(ErrorNumber::IllegalArgument);
-    }
-
     let sig_type = signature.signature_type();
-    let sig = signature.bytes();
+    let sig_bytes = signature.bytes();
 
     match sig_type {
         SignatureType::BLS => {
-            let sig: &[u8; BLS_SIG_LEN] =
-                sig.try_into().map_err(|_| ErrorNumber::IllegalArgument)?;
+            let sig: &[u8; BLS_SIG_LEN] = sig_bytes
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
 
-            let pub_keys = signers
-                .iter()
-                .map(|addr| match addr.payload() {
-                    Payload::BLS(pub_key) => Ok(*pub_key),
-                    _ => Err(ErrorNumber::IllegalArgument),
-                })
-                .collect::<Result<Vec<[u8; BLS_PUB_LEN]>, ErrorNumber>>()?;
+            let pub_key = match addr.payload() {
+                Payload::BLS(pub_key) => *pub_key,
+                _ => return Err(ErrorNumber::IllegalArgument),
+            };
 
-            let digests = digests
-                .iter()
-                .map(|&digest| digest.try_into().map_err(|_| ErrorNumber::IllegalArgument))
-                .collect::<Result<Vec<[u8; BLS_DIGEST_LEN]>, ErrorNumber>>()?;
+            let digest: [u8; BLS_DIGEST_LEN] = digest
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
 
-            verify_bls_aggregate(sig, &pub_keys, &digests)
+            verify_bls_aggregate(sig, &[pub_key], &[digest])
         }
         SignatureType::Secp256k1 => {
-            if num_signers != 1 || signers[0].protocol() != Protocol::Secp256k1 {
+            if addr.protocol() != Protocol::Secp256k1 {
                 return Err(ErrorNumber::IllegalArgument);
             }
 
-            let (addr, digest) = (&signers[0], digests[0]);
-
-            let sig: &[u8; SECP_SIG_LEN] =
-                sig.try_into().map_err(|_| ErrorNumber::IllegalArgument)?;
+            let sig: &[u8; SECP_SIG_LEN] = sig_bytes
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
 
             let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] = digest
                 .try_into()
                 .map_err(|_| ErrorNumber::IllegalArgument)?;
 
-            let addr_recovered = recover_secp_public_key(digest, sig).map(|pub_key| {
+            let addr_recovered = {
+                let pub_key = recover_secp_public_key(digest, sig)?;
                 Address::new_secp256k1(&pub_key).expect(
                     "recovered secp256k1 public key should always be a valid secp256k1 address",
                 )
-            })?;
+            };
 
             Ok(addr == &addr_recovered)
         }

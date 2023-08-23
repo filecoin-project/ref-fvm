@@ -584,6 +584,9 @@ impl PriceList {
 
     /// Returns gas required for BLS aggregate signature verification.
     pub fn on_verify_aggregate_signature(&self, num_sigs: usize) -> GasCharge {
+        // TODO: the gas cost calculated below is only an estimate; its actual value is yet to be
+        // benchmarked.
+
         // When `num_sigs` BLS signatures are aggregated into a single signature, the aggregate
         // signature verifier must perform `num_sigs + 1` expensive pairing operations (one
         // pairing on the aggregate signature, and one pairing for each signed plaintext's digest).
