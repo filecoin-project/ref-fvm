@@ -35,6 +35,7 @@ pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
     test_secp_signature();
+    test_bls_signature();
     test_bls_aggregate();
     test_expected_hash();
     test_hash_syscall();
@@ -72,7 +73,7 @@ fn test_secp_signature() {
     //
     let signature = Signature::new_secp256k1(signature_bytes.clone());
     let address = Address::new_secp256k1(&pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &[address], &[&digest]);
+    let res = sdk::crypto::verify_signature(&signature, &address, &digest);
     assert_eq!(res, Ok(true));
 
     // test with invalid signature
@@ -80,7 +81,7 @@ fn test_secp_signature() {
     let mut invalid_signature_bytes = signature_bytes.clone();
     invalid_signature_bytes[0] += 1;
     let invalid_signature = Signature::new_secp256k1(invalid_signature_bytes.clone());
-    let res = sdk::crypto::verify_signature(&invalid_signature, &[address], &[&digest]);
+    let res = sdk::crypto::verify_signature(&invalid_signature, &address, &digest);
     assert_eq!(res, Ok(false));
 
     // test with invalid address
@@ -88,14 +89,14 @@ fn test_secp_signature() {
     let mut invalid_pub_key_bytes = pub_key_bytes.clone();
     invalid_pub_key_bytes[0] += 1;
     let invalid_address = Address::new_secp256k1(&invalid_pub_key_bytes).unwrap();
-    let res = sdk::crypto::verify_signature(&signature, &[invalid_address], &[&digest]);
+    let res = sdk::crypto::verify_signature(&signature, &invalid_address, &digest);
     assert_eq!(res, Ok(false));
 
     // test with invalid digest
     //
     let mut invalid_digest = digest;
     invalid_digest[0] += 1;
-    let res = sdk::crypto::verify_signature(&signature, &[address], &[&invalid_digest]);
+    let res = sdk::crypto::verify_signature(&signature, &address, &invalid_digest);
     assert_eq!(res, Ok(false));
 
     // test we can recover the public key from the signature
@@ -112,6 +113,59 @@ fn test_secp_signature() {
             sdk::sys::crypto::recover_secp_public_key(digest.as_ptr(), (u32::MAX) as *const u8);
         assert_eq!(res, Err(ErrorNumber::IllegalArgument));
     }
+}
+
+fn test_bls_signature() {
+    let sig_bytes = [
+        145, 231, 149, 78, 254, 149, 201, 48, 97, 56, 111, 8, 149, 59, 65, 138, 25, 255, 228, 114,
+        184, 70, 110, 94, 171, 206, 73, 47, 46, 58, 239, 16, 118, 245, 23, 102, 118, 204, 69, 109,
+        228, 168, 211, 62, 146, 247, 190, 10, 7, 73, 53, 221, 156, 16, 102, 140, 46, 34, 214, 246,
+        82, 183, 139, 195, 87, 71, 71, 219, 28, 234, 30, 110, 87, 238, 21, 167, 7, 228, 146, 9,
+        129, 128, 127, 126, 77, 187, 251, 16, 142, 44, 119, 214, 190, 227, 98, 25,
+    ];
+    let pub_key = [
+        173, 154, 145, 188, 114, 85, 101, 250, 129, 225, 3, 205, 128, 61, 161, 185, 210, 18, 147,
+        84, 160, 15, 233, 114, 178, 113, 115, 142, 4, 221, 81, 215, 188, 151, 11, 87, 4, 110, 23,
+        219, 125, 143, 122, 176, 207, 123, 66, 146,
+    ];
+    let digest = [
+        181, 145, 190, 167, 107, 236, 66, 69, 130, 119, 110, 13, 105, 74, 233, 196, 58, 174, 232,
+        116, 251, 63, 228, 253, 118, 124, 230, 212, 25, 41, 161, 93, 120, 26, 15, 93, 159, 43, 105,
+        48, 32, 195, 149, 33, 66, 253, 168, 14, 7, 137, 91, 110, 4, 218, 32, 88, 183, 199, 36, 184,
+        187, 119, 179, 254, 255, 158, 41, 181, 168, 22, 67, 175, 5, 101, 59, 86, 163, 23, 248, 34,
+        187, 94, 53, 226, 19, 210, 124, 67, 143, 68, 183, 199, 112, 240, 127, 98,
+    ];
+
+    // Assert that signature validation succeeds.
+    let sig = Signature::new_bls(sig_bytes.to_vec());
+    let addr = Address::new_bls(&pub_key).unwrap();
+    let res = sdk::crypto::verify_signature(&sig, &addr, &digest);
+    assert_eq!(res, Ok(true));
+
+    // BLS signatures and digests are each a G2 point, thus a digest's valid point representation
+    // can be used as an invalid signature (and vise-versa).
+    let invalid_sig = Signature::new_bls(digest.to_vec());
+    let invalid_digest = sig_bytes;
+
+    // The bytes of a valid G1 point.
+    let invalid_pub_key = [
+        177, 126, 78, 182, 93, 122, 198, 81, 5, 240, 226, 238, 241, 247, 37, 183, 171, 231, 237,
+        71, 215, 84, 120, 150, 238, 23, 45, 109, 96, 19, 169, 23, 115, 147, 70, 45, 36, 87, 177,
+        103, 43, 231, 60, 58, 127, 63, 232, 225,
+    ];
+
+    // Test invalid signature.
+    let res = sdk::crypto::verify_signature(&invalid_sig, &addr, &digest);
+    assert_eq!(res, Ok(false));
+
+    // Test invalid public key.
+    let invalid_addr = Address::new_bls(&invalid_pub_key).unwrap();
+    let res = sdk::crypto::verify_signature(&sig, &invalid_addr, &digest);
+    assert_eq!(res, Ok(false));
+
+    // Test invalid digest.
+    let res = sdk::crypto::verify_signature(&sig, &addr, &invalid_digest);
+    assert_eq!(res, Ok(false));
 }
 
 fn test_bls_aggregate() {
@@ -167,18 +221,6 @@ fn test_bls_aggregate() {
         169, 161, 204, 104, 192, 74, 124, 45, 91, 136, 11, 191, 53, 202, 210, 135, 41, 160, 199,
         255, 107, 98, 100, 207, 63, 75, 188, 34, 162, 170, 237, 188, 68, 170, 53, 11, 200, 124,
     ];
-
-    // Assert that `sdk::crypto::verify_signature` succeeds for BLS signatures.
-    let res = {
-        let sig = Signature::new_bls(sig.to_vec());
-        let addrs: Vec<Address> = pub_keys
-            .iter()
-            .map(|pub_key| Address::new_bls(pub_key).unwrap())
-            .collect();
-        let digests: Vec<&[u8]> = digests.iter().map(|digest| digest.as_slice()).collect();
-        sdk::crypto::verify_signature(&sig, &addrs, &digests)
-    };
-    assert_eq!(res, Ok(true));
 
     // Assert that bls validation syscall succeeds.
     let res = sdk::crypto::verify_bls_aggregate(&sig, &pub_keys, &digests);

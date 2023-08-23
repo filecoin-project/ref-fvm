@@ -131,8 +131,8 @@ impl quickcheck::Arbitrary for Signature {
 #[cfg(feature = "crypto")]
 impl Signature {
     /// Checks if a signature is valid given data and address.
-    pub fn verify(&self, digest: &[u8], addr: &crate::address::Address) -> Result<(), String> {
-        verify(self.sig_type, &self.bytes, digest, addr)
+    pub fn verify(&self, data: &[u8], addr: &crate::address::Address) -> Result<(), String> {
+        verify(self.sig_type, &self.bytes, data, addr)
     }
 }
 
@@ -140,7 +140,7 @@ impl Signature {
 pub fn verify(
     sig_type: SignatureType,
     sig_data: &[u8],
-    digest: &[u8],
+    data: &[u8],
     addr: &crate::address::Address,
 ) -> Result<(), String> {
     use crate::address::{Payload, Protocol};
@@ -167,20 +167,9 @@ pub fn verify(
                 }
             };
 
-            let digest: &[[u8; BLS_DIGEST_LEN]] = match <&[u8; BLS_DIGEST_LEN]>::try_from(digest) {
-                Ok(digest) => {
-                    let arr_ptr = digest as *const [u8; BLS_DIGEST_LEN];
-                    unsafe { std::slice::from_raw_parts(arr_ptr, 1) }
-                }
-                Err(_) => {
-                    return Err(format!(
-                        "invalid bls digest length {} (expected {BLS_DIGEST_LEN})",
-                        digest.len()
-                    ));
-                }
-            };
+            let digest = bls_signatures::hash(data).to_compressed();
 
-            if self::ops::verify_bls_aggregate(sig, pub_key, digest)? {
+            if self::ops::verify_bls_aggregate(sig, pub_key, &[digest])? {
                 Ok(())
             } else {
                 Err(format!(
@@ -188,7 +177,14 @@ pub fn verify(
                 ))
             }
         }
-        SignatureType::Secp256k1 => self::ops::verify_secp256k1_sig(sig_data, digest, addr),
+        SignatureType::Secp256k1 => {
+            let digest = blake2b_simd::Params::new()
+                .hash_length(32)
+                .to_state()
+                .update(data)
+                .finalize();
+            self::ops::verify_secp256k1_sig(sig_data, digest.as_bytes(), addr)
+        }
     }
 }
 
