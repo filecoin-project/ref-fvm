@@ -8,6 +8,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
+use crate::Cid;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
@@ -19,13 +20,19 @@ pub type ExecutionTrace = Vec<ExecutionEvent>;
 #[non_exhaustive]
 pub enum ExecutionEvent {
     GasCharge(GasCharge),
+    /// Emitted on each send call regardless whether we actually end up invoking the
+    /// actor or not (e.g. if we don't have enough gas or if the actor does not exist)
     Call {
         from: ActorID,
         to: Address,
         method: MethodNum,
         params: Option<IpldBlock>,
         value: TokenAmount,
+        gas_limit: u64,
+        read_only: bool,
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
+    /// Emitted every time we successfully invoke an actor
+    InvokeActor(Cid),
 }
