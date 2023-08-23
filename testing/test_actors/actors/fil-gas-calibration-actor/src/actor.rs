@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Result};
 use cid::multihash::Code;
 use fvm_gas_calibration_shared::*;
-use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
+use fvm_ipld_encoding::IPLD_RAW;
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
@@ -77,7 +77,7 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     for i in 0..p.iterations {
         random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
 
-        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, data.as_slice())?;
+        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, IPLD_RAW, data.as_slice())?;
 
         // First just put it to the side, because if we read it back now, then strangely the times of puts go down by 10x in the beginning
         // and only in later go up to where they are when they are the only thing we do. The distribution takes the shape of a sloping V.
