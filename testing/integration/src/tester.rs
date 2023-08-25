@@ -366,7 +366,7 @@ impl BasicTester {
             };
 
         let mut tester = Tester::new(
-            NetworkVersion::V18,
+            NetworkVersion::V20,
             StateTreeVersion::V5,
             bundle_cid,
             blockstore,

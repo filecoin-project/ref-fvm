@@ -18,11 +18,21 @@ pub fn run(
     let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
 
     if create_res.msg_receipt.exit_code.value() != 0 {
-        return Err(anyhow!(
-            "actor creation failed: {} -- {:?}",
-            create_res.msg_receipt.exit_code,
-            create_res.failure_info,
-        ));
+        println!("Execution trace:");
+        for tr in create_res.exec_trace {
+            println!("{:?}", tr)
+        }
+        return Err(match create_res.failure_info {
+            Some(fi) => anyhow!(
+                "contract creation failed: {} -- {}",
+                create_res.msg_receipt.exit_code,
+                fi
+            ),
+            None => anyhow!(
+                "contract creation failed: {}",
+                create_res.msg_receipt.exit_code
+            ),
+        });
     }
 
     let create_return: testkit::fevm::CreateReturn =
@@ -37,11 +47,19 @@ pub fn run(
     let invoke_res = testkit::fevm::invoke_contract(tester, &mut account, actor, &input_data, gas)?;
 
     if !invoke_res.msg_receipt.exit_code.is_success() {
-        return Err(anyhow!(
-            "contract invocation failed: {} -- {:?}",
-            invoke_res.msg_receipt.exit_code,
-            invoke_res.failure_info,
-        ));
+        return Err(match invoke_res.failure_info {
+            Some(fi) => anyhow!(
+                "contract invocation failed: {} -- {}\ntrace:{:?}",
+                invoke_res.msg_receipt.exit_code,
+                fi,
+                invoke_res.exec_trace
+            ),
+            None => anyhow!(
+                "contract invocation failed: {}\ntrace:{:?}",
+                invoke_res.msg_receipt.exit_code,
+                invoke_res.exec_trace
+            ),
+        });
     }
 
     let BytesDe(invoke_result) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
