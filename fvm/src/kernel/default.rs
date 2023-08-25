@@ -756,8 +756,7 @@ where
             .context()
             .epoch
             .checked_sub(rand_epoch)
-            .ok_or_else(
-                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch),
+            .ok_or_else(|| syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch)
             )?;
 
         let t = self
@@ -781,9 +780,7 @@ where
             .context()
             .epoch
             .checked_sub(rand_epoch)
-            .ok_or_else(
-                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch),
-            )?;
+            .ok_or_else(|| syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch))?;
 
         let t = self
             .call_manager
