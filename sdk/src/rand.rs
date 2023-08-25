@@ -10,8 +10,7 @@ use crate::{sys, SyscallResult};
 /// If this syscall succeeds, exactly 32 bytes will be written starting at the
 /// supplied offset.
 pub fn get_chain_randomness(round: ChainEpoch) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
-    let ret = unsafe { sys::rand::get_chain_randomness(round)? };
-    Ok(ret)
+    unsafe { sys::rand::get_chain_randomness(round) }
 }
 
 /// Gets 32 bytes of randomness from the beacon system (currently Drand).
@@ -19,6 +18,5 @@ pub fn get_chain_randomness(round: ChainEpoch) -> SyscallResult<[u8; RANDOMNESS_
 /// If this syscall succeeds, exactly 32 bytes will be written starting at the
 /// supplied offset.
 pub fn get_beacon_randomness(round: ChainEpoch) -> SyscallResult<[u8; RANDOMNESS_LENGTH]> {
-    let ret = unsafe { sys::rand::get_beacon_randomness(round)? };
-    Ok(ret)
+    unsafe { sys::rand::get_beacon_randomness(round) }
 }

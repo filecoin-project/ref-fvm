@@ -751,19 +751,18 @@ where
         &self,
         rand_epoch: ChainEpoch,
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        let current_epoch = self.call_manager.context().epoch;
-        if rand_epoch > current_epoch {
-            return Err(
-                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch)
-                    .into(),
-            );
-        }
+        let lookback = self
+            .call_manager
+            .context()
+            .epoch
+            .checked_sub(rand_epoch)
+            .ok_or_else(
+                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch),
+            )?;
 
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_get_randomness(current_epoch - rand_epoch),
-        )?;
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_randomness(lookback))?;
 
         t.record(
             self.call_manager
@@ -777,19 +776,18 @@ where
         &self,
         rand_epoch: ChainEpoch,
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        let current_epoch = self.call_manager.context().epoch;
-        if rand_epoch > current_epoch {
-            return Err(
-                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch)
-                    .into(),
-            );
-        }
+        let lookback = self
+            .call_manager
+            .context()
+            .epoch
+            .checked_sub(rand_epoch)
+            .ok_or_else(
+                syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch),
+            )?;
 
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_get_randomness(current_epoch - rand_epoch),
-        )?;
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_randomness(lookback))?;
 
         t.record(
             self.call_manager
