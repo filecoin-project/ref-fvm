@@ -323,24 +323,18 @@ pub trait CryptoOps {
 /// Randomness queries.
 pub trait RandomnessOps {
     /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// ticket chain from a given epoch and incorporating requisite entropy.
+    /// ticket chain from a given epoch.
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// beacon from a given epoch and incorporating requisite entropy.
+    /// beacon from a given epoch.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
-    fn get_randomness_from_beacon(
-        &self,
-        personalization: i64,
-        rand_epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> Result<[u8; RANDOMNESS_LENGTH]>;
+    fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
+        -> Result<[u8; RANDOMNESS_LENGTH]>;
 }
 
 /// Debugging APIs.

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::ops::Mul;
 
 use anyhow::Context;
+use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -699,25 +700,11 @@ impl PriceList {
         )
     }
 
-    /// Returns the cost of the gas required for getting randomness from the client, based on the
-    /// number of bytes of entropy.
+    /// Returns the cost of the gas required for getting randomness from the client.
     #[inline]
-    pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge {
-        const RAND_INITIAL_HASH: u64 =
-            // domain separation tag, u64
-            8 +
-                // vrf digest
-                32 +
-                // round
-                8;
-
-        GasCharge::new(
-            "OnGetRandomness",
-            Zero::zero(),
-            self.get_randomness_seed
-                + self.hashing_cost[&SupportedHashes::Blake2b256]
-                    .apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
-        )
+    pub fn on_get_randomness(&self, _lookback: ChainEpoch) -> GasCharge {
+        // TODO(M2): Use lookback
+        GasCharge::new("OnGetRandomness", Zero::zero(), self.get_randomness_seed)
     }
 
     /// Returns the base gas required for loading an object, independent of the object's size.
