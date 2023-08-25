@@ -505,22 +505,16 @@ where
 {
     fn get_randomness_from_tickets(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0
-            .get_randomness_from_tickets(personalization, rand_epoch, entropy)
+        self.0.get_randomness_from_tickets(rand_epoch)
     }
 
     fn get_randomness_from_beacon(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0
-            .get_randomness_from_beacon(personalization, rand_epoch, entropy)
+        self.0.get_randomness_from_beacon(rand_epoch)
     }
 }
 
