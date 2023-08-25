@@ -2366,6 +2366,7 @@ dependencies = [
  "anyhow",
  "clap 4.3.9",
  "env_logger 0.10.0",
+ "fvm",
  "fvm_integration_tests",
  "fvm_ipld_encoding 0.4.0",
  "fvm_shared 3.5.0",

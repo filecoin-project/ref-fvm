@@ -2,9 +2,59 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
+use fvm::executor::ApplyRet;
 use fvm_integration_tests::{tester, testkit};
 use fvm_ipld_encoding::BytesDe;
 use fvm_shared::address::Address;
+
+fn handle_result(tester: &tester::BasicTester, name: &str, res: &ApplyRet) -> anyhow::Result<()> {
+    let (trace, events) = tester
+        .options
+        .as_ref()
+        .map(|o| (o.trace, o.events))
+        .unwrap_or_default();
+
+    if trace && !res.exec_trace.is_empty() {
+        println!();
+        println!("**");
+        println!("* BEGIN {name} execution trace");
+        println!("**");
+        println!();
+        for tr in &res.exec_trace {
+            println!("{:?}", tr)
+        }
+        println!();
+        println!("**");
+        println!("* END {name} execution trace");
+        println!("**");
+        println!();
+    }
+    if events && !res.events.is_empty() {
+        println!();
+        println!("**");
+        println!("* BEGIN {name} events");
+        println!("**");
+        println!();
+        for evt in &res.events {
+            println!("{:?}", evt)
+        }
+        println!();
+        println!("**");
+        println!("* END {name} events");
+        println!("**");
+        println!();
+    }
+
+    if let Some(bt) = &res.failure_info {
+        println!("{bt}");
+    }
+
+    if res.msg_receipt.exit_code.is_success() {
+        Ok(())
+    } else {
+        Err(anyhow!("{name} failed"))
+    }
+}
 
 pub fn run(
     tester: &mut tester::BasicTester,
@@ -16,24 +66,7 @@ pub fn run(
     let mut account = tester.create_basic_account()?;
 
     let create_res = testkit::fevm::create_contract(tester, &mut account, contract)?;
-
-    if create_res.msg_receipt.exit_code.value() != 0 {
-        println!("Execution trace:");
-        for tr in create_res.exec_trace {
-            println!("{:?}", tr)
-        }
-        return Err(match create_res.failure_info {
-            Some(fi) => anyhow!(
-                "contract creation failed: {} -- {}",
-                create_res.msg_receipt.exit_code,
-                fi
-            ),
-            None => anyhow!(
-                "contract creation failed: {}",
-                create_res.msg_receipt.exit_code
-            ),
-        });
-    }
+    handle_result(tester, "contract creation", &create_res)?;
 
     let create_return: testkit::fevm::CreateReturn =
         create_res.msg_receipt.return_data.deserialize().unwrap();
@@ -45,42 +78,10 @@ pub fn run(
     input_data.append(&mut input_params);
 
     let invoke_res = testkit::fevm::invoke_contract(tester, &mut account, actor, &input_data, gas)?;
-
-    if !invoke_res.msg_receipt.exit_code.is_success() {
-        return Err(match invoke_res.failure_info {
-            Some(fi) => anyhow!(
-                "contract invocation failed: {} -- {}\ntrace:{:?}",
-                invoke_res.msg_receipt.exit_code,
-                fi,
-                invoke_res.exec_trace
-            ),
-            None => anyhow!(
-                "contract invocation failed: {}\ntrace:{:?}",
-                invoke_res.msg_receipt.exit_code,
-                invoke_res.exec_trace
-            ),
-        });
-    }
-
-    let BytesDe(invoke_result) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
-
-    println!("Result: {}", hex::encode(invoke_result));
+    let BytesDe(returnval) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
+    println!("Exit Code: {}", invoke_res.msg_receipt.exit_code);
+    println!("Result: {}", hex::encode(returnval));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
 
-    let options = tester.options.clone().unwrap_or_default();
-    if options.trace {
-        println!("Execution trace:");
-        for tr in invoke_res.exec_trace {
-            println!("{:?}", tr)
-        }
-    }
-
-    if options.events {
-        println!("Execution events:");
-        for evt in invoke_res.events {
-            println!("{:?}", evt)
-        }
-    }
-
-    Ok(())
+    handle_result(tester, "contract invocation", &invoke_res)
 }

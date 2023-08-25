@@ -10,7 +10,7 @@ use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
 use num_traits::Zero;
 
-use crate::tester::{BasicAccount, BasicTester, INITIAL_ACCOUNT_BALANCE};
+use crate::tester::{BasicAccount, BasicTester};
 
 pub const EAM_ADDRESS: Address = Address::new_id(10);
 pub const DEFAULT_GAS: u64 = 10_000_000_000;
