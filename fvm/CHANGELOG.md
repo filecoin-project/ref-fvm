@@ -4,6 +4,13 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.7.0 [2023-08-28]
+
+- BREAKING: Add fields to the trace API:
+    - Add a `gas_limit` and `read_only` fields to `ExecutionEvent::Call`.
+    - Add a new `ExecutionEvent::InvokeActor(code_cid)` event when an actor is invoked on any method number (including method 0).
+- Remove the unused `crypto::verify_seal` syscall.
+
 ## 3.6.0 [2023-08-18]
 
 Breaking Changes:
