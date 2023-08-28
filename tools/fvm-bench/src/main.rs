@@ -48,6 +48,7 @@ struct Args {
 }
 
 fn run() -> anyhow::Result<()> {
+    env_logger::init();
     let args = Args::parse();
     let options = tester::ExecutionOptions {
         debug: args.debug,
