@@ -69,20 +69,20 @@ impl Default for Bitfield {
 }
 
 impl Bitfield {
-    pub fn clear_bit(&mut self, idx: u32) {
+    pub fn clear_bit(&mut self, idx: u8) {
         let ai = idx / 64;
         let bi = idx % 64;
         self.0[ai as usize] &= u64::MAX - (1 << bi);
     }
 
-    pub fn test_bit(&self, idx: u32) -> bool {
+    pub fn test_bit(&self, idx: u8) -> bool {
         let ai = idx / 64;
         let bi = idx % 64;
 
         self.0[ai as usize] & (1 << bi) != 0
     }
 
-    pub fn set_bit(&mut self, idx: u32) {
+    pub fn set_bit(&mut self, idx: u8) {
         let ai = idx / 64;
         let bi = idx % 64;
 
@@ -106,14 +106,14 @@ impl Bitfield {
         Bitfield([0, 0, 0, 0])
     }
 
-    pub fn set_bits_le(self, bit: u32) -> Self {
+    pub fn set_bits_le(self, bit: u8) -> Self {
         if bit == 0 {
             return self;
         }
         self.set_bits_leq(bit - 1)
     }
 
-    pub fn set_bits_leq(mut self, bit: u32) -> Self {
+    pub fn set_bits_leq(mut self, bit: u8) -> Self {
         if bit < 64 {
             self.0[0] = set_bits_leq(self.0[0], bit);
         } else if bit < 128 {
@@ -135,7 +135,7 @@ impl Bitfield {
 }
 
 #[inline]
-fn set_bits_leq(v: u64, bit: u32) -> u64 {
+fn set_bits_leq(v: u64, bit: u8) -> u64 {
     (v as u128 | ((1u128 << (1 + bit)) - 1)) as u64
 }
 
