@@ -63,9 +63,9 @@ where
             stack.push(node.pointers[node.index_for_bit_pos(idx)..].iter());
             node = match stack.last_mut().unwrap().next() {
                 Some(p) => match p {
-                    Pointer::Link { cid, cache } => {
-                        cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?
-                    }
+                    Pointer::Link { cid, cache } => cache.get_or_try_init(|| {
+                        Node::load(conf, store, cid, stack.len() as u32).map(Box::new)
+                    })?,
                     Pointer::Dirty(node) => node,
                     Pointer::Values(values) => {
                         return match values.iter().position(|kv| kv.key().borrow() == key) {
@@ -105,9 +105,10 @@ where
             };
             match next {
                 Pointer::Link { cid, cache } => {
-                    let node = match cache
-                        .get_or_try_init(|| Node::load(self.conf, &self.store, cid).map(Box::new))
-                    {
+                    let node = match cache.get_or_try_init(|| {
+                        Node::load(self.conf, &self.store, cid, self.stack.len() as u32)
+                            .map(Box::new)
+                    }) {
                         Ok(node) => node,
                         Err(e) => return Some(Err(e)),
                     };

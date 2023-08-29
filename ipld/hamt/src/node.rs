@@ -65,7 +65,12 @@ where
     V: DeserializeOwned,
     Ver: Version,
 {
-    pub fn load(conf: &Config, store: &impl Blockstore, k: &Cid) -> Result<Self, Error> {
+    pub fn load(
+        conf: &Config,
+        store: &impl Blockstore,
+        k: &Cid,
+        depth: u32,
+    ) -> Result<Self, Error> {
         let (bitfield, pointers): (Bitfield, Vec<Pointer<K, V, H, Ver>>) = store
             .get_cbor(k)?
             .ok_or_else(|| Error::CidNotFound(k.to_string()))?;
@@ -86,13 +91,23 @@ where
             )));
         }
 
-        // TODO: Empty node check if not root!
+        // We only allow empty pointers at the root.
+        if pointers.is_empty() && depth != 0 {
+            return Err(Error::ZeroPointers);
+        }
 
         for ptr in &pointers {
             match ptr {
                 Pointer::Values(kvs) => {
+                    if depth < conf.min_data_depth {
+                        return Err(Error::Dynamic(anyhow::anyhow!(
+                            "values not allowed below the minimum data depth ({} < {})",
+                            depth,
+                            conf.min_data_depth,
+                        )));
+                    }
                     if kvs.is_empty() {
-                        return Err(Error::Dynamic(anyhow::anyhow!("empty hamt leaf")));
+                        return Err(Error::Dynamic(anyhow::anyhow!("empty HAMT bucket")));
                     }
                     if kvs.len() > conf.max_array_width {
                         return Err(Error::Dynamic(anyhow::anyhow!(
@@ -206,13 +221,14 @@ where
         Q: Eq + Hash,
     {
         let hash = H::hash(q);
-        self.get_value(&mut HashBits::new(&hash), conf, q, store)
+        self.get_value(&mut HashBits::new(&hash), conf, 0, q, store)
     }
 
     fn get_value<Q: ?Sized, S: Blockstore>(
         &self,
         hashed_key: &mut HashBits,
         conf: &Config,
+        depth: u32,
         key: &Q,
         store: &S,
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
@@ -231,7 +247,7 @@ where
 
         let node = match child {
             Pointer::Link { cid, cache } => {
-                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?
+                cache.get_or_try_init(|| Node::load(conf, store, cid, depth + 1).map(Box::new))?
             }
             Pointer::Dirty(node) => node,
             Pointer::Values(vals) => {
@@ -239,7 +255,7 @@ where
             }
         };
 
-        node.get_value(hashed_key, conf, key, store)
+        node.get_value(hashed_key, conf, depth + 1, key, store)
     }
 
     /// Internal method to modify values.
@@ -281,7 +297,7 @@ where
 
         match child {
             Pointer::Link { cid, cache } => {
-                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?;
+                cache.get_or_try_init(|| Node::load(conf, store, cid, depth + 1).map(Box::new))?;
                 let child_node = cache.get_mut().expect("filled line above");
 
                 let (old, modified) = child_node.modify_value(
@@ -396,7 +412,7 @@ where
 
         match child {
             Pointer::Link { cid, cache } => {
-                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?;
+                cache.get_or_try_init(|| Node::load(conf, store, cid, depth + 1).map(Box::new))?;
                 let child_node = cache.get_mut().expect("filled line above");
 
                 let deleted = child_node.rm_value(hashed_key, conf, depth + 1, key, store)?;
