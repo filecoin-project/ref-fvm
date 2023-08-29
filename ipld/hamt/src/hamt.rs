@@ -114,16 +114,13 @@ where
 
     /// Lazily instantiate a hamt from this root Cid with a specified parameters.
     pub fn load_with_config(cid: &Cid, store: BS, conf: Config) -> Result<Self, Error> {
-        match store.get_cbor(cid)? {
-            Some(root) => Ok(Self {
-                root,
-                store,
-                conf,
-                hash: Default::default(),
-                flushed_cid: Some(*cid),
-            }),
-            None => Err(Error::CidNotFound(cid.to_string())),
-        }
+        Ok(Self {
+            root: Node::load(&conf, &store, cid)?,
+            store,
+            conf,
+            hash: Default::default(),
+            flushed_cid: Some(*cid),
+        })
     }
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
     pub fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self, Error> {
@@ -139,13 +136,8 @@ where
 
     /// Sets the root based on the Cid of the root node using the Hamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
-        match self.store.get_cbor(cid)? {
-            Some(root) => {
-                self.root = root;
-                self.flushed_cid = Some(*cid);
-            }
-            None => return Err(Error::CidNotFound(cid.to_string())),
-        }
+        self.root = Node::load(&self.conf, &self.store, cid)?;
+        self.flushed_cid = Some(*cid);
 
         Ok(())
     }
@@ -453,7 +445,7 @@ where
 
 impl<BS, V, K, H, Ver> HamtImpl<BS, V, K, H, Ver>
 where
-    K: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
     Ver: Version,
     BS: Blockstore,
@@ -479,7 +471,7 @@ where
     /// # anyhow::Ok(())
     /// ```
     pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
-        IterImpl::new(&self.store, &self.root)
+        IterImpl::new(&self.store, &self.root, &self.conf)
     }
 
     /// Iterate over the HAMT starting at the given key. This can be used to implement "ranged"
@@ -530,7 +522,7 @@ where
 
 impl<'a, BS, V, K, H, Ver> IntoIterator for &'a HamtImpl<BS, V, K, H, Ver>
 where
-    K: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
     Ver: Version,
     BS: Blockstore,

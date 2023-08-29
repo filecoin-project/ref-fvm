@@ -8,6 +8,9 @@ use byteorder::{BigEndian, ByteOrder};
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
 use fvm_ipld_encoding::strict_bytes;
+use serde::de::Error;
+
+const MAX_LEN: usize = 4 * 8;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);
@@ -17,7 +20,7 @@ impl Serialize for Bitfield {
     where
         S: Serializer,
     {
-        let mut v = [0u8; 4 * 8];
+        let mut v = [0u8; MAX_LEN];
         // Big endian ordering, to match go
         BigEndian::write_u64(&mut v[..8], self.0[3]);
         BigEndian::write_u64(&mut v[8..16], self.0[2]);
@@ -40,13 +43,16 @@ impl<'de> Deserialize<'de> for Bitfield {
         D: Deserializer<'de>,
     {
         let mut res = Bitfield::zero();
-        let bytes = strict_bytes::ByteBuf::deserialize(deserializer)?.into_vec();
-
-        let mut arr = [0u8; 4 * 8];
-        let len = bytes.len();
-        for (old, new) in bytes.iter().zip(arr[(32 - len)..].iter_mut()) {
-            *new = *old;
+        let strict_bytes::ByteBuf(bytes) = Deserialize::deserialize(deserializer)?;
+        if bytes.len() > MAX_LEN {
+            return Err(Error::invalid_length(
+                bytes.len(),
+                &"bitfield length exceeds maximum",
+            ));
         }
+
+        let mut arr = [0u8; MAX_LEN];
+        arr[MAX_LEN - bytes.len()..].copy_from_slice(&bytes);
         res.0[3] = BigEndian::read_u64(&arr[..8]);
         res.0[2] = BigEndian::read_u64(&arr[8..16]);
         res.0[1] = BigEndian::read_u64(&arr[16..24]);

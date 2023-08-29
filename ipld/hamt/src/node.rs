@@ -6,12 +6,13 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
+use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use multihash::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Serialize, Serializer};
 
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
@@ -48,25 +49,6 @@ where
     }
 }
 
-impl<'de, K, V, H, Ver> Deserialize<'de> for Node<K, V, H, Ver>
-where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
-    Ver: Version,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let (bitfield, pointers) = Deserialize::deserialize(deserializer)?;
-        Ok(Node {
-            bitfield,
-            pointers,
-            hash: Default::default(),
-        })
-    }
-}
-
 impl<K, V, H, Ver> Default for Node<K, V, H, Ver> {
     fn default() -> Self {
         Node {
@@ -74,6 +56,77 @@ impl<K, V, H, Ver> Default for Node<K, V, H, Ver> {
             pointers: Vec::new(),
             hash: Default::default(),
         }
+    }
+}
+
+impl<K, V, H, Ver> Node<K, V, H, Ver>
+where
+    K: PartialOrd + DeserializeOwned,
+    V: DeserializeOwned,
+    Ver: Version,
+{
+    pub fn load(conf: &Config, store: &impl Blockstore, k: &Cid) -> Result<Self, Error> {
+        let (bitfield, pointers): (Bitfield, Vec<Pointer<K, V, H, Ver>>) = store
+            .get_cbor(k)?
+            .ok_or_else(|| Error::CidNotFound(k.to_string()))?;
+
+        if pointers.len() > 1 << conf.bit_width {
+            return Err(Error::Dynamic(anyhow::anyhow!(
+                "number of pointers ({}) exceeds that allowed by the bitwidth ({})",
+                pointers.len(),
+                1 << conf.bit_width,
+            )));
+        }
+
+        if bitfield.count_ones() != pointers.len() {
+            return Err(Error::Dynamic(anyhow::anyhow!(
+                "number of pointers ({}) doesn't match bitfield ({})",
+                pointers.len(),
+                bitfield.count_ones(),
+            )));
+        }
+
+        // TODO: Empty node check if not root!
+
+        for ptr in &pointers {
+            match ptr {
+                Pointer::Values(kvs) => {
+                    if kvs.is_empty() {
+                        return Err(Error::Dynamic(anyhow::anyhow!("empty hamt leaf")));
+                    }
+                    if kvs.len() > conf.max_array_width {
+                        return Err(Error::Dynamic(anyhow::anyhow!(
+                            "too many items in bucket {} > {}",
+                            kvs.len(),
+                            conf.max_array_width,
+                        )));
+                    }
+                    if !kvs.windows(2).all(|window| {
+                        let [a, b] = window else { panic!("invalid window length") };
+                        a.key() < b.key()
+                    }) {
+                        return Err(Error::Dynamic(anyhow::anyhow!(
+                            "duplicate or unsorted keys in bucket"
+                        )));
+                    }
+                }
+                Pointer::Link { cid, .. } => {
+                    if cid.codec() != DAG_CBOR {
+                        return Err(Error::Dynamic(anyhow::anyhow!(
+                            "hamt nodes must be DagCBOR, not {}",
+                            cid.codec()
+                        )));
+                    }
+                }
+                Pointer::Dirty(_) => panic!("fresh node can't be dirty"),
+            }
+        }
+
+        Ok(Node {
+            bitfield,
+            pointers,
+            hash: Default::default(),
+        })
     }
 }
 
@@ -178,22 +231,7 @@ where
 
         let node = match child {
             Pointer::Link { cid, cache } => {
-                if let Some(cached_node) = cache.get() {
-                    // Link node is cached
-                    cached_node
-                } else {
-                    let node: Box<Node<K, V, H, Ver>> = if let Some(node) = store.get_cbor(cid)? {
-                        node
-                    } else {
-                        #[cfg(not(feature = "ignore-dead-links"))]
-                        return Err(Error::CidNotFound(cid.to_string()));
-
-                        #[cfg(feature = "ignore-dead-links")]
-                        return Ok(None);
-                    };
-                    // Intentionally ignoring error, cache will always be the same.
-                    cache.get_or_init(|| node)
-                }
+                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?
             }
             Pointer::Dirty(node) => node,
             Pointer::Values(vals) => {
@@ -243,11 +281,7 @@ where
 
         match child {
             Pointer::Link { cid, cache } => {
-                cache.get_or_try_init(|| {
-                    store
-                        .get_cbor(cid)?
-                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                })?;
+                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?;
                 let child_node = cache.get_mut().expect("filled line above");
 
                 let (old, modified) = child_node.modify_value(
@@ -362,11 +396,7 @@ where
 
         match child {
             Pointer::Link { cid, cache } => {
-                cache.get_or_try_init(|| {
-                    store
-                        .get_cbor(cid)?
-                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))
-                })?;
+                cache.get_or_try_init(|| Node::load(conf, store, cid).map(Box::new))?;
                 let child_node = cache.get_mut().expect("filled line above");
 
                 let deleted = child_node.rm_value(hashed_key, conf, depth + 1, key, store)?;
