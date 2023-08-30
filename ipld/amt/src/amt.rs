@@ -473,7 +473,6 @@ where
     /// each value.
     pub fn for_each_mut<F>(&mut self, mut f: F) -> Result<(), Error>
     where
-        V: Clone,
         F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<()>,
     {
         self.for_each_while_mut(|i, x| {
@@ -486,63 +485,20 @@ where
     /// each value, for as long as that function keeps returning `true`.
     pub fn for_each_while_mut<F>(&mut self, mut f: F) -> Result<(), Error>
     where
-        // TODO remove clone bound when go-interop doesn't require it.
-        // (If needed without, this bound can be removed by duplicating function signatures)
-        V: Clone,
         F: FnMut(u64, &mut ValueMut<'_, V>) -> anyhow::Result<bool>,
     {
-        #[cfg(not(feature = "go-interop"))]
-        {
-            let (_, did_mutate) = self.root.node.for_each_while_mut(
-                &self.block_store,
-                self.height(),
-                self.bit_width(),
-                0,
-                &mut f,
-            )?;
+        let (_, did_mutate) = self.root.node.for_each_while_mut(
+            &self.block_store,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut f,
+        )?;
 
-            if did_mutate {
-                self.flushed_cid = None;
-            }
-
-            Ok(())
+        if did_mutate {
+            self.flushed_cid = None;
         }
 
-        // TODO remove requirement for this when/if changed in go-implementation
-        // This is not 100% compatible, because the blockstore reads/writes are not in the same
-        // order. If this is to be achieved, the for_each iteration would have to pause when
-        // a mutation occurs, set, then continue where it left off. This is a much more extensive
-        // change, and since it should not be feasibly triggered, it's left as this for now.
-        #[cfg(feature = "go-interop")]
-        {
-            let mut mutated = Vec::new();
-
-            self.root.node.for_each_while_mut(
-                &self.block_store,
-                self.height(),
-                self.bit_width(),
-                0,
-                &mut |idx, value| {
-                    let keep_going = f(idx, value)?;
-
-                    if value.value_changed() {
-                        // ! this is not ideal to clone and mark unchanged here, it is only done
-                        // because the go-implementation mutates the Amt as they iterate through it,
-                        // which we cannot do because it is memory unsafe (and I'm not certain we
-                        // don't have side effects from doing this unsafely)
-                        value.mark_unchanged();
-                        mutated.push((idx, value.clone()));
-                    }
-
-                    Ok(keep_going)
-                },
-            )?;
-
-            for (i, v) in mutated {
-                self.set(i, v)?;
-            }
-
-            Ok(())
-        }
+        Ok(())
     }
 }
