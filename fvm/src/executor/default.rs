@@ -5,7 +5,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fvm_ipld_encoding::{RawBytes, CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -22,6 +22,7 @@ use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
+use crate::syscalls::error::Abort;
 use crate::trace::ExecutionTrace;
 
 /// The default [`Executor`].
@@ -199,6 +200,18 @@ where
                     events_root,
                 }
             }
+            Err(ExecutionError::Abort(Abort::Return(maybe_block))) => Receipt {
+                exit_code: ExitCode::OK,
+                return_data: match maybe_block {
+                    Some(block_id) => RawBytes::new(to_vec(&block_id).unwrap()),
+                    None => RawBytes::default(),
+                },
+                gas_used,
+                events_root,
+            },
+
+            Err(ExecutionError::Abort(e)) => return Err(anyhow!("actor aborted: {}", e)),
+
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),

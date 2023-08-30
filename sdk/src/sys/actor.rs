@@ -128,6 +128,39 @@ super::fvm_syscalls! {
         delegated_addr_len: u32,
     ) -> Result<()>;
 
+
+    /// Atomically transition to the new actor code. On success, this syscall does not return to the
+    /// current actor. Instead, the target actor "replaces" the invocation.
+    ///
+    /// # Parameters
+    ///
+    /// - `new_code_cid_off` is the offset (in wasm memory) of the code CID to upgrade _to_.
+    /// - `params` is the IPLD block handle passed to the new code's `upgrade` wasm endpoint.
+    ///
+    /// # Returns
+    ///
+    /// On success, this syscall will not return. Instead, the current invocation will "complete" and
+    /// the return value will be the block returned by the new code's `upgrade` endpoint.
+    ///
+    /// If the new code rejects the upgrade (aborts) or performs an illegal operation, this syscall will
+    /// return the exit code of the `upgrade` endpoint.
+    ///
+    /// Finally, the syscall will return an error if it fails to call the upgrade endpoint entirely.
+    ///
+    /// # Errors
+    ///
+    /// | Error                 | Reason                                               |
+    /// |-----------------------|------------------------------------------------------|
+    /// | [`NotFound`]          | there's no actor deployed with the target code cid.  |
+    /// | [`InvalidHandle`]     | parameters block not found.                          |
+    /// | [`LimitExceeded`]     | recursion limit reached.                             |
+    /// | [`IllegalArgument`]   | invalid code cid buffer.                             |
+    /// | [`Forbidden`]         | target actor doesn't have an upgrade endpoint.       |
+    pub fn upgrade_actor(
+        new_code_cid_off: *const u8,
+        params: u32,
+    ) -> Result<u32>;
+
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.
     #[cfg(feature = "m2-native")]

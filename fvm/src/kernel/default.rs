@@ -864,6 +864,24 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<BlockId> {
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
+            );
+        }
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        self.call_manager
+            .upgrade_actor::<Self>(self.actor_id, new_code_cid, params)
+    }
+
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         let t = self
             .call_manager

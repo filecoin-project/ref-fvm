@@ -5,6 +5,8 @@ use std::fmt::Display;
 use derive_more::Display;
 use fvm_shared::error::ErrorNumber;
 
+use crate::syscalls::error::Abort;
+
 /// Execution result.
 pub type Result<T> = std::result::Result<T, ExecutionError>;
 
@@ -35,6 +37,7 @@ pub enum ExecutionError {
     OutOfGas,
     Syscall(SyscallError),
     Fatal(anyhow::Error),
+    Abort(Abort),
 }
 
 impl ExecutionError {
@@ -52,6 +55,8 @@ impl ExecutionError {
         match self {
             Fatal(_) => true,
             OutOfGas | Syscall(_) => false,
+            Abort(crate::syscalls::error::Abort::Return(_)) => false,
+            Abort(_) => true,
         }
     }
 
@@ -60,8 +65,8 @@ impl ExecutionError {
     pub fn is_recoverable(&self) -> bool {
         use ExecutionError::*;
         match self {
-            OutOfGas | Fatal(_) => false,
-            Syscall(_) => true,
+            Syscall(_) | Abort(crate::syscalls::error::Abort::Return(_)) => true,
+            OutOfGas | Fatal(_) | Abort(_) => false,
         }
     }
 }
@@ -71,6 +76,12 @@ impl ExecutionError {
 impl From<SyscallError> for ExecutionError {
     fn from(e: SyscallError) -> Self {
         ExecutionError::Syscall(e)
+    }
+}
+
+impl From<Abort> for ExecutionError {
+    fn from(e: Abort) -> Self {
+        ExecutionError::Abort(e)
     }
 }
 
@@ -148,6 +159,7 @@ impl Context for ExecutionError {
             Syscall(e) => Syscall(SyscallError(format!("{}: {}", context, e.0), e.1)),
             Fatal(e) => Fatal(e.context(context.to_string())),
             OutOfGas => OutOfGas, // no reason necessary
+            Abort(_) => self,
         }
     }
 
@@ -168,6 +180,7 @@ impl From<ExecutionError> for anyhow::Error {
             OutOfGas => anyhow::anyhow!("out of gas"),
             Syscall(err) => anyhow::anyhow!(err.0),
             Fatal(err) => err,
+            Abort(e) => anyhow::anyhow!("aborted: {}", e),
         }
     }
 }

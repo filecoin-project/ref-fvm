@@ -269,6 +269,7 @@ pub fn bind_syscalls(
     linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
     linker.bind("actor", "next_actor_address", actor::next_actor_address)?;
     linker.bind("actor", "create_actor", actor::create_actor)?;
+    linker.bind("actor", "upgrade_actor", actor::upgrade_actor)?;
     linker.bind(
         "actor",
         "get_builtin_actor_type",

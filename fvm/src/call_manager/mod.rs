@@ -111,6 +111,24 @@ pub trait CallManager: 'static {
         delegated_address: Option<Address>,
     ) -> Result<()>;
 
+    fn upgrade_actor<K>(
+        &mut self,
+        actor_id: ActorID,
+        new_code_cid: Cid,
+        params: Option<kernel::Block>,
+    ) -> Result<kernel::BlockId>
+    where
+        K: Kernel<CallManager = Self>;
+
+    fn upgrade_actor_inner<K>(
+        &mut self,
+        actor_id: ActorID,
+        new_code_cid: Cid,
+        params: Option<kernel::Block>,
+    ) -> Result<kernel::BlockId>
+    where
+        K: Kernel<CallManager = Self>;
+
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
 

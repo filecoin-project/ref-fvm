@@ -392,4 +392,28 @@ impl CallManager for DummyCallManager {
     ) -> fvm::kernel::Result<()> {
         todo!()
     }
+
+    fn upgrade_actor<K>(
+        &mut self,
+        _actor_id: ActorID,
+        _new_code_cid: Cid,
+        _params: Option<kernel::Block>,
+    ) -> kernel::Result<kernel::BlockId>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        todo!()
+    }
+
+    fn upgrade_actor_inner<K>(
+        &mut self,
+        _actor_id: ActorID,
+        _new_code_cid: Cid,
+        _params: Option<kernel::Block>,
+    ) -> kernel::Result<kernel::BlockId>
+    where
+        K: Kernel<CallManager = Self>,
+    {
+        todo!()
+    }
 }

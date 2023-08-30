@@ -6,13 +6,14 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
-use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
+use fvm_shared::{ActorID, MethodNum, METHOD_SEND, METHOD_UPGRADE};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
@@ -262,6 +263,18 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+                Err(ExecutionError::Abort(Abort::Return(maybe_block))) => {
+                    ExecutionEvent::CallReturn(
+                        ExitCode::USR_FORBIDDEN,
+                        match maybe_block {
+                            Some(block_id) => IpldBlock::serialize_cbor(&block_id).unwrap(),
+                            None => None,
+                        },
+                    )
+                }
+                Err(ExecutionError::Abort(_)) => {
+                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
+                }
             });
         }
 
@@ -410,6 +423,144 @@ where
         self.set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
         Ok(())
+    }
+
+    fn upgrade_actor<K: Kernel<CallManager = Self>>(
+        &mut self,
+        actor_id: ActorID,
+        new_code_cid: Cid,
+        params: Option<Block>,
+    ) -> Result<BlockId> {
+        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
+
+        let origin = self.origin;
+        let state = self
+            .state_tree_mut()
+            .get_actor(actor_id)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
+
+        self.state_tree_mut().set_actor(
+            origin,
+            ActorState::new(
+                new_code_cid,
+                state.state,
+                state.balance,
+                state.sequence,
+                None,
+            ),
+        );
+
+        // when we successfully upgrade an actor we want to abort the calling actor which
+        // made the upgrade and return the block id of the new actor state.
+        Err(ExecutionError::from(Abort::Exit(
+            ExitCode::OK,
+            String::from("actor upgraded"),
+            result,
+        )))
+    }
+
+    fn upgrade_actor_inner<K: Kernel<CallManager = Self>>(
+        &mut self,
+        actor_id: ActorID,
+        new_code_cid: Cid,
+        params: Option<Block>,
+    ) -> Result<BlockId> {
+        let state = self
+            .state_tree()
+            .get_actor(actor_id)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
+
+        let mut block_registry = BlockRegistry::new();
+        let params_id = if let Some(blk) = params {
+            block_registry.put(blk)?
+        } else {
+            NO_DATA_BLOCK_ID
+        };
+
+        log::trace!(
+            "upgrading {} from {} to {}",
+            actor_id,
+            state.code,
+            new_code_cid
+        );
+        self.map_mut(|cm| {
+            let engine = cm.engine.clone(); // reference the RC.
+
+            // Make the kernel.
+            let kernel = K::new(
+                cm,
+                block_registry,
+                actor_id,
+                actor_id,
+                1919,
+                TokenAmount::from_atto(0),
+                false,
+            );
+
+            // Make a store.
+            let mut store = engine.new_store(kernel);
+
+            let result: std::result::Result<BlockId, ExecutionError> = (|| {
+                // Instantiate the module.
+                let instance = engine.instantiate(&mut store, &new_code_cid);
+                if instance.is_err() {
+                    return Err(syscall_error!(NotFound, "actor not found").into());
+                }
+
+                // Resolve and store a reference to the exported memory.
+                let memory = instance
+                    .as_ref()
+                    .unwrap()
+                    .unwrap()
+                    .get_memory(&mut store, "memory")
+                    .context("actor has no memory export")
+                    .map_err(Abort::Fatal)?;
+
+                store.data_mut().memory = memory;
+
+                // Lookup the upgrade method.
+                let res = instance
+                    .unwrap()
+                    .unwrap()
+                    .get_typed_func(&mut store, "upgrade");
+                if res.is_err() {
+                    return Err(syscall_error!(Forbidden, "actor does not support upgrade").into());
+                }
+                let invoke = res.unwrap();
+
+                // Set the available gas.
+                update_gas_available(&mut store)?;
+
+                // Invoke it.
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    invoke.call(&mut store, (params_id,))
+                }))
+                .map_err(|panic| {
+                    Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
+                })?;
+
+                // Charge for any remaining uncharged execution gas, returning an error if we run
+                // out.
+                charge_for_exec(&mut store)?;
+
+                // If the invocation failed due to running out of exec_units, we have already
+                // detected it and returned OutOfGas above. Any other invocation failure is returned
+                // here as an Abort
+                Ok(res.map_err(|_| {
+                    Abort::Exit(
+                        ExitCode::SYS_MISSING_RETURN,
+                        String::from("returned block does not exist"),
+                        NO_DATA_BLOCK_ID,
+                    )
+                })?)
+            })();
+
+            let invocation_data = store.into_data();
+            let _last_error = invocation_data.last_error;
+            let (cm, _block_registry) = invocation_data.kernel.into_inner();
+
+            (result, cm)
+        })
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
@@ -827,6 +978,23 @@ where
                             ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
+                        ),
+                        // if we successfully upgrade an actor, we abort with the block id as the value
+                        Abort::Return(ret) if method == METHOD_UPGRADE => (
+                            ExitCode::OK,
+                            String::from("aborted"),
+                            Ok(InvocationResult {
+                                exit_code: ExitCode::OK,
+                                value: match ret {
+                                    Some(blk_id) => block_registry.get(blk_id).ok().cloned(),
+                                    None => None,
+                                },
+                            }),
+                        ),
+                        Abort::Return(_) => (
+                            ExitCode::USR_FORBIDDEN,
+                            String::from("aborted"),
+                            Err(ExecutionError::Fatal(anyhow!("forbidden"))),
                         ),
                     };
 

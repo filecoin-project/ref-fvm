@@ -4,13 +4,14 @@ use core::option::Option;
 use std::ptr; // no_std
 
 use cid::Cid;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::address::{Address, Payload, MAX_ADDRESS_LEN};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::{ActorID, MAX_CID_LEN};
 use log::error;
 
-use crate::{sys, SyscallResult};
+use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
 
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
@@ -104,6 +105,20 @@ pub fn create_actor(
             .map(|v| (v.as_ptr(), v.len()))
             .unwrap_or((ptr::null(), 0));
         sys::actor::create_actor(actor_id, cid.as_ptr(), addr_off, addr_len as u32)
+    }
+}
+
+/// Upgrades an actor using the given block which includes the old code cid and the upgrade params
+pub fn upgrade_actor(new_code_cid: Cid, params: Option<IpldBlock>) -> SyscallResult<u32> {
+    unsafe {
+        let cid = new_code_cid.to_bytes();
+
+        let params_id = match params {
+            Some(p) => sys::ipld::block_create(p.codec, p.data.as_ptr(), p.data.len() as u32)?,
+            None => NO_DATA_BLOCK_ID,
+        };
+
+        sys::actor::upgrade_actor(cid.as_ptr(), params_id)
     }
 }
 

@@ -76,6 +76,9 @@ macro_rules! expect_syscall_err {
             ::fvm::kernel::ExecutionError::OutOfGas => {
                 panic!("got unexpected out of gas")
             }
+            ::fvm::kernel::ExecutionError::Abort(abort) => {
+                panic!("got unexpected abort {}", abort)
+            }
         }
     };
 }
@@ -90,6 +93,9 @@ macro_rules! expect_out_of_gas {
             }
             ::fvm::kernel::ExecutionError::Fatal(err) => {
                 panic!("got unexpected fatal error: {}", err)
+            }
+            ::fvm::kernel::ExecutionError::Abort(abort) => {
+                panic!("got unexpected abort {}", abort)
             }
         }
     };

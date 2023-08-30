@@ -152,6 +152,9 @@ mod test {
                 $crate::kernel::ExecutionError::OutOfGas => {
                     panic!("got unexpected out of gas")
                 }
+                $crate::kernel::ExecutionError::Abort(abort) => {
+                    panic!("got unexpected abort {}", abort)
+                }
             }
         };
     }

@@ -20,6 +20,9 @@ pub enum Abort {
     /// The system failed with a fatal error.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
+    /// The actor aborted with a block id
+    #[error("abortive non-local return {0:?}")]
+    Return(Option<BlockId>),
 }
 
 impl Abort {
@@ -37,6 +40,7 @@ impl Abort {
             ),
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(err) => Abort::Fatal(err),
+            ExecutionError::Abort(e) => e,
         }
     }
 
@@ -46,6 +50,7 @@ impl Abort {
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(e) => Abort::Fatal(e),
             ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
+            ExecutionError::Abort(e) => e,
         }
     }
 }
