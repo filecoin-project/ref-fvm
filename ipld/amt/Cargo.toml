@@ -17,9 +17,6 @@ anyhow = "1.0.71"
 fvm_ipld_blockstore = { version = "0.2", path = "../blockstore" }
 fvm_ipld_encoding = { version = "0.4", path = "../encoding" }
 
-[features]
-go-interop = []
-
 [dev-dependencies]
 criterion = "0.5.1"
 quickcheck = "1"
