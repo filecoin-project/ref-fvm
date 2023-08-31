@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, DAG_CBOR, IPLD_RAW};
+use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
@@ -38,7 +38,7 @@ use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
-use crate::syscall_error;
+use crate::{ipld, syscall_error};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -297,19 +297,16 @@ where
             // missing state and/or have a corrupted store.
             .or_fatal()?;
 
-        let children = if cid.codec() == DAG_CBOR {
-            // Failure in scanning here is fatal as we're reading a reachable block from the
-            // datastore. If something goes wrong here, our datastore is corrupted.
-            // TODO: We should also make this "super fatal" (fail the block).
-            cbor::scan_for_reachable_links(
-                &data,
-                self.call_manager.price_list(),
-                self.call_manager.gas_tracker(),
-            )
-            .or_fatal()?
-        } else {
-            Vec::new()
-        };
+        // Failure in scanning here is fatal as we're reading a reachable block from the
+        // datastore. If something goes wrong here, our datastore is corrupted.
+        // TODO: We should also make this "super fatal" (fail the block).
+        let children = ipld::scan_for_reachable_links(
+            cid.codec(),
+            &data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )
+        .or_fatal()?;
         let block = Block::new(cid.codec(), data, children);
 
         let t = self.call_manager.charge_gas(
@@ -329,19 +326,16 @@ where
             return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
         }
 
-        if !ALLOWED_CODECS.contains(&codec) {
+        if !ipld::ALLOWED_CODECS.contains(&codec) {
             return Err(syscall_error!(IllegalCodec; "codec {} not allowed", codec).into());
         }
 
-        let children = if codec == DAG_CBOR {
-            cbor::scan_for_reachable_links(
-                data,
-                self.call_manager.price_list(),
-                self.call_manager.gas_tracker(),
-            )?
-        } else {
-            Vec::new()
-        };
+        let children = ipld::scan_for_reachable_links(
+            codec,
+            data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )?;
 
         let blk = Block::new(codec, data, children);
 
