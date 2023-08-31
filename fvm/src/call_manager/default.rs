@@ -422,7 +422,13 @@ where
         new_code_cid: Cid,
         params: Option<Block>,
     ) -> Result<BlockId> {
-        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
+        let result = match self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params) {
+            Ok(id) => id,
+            Err(ExecutionError::Abort(Abort::Exit(ExitCode::OK, _, result))) => {
+                return Ok(result);
+            }
+            Err(e) => return Err(e),
+        };
 
         let origin = self.origin;
         let state = self
@@ -503,18 +509,15 @@ where
             // Make a store.
             let mut store = engine.new_store(kernel);
 
-            let result: std::result::Result<BlockId, ExecutionError> = (|| {
+            let result: std::result::Result<BlockId, Abort> = (|| {
                 // Instantiate the module.
-                let instance = engine.instantiate(&mut store, &new_code_cid);
-                if instance.is_err() {
-                    return Err(syscall_error!(NotFound, "actor not found").into());
-                }
+                let instance = engine
+                    .instantiate(&mut store, &new_code_cid)?
+                    .context("actor not found")
+                    .map_err(Abort::Fatal)?;
 
                 // Resolve and store a reference to the exported memory.
                 let memory = instance
-                    .as_ref()
-                    .unwrap()
-                    .unwrap()
                     .get_memory(&mut store, "memory")
                     .context("actor has no memory export")
                     .map_err(Abort::Fatal)?;
@@ -522,21 +525,16 @@ where
                 store.data_mut().memory = memory;
 
                 // Lookup the upgrade method.
-                let res = instance
-                    .unwrap()
-                    .unwrap()
-                    .get_typed_func(&mut store, "upgrade");
-                if res.is_err() {
-                    return Err(syscall_error!(Forbidden, "actor does not support upgrade").into());
-                }
-                let invoke = res.unwrap();
+                let upgrade: wasmtime::TypedFunc<(u32, u32), u32> = instance
+                    .get_typed_func(&mut store, "upgrade")
+                    .map_err(|e| Abort::Fatal(anyhow!("actor does not support upgrade: {}", e)))?;
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id, ui_params_id))
+                    upgrade.call(&mut store, (params_id, ui_params_id))
                 }))
                 .map_err(|panic| {
                     Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
@@ -546,16 +544,9 @@ where
                 // out.
                 charge_for_exec(&mut store)?;
 
-                // If the invocation failed due to running out of exec_units, we have already
-                // detected it and returned OutOfGas above. Any other invocation failure is returned
-                // here as an Abort
-                Ok(res.map_err(|_| {
-                    Abort::Exit(
-                        ExitCode::SYS_MISSING_RETURN,
-                        String::from("returned block does not exist"),
-                        NO_DATA_BLOCK_ID,
-                    )
-                })?)
+                log::info!("returned with: {:?}", res);
+
+                Ok(res?)
             })();
 
             let invocation_data = store.into_data();
@@ -564,6 +555,7 @@ where
 
             (result, cm)
         })
+        .map_err(ExecutionError::from)
     }
 
     fn append_event(&mut self, evt: StampedEvent) {

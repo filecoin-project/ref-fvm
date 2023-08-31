@@ -4,6 +4,7 @@ mod bundles;
 use bundles::*;
 use fvm::executor::{ApplyKind, Executor};
 use fvm_integration_tests::dummy::DummyExterns;
+use fvm_integration_tests::tester::Account;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
@@ -23,7 +24,9 @@ fn upgrade_actor_test() {
     )
     .unwrap();
 
-    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+    let sender: [Account; 2] = tester.create_accounts().unwrap();
+
+    //let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
 
     let wasm_bin = UPGRADE_ACTOR_BINARY;
 
@@ -43,13 +46,13 @@ fn upgrade_actor_test() {
 
     let executor = tester.executor.as_mut().unwrap();
 
-    for (seq, method) in (1..=1).enumerate() {
+    for (seq, method) in (1..=2).enumerate() {
         let message = Message {
-            from: sender_address,
+            from: sender[seq].1,
             to: actor_address,
             gas_limit: 1000000000,
             method_num: method,
-            sequence: seq as u64,
+            sequence: 0 as u64,
             value: TokenAmount::from_atto(100),
             ..Message::default()
         };
