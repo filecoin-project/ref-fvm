@@ -13,6 +13,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND, METHOD_UPGRADE};
 use num_traits::Zero;
 
@@ -471,11 +472,23 @@ where
             .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
 
         let mut block_registry = BlockRegistry::new();
+
+        // add the params block to the block registry
         let params_id = if let Some(blk) = params {
             block_registry.put(blk)?
         } else {
             NO_DATA_BLOCK_ID
         };
+
+        // also add a new block to the registry which includes the UpgradeInfo which
+        // we pass to the actor's upgrade method
+        let ui = UpgradeInfo {
+            old_code_cid: state.code,
+        };
+        let ui_params = to_vec(&ui).map_err(
+            |e| syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
+        )?;
+        let ui_params_id = block_registry.put(Block::new(CBOR, ui_params))?;
 
         log::trace!(
             "upgrading {} from {} to {}",
@@ -533,7 +546,7 @@ where
 
                 // Invoke it.
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id,))
+                    invoke.call(&mut store, (params_id, ui_params_id))
                 }))
                 .map_err(|panic| {
                     Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))

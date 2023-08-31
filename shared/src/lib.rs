@@ -29,6 +29,7 @@ pub mod sector;
 pub mod smooth;
 pub mod state;
 pub mod sys;
+pub mod upgrade;
 pub mod version;
 
 use econ::TokenAmount;
