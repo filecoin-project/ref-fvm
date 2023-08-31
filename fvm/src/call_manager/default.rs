@@ -6,7 +6,6 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
@@ -14,7 +13,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
 use fvm_shared::upgrade::UpgradeInfo;
-use fvm_shared::{ActorID, MethodNum, METHOD_SEND, METHOD_UPGRADE};
+use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
@@ -264,15 +263,6 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
-                Err(ExecutionError::Abort(Abort::Return(maybe_block))) => {
-                    ExecutionEvent::CallReturn(
-                        ExitCode::USR_FORBIDDEN,
-                        match maybe_block {
-                            Some(block_id) => IpldBlock::serialize_cbor(&block_id).unwrap(),
-                            None => None,
-                        },
-                    )
-                }
                 Err(ExecutionError::Abort(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
                 }
@@ -991,23 +981,6 @@ where
                             ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
-                        ),
-                        // if we successfully upgrade an actor, we abort with the block id as the value
-                        Abort::Return(ret) if method == METHOD_UPGRADE => (
-                            ExitCode::OK,
-                            String::from("aborted"),
-                            Ok(InvocationResult {
-                                exit_code: ExitCode::OK,
-                                value: match ret {
-                                    Some(blk_id) => block_registry.get(blk_id).ok().cloned(),
-                                    None => None,
-                                },
-                            }),
-                        ),
-                        Abort::Return(_) => (
-                            ExitCode::USR_FORBIDDEN,
-                            String::from("aborted"),
-                            Err(ExecutionError::Fatal(anyhow!("forbidden"))),
                         ),
                     };
 

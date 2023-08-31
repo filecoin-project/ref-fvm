@@ -20,9 +20,6 @@ pub enum Abort {
     /// The system failed with a fatal error.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
-    /// The actor aborted with a block id
-    #[error("abortive non-local return {0:?}")]
-    Return(Option<BlockId>),
 }
 
 impl Abort {
