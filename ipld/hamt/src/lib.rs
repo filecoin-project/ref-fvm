@@ -16,6 +16,7 @@ mod hamt;
 mod hash;
 mod hash_algorithm;
 mod hash_bits;
+mod iter;
 mod node;
 mod pointer;
 
@@ -26,6 +27,7 @@ pub use self::error::Error;
 pub use self::hamt::{Hamt, Hamtv0};
 pub use self::hash::*;
 pub use self::hash_algorithm::*;
+pub use self::iter::{Iter, Iterv0};
 
 /// Default bit width for indexing a hash at each depth level
 #[deprecated]

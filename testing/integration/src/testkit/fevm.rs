@@ -8,8 +8,9 @@ use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
 use fvm_shared::address::Address;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};
+use num_traits::Zero;
 
-use crate::tester::{BasicAccount, BasicTester, INITIAL_ACCOUNT_BALANCE};
+use crate::tester::{BasicAccount, BasicTester};
 
 pub const EAM_ADDRESS: Address = Address::new_id(10);
 pub const DEFAULT_GAS: u64 = 10_000_000_000;
@@ -25,7 +26,7 @@ pub fn create_contract(
         gas_limit: DEFAULT_GAS,
         method_num: EAMMethod::CreateExternal as u64,
         params: RawBytes::serialize(BytesSer(contract)).unwrap(),
-        value: INITIAL_ACCOUNT_BALANCE.clone(),
+        value: Zero::zero(),
         sequence: owner.seqno,
         ..Message::default()
     };

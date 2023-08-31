@@ -13,7 +13,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
-use crate::hash_bits::HashBits;
+use crate::iter::IterImpl;
 use crate::node::Node;
 use crate::pointer::version::Version;
 use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
@@ -372,7 +372,11 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        self.root.for_each(self.store.borrow(), &mut f)
+        for res in self {
+            let (k, v) = res?;
+            (f)(k, v)?;
+        }
+        Ok(())
     }
 
     /// Iterates over each KV in the Hamt and runs a function on the values. If starting key is
@@ -426,25 +430,115 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        match starting_key {
-            Some(key) => {
-                let hash = H::hash(key);
-                self.root.for_each_ranged(
-                    self.store.borrow(),
-                    &self.conf,
-                    Some((HashBits::new(&hash), key)),
-                    max,
-                    &mut f,
-                )
-            }
-            None => self
-                .root
-                .for_each_ranged(self.store.borrow(), &self.conf, None, max, &mut f),
+        let mut iter = match &starting_key {
+            Some(key) => self.iter_from(key)?,
+            None => self.iter(),
         }
+        .fuse();
+        let mut traversed = 0usize;
+        for res in iter.by_ref().take(max.unwrap_or(usize::MAX)) {
+            let (k, v) = res?;
+            (f)(k, v)?;
+            traversed += 1;
+        }
+        let next = iter.next().transpose()?.map(|kv| kv.0).cloned();
+        Ok((traversed, next))
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.
     pub fn into_store(self) -> BS {
         self.store
+    }
+}
+
+impl<BS, V, K, H, Ver> HamtImpl<BS, V, K, H, Ver>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+    Ver: Version,
+    BS: Blockstore,
+{
+    /// Iterate over the HAMT. Alternatively, you can directly iterate over the HAMT without calling
+    /// this method:
+    ///
+    /// ```rust
+    /// use fvm_ipld_hamt::Hamt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let hamt: Hamt<_, String> = Hamt::new_with_bit_width(store, 5);
+    ///
+    /// // ...
+    ///
+    /// for kv in &hamt {
+    ///     let (k, v) = kv?;
+    ///     println!("{k:?}: {v}");
+    /// }
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+    pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
+        IterImpl::new(&self.store, &self.root)
+    }
+
+    /// Iterate over the HAMT starting at the given key. This can be used to implement "ranged"
+    /// iteration:
+    ///
+    /// ```rust
+    /// use fvm_ipld_hamt::{Hamt, BytesKey};
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// // Create a HAMT with 5 keys, a-e.
+    /// let mut hamt: Hamt<_, String> = Hamt::new_with_bit_width(store, 5);
+    /// let kvs: Vec<(BytesKey, String)> = ["a", "b", "c", "d", "e"]
+    ///     .into_iter()
+    ///     .map(|k|(BytesKey(k.as_bytes().to_owned()), k.to_owned()))
+    ///     .collect();
+    /// kvs.iter()
+    ///     .map(|(k, v)| hamt.set(k.clone(), v.clone())
+    ///     .map(|_|()))
+    ///     .collect::<Result<(), _>>()?;
+    ///
+    /// // Read 2 elements.
+    /// let mut results = hamt.iter().take(2).collect::<Result<Vec<_>, _>>()?;
+    /// assert_eq!(results.len(), 2);
+    ///
+    /// // Read the rest then sort.
+    /// for res in hamt.iter_from(results.last().unwrap().0)?.skip(1) {
+    ///     results.push((res?));
+    /// }
+    /// results.sort_by_key(|kv| kv.1);
+    ///
+    /// // Assert that we got out what we put in.
+    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.clone())).collect();
+    /// assert_eq!(kvs, results);
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+    pub fn iter_from<Q: ?Sized>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    where
+        H: HashAlgorithm,
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        IterImpl::new_from(&self.store, &self.root, key, &self.conf)
+    }
+}
+
+impl<'a, BS, V, K, H, Ver> IntoIterator for &'a HamtImpl<BS, V, K, H, Ver>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+    Ver: Version,
+    BS: Blockstore,
+{
+    type Item = Result<(&'a K, &'a V), Error>;
+    type IntoIter = IterImpl<'a, BS, V, K, H, Ver>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

@@ -4,6 +4,53 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.7.0 [2023-08-28]
+
+- BREAKING: Add fields to the trace API:
+    - Add a `gas_limit` and `read_only` fields to `ExecutionEvent::Call`.
+    - Add a new `ExecutionEvent::InvokeActor(code_cid)` event when an actor is invoked on any method number (including method 0).
+- Remove the unused `crypto::verify_seal` syscall.
+
+## 3.6.0 [2023-08-18]
+
+Breaking Changes:
+- Perform randomness hashing in the kernel
+  - The FVM no longer supplies a DST and entropy to the client extern when requesting randomness
+  - It expects the client to return the "digest", from which the kernel then draws the randomness
+  - Clients integrating this change should:
+    - no longer expect the DST and entropy parameters for the `get_chain_randomness` and `get_beacon_randomness` externs
+    - omit the last step they currently perform when drawing randomness; that is, return the hashed digest after looking up the randomness source
+- Drop deprecated `hyperspace` feature
+
+Other Changes:
+- Add support for nv21 behind the `nv21-dev` feature flag
+  - Note: We do NOT expect to support nv21 on FVM3, this only facilitates the development of nv21 before FVM4 is ready
+  - We use the Hygge pricelist as-is for nv21 if the `nv21-dev` feature flag is enabled
+- Refactor: remove `with_transaction` and move the "return" gas charge
+  - transaction logic is now entirely in `CallManager::send`
+- Syscalls: fix: Do not assume return pointers are aligned
+- Buffered Blockstore: fixup IPLD flush logic 
+  - Make it less generic (performance).
+  - Remove blocks from the write buffer as we write them to avoid
+    duplicate writes.
+  - Simplify some of the checks around what is allowed. For example, I'm
+    now allowing CBOR + Identity hash which should have been allowed
+    previously but wasn't (we don't use it but still, it should have been
+    allowed).
+  - Remove the explicit 100 byte CID length check. The `Cid` type already
+    validates that the digest can be no longer than 64 bytes.
+  - Be less strict on DagCBOR validation. Counter-intuitively, being
+    overly strict here is dangerous as it gives us more points where
+    implementations can disagree and fork. Instead, we enforce the
+    following rules for DAG_CBOR:
+    1. Blocks must have a valid CBOR structure, but _values_ aren't
+       validated. E.g., no utf-8 validation, no float validation, no
+       minimum encoding requirements, no canonical ordering requirements,
+       etc.
+    2. All CBOR values tagged with 42 must be valid CIDs. I.e., a CBOR
+       byte string starting with a 0x0 byte followed by a valid CID with
+       at most a 64 byte digest.
+
 ## 3.5.0 [2023-06-27]
 
 Breaking Changes:

@@ -381,9 +381,7 @@ fn for_each() {
         .unwrap();
     assert_eq!(x, indexes.len());
 
-    // Iteration again will be read diff with go-interop, since they do not cache
     new_amt.for_each(|_, _: &BytesDe| Ok(())).unwrap();
-
     assert_eq!(
         c.to_string().as_str(),
         "bafy2bzaceanqxtbsuyhqgxubiq6vshtbhktmzp2if4g6kxzttxmzkdxmtipcm"

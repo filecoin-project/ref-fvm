@@ -111,22 +111,6 @@ super::fvm_syscalls! {
         cid_len: u32,
     ) -> Result<u32>;
 
-    /// Verifies a sector seal proof.
-    ///
-    /// Returns 0 to indicate that the proof was valid, -1 otherwise.
-    ///
-    /// # Arguments
-    ///
-    /// `info_off` and `info_len` specify the location and length of a cbor-encoded
-    /// [`SealVerifyInfo`][fvm_shared::sector::SealVerifyInfo] in tuple representation.
-    ///
-    /// # Errors
-    ///
-    /// | Error               | Reason                   |
-    /// |---------------------|--------------------------|
-    /// | [`IllegalArgument`] | an argument is malformed |
-    pub fn verify_seal(info_off: *const u8, info_len: u32) -> Result<i32>;
-
     /// Verifies a window proof of spacetime.
     ///
     /// Returns 0 to indicate that the proof was valid, -1 otherwise.

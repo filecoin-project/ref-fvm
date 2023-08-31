@@ -285,9 +285,6 @@ pub trait CryptoOps {
         pieces: &[PieceInfo],
     ) -> Result<Cid>;
 
-    /// Verifies a sector seal proof.
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool>;
-
     /// Verifies a window proof of spacetime.
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
 

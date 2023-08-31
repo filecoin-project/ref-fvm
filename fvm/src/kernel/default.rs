@@ -517,17 +517,6 @@ where
         }))
     }
 
-    /// Verify seal proof for sectors. This proof verifies that a sector was sealed by the miner.
-    fn verify_seal(&self, vi: &SealVerifyInfo) -> Result<bool> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_seal(vi))?;
-
-        // It's probably _fine_ to just let these turn into fatal errors, but seal verification is
-        // pretty self contained, so catching panics here probably doesn't hurt.
-        t.record(catch_and_log_panic("verifying seal", || verify_seal(vi)))
-    }
-
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
         let t = self
             .call_manager

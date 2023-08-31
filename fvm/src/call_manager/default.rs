@@ -186,6 +186,11 @@ where
                 method,
                 params: params.as_ref().map(Into::into),
                 value: value.clone(),
+                gas_limit: std::cmp::min(
+                    gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
+                    self.gas_tracker.gas_available().round_up(),
+                ),
+                read_only,
             });
         }
 
@@ -653,6 +658,10 @@ where
         let state = self
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
+
+        if self.machine.context().tracing {
+            self.trace(ExecutionEvent::InvokeActor(state.code));
+        }
 
         // Transfer, if necessary.
         if !value.is_zero() {
