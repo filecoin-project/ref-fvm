@@ -1781,7 +1781,6 @@ version = "12.0.0"
 source = "git+https://github.com/filecoin-project/builtin-actors?branch=fvm-next#a3f3f5edbc9d8c9ab8a7e80645018b53c715766b"
 dependencies = [
  "anyhow",
- "base64 0.21.2",
  "byteorder",
  "castaway",
  "cid 0.10.1",
