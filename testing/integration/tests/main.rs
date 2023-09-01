@@ -35,11 +35,13 @@ pub struct State {
     pub count: u64,
 }
 
+const NV_FOR_TEST: NetworkVersion = NetworkVersion::V21;
+
 #[test]
 fn hello_world() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -85,7 +87,7 @@ fn hello_world() {
 fn ipld() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -137,7 +139,7 @@ fn ipld() {
 fn syscalls() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -199,7 +201,7 @@ fn syscalls() {
 fn sself() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -260,7 +262,7 @@ fn sself() {
 fn create_actor() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -364,7 +366,7 @@ fn create_actor() {
 fn exit_data() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -467,7 +469,7 @@ fn exit_data() {
 fn native_stack_overflow() {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -544,7 +546,7 @@ fn native_stack_overflow() {
 fn test_exitcode(wat: &str, code: ExitCode) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -719,12 +721,7 @@ fn backtraces() {
     };
 
     // Instantiate tester
-    let mut tester = new_tester(
-        NetworkVersion::V18,
-        StateTreeVersion::V5,
-        blockstore.clone(),
-    )
-    .unwrap();
+    let mut tester = new_tester(NV_FOR_TEST, StateTreeVersion::V5, blockstore.clone()).unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
@@ -801,7 +798,7 @@ fn backtraces() {
 fn test_oom1() {
     // Test OOM condition 1: one big chunk.
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -847,7 +844,7 @@ fn test_oom1() {
 fn test_oom2() {
     // Test OOM condition 2: many small chunks
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -895,7 +892,7 @@ fn test_oom3() {
     // actor with the smallest possible limit (1 WASM page).
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )
@@ -951,7 +948,7 @@ fn test_oom4() {
 
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NV_FOR_TEST,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

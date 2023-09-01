@@ -19,7 +19,7 @@ use fvm_shared::METHOD_SEND;
 #[test]
 fn basic_send() {
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

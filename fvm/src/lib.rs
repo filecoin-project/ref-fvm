@@ -129,7 +129,7 @@ mod test {
 
         let actors_cid = bs.put_cbor(&(1, manifest_cid), Code::Blake2b256).unwrap();
 
-        let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V18)
+        let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V21)
             .override_actors(actors_cid)
             .for_epoch(0, 0, root);
 
