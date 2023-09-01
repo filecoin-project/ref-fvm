@@ -5,7 +5,6 @@ use std::iter::FusedIterator;
 
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
-use fvm_ipld_encoding::CborStore;
 
 use crate::hash_bits::HashBits;
 use crate::node::{match_extension, ExtensionMatch, Node};
@@ -15,6 +14,7 @@ use crate::{AsHashedKey, Config, Error, KeyValuePair};
 /// Iterator over a KAMT. Items are ordered by-key, ascending.
 pub struct Iter<'a, BS, V, K, H, const N: usize = 32> {
     store: &'a BS,
+    conf: &'a Config,
     stack: Vec<std::slice::Iter<'a, Pointer<K, V, H, N>>>,
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
@@ -25,8 +25,9 @@ where
     V: DeserializeOwned,
     BS: Blockstore,
 {
-    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, N>) -> Self {
+    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, N>, conf: &'a Config) -> Self {
         Self {
+            conf,
             store,
             stack: vec![root.pointers.iter()],
             current: [].iter(),
@@ -40,7 +41,7 @@ where
         conf: &'a Config,
     ) -> Result<Self, Error>
     where
-        K: Borrow<Q>,
+        K: Borrow<Q> + PartialOrd,
         Q: PartialEq,
         H: AsHashedKey<Q, N>,
     {
@@ -57,25 +58,17 @@ where
                 Some(p) => match p {
                     Pointer::Link {
                         cid, cache, ext, ..
-                    } => {
-                        if let Some(cached_node) = cache.get() {
-                            (cached_node, ext)
-                        } else {
-                            let node =
-                                if let Some(node) = store.get_cbor::<Node<K, V, H, N>>(cid)? {
-                                    node
-                                } else {
-                                    return Err(Error::CidNotFound(cid.to_string()));
-                                };
-
-                            // Ignore error intentionally, the cache value will always be the same
-                            (cache.get_or_init(|| Box::new(node)), ext)
-                        }
-                    }
+                    } => (
+                        cache.get_or_try_init(|| {
+                            Node::load(conf, store, cid, stack.len() as u32).map(Box::new)
+                        })?,
+                        ext,
+                    ),
                     Pointer::Dirty { node, ext, .. } => (node, ext),
                     Pointer::Values(values) => {
                         return match values.iter().position(|kv| kv.key().borrow() == key) {
                             Some(offset) => Ok(Self {
+                                conf,
                                 store,
                                 stack,
                                 current: values[offset..].iter(),
@@ -113,17 +106,12 @@ where
             };
             match next {
                 Pointer::Link { cid, cache, .. } => {
-                    let node = if let Some(cached_node) = cache.get() {
-                        cached_node
-                    } else {
-                        let node = match self.store.get_cbor::<Node<K, V, H, N>>(cid) {
-                            Ok(Some(node)) => node,
-                            Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
-                            Err(err) => return Some(Err(err.into())),
-                        };
-
-                        // Ignore error intentionally, the cache value will always be the same
-                        cache.get_or_init(|| Box::new(node))
+                    let node = match cache.get_or_try_init(|| {
+                        Node::load(self.conf, self.store, cid, self.stack.len() as u32)
+                            .map(Box::new)
+                    }) {
+                        Ok(node) => node,
+                        Err(e) => return Some(Err(e)),
                     };
                     self.stack.push(node.pointers.iter())
                 }
