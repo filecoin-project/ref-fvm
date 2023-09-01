@@ -116,7 +116,7 @@ pub trait CallManager: 'static {
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<kernel::Block>,
-    ) -> Result<kernel::BlockId>
+    ) -> Result<Option<kernel::Block>>
     where
         K: Kernel<CallManager = Self>;
 
@@ -125,7 +125,7 @@ pub trait CallManager: 'static {
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<kernel::Block>,
-    ) -> Result<kernel::BlockId>
+    ) -> Result<Option<kernel::Block>>
     where
         K: Kernel<CallManager = Self>;
 

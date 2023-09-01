@@ -6,7 +6,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -263,6 +263,15 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
+                Err(ExecutionError::Abort(Abort::Return(maybe_block))) => {
+                    ExecutionEvent::CallReturn(
+                        ExitCode::OK,
+                        match maybe_block {
+                            Some(block) => RawBytes::new(block.data().to_vec()).into(),
+                            None => RawBytes::default().into(),
+                        },
+                    )
+                }
                 Err(ExecutionError::Abort(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
                 }
@@ -421,14 +430,8 @@ where
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<Block>,
-    ) -> Result<BlockId> {
-        let result = match self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params) {
-            Ok(id) => id,
-            Err(ExecutionError::Abort(Abort::Exit(ExitCode::OK, _, result))) => {
-                return Ok(result);
-            }
-            Err(e) => return Err(e),
-        };
+    ) -> Result<Option<Block>> {
+        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
 
         let origin = self.origin;
         let state = self
@@ -447,13 +450,7 @@ where
             ),
         );
 
-        // when we successfully upgrade an actor we want to abort the calling actor which
-        // made the upgrade and return the block id of the new actor state.
-        Err(ExecutionError::from(Abort::Exit(
-            ExitCode::OK,
-            String::from("actor upgraded"),
-            result,
-        )))
+        Ok(result)
     }
 
     fn upgrade_actor_inner<K: Kernel<CallManager = Self>>(
@@ -461,7 +458,7 @@ where
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<Block>,
-    ) -> Result<BlockId> {
+    ) -> Result<Option<Block>> {
         let state = self
             .state_tree()
             .get_actor(actor_id)?
@@ -551,7 +548,44 @@ where
 
             let invocation_data = store.into_data();
             let _last_error = invocation_data.last_error;
-            let (cm, _block_registry) = invocation_data.kernel.into_inner();
+            let (cm, block_registry) = invocation_data.kernel.into_inner();
+
+            let result: std::result::Result<Option<Block>, ExecutionError> = match result {
+                Ok(block_id) => {
+                    if block_id == NO_DATA_BLOCK_ID {
+                        Ok(None)
+                    } else {
+                        Ok(Some(
+                            block_registry
+                                .get(block_id)
+                                .map_err(|_| {
+                                    Abort::Exit(
+                                        ExitCode::SYS_MISSING_RETURN,
+                                        String::from("returned block does not exist"),
+                                        NO_DATA_BLOCK_ID,
+                                    )
+                                })
+                                .cloned()
+                                .unwrap(),
+                        ))
+                    }
+                }
+                Err(abort) => match abort {
+                    Abort::Exit(_, _, block_id) => match block_registry.get(block_id) {
+                        Err(e) => Err(ExecutionError::Fatal(anyhow!(
+                            "failed to retrieve block {}: {}",
+                            block_id,
+                            e
+                        ))),
+                        Ok(block) => Err(ExecutionError::Abort(Abort::Return(Some(block.clone())))),
+                    },
+                    Abort::OutOfGas => Err(ExecutionError::OutOfGas),
+                    Abort::Fatal(err) => Err(ExecutionError::Fatal(err)),
+                    Abort::Return(_) => todo!(),
+                },
+            };
+
+            //let ret: std::result::Result<Option<Block>, ExecutionError> = Ok(None);
 
             (result, cm)
         })
@@ -973,6 +1007,14 @@ where
                             ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
+                        ),
+                        Abort::Return(value) => (
+                            ExitCode::OK,
+                            String::from("aborted"),
+                            Ok(InvocationResult {
+                                exit_code: ExitCode::OK,
+                                value,
+                            }),
                         ),
                     };
 

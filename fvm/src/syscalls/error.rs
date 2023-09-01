@@ -6,7 +6,7 @@ use fvm_shared::error::ExitCode;
 use wasmtime::Trap;
 
 use crate::call_manager::NO_DATA_BLOCK_ID;
-use crate::kernel::{BlockId, ExecutionError};
+use crate::kernel::{Block, BlockId, ExecutionError};
 
 /// Represents an actor "abort".
 #[derive(Debug, thiserror::Error)]
@@ -20,6 +20,9 @@ pub enum Abort {
     /// The system failed with a fatal error.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
+    /// The actor aborted with a block.
+    #[error("abortive non-local return {0:?}")]
+    Return(Option<Block>),
 }
 
 impl Abort {
@@ -80,6 +83,7 @@ impl From<anyhow::Error> for Abort {
                 _ => Abort::Fatal(anyhow!("unexpected wasmtime trap: {}", trap)),
             };
         };
+
         match e.downcast::<Abort>() {
             Ok(abort) => abort,
             Err(e) => Abort::Fatal(e),

@@ -5,6 +5,7 @@ use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
+use crate::syscalls::error::Abort;
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
@@ -14,7 +15,7 @@ use fvm_shared::address::Payload;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ErrorNumber;
+use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
@@ -878,8 +879,37 @@ where
             Some(self.blocks.get(params_id)?.clone())
         };
 
-        self.call_manager
-            .upgrade_actor::<Self>(self.actor_id, new_code_cid, params)
+        let result = self
+            .call_manager
+            .upgrade_actor::<Self>(self.actor_id, new_code_cid, params);
+
+        if let Ok(None) = result {
+            Err(ExecutionError::Abort(Abort::Exit(
+                ExitCode::OK,
+                "actor upgraded".to_string(),
+                NO_DATA_BLOCK_ID,
+            )))
+        } else if let Ok(Some(block)) = result {
+            let block_id = self
+                .blocks
+                .put(block)
+                .or_fatal()
+                .context("failed to store a valid return value")?;
+            Err(ExecutionError::Abort(Abort::Exit(
+                ExitCode::OK,
+                "actor upgraded".to_string(),
+                block_id,
+            )))
+        } else if let Err(ExecutionError::Abort(Abort::Return(Some(block)))) = result {
+            let block_id = self
+                .blocks
+                .put(block)
+                .or_fatal()
+                .context("failed to store a valid return value")?;
+            Ok(block_id)
+        } else {
+            Err(result.unwrap_err())
+        }
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
