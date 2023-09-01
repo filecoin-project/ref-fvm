@@ -307,14 +307,14 @@ where
             self.call_manager.gas_tracker(),
         )
         .or_fatal()?;
-        let block = Block::new(cid.codec(), data, children);
 
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open(block.size() as usize, block.links().len()),
+                .on_block_open(data.len(), children.len()),
         )?;
 
+        let block = Block::new(cid.codec(), data, children);
         let stat = block.stat();
         let id = self.blocks.put_reachable(block)?;
         t.stop_with(start);
@@ -337,13 +337,13 @@ where
             self.call_manager.gas_tracker(),
         )?;
 
-        let blk = Block::new(codec, data, children);
-
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_create(blk.size(), blk.links().len()),
+                .on_block_create(data.len(), children.len()),
         )?;
+
+        let blk = Block::new(codec, data, children);
 
         t.record(Ok(self.blocks.put_check_reachable(blk)?))
     }

@@ -778,7 +778,7 @@ impl PriceList {
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self, data_size: u32, links: usize) -> GasCharge {
+    pub fn on_block_create(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
         let compute = self.block_memcpy.apply(data_size)
             + self.block_allocate.apply(data_size)
