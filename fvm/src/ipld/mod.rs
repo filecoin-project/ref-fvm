@@ -125,3 +125,98 @@ pub fn scan_for_reachable_links(
     t.stop_with(start);
     ret.map(|_| visitor.finish())
 }
+
+#[cfg(test)]
+mod test {
+    use crate::gas::{price_list_by_network_version, Gas, GasTracker};
+
+    use crate::kernel::{ExecutionError, Result};
+    use cid::Cid;
+    use fvm_ipld_encoding::{CBOR, DAG_CBOR, IPLD_RAW};
+    use fvm_shared::commcid::FIL_COMMITMENT_UNSEALED;
+    use fvm_shared::version::NetworkVersion;
+    use multihash::{Multihash, MultihashDigest};
+    use num_traits::Zero;
+    use serde::{Deserialize, Serialize};
+
+    fn scan_for_links(
+        codec: u64,
+        data: &[u8],
+        cbor_field_count: u32,
+        cbor_link_count: u32,
+    ) -> Result<Vec<Cid>> {
+        let mut price_list = price_list_by_network_version(NetworkVersion::V20).clone();
+        // We need to pick these gas numbers such that we are unlikely to "land" on the correct gas
+        // value if we get an unexpected combinations of fields/CIDs.
+        price_list.ipld_cbor_scan_per_field = Gas::new(1);
+        price_list.ipld_cbor_scan_per_cid = Gas::new(1 << 16);
+
+        let expected_gas = price_list.ipld_cbor_scan_per_field * cbor_field_count
+            + price_list.ipld_cbor_scan_per_cid * cbor_link_count;
+        let tracker = GasTracker::new(expected_gas, Gas::zero(), false);
+        let res = super::scan_for_reachable_links(codec, data, &price_list, &tracker);
+        assert!(
+            tracker.gas_available().is_zero(),
+            "expected to run out of gas"
+        );
+        res
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct Test(u64, Cid, u64);
+
+    #[test]
+    fn skip_raw() {
+        assert!(scan_for_links(IPLD_RAW, &[1, 2, 3], 0, 0)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn basic_cbor() {
+        let test_cid = Cid::new_v1(IPLD_RAW, multihash::Code::Blake2b256.digest(b"foobar"));
+
+        let data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
+
+        // We find a link when looking at it as dag-cbor.
+        assert_eq!(
+            vec![test_cid],
+            scan_for_links(DAG_CBOR, &data, 4, 1).unwrap()
+        );
+
+        // We ignore the link if it's regular CBOR.
+        assert!(scan_for_links(CBOR, &data, 0, 0).unwrap().is_empty());
+
+        // Raw also ignores the link.
+        assert!(scan_for_links(IPLD_RAW, &data, 0, 0).unwrap().is_empty());
+
+        // Can run out of gas.
+        assert!(matches!(
+            scan_for_links(DAG_CBOR, &data, 4, 0).unwrap_err(),
+            ExecutionError::OutOfGas
+        ));
+    }
+
+    #[test]
+    fn recursive_cbor() {
+        let test_cid = Cid::new_v1(IPLD_RAW, multihash::Code::Blake2b256.digest(b"foobar"));
+        let inlined_data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
+        let inline_cid = Cid::new_v1(DAG_CBOR, Multihash::wrap(0, &inlined_data).unwrap());
+        let data = fvm_ipld_encoding::to_vec(&Test(0, inline_cid, 1)).unwrap();
+
+        assert_eq!(
+            vec![test_cid],
+            scan_for_links(DAG_CBOR, &data, 8, 2).unwrap()
+        );
+    }
+
+    #[test]
+    fn ignores_pieces() {
+        let test_cid = Cid::new_v1(
+            FIL_COMMITMENT_UNSEALED,
+            multihash::Code::Blake2b256.digest(b"foobar"),
+        );
+        let data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
+        assert!(scan_for_links(DAG_CBOR, &data, 4, 1).unwrap().is_empty());
+    }
+}
