@@ -278,10 +278,9 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
-
-        let start = GasTimer::start();
 
         if !self.blocks.is_reachable(cid) {
             return Err(syscall_error!(NotFound; "block not reachable: {cid}").into());
@@ -296,6 +295,8 @@ where
             // TODO Any failures here should really be considered "super fatal". It means we're
             // missing state and/or have a corrupted store.
             .or_fatal()?;
+
+        t.stop();
 
         // Failure in scanning here is fatal as we're reading a reachable block from the
         // datastore. If something goes wrong here, our datastore is corrupted.
@@ -317,7 +318,7 @@ where
         let block = Block::new(cid.codec(), data, children);
         let stat = block.stat();
         let id = self.blocks.put_reachable(block)?;
-        t.stop_with(start);
+        t.stop();
         Ok((id, stat))
     }
 
