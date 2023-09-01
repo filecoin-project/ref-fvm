@@ -13,7 +13,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     static ref BUNDLES: BTreeMap<NetworkVersion, &'static [u8]> =
-        [(NetworkVersion::V18, actors_v10::BUNDLE_CAR),]
+        [(NetworkVersion::V21, actors_v12::BUNDLE_CAR),]
             .into_iter()
             .collect();
 }
@@ -35,13 +35,13 @@ pub fn new_tester<B: Blockstore, E: Externs>(
 pub fn new_basic_tester(options: ExecutionOptions) -> anyhow::Result<BasicTester> {
     let blockstore = MemoryBlockstore::default();
     let bundle = BUNDLES
-        .get(&NetworkVersion::V18)
-        .with_context(|| format!("unsupported network version {}", NetworkVersion::V18))?;
+        .get(&NetworkVersion::V21)
+        .with_context(|| format!("unsupported network version {}", NetworkVersion::V21))?;
 
     let bundle_cid = bundle::import_bundle(&blockstore, bundle)?;
 
     let mut tester = Tester::new(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         bundle_cid,
         blockstore,

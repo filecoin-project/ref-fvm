@@ -328,7 +328,7 @@ fn test_network_context() {
     use fvm_shared::version::NetworkVersion;
     assert_eq!(sdk::network::chain_id(), ChainID::from(1)); // hehe we are ETH now
     assert_eq!(sdk::network::curr_epoch(), 0);
-    assert_eq!(sdk::network::version(), NetworkVersion::V18);
+    assert_eq!(sdk::network::version(), NetworkVersion::V21);
     assert_eq!(sdk::network::tipset_timestamp(), 0);
     assert_eq!(sdk::network::base_fee(), TokenAmount::from_atto(100));
 }

@@ -64,7 +64,7 @@ macro_rules! total_enum_map {
 }
 
 lazy_static! {
-    static ref HYGGE_PRICES: PriceList = PriceList {
+    static ref WATERMELON_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
         on_chain_message_storage: ScalingCost {
             flat: Gas::new(36*1300),
@@ -981,9 +981,7 @@ impl PriceList {
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V18 | NetworkVersion::V19 | NetworkVersion::V20 => &HYGGE_PRICES,
-        #[cfg(feature = "nv21-dev")]
-        _ if network_version == NetworkVersion::V21 => &HYGGE_PRICES,
+        NetworkVersion::V21 => &WATERMELON_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
@@ -1298,10 +1296,10 @@ fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
     // getting the expected 10 gas/byte.
     assert_eq!(
-        HYGGE_PRICES.on_block_open_per_byte(10).total(),
+        WATERMELON_PRICES.on_block_open_per_byte(10).total(),
         Gas::new(100)
     );
-    assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
+    assert_eq!(WATERMELON_PRICES.on_block_create(10).total(), Gas::new(100));
 }
 
 #[test]

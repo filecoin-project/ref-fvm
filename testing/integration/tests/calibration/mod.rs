@@ -115,10 +115,10 @@ const NOP_ACTOR: &str = r#"
 // Utility function to instantiation integration tester
 pub fn instantiate_tester() -> TestEnv {
     let blockstore = MemoryBlockstore::default();
-    let root = bundle::import_bundle(&blockstore, actors_v10::BUNDLE_CAR).unwrap();
+    let root = bundle::import_bundle(&blockstore, actors_v12::BUNDLE_CAR).unwrap();
     // Instantiate tester
     let mut tester =
-        Tester::new(NetworkVersion::V18, StateTreeVersion::V5, root, blockstore).unwrap();
+        Tester::new(NetworkVersion::V21, StateTreeVersion::V5, root, blockstore).unwrap();
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
 
