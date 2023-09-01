@@ -340,6 +340,20 @@ fn set_delete_many(
 
     let cid_d = hamt.flush().unwrap();
     cids.check_next(cid_d);
+
+    // Assert that we can empty it.
+    for i in 0..size_factor {
+        assert!(hamt.delete(&tstring(i)).unwrap().is_some());
+    }
+
+    assert_eq!(hamt.iter().count(), 0);
+
+    let cid_d = hamt.flush().unwrap();
+    cids.check_next(cid_d);
+    if let Some(stats) = stats {
+        assert_eq!(*store.stats.borrow(), stats);
+    }
+
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -997,11 +1011,12 @@ mod test_default {
     #[test]
     fn set_delete_many() {
         #[rustfmt::skip]
-        let stats = BSStats {r: 0, w: 93, br: 0, bw: 11734};
+        let stats = BSStats {r: 0, w: 94, br: 0, bw: 11737};
         let cids = CidChecker::new(vec![
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
             "bafy2bzacecxcp736xkl2mcyjlors3tug6vdlbispbzxvb75xlrhthiw2xwxvw",
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay",
         ]);
         super::set_delete_many(200, HamtFactory::default(), Some(stats), cids);
     }

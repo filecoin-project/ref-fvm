@@ -6,7 +6,6 @@ use std::iter::FusedIterator;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
-use fvm_ipld_encoding::CborStore;
 
 use crate::hash_bits::HashBits;
 use crate::node::Node;
@@ -17,6 +16,7 @@ use crate::{Config, Error, Hash, HashAlgorithm, KeyValuePair, Sha256};
 #[doc(hidden)]
 pub struct IterImpl<'a, BS, V, K = BytesKey, H = Sha256, Ver = version::V3> {
     store: &'a BS,
+    conf: &'a Config,
     stack: Vec<std::slice::Iter<'a, Pointer<K, V, H, Ver>>>,
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
@@ -34,8 +34,9 @@ where
     Ver: Version,
     BS: Blockstore,
 {
-    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, Ver>) -> Self {
+    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, Ver>, conf: &'a Config) -> Self {
         Self {
+            conf,
             store,
             stack: vec![root.pointers.iter()],
             current: [].iter(),
@@ -46,11 +47,11 @@ where
         store: &'a BS,
         root: &'a Node<K, V, H, Ver>,
         key: &Q,
-        conf: &Config,
+        conf: &'a Config,
     ) -> Result<Self, Error>
     where
         H: HashAlgorithm,
-        K: Borrow<Q>,
+        K: Borrow<Q> + PartialOrd,
         Q: Hash + Eq,
     {
         let hashed_key = H::hash(key);
@@ -62,29 +63,14 @@ where
             stack.push(node.pointers[node.index_for_bit_pos(idx)..].iter());
             node = match stack.last_mut().unwrap().next() {
                 Some(p) => match p {
-                    Pointer::Link { cid, cache } => {
-                        if let Some(cached_node) = cache.get() {
-                            cached_node
-                        } else {
-                            let node =
-                                if let Some(node) = store.get_cbor::<Node<K, V, H, Ver>>(cid)? {
-                                    node
-                                } else {
-                                    #[cfg(not(feature = "ignore-dead-links"))]
-                                    return Err(Error::CidNotFound(cid.to_string()));
-
-                                    #[cfg(feature = "ignore-dead-links")]
-                                    continue;
-                                };
-
-                            // Ignore error intentionally, the cache value will always be the same
-                            cache.get_or_init(|| Box::new(node))
-                        }
-                    }
+                    Pointer::Link { cid, cache } => cache.get_or_try_init(|| {
+                        Node::load(conf, store, cid, stack.len() as u32).map(Box::new)
+                    })?,
                     Pointer::Dirty(node) => node,
                     Pointer::Values(values) => {
                         return match values.iter().position(|kv| kv.key().borrow() == key) {
                             Some(offset) => Ok(Self {
+                                conf,
                                 store,
                                 stack,
                                 current: values[offset..].iter(),
@@ -103,7 +89,7 @@ impl<'a, K, V, BS, H, Ver> Iterator for IterImpl<'a, BS, V, K, H, Ver>
 where
     BS: Blockstore,
     Ver: Version,
-    K: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
 {
     type Item = Result<(&'a K, &'a V), Error>;
@@ -119,20 +105,12 @@ where
             };
             match next {
                 Pointer::Link { cid, cache } => {
-                    let node = if let Some(cached_node) = cache.get() {
-                        cached_node
-                    } else {
-                        let node = match self.store.get_cbor::<Node<K, V, H, Ver>>(cid) {
-                            Ok(Some(node)) => node,
-                            #[cfg(not(feature = "ignore-dead-links"))]
-                            Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
-                            #[cfg(feature = "ignore-dead-links")]
-                            Ok(None) => continue,
-                            Err(err) => return Some(Err(err.into())),
-                        };
-
-                        // Ignore error intentionally, the cache value will always be the same
-                        cache.get_or_init(|| Box::new(node))
+                    let node = match cache.get_or_try_init(|| {
+                        Node::load(self.conf, &self.store, cid, self.stack.len() as u32)
+                            .map(Box::new)
+                    }) {
+                        Ok(node) => node,
+                        Err(e) => return Some(Err(e)),
                     };
                     self.stack.push(node.pointers.iter())
                 }
@@ -150,7 +128,7 @@ where
 
 impl<'a, K, V, BS, H, Ver> FusedIterator for IterImpl<'a, BS, V, K, H, Ver>
 where
-    K: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
     Ver: Version,
     BS: Blockstore,
