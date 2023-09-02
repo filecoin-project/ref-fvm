@@ -325,8 +325,8 @@ lazy_static! {
         // Preloaded actor IDs per FIP-0055.
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
 
-        ipld_cbor_scan_per_cid: Gas::zero(), // TODO(#1855)
-        ipld_cbor_scan_per_field: Gas::zero(), // TODO(#1855)
+        ipld_cbor_scan_per_cid: Gas::new(500),
+        ipld_cbor_scan_per_field: Gas::new(40),
         ipld_link_tracked: Gas::zero(), // TODO(#1855)
         ipld_link_checked: Gas::zero(), // TODO(#1855)
     };
