@@ -17,6 +17,7 @@ use crate::syscall_error;
 /// methods like this, requiring us to deserialize the whole CBOR payload, which
 /// is unnecessary and quite inefficient for our usecase here.
 fn cbor_read_header_buf(br: &mut &[u8]) -> Result<(u8, u64)> {
+    #[inline(always)]
     pub fn read_fixed<const N: usize>(r: &mut &[u8]) -> Result<[u8; N]> {
         if r.len() < N {
             return Err(syscall_error!(Serialization; "invalid cbor header").into());

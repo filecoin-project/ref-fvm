@@ -36,7 +36,8 @@ impl<'a> LinkVisitor<'a> {
         }
     }
 
-    pub fn finish(self) -> Vec<Cid> {
+    pub fn finish(mut self) -> Vec<Cid> {
+        self.links.shrink_to_fit();
         self.links
     }
 
@@ -129,8 +130,9 @@ pub fn scan_for_reachable_links(
     let mut visitor = LinkVisitor::new(price_list, gas_tracker.gas_available());
     let ret = scan_for_links_inner(&mut visitor, codec, data);
     let t = gas_tracker.charge_gas("OnScanIpldLinks", visitor.gas_used())?;
+    let ret = ret.map(|_| visitor.finish());
     t.stop_with(start);
-    ret.map(|_| visitor.finish())
+    ret
 }
 
 #[cfg(test)]
