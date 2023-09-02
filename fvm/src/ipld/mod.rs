@@ -27,7 +27,7 @@ pub const IGNORED_CODECS: &[u64] = &[FIL_COMMITMENT_UNSEALED, FIL_COMMITMENT_SEA
 const BLAKE2B_256: u64 = 0xb220;
 
 impl<'a> LinkVisitor<'a> {
-    fn new(price_list: &'a PriceList, gas_available: Gas) -> Self {
+    pub fn new(price_list: &'a PriceList, gas_available: Gas) -> Self {
         Self {
             price_list,
             gas_available,
@@ -36,22 +36,29 @@ impl<'a> LinkVisitor<'a> {
         }
     }
 
-    fn finish(self) -> Vec<Cid> {
+    pub fn finish(self) -> Vec<Cid> {
         self.links
     }
 
-    fn gas_used(&self) -> Gas {
+    pub fn gas_used(&self) -> Gas {
         self.gas_available - self.gas_remaining
     }
 
+    #[cold]
+    fn out_of_gas(&mut self) -> Result<()> {
+        self.gas_remaining = Gas::zero();
+        Err(ExecutionError::OutOfGas)
+    }
+
     /// Charge for gas used, returning an error if we run out.
-    fn charge_gas(&mut self, gas: Gas) -> Result<()> {
+    #[inline(always)]
+    pub fn charge_gas(&mut self, gas: Gas) -> Result<()> {
         if self.gas_remaining < gas {
-            self.gas_remaining = Gas::zero();
-            return Err(ExecutionError::OutOfGas);
+            self.out_of_gas()
+        } else {
+            self.gas_remaining -= gas;
+            Ok(())
         }
-        self.gas_remaining -= gas;
-        Ok(())
     }
 
     /// Visit a CID, possibly ignoring it or even recursively scanning it.
@@ -59,7 +66,7 @@ impl<'a> LinkVisitor<'a> {
     ///   links, but won't return inline CIDs directly.
     /// - This function will ignore valid Filecoin sector CIDs.
     /// - This function will reject blocks that link to blocks with unsupported codecs.
-    fn visit_cid(&mut self, cid: &Cid) -> Result<()> {
+    pub fn visit_cid(&mut self, cid: &Cid) -> Result<()> {
         let codec = cid.codec();
 
         if IGNORED_CODECS.contains(&codec) {
@@ -121,7 +128,7 @@ pub fn scan_for_reachable_links(
     let start = GasTimer::start();
     let mut visitor = LinkVisitor::new(price_list, gas_tracker.gas_available());
     let ret = scan_for_links_inner(&mut visitor, codec, data);
-    let t = gas_tracker.charge_gas("ScanIpldLinks", visitor.gas_used())?;
+    let t = gas_tracker.charge_gas("OnScanIpldLinks", visitor.gas_used())?;
     t.stop_with(start);
     ret.map(|_| visitor.finish())
 }

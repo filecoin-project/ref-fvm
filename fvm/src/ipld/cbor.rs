@@ -8,7 +8,6 @@ use super::{LinkVisitor, Result};
 
 use crate::kernel::ClassifyResult;
 use crate::syscall_error;
-use std::io::Read;
 
 /// Given a CBOR encoded Buffer, returns a tuple of:
 /// the type of the CBOR object along with extra
@@ -17,15 +16,17 @@ use std::io::Read;
 /// This was implemented because the CBOR library we use does not expose low
 /// methods like this, requiring us to deserialize the whole CBOR payload, which
 /// is unnecessary and quite inefficient for our usecase here.
-fn cbor_read_header_buf<B: Read>(br: &mut B) -> Result<(u8, u64)> {
-    #[inline(always)]
-    pub fn read_fixed<const N: usize>(r: &mut impl Read) -> Result<[u8; N]> {
-        let mut buf = [0; N];
-        r.read_exact(&mut buf)
-            .map(|_| buf)
-            .map_err(|_| syscall_error!(Serialization; "invalid cbor header").into())
-    }
+fn cbor_read_header_buf(br: &mut &[u8]) -> Result<(u8, u64)> {
+    pub fn read_fixed<const N: usize>(r: &mut &[u8]) -> Result<[u8; N]> {
+        if r.len() < N {
+            return Err(syscall_error!(Serialization; "invalid cbor header").into());
+        }
 
+        let mut buf = [0; N];
+        buf.copy_from_slice(&r[..N]);
+        *r = &r[N..];
+        Ok(buf)
+    }
     let first = read_fixed::<1>(br)?[0];
     let maj = (first & 0xe0) >> 5;
     let low = first & 0x1f;
@@ -123,12 +124,7 @@ pub(super) fn scan_for_reachable_links(visitor: &mut LinkVisitor, mut buf: &[u8]
                     .context("cbor field count overflow")
                     .or_error(ErrorNumber::Serialization)?;
             }
-            8.. => {
-                // This case is statically impossible unless `cbor_read_header_buf` makes a mistake.
-                return Err(
-                    syscall_error!(Serialization; "invalid cbor tag exceeds 3 bits: {maj}").into(),
-                );
-            }
+            8.. => unreachable!("bug in cbor_read_header_buf"),
         }
     }
     if !buf.is_empty() {
