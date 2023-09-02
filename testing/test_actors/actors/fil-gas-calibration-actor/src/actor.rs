@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Result};
 use cid::multihash::Code;
 use fvm_gas_calibration_shared::*;
-use fvm_ipld_encoding::IPLD_RAW;
+use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
@@ -12,6 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{ActorEvent, Entry};
 use fvm_shared::sys::SendFlags;
+use libipld::Ipld;
 use num_traits::FromPrimitive;
 use serde::de::DeserializeOwned;
 
@@ -49,6 +50,7 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
         Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
         Method::OnSend => dispatch_to(on_send, params_ptr),
         Method::OnEvent => dispatch_to(on_event, params_ptr),
+        Method::OnScanIpldLinks => dispatch_to(on_scan_ipld_links, params_ptr),
     }
 }
 
@@ -160,6 +162,34 @@ fn on_event(p: OnEventParams) -> Result<()> {
         EventCalibrationMode::Shape(_) => on_event_shape(p),
         EventCalibrationMode::TargetSize(_) => on_event_target_size(p),
     }
+}
+
+fn make_test_object(seed: u64, field_count: usize, link_count: usize) -> Vec<u8> {
+    assert!(
+        field_count > link_count,
+        "field count must be strictly greater than the field count"
+    );
+    let test_cid = fvm_sdk::sself::root().unwrap();
+    let items = std::iter::repeat(test_cid)
+        .take(link_count)
+        .map(Ipld::Link)
+        .chain(
+            std::iter::repeat_with(|| random_bytes(42, seed))
+                .take(field_count - link_count)
+                .map(Ipld::Bytes),
+        )
+        .collect::<Vec<_>>();
+    fvm_ipld_encoding::to_vec(&items).expect("failed to encode block")
+}
+
+fn on_scan_ipld_links(p: OnScanIpldLinksParams) -> Result<()> {
+    for _ in 0..p.iterations {
+        let obj = make_test_object(p.seed, p.cbor_field_count, p.cbor_link_count);
+        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, &obj).unwrap();
+        let res = fvm_sdk::ipld::get(&cid).unwrap();
+        assert_eq!(obj, res);
+    }
+    Ok(())
 }
 
 fn on_event_shape(p: OnEventParams) -> Result<()> {
