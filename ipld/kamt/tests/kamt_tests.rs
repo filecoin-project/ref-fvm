@@ -6,12 +6,12 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use cid::Cid;
-use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_kamt::id::Identity;
 use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt};
+use hashutil::BytesKey;
 use multihash::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Cow;
 
-use forest_hash_utils::Hash;
+use hashutil::Hash;
 
 use crate::{AsHashedKey, HashedKey};
 

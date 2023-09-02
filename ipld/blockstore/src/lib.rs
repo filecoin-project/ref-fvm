@@ -36,7 +36,7 @@ pub trait Blockstore {
 
     /// Puts the block into the blockstore, computing the hash with the specified multicodec.
     ///
-    /// By default, this defers to put.
+    /// By default, this defers to put_keyed.
     fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
     where
         Self: Sized,
