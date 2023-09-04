@@ -543,20 +543,25 @@ where
             let _last_error = invocation_data.last_error;
             let (cm, block_registry) = invocation_data.kernel.into_inner();
 
+            let result: std::result::Result<Option<&Block>, Abort> = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                            NO_DATA_BLOCK_ID,
+                        )
+                    })?)
+                })
+            });
+
             let result: std::result::Result<InvocationResult, ExecutionError> = match result {
-                Ok(block_id) => {
-                    if block_id == NO_DATA_BLOCK_ID {
-                        Ok(InvocationResult {
-                            exit_code: ExitCode::OK,
-                            value: None,
-                        })
-                    } else {
-                        Ok(InvocationResult {
-                            exit_code: ExitCode::OK,
-                            value: Some(block_registry.get(block_id).unwrap().clone()),
-                        })
-                    }
-                }
+                Ok(blk) => Ok(InvocationResult {
+                    exit_code: ExitCode::OK,
+                    value: blk.cloned(),
+                }),
                 Err(abort) => match abort {
                     Abort::Exit(exit_code, _message, _block_id) => Ok(InvocationResult {
                         exit_code,
@@ -566,8 +571,6 @@ where
                     Abort::Fatal(err) => Err(ExecutionError::Fatal(err)),
                 },
             };
-
-            //let ret: std::result::Result<Option<Block>, ExecutionError> = Ok(None);
 
             (result, cm)
         })

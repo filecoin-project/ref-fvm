@@ -42,7 +42,7 @@ fn upgrade_actor_test() {
             to: receiver,
             gas_limit: 1000000000,
             method_num: 1,
-            sequence: 0 as u64,
+            sequence: 0_u64,
             value: TokenAmount::from_atto(100),
             ..Message::default()
         };
@@ -65,7 +65,7 @@ fn upgrade_actor_test() {
             to: receiver,
             gas_limit: 1000000000,
             method_num: 2,
-            sequence: 0 as u64,
+            sequence: 0_u64,
             value: TokenAmount::from_atto(100),
             ..Message::default()
         };
