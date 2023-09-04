@@ -6,7 +6,7 @@ use anyhow::{anyhow, Context};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::{to_vec, RawBytes, CBOR};
+use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -263,15 +263,6 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
-                Err(ExecutionError::Abort(Abort::Return(maybe_block))) => {
-                    ExecutionEvent::CallReturn(
-                        ExitCode::OK,
-                        match maybe_block {
-                            Some(block) => RawBytes::new(block.data().to_vec()).into(),
-                            None => RawBytes::default().into(),
-                        },
-                    )
-                }
                 Err(ExecutionError::Abort(_)) => {
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
                 }
@@ -430,7 +421,7 @@ where
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<Block>,
-    ) -> Result<Option<Block>> {
+    ) -> Result<InvocationResult> {
         let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
 
         let origin = self.origin;
@@ -439,16 +430,18 @@ where
             .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
 
-        self.state_tree_mut().set_actor(
-            origin,
-            ActorState::new(
-                new_code_cid,
-                state.state,
-                state.balance,
-                state.sequence,
-                None,
-            ),
-        );
+        if result.exit_code == ExitCode::OK {
+            self.state_tree_mut().set_actor(
+                origin,
+                ActorState::new(
+                    new_code_cid,
+                    state.state,
+                    state.balance,
+                    state.sequence,
+                    None,
+                ),
+            );
+        }
 
         Ok(result)
     }
@@ -458,7 +451,7 @@ where
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<Block>,
-    ) -> Result<Option<Block>> {
+    ) -> Result<InvocationResult> {
         let state = self
             .state_tree()
             .get_actor(actor_id)?
@@ -550,38 +543,27 @@ where
             let _last_error = invocation_data.last_error;
             let (cm, block_registry) = invocation_data.kernel.into_inner();
 
-            let result: std::result::Result<Option<Block>, ExecutionError> = match result {
+            let result: std::result::Result<InvocationResult, ExecutionError> = match result {
                 Ok(block_id) => {
                     if block_id == NO_DATA_BLOCK_ID {
-                        Ok(None)
+                        Ok(InvocationResult {
+                            exit_code: ExitCode::OK,
+                            value: None,
+                        })
                     } else {
-                        Ok(Some(
-                            block_registry
-                                .get(block_id)
-                                .map_err(|_| {
-                                    Abort::Exit(
-                                        ExitCode::SYS_MISSING_RETURN,
-                                        String::from("returned block does not exist"),
-                                        NO_DATA_BLOCK_ID,
-                                    )
-                                })
-                                .cloned()
-                                .unwrap(),
-                        ))
+                        Ok(InvocationResult {
+                            exit_code: ExitCode::OK,
+                            value: Some(block_registry.get(block_id).unwrap().clone()),
+                        })
                     }
                 }
                 Err(abort) => match abort {
-                    Abort::Exit(_, _, block_id) => match block_registry.get(block_id) {
-                        Err(e) => Err(ExecutionError::Fatal(anyhow!(
-                            "failed to retrieve block {}: {}",
-                            block_id,
-                            e
-                        ))),
-                        Ok(block) => Err(ExecutionError::Abort(Abort::Return(Some(block.clone())))),
-                    },
+                    Abort::Exit(exit_code, _message, _block_id) => Ok(InvocationResult {
+                        exit_code,
+                        value: None,
+                    }),
                     Abort::OutOfGas => Err(ExecutionError::OutOfGas),
                     Abort::Fatal(err) => Err(ExecutionError::Fatal(err)),
-                    Abort::Return(_) => todo!(),
                 },
             };
 
@@ -1007,14 +989,6 @@ where
                             ExitCode::SYS_ASSERTION_FAILED,
                             "fatal error".to_owned(),
                             Err(ExecutionError::Fatal(err)),
-                        ),
-                        Abort::Return(value) => (
-                            ExitCode::OK,
-                            String::from("aborted"),
-                            Ok(InvocationResult {
-                                exit_code: ExitCode::OK,
-                                value,
-                            }),
                         ),
                     };
 

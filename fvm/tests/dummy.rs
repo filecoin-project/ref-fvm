@@ -398,7 +398,7 @@ impl CallManager for DummyCallManager {
         _actor_id: ActorID,
         _new_code_cid: Cid,
         _params: Option<kernel::Block>,
-    ) -> kernel::Result<Option<kernel::Block>>
+    ) -> kernel::Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {
@@ -410,7 +410,7 @@ impl CallManager for DummyCallManager {
         _actor_id: ActorID,
         _new_code_cid: Cid,
         _params: Option<kernel::Block>,
-    ) -> kernel::Result<Option<kernel::Block>>
+    ) -> kernel::Result<InvocationResult>
     where
         K: Kernel<CallManager = Self>,
     {

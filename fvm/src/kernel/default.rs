@@ -865,7 +865,7 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<BlockId> {
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
@@ -879,36 +879,33 @@ where
             Some(self.blocks.get(params_id)?.clone())
         };
 
-        let result = self
-            .call_manager
-            .upgrade_actor::<Self>(self.actor_id, new_code_cid, params);
+        let result: Result<InvocationResult> =
+            self.call_manager
+                .upgrade_actor::<Self>(self.actor_id, new_code_cid, params);
 
-        if let Ok(None) = result {
-            Err(ExecutionError::Abort(Abort::Exit(
-                ExitCode::OK,
-                "actor upgraded".to_string(),
-                NO_DATA_BLOCK_ID,
-            )))
-        } else if let Ok(Some(block)) = result {
-            let block_id = self
-                .blocks
-                .put(block)
-                .or_fatal()
-                .context("failed to store a valid return value")?;
-            Err(ExecutionError::Abort(Abort::Exit(
-                ExitCode::OK,
-                "actor upgraded".to_string(),
-                block_id,
-            )))
-        } else if let Err(ExecutionError::Abort(Abort::Return(Some(block)))) = result {
-            let block_id = self
-                .blocks
-                .put(block)
-                .or_fatal()
-                .context("failed to store a valid return value")?;
-            Ok(block_id)
-        } else {
-            Err(result.unwrap_err())
+        match result {
+            Ok(InvocationResult {
+                exit_code: ExitCode::OK,
+                value,
+            }) => {
+                let block_id = match value {
+                    None => NO_DATA_BLOCK_ID,
+                    Some(block) => self.blocks.put(block).unwrap_or_else(|_| {
+                        log::error!("failed to write to kernel block registry");
+                        NO_DATA_BLOCK_ID
+                    }),
+                };
+                Err(ExecutionError::Abort(Abort::Exit(
+                    ExitCode::OK,
+                    "actor upgraded".to_string(),
+                    block_id,
+                )))
+            }
+            Ok(InvocationResult {
+                exit_code,
+                value: _,
+            }) => Ok(exit_code.value()),
+            Err(err) => Err(err),
         }
     }
 

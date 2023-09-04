@@ -4,7 +4,6 @@ use anyhow::{anyhow, Context as _};
 use fvm_shared::{sys, ActorID};
 
 use super::Context;
-use crate::kernel::BlockId;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
@@ -115,7 +114,7 @@ pub fn upgrade_actor(
     context: Context<'_, impl Kernel>,
     new_code_cid_off: u32,
     params_id: u32,
-) -> Result<BlockId> {
+) -> Result<u32> {
     let cid = context.memory.read_cid(new_code_cid_off)?;
 
     context.kernel.upgrade_actor(cid, params_id)
