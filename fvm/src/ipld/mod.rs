@@ -154,7 +154,7 @@ mod test {
         cbor_field_count: u32,
         cbor_link_count: u32,
     ) -> Result<Vec<Cid>> {
-        let mut price_list = price_list_by_network_version(NetworkVersion::V20).clone();
+        let mut price_list = price_list_by_network_version(NetworkVersion::V21).clone();
         // We need to pick these gas numbers such that we are unlikely to "land" on the correct gas
         // value if we get an unexpected combinations of fields/CIDs.
         price_list.ipld_cbor_scan_per_field = Gas::new(1);
