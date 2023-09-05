@@ -30,13 +30,10 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     let p = params.deserialize::<SomeStruct>().unwrap();
     let ui = ui_params.deserialize::<UpgradeInfo>().unwrap();
 
-    sdk::debug::log(
-        format!(
-            "[upgrade] value: {}, old_code_cid: {}",
-            p.value, ui.old_code_cid
-        )
-        .to_string(),
-    );
+    sdk::debug::log(format!(
+        "[upgrade] value: {}, old_code_cid: {}",
+        p.value, ui.old_code_cid
+    ));
 
     match p.value {
         1 => {
@@ -52,8 +49,7 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 4 }).unwrap();
             let _ = sdk::actor::upgrade_actor(new_code_cid, params);
-            assert!(false, "we should never return from a successful upgrade");
-            0
+            unreachable!("we should never return from a successful upgrade");
         }
         4 => {
             sdk::debug::log("inside upgrade within an upgrade".to_string());
@@ -70,7 +66,7 @@ pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
     let method = sdk::message::method_number();
-    sdk::debug::log(format!("called upgrade_actor with method: {}", method).to_string());
+    sdk::debug::log(format!("called upgrade_actor with method: {}", method));
 
     match method {
         // test that successful calls to `upgrade_actor` does not return
@@ -78,7 +74,7 @@ pub fn invoke(_: u32) -> u32 {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 1 }).unwrap();
             let _ = sdk::actor::upgrade_actor(new_code_cid, params);
-            assert!(false, "we should never return from a successful upgrade");
+            unreachable!("we should never return from a successful upgrade");
         }
         // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
         2 => {

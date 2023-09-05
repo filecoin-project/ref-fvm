@@ -590,7 +590,7 @@ where
                     Abort::Exit(exit_code, _message, block_id) => {
                         match block_registry.get(block_id) {
                             Ok(blk) => Ok(InvocationResult {
-                                exit_code: exit_code,
+                                exit_code,
                                 value: Some(blk.clone()),
                             }),
                             Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
