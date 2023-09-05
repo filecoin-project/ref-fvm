@@ -422,15 +422,31 @@ where
         new_code_cid: Cid,
         params: Option<Block>,
     ) -> Result<InvocationResult> {
-        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
-
         let origin = self.origin;
+
         let state = self
             .state_tree_mut()
             .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
 
+        // store the code cid of the calling actor before running the upgrade endpoint
+        // in case it was changed (which could happen if the target upgrade endpoint
+        // sent a message to this actor which in turn called upgrade)
+        let code_id_before = state.code;
+
+        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
+
         if result.exit_code == ExitCode::OK {
+            // after running the upgrade, our code cid must not have changed
+            let code_id_after = self
+                .state_tree_mut()
+                .get_actor(actor_id)?
+                .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?
+                .code;
+            if code_id_before != code_id_after {
+                return Err(syscall_error!(Forbidden; "re-entrant upgrade detected").into());
+            }
+
             self.state_tree_mut().set_actor(
                 origin,
                 ActorState::new(
