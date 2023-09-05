@@ -750,10 +750,10 @@ impl PriceList {
     #[inline]
     pub fn on_block_open(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
-        let compute = self.block_allocate.apply(data_size)
-            + self.block_memcpy.apply(data_size)
-            + self.ipld_link_tracked * links;
-        let block_open = self.block_open.scale * data_size;
+        let compute = self.ipld_link_tracked * links;
+        let block_open = self.block_open.scale * data_size
+            + self.block_allocate.apply(data_size)
+            + self.block_memcpy.apply(data_size);
 
         // But we need to make sure we charge at least the memory retention cost.
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
