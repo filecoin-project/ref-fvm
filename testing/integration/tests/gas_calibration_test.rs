@@ -444,7 +444,7 @@ fn on_scan_cbor_fields() {
     use rand::{thread_rng, Rng};
 
     let field_counts = [1, 5, 10, 50, 100, 1000, 2500, 5000, 7500, 10_000];
-    let iterations = 100;
+    let iterations = 500;
 
     let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
     let mut te = instantiate_tester();
@@ -516,7 +516,7 @@ fn on_scan_cbor_links() {
 
     let field_count = 10_000;
     let link_counts = [1, 10, 20, 50, 100, 500, 1000, 2500, 5000];
-    let iterations = 100;
+    let iterations = 500;
 
     let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
     let mut te = instantiate_tester();
