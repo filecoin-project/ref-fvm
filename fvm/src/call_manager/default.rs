@@ -570,30 +570,32 @@ where
             let _last_error = invocation_data.last_error;
             let (cm, block_registry) = invocation_data.kernel.into_inner();
 
-            let result: std::result::Result<Option<&Block>, Abort> = result.and_then(|ret_id| {
-                Ok(if ret_id == NO_DATA_BLOCK_ID {
-                    None
-                } else {
-                    Some(block_registry.get(ret_id).map_err(|_| {
-                        Abort::Exit(
-                            ExitCode::SYS_MISSING_RETURN,
-                            String::from("returned block does not exist"),
-                            NO_DATA_BLOCK_ID,
-                        )
-                    })?)
-                })
-            });
-
             let result: std::result::Result<InvocationResult, ExecutionError> = match result {
-                Ok(blk) => Ok(InvocationResult {
+                Ok(NO_DATA_BLOCK_ID) => Ok(InvocationResult {
                     exit_code: ExitCode::OK,
-                    value: blk.cloned(),
+                    value: None,
                 }),
+                Ok(block_id) => match block_registry.get(block_id) {
+                    Ok(blk) => Ok(InvocationResult {
+                        exit_code: ExitCode::OK,
+                        value: Some(blk.clone()),
+                    }),
+                    Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
+                },
                 Err(abort) => match abort {
-                    Abort::Exit(exit_code, _message, _block_id) => Ok(InvocationResult {
-                        exit_code,
+                    Abort::Exit(code, _message, NO_DATA_BLOCK_ID) => Ok(InvocationResult {
+                        exit_code: code,
                         value: None,
                     }),
+                    Abort::Exit(exit_code, _message, block_id) => {
+                        match block_registry.get(block_id) {
+                            Ok(blk) => Ok(InvocationResult {
+                                exit_code: exit_code,
+                                value: Some(blk.clone()),
+                            }),
+                            Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
+                        }
+                    }
                     Abort::OutOfGas => Err(ExecutionError::OutOfGas),
                     Abort::Fatal(err) => match my_syscall_err {
                         Some(e) => Err(ExecutionError::Syscall(e)),

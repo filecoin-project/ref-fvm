@@ -47,6 +47,18 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
             sdk::debug::log("calling exit to mark that the upgrade failed".to_string());
             sdk::vm::exit(UPGRADE_FAILED_EXIT_CODE, None, None)
         }
+        3 => {
+            sdk::debug::log("calling upgrade within an upgrade".to_string());
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
+            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 4 }).unwrap();
+            let _ = sdk::actor::upgrade_actor(new_code_cid, params);
+            assert!(false, "we should never return from a successful upgrade");
+            0
+        }
+        4 => {
+            sdk::debug::log("inside upgrade within an upgrade".to_string());
+            sdk::ipld::put_block(CBOR, &to_vec(&444).unwrap()).unwrap()
+        }
         _ => {
             panic!("unexpected value: {}", p.value);
         }
@@ -84,6 +96,15 @@ pub fn invoke(_: u32) -> u32 {
                 Cid::new_v1(0x55, Multihash::wrap(IDENTITY_HASH, b"test123").unwrap());
             let res = sdk::actor::upgrade_actor(new_code_cid, None);
             assert_eq!(res, Err(ErrorNumber::NotFound));
+        }
+        // test recursive updare
+        4 => {
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
+            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 3 }).unwrap();
+            sdk::debug::log("upgrade 1".to_string());
+            let res = sdk::actor::upgrade_actor(new_code_cid, params);
+            sdk::debug::log("upgrade 2".to_string());
+            assert_eq!(res, Err(ErrorNumber::Forbidden));
         }
         _ => {
             sdk::vm::abort(
