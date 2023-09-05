@@ -326,9 +326,9 @@ lazy_static! {
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
 
         ipld_cbor_scan_per_cid: Gas::new(800),
-        ipld_cbor_scan_per_field: Gas::new(40),
-        ipld_link_tracked: Gas::zero(), // TODO(#1855)
-        ipld_link_checked: Gas::zero(), // TODO(#1855)
+        ipld_cbor_scan_per_field: Gas::new(50),
+        ipld_link_tracked: Gas::new(500),
+        ipld_link_checked: Gas::new(500),
     };
 }
 
@@ -572,7 +572,7 @@ impl PriceList {
             )
         } else {
             GasCharge::new(
-                "OnIpldLinksTracked",
+                "OnReturnValue",
                 self.ipld_link_tracked * return_links,
                 Zero::zero(),
             )
@@ -759,7 +759,7 @@ impl PriceList {
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
         let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
         GasCharge::new(
-            "OnBlockOpenPerByte",
+            "OnBlockOpen",
             compute,
             // We charge the `block_open` fee as "extra" to make sure the FVM benchmarks still work.
             block_open + retention_surcharge,

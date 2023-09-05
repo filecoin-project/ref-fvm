@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
-use cid::multihash::Code;
+use cid::{multihash::Code, Cid};
 use fvm_gas_calibration_shared::*;
 use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
@@ -22,6 +22,8 @@ const NOP_ACTOR_ADDRESS: Address = Address::new_id(10001);
 
 #[no_mangle]
 pub fn invoke(params_ptr: u32) -> u32 {
+    fvm_sdk::initialize(); // helps with debugging
+
     // Conduct method dispatch. Handle input parameters and run the scenario.
     // The test is expected to capture gas metrics. Other than that we're not
     // interested in any return value.
@@ -164,18 +166,37 @@ fn on_event(p: OnEventParams) -> Result<()> {
     }
 }
 
-fn make_test_object(seed: u64, field_count: usize, link_count: usize) -> Vec<u8> {
+// Makes approximately fixed-sized test objects with the specified number of fields & links.
+fn make_test_object(
+    test_cids: &[Cid],
+    seed: u64,
+    field_count: usize,
+    link_count: usize,
+) -> Vec<u8> {
+    // one field is always used by padding, one for the outer vector.
+    assert!(field_count >= 2, "field count must be at least 2");
     assert!(
         field_count > link_count,
         "field count must be strictly greater than the field count"
     );
-    let test_cid = fvm_sdk::sself::root().unwrap();
-    let items = std::iter::repeat(test_cid)
-        .take(link_count)
-        .map(Ipld::Link)
+    const CID_SIZE: usize = 1 + 1 + 2 + 1 + 32; // cidv1+dagcbor+blake2b+len+digest
+    const CID_FIELD_SIZE: usize = CID_SIZE + 2 + 2 + 1; // cid field + tag + that random 0 byte.
+    const BUF_SIZE: usize = 42 + 2;
+    const MAX_OVERHEAD: usize = 10;
+    const MAX_SIZE: usize = 512 * 1024;
+
+    let estimated_size =
+        CID_FIELD_SIZE * link_count + BUF_SIZE * (field_count - link_count - 2) + MAX_OVERHEAD;
+    assert!(estimated_size <= MAX_SIZE, "block too large");
+    let padding = MAX_SIZE - estimated_size;
+
+    let cids = std::iter::repeat_with(|| test_cids.iter().rev().copied()).flatten();
+
+    let items = std::iter::once(Ipld::Bytes(random_bytes(padding, seed - 1)))
+        .chain(cids.take(link_count).map(Ipld::Link))
         .chain(
-            std::iter::repeat_with(|| random_bytes(42, seed))
-                .take(field_count - link_count)
+            (link_count..(field_count - 2))
+                .map(|i| random_bytes(42, seed + i as u64))
                 .map(Ipld::Bytes),
         )
         .collect::<Vec<_>>();
@@ -183,9 +204,16 @@ fn make_test_object(seed: u64, field_count: usize, link_count: usize) -> Vec<u8>
 }
 
 fn on_scan_ipld_links(p: OnScanIpldLinksParams) -> Result<()> {
-    for _ in 0..p.iterations {
-        let obj = make_test_object(p.seed, p.cbor_field_count, p.cbor_link_count);
+    let mut test_cids = vec![fvm_sdk::sself::root().unwrap()];
+    for i in 0..p.iterations {
+        let obj = make_test_object(
+            &mut test_cids,
+            p.seed + i as u64,
+            p.cbor_field_count,
+            p.cbor_link_count,
+        );
         let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, &obj).unwrap();
+        test_cids.push(cid);
         let res = fvm_sdk::ipld::get(&cid).unwrap();
         assert_eq!(obj, res);
     }
