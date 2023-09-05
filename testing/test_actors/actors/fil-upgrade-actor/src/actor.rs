@@ -1,19 +1,19 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use cid::multihash::Multihash;
+use cid::Cid;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::upgrade::UpgradeInfo;
+use fvm_shared::IDENTITY_HASH;
 use serde_tuple::*;
-
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 struct SomeStruct {
     value: u64,
 }
-
-const PARAM_1_VALUE: u64 = 111111;
-const PARAM_2_VALUE: u64 = 222222;
 
 const UPGRADE_FAILED_EXIT_CODE: u32 = 19;
 
@@ -39,11 +39,11 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     );
 
     match p.value {
-        PARAM_1_VALUE => {
+        1 => {
             sdk::debug::log("returning 0 to mark that the upgrade was successful".to_string());
             sdk::ipld::put_block(CBOR, &to_vec(&666).unwrap()).unwrap()
         }
-        PARAM_2_VALUE => {
+        2 => {
             sdk::debug::log("calling exit to mark that the upgrade failed".to_string());
             sdk::vm::exit(UPGRADE_FAILED_EXIT_CODE, None, None)
         }
@@ -64,25 +64,26 @@ pub fn invoke(_: u32) -> u32 {
         // test that successful calls to `upgrade_actor` does not return
         1 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
-            let params = IpldBlock::serialize_cbor(&SomeStruct {
-                value: PARAM_1_VALUE,
-            })
-            .unwrap();
+            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 1 }).unwrap();
             let _ = sdk::actor::upgrade_actor(new_code_cid, params);
             assert!(false, "we should never return from a successful upgrade");
         }
         // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
         2 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
-            let params = IpldBlock::serialize_cbor(&SomeStruct {
-                value: PARAM_2_VALUE,
-            })
-            .unwrap();
+            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 2 }).unwrap();
             let exit_code = sdk::actor::upgrade_actor(new_code_cid, params).unwrap();
             assert_eq!(
                 UPGRADE_FAILED_EXIT_CODE, exit_code,
                 "invalid exit code returned from upgrade_actor"
             );
+        }
+        // test that providing invalid new_code_cid returns a NotFound error
+        3 => {
+            let new_code_cid =
+                Cid::new_v1(0x55, Multihash::wrap(IDENTITY_HASH, b"test123").unwrap());
+            let res = sdk::actor::upgrade_actor(new_code_cid, None);
+            assert_eq!(res, Err(ErrorNumber::NotFound));
         }
         _ => {
             sdk::vm::abort(

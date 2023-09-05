@@ -499,12 +499,19 @@ where
             // Make a store.
             let mut store = engine.new_store(kernel);
 
+            // TODO: a hack until I find a better/simpler way to do this
+            let mut my_syscall_err: Option<SyscallError> = None;
+
             let result: std::result::Result<BlockId, Abort> = (|| {
                 // Instantiate the module.
                 let instance = engine
                     .instantiate(&mut store, &new_code_cid)?
                     .context("actor not found")
-                    .map_err(Abort::Fatal)?;
+                    .map_err(|e| {
+                        my_syscall_err =
+                            Some(SyscallError::new(ErrorNumber::NotFound, "actor not found"));
+                        Abort::Fatal(e)
+                    })?;
 
                 // Resolve and store a reference to the exported memory.
                 let memory = instance
@@ -517,7 +524,13 @@ where
                 // Lookup the upgrade method.
                 let upgrade: wasmtime::TypedFunc<(u32, u32), u32> = instance
                     .get_typed_func(&mut store, "upgrade")
-                    .map_err(|e| Abort::Fatal(anyhow!("actor does not support upgrade: {}", e)))?;
+                    .map_err(|e| {
+                        my_syscall_err = Some(SyscallError::new(
+                            ErrorNumber::Forbidden,
+                            "actor does not support upgrade",
+                        ));
+                        Abort::Fatal(e)
+                    })?;
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
@@ -533,8 +546,6 @@ where
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.
                 charge_for_exec(&mut store)?;
-
-                log::info!("returned with: {:?}", res);
 
                 Ok(res?)
             })();
@@ -568,13 +579,15 @@ where
                         value: None,
                     }),
                     Abort::OutOfGas => Err(ExecutionError::OutOfGas),
-                    Abort::Fatal(err) => Err(ExecutionError::Fatal(err)),
+                    Abort::Fatal(err) => match my_syscall_err {
+                        Some(e) => Err(ExecutionError::Syscall(e)),
+                        None => Err(ExecutionError::Fatal(err)),
+                    },
                 },
             };
 
             (result, cm)
         })
-        .map_err(ExecutionError::from)
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
