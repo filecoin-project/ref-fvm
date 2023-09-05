@@ -14,7 +14,7 @@ all:
 	$(MAKE) visualize
 
 run:
-	cargo test --release --test gas_calibration_test --features calibration
+	cargo test -j1 --release --test gas_calibration_test --features calibration
 
 
 .PHONY: visualize
