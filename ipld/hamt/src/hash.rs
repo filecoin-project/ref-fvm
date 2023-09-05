@@ -25,6 +25,7 @@ macro_rules! impl_write {
                 state.$meth(*self)
             }
 
+            #[allow(clippy::manual_slice_size_calculation)]
             fn hash_slice<H: Hasher>(data: &[$ty], state: &mut H) {
                 let newlen = data.len() * mem::size_of::<$ty>();
                 let ptr = data.as_ptr() as *const u8;
@@ -149,6 +150,7 @@ impl<T: ?Sized> Hash for *const T {
 }
 
 impl<T: ?Sized> Hash for *mut T {
+    #[allow(clippy::manual_slice_size_calculation)]
     fn hash<H: Hasher>(&self, state: &mut H) {
         if mem::size_of::<Self>() == mem::size_of::<usize>() {
             // Thin pointer
