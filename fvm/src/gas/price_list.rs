@@ -140,9 +140,6 @@ lazy_static! {
             }
         },
 
-        tipset_cid_latest: Gas::new(50_000),
-        tipset_cid_historical: Gas::new(215_000),
-
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -241,9 +238,13 @@ lazy_static! {
         .copied()
         .collect(),
 
-        // TODO(#1277): Implement this first before benchmarking.
-        // TODO(#1384): Reprice
-        get_randomness_seed: Gas::new(21000),
+        lookback_cost: ScalingCost {
+            // 5800 * 19 based on walking up the blockchain skipping 20 epochs at a time,
+            // 15000 for the cost of the base operation (randomness / CID computation),
+            // 21000 for the extern cost
+            flat: Gas::new(5800*19 + 15000 + 21000),
+            scale: Gas::new(75),
+        },
 
         block_allocate: ScalingCost {
             flat: Gas::zero(),
@@ -424,10 +425,9 @@ pub struct PriceList {
 
     pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
 
-    /// Gas cost for looking up the last tipset CID.
-    pub(crate) tipset_cid_latest: Gas,
-    /// Gas cost for looking up older tipset keys.
-    pub(crate) tipset_cid_historical: Gas,
+    /// Gas cost for walking up the chain.
+    /// Applied to operations like getting randomness, tipset CIDs, etc.
+    pub(crate) lookback_cost: ScalingCost,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -437,10 +437,6 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: HashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: Gas,
     pub(crate) verify_replica_update: Gas,
-
-    /// Gas cost for fetching a randomness seed for an epoch. We charge separately for extracting
-    /// randomness (hashing).
-    pub(crate) get_randomness_seed: Gas,
 
     /// Gas cost per byte copied.
     pub(crate) block_memcpy: ScalingCost,
@@ -700,11 +696,14 @@ impl PriceList {
         )
     }
 
-    /// Returns the cost of the gas required for getting randomness from the client.
+    /// Returns the cost of the gas required for getting randomness from the client with the given lookback.
     #[inline]
-    pub fn on_get_randomness(&self, _lookback: ChainEpoch) -> GasCharge {
-        // TODO(M2): Use lookback
-        GasCharge::new("OnGetRandomness", Zero::zero(), self.get_randomness_seed)
+    pub fn on_get_randomness(&self, lookback: ChainEpoch) -> GasCharge {
+        GasCharge::new(
+            "OnGetRandomness",
+            Zero::zero(),
+            self.lookback_cost.apply(lookback as u64),
+        )
     }
 
     /// Returns the base gas required for loading an object, independent of the object's size.
@@ -858,15 +857,11 @@ impl PriceList {
 
     /// Returns the gas required for looking up a tipset CID with the given lookback.
     #[inline]
-    pub fn on_tipset_cid(&self, lookback: bool) -> GasCharge {
+    pub fn on_tipset_cid(&self, lookback: ChainEpoch) -> GasCharge {
         GasCharge::new(
             "OnTipsetCid",
             Zero::zero(),
-            if lookback {
-                self.tipset_cid_historical
-            } else {
-                self.tipset_cid_latest
-            },
+            self.lookback_cost.apply(lookback as u64),
         )
     }
 
