@@ -27,7 +27,7 @@ serde_tuple = "0.5"
 lazy_static = "1.4.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
-filecoin-proofs-api = { version = "14", default-features = false }
+filecoin-proofs-api = { version = "16", default-features = false }
 rayon = "1"
 num_cpus = "1.15.0"
 log = "0.4.19"
@@ -61,6 +61,7 @@ default-features = false
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
 arb = ["arbitrary", "quickcheck", "fvm_shared/arb", "cid/arb"]
 m2-native = []
