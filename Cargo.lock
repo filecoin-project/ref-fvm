@@ -1409,7 +1409,7 @@ dependencies = [
  "clap",
  "futures",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fvm_ipld_car 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fvm_ipld_car 0.7.0",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_ipld_dagcbor",
@@ -2344,7 +2344,7 @@ dependencies = [
  "futures",
  "fvm",
  "fvm_ipld_blockstore 0.2.0",
- "fvm_ipld_car 0.7.0",
+ "fvm_ipld_car 0.7.1",
  "fvm_ipld_encoding 0.4.0",
  "fvm_shared 3.6.0",
  "itertools 0.11.0",
@@ -2388,7 +2388,7 @@ dependencies = [
  "fvm",
  "fvm_gas_calibration_shared",
  "fvm_ipld_blockstore 0.2.0",
- "fvm_ipld_car 0.7.0",
+ "fvm_ipld_car 0.7.1",
  "fvm_ipld_encoding 0.4.0",
  "fvm_shared 3.6.0",
  "fvm_test_actors",
@@ -2491,20 +2491,6 @@ dependencies = [
 [[package]]
 name = "fvm_ipld_car"
 version = "0.7.0"
-dependencies = [
- "async-std",
- "cid 0.10.1",
- "futures",
- "fvm_ipld_blockstore 0.2.0",
- "fvm_ipld_encoding 0.4.0",
- "serde",
- "thiserror",
- "unsigned-varint",
-]
-
-[[package]]
-name = "fvm_ipld_car"
-version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42a70f56d42a428d60b89440136428f8af7abc723dcf6d763d82e28d518a8141"
 dependencies = [
@@ -2515,6 +2501,20 @@ dependencies = [
  "integer-encoding",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "fvm_ipld_car"
+version = "0.7.1"
+dependencies = [
+ "async-std",
+ "cid 0.10.1",
+ "futures",
+ "fvm_ipld_blockstore 0.2.0",
+ "fvm_ipld_encoding 0.4.0",
+ "serde",
+ "thiserror",
+ "unsigned-varint",
 ]
 
 [[package]]

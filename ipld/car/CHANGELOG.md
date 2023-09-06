@@ -4,6 +4,10 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.7.0 [2023-09-06)
+
+Replace the internal integer-encoding dependency with unsigned-varint. This won't affect users but cleans up our dependency tree a bit.
+
 ## 0.7.0 [2023-06-28)
 
 Breaking Changes:
