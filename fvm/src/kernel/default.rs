@@ -30,7 +30,7 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::{CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
@@ -138,9 +138,17 @@ where
         }
 
         // Send.
-        let result = self.call_manager.send::<K>(
-            from, *recipient, method, params, value, gas_limit, read_only,
-        )?;
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.send::<K>(
+                from,
+                *recipient,
+                Entrypoint::Invoke(method),
+                params,
+                value,
+                gas_limit,
+                read_only,
+            )
+        })?;
 
         // Store result and return.
         Ok(match result {
@@ -879,9 +887,9 @@ where
             Some(self.blocks.get(params_id)?.clone())
         };
 
-        let result: Result<InvocationResult> =
-            self.call_manager
-                .upgrade_actor::<Self>(self.actor_id, new_code_cid, params);
+        let result = self
+            .call_manager
+            .with_transaction(|cm| cm.upgrade_actor::<Self>(self.actor_id, new_code_cid, params));
 
         match result {
             Ok(InvocationResult {

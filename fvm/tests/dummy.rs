@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use anyhow::Context;
 use cid::Cid;
-use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, Entrypoint, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
@@ -278,11 +278,19 @@ impl CallManager for DummyCallManager {
         &mut self,
         _from: fvm_shared::ActorID,
         _to: Address,
-        _method: fvm_shared::MethodNum,
+        _entrypoint: Entrypoint,
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
         _gas_limit: Option<Gas>,
         _read_only: bool,
+    ) -> kernel::Result<InvocationResult> {
+        // Ok(InvocationResult::Return(None))
+        todo!()
+    }
+
+    fn with_transaction(
+        &mut self,
+        _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()
@@ -394,18 +402,6 @@ impl CallManager for DummyCallManager {
     }
 
     fn upgrade_actor<K>(
-        &mut self,
-        _actor_id: ActorID,
-        _new_code_cid: Cid,
-        _params: Option<kernel::Block>,
-    ) -> kernel::Result<InvocationResult>
-    where
-        K: Kernel<CallManager = Self>,
-    {
-        todo!()
-    }
-
-    fn upgrade_actor_inner<K>(
         &mut self,
         _actor_id: ActorID,
         _new_code_cid: Cid,

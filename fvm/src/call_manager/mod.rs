@@ -67,11 +67,17 @@ pub trait CallManager: 'static {
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<kernel::Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         read_only: bool,
+    ) -> Result<InvocationResult>;
+
+    /// Execute some operation (usually a send) within a transaction.
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
@@ -112,15 +118,6 @@ pub trait CallManager: 'static {
     ) -> Result<()>;
 
     fn upgrade_actor<K>(
-        &mut self,
-        actor_id: ActorID,
-        new_code_cid: Cid,
-        params: Option<kernel::Block>,
-    ) -> Result<InvocationResult>
-    where
-        K: Kernel<CallManager = Self>;
-
-    fn upgrade_actor_inner<K>(
         &mut self,
         actor_id: ActorID,
         new_code_cid: Cid,
@@ -208,4 +205,19 @@ pub struct FinishRet {
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,
     pub events_root: Option<Cid>,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum Entrypoint {
+    Invoke(MethodNum),
+    Upgrade,
+}
+
+impl std::fmt::Display for Entrypoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Entrypoint::Invoke(method) => write!(f, "invoke({})", method),
+            Entrypoint::Upgrade => write!(f, "upgrade"),
+        }
+    }
 }

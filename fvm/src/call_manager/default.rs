@@ -12,12 +12,11 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
-use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
@@ -171,7 +170,7 @@ where
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
@@ -184,7 +183,7 @@ where
             self.trace(ExecutionEvent::Call {
                 from,
                 to,
-                method,
+                entrypoint,
                 params: params.as_ref().map(Into::into),
                 value: value.clone(),
                 gas_limit: std::cmp::min(
@@ -200,44 +199,13 @@ where
             self.gas_tracker.push_limit(limit);
         }
 
-        if self.call_stack_depth >= self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
-        }
+        let mut result = self.with_stack_frame(|s| {
+            s.send_unchecked::<K>(from, to, entrypoint, params, value, read_only)
+        });
 
-        self.state_tree_mut().begin_transaction();
-        self.events.begin_transaction();
-        self.state_access_tracker.begin_transaction();
-        self.call_stack_depth += 1;
-
-        let (revert, mut result) = match <<Self::Machine as Machine>::Limiter>::with_stack_frame(
-            self,
-            |s| s.limiter_mut(),
-            |s| s.send_unchecked::<K>(from, to, method, params, value, read_only),
-        ) {
-            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
-            Err(e) => (true, Err(e)),
-        };
-
-        self.call_stack_depth -= 1;
-        // Return the _first_ error (if any). We don't expect any errors here anyways as all error
-        // cases are fatal.
-        if let Some(err) = [
-            // End all transactions
-            self.state_access_tracker.end_transaction(revert).err(),
-            self.events.end_transaction(revert).err(),
-            self.state_tree_mut().end_transaction(revert).err(),
-            // If we pushed a gas limit, pop it.
-            gas_limit.and_then(|_| self.gas_tracker.pop_limit().err()),
-        ]
-        .into_iter()
-        .flatten() // Iterator<Option<Error>> -> Iterator<Error>
-        .next()
-        {
-            return Err(err);
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
         }
 
         // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
@@ -270,6 +238,26 @@ where
         }
 
         result
+    }
+
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+    ) -> Result<InvocationResult> {
+        self.state_tree_mut().begin_transaction();
+        self.events.begin_transaction();
+        self.state_access_tracker.begin_transaction();
+
+        let (revert, res) = match f(self) {
+            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+
+        self.state_tree_mut().end_transaction(revert)?;
+        self.events.end_transaction(revert)?;
+        self.state_access_tracker.end_transaction(revert)?;
+
+        res
     }
 
     fn finish(mut self) -> (Result<FinishRet>, Self::Machine) {
@@ -432,180 +420,44 @@ where
         // store the code cid of the calling actor before running the upgrade endpoint
         // in case it was changed (which could happen if the target upgrade endpoint
         // sent a message to this actor which in turn called upgrade)
-        let code_id_before = state.code;
+        let code = state.code;
 
-        let result = self.upgrade_actor_inner::<K>(actor_id, new_code_cid, params)?;
+        // update the code cid of the actor to new_code_cid
+        self.state_tree_mut().set_actor(
+            origin,
+            ActorState::new(
+                new_code_cid,
+                state.state,
+                state.balance,
+                state.sequence,
+                None,
+            ),
+        );
+
+        // run the upgrade endpoint
+        let result = self.send::<K>(
+            actor_id,
+            Address::new_id(actor_id),
+            Entrypoint::Upgrade,
+            params,
+            &TokenAmount::zero(),
+            None,
+            false,
+        )?;
 
         if result.exit_code == ExitCode::OK {
             // after running the upgrade, our code cid must not have changed
-            let code_id_after = self
+            let code_after_upgrade = self
                 .state_tree_mut()
                 .get_actor(actor_id)?
                 .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?
                 .code;
-            if code_id_before != code_id_after {
+            if code != code_after_upgrade {
                 return Err(syscall_error!(Forbidden; "re-entrant upgrade detected").into());
             }
-
-            self.state_tree_mut().set_actor(
-                origin,
-                ActorState::new(
-                    new_code_cid,
-                    state.state,
-                    state.balance,
-                    state.sequence,
-                    None,
-                ),
-            );
         }
 
         Ok(result)
-    }
-
-    fn upgrade_actor_inner<K: Kernel<CallManager = Self>>(
-        &mut self,
-        actor_id: ActorID,
-        new_code_cid: Cid,
-        params: Option<Block>,
-    ) -> Result<InvocationResult> {
-        let state = self
-            .state_tree()
-            .get_actor(actor_id)?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
-
-        let mut block_registry = BlockRegistry::new();
-
-        // add the params block to the block registry
-        let params_id = if let Some(blk) = params {
-            block_registry.put(blk)?
-        } else {
-            NO_DATA_BLOCK_ID
-        };
-
-        // also add a new block to the registry which includes the UpgradeInfo which
-        // we pass to the actor's upgrade method
-        let ui = UpgradeInfo {
-            old_code_cid: state.code,
-        };
-        let ui_params = to_vec(&ui).map_err(
-            |e| syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
-        )?;
-        let ui_params_id = block_registry.put(Block::new(CBOR, ui_params))?;
-
-        log::trace!(
-            "upgrading {} from {} to {}",
-            actor_id,
-            state.code,
-            new_code_cid
-        );
-        self.map_mut(|cm| {
-            let engine = cm.engine.clone(); // reference the RC.
-
-            // Make the kernel.
-            let kernel = K::new(
-                cm,
-                block_registry,
-                actor_id,
-                actor_id,
-                1919,
-                TokenAmount::from_atto(0),
-                false,
-            );
-
-            // Make a store.
-            let mut store = engine.new_store(kernel);
-
-            // TODO: a hack until I find a better/simpler way to do this
-            let mut my_syscall_err: Option<SyscallError> = None;
-
-            let result: std::result::Result<BlockId, Abort> = (|| {
-                // Instantiate the module.
-                let instance = engine
-                    .instantiate(&mut store, &new_code_cid)?
-                    .context("actor not found")
-                    .map_err(|e| {
-                        my_syscall_err =
-                            Some(SyscallError::new(ErrorNumber::NotFound, "actor not found"));
-                        Abort::Fatal(e)
-                    })?;
-
-                // Resolve and store a reference to the exported memory.
-                let memory = instance
-                    .get_memory(&mut store, "memory")
-                    .context("actor has no memory export")
-                    .map_err(Abort::Fatal)?;
-
-                store.data_mut().memory = memory;
-
-                // Lookup the upgrade method.
-                let upgrade: wasmtime::TypedFunc<(u32, u32), u32> = instance
-                    .get_typed_func(&mut store, "upgrade")
-                    .map_err(|e| {
-                        my_syscall_err = Some(SyscallError::new(
-                            ErrorNumber::Forbidden,
-                            "actor does not support upgrade",
-                        ));
-                        Abort::Fatal(e)
-                    })?;
-
-                // Set the available gas.
-                update_gas_available(&mut store)?;
-
-                // Invoke it.
-                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    upgrade.call(&mut store, (params_id, ui_params_id))
-                }))
-                .map_err(|panic| {
-                    Abort::Fatal(anyhow!("panic within actor upgrade: {:?}", panic))
-                })?;
-
-                // Charge for any remaining uncharged execution gas, returning an error if we run
-                // out.
-                charge_for_exec(&mut store)?;
-
-                Ok(res?)
-            })();
-
-            let invocation_data = store.into_data();
-            let _last_error = invocation_data.last_error;
-            let (cm, block_registry) = invocation_data.kernel.into_inner();
-
-            let result: std::result::Result<InvocationResult, ExecutionError> = match result {
-                Ok(NO_DATA_BLOCK_ID) => Ok(InvocationResult {
-                    exit_code: ExitCode::OK,
-                    value: None,
-                }),
-                Ok(block_id) => match block_registry.get(block_id) {
-                    Ok(blk) => Ok(InvocationResult {
-                        exit_code: ExitCode::OK,
-                        value: Some(blk.clone()),
-                    }),
-                    Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
-                },
-                Err(abort) => match abort {
-                    Abort::Exit(code, _message, NO_DATA_BLOCK_ID) => Ok(InvocationResult {
-                        exit_code: code,
-                        value: None,
-                    }),
-                    Abort::Exit(exit_code, _message, block_id) => {
-                        match block_registry.get(block_id) {
-                            Ok(blk) => Ok(InvocationResult {
-                                exit_code,
-                                value: Some(blk.clone()),
-                            }),
-                            Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
-                        }
-                    }
-                    Abort::OutOfGas => Err(ExecutionError::OutOfGas),
-                    Abort::Fatal(err) => match my_syscall_err {
-                        Some(e) => Err(ExecutionError::Syscall(e)),
-                        None => Err(ExecutionError::Fatal(err)),
-                    },
-                },
-            };
-
-            (result, cm)
-        })
     }
 
     fn append_event(&mut self, evt: StampedEvent) {
@@ -777,8 +629,8 @@ where
         self.send_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
-            fvm_shared::METHOD_CONSTRUCTOR,
-            Some(Block::new(CBOR, params, Vec::new())),
+            Entrypoint::Invoke(fvm_shared::METHOD_CONSTRUCTOR),
+            Some(Block::new(CBOR, params)),
             &TokenAmount::zero(),
             false,
         )?;
@@ -800,7 +652,7 @@ where
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -834,7 +686,7 @@ where
             },
         };
 
-        self.send_resolved::<K>(from, to, method, params, value, read_only)
+        self.send_resolved::<K>(from, to, entrypoint, params, value, read_only)
     }
 
     /// Send with resolved addresses.
@@ -842,7 +694,7 @@ where
         &mut self,
         from: ActorID,
         to: ActorID,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -867,7 +719,7 @@ where
         }
 
         // Abort early if we have a send.
-        if method == METHOD_SEND {
+        if let Entrypoint::Invoke(METHOD_SEND) = entrypoint {
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::default());
         }
@@ -903,7 +755,7 @@ where
                 |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
             )?;
 
-        log::trace!("calling {} -> {}::{}", from, to, method);
+        log::trace!("calling {} -> {}::{}", from, to, entrypoint);
         self.map_mut(|cm| {
             let engine = cm.engine.clone(); // reference the RC.
 
@@ -913,7 +765,7 @@ where
                 block_registry,
                 from,
                 to,
-                method,
+                entrypoint.method_num(),
                 value.clone(),
                 read_only,
             );
@@ -939,7 +791,7 @@ where
 
                 // Lookup the invoke method.
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
-                    .get_typed_func(&mut store, "invoke")
+                    .get_typed_func(&mut store, entrypoint.func_name())
                     // All actors will have an invoke method.
                     .map_err(Abort::Fatal)?;
 
@@ -1033,7 +885,7 @@ where
 
                         cm.backtrace.push_frame(Frame {
                             source: to,
-                            method,
+                            entrypoint,
                             message,
                             code,
                         });
@@ -1068,11 +920,11 @@ where
                     Ok(val) => log::trace!(
                         "returning {}::{} -> {} ({})",
                         to,
-                        method,
+                        entrypoint,
                         from,
                         val.exit_code
                     ),
-                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, entrypoint, from, e),
                 }
             }
 
@@ -1089,6 +941,31 @@ where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
+    }
+
+    /// Check that we're not violating the call stack depth, then envelope a call
+    /// with an increase/decrease of the depth to make sure none of them are missed.
+    fn with_stack_frame<F, V>(&mut self, f: F) -> Result<V>
+    where
+        F: FnOnce(&mut Self) -> Result<V>,
+    {
+        if self.call_stack_depth >= self.machine.context().max_call_depth {
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
+            }
+            return Err(sys_err.into());
+        }
+
+        self.call_stack_depth += 1;
+        let res =
+        <<<DefaultCallManager<M> as CallManager>::Machine as Machine>::Limiter>::with_stack_frame(
+            self,
+            |s| s.limiter_mut(),
+            f,
+        );
+        self.call_stack_depth -= 1;
+        res
     }
 }
 
@@ -1164,5 +1041,21 @@ impl EventsAccumulator {
             root,
             events: self.events,
         })
+    }
+}
+
+impl Entrypoint {
+    fn method_num(&self) -> MethodNum {
+        match self {
+            Entrypoint::Invoke(num) => *num,
+            Entrypoint::Upgrade => 191919,
+        }
+    }
+
+    fn func_name(&self) -> &'static str {
+        match self {
+            Entrypoint::Invoke(_) => "invoke",
+            Entrypoint::Upgrade => "upgrade",
+        }
     }
 }
