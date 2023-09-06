@@ -16,7 +16,7 @@ anyhow = { version = "1.0.47", features = ["backtrace"] }
 thiserror = "1.0.30"
 num-traits = "0.2"
 derive_builder = "0.12.0"
-num-derive = "0.3.3"
+num-derive = "0.4.0"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash = { workspace = true }
 fvm_shared = { version = "2.5.0", path = "../shared", features = ["crypto"] }
@@ -47,7 +47,7 @@ pretty_assertions = "1.2.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
 
 [dependencies.wasmtime]
-version = "10.0.1"
+version = "12.0.1"
 default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 
