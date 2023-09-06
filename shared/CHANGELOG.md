@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0 (2023-09-06)
+
+- BREAKING: Upgrade the proofs API to v16.
+- BREAKING (linking): upgrade blstrs to v0.7 and
+- BREAKING: update the minimum rust version to 1.70.0
+
 ## 2.5.0 (2023-06-28)
 
 Breaking Changes:
