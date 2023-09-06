@@ -47,8 +47,8 @@ pub(crate) async fn ld_write<'a, W>(writer: &mut W, bytes: &[u8]) -> Result<(), 
 where
     W: AsyncWrite + Send + Unpin,
 {
-    let mut len = unsigned_varint::encode::usize_buffer();
-    let len = unsigned_varint::encode::usize(bytes.len(), &mut len);
+    let mut buff = unsigned_varint::encode::usize_buffer();
+    let len = unsigned_varint::encode::usize(bytes.len(), &mut buff);
     writer.write_all(len).await?;
     writer.write_all(bytes).await?;
     writer.flush().await?;
