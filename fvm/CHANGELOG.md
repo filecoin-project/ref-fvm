@@ -4,6 +4,13 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.8.0 (2023-09-06)
+
+- Upgrade wasmtime to v12. Unlike prior wasmtime upgrades, this shouldn't be a breaking change as it now mangles its symbols.
+- BREAKING: Upgrade the proofs API to v16.
+- BREAKING (linking): upgrade blstrs to v0.7 and
+- BREAKING: update the minimum rust version to 1.70.0
+
 ## 3.7.0 [2023-08-28]
 
 - BREAKING: Add fields to the trace API:
