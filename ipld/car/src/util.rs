@@ -4,7 +4,7 @@
 
 use cid::Cid;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
+use unsigned_varint::io::ReadError;
 
 use super::error::Error;
 
@@ -13,14 +13,17 @@ where
     R: AsyncRead + Send + Unpin,
 {
     const MAX_ALLOC: usize = 1 << 20;
-    let l: usize = match VarIntAsyncReader::read_varint_async(&mut reader).await {
+    let l: usize = match unsigned_varint::aio::read_usize(&mut reader).await {
         Ok(len) => len,
-        Err(e) => {
-            if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                return Ok(None);
+        Err(ReadError::Io(e)) => {
+            return if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                Ok(None)
+            } else {
+                Err(Error::Io(e))
             }
-            return Err(Error::Other(e.to_string()));
         }
+        Err(ReadError::Decode(e)) => return Err(Error::ParsingError(e.to_string())),
+        Err(e) => return Err(Error::Other(e.to_string())),
     };
     let mut buf = Vec::with_capacity(std::cmp::min(l, MAX_ALLOC));
     let bytes_read = reader
@@ -44,7 +47,9 @@ pub(crate) async fn ld_write<'a, W>(writer: &mut W, bytes: &[u8]) -> Result<(), 
 where
     W: AsyncWrite + Send + Unpin,
 {
-    writer.write_varint_async(bytes.len()).await?;
+    let mut buff = unsigned_varint::encode::usize_buffer();
+    let len = unsigned_varint::encode::usize(bytes.len(), &mut buff);
+    writer.write_all(len).await?;
     writer.write_all(bytes).await?;
     writer.flush().await?;
     Ok(())
