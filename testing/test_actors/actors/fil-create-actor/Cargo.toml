@@ -6,7 +6,7 @@ publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_sdk = { version = "3.3.0", path = "../../../../sdk" }
-fvm_shared = { version = "3.5.0", path = "../../../../shared" }
+fvm_shared = { version = "3.6.0", path = "../../../../shared" }
 actors_v10_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
 
 [lib]

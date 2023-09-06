@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 3.6.0 (2023-09-06)
+
+- BREAKING: Upgrade the proofs API to v16.
+- BREAKING (linking): upgrade blstrs to v0.7 and
+- BREAKING: update the minimum rust version to 1.70.0
+- Update & trim some dependencies.
+- Add support for the new proofs in v16.
+
 ## 3.5.0 [2023-08-18]
 
 - Add the V21 network version constant
