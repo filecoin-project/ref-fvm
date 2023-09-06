@@ -2377,7 +2377,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "anyhow",
  "blake2b_simd",
