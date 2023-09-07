@@ -38,7 +38,7 @@ use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
-use crate::syscall_error;
+use crate::{ipld, syscall_error};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -151,9 +151,13 @@ where
                 value: Some(blk),
             } => {
                 let block_stat = blk.stat();
+                // This can't fail because:
+                // 1. We've already charged for gas.
+                // 2. We've already checked that we have space for a return block.
+                // 3. This block has already been validated by the kernel that returned it.
                 let block_id = self
                     .blocks
-                    .put(blk)
+                    .put_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
                 SendResult {
@@ -188,13 +192,21 @@ impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&self) -> Result<Cid> {
+    fn root(&mut self) -> Result<Cid> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_root())?;
+
         // This can fail during normal operations if the actor has been deleted.
         let cid = self
             .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
+
+        self.blocks.mark_reachable(&cid);
+
+        t.stop();
 
         Ok(cid)
     }
@@ -205,6 +217,15 @@ where
                 syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
             );
         }
+
+        let _ = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_set_root())?;
+
+        if !self.blocks.is_reachable(&new) {
+            return Err(syscall_error!(NotFound; "new root cid not reachable: {new}").into());
+        }
+
         let mut state = self
             .call_manager
             .get_actor(self.actor_id)?
@@ -261,37 +282,44 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        // TODO(M2): Check for reachability here.
-
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
-        let start = GasTimer::start();
+        if !self.blocks.is_reachable(cid) {
+            return Err(syscall_error!(NotFound; "block not reachable: {cid}").into());
+        }
 
         let data = self
             .call_manager
             .blockstore()
             .get(cid)
-            // TODO: This is really "super fatal". It means we failed to store state, and should
-            // probably abort the entire block.
-            .or_fatal()?
-            .ok_or_else(|| anyhow!("missing state: {}", cid))
-            // Missing state is a fatal error because it means we have a bug. Once we do
-            // reachability checking (for user actors) we won't get here unless the block is known
-            // to be in the state-tree.
+            // Treat missing blocks as errors as well.
+            .and_then(|b| b.ok_or_else(|| anyhow!("missing reachable state: {}", cid)))
+            // TODO Any failures here should really be considered "super fatal". It means we're
+            // missing state and/or have a corrupted store.
             .or_fatal()?;
 
-        let block = Block::new(cid.codec(), data);
+        t.stop();
+
+        // This can fail because we can run out of gas.
+        let children = ipld::scan_for_reachable_links(
+            cid.codec(),
+            &data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open_per_byte(block.size() as usize),
+                .on_block_open(data.len(), children.len()),
         )?;
 
+        let block = Block::new(cid.codec(), data, children);
         let stat = block.stat();
-        let id = self.blocks.put(block)?;
-        t.stop_with(start);
+        let id = self.blocks.put_reachable(block)?;
+        t.stop();
         Ok((id, stat))
     }
 
@@ -300,11 +328,26 @@ where
             return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
         }
 
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+        if !ipld::ALLOWED_CODECS.contains(&codec) {
+            return Err(syscall_error!(IllegalCodec; "codec {} not allowed", codec).into());
+        }
 
-        t.record(Ok(self.blocks.put(Block::new(codec, data))?))
+        let children = ipld::scan_for_reachable_links(
+            codec,
+            data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )?;
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_block_create(data.len(), children.len()),
+        )?;
+
+        let blk = Block::new(codec, data, children);
+
+        t.record(Ok(self.blocks.put_check_reachable(blk)?))
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
@@ -327,13 +370,14 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO(M2): Add the block to the reachable set.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        self.blocks.mark_reachable(&k);
+
         t.stop_with(start);
         Ok(k)
     }

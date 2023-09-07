@@ -8,7 +8,7 @@ mod ipld {
     use fvm::kernel::{IpldBlockOps, SupportedHashes};
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
-    use fvm_ipld_encoding::DAG_CBOR;
+    use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
     use multihash::MultihashDigest;
     use pretty_assertions::{assert_eq, assert_ne};
 
@@ -21,7 +21,7 @@ mod ipld {
         let block = "foo".as_bytes();
         let mut buf = [0u8; 3];
         // roundtrip
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
         let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
         let stat = kern.block_stat(id)?;
         let (opened_id, opened_stat) = kern.block_open(&cid)?;
@@ -34,7 +34,7 @@ mod ipld {
         assert_eq!(id, 1, "block creation should be ID 1");
 
         // Link
-        let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
+        let expected_cid = Cid::new_v1(IPLD_RAW, Code::Blake2b256.digest(block));
         assert_eq!(cid, expected_cid, "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec");
 
         // Stat
@@ -78,8 +78,8 @@ mod ipld {
         let block_2 = "baz".as_bytes();
 
         // create blocks
-        let id = kern.block_create(DAG_CBOR, block)?;
-        let id1 = kern1.block_create(DAG_CBOR, block_1)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
+        let id1 = kern1.block_create(IPLD_RAW, block_1)?;
 
         assert_eq!(id, 1, "first block id should be 1");
         assert_eq!(
@@ -87,7 +87,7 @@ mod ipld {
             "two blocks of the different content but same order should have the same block id"
         );
 
-        let id = kern1.block_create(DAG_CBOR, block_2)?;
+        let id = kern1.block_create(IPLD_RAW, block_2)?;
         assert_eq!(id, 2, "second created block id should be 2");
 
         let (call_manager, _) = kern.into_inner();
@@ -104,7 +104,7 @@ mod ipld {
                 .machine
                 .context()
                 .price_list
-                .on_block_create(block.len())
+                .on_block_create(block.len(), 0)
                 .total();
             assert_eq!(
                 call_manager.gas_tracker.gas_used(),
@@ -123,8 +123,7 @@ mod ipld {
         let block = "foo".as_bytes();
         expect_syscall_err!(IllegalCodec, kern.block_create(0xFF, block));
 
-        // valid for M1, shouldn't be for M2
-        let _ = kern.block_create(DAG_CBOR, &[])?;
+        expect_syscall_err!(Serialization, kern.block_create(DAG_CBOR, &[]));
 
         // spec audit things arent (yet) tested
         Ok(())
@@ -139,22 +138,22 @@ mod ipld {
         let other_block = "baz".as_bytes();
 
         // link a block
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
         let cid = kern.block_link(id, Code::Blake2b256.into(), 32)?;
 
         // link a block of the same data inside a different kernel
-        let id1 = kern1.block_create(DAG_CBOR, block)?;
+        let id1 = kern1.block_create(IPLD_RAW, block)?;
         let cid1 = kern1.block_link(id1, Code::Blake2b256.into(), 32)?;
 
         // link a block of different data into kern1
-        let other_id = kern1.block_create(DAG_CBOR, other_block)?;
+        let other_id = kern1.block_create(IPLD_RAW, other_block)?;
         let other_cid = kern1.block_link(other_id, Code::Blake2b256.into(), 32)?;
 
         let (call_manager, _) = kern.into_inner();
 
         // CIDs match CIDs generated manually from CID crate
-        let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
-        let expected_other_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
+        let expected_cid = Cid::new_v1(IPLD_RAW, Code::Blake2b256.digest(block));
+        let expected_other_cid = Cid::new_v1(IPLD_RAW, Code::Blake2b256.digest(other_block));
 
         assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
         assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
@@ -177,12 +176,12 @@ mod ipld {
                 "charge_gas should only be called exactly once per block_link"
             );
 
-            let expected_block = Block::new(cid.codec(), block);
+            let expected_block = Block::new(cid.codec(), block, Vec::new());
             let expected_create_price = call_manager
                 .machine
                 .context()
                 .price_list
-                .on_block_create(block.len())
+                .on_block_create(block.len(), 0)
                 .total();
             let expected_link_price = call_manager
                 .machine
@@ -210,7 +209,7 @@ mod ipld {
 
         let block = "foo".as_bytes();
 
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // Invalid hash lengths
@@ -247,14 +246,14 @@ mod ipld {
         let long_block = "hello world!".as_bytes();
 
         // add block
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
 
         // add a block of the same data inside a different kernel
-        let id1 = kern1.block_create(DAG_CBOR, block)?;
+        let id1 = kern1.block_create(IPLD_RAW, block)?;
 
         // add a block of different data inside a different kernel
-        let other_id = kern1.block_create(DAG_CBOR, other_block)?;
-        let long_id = kern1.block_create(DAG_CBOR, long_block)?;
+        let other_id = kern1.block_create(IPLD_RAW, other_block)?;
+        let long_id = kern1.block_create(IPLD_RAW, long_block)?;
 
         // setup buffers
         let mut block_buf = [0u8; 32];
@@ -332,7 +331,7 @@ mod ipld {
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
-            let expected_create_price = price_list.on_block_create(block.len()).total();
+            let expected_create_price = price_list.on_block_create(block.len(), 0).total();
             let expected_read_price = price_list.on_block_read(block.len()).total();
 
             assert_eq!(
@@ -361,7 +360,7 @@ mod ipld {
         expect_syscall_err!(InvalidHandle, kern.block_read(1, 0, buf));
 
         // create block
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
         test_data.borrow_mut().charge_gas_calls = 0;
 
         // ID
@@ -386,11 +385,11 @@ mod ipld {
 
         let block = "foo".as_bytes();
 
-        let id = kern.block_create(DAG_CBOR, block)?;
+        let id = kern.block_create(IPLD_RAW, block)?;
 
         let stat = kern.block_stat(id)?;
 
-        assert_eq!(stat.codec, DAG_CBOR);
+        assert_eq!(stat.codec, IPLD_RAW);
         assert_eq!(stat.size, 3);
 
         let (call_manager, _) = kern.into_inner();
@@ -398,7 +397,7 @@ mod ipld {
         // assert gas
         {
             let price_list = call_manager.machine.context().price_list;
-            let expected_create_price = price_list.on_block_create(block.len()).total();
+            let expected_create_price = price_list.on_block_create(block.len(), 0).total();
             let expected_stat_price = price_list.on_block_stat().total();
 
             assert_eq!(
@@ -423,7 +422,7 @@ mod ipld {
 
         expect_syscall_err!(InvalidHandle, kern.block_stat(1));
 
-        kern.block_create(DAG_CBOR, block)?;
+        kern.block_create(IPLD_RAW, block)?;
         // reset gas calls
         test_data.borrow_mut().charge_gas_calls = 0;
 
