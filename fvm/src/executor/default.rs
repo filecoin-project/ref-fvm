@@ -136,6 +136,8 @@ where
                         CBOR
                     },
                     msg.params.bytes(),
+                    // not DAG-CBOR, so we don't have to parse for links.
+                    Vec::new(),
                 )
             });
 

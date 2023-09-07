@@ -582,7 +582,7 @@ where
             system_actor::SYSTEM_ACTOR_ID,
             id,
             fvm_shared::METHOD_CONSTRUCTOR,
-            Some(Block::new(CBOR, params)),
+            Some(Block::new(CBOR, params, Vec::new())),
             &TokenAmount::zero(),
             false,
         )?;
@@ -677,12 +677,19 @@ where
         }
 
         // Charge the invocation gas.
-        let t = self.charge_gas(self.price_list().on_method_invocation())?;
+        let (param_size, param_link_count) = params
+            .as_ref()
+            .map(|p| (p.size(), p.links().len()))
+            .unwrap_or_default();
+        let t = self.charge_gas(
+            self.price_list()
+                .on_method_invocation(param_size, param_link_count),
+        )?;
 
         // Store the parametrs, and initialize the block registry for the target actor.
         let mut block_registry = BlockRegistry::new();
         let params_id = if let Some(blk) = params {
-            block_registry.put(blk)?
+            block_registry.put_reachable(blk)?
         } else {
             NO_DATA_BLOCK_ID
         };
@@ -844,19 +851,18 @@ where
             // future, we'll charge for internal returns as well (to charge for link tracking).
             // Unfortunately, we have to do this _here_ instead of in the caller as we need to apply
             // the call's gas limit.
-            if let Some(ret_size) = ret
+            if let Some((ret_size, link_count)) = ret
                 .as_ref()
                 .ok()
                 .and_then(|r| r.value.as_ref())
-                .map(|v| v.size())
+                .map(|v| (v.size(), v.links().len()))
             {
-                if let Some(charge) = cm
-                    .price_list()
-                    .on_method_return(cm.call_stack_depth, ret_size)
-                {
-                    if let Err(e) = cm.charge_gas(charge) {
-                        ret = Err(e);
-                    }
+                if let Err(e) = cm.charge_gas(cm.price_list().on_method_return(
+                    cm.call_stack_depth,
+                    ret_size,
+                    link_count,
+                )) {
+                    ret = Err(e);
                 }
             }
 
