@@ -129,13 +129,12 @@ impl BlockRegistry {
             return Err(syscall_error!(LimitExceeded; "too many blocks").into());
         }
 
+        // We expect the caller to have already charged for gas.
         if check_reachable {
             if let Some(k) = block.links().iter().find(|k| !self.is_reachable(k)) {
                 return Err(syscall_error!(NotFound; "cannot put block: {k} not reachable").into());
             }
         } else {
-            // TODO: Charge for this. We already charge for parsing but... this can be triggered
-            // (repeatedly) with recursive calls.
             for k in block.links() {
                 self.mark_reachable(k)
             }

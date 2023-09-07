@@ -151,6 +151,10 @@ where
                 value: Some(blk),
             } => {
                 let block_stat = blk.stat();
+                // This can't fail because:
+                // 1. We've already charged for gas.
+                // 2. We've already checked that we have space for a return block.
+                // 3. This block has already been validated by the kernel that returned it.
                 let block_id = self
                     .blocks
                     .put_reachable(blk)
@@ -298,16 +302,13 @@ where
 
         t.stop();
 
-        // Failure in scanning here is fatal as we're reading a reachable block from the
-        // datastore. If something goes wrong here, our datastore is corrupted.
-        // TODO: We should also make this "super fatal" (fail the block).
+        // This can fail because we can run out of gas.
         let children = ipld::scan_for_reachable_links(
             cid.codec(),
             &data,
             self.call_manager.price_list(),
             self.call_manager.gas_tracker(),
-        )
-        .or_fatal()?;
+        )?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
