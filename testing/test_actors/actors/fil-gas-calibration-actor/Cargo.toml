@@ -15,6 +15,7 @@ num-derive = "0.4"
 num-traits = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0.71"
+libipld = { version = "0.16.0", default-features = false, features = ["serde-codec"] }
 
 [lib]
 crate-type = ["cdylib"]

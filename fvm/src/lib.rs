@@ -40,6 +40,7 @@ pub mod system_actor;
 
 mod eam_actor;
 mod history_map;
+mod ipld;
 pub mod trace;
 
 use cid::multihash::{Code, MultihashDigest};

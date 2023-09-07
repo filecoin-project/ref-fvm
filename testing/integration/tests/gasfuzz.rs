@@ -65,12 +65,22 @@ fn gasfuzz_fuzz(charge_points_milligas: Vec<u64>) {
         let gas_lo = (cpm - 500) / 1000;
         let invoke_res =
             testkit::fevm::invoke_contract(&mut tester, &mut account, actor, &[], gas_lo).unwrap();
-        assert_eq!(invoke_res.msg_receipt.exit_code, ExitCode::SYS_OUT_OF_GAS);
+        assert_eq!(
+            invoke_res.msg_receipt.exit_code,
+            ExitCode::SYS_OUT_OF_GAS,
+            "{:?}",
+            invoke_res.failure_info,
+        );
 
         let gas_hi = (cpm + 500) / 1000;
         let invoke_res =
             testkit::fevm::invoke_contract(&mut tester, &mut account, actor, &[], gas_hi).unwrap();
-        assert_eq!(invoke_res.msg_receipt.exit_code, ExitCode::SYS_OUT_OF_GAS);
+        assert_eq!(
+            invoke_res.msg_receipt.exit_code,
+            ExitCode::SYS_OUT_OF_GAS,
+            "{:?}",
+            invoke_res.failure_info
+        );
     }
 }
 

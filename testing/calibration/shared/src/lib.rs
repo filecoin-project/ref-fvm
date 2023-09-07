@@ -21,6 +21,8 @@ pub enum Method {
     OnSend,
     /// Emit events, driven by the selected mode. See EventCalibrationMode for more info.
     OnEvent,
+    /// Read/write blocks with different numbers of CBOR fields & links.
+    OnScanIpldLinks,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -99,4 +101,12 @@ impl OnHashingParams {
             _ => None,
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnScanIpldLinksParams {
+    pub iterations: usize,
+    pub cbor_link_count: usize,
+    pub cbor_field_count: usize,
+    pub seed: u64,
 }
