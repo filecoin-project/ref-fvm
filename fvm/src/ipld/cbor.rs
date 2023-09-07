@@ -43,7 +43,7 @@ fn cbor_read_header_buf(br: &mut &[u8]) -> Result<(u8, u64)> {
     Ok((maj, val))
 }
 
-/// Given a CBOR serialized IPLD buffer, read through all of it and return all "reachable" links.
+/// Walk a DagCBOR IPLD block, visiting each CID discovered.
 pub(super) fn scan_for_reachable_links(visitor: &mut LinkVisitor, mut buf: &[u8]) -> Result<()> {
     let mut remaining: u64 = 1;
     while remaining > 0 {
