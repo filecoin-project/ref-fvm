@@ -29,7 +29,11 @@ use lazy_static::lazy_static;
 use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelDrainRange;
-use std::io::Write;
+use std::fs::File;
+use std::io::{Cursor, Read, Seek, Write};
+use std::path::Path;
+use std::sync::Mutex;
+use std::time::Instant;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -46,6 +50,18 @@ use crate::syscall_error;
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
     static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
+}
+
+lazy_static! {
+    static ref STAT_FILE: Mutex<File> = {
+        Mutex::new(
+            File::options()
+                .append(true)
+                .create(true)
+                .open(Path::new("batch_verify_stats.log"))
+                .unwrap(),
+        )
+    };
 }
 
 const BLAKE2B_256: u64 = 0xb220;
@@ -622,6 +638,51 @@ where
             })
             .collect();
         log::debug!("batch verify seals end");
+
+        for seal in vis {
+            let start_time = Instant::now();
+            let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));
+            let ok = match verify_seal_result {
+                Ok(res) => {
+                    match res {
+                        Ok(correct) => {
+                            if !correct {
+                                log::debug!(
+                                        "seal verify in batch failed (miner: {}) (err: Invalid Seal proof)",
+                                        seal.sector_id.miner
+                                    );
+                            }
+                            correct // all ok
+                        }
+                        Err(err) => {
+                            log::debug!(
+                                "seal verify in batch failed (miner: {}) (err: {})",
+                                seal.sector_id.miner,
+                                err
+                            );
+                            false
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!(
+                        "seal verify internal fail (miner: {}) (err: {:?})",
+                        seal.sector_id.miner,
+                        e
+                    );
+                    false
+                }
+            };
+
+            let duration = start_time.elapsed().as_nanos();
+            let proof_type = seal.registered_proof.sector_size().unwrap();
+            println!("it wound up taking {:?}", duration);
+            {
+                let mut f = STAT_FILE.lock().unwrap();
+                writeln!(f, "verify took, {duration}, {proof_type}, {ok}").unwrap();
+            }
+        }
+
         Ok(out)
     }
 
