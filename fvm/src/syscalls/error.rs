@@ -17,6 +17,9 @@ pub enum Abort {
     /// The actor ran out of gas.
     #[error("out of gas")]
     OutOfGas,
+    /// The actor did not export the endpoint that was called.
+    #[error("entrypoint not found")]
+    EntrypointNotFound,
     /// The system failed with a fatal error.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),

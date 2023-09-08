@@ -12,6 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -417,8 +418,8 @@ where
             .get_actor(actor_id)?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
 
-        // store the code cid of the calling actor before running the upgrade endpoint
-        // in case it was changed (which could happen if the target upgrade endpoint
+        // store the code cid of the calling actor before running the upgrade entrypoint
+        // in case it was changed (which could happen if the target upgrade entrypoint
         // sent a message to this actor which in turn called upgrade)
         let code = state.code;
 
@@ -434,11 +435,11 @@ where
             ),
         );
 
-        // run the upgrade endpoint
+        // run the upgrade entrypoint
         let result = self.send::<K>(
             actor_id,
             Address::new_id(actor_id),
-            Entrypoint::Upgrade,
+            Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
             params,
             &TokenAmount::zero(),
             None,
@@ -742,6 +743,11 @@ where
             NO_DATA_BLOCK_ID
         };
 
+        // additional_params takes care of adding entrypoint specific params to the block
+        // registry and passing them to wasmtime
+        let mut additional_params = EntrypointParams::new(entrypoint);
+        additional_params.maybe_put_registry(&mut block_registry)?;
+
         // Increment invocation count
         self.invocation_count += 1;
 
@@ -789,20 +795,21 @@ where
 
                 store.data_mut().memory = memory;
 
-                // Lookup the invoke method.
-                let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
-                    .get_typed_func(&mut store, entrypoint.func_name())
-                    // All actors will have an invoke method.
-                    .map_err(Abort::Fatal)?;
+                let func = match instance.get_func(&mut store, entrypoint.func_name()) {
+                    Some(func) => func,
+                    None => {
+                        return Err(Abort::EntrypointNotFound);
+                    }
+                };
+
+                let mut params = vec![wasmtime::Val::I32(params_id as i32)];
+                params.extend_from_slice(additional_params.params().as_slice());
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
 
-                // Invoke it.
-                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id,))
-                }))
-                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
+                let mut out = [wasmtime::Val::I32(0)];
+                func.call(&mut store, params.as_slice(), &mut out)?;
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.
@@ -812,35 +819,26 @@ where
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
                 // here as an Abort
 
-                Ok(res?)
+                Ok(out[0].unwrap_i32() as u32)
             })();
 
             let invocation_data = store.into_data();
             let last_error = invocation_data.last_error;
             let (mut cm, block_registry) = invocation_data.kernel.into_inner();
 
-            // Resolve the return block's ID into an actual block, converting to an abort if it
-            // doesn't exist.
-            let result = result.and_then(|ret_id| {
-                Ok(if ret_id == NO_DATA_BLOCK_ID {
-                    None
-                } else {
-                    Some(block_registry.get(ret_id).map_err(|_| {
-                        Abort::Exit(
-                            ExitCode::SYS_MISSING_RETURN,
-                            String::from("returned block does not exist"),
-                            NO_DATA_BLOCK_ID,
-                        )
-                    })?)
-                })
-            });
-
             // Process the result, updating the backtrace if necessary.
             let mut ret = match result {
-                Ok(ret) => Ok(InvocationResult {
+                Ok(NO_DATA_BLOCK_ID) => Ok(InvocationResult {
                     exit_code: ExitCode::OK,
-                    value: ret.cloned(),
+                    value: None,
                 }),
+                Ok(block_id) => match block_registry.get(block_id) {
+                    Ok(blk) => Ok(InvocationResult {
+                        exit_code: ExitCode::OK,
+                        value: Some(blk.clone()),
+                    }),
+                    Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
+                },
                 Err(abort) => {
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
@@ -852,11 +850,6 @@ where
                             }),
                         ),
                         Abort::Exit(code, message, blk_id) => match block_registry.get(blk_id) {
-                            Err(e) => (
-                                ExitCode::SYS_MISSING_RETURN,
-                                "error getting exit data block".to_owned(),
-                                Err(ExecutionError::Fatal(anyhow!(e))),
-                            ),
                             Ok(blk) => (
                                 code,
                                 message,
@@ -865,7 +858,20 @@ where
                                     value: Some(blk.clone()),
                                 }),
                             ),
+                            Err(e) => (
+                                ExitCode::SYS_MISSING_RETURN,
+                                "error getting exit data block".to_owned(),
+                                Err(ExecutionError::Fatal(anyhow!(e))),
+                            ),
                         },
+                        Abort::EntrypointNotFound => (
+                            ExitCode::USR_FORBIDDEN,
+                            "entrypoint not found".to_owned(),
+                            Err(ExecutionError::Syscall(SyscallError::new(
+                                ErrorNumber::Forbidden,
+                                "entrypoint not found",
+                            ))),
+                        ),
                         Abort::OutOfGas => (
                             ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),
@@ -1048,14 +1054,48 @@ impl Entrypoint {
     fn method_num(&self) -> MethodNum {
         match self {
             Entrypoint::Invoke(num) => *num,
-            Entrypoint::Upgrade => 191919,
+            Entrypoint::Upgrade(_) => fvm_shared::METHOD_UPGRADE,
         }
     }
 
     fn func_name(&self) -> &'static str {
         match self {
             Entrypoint::Invoke(_) => "invoke",
-            Entrypoint::Upgrade => "upgrade",
+            Entrypoint::Upgrade(_) => "upgrade",
         }
+    }
+}
+
+// EntrypointParams is a helper struct to init the registry with the entrypoint specific
+// parameters and then forward them to wasmtime
+struct EntrypointParams {
+    entrypoint: Entrypoint,
+    params: Vec<wasmtime::Val>,
+}
+
+impl EntrypointParams {
+    fn new(entrypoint: Entrypoint) -> Self {
+        Self {
+            entrypoint,
+            params: Vec::new(),
+        }
+    }
+
+    fn maybe_put_registry(&mut self, br: &mut BlockRegistry) -> Result<()> {
+        match self.entrypoint {
+            Entrypoint::Invoke(_) => Ok(()),
+            Entrypoint::Upgrade(ui) => {
+                let ui_params = to_vec(&ui).map_err(
+                    |e| syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
+                )?;
+                let block_id = br.put(Block::new(CBOR, ui_params))?;
+                self.params.push(wasmtime::Val::I32(block_id as i32));
+                Ok(())
+            }
+        }
+    }
+
+    fn params(&self) -> &Vec<wasmtime::Val> {
+        &self.params
     }
 }

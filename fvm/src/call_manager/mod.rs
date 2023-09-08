@@ -4,6 +4,7 @@ use cid::Cid;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::engine::Engine;
@@ -210,14 +211,14 @@ pub struct FinishRet {
 #[derive(Clone, Debug, Copy)]
 pub enum Entrypoint {
     Invoke(MethodNum),
-    Upgrade,
+    Upgrade(UpgradeInfo),
 }
 
 impl std::fmt::Display for Entrypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Entrypoint::Invoke(method) => write!(f, "invoke({})", method),
-            Entrypoint::Upgrade => write!(f, "upgrade"),
+            Entrypoint::Upgrade(_) => write!(f, "upgrade"),
         }
     }
 }

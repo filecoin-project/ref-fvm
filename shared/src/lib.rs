@@ -109,6 +109,8 @@ pub type MethodNum = u64;
 pub const METHOD_SEND: MethodNum = 0;
 /// Base actor constructor method.
 pub const METHOD_CONSTRUCTOR: MethodNum = 1;
+/// Upgrade actor method.
+pub const METHOD_UPGRADE: MethodNum = 932083;
 
 /// The outcome of a `Send`, covering its ExitCode and optional return data
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -3,7 +3,7 @@
 use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct UpgradeInfo {
     // the old code cid we are upgrading from
     pub old_code_cid: Cid,
