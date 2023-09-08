@@ -809,7 +809,10 @@ where
                 update_gas_available(&mut store)?;
 
                 let mut out = [wasmtime::Val::I32(0)];
-                func.call(&mut store, params.as_slice(), &mut out)?;
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    func.call(&mut store, params.as_slice(), &mut out)
+                }))
+                .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
                 // Charge for any remaining uncharged execution gas, returning an error if we run
                 // out.
@@ -818,6 +821,10 @@ where
                 // If the invocation failed due to running out of exec_units, we have already
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
                 // here as an Abort
+
+                if let Err(err) = res {
+                    return Err(err.into());
+                }
 
                 Ok(out[0].unwrap_i32() as u32)
             })();
