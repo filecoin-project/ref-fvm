@@ -4,8 +4,7 @@ use std::cmp;
 
 use anyhow::{anyhow, Context as _};
 use fvm_shared::crypto::signature::{
-    BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
-    SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -18,8 +17,7 @@ use super::Context;
 use crate::kernel::{ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
-/// Verifies that a bls aggregate signature is valid for a list of public keys and plaintext
-/// digests.
+/// Verifies that a bls aggregate signature is valid for a list of public keys and plaintexts.
 ///
 /// The return i32 indicates the status code of the verification:
 ///  - 0: verification ok.
@@ -29,12 +27,12 @@ pub fn verify_bls_aggregate(
     num_signers: u32,
     sig_off: u32,
     pub_keys_off: u32,
-    digests_off: u32,
+    plaintext_lens_off: u32,
+    mut plaintexts_off: u32,
 ) -> Result<i32> {
     // Check that the provided number of signatures aggregated does not cause `u32` overflow.
-    let (pub_keys_len, digests_len) = num_signers
+    let pub_keys_len = num_signers
         .checked_mul(BLS_PUB_LEN as u32)
-        .zip(num_signers.checked_mul(BLS_DIGEST_LEN as u32))
         .ok_or(syscall_error!(
             IllegalArgument;
             "number of signatures aggregated ({num_signers}) exceeds limit"
@@ -48,11 +46,24 @@ pub fn verify_bls_aggregate(
 
     let pub_keys: &[[u8; BLS_PUB_LEN]] = context.memory.try_chunks(pub_keys_off, pub_keys_len)?;
 
-    let digests: &[[u8; BLS_DIGEST_LEN]] = context.memory.try_chunks(digests_off, digests_len)?;
+    let plaintext_lens: &[u32] = context
+        .memory
+        .try_slice(plaintext_lens_off, num_signers * 4)
+        .map(|bytes| {
+            let ptr = bytes.as_ptr() as *const u32;
+            unsafe { std::slice::from_raw_parts(ptr, num_signers as usize) }
+        })?;
+
+    let mut plaintexts = Vec::<&[u8]>::with_capacity(num_signers as usize);
+    for len in plaintext_lens {
+        let plaintext = context.memory.try_slice(plaintexts_off, *len)?;
+        plaintexts.push(plaintext);
+        plaintexts_off += len;
+    }
 
     context
         .kernel
-        .verify_bls_aggregate(sig, pub_keys, digests)
+        .verify_bls_aggregate(sig, pub_keys, &plaintexts)
         .map(|v| if v { 0 } else { -1 })
 }
 
