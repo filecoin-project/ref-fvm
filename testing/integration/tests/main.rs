@@ -589,14 +589,14 @@ fn test_exitcode(wat: &str, code: ExitCode) {
 }
 
 #[test]
-fn out_of_gas() {
+fn infinite_loop() {
     test_exitcode(
         r#"(module
              (memory (export "memory") 1)
              (func (export "invoke") (param $x i32) (result i32)
                (loop (br 0))
                (i32.const 1)))"#,
-        ExitCode::SYS_OUT_OF_GAS,
+        ExitCode::SYS_ILLEGAL_INSTRUCTION,
     )
 }
 
