@@ -1936,7 +1936,7 @@ dependencies = [
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
  "fvm_sdk 3.3.0",
- "fvm_shared 3.5.0",
+ "fvm_shared 3.6.0",
  "serde",
  "serde_tuple",
 ]
