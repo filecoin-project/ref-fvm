@@ -478,18 +478,18 @@ where
         Ok(())
     }
 
-    fn rm_child(&mut self, i: usize, idx: u32) -> Pointer<K, V, H, Ver> {
+    fn rm_child(&mut self, i: usize, idx: u8) -> Pointer<K, V, H, Ver> {
         self.bitfield.clear_bit(idx);
         self.pointers.remove(i)
     }
 
-    fn insert_child(&mut self, idx: u32, key: K, value: V) {
+    fn insert_child(&mut self, idx: u8, key: K, value: V) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
-    fn insert_child_dirty(&mut self, idx: u32, node: Box<Node<K, V, H, Ver>>) {
+    fn insert_child_dirty(&mut self, idx: u8, node: Box<Node<K, V, H, Ver>>) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Dirty(node))
@@ -517,9 +517,9 @@ where
 }
 
 impl<K, V, H, Ver> Node<K, V, H, Ver> {
-    pub(crate) fn index_for_bit_pos(&self, bp: u32) -> usize {
+    pub(crate) fn index_for_bit_pos(&self, bp: u8) -> usize {
         let mask = Bitfield::zero().set_bits_le(bp);
-        assert_eq!(mask.count_ones(), bp as usize);
+        debug_assert_eq!(mask.count_ones(), bp as usize);
         mask.and(&self.bitfield).count_ones()
     }
 }

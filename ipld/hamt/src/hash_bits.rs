@@ -16,9 +16,10 @@ pub struct HashBits<'a> {
     pub consumed: u32,
 }
 
+// n must be less than 8
 #[inline]
-pub(crate) fn mkmask(n: u32) -> u32 {
-    ((1u64 << n) - 1) as u32
+pub(crate) fn mkmask(n: u32) -> u8 {
+    ((1u16 << n) - 1) as u8
 }
 
 impl<'a> HashBits<'a> {
@@ -36,7 +37,7 @@ impl<'a> HashBits<'a> {
 
     /// Returns next `i` bits of the hash and returns the value as an integer and returns
     /// Error when maximum depth is reached
-    pub fn next(&mut self, i: u32) -> Result<u32, Error> {
+    pub fn next(&mut self, i: u32) -> Result<u8, Error> {
         if i > 8 || i == 0 {
             return Err(Error::InvalidHashBitLen);
         }
@@ -49,11 +50,12 @@ impl<'a> HashBits<'a> {
         Ok(self.next_bits(std::cmp::min(i, maxi)))
     }
 
-    fn next_bits(&mut self, i: u32) -> u32 {
+    // `i` must be between 1 and 8, inclusive.
+    fn next_bits(&mut self, i: u32) -> u8 {
         let curbi = self.consumed / 8;
         let leftb = 8 - (self.consumed % 8);
 
-        let curb = self.b[curbi as usize] as u32;
+        let curb = self.b[curbi as usize];
         match i.cmp(&leftb) {
             Ordering::Equal => {
                 // bits to consume is equal to the bits remaining in the currently indexed byte
@@ -71,11 +73,11 @@ impl<'a> HashBits<'a> {
             }
             Ordering::Greater => {
                 // Consumes remaining bits and remaining bits from a recursive call
-                let mut out = (mkmask(leftb) & curb) as u64;
+                let mut out = mkmask(leftb) & curb;
                 out <<= i - leftb;
                 self.consumed += leftb;
-                out += self.next_bits(i - leftb) as u64;
-                out as u32
+                out += self.next_bits(i - leftb);
+                out
             }
         }
     }
