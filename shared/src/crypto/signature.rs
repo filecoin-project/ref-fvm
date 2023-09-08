@@ -167,9 +167,7 @@ pub fn verify(
                 }
             };
 
-            let digest = bls_signatures::hash(data).to_compressed();
-
-            if self::ops::verify_bls_aggregate(sig, pub_key, &[digest])? {
+            if self::ops::verify_bls_aggregate(sig, pub_key, &[data])? {
                 Ok(())
             } else {
                 Err(format!(
@@ -195,9 +193,7 @@ pub mod ops {
         recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
     };
 
-    use super::{
-        Error, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
-    };
+    use super::{Error, BLS_PUB_LEN, BLS_SIG_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
     use crate::address::{Address, Protocol};
 
     /// Verifies an aggregated BLS signature. Returns `Ok(false)` if signature verification fails
@@ -205,13 +201,13 @@ pub mod ops {
     pub fn verify_bls_aggregate(
         aggregate_sig: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        digests: &[[u8; BLS_DIGEST_LEN]],
+        plaintexts: &[&[u8]],
     ) -> Result<bool, String> {
         // If the number of public keys and data does not match, return false;
-        let (num_pub_keys, num_digests) = (pub_keys.len(), digests.len());
-        if num_pub_keys != num_digests {
+        let (num_pub_keys, num_plaintexts) = (pub_keys.len(), plaintexts.len());
+        if num_pub_keys != num_plaintexts {
             return Err(format!(
-                "unequal numbers of public keys ({num_pub_keys}) and digests ({num_digests})",
+                "unequal numbers of public keys ({num_pub_keys}) and plaintexts ({num_plaintexts})",
             ));
         }
         if num_pub_keys == 0 {
@@ -229,19 +225,10 @@ pub mod ops {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| "bls public key bytes are invalid G2 curve point".to_string())?;
 
-        // Deserialize each digest's bytes into a curve point.
-        //
-        // BLS digests and signatures are each a G2 point. The `bls_signatures` crate does not
-        // expose functionality for deserializing digest bytes into a G2 point, however it does
-        // expose bytes-to-G2 deserialization for its signature type `Signature`.
-        let digests = {
-            use bls_signatures::Signature as Digest;
-            digests
-                .iter()
-                .map(|digest| Digest::from_bytes(digest.as_slice()).map(Into::into))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|_| "bls digest bytes are invalid G2 curve point".to_string())?
-        };
+        let digests: Vec<_> = plaintexts
+            .iter()
+            .map(|msg| bls_signatures::hash(msg))
+            .collect();
 
         Ok(bls_signatures::verify(&sig, &digests, &pub_keys))
     }
@@ -339,10 +326,6 @@ mod tests {
 
         let msg = (0..message_length).map(|_| rng.gen()).collect::<Vec<u8>>();
         let data: Vec<&[u8]> = (0..num_sigs).map(|x| &msg[x * 64..(x + 1) * 64]).collect();
-        let digests: Vec<[u8; BLS_DIGEST_LEN]> = data
-            .iter()
-            .map(|msg| bls_signatures::hash(msg).to_compressed())
-            .collect();
 
         let private_keys: Vec<PrivateKey> =
             (0..num_sigs).map(|_| PrivateKey::generate(rng)).collect();
@@ -361,14 +344,14 @@ mod tests {
             .map(|x| private_keys[x].sign(data[x]))
             .collect();
 
-        let calculated_bls_agg = bls_signatures::aggregate(&signatures).unwrap().as_bytes();
-        let agg_sig: &[u8; BLS_SIG_LEN] = calculated_bls_agg
-            .as_slice()
+        let agg_sig: [u8; BLS_SIG_LEN] = bls_signatures::aggregate(&signatures)
+            .expect("bls signature aggregation should not fail")
+            .as_bytes()
             .try_into()
-            .expect("bls signature slice to array reference conversion should not fail");
+            .expect("bls aggregate signature to bytes array should not fail");
 
         assert_eq!(
-            verify_bls_aggregate(agg_sig, &public_keys, &digests),
+            verify_bls_aggregate(&agg_sig, &public_keys, &data),
             Ok(true)
         );
     }

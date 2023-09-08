@@ -23,18 +23,20 @@ super::fvm_syscalls! {
     /// - `num_signers` the number of signatures aggregated.
     /// - `sig_off` specifies the location of the aggregate signature.
     /// - `pub_keys_off` specifies the location of the signers' BLS public keys.
-    /// - `digests_off` specifies the location of the digests of the data that were signed.
+    /// - `plaintext_lens_off` specifies the location of the plaintexts' lengths.
+    /// - `plaintexts_off` specifies the location of the concatenated plaintexts.
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                                                 |
-    /// |---------------------|--------------------------------------------------------|
-    /// | [`IllegalArgument`] | signature, public keys, or digests buffers are invalid |
+    /// | Error               | Reason                                                    |
+    /// |---------------------|-----------------------------------------------------------|
+    /// | [`IllegalArgument`] | signature, public keys, or plaintexts buffers are invalid |
     pub fn verify_bls_aggregate(
         num_signers: u32,
         sig_off: *const u8,
         pub_keys_off: *const u8,
-        digests_off: *const u8,
+        plaintext_lens_off: *const u8,
+        plaintexts_off: *const u8,
     ) -> Result<i32>;
 
     /// Recovers the signer public key from a signed message hash and its signature.

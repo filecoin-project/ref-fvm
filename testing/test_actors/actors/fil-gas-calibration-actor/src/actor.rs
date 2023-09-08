@@ -107,11 +107,11 @@ fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
         bytes: p.signature,
     };
 
-    let mut digest = random_bytes(p.size, p.seed);
+    let mut data = random_bytes(p.size, p.seed);
 
     for i in 0..p.iterations {
-        random_mutations(&mut digest, p.seed + i as u64, MUTATION_COUNT);
-        fvm_sdk::crypto::verify_signature(&sig, &p.signer, &digest)?;
+        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
+        fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
     }
 
     Ok(())

@@ -6,9 +6,10 @@ use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{
-    Signature, SignatureType, BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
+    Signature, SignatureType, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
     SECP_SIG_MESSAGE_HASH_SIZE,
 };
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -25,12 +26,9 @@ use crate::{status_code_to_bool, sys, SyscallResult};
 pub fn verify_signature(
     signature: &Signature,
     addr: &Address,
-    digest: &[u8],
+    plaintext: &[u8],
 ) -> SyscallResult<bool> {
-    use fvm_shared::{
-        address::{Payload, Protocol},
-        error::ErrorNumber,
-    };
+    use fvm_shared::address::{Payload, Protocol};
 
     let sig_type = signature.signature_type();
     let sig_bytes = signature.bytes();
@@ -46,11 +44,7 @@ pub fn verify_signature(
                 _ => return Err(ErrorNumber::IllegalArgument),
             };
 
-            let digest: [u8; BLS_DIGEST_LEN] = digest
-                .try_into()
-                .map_err(|_| ErrorNumber::IllegalArgument)?;
-
-            verify_bls_aggregate(sig, &[pub_key], &[digest])
+            verify_bls_aggregate(sig, &[pub_key], &[plaintext])
         }
         SignatureType::Secp256k1 => {
             if addr.protocol() != Protocol::Secp256k1 {
@@ -61,12 +55,10 @@ pub fn verify_signature(
                 .try_into()
                 .map_err(|_| ErrorNumber::IllegalArgument)?;
 
-            let digest: &[u8; SECP_SIG_MESSAGE_HASH_SIZE] = digest
-                .try_into()
-                .map_err(|_| ErrorNumber::IllegalArgument)?;
+            let digest = hash_blake2b(plaintext);
 
             let addr_recovered = {
-                let pub_key = recover_secp_public_key(digest, sig)?;
+                let pub_key = recover_secp_public_key(&digest, sig)?;
                 Address::new_secp256k1(&pub_key).expect(
                     "recovered secp256k1 public key should always be a valid secp256k1 address",
                 )
@@ -80,14 +72,36 @@ pub fn verify_signature(
 pub fn verify_bls_aggregate(
     sig: &[u8; BLS_SIG_LEN],
     pub_keys: &[[u8; BLS_PUB_LEN]],
-    digests: &[[u8; BLS_DIGEST_LEN]],
+    plaintexts: &[&[u8]],
 ) -> SyscallResult<bool> {
+    let num_signers = {
+        let (num_signers, num_plaintexts) = (pub_keys.len(), plaintexts.len());
+        if num_signers != num_plaintexts {
+            return Err(ErrorNumber::IllegalArgument);
+        };
+        num_signers
+            .try_into()
+            .map_err(|_| ErrorNumber::IllegalArgument)?
+    };
+
+    let plaintext_lens = plaintexts
+        .iter()
+        .map(|msg| {
+            msg.len()
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)
+        })
+        .collect::<SyscallResult<Vec<u32>>>()?;
+
+    let plaintexts_concat: Vec<u8> = plaintexts.concat();
+
     unsafe {
         sys::crypto::verify_bls_aggregate(
-            pub_keys.len() as u32,
+            num_signers,
             sig.as_ptr() as *const u8,
             pub_keys.as_ptr() as *const u8,
-            digests.as_ptr() as *const u8,
+            plaintext_lens.as_ptr() as *const u8,
+            plaintexts_concat.as_ptr() as *const u8,
         )
         .map(status_code_to_bool)
     }

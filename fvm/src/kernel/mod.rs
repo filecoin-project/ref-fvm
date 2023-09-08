@@ -6,8 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    BLS_DIGEST_LEN, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN,
-    SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -262,13 +261,14 @@ pub trait CryptoOps {
     ///
     /// Returns:
     /// - `Ok(true)` on a valid signature.
-    /// - `Ok(false)` on an invalid signature or if any arguments represent an invalid curve point.
-    /// - `Err(IllegalArgument)` if `pub_keys.len() != digests.len()`.
+    /// - `Ok(false)` on an invalid signature or if the signature or public keys' bytes represent an
+    ///    invalid curve point.
+    /// - `Err(IllegalArgument)` if `pub_keys.len() != plaintexts.len()`.
     fn verify_bls_aggregate(
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        digests: &[[u8; BLS_DIGEST_LEN]],
+        plaintexts: &[&[u8]],
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.
