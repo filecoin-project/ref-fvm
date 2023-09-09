@@ -822,11 +822,10 @@ where
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
                 // here as an Abort
 
-                if let Err(err) = res {
-                    return Err(err.into());
+                match res {
+                    Ok(_) => Ok(out[0].unwrap_i32() as u32),
+                    Err(e) => Err(e.into()),
                 }
-
-                Ok(out[0].unwrap_i32() as u32)
             })();
 
             let invocation_data = store.into_data();
