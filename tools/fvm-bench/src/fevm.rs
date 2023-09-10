@@ -70,8 +70,10 @@ fn handle_result(tester: &tester::BasicTester, name: &str, res: &ApplyRet) -> an
     if res.msg_receipt.exit_code.is_success() {
         Ok(())
     } else {
-        let BytesDe(returnval) = res.msg_receipt.return_data.deserialize().unwrap();
-        println!("Revert Reason: {}", parse_eth_revert(&returnval).unwrap());
+        if res.msg_receipt.exit_code == 33.into() {
+            let BytesDe(returnval) = res.msg_receipt.return_data.deserialize().unwrap();
+            println!("Revert Reason: {}", parse_eth_revert(&returnval).unwrap());
+        }
         Err(anyhow!("{name} failed"))
     }
 }
@@ -98,7 +100,9 @@ pub fn run(
     input_data.append(&mut input_params);
 
     let invoke_res = testkit::fevm::invoke_contract(tester, &mut account, actor, &input_data, gas)?;
+    let BytesDe(returnval) = invoke_res.msg_receipt.return_data.deserialize().unwrap();
     println!("Exit Code: {}", invoke_res.msg_receipt.exit_code);
+    println!("Result: {}", hex::encode(returnval));
     println!("Gas Used: {}", invoke_res.msg_receipt.gas_used);
 
     handle_result(tester, "contract invocation", &invoke_res)
