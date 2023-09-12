@@ -98,10 +98,10 @@ pub fn verify_bls_aggregate(
     unsafe {
         sys::crypto::verify_bls_aggregate(
             num_signers,
-            sig.as_ptr() as *const u8,
-            pub_keys.as_ptr() as *const u8,
-            plaintext_lens.as_ptr() as *const u8,
-            plaintexts_concat.as_ptr() as *const u8,
+            sig.as_ptr(),
+            pub_keys.as_ptr(),
+            plaintexts_concat.as_ptr(),
+            plaintext_lens.as_ptr(),
         )
         .map(status_code_to_bool)
     }

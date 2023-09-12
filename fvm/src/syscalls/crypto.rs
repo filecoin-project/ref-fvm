@@ -27,8 +27,8 @@ pub fn verify_bls_aggregate(
     num_signers: u32,
     sig_off: u32,
     pub_keys_off: u32,
+    plaintexts_off: u32,
     plaintext_lens_off: u32,
-    mut plaintexts_off: u32,
 ) -> Result<i32> {
     // Check that the provided number of signatures aggregated does not cause `u32` overflow.
     let pub_keys_len = num_signers
@@ -54,16 +54,13 @@ pub fn verify_bls_aggregate(
             unsafe { std::slice::from_raw_parts(ptr, num_signers as usize) }
         })?;
 
-    let mut plaintexts = Vec::<&[u8]>::with_capacity(num_signers as usize);
-    for len in plaintext_lens {
-        let plaintext = context.memory.try_slice(plaintexts_off, *len)?;
-        plaintexts.push(plaintext);
-        plaintexts_off += len;
-    }
+    let plaintexts_concat = context
+        .memory
+        .try_slice(plaintexts_off, plaintext_lens.iter().sum())?;
 
     context
         .kernel
-        .verify_bls_aggregate(sig, pub_keys, &plaintexts)
+        .verify_bls_aggregate(sig, pub_keys, plaintexts_concat, plaintext_lens)
         .map(|v| if v { 0 } else { -1 })
 }
 

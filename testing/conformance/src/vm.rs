@@ -368,10 +368,15 @@ where
         &self,
         aggregate_signature: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        plaintexts: &[&[u8]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool> {
-        self.0
-            .verify_bls_aggregate(aggregate_signature, pub_keys, plaintexts)
+        self.0.verify_bls_aggregate(
+            aggregate_signature,
+            pub_keys,
+            plaintexts_concat,
+            plaintext_lens,
+        )
     }
 
     // forwarded

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for cryptographic operations.
 
-use fvm_shared::crypto::signature::SECP_PUB_LEN;
+use fvm_shared::crypto::signature::{BLS_PUB_LEN, SECP_PUB_LEN};
 #[doc(inline)]
 pub use fvm_shared::sys::out::crypto::*;
 
@@ -34,9 +34,9 @@ super::fvm_syscalls! {
     pub fn verify_bls_aggregate(
         num_signers: u32,
         sig_off: *const u8,
-        pub_keys_off: *const u8,
-        plaintext_lens_off: *const u8,
+        pub_keys_off: *const [u8; BLS_PUB_LEN],
         plaintexts_off: *const u8,
+        plaintext_lens_off: *const u32,
     ) -> Result<i32>;
 
     /// Recovers the signer public key from a signed message hash and its signature.

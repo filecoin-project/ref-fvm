@@ -272,7 +272,8 @@ pub trait CryptoOps {
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        plaintexts: &[&[u8]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.
