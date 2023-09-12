@@ -439,11 +439,12 @@ where
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        plaintexts: &[&[u8]],
+        mut plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool> {
         let num_signers = pub_keys.len();
 
-        if num_signers != plaintexts.len() {
+        if num_signers != plaintext_lens.len() {
             return Err(syscall_error!(
                 IllegalArgument;
                 "unequal numbers of bls public keys and plaintexts"
@@ -454,14 +455,21 @@ where
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_verify_aggregate_signature(
-                    num_signers,
-                    plaintexts.iter().map(|msg| msg.len()).sum(),
-                ),
+                .on_verify_aggregate_signature(num_signers, plaintexts_concat.len()),
         )?;
 
+        let plaintexts: Vec<&[u8]> = plaintext_lens
+            .iter()
+            .map(|len| {
+                let (plaintext, rem) = plaintexts_concat.split_at(*len as usize);
+                plaintexts_concat = rem;
+                plaintext
+            })
+            .collect();
+
         t.record(
-            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, plaintexts).or(Ok(false)),
+            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, &plaintexts)
+                .or(Ok(false)),
         )
     }
 
