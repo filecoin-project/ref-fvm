@@ -12,7 +12,7 @@ cid = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 futures = "0.3.28"
-integer-encoding = { version = "3.0", features = ["futures_async"] }
+integer-encoding = { version = "4.0", features = ["futures_async", "sendable_io_traits"] }
 fvm_ipld_blockstore = { version = "0.2", path = "../blockstore" }
 fvm_ipld_encoding = { version = "0.4", path = "../encoding" }
 

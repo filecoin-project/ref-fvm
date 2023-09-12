@@ -1597,7 +1597,7 @@ dependencies = [
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_hamt 0.7.0",
  "fvm_shared 3.4.0",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "libipld-core 0.13.1",
  "log",
  "num-derive",
@@ -1646,7 +1646,7 @@ dependencies = [
  "fvm_ipld_hamt 0.7.0",
  "fvm_shared 3.4.0",
  "indexmap 1.9.3",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "num-derive",
  "num-traits",
  "serde",
@@ -1688,7 +1688,7 @@ dependencies = [
  "fvm_ipld_hamt 0.7.0",
  "fvm_shared 3.4.0",
  "indexmap 1.9.3",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "lazy_static",
  "log",
  "num-derive",
@@ -1779,7 +1779,7 @@ dependencies = [
  "fvm_ipld_hamt 0.7.0",
  "fvm_sdk 3.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "itertools 0.10.5",
  "log",
  "multihash 0.18.1",
@@ -2167,7 +2167,7 @@ dependencies = [
  "fvm_ipld_hamt 0.7.0",
  "fvm_sdk 3.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_shared 3.4.0",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "num-traits",
  "serde",
  "serde_tuple",
@@ -2547,7 +2547,7 @@ dependencies = [
  "futures",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_encoding 0.4.0",
- "integer-encoding",
+ "integer-encoding 4.0.0",
  "serde",
  "thiserror",
 ]
@@ -2562,7 +2562,7 @@ dependencies = [
  "futures",
  "fvm_ipld_blockstore 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_ipld_encoding 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "serde",
  "thiserror",
 ]
@@ -3041,6 +3041,15 @@ name = "integer-encoding"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
+dependencies = [
+ "async-trait",
+ "futures-util",
+]
+
+[[package]]
+name = "integer-encoding"
+version = "4.0.0"
+source = "git+https://github.com/dermesser/integer-encoding-rs?branch=reintroduce-async-io-send#144ed9c9a550ed808a774cac487640f74b4f8b43"
 dependencies = [
  "async-trait",
  "futures-util",
