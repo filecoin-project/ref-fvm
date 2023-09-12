@@ -312,14 +312,14 @@ lazy_static! {
         // TODO(#1817): Per-entry event validation cost. These parameters were benchmarked for the
         // EVM but haven't been revisited since revising the API.
         event_per_entry: ScalingCost {
-            flat: Gas::new(1750),
-            scale: Gas::new(25),
+            flat: Gas::new(2000),
+            scale: Gas::new(1400),
         },
 
         // TODO(#1817): Cost of validating utf8 (used in event parsing).
         utf8_validation: ScalingCost {
-            flat: Zero::zero(),
-            scale: Zero::zero(),
+            flat: Gas::new(500),
+            scale: Gas::new(16),
         },
 
         // Preloaded actor IDs per FIP-0055.
@@ -625,6 +625,15 @@ impl PriceList {
         let cost = self.hashing_cost[&hasher];
         let gas = cost.apply(data_len);
         GasCharge::new("OnHashing", gas, Zero::zero())
+    }
+
+    #[inline]
+    pub fn on_utf8_validation(&self, len: usize) -> GasCharge {
+        GasCharge::new(
+            "OnUtf8Validation",
+            self.utf8_validation.apply(len),
+            Zero::zero(),
+        )
     }
 
     /// Returns gas required for computing unsealed sector Cid.
@@ -966,11 +975,11 @@ impl PriceList {
 
         GasCharge::new(
             "OnActorEvent",
-            // Charge for validation/storing events.
-            mem + validate_entries + validate_utf8,
+            // Charge for validation/storing/serializing events.
+            mem * 2u32 + validate_entries + validate_utf8,
             // Charge for forming the AMT and returning the events to the client.
             // one copy into the AMT, one copy to the client.
-            hash + (mem * 2u32),
+            hash + mem,
         )
     }
 

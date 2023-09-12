@@ -160,10 +160,26 @@ fn on_send(p: OnSendParams) -> Result<()> {
 }
 
 fn on_event(p: OnEventParams) -> Result<()> {
-    match p.mode {
-        EventCalibrationMode::Shape(_) => on_event_shape(p),
-        EventCalibrationMode::TargetSize(_) => on_event_target_size(p),
+    let mut value = vec![0; p.total_value_size];
+
+    let iterations = p.iterations as u64;
+    for i in 0..iterations {
+        random_mutations(&mut value, p.seed + i, MUTATION_COUNT);
+
+        let entries: Vec<_> = random_chunk(&value, p.entries, p.seed + i)
+            .into_iter()
+            .map(|d| Entry {
+                flags: p.flags,
+                key: char::MAX.to_string(),
+                codec: IPLD_RAW,
+                value: d.into(),
+            })
+            .collect();
+
+        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
     }
+
+    Ok(())
 }
 
 // Makes approximately fixed-sized test objects with the specified number of fields & links.
@@ -207,7 +223,7 @@ fn on_scan_ipld_links(p: OnScanIpldLinksParams) -> Result<()> {
     let mut test_cids = vec![fvm_sdk::sself::root().unwrap()];
     for i in 0..p.iterations {
         let obj = make_test_object(
-            &mut test_cids,
+            &test_cids,
             p.seed + i as u64,
             p.cbor_field_count,
             p.cbor_link_count,
@@ -217,80 +233,6 @@ fn on_scan_ipld_links(p: OnScanIpldLinksParams) -> Result<()> {
         let res = fvm_sdk::ipld::get(&cid).unwrap();
         assert_eq!(obj, res);
     }
-    Ok(())
-}
-
-fn on_event_shape(p: OnEventParams) -> Result<()> {
-    const MAX_DATA: usize = 8 << 10;
-
-    let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else { panic!() };
-    let mut value = vec![0; value_size];
-
-    // the last entry may not exceed total event values over MAX_DATA
-    let total_entry_size = (p.entries - 1) * value_size;
-    let mut tmp_size = last_value_size;
-    if tmp_size + total_entry_size > MAX_DATA {
-        tmp_size = MAX_DATA - total_entry_size;
-    }
-    let mut last_value = vec![0; tmp_size];
-
-    for i in 0..p.iterations {
-        random_mutations(&mut value, p.seed + i as u64, MUTATION_COUNT);
-        let key = random_ascii_string(key_size, p.seed + p.iterations as u64 + i as u64); // non-overlapping seed
-        let mut entries: Vec<Entry> = std::iter::repeat_with(|| Entry {
-            flags: p.flags,
-            key: key.clone(),
-            codec: IPLD_RAW,
-            value: value.clone(),
-        })
-        .take(p.entries - 1)
-        .collect();
-
-        random_mutations(&mut last_value, p.seed + i as u64, MUTATION_COUNT);
-        entries.push(Entry {
-            flags: p.flags,
-            key,
-            codec: IPLD_RAW,
-            value: last_value.clone(),
-        });
-
-        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
-    }
-
-    Ok(())
-}
-
-fn on_event_target_size(p: OnEventParams) -> Result<()> {
-    let EventCalibrationMode::TargetSize(target_size) = p.mode else { panic!() };
-
-    // Deduct the approximate overhead of each entry (3 bytes) + flag (1 byte). This
-    // is fuzzy because the size of the encoded CBOR depends on the length of fields, but it's good enough.
-    let size_per_entry = ((target_size.checked_sub(p.entries * 4).unwrap_or(1)) / p.entries).max(1);
-    let mut rand = lcg64(p.seed);
-    for _ in 0..p.iterations {
-        let mut entries = Vec::with_capacity(p.entries);
-        for _ in 0..p.entries {
-            let (r1, r2, r3) = (
-                rand.next().unwrap(),
-                rand.next().unwrap(),
-                rand.next().unwrap(),
-            );
-            // Generate a random key of an arbitrary length that fits within the size per entry.
-            // This will never be equal to size_per_entry, and it might be zero, which is fine
-            // for gas calculation purposes.
-            let key = random_ascii_string((r1 % size_per_entry as u64) as usize, r2);
-            // Generate a value to fill up the remaining bytes.
-            let value = random_bytes(size_per_entry - key.len(), r3);
-            entries.push(Entry {
-                flags: p.flags,
-                codec: IPLD_RAW,
-                key,
-                value,
-            })
-        }
-        fvm_sdk::event::emit_event(&ActorEvent::from(entries))?;
-    }
-
     Ok(())
 }
 
@@ -307,11 +249,22 @@ fn random_mutations(data: &mut Vec<u8>, seed: u64, n: usize) {
     }
 }
 
-/// Generates a random string in the 0x20 - 0x7e ASCII character range
-/// (alphanumeric + symbols, excluding the delete symbol).
-fn random_ascii_string(n: usize, seed: u64) -> String {
-    let bytes = lcg64(seed).map(|x| ((x % 95) + 32) as u8).take(n).collect();
-    String::from_utf8(bytes).unwrap()
+fn random_chunk(inp: &[u8], count: usize, seed: u64) -> Vec<&[u8]> {
+    if count == 0 {
+        Vec::new()
+    } else if seed % 2 == 0 {
+        inp.chunks((inp.len() / count).max(1))
+            .chain(std::iter::repeat(&[][..]))
+            .take(count)
+            .collect()
+    } else if inp.len() >= count {
+        let (prefix, rest) = inp.split_at(inp.len() - (count - 1));
+        std::iter::once(prefix).chain(rest.chunks(1)).collect()
+    } else {
+        let mut res = vec![&[][..]; count];
+        res[0] = inp;
+        res
+    }
 }
 
 /// Knuth's quick and dirty random number generator.

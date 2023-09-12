@@ -901,10 +901,17 @@ where
 /// If an actor aborts, the last layer should be discarded (discard_last_layer). This will also
 /// throw away any events collected from subcalls (and previously merged, as those subcalls returned
 /// normally).
-#[derive(Default)]
 pub struct EventsAccumulator {
     events: Vec<StampedEvent>,
     idxs: Vec<usize>,
+}
+impl Default for EventsAccumulator {
+    fn default() -> Self {
+        Self {
+            events: Vec::with_capacity(128),
+            idxs: Vec::with_capacity(8),
+        }
+    }
 }
 
 pub(crate) struct Events {
