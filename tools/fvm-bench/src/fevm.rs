@@ -111,7 +111,7 @@ pub fn run(
 // Parses the error message from a revert reason of type Error(string) or Panic(uint256)
 // See https://docs.soliditylang.org/en/latest/control-structures.html#panic-via-assert-and-error-via-require
 pub fn parse_eth_revert(returnval: &Vec<u8>) -> anyhow::Result<String> {
-    if returnval.len() == 0 {
+    if returnval.is_empty() {
         return Err(anyhow!("invalid return value"));
     }
     if returnval.len() < 4 + 32 {
@@ -214,7 +214,7 @@ mod tests {
                 .unwrap();
         let result = parse_eth_revert(&returnval);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "panic code: 1, msg: Assert()");
+        assert_eq!(result.unwrap(), "Panic Code: 1, msg: Assert()");
     }
 
     #[test]
