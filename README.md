@@ -15,8 +15,7 @@ See the [Project Website](https://fvm.filecoin.io/) for details.
 
 ```sh
 $ git clone https://github.com/filecoin-project/ref-fvm.git
-$ cd fvm
-$ rustup target add wasm32-unknown-unknown
+$ cd ref-fvm
 $ make
 ```
 
