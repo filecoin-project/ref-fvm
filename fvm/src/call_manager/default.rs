@@ -907,6 +907,8 @@ pub struct EventsAccumulator {
 }
 impl Default for EventsAccumulator {
     fn default() -> Self {
+        // Pre-allocate some space here for more consistent performance. We only do this once per
+        // message so the overhead is minimal.
         Self {
             events: Vec::with_capacity(128),
             idxs: Vec::with_capacity(8),

@@ -40,7 +40,7 @@ pub fn invoke(params: u32) -> u32 {
         },
         Entry {
             flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
-            key: "baz".to_string(),
+            key: "👱".to_string(),
             codec: IPLD_RAW,
             value: payload3.to_owned(),
         },

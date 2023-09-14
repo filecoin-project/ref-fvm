@@ -309,14 +309,11 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // TODO(#1817): Per-entry event validation cost. These parameters were benchmarked for the
-        // EVM but haven't been revisited since revising the API.
         event_per_entry: ScalingCost {
             flat: Gas::new(2000),
             scale: Gas::new(1400),
         },
 
-        // TODO(#1817): Cost of validating utf8 (used in event parsing).
         utf8_validation: ScalingCost {
             flat: Gas::new(500),
             scale: Gas::new(16),

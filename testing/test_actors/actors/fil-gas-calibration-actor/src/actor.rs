@@ -170,6 +170,10 @@ fn on_event(p: OnEventParams) -> Result<()> {
             .into_iter()
             .map(|d| Entry {
                 flags: p.flags,
+                // We use a constant key size to avoid introducing too many variables. Instead, we:
+                // 1. Benchmark utf8 validation separately.
+                // 2. Assume that all other "key" related costs will behave the same as "value"
+                //    costs.
                 key: char::MAX.to_string(),
                 codec: IPLD_RAW,
                 value: d.into(),
@@ -249,6 +253,13 @@ fn random_mutations(data: &mut Vec<u8>, seed: u64, n: usize) {
     }
 }
 
+// Based on the seed, this function chunks the input into one of:
+//
+// 1. Evenly sized (approximately) chunks.
+// 2. A single large chunk followed by small and/or empty chunks.
+//
+// Rather than produce uniformly random chunks, we attempt to cover the "worst case" scenarios as
+// much as possible.
 fn random_chunk(inp: &[u8], count: usize, seed: u64) -> Vec<&[u8]> {
     if count == 0 {
         Vec::new()
