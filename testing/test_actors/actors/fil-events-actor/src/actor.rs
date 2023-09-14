@@ -71,6 +71,56 @@ pub fn invoke(params: u32) -> u32 {
                 .is_err(),
                 "expected failed syscall"
             );
+
+            // Invalid utf8.
+            let emoji_key = "🧑";
+
+            // Partial code.
+             let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 1,
+                val_len: 0,
+            };
+            assert!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    emoji_key.as_ptr(),
+                    1,
+                    ptr::null(),
+                    0,
+                )
+                .is_err(),
+                "expected failed syscall"
+            );
+            // Correct utf8 but invalid boundaries.
+             let entries = [
+                fvm_shared::sys::EventEntry {
+                    flags: Flags::empty(),
+                    codec: IPLD_RAW,
+                    key_len: 1,
+                    val_len: 0,
+                },
+                fvm_shared::sys::EventEntry {
+                    flags: Flags::empty(),
+                    codec: IPLD_RAW,
+                    key_len: emoji_key.len() as u32 - 1,
+                    val_len: 0,
+                },
+            ];
+            assert!(
+                sdk::sys::event::emit_event(
+                    entries.as_ptr(),
+                    2,
+                    emoji_key.as_ptr(),
+                    emoji_key.len() as u32,
+                    ptr::null(),
+                    0,
+                )
+                .is_err(),
+                "expected failed syscall"
+            );
         },
         EMIT_SUBCALLS => {
             let msg_params = sdk::message::params_raw(params).unwrap().unwrap();
