@@ -7,6 +7,7 @@ use fvm_ipld_encoding::IPLD_RAW;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
+use fvm_shared::error::ErrorNumber::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 
@@ -59,7 +60,7 @@ pub fn invoke(params: u32) -> u32 {
                 key_len: 5,
                 val_len: 0,
             };
-            assert!(
+            assert_eq!(
                 sdk::sys::event::emit_event(
                     &entry as *const fvm_shared::sys::EventEntry,
                     1,
@@ -68,7 +69,115 @@ pub fn invoke(params: u32) -> u32 {
                     ptr::null(),
                     0,
                 )
-                .is_err(),
+                .unwrap_err(),
+                IllegalArgument,
+                "expected failed syscall"
+            );
+
+            // Illegal Codec
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: 0x95,
+                key_len: 0,
+                val_len: 0,
+            };
+            assert_eq!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    0,
+                )
+                .unwrap_err(),
+                IllegalCodec,
+                "expected failed syscall"
+            );
+
+            let buf = vec![0; 100];
+
+            // Value buffer not consumed.
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 0,
+                val_len: 5,
+            };
+            assert_eq!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    ptr::null(),
+                    0,
+                    buf.as_ptr(),
+                    buf.len() as u32,
+                )
+                .unwrap_err(),
+                IllegalArgument,
+                "expected failed syscall"
+            );
+
+            // Keys buffer not consumed.
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 5,
+                val_len: 0,
+            };
+            assert_eq!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    buf.as_ptr(),
+                    buf.len() as u32,
+                    ptr::null(),
+                    0,
+                )
+                .unwrap_err(),
+                IllegalArgument,
+                "expected failed syscall"
+            );
+
+            // Key too large.
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 32,
+                val_len: 0,
+            };
+            assert_eq!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    ptr::null(),
+                    0,
+                    buf.as_ptr(),
+                    buf.len() as u32,
+                )
+                .unwrap_err(),
+                LimitExceeded,
+                "expected failed syscall"
+            );
+
+            // Value too large.
+            let entry = fvm_shared::sys::EventEntry {
+                flags: Flags::empty(),
+                codec: IPLD_RAW,
+                key_len: 0,
+                val_len: 0,
+            };
+            assert_eq!(
+                sdk::sys::event::emit_event(
+                    &entry as *const fvm_shared::sys::EventEntry,
+                    1,
+                    ptr::null(),
+                    0,
+                    buf.as_ptr(),
+                    8192 + 1,
+                )
+                .unwrap_err(),
+                LimitExceeded,
                 "expected failed syscall"
             );
 
@@ -82,7 +191,7 @@ pub fn invoke(params: u32) -> u32 {
                 key_len: 1,
                 val_len: 0,
             };
-            assert!(
+            assert_eq!(
                 sdk::sys::event::emit_event(
                     &entry as *const fvm_shared::sys::EventEntry,
                     1,
@@ -91,7 +200,8 @@ pub fn invoke(params: u32) -> u32 {
                     ptr::null(),
                     0,
                 )
-                .is_err(),
+                .unwrap_err(),
+                IllegalArgument,
                 "expected failed syscall"
             );
             // Correct utf8 but invalid boundaries.
@@ -109,7 +219,7 @@ pub fn invoke(params: u32) -> u32 {
                     val_len: 0,
                 },
             ];
-            assert!(
+            assert_eq!(
                 sdk::sys::event::emit_event(
                     entries.as_ptr(),
                     2,
@@ -118,7 +228,8 @@ pub fn invoke(params: u32) -> u32 {
                     ptr::null(),
                     0,
                 )
-                .is_err(),
+                .unwrap_err(),
+                IllegalArgument,
                 "expected failed syscall"
             );
         },
