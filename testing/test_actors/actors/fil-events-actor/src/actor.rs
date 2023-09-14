@@ -76,7 +76,7 @@ pub fn invoke(params: u32) -> u32 {
             let emoji_key = "🧑";
 
             // Partial code.
-             let entry = fvm_shared::sys::EventEntry {
+            let entry = fvm_shared::sys::EventEntry {
                 flags: Flags::empty(),
                 codec: IPLD_RAW,
                 key_len: 1,
@@ -95,7 +95,7 @@ pub fn invoke(params: u32) -> u32 {
                 "expected failed syscall"
             );
             // Correct utf8 but invalid boundaries.
-             let entries = [
+            let entries = [
                 fvm_shared::sys::EventEntry {
                     flags: Flags::empty(),
                     codec: IPLD_RAW,
