@@ -439,7 +439,7 @@ where
         &self,
         aggregate_sig: &[u8; BLS_SIG_LEN],
         pub_keys: &[[u8; BLS_PUB_LEN]],
-        mut plaintexts_concat: &[u8],
+        plaintexts_concat: &[u8],
         plaintext_lens: &[u32],
     ) -> Result<bool> {
         let num_signers = pub_keys.len();
@@ -458,14 +458,26 @@ where
                 .on_verify_aggregate_signature(num_signers, plaintexts_concat.len()),
         )?;
 
-        let plaintexts: Vec<&[u8]> = plaintext_lens
+        let mut offset: usize = 0;
+        let plaintexts = plaintext_lens
             .iter()
-            .map(|len| {
-                let (plaintext, rem) = plaintexts_concat.split_at(*len as usize);
-                plaintexts_concat = rem;
-                plaintext
+            .map(|&len| {
+                let start = offset;
+                offset = start
+                    .checked_add(len as usize)
+                    .context("invalid bls signature length")
+                    .or_illegal_argument()?;
+                plaintexts_concat
+                    .get(start..offset)
+                    .context("bls signature plaintext out of bounds")
+                    .or_illegal_argument()
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
+        if offset != plaintexts_concat.len() {
+            return Err(
+                syscall_error!(IllegalArgument; "plaintexts buffer length doesn't match").into(),
+            );
+        }
 
         t.record(
             signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, &plaintexts)
