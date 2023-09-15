@@ -1061,6 +1061,11 @@ where
             return Err(syscall_error!(IllegalArgument; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
         }
 
+        // We validate utf8 all at once for better performance.
+        let event_keys = std::str::from_utf8(event_keys)
+            .context("invalid event key")
+            .or_illegal_argument()?;
+
         let mut key_offset: usize = 0;
         let mut val_offset: usize = 0;
 
@@ -1098,10 +1103,6 @@ where
                 .context("event entry key out of range")
                 .or_illegal_argument()?;
 
-            let key = std::str::from_utf8(key)
-                .context("invalid event key")
-                .or_illegal_argument()?;
-
             let value = &event_values
                 .get(val_offset..val_offset + header.val_len as usize)
                 .context("event entry value out of range")
@@ -1125,6 +1126,10 @@ where
         let actor_evt = ActorEvent::from(entries);
 
         let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
+        // Enable this when performing gas calibration to measure the cost of serializing early.
+        #[cfg(feature = "gas_calibration")]
+        let _ = fvm_ipld_encoding::to_vec(&stamped_evt).unwrap();
+
         self.call_manager.append_event(stamped_evt);
 
         t.stop();
