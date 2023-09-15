@@ -244,8 +244,6 @@ mod tests {
 
     use super::*;
 
-    const RAW: u64 = 0x55;
-
     #[test]
     fn basic_buffered_store() {
         let mem = MemoryBlockstore::default();
@@ -269,7 +267,7 @@ mod tests {
         let arr_cid = buf_store
             .put_cbor(&(str_val.clone(), value), Code::Blake2b256)
             .unwrap();
-        let identity_cid = Cid::new_v1(RAW, Multihash::wrap(IDENTITY_HASH, &[0]).unwrap());
+        let identity_cid = Cid::new_v1(CBOR, Multihash::wrap(IDENTITY_HASH, &[0]).unwrap());
 
         // Create map to insert into store
         let sealed_comm_cid = commcid::commitment_to_cid(
