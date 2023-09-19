@@ -1,7 +1,0 @@
-
-target
-artifacts
-Cargo.lock
-/fuzz-*
-corpus/cbor_decode
-corpus/cbor_encode
