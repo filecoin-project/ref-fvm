@@ -1,4 +1,4 @@
-# Reference Filecoin VM implementation (v3; dev)
+# Reference Filecoin VM implementation (v4; dev)
 
 [![Continuous integration](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml)
 
