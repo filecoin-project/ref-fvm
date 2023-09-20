@@ -1053,12 +1053,11 @@ where
             ))?;
 
         if event_headers.len() > MAX_NR_ENTRIES {
-            return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
+            return Err(syscall_error!(LimitExceeded; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
         }
 
-        // We check this here purely to detect/prevent integer overflows.
         if event_values.len() > MAX_TOTAL_VALUES_LEN {
-            return Err(syscall_error!(IllegalArgument; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
+            return Err(syscall_error!(LimitExceeded; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
         }
 
         // We validate utf8 all at once for better performance.
@@ -1079,21 +1078,17 @@ where
                         .into(),
                 );
             }
+
             if header.key_len > MAX_KEY_LEN as u32 {
                 let tmp = header.key_len;
-                return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
+                return Err(syscall_error!(LimitExceeded; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
             }
-            // We check this here purely to detect/prevent integer overflows.
+
+            // We check this here purely to detect/prevent integer overflows below. That's why we
+            // return IllegalArgument, not LimitExceeded.
             if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
                 return Err(
                     syscall_error!(IllegalArgument; "event entry value out of range").into(),
-                );
-            }
-            if header.codec != IPLD_RAW {
-                let tmp = header.codec;
-                return Err(
-                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
-                        .into(),
                 );
             }
 
@@ -1108,6 +1103,15 @@ where
                 .context("event entry value out of range")
                 .or_illegal_argument()?;
 
+            // Check the codec. We currently only allow IPLD_RAW.
+            if header.codec != IPLD_RAW {
+                let tmp = header.codec;
+                return Err(
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
+                        .into(),
+                );
+            }
+
             // we have all we need to construct a new Entry
             let entry = Entry {
                 flags: header.flags,
@@ -1121,6 +1125,24 @@ where
             val_offset += header.val_len as usize;
 
             entries.push(entry);
+        }
+
+        if key_offset != event_keys.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event key buffer length is too large: {} < {}",
+                key_offset,
+                event_keys.len()
+            )
+            .into());
+        }
+
+        if val_offset != event_values.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event value buffer length is too large: {} < {}",
+                val_offset,
+                event_values.len()
+            )
+            .into());
         }
 
         let actor_evt = ActorEvent::from(entries);
