@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 fvm_integration_tests = { path = "../../testing/integration" }
-fvm_ipld_encoding = { path = "../../ipld/encoding" }
+fvm_ipld_encoding = { version = "0.4" }
 fvm_shared = { path = "../../shared" }
 anyhow = "1.0.71"
 clap = { version = "4.3.9", features = ["derive", "std", "help", "usage", "error-context"], default-features = false }

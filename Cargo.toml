@@ -7,7 +7,6 @@ members = [
     "testing/conformance",
     "testing/integration",
     "testing/calibration/shared",
-    "ipld/*",
     "testing/test_actors",
     "testing/test_actors/actors/*",
     "tools/fvm-bench",

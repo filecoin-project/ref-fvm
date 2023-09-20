@@ -18,10 +18,10 @@ num-traits = "0.2"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 fvm_shared = { version = "3.6.0", path = "../shared", features = ["crypto"] }
-fvm_ipld_hamt = { version = "0.8.0", path = "../ipld/hamt" }
-fvm_ipld_amt = { version = "0.6.1", path = "../ipld/amt" }
-fvm_ipld_blockstore = { version = "0.2.0", path = "../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.4.0", path = "../ipld/encoding" }
+fvm_ipld_hamt = { version = "0.8.0" }
+fvm_ipld_amt = { version = "0.6.1" }
+fvm_ipld_blockstore = { version = "0.2.0" }
+fvm_ipld_encoding = { version = "0.4.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 lazy_static = "1.4.0"
