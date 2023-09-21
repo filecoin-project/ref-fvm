@@ -10,7 +10,7 @@ fvm_sdk = { version = "4.0.0-alpha.2", path = "../../../../sdk" }
 fvm_shared = { version = "4.0.0-alpha.2", path = "../../../../shared" }
 minicov = {version = "0.3", optional = true}
 actors_v12_runtime = { package = "fil_actors_runtime", git = "https://github.com/filecoin-project/builtin-actors", branch = "fvm-next" }
-multihash = { workspace = true }
+multihash = { workspace = true, features = ["sha3", "sha2", "ripemd"] }
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build
