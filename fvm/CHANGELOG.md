@@ -4,6 +4,16 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.0.0-alpha.2 (2023-09-21)
+
+- Update to wasmtime 12.0.2 (bug fix release)
+- Drop support for versions prior to nv21.
+- Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
+
+## 4.0.0-alpha.1 (2023-09-20)
+
+Unreleased. This release simply marks the change-over to v4.
+
 ## 3.8.0 (2023-09-06)
 
 - Upgrade wasmtime to v12. Unlike prior wasmtime upgrades, this shouldn't be a breaking change as it now mangles its symbols.
