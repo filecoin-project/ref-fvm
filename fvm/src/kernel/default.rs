@@ -11,7 +11,6 @@ use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId}
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
-use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
@@ -36,7 +35,7 @@ use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
-use crate::machine::{MachineContext, NetworkConfig};
+use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
 use crate::state_tree::ActorState;
 use crate::{ipld, syscall_error};
 
@@ -244,35 +243,37 @@ where
         t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
     }
 
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot self-destruct when read-only").into());
         }
 
-        // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
+        // Idempotent: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_delete_actor())?;
 
+        // If there are remaining funds, burn them. We do this instead of letting the user to
+        // specify the beneficiary as:
+        //
+        // 1. This lets the user handle transfer failure cases themselves. The only way _this_ can
+        //    fail is for the caller to run out of gas.
+        // 2. If we ever decide to allow code on method 0, allowing transfers here would be
+        //    unfortunate.
         let balance = self.current_balance()?;
-        if balance != TokenAmount::zero() {
-            // Starting from network version v7, the runtime checks if the beneficiary
-            // exists; if missing, it fails the self destruct.
-            //
-            // In FVM we check unconditionally, since we only support nv13+.
-            let beneficiary_id = self.resolve_address(beneficiary)?;
-
-            if beneficiary_id == self.actor_id {
-                return Err(syscall_error!(Forbidden, "benefactor cannot be beneficiary").into());
+        if !balance.is_zero() {
+            if !burn_unspent {
+                return Err(
+                    syscall_error!(IllegalOperation; "self-destruct with unspent funds").into(),
+                );
             }
-
-            // Transfer the entirety of funds to beneficiary.
             self.call_manager
-                .transfer(self.actor_id, beneficiary_id, &balance)?;
+                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)
+                .or_fatal()?;
         }
 
-        // Delete the executing actor
+        // Delete the executing actor.
         t.record(self.call_manager.delete_actor(self.actor_id))
     }
 }
