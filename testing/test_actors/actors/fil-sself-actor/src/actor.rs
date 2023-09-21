@@ -4,7 +4,6 @@ use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 use fvm_sdk as sdk;
-use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
@@ -31,21 +30,14 @@ pub fn invoke(_: u32) -> u32 {
     let balance = sdk::sself::current_balance();
     assert_eq!(TokenAmount::from_nano(1_000_000), balance);
 
-    // test that we can't destroy the calling actor when supplied beneficiary
-    // address does not exist or when its itself
-    //
+    // Now destroy the actor without burning funds. This should fail because we have unspent funds.
     assert_eq!(
-        sdk::sself::self_destruct(&Address::new_id(191919)),
-        Err(ActorDeleteError::BeneficiaryDoesNotExist),
-    );
-    assert_eq!(
-        sdk::sself::self_destruct(&Address::new_id(10000)),
-        Err(ActorDeleteError::BeneficiaryIsSelf),
+        sdk::sself::self_destruct(false).unwrap_err(),
+        ActorDeleteError::UnspentFunds
     );
 
-    // now lets destroy the calling actor
-    //
-    sdk::sself::self_destruct(&Address::new_id(sdk::message::origin())).unwrap();
+    // Now lets destroy the actor, burning the funds.
+    sdk::sself::self_destruct(true).unwrap();
 
     // test that root/set_root/self_destruct fail when the actor has been deleted
     // and balance is 0
@@ -56,14 +48,8 @@ pub fn invoke(_: u32) -> u32 {
     );
     assert_eq!(TokenAmount::from_nano(0), sdk::sself::current_balance());
 
-    // calling destroy on an already destroyed actor should succeed (since its
-    // balance is 0)
-    //
-    // TODO (fridrik): we should consider changing this behaviour in the future
-    // and disallow destroying actor with non-zero balance)
-    //
-    sdk::sself::self_destruct(&Address::new_id(sdk::message::origin()))
-        .expect("deleting an already deleted actor should succeed since it has zero balance");
+    // calling destroy on an already destroyed actor should succeed (no-op)
+    sdk::sself::self_destruct(false).expect("deleting an already deleted actor should succeed");
 
     #[cfg(coverage)]
     sdk::debug::store_artifact("sself_actor.profraw", minicov::capture_coverage());

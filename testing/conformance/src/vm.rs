@@ -529,8 +529,8 @@ where
         self.0.current_balance()
     }
 
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        self.0.self_destruct(beneficiary)
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
+        self.0.self_destruct(burn_unspent)
     }
 }
 
