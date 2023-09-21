@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 4.0.0-alpha.2 (2023-09-21)
+
+- Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
+
+## 4.0.0-alpha.1 (2023-09-20)
+
+Unreleased. This release simply marks the change-over to v4.
+
 ## 3.6.0 (2023-09-06)
 
 - BREAKING: Upgrade the proofs API to v16.
