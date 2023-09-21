@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{Context, Result};
 use cid::Cid;
-use fvm::machine::Manifest;
+use fvm::machine::{Manifest, BURNT_FUNDS_ACTOR_ID};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
+use fvm_shared::address::Address;
 use fvm_shared::ActorID;
 use multihash::Code;
 
@@ -88,5 +89,30 @@ pub fn set_eam_actor(state_tree: &mut StateTree<impl Blockstore>, eam_code_cid: 
     };
 
     state_tree.set_actor(EAM_ACTOR_ID, eam_actor_state);
+    Ok(())
+}
+
+pub fn set_burnt_funds_account(
+    state_tree: &mut StateTree<impl Blockstore>,
+    account_code_cid: Cid,
+) -> Result<()> {
+    let state = fvm::account_actor::State {
+        address: Address::new_id(BURNT_FUNDS_ACTOR_ID),
+    };
+
+    let account_state_cid = state_tree
+        .store()
+        .put_cbor(&state, Code::Blake2b256)
+        .context(FailedToSetState("burnt funds account actor".to_owned()))?;
+
+    let actor_state = ActorState {
+        code: account_code_cid,
+        state: account_state_cid,
+        sequence: 0,
+        balance: Default::default(),
+        delegated_address: None,
+    };
+
+    state_tree.set_actor(BURNT_FUNDS_ACTOR_ID, actor_state);
     Ok(())
 }
