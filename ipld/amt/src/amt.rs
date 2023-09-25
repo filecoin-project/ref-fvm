@@ -387,8 +387,8 @@ where
     ///
     /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
     /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
-    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
-    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// otherwise it begins from the first element. If `limit` is provided, traversal will stop after
+    /// `limit` elements have been traversed. Returns a tuple describing the number of elements
     /// iterated over and optionally the index of the next element in the AMT if more elements
     /// remain.
     ///
@@ -444,8 +444,8 @@ where
     ///
     /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
     /// in the Amt. If `start_at` is provided traversal begins at the first index >= `start_at`,
-    /// otherwise it begins from the first element. If `max` is provided, traversal will stop after
-    /// `max` elements have been traversed. Returns a tuple describing the number of elements
+    /// otherwise it begins from the first element. If `limit` is provided, traversal will stop after
+    /// `limit` elements have been traversed. Returns a tuple describing the number of elements
     /// iterated over and optionally the index of the next element in the AMT if more elements
     /// remain.
     pub fn for_each_while_ranged<F>(
