@@ -18,7 +18,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
+use fvm_shared::sector::RegisteredPoStProof::StackedDRGWindow32GiBV1P1;
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
@@ -579,7 +579,7 @@ where
                 && !verify_info.proofs.is_empty()
                 && verify_info.proofs[0].post_proof == StackedDRGWindow32GiBV1P1
             {
-                verify_info.proofs[0].post_proof = StackedDRGWindow32GiBV1;
+                verify_info.proofs[0].post_proof = StackedDRGWindow32GiBV1P1;
             }
         }
 
@@ -1227,19 +1227,19 @@ fn check_valid_proof_type(post_type: RegisteredPoStProof, seal_type: RegisteredS
         .unwrap_or(RegisteredPoStProof::Invalid(-1));
     let proof_type_v1 = match proof_type_v1p1 {
         RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
         }
         RegisteredPoStProof::StackedDRGWindow8MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow8MiBV1
+            RegisteredPoStProof::StackedDRGWindow8MiBV1P1
         }
         RegisteredPoStProof::StackedDRGWindow512MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow512MiBV1
+            RegisteredPoStProof::StackedDRGWindow512MiBV1P1
         }
         RegisteredPoStProof::StackedDRGWindow32GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow32GiBV1
+            RegisteredPoStProof::StackedDRGWindow32GiBV1P1
         }
         RegisteredPoStProof::StackedDRGWindow64GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow64GiBV1
+            RegisteredPoStProof::StackedDRGWindow64GiBV1P1
         }
         _ => {
             return false;

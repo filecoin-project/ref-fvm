@@ -192,27 +192,6 @@ lazy_static! {
 
         verify_replica_update: Gas::new(36316136),
         verify_post_lookup: [
-            (
-                RegisteredPoStProof::StackedDRGWindow512MiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow32GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow64GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
             (RegisteredPoStProof::StackedDRGWindow512MiBV1P1,
                 ScalingCost {
                     flat: Gas::new(117680921),
@@ -705,10 +684,10 @@ impl PriceList {
             .proofs
             .first()
             .map(|p| p.post_proof)
-            .unwrap_or(RegisteredPoStProof::StackedDRGWindow512MiBV1);
+            .unwrap_or(RegisteredPoStProof::StackedDRGWindow512MiBV1P1);
         let cost = self.verify_post_lookup.get(&p_proof).unwrap_or_else(|| {
             self.verify_post_lookup
-                .get(&RegisteredPoStProof::StackedDRGWindow512MiBV1)
+                .get(&RegisteredPoStProof::StackedDRGWindow512MiBV1P1)
                 .expect("512MiB lookup must exist in price table")
         });
 
