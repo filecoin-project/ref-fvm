@@ -1222,31 +1222,11 @@ fn to_fil_public_replica_infos(
 }
 
 fn check_valid_proof_type(post_type: RegisteredPoStProof, seal_type: RegisteredSealProof) -> bool {
-    let proof_type_v1p1 = seal_type
-        .registered_window_post_proof()
-        .unwrap_or(RegisteredPoStProof::Invalid(-1));
-    let proof_type_v1 = match proof_type_v1p1 {
-        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-        }
-        RegisteredPoStProof::StackedDRGWindow8MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow8MiBV1P1
-        }
-        RegisteredPoStProof::StackedDRGWindow512MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow512MiBV1P1
-        }
-        RegisteredPoStProof::StackedDRGWindow32GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow32GiBV1P1
-        }
-        RegisteredPoStProof::StackedDRGWindow64GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow64GiBV1P1
-        }
-        _ => {
-            return false;
-        }
-    };
-
-    proof_type_v1 == post_type || proof_type_v1p1 == post_type
+    if let Ok(proof_type_v1p1) = seal_type.registered_window_post_proof() {
+        proof_type_v1p1 == post_type
+    } else {
+        false
+    }
 }
 
 fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
