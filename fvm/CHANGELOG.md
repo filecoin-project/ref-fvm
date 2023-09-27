@@ -4,6 +4,11 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.0.0-alpha.3 (2023-09-27)
+
+- Remove support for v1 proofs.
+- Make it possible to construct a GasDuration (and make it possible to refer to the GasDuration type).
+
 ## 4.0.0-alpha.2 (2023-09-21)
 
 - Update to wasmtime 12.0.2 (bug fix release)
