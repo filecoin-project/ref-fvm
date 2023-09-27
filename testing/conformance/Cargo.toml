@@ -9,7 +9,7 @@ publish = false
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm_shared = { version = "4.0.0-alpha.2", path = "../../shared" }
+fvm_shared = { version = "4.0.0-alpha.3", path = "../../shared" }
 fvm_ipld_car = { version = "0.7.1", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.2.0", path = "../../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.4.0", path = "../../ipld/encoding" }
@@ -39,7 +39,7 @@ tar = { version = "0.4.38", default-features = false }
 zstd = { version = "0.12.3", default-features = false }
 
 [dependencies.fvm]
-version = "4.0.0-alpha.2"
+version = "4.0.0-alpha.3"
 path = "../../fvm"
 default-features = false
 features = ["testing"]

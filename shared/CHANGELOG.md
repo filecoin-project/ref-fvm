@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.0.0-alpha.3 (2023-09-27)
+
+- Remove support for v1 proofs.
+
 ## 4.0.0-alpha.2 (2023-09-21)
 
 - Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
