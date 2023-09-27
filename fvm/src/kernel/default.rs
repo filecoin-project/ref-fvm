@@ -11,14 +11,12 @@ use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId}
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
-use fvm_shared::chainid::ChainID;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::RegisteredPoStProof::StackedDRGWindow32GiBV1P1;
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
@@ -566,26 +564,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
-        // Due to a bug on calibrationnet, we have some _valid_ StackedDRGWindow32GiBV1P1
-        // proofs that were deemed invalid on chain. This was fixed WITHOUT a network version check.
-        // As a result, we need to explicitly consider all such proofs invalid, ONLY on calibrationnet,
-        // and ONLY before epoch 498691,
-        let calibnet_chain_id = ChainID::from(314159);
-        let mut verify_info = verify_info.clone();
-
-        #[allow(clippy::collapsible_if)]
-        if self.call_manager.context().network.chain_id == calibnet_chain_id {
-            if self.call_manager.context().epoch <= 498691
-                && !verify_info.proofs.is_empty()
-                && verify_info.proofs[0].post_proof == StackedDRGWindow32GiBV1P1
-            {
-                verify_info.proofs[0].post_proof = StackedDRGWindow32GiBV1P1;
-            }
-        }
-
         // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
         t.record(catch_and_log_panic("verifying post", || {
-            verify_post(&verify_info)
+            verify_post(verify_info)
         }))
     }
 
