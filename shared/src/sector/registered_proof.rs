@@ -220,33 +220,6 @@ impl RegisteredSealProof {
         }
     }
 
-    /// Produces the winning PoSt-specific RegisteredProof corresponding
-    /// to the receiving RegisteredProof.
-    pub fn registered_winning_post_proof(self) -> Result<RegisteredPoStProof, String> {
-        use RegisteredPoStProof::*;
-        match self {
-            Self::StackedDRG64GiBV1
-            | Self::StackedDRG64GiBV1P1
-            | Self::StackedDRG64GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning64GiBV1),
-            Self::StackedDRG32GiBV1
-            | Self::StackedDRG32GiBV1P1
-            | Self::StackedDRG32GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning32GiBV1),
-            Self::StackedDRG2KiBV1
-            | Self::StackedDRG2KiBV1P1
-            | Self::StackedDRG2KiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning2KiBV1),
-            Self::StackedDRG8MiBV1
-            | Self::StackedDRG8MiBV1P1
-            | Self::StackedDRG8MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning8MiBV1),
-            Self::StackedDRG512MiBV1
-            | Self::StackedDRG512MiBV1P1
-            | Self::StackedDRG512MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning512MiBV1),
-            Self::Invalid(_) => Err(format!(
-                "Unsupported mapping from {:?} to PoSt-winning RegisteredProof",
-                self
-            )),
-        }
-    }
-
     /// Produces the windowed PoSt-specific RegisteredProof corresponding
     /// to the receiving RegisteredProof.
     pub fn registered_window_post_proof(self) -> Result<RegisteredPoStProof, String> {
