@@ -17,7 +17,7 @@ use num_traits::Zero;
 #[test]
 fn upgrade_actor_test() {
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

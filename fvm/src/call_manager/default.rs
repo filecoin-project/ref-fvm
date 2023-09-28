@@ -632,7 +632,7 @@ where
             system_actor::SYSTEM_ACTOR_ID,
             id,
             Entrypoint::Invoke(fvm_shared::METHOD_CONSTRUCTOR),
-            Some(Block::new(CBOR, params)),
+            Some(Block::new(CBOR, params, Vec::new())),
             &TokenAmount::zero(),
             false,
         )?;
@@ -1095,7 +1095,7 @@ impl EntrypointParams {
                 let ui_params = to_vec(&ui).map_err(
                     |e| syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
                 )?;
-                let block_id = br.put(Block::new(CBOR, ui_params))?;
+                let block_id = br.put_reachable(Block::new(CBOR, ui_params, Vec::new()))?;
                 self.params.push(wasmtime::Val::I32(block_id as i32));
                 Ok(())
             }

@@ -898,7 +898,7 @@ where
             }) => {
                 let block_id = match value {
                     None => NO_DATA_BLOCK_ID,
-                    Some(block) => self.blocks.put(block).unwrap_or_else(|_| {
+                    Some(block) => self.blocks.put_reachable(block).unwrap_or_else(|_| {
                         log::error!("failed to write to kernel block registry");
                         NO_DATA_BLOCK_ID
                     }),

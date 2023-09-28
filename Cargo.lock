@@ -1935,8 +1935,8 @@ version = "0.1.0"
 dependencies = [
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 3.3.0",
- "fvm_shared 3.6.0",
+ "fvm_sdk 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.3",
  "serde",
  "serde_tuple",
 ]

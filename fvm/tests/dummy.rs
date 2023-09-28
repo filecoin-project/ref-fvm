@@ -403,6 +403,7 @@ impl CallManager for DummyCallManager {
 
     fn upgrade_actor<K>(
         &mut self,
+        _caller: ActorID,
         _actor_id: ActorID,
         _new_code_cid: Cid,
         _params: Option<kernel::Block>,
