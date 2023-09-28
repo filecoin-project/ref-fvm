@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.0.0-alpha.4 (2023-09-28)
+
+- Add back some proof types that were mistakenly removed, and fix some of the constants.
+
 ## 4.0.0-alpha.3 (2023-09-27)
 
 - Remove support for v1 proofs.

@@ -1752,8 +1752,8 @@ name = "fil_address_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1789,8 +1789,8 @@ name = "fil_create_actor"
 version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1798,8 +1798,8 @@ name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "serde",
  "serde_tuple",
 ]
@@ -1809,8 +1809,8 @@ name = "fil_exit_data_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1821,8 +1821,8 @@ dependencies = [
  "cid 0.10.1",
  "fvm_gas_calibration_shared",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "libipld",
  "num-derive 0.4.0",
  "num-traits",
@@ -1834,8 +1834,8 @@ name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "log",
  "serde",
  "serde_tuple",
@@ -1845,8 +1845,8 @@ dependencies = [
 name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1857,8 +1857,8 @@ dependencies = [
  "cid 0.10.1",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "serde",
  "serde_tuple",
 ]
@@ -1868,8 +1868,8 @@ name = "fil_ipld_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "minicov",
 ]
 
@@ -1877,16 +1877,16 @@ dependencies = [
 name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
 name = "fil_oom_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1895,8 +1895,8 @@ version = "0.1.0"
 dependencies = [
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1905,16 +1905,16 @@ version = "0.1.0"
 dependencies = [
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
 ]
 
 [[package]]
@@ -1923,8 +1923,8 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.4.0",
- "fvm_sdk 4.0.0-alpha.3",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
  "minicov",
  "multihash 0.18.1",
 ]
@@ -2252,7 +2252,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "4.0.0-alpha.3"
+version = "4.0.0-alpha.4"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2267,7 +2267,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_encoding 0.4.0",
  "fvm_ipld_hamt 0.8.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "lazy_static",
  "log",
  "minstant",
@@ -2300,7 +2300,7 @@ dependencies = [
  "fvm",
  "fvm_integration_tests",
  "fvm_ipld_encoding 0.4.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "hex",
 ]
 
@@ -2353,7 +2353,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_car 0.7.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "itertools 0.11.0",
  "ittapi-rs",
  "lazy_static",
@@ -2375,7 +2375,7 @@ dependencies = [
 name = "fvm_gas_calibration_shared"
 version = "0.1.0"
 dependencies = [
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "num-derive 0.4.0",
  "num-traits",
  "serde",
@@ -2384,7 +2384,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "4.0.0-alpha.3"
+version = "4.0.0-alpha.4"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -2397,7 +2397,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_car 0.7.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "fvm_test_actors",
  "hex",
  "lazy_static",
@@ -2695,12 +2695,12 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "4.0.0-alpha.3"
+version = "4.0.0-alpha.4"
 dependencies = [
  "byteorder",
  "cid 0.10.1",
  "fvm_ipld_encoding 0.4.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "lazy_static",
  "log",
  "num-traits",
@@ -2759,7 +2759,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "4.0.0-alpha.3"
+version = "4.0.0-alpha.4"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2771,7 +2771,7 @@ dependencies = [
  "data-encoding-macro",
  "filecoin-proofs-api",
  "fvm_ipld_encoding 0.4.0",
- "fvm_shared 4.0.0-alpha.3",
+ "fvm_shared 4.0.0-alpha.4",
  "lazy_static",
  "libsecp256k1",
  "multihash 0.18.1",
