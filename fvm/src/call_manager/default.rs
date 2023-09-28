@@ -407,6 +407,7 @@ where
 
     fn upgrade_actor<K: Kernel<CallManager = Self>>(
         &mut self,
+        caller: ActorID,
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<Block>,
@@ -437,7 +438,7 @@ where
 
         // run the upgrade entrypoint
         let result = self.send::<K>(
-            actor_id,
+            caller,
             Address::new_id(actor_id),
             Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
             params,

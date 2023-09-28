@@ -887,9 +887,9 @@ where
             Some(self.blocks.get(params_id)?.clone())
         };
 
-        let result = self
-            .call_manager
-            .with_transaction(|cm| cm.upgrade_actor::<Self>(self.actor_id, new_code_cid, params));
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.upgrade_actor::<Self>(self.caller, self.actor_id, new_code_cid, params)
+        });
 
         match result {
             Ok(InvocationResult {

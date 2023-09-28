@@ -120,6 +120,7 @@ pub trait CallManager: 'static {
 
     fn upgrade_actor<K>(
         &mut self,
+        caller: ActorID,
         actor_id: ActorID,
         new_code_cid: Cid,
         params: Option<kernel::Block>,
