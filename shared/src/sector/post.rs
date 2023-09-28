@@ -35,6 +35,11 @@ impl quickcheck::Arbitrary for PoStProof {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let registered_postproof = g
             .choose(&[
+                RegisteredPoStProof::StackedDRGWinning2KiBV1,
+                RegisteredPoStProof::StackedDRGWinning8MiBV1,
+                RegisteredPoStProof::StackedDRGWinning512MiBV1,
+                RegisteredPoStProof::StackedDRGWinning32GiBV1,
+                RegisteredPoStProof::StackedDRGWinning64GiBV1,
                 RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                 RegisteredPoStProof::StackedDRGWindow8MiBV1P1,
                 RegisteredPoStProof::StackedDRGWindow512MiBV1P1,

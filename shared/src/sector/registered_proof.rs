@@ -115,6 +115,11 @@ impl Default for RegisteredSealProof {
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum RegisteredPoStProof {
+    StackedDRGWinning2KiBV1,
+    StackedDRGWinning8MiBV1,
+    StackedDRGWinning512MiBV1,
+    StackedDRGWinning32GiBV1,
+    StackedDRGWinning64GiBV1,
     StackedDRGWindow2KiBV1P1,
     StackedDRGWindow8MiBV1P1,
     StackedDRGWindow512MiBV1P1,
@@ -128,11 +133,11 @@ impl RegisteredPoStProof {
     pub fn sector_size(self) -> Result<SectorSize, String> {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => Ok(SectorSize::_2KiB),
-            StackedDRGWindow8MiBV1P1 => Ok(SectorSize::_8MiB),
-            StackedDRGWindow512MiBV1P1 => Ok(SectorSize::_512MiB),
-            StackedDRGWindow32GiBV1P1 => Ok(SectorSize::_32GiB),
-            StackedDRGWindow64GiBV1P1 => Ok(SectorSize::_64GiB),
+            StackedDRGWindow2KiBV1P1 | StackedDRGWinning2KiBV1 => Ok(SectorSize::_2KiB),
+            StackedDRGWindow8MiBV1P1 | StackedDRGWinning8MiBV1 => Ok(SectorSize::_8MiB),
+            StackedDRGWindow512MiBV1P1 | StackedDRGWinning512MiBV1 => Ok(SectorSize::_512MiB),
+            StackedDRGWindow32GiBV1P1 | StackedDRGWinning32GiBV1 => Ok(SectorSize::_32GiB),
+            StackedDRGWindow64GiBV1P1 | StackedDRGWinning64GiBV1 => Ok(SectorSize::_64GiB),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -141,7 +146,12 @@ impl RegisteredPoStProof {
     pub fn proof_size(self) -> Result<usize, String> {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1
+            StackedDRGWinning2KiBV1
+            | StackedDRGWinning8MiBV1
+            | StackedDRGWinning512MiBV1
+            | StackedDRGWinning32GiBV1
+            | StackedDRGWinning64GiBV1
+            | StackedDRGWindow2KiBV1P1
             | StackedDRGWindow8MiBV1P1
             | StackedDRGWindow512MiBV1P1
             | StackedDRGWindow32GiBV1P1
@@ -155,11 +165,11 @@ impl RegisteredPoStProof {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow64GiBV1P1 => Ok(2300),
-            StackedDRGWindow32GiBV1P1 => Ok(2349),
-            StackedDRGWindow2KiBV1P1 => Ok(2),
-            StackedDRGWindow8MiBV1P1 => Ok(2),
-            StackedDRGWindow512MiBV1P1 => Ok(2),
+            StackedDRGWinning64GiBV1 | StackedDRGWindow64GiBV1P1 => Ok(2300),
+            StackedDRGWinning32GiBV1 | StackedDRGWindow32GiBV1P1 => Ok(2349),
+            StackedDRGWinning2KiBV1 | StackedDRGWindow2KiBV1P1 => Ok(2),
+            StackedDRGWinning8MiBV1 | StackedDRGWindow8MiBV1P1 => Ok(2),
+            StackedDRGWinning512MiBV1 | StackedDRGWindow512MiBV1P1 => Ok(2),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -217,19 +227,19 @@ impl RegisteredSealProof {
         match self {
             Self::StackedDRG64GiBV1
             | Self::StackedDRG64GiBV1P1
-            | Self::StackedDRG64GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWindow64GiBV1P1),
+            | Self::StackedDRG64GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning64GiBV1),
             Self::StackedDRG32GiBV1
             | Self::StackedDRG32GiBV1P1
-            | Self::StackedDRG32GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWindow32GiBV1P1),
+            | Self::StackedDRG32GiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning32GiBV1),
             Self::StackedDRG2KiBV1
             | Self::StackedDRG2KiBV1P1
-            | Self::StackedDRG2KiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWindow2KiBV1P1),
+            | Self::StackedDRG2KiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning2KiBV1),
             Self::StackedDRG8MiBV1
             | Self::StackedDRG8MiBV1P1
-            | Self::StackedDRG8MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWindow8MiBV1P1),
+            | Self::StackedDRG8MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning8MiBV1),
             Self::StackedDRG512MiBV1
             | Self::StackedDRG512MiBV1P1
-            | Self::StackedDRG512MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWindow512MiBV1P1),
+            | Self::StackedDRG512MiBV1P1_Feat_SyntheticPoRep => Ok(StackedDRGWinning512MiBV1),
             Self::Invalid(_) => Err(format!(
                 "Unsupported mapping from {:?} to PoSt-winning RegisteredProof",
                 self
@@ -333,11 +343,18 @@ macro_rules! i64_conversion {
 
 i64_conversion! {
     RegisteredPoStProof;
-    StackedDRGWindow2KiBV1P1 => 0,
-    StackedDRGWindow8MiBV1P1 => 1,
-    StackedDRGWindow512MiBV1P1 => 2,
-    StackedDRGWindow32GiBV1P1 => 3,
-    StackedDRGWindow64GiBV1P1 => 4,
+    StackedDRGWinning2KiBV1 => 0,
+    StackedDRGWinning8MiBV1 => 1,
+    StackedDRGWinning512MiBV1 => 2,
+    StackedDRGWinning32GiBV1 => 3,
+    StackedDRGWinning64GiBV1 => 4,
+    // The hole here is due to the removal of v1 PoSt proof types.
+    // We can not modify those numbers since they are consensus-critical.
+    StackedDRGWindow2KiBV1P1 => 10,
+    StackedDRGWindow8MiBV1P1 => 11,
+    StackedDRGWindow512MiBV1P1 => 12,
+    StackedDRGWindow32GiBV1P1 => 13,
+    StackedDRGWindow64GiBV1P1 => 14,
 }
 
 i64_conversion! {
@@ -430,6 +447,11 @@ impl TryFrom<RegisteredPoStProof> for filecoin_proofs_api::RegisteredPoStProof {
     fn try_from(p: RegisteredPoStProof) -> Result<Self, Self::Error> {
         use RegisteredPoStProof::*;
         match p {
+            StackedDRGWinning2KiBV1 => Ok(Self::StackedDrgWinning2KiBV1),
+            StackedDRGWinning8MiBV1 => Ok(Self::StackedDrgWinning8MiBV1),
+            StackedDRGWinning512MiBV1 => Ok(Self::StackedDrgWinning512MiBV1),
+            StackedDRGWinning32GiBV1 => Ok(Self::StackedDrgWinning32GiBV1),
+            StackedDRGWinning64GiBV1 => Ok(Self::StackedDrgWinning64GiBV1),
             StackedDRGWindow2KiBV1P1 => Ok(Self::StackedDrgWindow2KiBV1_2),
             StackedDRGWindow8MiBV1P1 => Ok(Self::StackedDrgWindow8MiBV1_2),
             StackedDRGWindow512MiBV1P1 => Ok(Self::StackedDrgWindow512MiBV1_2),
