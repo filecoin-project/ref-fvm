@@ -19,7 +19,7 @@ cid = { workspace = true, features = ["serde-codec"] }
 multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 fvm_shared = { version = "4.0.0-alpha.3", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.8.0", path = "../ipld/hamt" }
-fvm_ipld_amt = { version = "0.6.1", path = "../ipld/amt" }
+fvm_ipld_amt = { version = "0.6.2", path = "../ipld/amt" }
 fvm_ipld_blockstore = { version = "0.2.0", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.4.0", path = "../ipld/encoding" }
 serde = { version = "1.0", features = ["derive"] }
