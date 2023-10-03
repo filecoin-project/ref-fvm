@@ -13,6 +13,7 @@ use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, BlockRegistry, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
+use crate::syscalls::error::Abort;
 use crate::Kernel;
 
 pub mod backtrace;
@@ -234,9 +235,10 @@ impl Entrypoint {
         match self {
             Entrypoint::Invoke(_) => Ok(Vec::new()),
             Entrypoint::Upgrade(ui) => {
-                let ui_params = to_vec(&ui).map_err(
-                    |e| crate::syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
-                )?;
+                let ui_params = to_vec(&ui).map_err(|e| {
+                    Abort::Fatal(anyhow::anyhow!("failed to serialize upgrade params: {}", e))
+                })?;
+                // This is CBOR instead of DAG_CBOR because these params are not reachable
                 let block_id = br.put_reachable(kernel::Block::new(CBOR, ui_params, Vec::new()))?;
                 Ok(vec![wasmtime::Val::I32(block_id as i32)])
             }
