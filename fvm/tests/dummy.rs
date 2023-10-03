@@ -274,7 +274,7 @@ impl CallManager for DummyCallManager {
         }
     }
 
-    fn send<K: Kernel<CallManager = Self>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         _from: fvm_shared::ActorID,
         _to: Address,
@@ -398,19 +398,6 @@ impl CallManager for DummyCallManager {
         _to: ActorID,
         _value: &TokenAmount,
     ) -> fvm::kernel::Result<()> {
-        todo!()
-    }
-
-    fn upgrade_actor<K>(
-        &mut self,
-        _caller: ActorID,
-        _actor_id: ActorID,
-        _new_code_cid: Cid,
-        _params: Option<kernel::Block>,
-    ) -> kernel::Result<InvocationResult>
-    where
-        K: Kernel<CallManager = Self>,
-    {
         todo!()
     }
 }

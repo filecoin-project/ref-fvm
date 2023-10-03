@@ -109,15 +109,14 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
-#[allow(dead_code)]
-pub fn upgrade_actor(
-    context: Context<'_, impl Kernel>,
+pub fn upgrade_actor<K: Kernel>(
+    context: Context<'_, K>,
     new_code_cid_off: u32,
     params_id: u32,
 ) -> Result<u32> {
     let cid = context.memory.read_cid(new_code_cid_off)?;
 
-    context.kernel.upgrade_actor(cid, params_id)
+    context.kernel.upgrade_actor::<K>(cid, params_id)
 }
 
 pub fn get_builtin_actor_type(

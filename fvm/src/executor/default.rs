@@ -144,7 +144,7 @@ where
             let result = cm.with_transaction(|cm| {
                 // Invoke the message. We charge for the return value internally if the call-stack depth
                 // is 1.
-                cm.send::<K>(
+                cm.call_actor::<K>(
                     sender_id,
                     msg.to,
                     Entrypoint::Invoke(msg.method_num),

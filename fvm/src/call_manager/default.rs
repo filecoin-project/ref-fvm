@@ -12,7 +12,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
-use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
 use num_traits::Zero;
 
@@ -167,7 +166,7 @@ where
         &mut self.limits
     }
 
-    fn send<K>(
+    fn call_actor<K>(
         &mut self,
         from: ActorID,
         to: Address,
@@ -403,63 +402,6 @@ where
         self.set_actor(actor_id, actor)?;
         self.num_actors_created += 1;
         Ok(())
-    }
-
-    fn upgrade_actor<K: Kernel<CallManager = Self>>(
-        &mut self,
-        caller: ActorID,
-        actor_id: ActorID,
-        new_code_cid: Cid,
-        params: Option<Block>,
-    ) -> Result<InvocationResult> {
-        let origin = self.origin;
-
-        let state = self
-            .state_tree_mut()
-            .get_actor(actor_id)?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?;
-
-        // store the code cid of the calling actor before running the upgrade entrypoint
-        // in case it was changed (which could happen if the target upgrade entrypoint
-        // sent a message to this actor which in turn called upgrade)
-        let code = state.code;
-
-        // update the code cid of the actor to new_code_cid
-        self.state_tree_mut().set_actor(
-            origin,
-            ActorState::new(
-                new_code_cid,
-                state.state,
-                state.balance,
-                state.sequence,
-                None,
-            ),
-        );
-
-        // run the upgrade entrypoint
-        let result = self.send::<K>(
-            caller,
-            Address::new_id(actor_id),
-            Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
-            params,
-            &TokenAmount::zero(),
-            None,
-            false,
-        )?;
-
-        if result.exit_code == ExitCode::OK {
-            // after running the upgrade, our code cid must not have changed
-            let code_after_upgrade = self
-                .state_tree_mut()
-                .get_actor(actor_id)?
-                .ok_or_else(|| syscall_error!(NotFound; "actor not found: {}", actor_id))?
-                .code;
-            if code != code_after_upgrade {
-                return Err(syscall_error!(Forbidden; "re-entrant upgrade detected").into());
-            }
-        }
-
-        Ok(result)
     }
 
     fn append_event(&mut self, evt: StampedEvent) {

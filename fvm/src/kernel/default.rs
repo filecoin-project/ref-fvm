@@ -20,6 +20,7 @@ use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -139,7 +140,7 @@ where
 
         // Send.
         let result = self.call_manager.with_transaction(|cm| {
-            cm.send::<K>(
+            cm.call_actor::<K>(
                 from,
                 *recipient,
                 Entrypoint::Invoke(method),
@@ -873,7 +874,7 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32> {
+    fn upgrade_actor<K: Kernel>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
@@ -888,7 +889,52 @@ where
         };
 
         let result = self.call_manager.with_transaction(|cm| {
-            cm.upgrade_actor::<Self>(self.caller, self.actor_id, new_code_cid, params)
+            let origin = cm.origin();
+
+            let state = cm
+                .get_actor(self.actor_id)?
+                .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?;
+
+            // store the code cid of the calling actor before running the upgrade entrypoint
+            // in case it was changed (which could happen if the target upgrade entrypoint
+            // sent a message to this actor which in turn called upgrade)
+            let code = state.code;
+
+            // update the code cid of the actor to new_code_cid
+            cm.set_actor(
+                origin,
+                ActorState::new(
+                    new_code_cid,
+                    state.state,
+                    state.balance,
+                    state.sequence,
+                    None,
+                ),
+            )?;
+
+            // run the upgrade entrypoint
+            let result = cm.call_actor::<Self>(
+                self.caller,
+                Address::new_id(self.actor_id),
+                Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
+                params,
+                &TokenAmount::from_whole(0),
+                None,
+                false,
+            )?;
+
+            if result.exit_code == ExitCode::OK {
+                // after running the upgrade, our code cid must not have changed
+                let code_after_upgrade = cm
+                    .get_actor(self.actor_id)?
+                    .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+                    .code;
+                if code != code_after_upgrade {
+                    return Err(syscall_error!(Forbidden; "re-entrant upgrade detected").into());
+                }
+            }
+
+            Ok(result)
         });
 
         match result {

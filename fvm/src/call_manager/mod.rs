@@ -64,7 +64,7 @@ pub trait CallManager: 'static {
     /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
     #[allow(clippy::too_many_arguments)]
-    fn send<K: Kernel<CallManager = Self>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
         to: Address,
@@ -117,16 +117,6 @@ pub trait CallManager: 'static {
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
-
-    fn upgrade_actor<K>(
-        &mut self,
-        caller: ActorID,
-        actor_id: ActorID,
-        new_code_cid: Cid,
-        params: Option<kernel::Block>,
-    ) -> Result<InvocationResult>
-    where
-        K: Kernel<CallManager = Self>;
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
