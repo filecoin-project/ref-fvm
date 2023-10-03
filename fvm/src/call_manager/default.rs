@@ -12,7 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
-use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
+use fvm_shared::{ActorID, METHOD_SEND};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
@@ -688,8 +688,7 @@ where
 
         // additional_params takes care of adding entrypoint specific params to the block
         // registry and passing them to wasmtime
-        let mut additional_params = EntrypointParams::new(entrypoint);
-        additional_params.maybe_put_registry(&mut block_registry)?;
+        let additional_params = entrypoint.into_params(&mut block_registry)?;
 
         // Increment invocation count
         self.invocation_count += 1;
@@ -746,7 +745,7 @@ where
                 };
 
                 let mut params = vec![wasmtime::Val::I32(params_id as i32)];
-                params.extend_from_slice(additional_params.params().as_slice());
+                params.extend_from_slice(additional_params.as_slice());
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
@@ -996,55 +995,5 @@ impl EventsAccumulator {
             root,
             events: self.events,
         })
-    }
-}
-
-impl Entrypoint {
-    fn method_num(&self) -> MethodNum {
-        match self {
-            Entrypoint::Invoke(num) => *num,
-            Entrypoint::Upgrade(_) => fvm_shared::METHOD_UPGRADE,
-        }
-    }
-
-    fn func_name(&self) -> &'static str {
-        match self {
-            Entrypoint::Invoke(_) => "invoke",
-            Entrypoint::Upgrade(_) => "upgrade",
-        }
-    }
-}
-
-// EntrypointParams is a helper struct to init the registry with the entrypoint specific
-// parameters and then forward them to wasmtime
-struct EntrypointParams {
-    entrypoint: Entrypoint,
-    params: Vec<wasmtime::Val>,
-}
-
-impl EntrypointParams {
-    fn new(entrypoint: Entrypoint) -> Self {
-        Self {
-            entrypoint,
-            params: Vec::new(),
-        }
-    }
-
-    fn maybe_put_registry(&mut self, br: &mut BlockRegistry) -> Result<()> {
-        match self.entrypoint {
-            Entrypoint::Invoke(_) => Ok(()),
-            Entrypoint::Upgrade(ui) => {
-                let ui_params = to_vec(&ui).map_err(
-                    |e| syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
-                )?;
-                let block_id = br.put_reachable(Block::new(CBOR, ui_params, Vec::new()))?;
-                self.params.push(wasmtime::Val::I32(block_id as i32));
-                Ok(())
-            }
-        }
-    }
-
-    fn params(&self) -> &Vec<wasmtime::Val> {
-        &self.params
     }
 }

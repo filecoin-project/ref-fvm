@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
+use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -9,7 +10,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
-use crate::kernel::{self, Result};
+use crate::kernel::{self, BlockRegistry, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
 use crate::Kernel;
@@ -210,6 +211,35 @@ impl std::fmt::Display for Entrypoint {
         match self {
             Entrypoint::Invoke(method) => write!(f, "invoke({})", method),
             Entrypoint::Upgrade(_) => write!(f, "upgrade"),
+        }
+    }
+}
+
+impl Entrypoint {
+    fn method_num(&self) -> MethodNum {
+        match self {
+            Entrypoint::Invoke(num) => *num,
+            Entrypoint::Upgrade(_) => fvm_shared::METHOD_UPGRADE,
+        }
+    }
+
+    fn func_name(&self) -> &'static str {
+        match self {
+            Entrypoint::Invoke(_) => "invoke",
+            Entrypoint::Upgrade(_) => "upgrade",
+        }
+    }
+
+    fn into_params(self, br: &mut BlockRegistry) -> Result<Vec<wasmtime::Val>> {
+        match self {
+            Entrypoint::Invoke(_) => Ok(Vec::new()),
+            Entrypoint::Upgrade(ui) => {
+                let ui_params = to_vec(&ui).map_err(
+                    |e| crate::syscall_error!(IllegalArgument; "failed to serialize upgrade params: {}", e),
+                )?;
+                let block_id = br.put_reachable(kernel::Block::new(CBOR, ui_params, Vec::new()))?;
+                Ok(vec![wasmtime::Val::I32(block_id as i32)])
+            }
         }
     }
 }
