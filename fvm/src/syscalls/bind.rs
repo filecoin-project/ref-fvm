@@ -49,39 +49,69 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     ) -> anyhow::Result<&mut Self>;
 }
 
+pub enum ControlFlow<T> {
+    Return(T),
+    Error(SyscallError),
+    Abort(Abort),
+}
+
+impl<T> From<ExecutionError> for ControlFlow<T> {
+    fn from(value: ExecutionError) -> Self {
+        match value {
+            ExecutionError::Syscall(err) => ControlFlow::Error(err),
+            ExecutionError::Fatal(err) => ControlFlow::Abort(Abort::Fatal(err)),
+            ExecutionError::OutOfGas => ControlFlow::Abort(Abort::OutOfGas),
+        }
+    }
+}
+
 /// The helper trait used by `BindSyscall` to convert kernel results with execution errors into
 /// results that can be handled by wasmtime. See the documentation on `BindSyscall` for details.
 #[doc(hidden)]
-pub trait IntoSyscallResult: Sized {
+pub trait IntoControlFlow: Sized {
     type Value: SyscallSafe;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort>;
+    fn into_control_flow(self) -> ControlFlow<Self::Value>;
 }
 
-// Implementations for syscalls that abort on error.
-impl<T> IntoSyscallResult for Result<T, Abort>
+/// An uninhabited type. We use this in `abort` to make sure there's no way to return without
+/// returning an error.
+#[derive(Copy, Clone)]
+#[doc(hidden)]
+pub enum Never {}
+unsafe impl SyscallSafe for Never {}
+
+// Implementations for syscalls that always abort.
+impl IntoControlFlow for Abort {
+    type Value = Never;
+    fn into_control_flow(self) -> ControlFlow<Self::Value> {
+        ControlFlow::Abort(self)
+    }
+}
+
+// Implementations for syscalls that can abort.
+impl<T> IntoControlFlow for ControlFlow<T>
 where
     T: SyscallSafe,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
-        Ok(Ok(self?))
+    fn into_control_flow(self) -> ControlFlow<Self::Value> {
+        self
     }
 }
 
 // Implementations for normal syscalls.
-impl<T> IntoSyscallResult for kernel::Result<T>
+impl<T> IntoControlFlow for kernel::Result<T>
 where
     T: SyscallSafe,
 {
     type Value = T;
-    fn into(self) -> Result<Result<Self::Value, SyscallError>, Abort> {
+    fn into_control_flow(self) -> ControlFlow<Self::Value> {
         match self {
-            Ok(value) => Ok(Ok(value)),
+            Ok(value) => ControlFlow::Return(value),
             Err(e) => match e {
-                ExecutionError::Syscall(err) => Ok(Err(err)),
-                ExecutionError::OutOfGas => Err(Abort::OutOfGas),
-                ExecutionError::Fatal(err) => Err(Abort::Fatal(err)),
-                ExecutionError::Abort(e) => Err(e),
+                ExecutionError::Syscall(err) => ControlFlow::Error(err),
+                ExecutionError::OutOfGas => ControlFlow::Abort(Abort::OutOfGas),
+                ExecutionError::Fatal(err) => ControlFlow::Abort(Abort::Fatal(err)),
             },
         }
     }
@@ -112,7 +142,7 @@ macro_rules! impl_bind_syscalls {
         where
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
-            Ret: IntoSyscallResult,
+            Ret: IntoControlFlow,
            $($t: WasmTy+SyscallSafe,)*
         {
             fn bind(
@@ -130,21 +160,21 @@ macro_rules! impl_bind_syscalls {
                         charge_syscall_gas!(data.kernel);
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let out = syscall(ctx $(, $t)*).into();
+                        let out = syscall(ctx $(, $t)*).into_control_flow();
 
                         let result = match out {
-                            Ok(Ok(_)) => {
+                            ControlFlow::Return(_) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 data.last_error = None;
                                 Ok(0)
                             },
-                            Ok(Err(err)) => {
+                            ControlFlow::Error(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
                                 Ok(code as u32)
                             },
-                            Err(e) => Err(e.into()),
+                            ControlFlow::Abort(abort) => Err(abort.into()),
                         };
 
                         update_gas_available(&mut caller)?;
@@ -168,8 +198,8 @@ macro_rules! impl_bind_syscalls {
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into() {
-                            Ok(Ok(value)) => {
+                        let result = match syscall(ctx $(, $t)*).into_control_flow() {
+                            ControlFlow::Return(value) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe {
                                     // We're writing into a user-specified pointer, so avoid
@@ -179,13 +209,13 @@ macro_rules! impl_bind_syscalls {
                                 data.last_error = None;
                                 Ok(0)
                             },
-                            Ok(Err(err)) => {
+                            ControlFlow::Error(err) => {
                                 let code = err.1;
                                 log::trace!("syscall {}::{}: fail ({})", module, name, code as u32);
                                 data.last_error = Some(backtrace::Cause::from_syscall(module, name, err));
                                 Ok(code as u32)
                             },
-                            Err(e) => Err(e.into()),
+                            ControlFlow::Abort(abort) => Err(abort.into()),
                         };
 
                         update_gas_available(&mut caller)?;

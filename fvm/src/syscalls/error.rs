@@ -17,9 +17,6 @@ pub enum Abort {
     /// The actor ran out of gas.
     #[error("out of gas")]
     OutOfGas,
-    /// The actor did not export the endpoint that was called.
-    #[error("entrypoint not found")]
-    EntrypointNotFound,
     /// The system failed with a fatal error.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
@@ -40,7 +37,6 @@ impl Abort {
             ),
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(err) => Abort::Fatal(err),
-            ExecutionError::Abort(e) => e,
         }
     }
 
@@ -50,7 +46,6 @@ impl Abort {
             ExecutionError::OutOfGas => Abort::OutOfGas,
             ExecutionError::Fatal(e) => Abort::Fatal(e),
             ExecutionError::Syscall(e) => Abort::Fatal(anyhow!("unexpected syscall error: {}", e)),
-            ExecutionError::Abort(e) => e,
         }
     }
 }
