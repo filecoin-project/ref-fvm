@@ -40,6 +40,7 @@ pub fn invoke(_: u32) -> u32 {
     test_message_context();
     test_balance();
     test_unaligned();
+    #[cfg(feature = "upgrade-actor")]
     test_upgrade();
 
     #[cfg(coverage)]
@@ -379,6 +380,7 @@ fn test_unaligned() {
     }
 }
 
+#[cfg(feature = "upgrade-actor")]
 fn test_upgrade() {
     // test that calling `upgrade_actor` on ourselves results in a Forbidden error
     // since we don't have a upgrade endpoint

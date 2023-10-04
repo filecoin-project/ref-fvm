@@ -1,21 +1,23 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod bundles;
-use bundles::*;
-use fvm::executor::{ApplyKind, Executor};
-use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::Account;
-use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::message::Message;
-use fvm_shared::state::StateTreeVersion;
-use fvm_shared::version::NetworkVersion;
-use fvm_test_actors::wasm_bin::UPGRADE_ACTOR_BINARY;
-use num_traits::Zero;
 
 #[test]
+#[cfg(feature = "upgrade-actor")]
 fn upgrade_actor_test() {
+    use bundles::*;
+    use fvm::executor::{ApplyKind, Executor};
+    use fvm_integration_tests::dummy::DummyExterns;
+    use fvm_integration_tests::tester::Account;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_shared::address::Address;
+    use fvm_shared::econ::TokenAmount;
+    use fvm_shared::message::Message;
+    use fvm_shared::state::StateTreeVersion;
+    use fvm_shared::version::NetworkVersion;
+    use fvm_test_actors::wasm_bin::UPGRADE_ACTOR_BINARY;
+    use num_traits::Zero;
+
     let mut tester = new_tester(
         NetworkVersion::V21,
         StateTreeVersion::V5,

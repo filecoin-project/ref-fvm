@@ -5,7 +5,6 @@ use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
-use crate::syscalls::error::Abort;
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
@@ -15,12 +14,11 @@ use fvm_shared::address::Payload;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
-use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -874,7 +872,11 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
+    #[cfg(feature = "upgrade-actor")]
     fn upgrade_actor<K: Kernel>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32> {
+        use crate::syscalls::error::Abort;
+        use fvm_shared::upgrade::UpgradeInfo;
+
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),

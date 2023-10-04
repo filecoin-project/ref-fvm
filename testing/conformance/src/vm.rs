@@ -299,6 +299,7 @@ where
         self.0.lookup_delegated_address(actor_id)
     }
 
+    #[cfg(feature = "upgrade-actor")]
     fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<BlockId> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }

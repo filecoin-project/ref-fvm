@@ -109,6 +109,7 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
+#[cfg(feature = "upgrade-actor")]
 pub fn upgrade_actor<K: Kernel>(
     context: Context<'_, K>,
     new_code_cid_off: u32,

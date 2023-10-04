@@ -156,6 +156,7 @@ super::fvm_syscalls! {
     /// | [`LimitExceeded`]     | recursion limit reached.                             |
     /// | [`IllegalArgument`]   | invalid code cid buffer.                             |
     /// | [`Forbidden`]         | target actor doesn't have an upgrade endpoint.       |
+    #[cfg(feature = "upgrade-actor")]
     pub fn upgrade_actor(
         new_code_cid_off: *const u8,
         params: u32,

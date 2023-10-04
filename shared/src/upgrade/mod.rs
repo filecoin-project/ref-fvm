@@ -1,10 +1,17 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::Cid;
-use fvm_ipld_encoding::tuple::*;
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
+#[cfg(feature = "upgrade-actor")]
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    PartialEq,
+    Eq,
+    fvm_ipld_encoding::tuple::Serialize_tuple,
+    fvm_ipld_encoding::tuple::Deserialize_tuple,
+)]
 pub struct UpgradeInfo {
     // the old code cid we are upgrading from
-    pub old_code_cid: Cid,
+    pub old_code_cid: cid::Cid,
 }

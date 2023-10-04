@@ -24,3 +24,4 @@ byteorder = "1.4.3"
 [features]
 default = []
 m2-native = []
+upgrade-actor = []

@@ -209,6 +209,7 @@ pub trait ActorOps {
         delegated_address: Option<Address>,
     ) -> Result<()>;
 
+    #[cfg(feature = "upgrade-actor")]
     fn upgrade_actor<K: Kernel>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32>;
 
     /// Installs actor code pointed by cid
