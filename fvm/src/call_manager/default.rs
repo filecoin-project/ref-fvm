@@ -231,9 +231,6 @@ where
                     ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "fatal"))
                 }
                 Err(ExecutionError::Syscall(s)) => ExecutionEvent::CallError(s.clone()),
-                Err(ExecutionError::Abort(_)) => {
-                    ExecutionEvent::CallError(SyscallError::new(ErrorNumber::Forbidden, "aborted"))
-                }
             });
         }
 
@@ -723,9 +720,10 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<BlockId, Abort> = (|| {
+                let code = &state.code;
                 // Instantiate the module.
                 let instance = engine
-                    .instantiate(&mut store, &state.code)?
+                    .instantiate(&mut store, code)?
                     .context("actor not found")
                     .map_err(Abort::Fatal)?;
 
@@ -740,7 +738,11 @@ where
                 let func = match instance.get_func(&mut store, entrypoint.func_name()) {
                     Some(func) => func,
                     None => {
-                        return Err(Abort::EntrypointNotFound);
+                        return Err(Abort::Exit(
+                            ExitCode::SYS_INVALID_RECEIVER,
+                            format!("cannot upgrade to {code}"),
+                            0,
+                        ));
                     }
                 };
 
@@ -812,14 +814,6 @@ where
                                 Err(ExecutionError::Fatal(anyhow!(e))),
                             ),
                         },
-                        Abort::EntrypointNotFound => (
-                            ExitCode::USR_FORBIDDEN,
-                            "entrypoint not found".to_owned(),
-                            Err(ExecutionError::Syscall(SyscallError::new(
-                                ErrorNumber::Forbidden,
-                                "entrypoint not found",
-                            ))),
-                        ),
                         Abort::OutOfGas => (
                             ExitCode::SYS_OUT_OF_GAS,
                             "out of gas".to_owned(),

@@ -5,7 +5,6 @@ use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
-use crate::syscalls::error::Abort;
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
@@ -874,7 +873,11 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn upgrade_actor<K: Kernel>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32> {
+    fn upgrade_actor<K: Kernel>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<SendResult> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
@@ -938,27 +941,18 @@ where
         });
 
         match result {
-            Ok(InvocationResult {
-                exit_code: ExitCode::OK,
-                value,
-            }) => {
-                let block_id = match value {
-                    None => NO_DATA_BLOCK_ID,
-                    Some(block) => self.blocks.put_reachable(block).unwrap_or_else(|_| {
-                        log::error!("failed to write to kernel block registry");
-                        NO_DATA_BLOCK_ID
-                    }),
+            Ok(InvocationResult { exit_code, value }) => {
+                let (block_stat, block_id) = match value {
+                    None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
+                    // TODO: Check error cases. At a minimum, we could run out of gas here!
+                    Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
                 };
-                Err(ExecutionError::Abort(Abort::Exit(
-                    ExitCode::OK,
-                    "actor upgraded".to_string(),
+                Ok(SendResult {
                     block_id,
-                )))
+                    block_stat,
+                    exit_code,
+                })
             }
-            Ok(InvocationResult {
-                exit_code,
-                value: _,
-            }) => Ok(exit_code.value()),
             Err(err) => Err(err),
         }
     }

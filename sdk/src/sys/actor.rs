@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for creating and resolving actors.
 
+#[doc(inline)]
+pub use fvm_shared::sys::out::send::*;
+
 // for documentation links
 #[cfg(doc)]
 use crate::sys::ErrorNumber::*;
@@ -139,11 +142,11 @@ super::fvm_syscalls! {
     ///
     /// # Returns
     ///
-    /// On success, this syscall will not return. Instead, the current invocation will "complete" and
-    /// the return value will be the block returned by the new code's `upgrade` endpoint.
+    /// On successful upgrade, this syscall will not return. Instead, the current invocation will
+    /// "complete" and the return value will be the block returned by the new code's `upgrade` endpoint.
     ///
     /// If the new code rejects the upgrade (aborts) or performs an illegal operation, this syscall will
-    /// return the exit code of the `upgrade` endpoint.
+    /// return the exit code plus the error returned by the upgrade endpoint.
     ///
     /// Finally, the syscall will return an error if it fails to call the upgrade endpoint entirely.
     ///
@@ -159,7 +162,7 @@ super::fvm_syscalls! {
     pub fn upgrade_actor(
         new_code_cid_off: *const u8,
         params: u32,
-    ) -> Result<u32>;
+    ) -> Result<Send>;
 
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.

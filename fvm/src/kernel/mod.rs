@@ -209,7 +209,11 @@ pub trait ActorOps {
         delegated_address: Option<Address>,
     ) -> Result<()>;
 
-    fn upgrade_actor<K: Kernel>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<u32>;
+    fn upgrade_actor<K: Kernel>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<SendResult>;
 
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]

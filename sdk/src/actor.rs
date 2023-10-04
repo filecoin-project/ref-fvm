@@ -1,14 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use core::option::Option;
 use std::ptr; // no_std
 
 use cid::Cid;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::address::{Address, Payload, MAX_ADDRESS_LEN};
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ErrorNumber;
-use fvm_shared::{ActorID, MAX_CID_LEN};
+use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::{ActorID, Response, MAX_CID_LEN};
 use log::error;
 
 use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
@@ -109,7 +108,7 @@ pub fn create_actor(
 }
 
 /// Upgrades an actor using the given block which includes the old code cid and the upgrade params
-pub fn upgrade_actor(new_code_cid: Cid, params: Option<IpldBlock>) -> SyscallResult<u32> {
+pub fn upgrade_actor(new_code_cid: Cid, params: Option<IpldBlock>) -> SyscallResult<Response> {
     unsafe {
         let cid = new_code_cid.to_bytes();
 
@@ -118,7 +117,35 @@ pub fn upgrade_actor(new_code_cid: Cid, params: Option<IpldBlock>) -> SyscallRes
             None => NO_DATA_BLOCK_ID,
         };
 
-        sys::actor::upgrade_actor(cid.as_ptr(), params_id)
+        let fvm_shared::sys::out::send::Send {
+            exit_code,
+            return_id,
+            return_codec,
+            return_size,
+        } = sys::actor::upgrade_actor(cid.as_ptr(), params_id)?;
+
+        // Process the result.
+        // TODO: dedup with the send syscall...
+        let exit_code = ExitCode::new(exit_code);
+        let return_data = if return_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            // Allocate a buffer to read the return data.
+            let mut bytes = vec![0; return_size as usize];
+
+            // Now read the return data.
+            let unread = sys::ipld::block_read(return_id, 0, bytes.as_mut_ptr(), return_size)?;
+            assert_eq!(0, unread);
+            Some(IpldBlock {
+                codec: return_codec,
+                data: bytes.to_vec(),
+            })
+        };
+
+        Ok(Response {
+            exit_code,
+            return_data,
+        })
     }
 }
 

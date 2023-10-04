@@ -201,9 +201,6 @@ where
                     events_root,
                 }
             }
-
-            Err(ExecutionError::Abort(e)) => return Err(anyhow!("actor aborted: {}", e)),
-
             Err(ExecutionError::OutOfGas) => Receipt {
                 exit_code: ExitCode::SYS_OUT_OF_GAS,
                 return_data: Default::default(),
