@@ -891,6 +891,11 @@ where
             Some(self.blocks.get(params_id)?.clone())
         };
 
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
         let result = self.call_manager.with_transaction(|cm| {
             let origin = cm.origin();
 
@@ -944,7 +949,6 @@ where
             Ok(InvocationResult { exit_code, value }) => {
                 let (block_stat, block_id) = match value {
                     None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
-                    // TODO: Check error cases. At a minimum, we could run out of gas here!
                     Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
                 };
                 Ok(SendResult {
