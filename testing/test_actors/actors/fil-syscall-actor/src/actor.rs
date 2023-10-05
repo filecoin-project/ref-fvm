@@ -380,11 +380,16 @@ fn test_unaligned() {
 }
 
 fn test_upgrade() {
-    // test that calling `upgrade_actor` on ourselves results in a Forbidden error
+    // test that calling `upgrade_actor` on ourselves results in a SYS_INVALID_RECEIVER error
     // since we don't have a upgrade endpoint
     let res = sdk::actor::upgrade_actor(
         sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap(),
         None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        res.exit_code,
+        fvm_shared::error::ExitCode::SYS_INVALID_RECEIVER,
     );
-    assert_eq!(res, Err(ErrorNumber::Forbidden));
 }

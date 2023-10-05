@@ -81,9 +81,10 @@ pub fn invoke(_: u32) -> u32 {
         2 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 2 }).unwrap();
-            let exit_code = sdk::actor::upgrade_actor(new_code_cid, params).unwrap();
+            let res = sdk::actor::upgrade_actor(new_code_cid, params).unwrap();
             assert_eq!(
-                UPGRADE_FAILED_EXIT_CODE, exit_code,
+                UPGRADE_FAILED_EXIT_CODE,
+                res.exit_code.value(),
                 "invalid exit code returned from upgrade_actor"
             );
         }
