@@ -8,7 +8,7 @@ use serde::de::{self, Deserialize};
 use serde::ser::{self, Serialize};
 
 use crate::node::CollapsedNode;
-use crate::{init_sized_vec, Node, DEFAULT_BIT_WIDTH};
+use crate::{init_sized_vec, Node, DEFAULT_BRANCHING_FACTOR};
 
 pub(crate) mod version {
     #[derive(PartialEq, Eq, Debug)]
@@ -31,21 +31,33 @@ pub(crate) mod version {
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct RootImpl<V, Ver> {
-    pub bit_width: u32,
+    pub branching_factor: u32,
     pub height: u32,
     pub count: u64,
     pub node: Node<V>,
     ver: PhantomData<Ver>,
 }
 
+impl<V, Ver> Iterator for RootImpl<V, Ver>
+where
+    V: 'static,
+    Ver: version::Version,
+{
+    type Item = Option<V>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.node.next()
+    }
+}
+
 impl<V, Ver> RootImpl<V, Ver> {
-    pub(crate) fn new_with_bit_width(bit_width: u32) -> Self {
+    pub(crate) fn new_with_branching_factor(branching_factor: u32) -> Self {
         Self {
-            bit_width,
+            branching_factor,
             count: 0,
             height: 0,
             node: Node::Leaf {
-                vals: init_sized_vec(bit_width),
+                vals: init_sized_vec(branching_factor),
             },
             ver: PhantomData,
         }
@@ -62,9 +74,15 @@ where
         S: ser::Serializer,
     {
         match Ver::NUMBER {
-            // legacy amt v0 doesn't serialize bit_width as DEFAULT_BIT_WIDTH is used.
+            // legacy amt v0 doesn't serialize branching_factor as DEFAULT_BRANCHING_FACTOR is used.
             0 => (&self.height, &self.count, &self.node).serialize(s),
-            3 => (&self.bit_width, &self.height, &self.count, &self.node).serialize(s),
+            3 => (
+                &self.branching_factor,
+                &self.height,
+                &self.count,
+                &self.node,
+            )
+                .serialize(s),
             _ => unreachable!(),
         }
     }
@@ -81,13 +99,13 @@ where
     {
         match Ver::NUMBER {
             3 => {
-                let (bit_width, height, count, node): (_, _, _, CollapsedNode<V>) =
+                let (branching_factor, height, count, node): (_, _, _, CollapsedNode<V>) =
                     Deserialize::deserialize(deserializer)?;
                 Ok(Self {
-                    bit_width,
+                    branching_factor,
                     height,
                     count,
-                    node: node.expand(bit_width).map_err(de::Error::custom)?,
+                    node: node.expand(branching_factor).map_err(de::Error::custom)?,
                     ver: PhantomData,
                 })
             }
@@ -96,10 +114,12 @@ where
                 let (height, count, node): (_, _, CollapsedNode<V>) =
                     Deserialize::deserialize(deserializer)?;
                 Ok(Self {
-                    bit_width: DEFAULT_BIT_WIDTH,
+                    branching_factor: DEFAULT_BRANCHING_FACTOR,
                     height,
                     count,
-                    node: node.expand(DEFAULT_BIT_WIDTH).map_err(de::Error::custom)?,
+                    node: node
+                        .expand(DEFAULT_BRANCHING_FACTOR)
+                        .map_err(de::Error::custom)?,
                     ver: PhantomData,
                 })
             }
@@ -122,11 +142,11 @@ mod tests {
     impl<V> RootImpl<V, self::version::V0> {
         pub(crate) fn new() -> Rootv0<V> {
             Self {
-                bit_width: DEFAULT_BIT_WIDTH,
+                branching_factor: DEFAULT_BRANCHING_FACTOR,
                 count: 0,
                 height: 0,
                 node: Node::Leaf {
-                    vals: init_sized_vec(DEFAULT_BIT_WIDTH),
+                    vals: init_sized_vec(DEFAULT_BRANCHING_FACTOR),
                 },
                 ver: PhantomData,
             }
@@ -135,7 +155,7 @@ mod tests {
 
     #[test]
     fn serialize_symmetric() {
-        let mut root = Root::new_with_bit_width(0);
+        let mut root = Root::new_with_branching_factor(0);
         root.height = 2;
         root.count = 1;
         root.node = Node::Leaf { vals: vec![None] };

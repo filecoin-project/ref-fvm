@@ -937,7 +937,7 @@ impl EventsAccumulator {
 
         let root = if !self.events.is_empty() {
             const EVENTS_AMT_BITWIDTH: u32 = 5;
-            let root = Amt::new_from_iter_with_bit_width(
+            let root = Amt::new_from_iter_with_branching_factor(
                 DiscardBlockstore,
                 EVENTS_AMT_BITWIDTH,
                 self.events.iter(),

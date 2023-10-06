@@ -6,10 +6,12 @@
 //!
 //! Data structure reference:
 //! https://github.com/ipld/specs/blob/51fab05b4fe4930d3d851d50cc1e5f1a02092deb/data-structures/vector.md
+// TODO(jdjaustin): diagram
 
 mod amt;
 mod diff;
 mod error;
+mod iter;
 mod node;
 mod root;
 mod value_mut;
@@ -17,18 +19,19 @@ mod value_mut;
 pub use self::amt::{Amt, Amtv0};
 pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;
+pub use self::iter::Iter;
 pub(crate) use self::node::Node;
 pub use self::value_mut::ValueMut;
 
-const DEFAULT_BIT_WIDTH: u32 = 3;
+const DEFAULT_BRANCHING_FACTOR: u32 = 3;
 const MAX_HEIGHT: u32 = 64;
 
 /// MaxIndex is the maximum index for elements in the AMT. This u64::MAX-1 so we
 /// don't overflow u64::MAX when computing the length.
 pub const MAX_INDEX: u64 = std::u64::MAX - 1;
 
-fn nodes_for_height(bit_width: u32, height: u32) -> u64 {
-    let height_log_two = bit_width as u64 * height as u64;
+fn nodes_for_height(branching_factor: u32, height: u32) -> u64 {
+    let height_log_two = branching_factor as u64 * height as u64;
     if height_log_two >= 64 {
         return std::u64::MAX;
     }

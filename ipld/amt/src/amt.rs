@@ -17,7 +17,7 @@ use crate::node::{CollapsedNode, Link};
 use crate::root::version::{Version as AmtVersion, V0, V3};
 use crate::root::RootImpl;
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BRANCHING_FACTOR, MAX_HEIGHT, MAX_INDEX,
 };
 
 #[derive(Debug)]
@@ -27,6 +27,35 @@ pub struct AmtImpl<V, BS, Ver> {
     pub(super) block_store: BS,
     /// Remember the last flushed CID until it changes.
     flushed_cid: Option<Cid>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Amt;
+    use quickcheck_macros::quickcheck;
+
+    #[test]
+    fn foo() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new_with_branching_factor(&db, 3);
+        amt.set(8, "foo".to_owned()).unwrap();
+        dbg!(&amt);
+        amt.flush().unwrap();
+        dbg!(amt);
+    }
+
+    #[quickcheck]
+    fn vary_branching_factor(branching_factor: u32) {
+        let branching_factor = branching_factor % 20;
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new_with_branching_factor(&db, branching_factor);
+        amt.set(0, "foo".to_owned()).unwrap();
+        // dbg!(amt);
+    }
 }
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
@@ -66,20 +95,20 @@ where
 {
     /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
-        Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
+        Self::new_with_branching_factor(block_store, DEFAULT_BRANCHING_FACTOR)
     }
 
     /// Construct new Amt with given bit width
-    pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
+    pub fn new_with_branching_factor(block_store: BS, branching_factor: u32) -> Self {
         Self {
-            root: RootImpl::new_with_bit_width(bit_width),
+            root: RootImpl::new_with_branching_factor(branching_factor),
             block_store,
             flushed_cid: None,
         }
     }
 
-    pub(super) fn bit_width(&self) -> u32 {
-        self.root.bit_width
+    pub(super) fn branching_factor(&self) -> u32 {
+        self.root.branching_factor
     }
 
     /// Gets the height of the `Amt`.
@@ -103,15 +132,15 @@ where
     ///
     /// This can be called with an iterator of _references_ to values to avoid copying.
     pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
-        Self::new_from_iter_with_bit_width(block_store, DEFAULT_BIT_WIDTH, vals)
+        Self::new_from_iter_with_branching_factor(block_store, DEFAULT_BRANCHING_FACTOR, vals)
     }
 
     /// Generates an AMT with the requested bitwidth from an array of serializable objects.
     ///
     /// This can be called with an iterator of _references_ to values to avoid copying.
-    pub fn new_from_iter_with_bit_width(
+    pub fn new_from_iter_with_branching_factor(
         block_store: BS,
-        bit_width: u32,
+        branching_factor: u32,
         vals: impl IntoIterator<Item = V>,
     ) -> Result<Cid, Error> {
         #[derive(serde::Serialize)]
@@ -130,7 +159,7 @@ where
             }
         }
 
-        let mut t = AmtImpl::<_, BS, Ver>::new_with_bit_width(block_store, bit_width);
+        let mut t = AmtImpl::<_, BS, Ver>::new_with_branching_factor(block_store, branching_factor);
 
         t.batch_set(vals.into_iter().map(FakeDeserialize))?;
 
@@ -169,13 +198,13 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
+        if i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
             return Ok(None);
         }
 
         self.root
             .node
-            .get(&self.block_store, self.height(), self.bit_width(), i)
+            .get(&self.block_store, self.height(), self.branching_factor(), i)
     }
 
     /// Set value at index
@@ -184,11 +213,12 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        while i >= nodes_for_height(self.bit_width(), self.height() + 1) {
+        while i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
             // node at index exists
             if !self.root.node.is_empty() {
                 // Parent node for expansion
-                let mut new_links: Vec<Option<Link<V>>> = init_sized_vec(self.root.bit_width);
+                let mut new_links: Vec<Option<Link<V>>> =
+                    init_sized_vec(self.root.branching_factor);
 
                 // Take root node to be moved down
                 let node = std::mem::replace(&mut self.root.node, Node::empty());
@@ -200,7 +230,7 @@ where
             } else {
                 // If first expansion is before a value inserted, convert base node to Link
                 self.root.node = Node::Link {
-                    links: init_sized_vec(self.bit_width()),
+                    links: init_sized_vec(self.branching_factor()),
                 };
             }
             // Incrememnt height after each iteration
@@ -210,7 +240,13 @@ where
         if self
             .root
             .node
-            .set(&self.block_store, self.height(), self.bit_width(), i, val)?
+            .set(
+                &self.block_store,
+                self.height(),
+                self.branching_factor(),
+                i,
+                val,
+            )?
             .is_none()
         {
             self.root.count += 1;
@@ -238,7 +274,7 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
+        if i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
             // Index was out of range of current AMT
             return Ok(None);
         }
@@ -247,7 +283,7 @@ where
         let deleted =
             self.root
                 .node
-                .delete(&self.block_store, self.height(), self.bit_width(), i)?;
+                .delete(&self.block_store, self.height(), self.branching_factor(), i)?;
 
         if deleted.is_none() {
             return Ok(None);
@@ -259,7 +295,7 @@ where
         if self.root.node.is_empty() {
             // Last link was removed, replace root with a leaf node and reset height.
             self.root.node = Node::Leaf {
-                vals: init_sized_vec(self.root.bit_width),
+                vals: init_sized_vec(self.root.branching_factor),
             };
             self.root.height = 0;
         } else {
@@ -280,7 +316,7 @@ where
                                 self.block_store
                                     .get_cbor::<CollapsedNode<V>>(cid)?
                                     .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                    .expand(self.root.bit_width)?
+                                    .expand(self.root.branching_factor)?
                             }
                         }
                         _ => unreachable!("First index checked to be Some in `can_collapse`"),
@@ -376,7 +412,7 @@ where
             .for_each_while(
                 &self.block_store,
                 self.height(),
-                self.bit_width(),
+                self.branching_factor(),
                 0,
                 &mut f,
             )
@@ -429,7 +465,7 @@ where
             start_at,
             limit,
             self.height(),
-            self.bit_width(),
+            self.branching_factor(),
             0,
             &mut |i, v| {
                 f(i, v)?;
@@ -462,7 +498,7 @@ where
             start_at,
             limit,
             self.height(),
-            self.bit_width(),
+            self.branching_factor(),
             0,
             &mut f,
         )?;
@@ -490,7 +526,7 @@ where
         let (_, did_mutate) = self.root.node.for_each_while_mut(
             &self.block_store,
             self.height(),
-            self.bit_width(),
+            self.branching_factor(),
             0,
             &mut f,
         )?;

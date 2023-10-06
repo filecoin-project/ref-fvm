@@ -40,13 +40,13 @@ impl<Old, New> Change<Old, New> {
 
 struct NodeContext<'bs, BS> {
     pub height: u32,
-    pub bit_width: u32,
+    pub branching_factor: u32,
     pub store: &'bs BS,
 }
 
 impl<'bs, BS> NodeContext<'bs, BS> {
     fn nodes_at_height(&self) -> u64 {
-        nodes_for_height(self.bit_width, self.height)
+        nodes_for_height(self.branching_factor, self.height)
     }
 }
 
@@ -54,7 +54,7 @@ impl<'bs, V, BS> From<&'bs Amt<V, BS>> for NodeContext<'bs, BS> {
     fn from(value: &'bs Amt<V, BS>) -> Self {
         Self {
             height: value.height(),
-            bit_width: value.bit_width(),
+            branching_factor: value.branching_factor(),
             store: &value.block_store,
         }
     }
@@ -72,11 +72,11 @@ where
     OldBS: Blockstore,
     NewBS: Blockstore,
 {
-    if prev_amt.bit_width() != curr_amt.bit_width() {
+    if prev_amt.branching_factor() != curr_amt.branching_factor() {
         anyhow::bail!(
             "diffing AMTs with differing bitWidths not supported (prev={}, cur={})",
-            prev_amt.bit_width(),
-            curr_amt.bit_width()
+            prev_amt.branching_factor(),
+            curr_amt.branching_factor()
         );
     }
 
@@ -108,14 +108,20 @@ where
         Node::Leaf { vals } => vals.len(),
         Node::Link { links } => links.len(),
     });
-    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
-        changes.push(Change {
-            key: i,
-            before: None,
-            after: Some(x.clone()),
-        });
-        Ok(true)
-    })?;
+    node.for_each_while(
+        ctx.store,
+        ctx.height,
+        ctx.branching_factor,
+        offset,
+        &mut |i, x| {
+            changes.push(Change {
+                key: i,
+                before: None,
+                after: Some(x.clone()),
+            });
+            Ok(true)
+        },
+    )?;
 
     Ok(changes)
 }
@@ -133,14 +139,20 @@ where
         Node::Leaf { vals } => vals.len(),
         Node::Link { links } => links.len(),
     });
-    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
-        changes.push(Change {
-            key: i,
-            before: Some(x.clone()),
-            after: None,
-        });
-        Ok(true)
-    })?;
+    node.for_each_while(
+        ctx.store,
+        ctx.height,
+        ctx.branching_factor,
+        offset,
+        &mut |i, x| {
+            changes.push(Change {
+                key: i,
+                before: Some(x.clone()),
+                after: None,
+            });
+            Ok(true)
+        },
+    )?;
 
     Ok(changes)
 }
@@ -227,10 +239,10 @@ where
             if let Some(link) = link {
                 let sub_ctx = NodeContext {
                     height: curr_ctx.height - 1,
-                    bit_width: curr_ctx.bit_width,
+                    branching_factor: curr_ctx.branching_factor,
                     store: curr_ctx.store,
                 };
-                let sub_node = get_sub_node(link, &sub_ctx, curr_ctx.bit_width)?;
+                let sub_node = get_sub_node(link, &sub_ctx, curr_ctx.branching_factor)?;
                 let new_offset = offset + sub_count * i as u64;
 
                 changes.append(&mut if i == 0 {
@@ -243,7 +255,7 @@ where
 
         Ok(changes)
     } else if curr_ctx.height < prev_ctx.height {
-        let sub_count = nodes_for_height(prev_ctx.bit_width, prev_ctx.height);
+        let sub_count = nodes_for_height(prev_ctx.branching_factor, prev_ctx.height);
         let links = match prev_node {
             Node::Link { links } => links,
             _ => anyhow::bail!("Node::Link expected"),
@@ -253,10 +265,10 @@ where
             if let Some(link) = link {
                 let sub_ctx = NodeContext {
                     height: prev_ctx.height - 1,
-                    bit_width: prev_ctx.bit_width,
+                    branching_factor: prev_ctx.branching_factor,
                     store: prev_ctx.store,
                 };
-                let sub_node = get_sub_node(link, &sub_ctx, prev_ctx.bit_width)?;
+                let sub_node = get_sub_node(link, &sub_ctx, prev_ctx.branching_factor)?;
                 let new_offset = offset + sub_count * i as u64;
 
                 changes.append(&mut if i == 0 {
@@ -291,11 +303,12 @@ where
                         (None, None) => continue,
                         (Some(prev_link), None) => {
                             let sub_ctx = NodeContext {
-                                bit_width: prev_ctx.bit_width,
+                                branching_factor: prev_ctx.branching_factor,
                                 height: prev_ctx.height - 1,
                                 store: prev_ctx.store,
                             };
-                            let sub_node = get_sub_node(prev_link, &sub_ctx, prev_ctx.bit_width)?;
+                            let sub_node =
+                                get_sub_node(prev_link, &sub_ctx, prev_ctx.branching_factor)?;
                             let new_offset = offset + sub_count * i as u64;
                             changes.append(&mut remove_all(
                                 &sub_ctx,
@@ -305,11 +318,12 @@ where
                         }
                         (None, Some(curr_link)) => {
                             let sub_ctx = NodeContext {
-                                bit_width: curr_ctx.bit_width,
+                                branching_factor: curr_ctx.branching_factor,
                                 height: curr_ctx.height - 1,
                                 store: curr_ctx.store,
                             };
-                            let sub_node = get_sub_node(curr_link, &sub_ctx, curr_ctx.bit_width)?;
+                            let sub_node =
+                                get_sub_node(curr_link, &sub_ctx, curr_ctx.branching_factor)?;
                             let new_offset = offset + sub_count * i as u64;
                             changes.append(&mut add_all(&sub_ctx, sub_node.borrow(), new_offset)?);
                         }
@@ -326,7 +340,7 @@ where
                                                 .context(
                                                     "Failed to get collapsed node from block store",
                                                 )?
-                                                .expand(prev_ctx.bit_width)?,
+                                                .expand(prev_ctx.branching_factor)?,
                                         ),
                                     },
                                 ),
@@ -344,7 +358,7 @@ where
                                                 .context(
                                                     "Failed to get collapsed node from block store",
                                                 )?
-                                                .expand(curr_ctx.bit_width)?,
+                                                .expand(curr_ctx.branching_factor)?,
                                         ),
                                     },
                                 ),
@@ -360,12 +374,12 @@ where
                             }
 
                             let prev_sub_ctx = NodeContext {
-                                bit_width: prev_ctx.bit_width,
+                                branching_factor: prev_ctx.branching_factor,
                                 height: prev_ctx.height - 1,
                                 store: prev_ctx.store,
                             };
                             let curr_sub_ctx = NodeContext {
-                                bit_width: curr_ctx.bit_width,
+                                branching_factor: curr_ctx.branching_factor,
                                 height: curr_ctx.height - 1,
                                 store: curr_ctx.store,
                             };
@@ -394,7 +408,7 @@ where
 fn get_sub_node<'a, V, BS>(
     link: &'a Link<V>,
     sub_ctx: &NodeContext<BS>,
-    bit_width: u32,
+    branching_factor: u32,
 ) -> anyhow::Result<Either<'a, Node<V>>>
 where
     V: DeserializeOwned,
@@ -409,7 +423,7 @@ where
                     .store
                     .get_cbor::<CollapsedNode<V>>(cid)?
                     .context("Failed to get collapsed node from block store")?
-                    .expand(bit_width)?;
+                    .expand(branching_factor)?;
                 Either::Owned(node)
             }
         }
