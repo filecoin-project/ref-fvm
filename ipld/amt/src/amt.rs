@@ -23,8 +23,8 @@ use crate::{
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct AmtImpl<V, BS, Ver> {
-    pub(super) root: RootImpl<V, Ver>,
-    pub(super) block_store: BS,
+    pub(crate) root: RootImpl<V, Ver>,
+    pub(crate) block_store: BS,
     /// Remember the last flushed CID until it changes.
     flushed_cid: Option<Cid>,
 }
@@ -79,6 +79,7 @@ mod tests {
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
+// TODO(jdjaustin): clean all this up
 pub type Amt<V, BS> = AmtImpl<V, BS, V3>;
 /// Legacy amt V0
 pub type Amtv0<V, BS> = AmtImpl<V, BS, V0>;
