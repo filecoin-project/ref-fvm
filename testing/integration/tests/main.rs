@@ -19,8 +19,9 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_test_actors::wasm_bin::{
-    CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY,
-    OOM_ACTOR_BINARY, SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+    ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY,
+    IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY, SSELF_ACTOR_BINARY,
+    STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY, UPGRADE_ACTOR_BINARY,
 };
 use num_traits::Zero;
 
@@ -1000,6 +1001,202 @@ fn test_oom4() {
         .unwrap();
 
     assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
+}
+
+#[test]
+fn basic_address_tests() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = ADDRESS_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    // Test all methods.
+    for (seq, method) in (2..=5).enumerate() {
+        let message = Message {
+            from: sender_address,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: method,
+            sequence: seq as u64,
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+    }
+}
+
+#[test]
+fn readonly_actor_tests() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = READONLY_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    let message = Message {
+        from: sender_address,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 2,
+        sequence: 0,
+        value: TokenAmount::from_atto(100),
+        ..Message::default()
+    };
+
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+    assert!(
+        res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        res.failure_info
+    );
+    assert!(res.msg_receipt.events_root.is_none());
+}
+
+#[test]
+fn upgrade_actor_test() {
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 3] = tester.create_accounts().unwrap();
+    let receiver = Address::new_id(10000);
+    let state_cid = tester.set_state(&[(); 0]).unwrap();
+
+    let wasm_bin = UPGRADE_ACTOR_BINARY;
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, receiver, TokenAmount::zero())
+        .unwrap();
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    {
+        // test a successful call to `upgrade` endpoint
+        let message = Message {
+            from: sender[0].1,
+            to: receiver,
+            gas_limit: 1000000000,
+            method_num: 1,
+            sequence: 0_u64,
+            value: TokenAmount::from_atto(100),
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+        let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        assert_eq!(val, 666);
+    }
+
+    {
+        let message = Message {
+            from: sender[1].1,
+            to: receiver,
+            gas_limit: 1000000000,
+            method_num: 2,
+            sequence: 0_u64,
+            value: TokenAmount::from_atto(100),
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+    }
+
+    {
+        let message = Message {
+            from: sender[2].1,
+            to: receiver,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 0_u64,
+            value: TokenAmount::from_atto(100),
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        assert_eq!(val, 444);
+
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+    }
 }
 
 #[derive(Default)]
