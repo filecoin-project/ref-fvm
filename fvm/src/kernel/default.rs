@@ -14,7 +14,7 @@ use fvm_shared::address::Payload;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::{ErrorNumber, ExitCode};
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
@@ -931,7 +931,7 @@ where
                 false,
             )?;
 
-            if result.exit_code == ExitCode::OK {
+            if result.exit_code.is_success() {
                 // after running the upgrade, our code cid must not have changed
                 let code_after_upgrade = cm
                     .get_actor(self.actor_id)?

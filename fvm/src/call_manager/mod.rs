@@ -230,6 +230,13 @@ impl Entrypoint {
         }
     }
 
+    fn invokes(&self, method: MethodNum) -> bool {
+        match self {
+            Entrypoint::Invoke(num) => *num == method,
+            Entrypoint::Upgrade(_) => false,
+        }
+    }
+
     fn into_params(self, br: &mut BlockRegistry) -> Result<Vec<wasmtime::Val>> {
         match self {
             Entrypoint::Invoke(_) => Ok(Vec::new()),

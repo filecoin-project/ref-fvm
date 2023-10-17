@@ -660,7 +660,7 @@ where
         }
 
         // Abort early if we have a send.
-        if let Entrypoint::Invoke(METHOD_SEND) = entrypoint {
+        if entrypoint.invokes(METHOD_SEND) {
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::default());
         }
