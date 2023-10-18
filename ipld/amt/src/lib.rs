@@ -22,6 +22,7 @@ pub use self::error::Error;
 pub use self::iter::Iter;
 pub(crate) use self::node::Node;
 pub use self::value_mut::ValueMut;
+pub use self::root::version::V3;
 
 const DEFAULT_BRANCHING_FACTOR: u32 = 3;
 const MAX_HEIGHT: u32 = 64;

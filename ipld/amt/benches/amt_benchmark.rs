@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fvm_ipld_amt::Amt;
+use fvm_ipld_amt::{Amt, AmtImpl};
+use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 const ITEM_COUNT: usize = 60;
@@ -116,17 +118,17 @@ fn from_slice(c: &mut Criterion) {
     });
 }
 
-// fn for_each(c: &mut Criterion) {
-//     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-//     let cid = Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
+fn for_each(c: &mut Criterion) {
+    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+    let cid = Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
 
-//     c.bench_function("AMT for_each function", |b| {
-//         b.iter(|| {
-//             let a = Amt::load(&cid, &db).unwrap();
-//             black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
-//         })
-//     });
-// }
+    c.bench_function("AMT for_each function", |b| {
+        b.iter(|| {
+            let a: AmtImpl<ByteBuf, &MemoryBlockstore, fvm_ipld_amt::V3> = Amt::load(&cid, &db).unwrap();
+            black_box(a).iter().for_each(|_| ());
+        })
+    });
+}
 
-criterion_group!(benches, insert, insert_load_flush, from_slice);
+criterion_group!(benches, insert, insert_load_flush, from_slice, for_each);
 criterion_main!(benches);
