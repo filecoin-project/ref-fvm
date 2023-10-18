@@ -14,6 +14,7 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, METHOD_SEND};
 use num_traits::Zero;
+use std::collections::HashMap;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
@@ -75,6 +76,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     limits: M::Limiter,
     /// Accumulator for events emitted in this call stack.
     events: EventsAccumulator,
+    /// A map of ActorID and how often they appear on the call stack.
+    actor_call_stack: HashMap<ActorID, i32>,
 }
 
 #[doc(hidden)]
@@ -159,6 +162,7 @@ where
             limits,
             events: Default::default(),
             state_access_tracker,
+            actor_call_stack: HashMap::new(),
         })))
     }
 
@@ -325,6 +329,14 @@ where
 
     fn nonce(&self) -> u64 {
         self.nonce
+    }
+
+    fn get_actor_call_stack(&self) -> &HashMap<ActorID, i32> {
+        &self.actor_call_stack
+    }
+
+    fn get_actor_call_stack_mut(&mut self) -> &mut HashMap<ActorID, i32> {
+        &mut self.actor_call_stack
     }
 
     fn next_actor_address(&self) -> Address {

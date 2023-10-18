@@ -137,6 +137,12 @@ where
             return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
         }
 
+        self.call_manager
+            .get_actor_call_stack_mut()
+            .entry(self.actor_id)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+
         // Send.
         let result = self.call_manager.with_transaction(|cm| {
             cm.call_actor::<K>(
@@ -871,6 +877,14 @@ where
 
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
+    }
+
+    fn is_actor_on_call_stack(&self) -> bool {
+        self.call_manager
+            .get_actor_call_stack()
+            .get(&self.actor_id)
+            .map(|count| *count > 0)
+            .unwrap_or(false)
     }
 
     fn upgrade_actor<K: Kernel>(

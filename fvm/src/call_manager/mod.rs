@@ -7,6 +7,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum};
+use std::collections::HashMap;
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
@@ -118,6 +119,9 @@ pub trait CallManager: 'static {
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    fn get_actor_call_stack(&self) -> &HashMap<ActorID, i32>;
+    fn get_actor_call_stack_mut(&mut self) -> &mut HashMap<ActorID, i32>;
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;

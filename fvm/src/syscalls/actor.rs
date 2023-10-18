@@ -121,6 +121,14 @@ pub fn upgrade_actor<K: Kernel>(
         Err(err) => return err.into(),
     };
 
+    // actor cannot be upgraded if its already on the call stack
+    if context.kernel.is_actor_on_call_stack() {
+        return ControlFlow::Error(syscall_error!(
+            Forbidden;
+            "cannot upgrade actor if it is already on the call stack"
+        ));
+    };
+
     match context.kernel.upgrade_actor::<K>(cid, params_id) {
         Ok(SendResult {
             block_id,

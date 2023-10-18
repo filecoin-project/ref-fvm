@@ -302,6 +302,10 @@ where
     fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<SendResult> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
+
+    fn is_actor_on_call_stack(&self) -> bool {
+        self.0.is_actor_on_call_stack()
+    }
 }
 
 impl<M, C, K> IpldBlockOps for TestKernel<K>
